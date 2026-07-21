@@ -51,4 +51,33 @@ object ContractRules {
             "consultado_en debe usar ISO 8601 UTC."
         }
     }
+    fun validateSelections(product: Product, selectedOptionIds: Set<Int>) {
+        val allOptionIds = product.optionGroups.flatMap(OptionGroup::options).mapTo(mutableSetOf(), ProductOption::id)
+        require(selectedOptionIds.all { it in allOptionIds }) {
+            "Una opción seleccionada no pertenece al producto ${product.id}."
+        }
+
+        product.optionGroups.forEach { group ->
+            val count = group.options.count { it.id in selectedOptionIds }
+            require(count in group.minimumSelections..group.maximumSelections) {
+                "El grupo ${group.id} requiere entre ${group.minimumSelections} y ${group.maximumSelections} selecciones."
+            }
+        }
+    }
+
+    fun validateCreateOrderRequest(request: CreateOrderRequest) {
+        require(request.paymentMethod == PaymentMethod.CASH) { "VAI-10 solo acepta efectivo." }
+        require(request.destination == OrderDestination.TAKE_AWAY) {
+            "VAI-10 solo acepta destino para_llevar."
+        }
+        require(request.spaceId == null) { "para_llevar exige espacio_id null." }
+        require(request.items.size in 1..50) { "El pedido debe contener entre 1 y 50 líneas." }
+        request.items.forEach { item ->
+            require(item.quantity in 1..20) { "cantidad debe estar entre 1 y 20." }
+            require(item.optionIds.distinct().size == item.optionIds.size) {
+                "opcion_ids no puede contener duplicados."
+            }
+        }
+    }
+
 }

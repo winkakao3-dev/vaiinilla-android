@@ -1,62 +1,89 @@
-# Vaiinilla Android — VAI-5
+# Vaiinilla Android — VAI-10
 
-Base nativa Android para **Entrega 01 — Pedido en efectivo E2E**. Este repositorio corresponde únicamente a **VAI-5: Kotlin/Compose, arquitectura y CI**.
+Implementación Android nativa del flujo de alumno definido para **VAI-10: catálogo → detalle/configuración → carrito → efectivo → confirmación**.
 
-La fuente de verdad es la bóveda:
+Fuentes de verdad:
 
-- `Vaiinilla/Modulos/Entrega-01-Pedido-Efectivo/README.md`
-- `Vaiinilla/Modulos/Entrega-01-Pedido-Efectivo/CONTEXT.md`
-- `Vaiinilla/Modulos/Entrega-01-Pedido-Efectivo/CONTRACTS.md` v1.0
+- `docs/source-of-truth/BOVEDA_README.md`
+- `docs/source-of-truth/BOVEDA_CONTEXT.md`
+- `docs/source-of-truth/BOVEDA_CONTRACTS.md` v1.0
+- `docs/source-of-truth/VAIINILLA_TASK_HANDOFF.md`
+- demo visual, ventanas 02, 07, 08, 13 y 16
 
-## Qué demuestra
+## Flujo implementado
 
-- Aplicación Android con Jetpack Compose y navegación ejecutable.
-- Separación `core / data / domain / ui`.
-- Inyección de dependencias con Hilt.
-- Cambio entre repositorio `MOCK` y `REMOTE` sin modificar pantallas.
-- Cliente remoto deliberadamente vacío hasta recibir OpenAPI aprobado.
-- Fixtures JSON canónicos con nombres `snake_case` del contrato.
-- Mapeo explícito DTO → dominio; `imagen_url` se conserva como campo contractual.
-- Tokens futuros protegidos con Android Keystore.
-- Validación automática de fixtures, alcance, tests, lint y build en CI.
+1. El alumno abre el catálogo y ve disponibilidad operativa.
+2. Puede buscar y filtrar productos por categoría.
+3. Abre un producto en un sheet visual comparable al mockup.
+4. Selecciona opciones respetando `min_selecciones` y `max_selecciones`, y una cantidad entre 1 y 20.
+5. Agrega configuraciones al carrito; una línea idéntica se consolida sin superar 20 unidades.
+6. Revisa el carrito para `para_llevar`, añade notas y usa exclusivamente `efectivo`.
+7. La app envía un request contractual sin precios, total, folio, tenant, usuario ni estado.
+8. El repositorio fixture actúa como frontera server-side, valida la operación y devuelve `OrderDetail` en `por_cobrar`.
+9. La confirmación muestra folio, total confirmado y siguiente paso en Caja.
 
-No implementa carrito, creación de pedido, cobro ni seguimiento. Esas funciones corresponden a VAI-10 y VAI-11.
+## Límites respetados
 
-## Limitaciones de validación
+No se implementan:
 
-- No se dispone de emulador ni dispositivo físico en CI local.
-- No se ejecutan pruebas instrumentadas (`connectedAndroidTest`).
-- No se validó visualmente la navegación ni las pantallas.
-- Solo se garantiza compilación, pruebas unitarias, lint, auditorías estáticas y generación del APK.
+- seguimiento o transiciones posteriores de VAI-11;
+- cobro de Caja, Cocina o Mesero;
+- destino `en_espacio`;
+- tarjeta, saldo, wallet, recargas o cashback funcional;
+- stickers, receipts coleccionables o reimpresión;
+- cancelaciones, reembolsos, administración o analíticas.
 
-## Estructura
+El campo contractual `cashback_otorgado` se conserva en `OrderSummary`, pero VAI-10 no contiene lógica de cashback.
+
+## Arquitectura
 
 ```text
 app/src/main/java/com/vaiinilla/app/
-├── core/       # configuración, cliente remoto vacío y seguridad
-├── data/       # DTO, parser JSON, fixtures, repositorios y módulos Hilt
-├── domain/     # modelos, reglas, interfaces y casos de uso
-└── ui/         # ViewModel, navegación, pantallas y tema
+├── core/       # ambiente, cliente HTTP vacío y seguridad
+├── data/       # DTO, JSON contractual, fixtures, repositorios y Hilt
+├── domain/     # modelos, dinero BigDecimal, reglas, repositorios y casos de uso
+└── ui/         # estado compartido, navegación, componentes y pantallas Compose
 ```
 
-Los fixtures viven únicamente en:
+La UI depende de `CatalogRepository` y `OrderRepository`; cambiar `MOCK` por `REMOTE` no requiere rehacer pantallas.
+
+## Dinero
+
+- Los modelos mantienen importes como `String` decimal con dos posiciones.
+- Los cálculos visuales y del backend fixture usan `BigDecimal`.
+- No se usa `Double` ni `Float` en el dominio monetario.
+- Los totales del carrito son una previsualización; el `OrderDetail` devuelto por repositorio es la autoridad para la confirmación.
+
+## Fixtures
 
 ```text
 app/src/main/assets/fixtures/
 ├── catalog.json
-└── operational_status.json
+├── operational_status.json
+└── created_order.json
 ```
 
-La app y las pruebas leen esos mismos archivos. No existe una segunda copia hardcodeada en Kotlin.
+`catalog.json` incluye los grupos contractuales necesarios para demostrar configuración del burrito. `created_order.json` valida la forma de `OrderDetail` que nace en `por_cobrar`.
 
-## Requisitos
+## Fuente de datos
 
-- macOS, Linux o Windows.
-- JDK 17.
-- Android SDK 36.
-- Conexión a internet durante la primera sincronización de Gradle.
+Por defecto:
 
-## Primera verificación
+```bash
+./gradlew assembleDebug -PvaiinillaDataSource=MOCK
+```
+
+Frontera remota:
+
+```bash
+./gradlew assembleDebug \
+  -PvaiinillaDataSource=REMOTE \
+  -PvaiinillaApiBaseUrl=https://api.dev.example/api/v1/
+```
+
+El modo remoto conoce únicamente los paths aprobados `catalogo`, `estado-operativo` y `pedidos`, pero continúa fallando de forma controlada hasta disponer del adaptador/OpenAPI del backend.
+
+## Validación
 
 ```bash
 chmod +x gradlew scripts/*.sh scripts/*.py
@@ -67,61 +94,16 @@ python3 scripts/validate_fixtures.py
 ./gradlew assembleDebug
 ```
 
+O todo junto:
+
+```bash
+./scripts/verify-on-mac.sh
+```
+
 APK esperado:
 
 ```text
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## Gradle Wrapper
-
-El paquete incluye un bootstrap temporal verificado por SHA-256 para poder ejecutar Gradle 8.13 aun antes de generar el wrapper estándar. En la primera Mac con acceso a internet, reemplázalo por el wrapper oficial:
-
-```bash
-./scripts/install-standard-wrapper.sh
-```
-
-Después confirma:
-
-```bash
-ls -lh gradle/wrapper/gradle-wrapper.jar
-./gradlew --version
-```
-
-Los archivos `gradlew`, `gradlew.bat`, `gradle-wrapper.jar` y `gradle-wrapper.properties` generados deben subirse al repositorio.
-
-## Fuente de datos
-
-Por defecto se usan fixtures:
-
-```bash
-./gradlew assembleDebug -PvaiinillaDataSource=MOCK
-```
-
-Para comprobar que UI y dominio no dependen del mock:
-
-```bash
-./gradlew assembleDebug \
-  -PvaiinillaDataSource=REMOTE \
-  -PvaiinillaApiBaseUrl=https://api.dev.example/api/v1/
-```
-
-El modo `REMOTE` no inventa endpoints ni interpreta respuestas todavía. Devuelve un error controlado hasta recibir OpenAPI aprobado.
-
-## Criterios de VAI-5
-
-- [x] Compose y navegación.
-- [x] Separación UI/domain/data.
-- [x] Hilt como inyección de dependencias.
-- [x] Repositorio simulado/remoto configurable.
-- [x] Cliente remoto vacío.
-- [x] Almacenamiento seguro preparado.
-- [x] Fixtures JSON compatibles con el contrato y usados por app/tests.
-- [x] Tests y CI definidos.
-- [x] README con comandos y estructura.
-- [x] Sin lógica monetaria en Composables o ViewModels.
-- [x] Ejecutar Gradle con Android SDK 36 y obtener CI verde antes de marcar **Listo**.
-
-Consulta `docs/VAI-5_SCOPE.md` y `docs/DELIVERY_REPORT.md` para el alcance y la evidencia técnica.
-
-Consulta también `docs/MAC_VALIDATION.md` para los comandos finales en macOS.
+Consulta `docs/VAI-10_DELIVERY_REPORT.md` para el mapa, los archivos modificados, pruebas y limitaciones de validación de esta entrega.

@@ -28,7 +28,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "0.1.0-vai5"
+        versionName = "0.2.0-vai10"
 
         buildConfigField("String", "DATA_SOURCE_MODE", "\"$selectedDataSource\"")
         buildConfigField("String", "API_BASE_URL", "\"$selectedApiBaseUrl\"")
@@ -74,6 +74,7 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

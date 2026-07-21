@@ -1,8 +1,16 @@
 {
   "data": {
     "categorias": [
-      { "id": 10, "nombre": "Bebidas", "orden": 1 },
-      { "id": 20, "nombre": "Comida", "orden": 2 }
+      {
+        "id": 10,
+        "nombre": "Bebidas",
+        "orden": 1
+      },
+      {
+        "id": 20,
+        "nombre": "Comida",
+        "orden": 2
+      }
     ],
     "productos": [
       {
@@ -25,8 +33,16 @@
             "min_selecciones": 1,
             "max_selecciones": 1,
             "opciones": [
-              { "id": 301, "nombre": "Mediana", "precio_extra": "0.00" },
-              { "id": 302, "nombre": "Grande", "precio_extra": "7.00" }
+              {
+                "id": 301,
+                "nombre": "Mediana",
+                "precio_extra": "0.00"
+              },
+              {
+                "id": 302,
+                "nombre": "Grande",
+                "precio_extra": "7.00"
+              }
             ]
           }
         ]
@@ -59,7 +75,77 @@
         "precio_digital": "70.00",
         "disponible": true,
         "imagen_url": "fixture://burrito_norteno",
-        "grupos_opcion": []
+        "grupos_opcion": [
+          {
+            "id": 210,
+            "nombre": "Guiso",
+            "min_selecciones": 1,
+            "max_selecciones": 1,
+            "opciones": [
+              {
+                "id": 310,
+                "nombre": "Asada",
+                "precio_extra": "0.00"
+              },
+              {
+                "id": 311,
+                "nombre": "Deshebrada",
+                "precio_extra": "0.00"
+              },
+              {
+                "id": 312,
+                "nombre": "Frijol con queso",
+                "precio_extra": "0.00"
+              },
+              {
+                "id": 313,
+                "nombre": "Chile relleno",
+                "precio_extra": "0.00"
+              }
+            ]
+          },
+          {
+            "id": 211,
+            "nombre": "Salsa",
+            "min_selecciones": 1,
+            "max_selecciones": 1,
+            "opciones": [
+              {
+                "id": 314,
+                "nombre": "Verde",
+                "precio_extra": "0.00"
+              },
+              {
+                "id": 315,
+                "nombre": "Roja",
+                "precio_extra": "0.00"
+              },
+              {
+                "id": 316,
+                "nombre": "Sin salsa",
+                "precio_extra": "0.00"
+              }
+            ]
+          },
+          {
+            "id": 212,
+            "nombre": "Extra",
+            "min_selecciones": 0,
+            "max_selecciones": 1,
+            "opciones": [
+              {
+                "id": 317,
+                "nombre": "Queso gratinado",
+                "precio_extra": "12.00"
+              },
+              {
+                "id": 318,
+                "nombre": "Aguacate",
+                "precio_extra": "10.00"
+              }
+            ]
+          }
+        ]
       }
     ]
   },

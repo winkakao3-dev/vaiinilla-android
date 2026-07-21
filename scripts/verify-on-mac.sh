@@ -11,5 +11,5 @@ python3 scripts/validate_fixtures.py
 ./gradlew --no-daemon assembleDebug
 
 echo
-echo "Validación VAI-5 terminada."
+echo "Validación VAI-10 terminada."
 echo "APK: app/build/outputs/apk/debug/app-debug.apk"
