@@ -9,12 +9,15 @@ interface VaiinillaApiClient {
 class EmptyVaiinillaApiClient(
     override val baseUrl: String,
 ) : VaiinillaApiClient {
-    override fun get(path: String): Result<String> = Result.failure(
-        RemoteClientNotConfiguredException(
-            "El cliente remoto está preparado pero no implementado. " +
-                "Se requiere OpenAPI aprobado antes de conectar $path.",
-        ),
-    )
+    override fun get(path: String): Result<String> =
+        Result.failure(
+            RemoteClientNotConfiguredException(
+                "El cliente remoto está preparado pero no implementado. " +
+                    "Se requiere OpenAPI aprobado antes de conectar $path.",
+            ),
+        )
 }
 
-class RemoteClientNotConfiguredException(message: String) : IllegalStateException(message)
+class RemoteClientNotConfiguredException(
+    message: String,
+) : IllegalStateException(message)

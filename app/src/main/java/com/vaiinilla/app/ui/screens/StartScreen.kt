@@ -31,10 +31,11 @@ fun StartScreen(
     onOpenCatalog: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Cream)
-            .padding(horizontal = 22.dp, vertical = 30.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Cream)
+                .padding(horizontal = 22.dp, vertical = 30.dp),
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -59,8 +60,9 @@ fun StartScreen(
                 )
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    text = "Navegación, dominio y datos desacoplados. " +
-                        "Esta entrega todavía no implementa carrito, cobro ni seguimiento.",
+                    text =
+                        "Navegación, dominio y datos desacoplados. " +
+                            "Esta entrega todavía no implementa carrito, cobro ni seguimiento.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -77,10 +79,11 @@ fun StartScreen(
                     onClick = onOpenCatalog,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(22.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Lime,
-                        contentColor = Ink,
-                    ),
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = Lime,
+                            contentColor = Ink,
+                        ),
                 ) {
                     Text(
                         text = "Abrir navegación de prueba",

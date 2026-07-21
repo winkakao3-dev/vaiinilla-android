@@ -8,17 +8,19 @@ import com.vaiinilla.app.domain.repository.CatalogRepository
 class RemoteCatalogRepository(
     private val apiClient: VaiinillaApiClient,
 ) : CatalogRepository {
-    override fun getCatalog(): Result<Catalog> = apiClient.get("catalogo").fold(
-        onSuccess = {
-            Result.failure(IllegalStateException("Falta el adaptador generado desde OpenAPI."))
-        },
-        onFailure = { Result.failure(it) },
-    )
+    override fun getCatalog(): Result<Catalog> =
+        apiClient.get("catalogo").fold(
+            onSuccess = {
+                Result.failure(IllegalStateException("Falta el adaptador generado desde OpenAPI."))
+            },
+            onFailure = { Result.failure(it) },
+        )
 
-    override fun getOperationalStatus(): Result<OperationalStatus> = apiClient.get("estado-operativo").fold(
-        onSuccess = {
-            Result.failure(IllegalStateException("Falta el adaptador generado desde OpenAPI."))
-        },
-        onFailure = { Result.failure(it) },
-    )
+    override fun getOperationalStatus(): Result<OperationalStatus> =
+        apiClient.get("estado-operativo").fold(
+            onSuccess = {
+                Result.failure(IllegalStateException("Falta el adaptador generado desde OpenAPI."))
+            },
+            onFailure = { Result.failure(it) },
+        )
 }

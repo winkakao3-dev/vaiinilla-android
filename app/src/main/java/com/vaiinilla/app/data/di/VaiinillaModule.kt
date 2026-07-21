@@ -25,10 +25,11 @@ import javax.inject.Singleton
 object VaiinillaModule {
     @Provides
     @Singleton
-    fun provideEnvironment(): AppEnvironment = AppEnvironment(
-        dataSourceMode = DataSourceMode.from(BuildConfig.DATA_SOURCE_MODE),
-        apiBaseUrl = BuildConfig.API_BASE_URL,
-    )
+    fun provideEnvironment(): AppEnvironment =
+        AppEnvironment(
+            dataSourceMode = DataSourceMode.from(BuildConfig.DATA_SOURCE_MODE),
+            apiBaseUrl = BuildConfig.API_BASE_URL,
+        )
 
     @Provides
     @Singleton
@@ -48,8 +49,9 @@ object VaiinillaModule {
         fixtureSource: FixtureSource,
         parser: ContractFixtureParser,
         apiClient: VaiinillaApiClient,
-    ): CatalogRepository = when (environment.dataSourceMode) {
-        DataSourceMode.MOCK -> FixtureCatalogRepository(fixtureSource, parser)
-        DataSourceMode.REMOTE -> RemoteCatalogRepository(apiClient)
-    }
+    ): CatalogRepository =
+        when (environment.dataSourceMode) {
+            DataSourceMode.MOCK -> FixtureCatalogRepository(fixtureSource, parser)
+            DataSourceMode.REMOTE -> RemoteCatalogRepository(apiClient)
+        }
 }

@@ -2,18 +2,29 @@ package com.vaiinilla.app.domain.model
 
 object ContractRules {
     private val moneyPattern = Regex("^(0|[1-9]\\d*)\\.\\d{2}$")
-    private val utcTimestampPattern = Regex(
-        "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$",
-    )
+    private val utcTimestampPattern =
+        Regex(
+            "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$",
+        )
 
     fun isValidMoney(value: String): Boolean = moneyPattern.matches(value)
 
     fun validateCatalog(catalog: Catalog) {
         require(catalog.categories.isNotEmpty()) { "El catálogo debe incluir categorías." }
-        require(catalog.categories.map { it.id }.distinct().size == catalog.categories.size) {
+        require(
+            catalog.categories
+                .map { it.id }
+                .distinct()
+                .size == catalog.categories.size,
+        ) {
             "Los IDs de categoría deben ser únicos."
         }
-        require(catalog.products.map { it.id }.distinct().size == catalog.products.size) {
+        require(
+            catalog.products
+                .map { it.id }
+                .distinct()
+                .size == catalog.products.size,
+        ) {
             "Los IDs de producto deben ser únicos."
         }
 
@@ -28,14 +39,24 @@ object ContractRules {
             require(isValidMoney(product.counterPrice)) { "precio_mostrador inválido para ${product.id}" }
             require(isValidMoney(product.digitalPrice)) { "precio_digital inválido para ${product.id}" }
             require(product.imageUrl.isNotBlank()) { "imagen_url vacía para ${product.id}" }
-            require(product.optionGroups.map { it.id }.distinct().size == product.optionGroups.size) {
+            require(
+                product.optionGroups
+                    .map { it.id }
+                    .distinct()
+                    .size == product.optionGroups.size,
+            ) {
                 "Los IDs de grupos de opción deben ser únicos dentro del producto ${product.id}."
             }
             product.optionGroups.forEach { group ->
                 require(group.minimumSelections >= 0)
                 require(group.maximumSelections >= group.minimumSelections)
                 require(group.maximumSelections <= group.options.size)
-                require(group.options.map { it.id }.distinct().size == group.options.size) {
+                require(
+                    group.options
+                        .map { it.id }
+                        .distinct()
+                        .size == group.options.size,
+                ) {
                     "Los IDs de opción deben ser únicos dentro del grupo ${group.id}."
                 }
                 group.options.forEach { option ->

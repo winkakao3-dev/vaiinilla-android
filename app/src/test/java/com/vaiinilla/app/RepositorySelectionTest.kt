@@ -20,14 +20,21 @@ class RepositorySelectionTest {
     fun `fixture repository reads canonical JSON assets`() {
         val repository = FixtureCatalogRepository(TestFixtureSource(), ContractFixtureParser())
         assertTrue(repository.getCatalog().isSuccess)
-        assertEquals(3, repository.getCatalog().getOrThrow().products.size)
+        assertEquals(
+            3,
+            repository
+                .getCatalog()
+                .getOrThrow()
+                .products.size,
+        )
     }
 
     @Test
     fun `remote repository stops instead of inventing endpoints`() {
-        val repository = RemoteCatalogRepository(
-            EmptyVaiinillaApiClient("https://example.invalid/api/v1/"),
-        )
+        val repository =
+            RemoteCatalogRepository(
+                EmptyVaiinillaApiClient("https://example.invalid/api/v1/"),
+            )
         val result = repository.getCatalog()
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull()?.message?.contains("OpenAPI aprobado") == true)

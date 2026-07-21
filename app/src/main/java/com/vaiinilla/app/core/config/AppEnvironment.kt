@@ -2,12 +2,14 @@ package com.vaiinilla.app.core.config
 
 enum class DataSourceMode {
     MOCK,
-    REMOTE;
+    REMOTE,
+    ;
 
     companion object {
-        fun from(raw: String): DataSourceMode = entries.firstOrNull {
-            it.name.equals(raw.trim(), ignoreCase = true)
-        } ?: throw IllegalArgumentException("Modo de datos no soportado: $raw")
+        fun from(raw: String): DataSourceMode =
+            entries.firstOrNull {
+                it.name.equals(raw.trim(), ignoreCase = true)
+            } ?: throw IllegalArgumentException("Modo de datos no soportado: $raw")
     }
 }
 

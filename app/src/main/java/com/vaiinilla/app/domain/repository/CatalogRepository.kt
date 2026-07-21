@@ -5,5 +5,6 @@ import com.vaiinilla.app.domain.model.OperationalStatus
 
 interface CatalogRepository {
     fun getCatalog(): Result<Catalog>
+
     fun getOperationalStatus(): Result<OperationalStatus>
 }

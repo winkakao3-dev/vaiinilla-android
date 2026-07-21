@@ -45,14 +45,16 @@ fun CatalogScreen(
     onRetry: () -> Unit,
 ) {
     when {
-        state.loading -> Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Cream),
-            contentAlignment = Alignment.Center,
-        ) {
-            CircularProgressIndicator(color = Lime)
-        }
+        state.loading ->
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(Cream),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(color = Lime)
+            }
 
         state.errorMessage != null -> ErrorState(state.errorMessage, onBack, onRetry)
         state.catalog != null -> CatalogContent(state, onBack)
@@ -60,18 +62,23 @@ fun CatalogScreen(
 }
 
 @Composable
-private fun CatalogContent(state: CatalogUiState, onBack: () -> Unit) {
+private fun CatalogContent(
+    state: CatalogUiState,
+    onBack: () -> Unit,
+) {
     val catalog = requireNotNull(state.catalog)
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Cream),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            start = 20.dp,
-            end = 20.dp,
-            top = 24.dp,
-            bottom = 36.dp,
-        ),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Cream),
+        contentPadding =
+            androidx.compose.foundation.layout.PaddingValues(
+                start = 20.dp,
+                end = 20.dp,
+                top = 24.dp,
+                bottom = 36.dp,
+            ),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
@@ -83,10 +90,11 @@ private fun CatalogContent(state: CatalogUiState, onBack: () -> Unit) {
                 Button(
                     onClick = onBack,
                     shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = Ink,
-                    ),
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = Ink,
+                        ),
                 ) {
                     Text("Atrás")
                 }
@@ -102,8 +110,9 @@ private fun CatalogContent(state: CatalogUiState, onBack: () -> Unit) {
             Text("Catálogo de fixtures", style = MaterialTheme.typography.displayMedium)
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "Solo lectura para validar arquitectura y contrato. " +
-                    "Las acciones de compra pertenecen a VAI-10.",
+                text =
+                    "Solo lectura para validar arquitectura y contrato. " +
+                        "Las acciones de compra pertenecen a VAI-10.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyLarge,
             )
@@ -129,11 +138,12 @@ private fun OperationalCard(state: CatalogUiState) {
             Text("Estado operativo", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(5.dp))
             Text(
-                text = if (status.acceptingOrders) {
-                    "Recibiendo pedidos · ${status.estimatedTimeMinutes} min estimados"
-                } else {
-                    "No disponible"
-                },
+                text =
+                    if (status.acceptingOrders) {
+                        "Recibiendo pedidos · ${status.estimatedTimeMinutes} min estimados"
+                    } else {
+                        "No disponible"
+                    },
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
@@ -154,15 +164,17 @@ private fun ProductCard(product: Product) {
             Image(
                 painter = painterResource(productImage(product.imageUrl)),
                 contentDescription = product.name,
-                modifier = Modifier
-                    .size(104.dp)
-                    .clip(RoundedCornerShape(20.dp)),
+                modifier =
+                    Modifier
+                        .size(104.dp)
+                        .clip(RoundedCornerShape(20.dp)),
                 contentScale = ContentScale.Crop,
             )
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 15.dp, end = 6.dp),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .padding(start = 15.dp, end = 6.dp),
             ) {
                 Text(product.name, style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(4.dp))
@@ -194,12 +206,17 @@ private fun ProductCard(product: Product) {
 }
 
 @Composable
-private fun ErrorState(message: String, onBack: () -> Unit, onRetry: () -> Unit) {
+private fun ErrorState(
+    message: String,
+    onBack: () -> Unit,
+    onRetry: () -> Unit,
+) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Cream)
-            .padding(24.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Cream)
+                .padding(24.dp),
         verticalArrangement = Arrangement.Center,
     ) {
         Text("Fuente remota no disponible", style = MaterialTheme.typography.headlineMedium)
@@ -221,9 +238,10 @@ private fun ErrorState(message: String, onBack: () -> Unit, onRetry: () -> Unit)
 }
 
 @DrawableRes
-private fun productImage(imageUrl: String): Int = when (imageUrl.removePrefix("fixture://")) {
-    "jamaica" -> R.drawable.jamaica
-    "burrito_norteno" -> R.drawable.burrito_norteno
-    "waffle" -> R.drawable.waffle
-    else -> R.drawable.waffle
-}
+private fun productImage(imageUrl: String): Int =
+    when (imageUrl.removePrefix("fixture://")) {
+        "jamaica" -> R.drawable.jamaica
+        "burrito_norteno" -> R.drawable.burrito_norteno
+        "waffle" -> R.drawable.waffle
+        else -> R.drawable.waffle
+    }
