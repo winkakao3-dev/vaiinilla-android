@@ -18,7 +18,7 @@ La fuente de verdad es la bóveda:
 - Fixtures JSON canónicos con nombres `snake_case` del contrato.
 - Mapeo explícito DTO → dominio; `imagen_url` se conserva como campo contractual.
 - Tokens futuros protegidos con Android Keystore.
-- Validación automática de fixtures, alcance, tests, lint y build en CI.
+- Validación automática de fixtures, alcance, tests, Android lint, ktlint y build en CI.
 
 No implementa carrito, creación de pedido, cobro ni seguimiento. Esas funciones corresponden a VAI-10 y VAI-11.
 
@@ -64,6 +64,7 @@ python3 scripts/validate_fixtures.py
 ./scripts/audit_scope.sh
 ./gradlew testDebugUnitTest
 ./gradlew lintDebug
+./gradlew ktlintCheck
 ./gradlew assembleDebug
 ```
 

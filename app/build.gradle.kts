@@ -7,17 +7,27 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.ktlint)
 }
 
-val selectedDataSource = providers.gradleProperty("vaiinillaDataSource")
-    .orElse("MOCK")
-    .get()
-    .uppercase()
-    .also { require(it == "MOCK" || it == "REMOTE") { "vaiinillaDataSource debe ser MOCK o REMOTE" } }
+ktlint {
+    android.set(true)
+    ignoreFailures.set(false)
+}
 
-val selectedApiBaseUrl = providers.gradleProperty("vaiinillaApiBaseUrl")
-    .orElse("https://localhost.invalid/api/v1/")
-    .get()
+val selectedDataSource =
+    providers
+        .gradleProperty("vaiinillaDataSource")
+        .orElse("MOCK")
+        .get()
+        .uppercase()
+        .also { require(it == "MOCK" || it == "REMOTE") { "vaiinillaDataSource debe ser MOCK o REMOTE" } }
+
+val selectedApiBaseUrl =
+    providers
+        .gradleProperty("vaiinillaApiBaseUrl")
+        .orElse("https://localhost.invalid/api/v1/")
+        .get()
 
 android {
     namespace = "com.vaiinilla.app"
@@ -32,7 +42,6 @@ android {
 
         buildConfigField("String", "DATA_SOURCE_MODE", "\"$selectedDataSource\"")
         buildConfigField("String", "API_BASE_URL", "\"$selectedApiBaseUrl\"")
-
     }
 
     buildFeatures {
