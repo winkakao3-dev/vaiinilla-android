@@ -1,0 +1,73 @@
+{
+  "data": {
+    "categorias": [
+      { "id": 10, "nombre": "Bebidas", "orden": 1 },
+      { "id": 20, "nombre": "Comida", "orden": 2 }
+    ],
+    "productos": [
+      {
+        "id": 101,
+        "categoria_id": 10,
+        "estacion_preparacion": "caja",
+        "nombre": "Agua de jamaica",
+        "descripcion": "Agua fresca de jamaica servida fría.",
+        "ingredientes": "Agua y flor de jamaica",
+        "alergenos": "Sin alérgenos comunes",
+        "tiempo_estimado_min": 2,
+        "precio_mostrador": "18.00",
+        "precio_digital": "20.00",
+        "disponible": true,
+        "imagen_url": "fixture://jamaica",
+        "grupos_opcion": [
+          {
+            "id": 201,
+            "nombre": "Tamaño",
+            "min_selecciones": 1,
+            "max_selecciones": 1,
+            "opciones": [
+              { "id": 301, "nombre": "Mediana", "precio_extra": "0.00" },
+              { "id": 302, "nombre": "Grande", "precio_extra": "7.00" }
+            ]
+          }
+        ]
+      },
+      {
+        "id": 102,
+        "categoria_id": 20,
+        "estacion_preparacion": "cocina",
+        "nombre": "Waffle de la casa",
+        "descripcion": "Waffle dorado preparado al momento.",
+        "ingredientes": "Harina, leche, huevo y fruta",
+        "alergenos": "Gluten, leche y huevo",
+        "tiempo_estimado_min": 9,
+        "precio_mostrador": "55.00",
+        "precio_digital": "60.00",
+        "disponible": true,
+        "imagen_url": "fixture://waffle",
+        "grupos_opcion": []
+      },
+      {
+        "id": 103,
+        "categoria_id": 20,
+        "estacion_preparacion": "cocina",
+        "nombre": "Burrito norteño",
+        "descripcion": "Burrito de tortilla de harina preparado al momento.",
+        "ingredientes": "Tortilla de harina y guiso",
+        "alergenos": "Gluten; posibles lácteos",
+        "tiempo_estimado_min": 10,
+        "precio_mostrador": "64.00",
+        "precio_digital": "70.00",
+        "disponible": true,
+        "imagen_url": "fixture://burrito_norteno",
+        "grupos_opcion": []
+      }
+    ]
+  },
+  "meta": {
+    "page": null,
+    "total_pages": null,
+    "total_items": 3,
+    "cursor": "2026-07-20T15:00:00.000Z|103"
+  },
+  "error": null
+}

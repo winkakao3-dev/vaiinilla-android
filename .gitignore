@@ -1,0 +1,14 @@
+*.iml
+.gradle/
+.gradle-bootstrap/
+local.properties
+.idea/
+.DS_Store
+build/
+**/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+__pycache__/
+*.pyc
