@@ -1,5 +1,15 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -27,11 +37,19 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -43,6 +61,8 @@ import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.theme.Cream
 import com.vaiinilla.app.ui.theme.Ink
 import com.vaiinilla.app.ui.theme.Lime
+import kotlinx.coroutines.delay
+import kotlin.math.sin
 
 private val PrinterInk = Color(0xFF111210)
 private val PrinterMuted = Color(0xFF9A9C96)
@@ -71,6 +91,20 @@ fun OrderConfirmationScreen(
         return
     }
 
+    val printProgress = remember(order.summary.id) { Animatable(0f) }
+    var printed by remember(order.summary.id) { mutableStateOf(false) }
+
+    LaunchedEffect(order.summary.id) {
+        printed = false
+        printProgress.snapTo(0f)
+        delay(180)
+        printProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 2_650, easing = LinearEasing),
+        )
+        printed = true
+    }
+
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
@@ -91,34 +125,44 @@ fun OrderConfirmationScreen(
         ) {
             ReceiptPrinterMachine(
                 folio = order.summary.folio,
+                printed = printed,
                 modifier = Modifier.fillMaxWidth(),
             )
 
             ReceiptPaperOutput(
                 order = order,
                 contentPadding = paperPadding,
+                progress = { printProgress.value },
                 modifier = Modifier
                     .padding(horizontal = horizontalPadding)
                     .fillMaxWidth(),
             )
 
-            Button(
-                onClick = onReturnToMenu,
-                modifier = Modifier
-                    .padding(horizontal = horizontalPadding, vertical = 18.dp)
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = PrinterInk,
-                    contentColor = Cream,
+            AnimatedVisibility(
+                visible = printed,
+                enter = fadeIn(tween(300)) + slideInVertically(
+                    animationSpec = tween(360),
+                    initialOffsetY = { it / 3 },
                 ),
             ) {
-                Text(
-                    "Volver al menú",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Black,
-                )
+                Button(
+                    onClick = onReturnToMenu,
+                    modifier = Modifier
+                        .padding(horizontal = horizontalPadding, vertical = 18.dp)
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PrinterInk,
+                        contentColor = Cream,
+                    ),
+                ) {
+                    Text(
+                        "Volver al menú",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Black,
+                    )
+                }
             }
         }
     }
@@ -127,8 +171,20 @@ fun OrderConfirmationScreen(
 @Composable
 private fun ReceiptPrinterMachine(
     folio: Int,
+    printed: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val ledTransition = rememberInfiniteTransition(label = "receipt-printer-led")
+    val ledAlpha by ledTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = .32f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 420),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "receipt-printer-led-alpha",
+    )
+
     Box(
         modifier = modifier
             .height(184.dp)
@@ -198,10 +254,11 @@ private fun ReceiptPrinterMachine(
                 Box(
                     modifier = Modifier
                         .size(12.dp)
+                        .graphicsLayer { alpha = if (printed) 1f else ledAlpha }
                         .background(Color(0xFFFFD15B), CircleShape),
                 )
                 Text(
-                    "PASE LISTO",
+                    if (printed) "PASE LISTO" else "IMPRIMIENDO PASE…",
                     modifier = Modifier.padding(start = 9.dp),
                     color = Color(0xFFB7B8B2),
                     fontSize = 10.sp,
@@ -243,10 +300,31 @@ private fun ReceiptPrinterMachine(
 private fun ReceiptPaperOutput(
     order: OrderDetail,
     contentPadding: Dp,
+    progress: () -> Float,
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = modifier,
+        modifier = modifier
+            .graphicsLayer {
+                val current = progress().coerceIn(0f, 1f)
+                translationY = if (current < 1f) sin(current * 110f) * 1.4f else 0f
+                alpha = .55f + (.45f * current)
+                shadowElevation = if (current >= .995f) 18.dp.toPx() else 0f
+                shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
+                clip = false
+            }
+            .drawWithContent {
+                val current = progress().coerceIn(0f, 1f)
+                val contentDrawScope = this
+                clipRect(
+                    left = 0f,
+                    top = 0f,
+                    right = size.width,
+                    bottom = size.height * current,
+                ) {
+                    contentDrawScope.drawContent()
+                }
+            },
         color = PaperInk,
         shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp),
         shadowElevation = 18.dp,
