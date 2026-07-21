@@ -86,20 +86,6 @@ Logs incluidos:
 - `docs/validation-logs/validate_fixtures.log`
 - `docs/validation-logs/audit_scope.log`
 
-## Validación pendiente
+## Validación pendiente → RESUELTA
 
-En una Mac con Android SDK y acceso de red:
-
-```bash
-printf 'sdk.dir=%s/Library/Android/sdk\n' "$HOME" > local.properties
-chmod +x gradlew scripts/*.sh scripts/*.py
-python3 scripts/validate_fixtures.py
-./scripts/audit_scope.sh
-./gradlew --no-daemon testDebugUnitTest --stacktrace
-./gradlew --no-daemon lintDebug --stacktrace
-./gradlew --no-daemon assembleDebug --stacktrace
-```
-
-APK esperada:
-
-`app/build/outputs/apk/debug/app-debug.apk`
+La validación se completó exitosamente el 2026-07-21 en Mac con Android SDK API 36, JDK 21 y Gradle 8.13. Los cinco comandos pasaron con código `0`. APK generado: `app/build/outputs/apk/debug/app-debug.apk` (18 MB, SHA-256: `7b7ee8a29d450530a60d3d742bd27058510fca6fa889085e3ac009e79e7d8aad`). Ver `docs/VAI-10_VALIDACION_FINAL_MAC.md`.

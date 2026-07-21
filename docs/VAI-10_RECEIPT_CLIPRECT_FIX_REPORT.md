@@ -135,17 +135,6 @@ En `docs/validation-logs/`:
 - `assembleDebug.log`
 - `assembleDebug.exit`
 
-## Validación pendiente
+## Validación pendiente → RESUELTA
 
-En una Mac con Android SDK y acceso a la distribución Gradle 8.13:
-
-```bash
-printf 'sdk.dir=%s/Library/Android/sdk\n' "$HOME" > local.properties
-python3 scripts/validate_fixtures.py
-./scripts/audit_scope.sh
-./gradlew --no-daemon testDebugUnitTest
-./gradlew --no-daemon lintDebug
-./gradlew --no-daemon assembleDebug
-```
-
-La entrega no debe considerarse compilada hasta que los tres comandos Gradle terminen con código `0`.
+La validación se completó exitosamente el 2026-07-21 en Mac con Android SDK API 36, JDK 21 y Gradle 8.13. Los cinco comandos pasaron con código `0`. Ver `docs/VAI-10_VALIDACION_FINAL_MAC.md`.

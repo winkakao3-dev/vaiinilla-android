@@ -131,7 +131,7 @@ Ambas terminaron con código 0. Estas comprobaciones no sustituyen el build Andr
 
 Los logs completos de los intentos Gradle se incluyen en `docs/validation-logs/`, junto con un archivo `.exit-code` por comando.
 
-### No pudieron ejecutarse completamente
+### No pudieron ejecutarse completamente (intento original en contenedor sin red)
 
 ```bash
 ./gradlew testDebugUnitTest
@@ -139,7 +139,11 @@ Los logs completos de los intentos Gradle se incluyen en `docs/validation-logs/`
 ./gradlew assembleDebug
 ```
 
-Los tres comandos fueron intentados de forma individual y terminaron con código `1` antes de iniciar la tarea. El contenedor no tiene Android SDK configurado ni una distribución Gradle 8.13 en caché, y el wrapper no pudo descargarla por falta de resolución DNS (`UnknownHostException: services.gradle.org`). Por ello no se afirma que tests Gradle, lint o build hayan pasado.
+Los tres comandos fueron intentados de forma individual y terminaron con código `1` antes de iniciar la tarea. El contenedor no tiene Android SDK configurado ni una distribución Gradle 8.13 en caché, y el wrapper no pudo descargarla por falta de resolución DNS (`UnknownHostException: services.gradle.org`). Por ello no se afirmó que tests Gradle, lint o build hubieran pasado.
+
+### Validación final en Mac (2026-07-21)
+
+Los tres comandos Gradle se ejecutaron exitosamente en una Mac con Android SDK API 36, JDK 21 y Gradle 8.13. Ver `docs/VAI-10_VALIDACION_FINAL_MAC.md` para resultados completos, SHA-256 del APK y detalles del entorno.
 
 ## Validación requerida en Mac
 
