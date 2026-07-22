@@ -22,6 +22,39 @@ data class CreateOrderItemDto(
 )
 
 @Serializable
+data class OrderListEnvelopeDto(
+    val data: List<OrderDetailDto>,
+    val meta: MetaDto,
+    val error: JsonElement? = null,
+)
+
+@Serializable
+data class CashCollectionRequestDto(
+    @SerialName("monto_recibido") val amountReceived: String,
+    @SerialName("version_esperada") val expectedVersion: Int,
+)
+
+@Serializable
+data class CashCollectionDataDto(
+    @SerialName("pedido") val order: OrderDetailDto,
+    @SerialName("monto_recibido") val amountReceived: String,
+    @SerialName("cambio") val change: String,
+)
+
+@Serializable
+data class CashCollectionEnvelopeDto(
+    val data: CashCollectionDataDto,
+    val meta: MetaDto,
+    val error: JsonElement? = null,
+)
+
+@Serializable
+data class TransitionRequestDto(
+    @SerialName("estado_objetivo") val targetState: String,
+    @SerialName("version_esperada") val expectedVersion: Int,
+)
+
+@Serializable
 data class OrderDetailEnvelopeDto(
     val data: OrderDetailDto,
     val meta: MetaDto,

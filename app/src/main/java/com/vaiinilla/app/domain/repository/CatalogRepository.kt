@@ -7,3 +7,8 @@ interface CatalogRepository {
     fun getCatalog(): Result<Catalog>
     fun getOperationalStatus(): Result<OperationalStatus>
 }
+
+class CatalogRepositoryException(
+    val code: String,
+    message: String,
+) : IllegalStateException(message)

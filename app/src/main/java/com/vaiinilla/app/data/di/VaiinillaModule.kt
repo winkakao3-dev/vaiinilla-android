@@ -4,7 +4,7 @@ import android.content.Context
 import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.config.DataSourceMode
-import com.vaiinilla.app.core.network.EmptyVaiinillaApiClient
+import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.security.AndroidKeyStoreSessionStore
 import com.vaiinilla.app.core.security.SecureSessionStore
@@ -12,10 +12,13 @@ import com.vaiinilla.app.data.catalog.FixtureCatalogRepository
 import com.vaiinilla.app.data.catalog.RemoteCatalogRepository
 import com.vaiinilla.app.data.fixture.ContractFixtureParser
 import com.vaiinilla.app.data.fixture.FixtureSource
+import com.vaiinilla.app.data.operational.NoOpDeviceHeartbeatRepository
+import com.vaiinilla.app.data.operational.RemoteDeviceHeartbeatRepository
 import com.vaiinilla.app.data.order.FixtureOrderRepository
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.data.order.RemoteOrderRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
+import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
 import com.vaiinilla.app.domain.repository.OrderRepository
 import dagger.Module
 import dagger.Provides
@@ -38,12 +41,18 @@ object VaiinillaModule {
     @Singleton
     fun provideSecureSessionStore(
         @ApplicationContext context: Context,
-    ): SecureSessionStore = AndroidKeyStoreSessionStore(context)
+    ): SecureSessionStore {
+        val store = AndroidKeyStoreSessionStore(context)
+        val bootstrap = BuildConfig.BOOTSTRAP_ACCESS_TOKEN.trim()
+        if (bootstrap.isNotEmpty() && store.readAccessToken().isNullOrBlank()) {
+            store.saveAccessToken(bootstrap)
+        }
+        return store
+    }
 
     @Provides
     @Singleton
-    fun provideApiClient(environment: AppEnvironment): VaiinillaApiClient =
-        EmptyVaiinillaApiClient(environment.apiBaseUrl)
+    fun provideApiClient(client: HttpVaiinillaApiClient): VaiinillaApiClient = client
 
     @Provides
     @Singleton
@@ -54,8 +63,9 @@ object VaiinillaModule {
         apiClient: VaiinillaApiClient,
     ): CatalogRepository = when (environment.dataSourceMode) {
         DataSourceMode.MOCK -> FixtureCatalogRepository(fixtureSource, parser)
-        DataSourceMode.REMOTE -> RemoteCatalogRepository(apiClient)
+        DataSourceMode.REMOTE -> RemoteCatalogRepository(apiClient, parser)
     }
+
     @Provides
     @Singleton
     fun provideOrderRepository(
@@ -69,4 +79,13 @@ object VaiinillaModule {
         DataSourceMode.REMOTE -> RemoteOrderRepository(apiClient, orderContractJson)
     }
 
+    @Provides
+    @Singleton
+    fun provideDeviceHeartbeatRepository(
+        environment: AppEnvironment,
+        apiClient: VaiinillaApiClient,
+    ): DeviceHeartbeatRepository = when (environment.dataSourceMode) {
+        DataSourceMode.MOCK -> NoOpDeviceHeartbeatRepository()
+        DataSourceMode.REMOTE -> RemoteDeviceHeartbeatRepository(apiClient)
+    }
 }

@@ -55,14 +55,14 @@ data class ProductDto(
     @SerialName("categoria_id") val categoryId: Int,
     @SerialName("estacion_preparacion") val preparationStation: String,
     @SerialName("nombre") val name: String,
-    @SerialName("descripcion") val description: String,
-    @SerialName("ingredientes") val ingredients: String,
-    @SerialName("alergenos") val allergens: String,
+    @SerialName("descripcion") val description: String? = null,
+    @SerialName("ingredientes") val ingredients: String? = null,
+    @SerialName("alergenos") val allergens: String? = null,
     @SerialName("tiempo_estimado_min") val estimatedTimeMinutes: Int,
     @SerialName("precio_mostrador") val counterPrice: String,
     @SerialName("precio_digital") val digitalPrice: String,
     @SerialName("disponible") val available: Boolean,
-    @SerialName("imagen_url") val imageUrl: String,
+    @SerialName("imagen_url") val imageUrl: String? = null,
     @SerialName("grupos_opcion") val optionGroups: List<OptionGroupDto>,
 )
 

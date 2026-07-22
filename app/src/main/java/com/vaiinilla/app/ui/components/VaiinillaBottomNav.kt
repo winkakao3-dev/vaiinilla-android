@@ -42,6 +42,7 @@ fun VaiinillaBottomNav(
     onMenu: () -> Unit,
     onCart: () -> Unit,
     modifier: Modifier = Modifier,
+    onOrders: (() -> Unit)? = null,
 ) {
     Box(
         modifier = modifier
@@ -80,8 +81,8 @@ fun VaiinillaBottomNav(
                     modifier = Modifier.weight(1f),
                     label = "Pedidos",
                     icon = Icons.Outlined.ReceiptLong,
-                    active = false,
-                    onClick = null,
+                    active = activeTab == StudentTab.ORDERS,
+                    onClick = onOrders,
                 )
                 NavItem(
                     modifier = Modifier.weight(1f),
@@ -166,4 +167,5 @@ private fun NavItem(
 enum class StudentTab {
     MENU,
     CART,
+    ORDERS,
 }

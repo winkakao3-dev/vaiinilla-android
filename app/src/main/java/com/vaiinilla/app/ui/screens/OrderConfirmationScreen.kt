@@ -75,6 +75,7 @@ private val Rule = Color(0xFFE7E4DA)
 fun OrderConfirmationScreen(
     order: OrderDetail?,
     onReturnToMenu: () -> Unit,
+    onViewTracking: () -> Unit = {},
 ) {
     if (order == null) {
         Box(
@@ -145,23 +146,46 @@ fun OrderConfirmationScreen(
                     initialOffsetY = { it / 3 },
                 ),
             ) {
-                Button(
-                    onClick = onReturnToMenu,
+                Column(
                     modifier = Modifier
                         .padding(horizontal = horizontalPadding, vertical = 18.dp)
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = PrinterInk,
-                        contentColor = Cream,
-                    ),
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Text(
-                        "Volver al menú",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Black,
-                    )
+                    Button(
+                        onClick = onViewTracking,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Lime,
+                            contentColor = Ink,
+                        ),
+                    ) {
+                        Text(
+                            "Ver seguimiento",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Black,
+                        )
+                    }
+                    Button(
+                        onClick = onReturnToMenu,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrinterInk,
+                            contentColor = Cream,
+                        ),
+                    ) {
+                        Text(
+                            "Volver al menú",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Black,
+                        )
+                    }
                 }
             }
         }

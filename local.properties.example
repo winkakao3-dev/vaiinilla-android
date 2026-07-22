@@ -1,0 +1,15 @@
+# Copia este archivo a local.properties (ya está en .gitignore).
+# No subas tokens ni google-services.json al repositorio.
+
+sdk.dir=/path/to/Android/sdk
+
+# MOCK (default) o REMOTE
+vaiinillaDataSource=MOCK
+
+# Backend Railway de desarrollo (Saúl)
+vaiinillaApiBaseUrl=https://vaiinillaback-development-3f6c.up.railway.app/api/v1/
+
+# JWT RS256 de contexto Vaiinilla por rol (cliente/cajero/cocina/mesero).
+# Un token por build. No hardcodear ni commitear.
+# Se obtiene vía POST /api/v1/sesiones/contexto con ID token de Firebase + membresia_id.
+vaiinillaAccessToken=

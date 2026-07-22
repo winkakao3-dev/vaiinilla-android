@@ -12,3 +12,10 @@ captures/
 
 __pycache__/
 *.pyc
+
+# Firebase / secretos locales (no commitear)
+secrets/
+google-services.json
+GoogleService-Info.plist
+.firebaserc
+firebase.json

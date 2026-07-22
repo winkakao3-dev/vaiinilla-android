@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -9,15 +10,28 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
-val selectedDataSource = providers.gradleProperty("vaiinillaDataSource")
-    .orElse("MOCK")
-    .get()
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+
+fun readConfig(name: String, defaultValue: String): String =
+    providers.gradleProperty(name).orNull
+        ?: localProperties.getProperty(name)
+        ?: defaultValue
+
+val selectedDataSource = readConfig("vaiinillaDataSource", "MOCK")
     .uppercase()
     .also { require(it == "MOCK" || it == "REMOTE") { "vaiinillaDataSource debe ser MOCK o REMOTE" } }
 
-val selectedApiBaseUrl = providers.gradleProperty("vaiinillaApiBaseUrl")
-    .orElse("https://localhost.invalid/api/v1/")
-    .get()
+val selectedApiBaseUrl = readConfig(
+    "vaiinillaApiBaseUrl",
+    "https://localhost.invalid/api/v1/",
+)
+
+val bootstrapAccessToken = readConfig("vaiinillaAccessToken", "")
 
 android {
     namespace = "com.vaiinilla.app"
@@ -28,10 +42,11 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "0.2.0-vai10"
+        versionName = "0.3.0-vai11-local"
 
         buildConfigField("String", "DATA_SOURCE_MODE", "\"$selectedDataSource\"")
         buildConfigField("String", "API_BASE_URL", "\"$selectedApiBaseUrl\"")
+        buildConfigField("String", "BOOTSTRAP_ACCESS_TOKEN", "\"$bootstrapAccessToken\"")
 
     }
 

@@ -34,14 +34,14 @@ class ContractFixtureParser @Inject constructor() {
                     categoryId = dto.categoryId,
                     preparationStation = PreparationStation.fromWireValue(dto.preparationStation),
                     name = dto.name,
-                    description = dto.description,
-                    ingredients = dto.ingredients,
-                    allergens = dto.allergens,
+                    description = dto.description.orEmpty(),
+                    ingredients = dto.ingredients.orEmpty(),
+                    allergens = dto.allergens.orEmpty(),
                     estimatedTimeMinutes = dto.estimatedTimeMinutes,
                     counterPrice = dto.counterPrice,
                     digitalPrice = dto.digitalPrice,
                     available = dto.available,
-                    imageUrl = dto.imageUrl,
+                    imageUrl = dto.imageUrl.orEmpty(),
                     optionGroups = dto.optionGroups.map { group ->
                         OptionGroup(
                             id = group.id,

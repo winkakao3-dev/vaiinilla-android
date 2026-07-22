@@ -72,6 +72,7 @@ fun CatalogScreen(
     onQuantityChange: (Int) -> Unit,
     onAddProduct: () -> Unit,
     onOpenCart: () -> Unit,
+    onOpenTracking: () -> Unit = {},
 ) {
     when {
         state.loading -> LoadingCatalog()
@@ -87,6 +88,7 @@ fun CatalogScreen(
             onQuantityChange = onQuantityChange,
             onAddProduct = onAddProduct,
             onOpenCart = onOpenCart,
+            onOpenTracking = onOpenTracking,
         )
     }
 }
@@ -103,6 +105,7 @@ private fun CatalogContent(
     onQuantityChange: (Int) -> Unit,
     onAddProduct: () -> Unit,
     onOpenCart: () -> Unit,
+    onOpenTracking: () -> Unit,
 ) {
     val catalog = requireNotNull(state.catalog)
     Box(
@@ -145,6 +148,7 @@ private fun CatalogContent(
             cartCount = state.cartItemCount,
             onMenu = {},
             onCart = onOpenCart,
+            onOrders = onOpenTracking,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
 
