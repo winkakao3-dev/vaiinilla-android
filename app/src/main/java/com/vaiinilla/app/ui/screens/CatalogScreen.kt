@@ -90,6 +90,10 @@ fun CatalogScreen(
             onOpenCart = onOpenCart,
             onOpenTracking = onOpenTracking,
         )
+        else -> CatalogError(
+            message = "No pudimos cargar el catálogo.",
+            onRetry = onRetry,
+        )
     }
 }
 

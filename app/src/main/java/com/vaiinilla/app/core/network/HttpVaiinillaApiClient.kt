@@ -27,14 +27,29 @@ class HttpVaiinillaApiClient @Inject constructor(
         headers: Map<String, String>,
     ): Result<String> = execute(method = "POST", path = path, body = body, headers = headers)
 
+    fun postWithAccessToken(
+        accessToken: String,
+        path: String,
+        body: String,
+        headers: Map<String, String> = emptyMap(),
+    ): Result<String> = execute(
+        method = "POST",
+        path = path,
+        body = body,
+        headers = headers,
+        accessToken = accessToken,
+    )
+
     private fun execute(
         method: String,
         path: String,
         query: Map<String, String> = emptyMap(),
         body: String? = null,
         headers: Map<String, String> = emptyMap(),
+        accessToken: String? = null,
     ): Result<String> = runCatching {
-        val token = sessionStore.readAccessToken()?.takeIf { it.isNotBlank() }
+        val token = accessToken?.takeIf { it.isNotBlank() }
+            ?: sessionStore.readAccessToken()?.takeIf { it.isNotBlank() }
             ?: throw MissingAccessTokenException()
 
         val connection = openConnection(method, path, query)

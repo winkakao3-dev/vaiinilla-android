@@ -64,7 +64,26 @@ val OrderFlowUiState.isSelectedProductValid: Boolean
         runCatching { ContractRules.validateSelections(product, selectedOptionIds) }.isSuccess
     } ?: false
 
-val OrderFlowUiState.canCreateOrder: Boolean
-    get() = cartLines.isNotEmpty() && operationalStatus?.let { status ->
+val OrderFlowUiState.isOperationallyReady: Boolean
+    get() = operationalStatus?.let { status ->
         status.acceptingOrders && status.cashSessionOpen
-    } == true && !creatingOrder
+    } == true
+
+val OrderFlowUiState.canSubmitCart: Boolean
+    get() = cartLines.isNotEmpty() && !creatingOrder
+
+val OrderFlowUiState.canCreateOrder: Boolean
+    get() = canSubmitCart && isOperationallyReady
+
+val OrderFlowUiState.operationalBlockerMessage: String?
+    get() {
+        if (cartLines.isEmpty() || isOperationallyReady) return null
+        val status = operationalStatus ?: return "No pudimos verificar si el establecimiento está recibiendo pedidos."
+        if (!status.cashSessionOpen) {
+            return "Caja no tiene sesión abierta. Entra a Caja y ábrela antes de confirmar."
+        }
+        if (!status.acceptingOrders) {
+            return "No hay Caja o Cocina disponibles. Si usas un solo teléfono, vuelve a intentar; la app avisará a ambos roles automáticamente."
+        }
+        return "El establecimiento no está recibiendo pedidos en este momento."
+    }

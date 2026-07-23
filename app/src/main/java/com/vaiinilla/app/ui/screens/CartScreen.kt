@@ -42,7 +42,8 @@ import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.order.OrderFlowUiState
-import com.vaiinilla.app.ui.order.canCreateOrder
+import com.vaiinilla.app.ui.order.canSubmitCart
+import com.vaiinilla.app.ui.order.operationalBlockerMessage
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.cartPreviewTotal
 import com.vaiinilla.app.ui.theme.Cream
@@ -103,6 +104,17 @@ fun CartScreen(
                     )
                 }
                 item { OrderSummaryCard(total = state.cartPreviewTotal) }
+                state.operationalBlockerMessage?.let { blocker ->
+                    item {
+                        Surface(
+                            color = Color(0xFFFFF1CC),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(blocker, color = Ink, modifier = Modifier.padding(14.dp))
+                        }
+                    }
+                }
                 state.createOrderError?.let { error ->
                     item {
                         Surface(
@@ -117,7 +129,7 @@ fun CartScreen(
                 item {
                     Button(
                         onClick = onConfirm,
-                        enabled = state.canCreateOrder,
+                        enabled = state.canSubmitCart,
                         modifier = Modifier.fillMaxWidth().height(52.dp),
                         shape = RoundedCornerShape(18.dp),
                         colors = ButtonDefaults.buttonColors(

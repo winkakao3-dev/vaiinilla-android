@@ -19,10 +19,12 @@ import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @HiltViewModel
 class OperationalViewModel @Inject constructor(
@@ -69,51 +71,62 @@ class OperationalViewModel @Inject constructor(
     fun refresh() {
         val role = _uiState.value.role ?: return
         _uiState.value = _uiState.value.copy(loading = true, errorMessage = null)
-        val result = listOrders(role, lastUpdatedSince)
-        result.fold(
-            onSuccess = { orders ->
-                val merged = mergeOrders(_uiState.value.orders, orders)
-                val newest = merged.maxOfOrNull { it.summary.updatedAt }
-                if (newest != null) {
-                    lastUpdatedSince = newest
-                }
-                _uiState.value = _uiState.value.copy(
-                    loading = false,
-                    orders = merged.sortedByDescending { it.summary.updatedAt },
-                    lastSyncedAt = newest,
-                    errorMessage = null,
-                )
-            },
-            onFailure = { error ->
-                _uiState.value = _uiState.value.copy(
-                    loading = false,
-                    errorMessage = error.message,
-                )
-            },
-        )
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { listOrders(role, lastUpdatedSince) }
+            result.fold(
+                onSuccess = { orders ->
+                    val merged = mergeOrders(_uiState.value.orders, orders)
+                    val newest = merged.maxOfOrNull { it.summary.updatedAt }
+                    if (newest != null) {
+                        lastUpdatedSince = newest
+                    }
+                    _uiState.value = _uiState.value.copy(
+                        loading = false,
+                        orders = merged.sortedByDescending { it.summary.updatedAt },
+                        lastSyncedAt = newest,
+                        errorMessage = null,
+                    )
+                },
+                onFailure = { error ->
+                    _uiState.value = _uiState.value.copy(
+                        loading = false,
+                        errorMessage = error.message ?: error.javaClass.simpleName,
+                    )
+                },
+            )
+        }
     }
 
     fun refreshOrder(orderId: String) {
-        getOrder(orderId).onSuccess { order ->
-            val updated = _uiState.value.orders
-                .filterNot { it.summary.id == orderId } + order
-            _uiState.value = _uiState.value.copy(
-                orders = updated.sortedByDescending { it.summary.updatedAt },
-                selectedOrderId = orderId,
-            )
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { getOrder(orderId) }.onSuccess { order ->
+                val updated = _uiState.value.orders
+                    .filterNot { it.summary.id == orderId } + order
+                _uiState.value = _uiState.value.copy(
+                    orders = updated.sortedByDescending { it.summary.updatedAt },
+                    selectedOrderId = orderId,
+                )
+            }
         }
     }
 
     fun openCashRegister(initialAmount: String = "500.00") {
         _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
-        openCashSession(initialAmount, UUID.randomUUID().toString())
-            .onSuccess {
-                sendHeartbeatIfNeeded()
-                _uiState.value = _uiState.value.copy(acting = false, cashSessionOpen = true)
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                openCashSession(initialAmount, UUID.randomUUID().toString())
             }
-            .onFailure { error ->
-                _uiState.value = _uiState.value.copy(acting = false, errorMessage = error.message)
-            }
+                .onSuccess {
+                    sendHeartbeatIfNeeded()
+                    _uiState.value = _uiState.value.copy(acting = false, cashSessionOpen = true)
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        acting = false,
+                        errorMessage = error.message ?: error.javaClass.simpleName,
+                    )
+                }
+        }
     }
 
     fun collectCash(orderId: String, amountReceived: String) {
@@ -171,33 +184,39 @@ class OperationalViewModel @Inject constructor(
 
     private fun refreshCashSession() {
         if (_uiState.value.role != OperationalRole.CASHIER) return
-        cashSessionRepository.hasActiveSession()
-            .onSuccess { open ->
-                _uiState.value = _uiState.value.copy(cashSessionOpen = open)
-            }
-            .onFailure { error ->
-                _uiState.value = _uiState.value.copy(errorMessage = error.message)
-            }
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { cashSessionRepository.hasActiveSession() }
+                .onSuccess { open ->
+                    _uiState.value = _uiState.value.copy(cashSessionOpen = open)
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = error.message ?: error.javaClass.simpleName,
+                    )
+                }
+        }
     }
 
     private fun performMutation(block: () -> OrderDetail) {
         _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
-        runCatching { block() }
-            .onSuccess { order ->
-                val updated = _uiState.value.orders
-                    .filterNot { it.summary.id == order.summary.id } + order
-                _uiState.value = _uiState.value.copy(
-                    acting = false,
-                    orders = updated.sortedByDescending { it.summary.updatedAt },
-                    selectedOrderId = order.summary.id,
-                )
-            }
-            .onFailure { error ->
-                _uiState.value = _uiState.value.copy(
-                    acting = false,
-                    errorMessage = error.message,
-                )
-            }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { block() } }
+                .onSuccess { order ->
+                    val updated = _uiState.value.orders
+                        .filterNot { it.summary.id == order.summary.id } + order
+                    _uiState.value = _uiState.value.copy(
+                        acting = false,
+                        orders = updated.sortedByDescending { it.summary.updatedAt },
+                        selectedOrderId = order.summary.id,
+                    )
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        acting = false,
+                        errorMessage = error.message ?: error.javaClass.simpleName,
+                    )
+                }
+        }
     }
 
     private fun mergeOrders(
@@ -223,11 +242,13 @@ class OperationalViewModel @Inject constructor(
     private fun sendHeartbeatIfNeeded() {
         val role = _uiState.value.role ?: return
         if (role == OperationalRole.CLIENT) return
-        heartbeatRepository.sendHeartbeat(
-            deviceId = "android-${role.wireValue}",
-            role = role,
-            idempotencyKey = UUID.randomUUID().toString(),
-        )
+        viewModelScope.launch(Dispatchers.IO) {
+            heartbeatRepository.sendHeartbeat(
+                deviceId = "android-${role.wireValue}",
+                role = role,
+                idempotencyKey = UUID.randomUUID().toString(),
+            )
+        }
     }
 
     override fun onCleared() {

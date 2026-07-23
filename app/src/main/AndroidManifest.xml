@@ -7,8 +7,7 @@
         android:allowBackup="false"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Vaiinilla"
-        android:usesCleartextTraffic="false">
+        android:theme="@style/Theme.Vaiinilla">
         <activity
             android:name=".MainActivity"
             android:exported="true"

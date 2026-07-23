@@ -49,8 +49,11 @@ object VaiinillaModule {
     ): SecureSessionStore {
         val store = AndroidKeyStoreSessionStore(context)
         val bootstrap = BuildConfig.BOOTSTRAP_ACCESS_TOKEN.trim()
-        if (bootstrap.isNotEmpty() && store.readAccessToken().isNullOrBlank()) {
-            store.saveAccessToken(bootstrap)
+        if (bootstrap.isNotEmpty()) {
+            val current = store.readAccessToken()
+            if (current != bootstrap) {
+                store.saveAccessToken(bootstrap)
+            }
         }
         return store
     }

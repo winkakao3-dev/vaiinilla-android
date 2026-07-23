@@ -3,7 +3,10 @@ package com.vaiinilla.app.ui.order
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.config.AppEnvironment
+import com.vaiinilla.app.core.config.DataSourceMode
+import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.OptionGroup
@@ -14,6 +17,9 @@ import com.vaiinilla.app.domain.usecase.GetOperationalStatusUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @HiltViewModel
 class OrderFlowViewModel @Inject constructor(
@@ -21,7 +27,8 @@ class OrderFlowViewModel @Inject constructor(
     private val getOperationalStatus: GetOperationalStatusUseCase,
     private val buildCreateOrderRequest: BuildCreateOrderRequestUseCase,
     private val createOrder: CreateOrderUseCase,
-    environment: AppEnvironment,
+    private val staffPresenceCoordinator: StaffPresenceCoordinator,
+    private val environment: AppEnvironment,
 ) : ViewModel() {
     private val _uiState = mutableStateOf(
         OrderFlowUiState(dataSourceMode = environment.dataSourceMode),
@@ -37,16 +44,20 @@ class OrderFlowViewModel @Inject constructor(
     fun refresh() {
         val previous = _uiState.value
         _uiState.value = previous.copy(loading = true, errorMessage = null)
-        val catalogResult = getCatalog()
-        val statusResult = getOperationalStatus()
-        val failure = catalogResult.exceptionOrNull() ?: statusResult.exceptionOrNull()
+        viewModelScope.launch {
+            val catalogResult = withContext(Dispatchers.IO) { getCatalog() }
+            val statusResult = withContext(Dispatchers.IO) { getOperationalStatus() }
+            val failure = catalogResult.exceptionOrNull() ?: statusResult.exceptionOrNull()
+            val errorMessage = failure?.message
+                ?: failure?.javaClass?.simpleName?.let { "Error de red: $it" }
 
-        _uiState.value = previous.copy(
-            loading = false,
-            catalog = catalogResult.getOrNull(),
-            operationalStatus = statusResult.getOrNull(),
-            errorMessage = failure?.message,
-        )
+            _uiState.value = previous.copy(
+                loading = false,
+                catalog = catalogResult.getOrNull(),
+                operationalStatus = statusResult.getOrNull(),
+                errorMessage = errorMessage,
+            )
+        }
     }
 
     fun updateSearch(query: String) {
@@ -181,40 +192,60 @@ class OrderFlowViewModel @Inject constructor(
 
     fun submitOrder() {
         val state = _uiState.value
-        if (!state.canCreateOrder) {
-            val message = if (state.cartLines.isEmpty()) {
-                "Agrega al menos un producto antes de confirmar."
-            } else {
-                "El establecimiento no está recibiendo pedidos en este momento."
-            }
-            _uiState.value = state.copy(createOrderError = message)
+        if (state.cartLines.isEmpty()) {
+            _uiState.value = state.copy(
+                createOrderError = "Agrega al menos un producto antes de confirmar.",
+            )
             return
         }
+        if (state.creatingOrder) return
 
-        val request = buildCreateOrderRequest(state.cartLines, state.kitchenNotes)
-        val idempotencyKey = pendingIdempotencyKey ?: UUID.randomUUID().toString().also {
-            pendingIdempotencyKey = it
-        }
         _uiState.value = state.copy(creatingOrder = true, createOrderError = null)
-        val result = createOrder(request, idempotencyKey)
-        result.fold(
-            onSuccess = { order ->
-                pendingIdempotencyKey = null
-                _uiState.value = _uiState.value.copy(
+        viewModelScope.launch {
+            var current = _uiState.value
+            if (environment.dataSourceMode == DataSourceMode.REMOTE) {
+                withContext(Dispatchers.IO) { staffPresenceCoordinator.primeStaffPresence() }
+                val status = withContext(Dispatchers.IO) { getOperationalStatus() }.getOrNull()
+                if (status != null) {
+                    current = current.copy(operationalStatus = status)
+                    _uiState.value = current.copy(creatingOrder = true, createOrderError = null)
+                }
+            }
+
+            if (!current.isOperationallyReady) {
+                val blocker = current.operationalBlockerMessage
+                    ?: "El establecimiento no está recibiendo pedidos en este momento."
+                _uiState.value = current.copy(
                     creatingOrder = false,
-                    cartLines = emptyList(),
-                    kitchenNotes = "",
-                    createdOrder = order,
-                    createOrderError = null,
+                    createOrderError = blocker,
                 )
-            },
-            onFailure = { error ->
-                _uiState.value = _uiState.value.copy(
-                    creatingOrder = false,
-                    createOrderError = error.message ?: "No se pudo crear el pedido.",
-                )
-            },
-        )
+                return@launch
+            }
+
+            val request = buildCreateOrderRequest(current.cartLines, current.kitchenNotes)
+            val idempotencyKey = pendingIdempotencyKey ?: UUID.randomUUID().toString().also {
+                pendingIdempotencyKey = it
+            }
+            val result = withContext(Dispatchers.IO) { createOrder(request, idempotencyKey) }
+            result.fold(
+                onSuccess = { order ->
+                    pendingIdempotencyKey = null
+                    _uiState.value = _uiState.value.copy(
+                        creatingOrder = false,
+                        cartLines = emptyList(),
+                        kitchenNotes = "",
+                        createdOrder = order,
+                        createOrderError = null,
+                    )
+                },
+                onFailure = { error ->
+                    _uiState.value = _uiState.value.copy(
+                        creatingOrder = false,
+                        createOrderError = error.message ?: "No se pudo crear el pedido.",
+                    )
+                },
+            )
+        }
     }
 
     fun clearCreatedOrder() {

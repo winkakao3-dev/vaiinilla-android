@@ -44,8 +44,11 @@ fun AppNavHost(navController: NavHostController) {
                 onRoleSelected = { role ->
                     operationalViewModel.setRole(role)
                     when (role) {
-                        OperationalRole.CLIENT -> navController.navigate(Routes.CATALOG) {
-                            launchSingleTop = true
+                        OperationalRole.CLIENT -> {
+                            orderFlowViewModel.refresh()
+                            navController.navigate(Routes.CATALOG) {
+                                launchSingleTop = true
+                            }
                         }
                         OperationalRole.CASHIER -> navController.navigate(Routes.CASHIER) {
                             launchSingleTop = true
@@ -85,6 +88,9 @@ fun AppNavHost(navController: NavHostController) {
         }
 
         composable(Routes.CART) {
+            LaunchedEffect(Unit) {
+                orderFlowViewModel.refresh()
+            }
             CartScreen(
                 state = orderState,
                 onMenu = { navController.popBackStack(Routes.CATALOG, inclusive = false) },
