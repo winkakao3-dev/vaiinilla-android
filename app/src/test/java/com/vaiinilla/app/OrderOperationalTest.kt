@@ -26,6 +26,7 @@ class OrderOperationalTest {
         val paid = repository.collectCash(
             orderId = order.summary.id,
             amountReceived = order.summary.total,
+            expectedVersion = order.summary.version,
             idempotencyKey = UUID.randomUUID().toString(),
         ).getOrThrow()
 
@@ -40,6 +41,7 @@ class OrderOperationalTest {
         val paid = repository.collectCash(
             created.summary.id,
             created.summary.total,
+            created.summary.version,
             UUID.randomUUID().toString(),
         ).getOrThrow()
 
@@ -75,6 +77,7 @@ class OrderOperationalTest {
         val paid = repository.collectCash(
             created.summary.id,
             created.summary.total,
+            created.summary.version,
             UUID.randomUUID().toString(),
         ).getOrThrow()
         val preparing = repository.transition(
@@ -107,6 +110,7 @@ class OrderOperationalTest {
         val error = repository.collectCash(
             order.summary.id,
             "1.00",
+            order.summary.version,
             UUID.randomUUID().toString(),
         ).exceptionOrNull()
         assertTrue(error is OrderRepositoryException)

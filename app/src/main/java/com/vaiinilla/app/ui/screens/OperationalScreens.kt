@@ -38,7 +38,7 @@ fun CashierOperationalScreen(
     state: OperationalUiState,
     onBack: () -> Unit,
     onOpenCashSession: () -> Unit,
-    onCollect: (orderId: String, amount: String) -> Unit,
+    onCollect: (orderId: String, amount: String, version: Int) -> Unit,
     onDeliver: (orderId: String, version: Int) -> Unit,
 ) {
     val pending = state.orders.filter { it.summary.state == OrderState.PENDING_PAYMENT }
@@ -114,7 +114,7 @@ fun CashierOperationalScreen(
 private fun CashCollectionCard(
     order: OrderDetail,
     acting: Boolean,
-    onCollect: (orderId: String, amount: String) -> Unit,
+    onCollect: (orderId: String, amount: String, version: Int) -> Unit,
 ) {
     var received by remember(order.summary.id) { mutableStateOf(order.summary.total) }
     val change = runCatching {
@@ -141,7 +141,7 @@ private fun CashCollectionCard(
             order = order,
             actionLabel = "Confirmar cobro",
             enabled = !acting && change != null && change >= BigDecimal.ZERO,
-            onAction = { onCollect(order.summary.id, received) },
+            onAction = { onCollect(order.summary.id, received, order.summary.version) },
         )
     }
 }

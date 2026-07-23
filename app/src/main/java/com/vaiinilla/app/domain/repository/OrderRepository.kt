@@ -15,6 +15,7 @@ interface OrderRepository {
     fun collectCash(
         orderId: String,
         amountReceived: String,
+        expectedVersion: Int,
         idempotencyKey: String,
     ): Result<OrderDetail>
 

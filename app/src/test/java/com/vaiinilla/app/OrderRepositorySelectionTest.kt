@@ -52,14 +52,16 @@ class OrderRepositorySelectionTest {
     @Test
     fun `remote collect cash uses cobros-efectivo path`() {
         val client = RecordingApiClient(
-            getResponses = mapOf(
-                "pedidos/order-1" to sampleOrderEnvelope("por_cobrar", version = 1),
-            ),
             postResponse = sampleCashEnvelope("cobrado", version = 2),
         )
         val repository = RemoteOrderRepository(client, OrderContractJson(), InMemoryPickupTokenStore())
 
-        val result = repository.collectCash("order-1", "26.00", UUID.randomUUID().toString())
+        val result = repository.collectCash(
+            orderId = "order-1",
+            amountReceived = "26.00",
+            expectedVersion = 1,
+            idempotencyKey = UUID.randomUUID().toString(),
+        )
 
         assertTrue(result.isSuccess)
         assertEquals("pedidos/order-1/cobros-efectivo", client.lastPath)

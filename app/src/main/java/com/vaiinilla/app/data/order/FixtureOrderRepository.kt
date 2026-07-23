@@ -146,6 +146,7 @@ class FixtureOrderRepository(
     override fun collectCash(
         orderId: String,
         amountReceived: String,
+        expectedVersion: Int,
         idempotencyKey: String,
     ): Result<OrderDetail> = runMutation(idempotencyKey) {
         requireUuid(idempotencyKey)
@@ -154,6 +155,9 @@ class FixtureOrderRepository(
         }
 
         val order = requireOrder(orderId)
+        if (order.summary.version != expectedVersion) {
+            throw OrderRepositoryException("VERSION_CONFLICT", "El pedido cambió en otro dispositivo.")
+        }
         if (order.summary.state != OrderState.PENDING_PAYMENT) {
             throw OrderRepositoryException("INVALID_ORDER_STATE", "El pedido no está por cobrar.")
         }

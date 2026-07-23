@@ -44,21 +44,21 @@ class RemoteOrderRepository(
     override fun collectCash(
         orderId: String,
         amountReceived: String,
+        expectedVersion: Int,
         idempotencyKey: String,
-    ): Result<OrderDetail> = getOrder(orderId)
-        .mapCatching { current ->
-            apiClient.post(
-                path = "pedidos/$orderId/cobros-efectivo",
-                body = contractJson.encodeCashCollection(
-                    amountReceived = amountReceived,
-                    expectedVersion = current.summary.version,
-                ),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
-            ).mapCatching { contractJson.parseCashCollection(it) }
-                .mapCatching { pickupTokenStore.attach(it.copy(pickupToken = it.pickupToken ?: current.pickupToken)) }
-                .getOrThrow()
-        }
-        .mapApiErrors()
+    ): Result<OrderDetail> {
+        val cachedToken = pickupTokenStore.read(orderId)
+        return apiClient.post(
+            path = "pedidos/$orderId/cobros-efectivo",
+            body = contractJson.encodeCashCollection(
+                amountReceived = amountReceived,
+                expectedVersion = expectedVersion,
+            ),
+            headers = mapOf("Idempotency-Key" to idempotencyKey),
+        ).mapCatching { contractJson.parseCashCollection(it) }
+            .mapCatching { pickupTokenStore.attach(it.copy(pickupToken = it.pickupToken ?: cachedToken)) }
+            .mapApiErrors()
+    }
 
     override fun transition(
         orderId: String,

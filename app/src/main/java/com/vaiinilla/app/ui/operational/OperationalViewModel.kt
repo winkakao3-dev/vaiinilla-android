@@ -129,9 +129,14 @@ class OperationalViewModel @Inject constructor(
         }
     }
 
-    fun collectCash(orderId: String, amountReceived: String) {
+    fun collectCash(orderId: String, amountReceived: String, expectedVersion: Int) {
         performMutation {
-            collectCash(orderId, amountReceived, UUID.randomUUID().toString()).getOrThrow()
+            collectCash(
+                orderId = orderId,
+                amountReceived = amountReceived,
+                expectedVersion = expectedVersion,
+                idempotencyKey = UUID.randomUUID().toString(),
+            ).getOrThrow()
         }
     }
 

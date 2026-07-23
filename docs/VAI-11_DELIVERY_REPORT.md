@@ -20,6 +20,7 @@ Implementación Android de seguimiento del alumno y pantallas operativas (Caja, 
 - Soporte de `qr_token` para entrega `para_llevar`
 - Tokens por rol vía `local.properties` (sin Firebase Auth en la app)
 - `StaffPresenceCoordinator` para demo en un solo dispositivo
+- `collectCash` envía `version_esperada` desde la UI (sin GET previo)
 - Red en `Dispatchers.IO`; sincronización del bootstrap token al reinstalar
 
 ## Validación local

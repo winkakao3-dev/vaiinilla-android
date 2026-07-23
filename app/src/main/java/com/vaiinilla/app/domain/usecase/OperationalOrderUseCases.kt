@@ -26,8 +26,14 @@ class CollectCashUseCase @Inject constructor(
     operator fun invoke(
         orderId: String,
         amountReceived: String,
+        expectedVersion: Int,
         idempotencyKey: String,
-    ): Result<OrderDetail> = repository.collectCash(orderId, amountReceived, idempotencyKey)
+    ): Result<OrderDetail> = repository.collectCash(
+        orderId = orderId,
+        amountReceived = amountReceived,
+        expectedVersion = expectedVersion,
+        idempotencyKey = idempotencyKey,
+    )
 }
 
 class TransitionOrderUseCase @Inject constructor(
