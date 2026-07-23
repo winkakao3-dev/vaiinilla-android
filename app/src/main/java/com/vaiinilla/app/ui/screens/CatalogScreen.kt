@@ -1,7 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +32,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,10 +44,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.ui.components.ComingSoonSheet
+import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductDetailSheet
 import com.vaiinilla.app.ui.components.ProductImage
+import com.vaiinilla.app.ui.components.QuickActionCards
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
+import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.cartItemCount
@@ -73,6 +80,8 @@ fun CatalogScreen(
     onAddProduct: () -> Unit,
     onOpenCart: () -> Unit,
     onOpenTracking: () -> Unit = {},
+    onOpenAssistant: () -> Unit = {},
+    onOpenWallet: () -> Unit = {},
 ) {
     when {
         state.loading -> LoadingCatalog()
@@ -89,6 +98,8 @@ fun CatalogScreen(
             onAddProduct = onAddProduct,
             onOpenCart = onOpenCart,
             onOpenTracking = onOpenTracking,
+            onOpenAssistant = onOpenAssistant,
+            onOpenWallet = onOpenWallet,
         )
         else -> CatalogError(
             message = "No pudimos cargar el catálogo.",
@@ -110,8 +121,12 @@ private fun CatalogContent(
     onAddProduct: () -> Unit,
     onOpenCart: () -> Unit,
     onOpenTracking: () -> Unit,
+    onOpenAssistant: () -> Unit,
+    onOpenWallet: () -> Unit,
 ) {
     val catalog = requireNotNull(state.catalog)
+    var comingSoonTitle by remember { mutableStateOf<String?>(null) }
+    var comingSoonDescription by remember { mutableStateOf<String?>(null) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -122,7 +137,7 @@ private fun CatalogContent(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 118.dp),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 132.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -133,7 +148,27 @@ private fun CatalogContent(
                     onSearchChange = onSearchChange,
                     onCategorySelected = onCategorySelected,
                     onOpenCart = onOpenCart,
+                    onOpenAssistant = {
+                        comingSoonTitle = "Asistente Vaiinilla"
+                        comingSoonDescription = "Recomendaciones y chat guiado llegarán en la siguiente fase."
+                    },
                 )
+            }
+
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                QuickActionCards(
+                    modifier = Modifier.padding(top = 18.dp, bottom = 4.dp),
+                    onActionClick = { action ->
+                        if (action.title == "Asistente") {
+                            comingSoonTitle = "Asistente Vaiinilla"
+                            comingSoonDescription = "Pregúntale qué pedir cuando el asistente esté disponible."
+                        }
+                    },
+                )
+            }
+
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                MenuSectionHead(state = state)
             }
 
             if (state.filteredProducts.isEmpty()) {
@@ -151,10 +186,33 @@ private fun CatalogContent(
             activeTab = StudentTab.MENU,
             cartCount = state.cartItemCount,
             onMenu = {},
-            onCart = onOpenCart,
+            onAssistant = {
+                comingSoonTitle = "Asistente Vaiinilla"
+                comingSoonDescription = "Recomendaciones y chat guiado llegarán en la siguiente fase."
+                onOpenAssistant()
+            },
             onOrders = onOpenTracking,
+            onWallet = {
+                comingSoonTitle = "Cartera"
+                comingSoonDescription = "Saldo, recargas y stickers digitales llegarán en la siguiente fase."
+                onOpenWallet()
+            },
+            onCart = onOpenCart,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
+
+        val title = comingSoonTitle
+        val description = comingSoonDescription
+        if (title != null && description != null) {
+            ComingSoonSheet(
+                title = title,
+                description = description,
+                onDismiss = {
+                    comingSoonTitle = null
+                    comingSoonDescription = null
+                },
+            )
+        }
 
         state.selectedProduct?.let { product ->
             val category = catalog.categories.firstOrNull { it.id == product.categoryId }
@@ -184,6 +242,7 @@ private fun CatalogHeader(
     onSearchChange: (String) -> Unit,
     onCategorySelected: (Int?) -> Unit,
     onOpenCart: () -> Unit,
+    onOpenAssistant: () -> Unit = {},
 ) {
     Column {
         Row(
@@ -279,31 +338,34 @@ private fun CatalogHeader(
                 )
             }
         }
+    }
+}
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 24.dp, bottom = 2.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom,
-        ) {
-            Text("Menú de hoy", color = Ink, fontWeight = FontWeight.Black)
-            state.operationalStatus?.let { status ->
-                Surface(
-                    color = if (status.acceptingOrders && status.cashSessionOpen) Lime else CreamDeep,
-                    shape = RoundedCornerShape(12.dp),
-                ) {
-                    Text(
-                        text = if (status.acceptingOrders && status.cashSessionOpen) {
-                            "${status.estimatedTimeMinutes} min"
-                        } else {
-                            "No disponible"
-                        },
-                        color = Ink,
-                        fontWeight = FontWeight.ExtraBold,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                    )
-                }
+@Composable
+private fun MenuSectionHead(state: OrderFlowUiState) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 24.dp, bottom = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        Text("Menú de hoy", color = Ink, fontWeight = FontWeight.Black)
+        state.operationalStatus?.let { status ->
+            Surface(
+                color = if (status.acceptingOrders && status.cashSessionOpen) Lime else CreamDeep,
+                shape = RoundedCornerShape(12.dp),
+            ) {
+                Text(
+                    text = if (status.acceptingOrders && status.cashSessionOpen) {
+                        "${status.estimatedTimeMinutes} min"
+                    } else {
+                        "No disponible"
+                    },
+                    color = Ink,
+                    fontWeight = FontWeight.ExtraBold,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                )
             }
         }
     }
@@ -315,7 +377,7 @@ private fun CategoryChip(label: String, selected: Boolean, onClick: () -> Unit) 
         modifier = Modifier
             .clip(RoundedCornerShape(13.dp))
             .background(if (selected) Ink else CreamDeep)
-            .clickable(onClick = onClick)
+            .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
         Text(
@@ -329,8 +391,9 @@ private fun CategoryChip(label: String, selected: Boolean, onClick: () -> Unit) 
 @Composable
 private fun ProductCard(product: Product, onClick: () -> Unit) {
     Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .physicalPress(scale = PhysicalPressScale.ProductCard, onClick = onClick),
         color = CreamDeep,
         shape = RoundedCornerShape(28.dp),
     ) {

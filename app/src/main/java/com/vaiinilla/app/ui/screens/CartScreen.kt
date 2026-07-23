@@ -29,6 +29,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Money
+import com.vaiinilla.app.ui.components.ComingSoonSheet
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
@@ -59,7 +64,10 @@ fun CartScreen(
     onQuantityChange: (lineKey: String, delta: Int) -> Unit,
     onNotesChange: (String) -> Unit,
     onConfirm: () -> Unit,
+    onOpenTracking: () -> Unit = {},
 ) {
+    var comingSoonTitle by remember { mutableStateOf<String?>(null) }
+    var comingSoonDescription by remember { mutableStateOf<String?>(null) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -69,7 +77,7 @@ fun CartScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 118.dp),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 132.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
@@ -157,9 +165,31 @@ fun CartScreen(
             activeTab = StudentTab.CART,
             cartCount = state.cartItemCount,
             onMenu = onMenu,
+            onAssistant = {
+                comingSoonTitle = "Asistente Vaiinilla"
+                comingSoonDescription = "Recomendaciones y chat guiado llegarán en la siguiente fase."
+            },
+            onOrders = onOpenTracking,
+            onWallet = {
+                comingSoonTitle = "Cartera"
+                comingSoonDescription = "Saldo, recargas y stickers digitales llegarán en la siguiente fase."
+            },
             onCart = {},
             modifier = Modifier.align(Alignment.BottomCenter),
         )
+
+        val title = comingSoonTitle
+        val description = comingSoonDescription
+        if (title != null && description != null) {
+            ComingSoonSheet(
+                title = title,
+                description = description,
+                onDismiss = {
+                    comingSoonTitle = null
+                    comingSoonDescription = null
+                },
+            )
+        }
     }
 }
 

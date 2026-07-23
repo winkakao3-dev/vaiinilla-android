@@ -16,6 +16,7 @@ import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.RoleSelectorScreen
+import com.vaiinilla.app.ui.screens.SplashScreen
 import com.vaiinilla.app.ui.screens.StudentTrackingScreen
 import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
 
@@ -38,7 +39,18 @@ fun AppNavHost(navController: NavHostController) {
         }
     }
 
-    NavHost(navController = navController, startDestination = Routes.ROLE_SELECTOR) {
+    NavHost(navController = navController, startDestination = Routes.SPLASH) {
+        composable(Routes.SPLASH) {
+            SplashScreen(
+                onFinished = {
+                    navController.navigate(Routes.ROLE_SELECTOR) {
+                        popUpTo(Routes.SPLASH) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+
         composable(Routes.ROLE_SELECTOR) {
             RoleSelectorScreen(
                 onRoleSelected = { role ->
@@ -97,6 +109,10 @@ fun AppNavHost(navController: NavHostController) {
                 onQuantityChange = orderFlowViewModel::changeCartLineQuantity,
                 onNotesChange = orderFlowViewModel::updateKitchenNotes,
                 onConfirm = orderFlowViewModel::submitOrder,
+                onOpenTracking = {
+                    operationalViewModel.setRole(OperationalRole.CLIENT)
+                    navController.navigate(Routes.STUDENT_TRACKING) { launchSingleTop = true }
+                },
             )
         }
 

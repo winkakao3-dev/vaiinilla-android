@@ -28,8 +28,9 @@ fun VaiinillaTheme(content: @Composable () -> Unit) {
         typography = VaiinillaTypography,
         shapes = Shapes(
             small = RoundedCornerShape(14.dp),
-            medium = RoundedCornerShape(22.dp),
-            large = RoundedCornerShape(30.dp),
+            medium = RoundedCornerShape(20.dp),
+            large = RoundedCornerShape(28.dp),
+            extraLarge = RoundedCornerShape(34.dp),
         ),
         content = content,
     )

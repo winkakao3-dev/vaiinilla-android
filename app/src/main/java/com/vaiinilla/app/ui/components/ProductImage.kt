@@ -24,9 +24,24 @@ fun ProductImage(
 }
 
 @DrawableRes
-private fun productImageResource(imageUrl: String): Int = when (imageUrl.removePrefix("fixture://")) {
-    "jamaica" -> R.drawable.jamaica
-    "burrito_norteno" -> R.drawable.burrito_norteno
-    "waffle" -> R.drawable.waffle
-    else -> R.drawable.waffle
+fun productImageResource(imageUrl: String): Int {
+    val key = imageUrl.removePrefix("fixture://")
+    return when (key) {
+        "jamaica" -> R.drawable.jamaica
+        "burrito_norteno" -> R.drawable.burrito_norteno
+        "waffle" -> R.drawable.waffle
+        "burrito_barbacoa" -> R.drawable.burrito_barbacoa
+        "burrito_frijol_queso" -> R.drawable.burrito_frijol_queso
+        "burrito_machaca" -> R.drawable.burrito_machaca
+        "fruta" -> R.drawable.fruta
+        "montado_asada" -> R.drawable.montado_asada
+        "montado_chorizo" -> R.drawable.montado_chorizo
+        "montado_machaca" -> R.drawable.montado_machaca
+        "montado_norteno" -> R.drawable.montado_norteno
+        "quesa" -> R.drawable.quesa
+        "quesadilla_harina" -> R.drawable.quesadilla_harina
+        "sincronizada_nortena" -> R.drawable.sincronizada_nortena
+        "torta" -> R.drawable.torta
+        else -> R.drawable.waffle
+    }
 }

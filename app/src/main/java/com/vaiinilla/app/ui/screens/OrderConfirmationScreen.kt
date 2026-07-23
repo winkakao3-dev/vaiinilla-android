@@ -12,6 +12,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -61,6 +62,7 @@ import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.theme.Cream
 import com.vaiinilla.app.ui.theme.Ink
 import com.vaiinilla.app.ui.theme.Lime
+import com.vaiinilla.app.ui.theme.MutedInk
 import kotlinx.coroutines.delay
 import kotlin.math.sin
 
@@ -124,6 +126,12 @@ fun OrderConfirmationScreen(
                 .padding(bottom = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            ReceiptConfirmHeader(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = horizontalPadding, vertical = 12.dp),
+            )
+
             ReceiptPrinterMachine(
                 folio = order.summary.folio,
                 printed = printed,
@@ -170,6 +178,23 @@ fun OrderConfirmationScreen(
                         )
                     }
                     Button(
+                        onClick = { /* Phase 2: sticker viewer */ },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Cream,
+                            contentColor = Ink,
+                        ),
+                    ) {
+                        Text(
+                            "Ver sticker completo",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Black,
+                        )
+                    }
+                    Button(
                         onClick = onReturnToMenu,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -188,6 +213,49 @@ fun OrderConfirmationScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ReceiptConfirmHeader(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "PEDIDO CREADO",
+                color = MutedInk,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 1.2.sp,
+            )
+            Text(
+                "Tu pase de Caja acaba de salir.",
+                color = Ink,
+                fontSize = 26.sp,
+                lineHeight = 28.sp,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Text(
+                "Págalo en efectivo y usa este receipt sticker para identificar la orden.",
+                color = MutedInk,
+                fontSize = 15.sp,
+                lineHeight = 22.sp,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+        Box(
+            modifier = Modifier
+                .padding(start = 12.dp)
+                .size(52.dp)
+                .background(Lime, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("✓", color = Ink, fontSize = 24.sp, fontWeight = FontWeight.Black)
         }
     }
 }
