@@ -37,6 +37,7 @@ import java.math.BigDecimal
 fun CashierOperationalScreen(
     state: OperationalUiState,
     onBack: () -> Unit,
+    onOpenCashSession: () -> Unit,
     onCollect: (orderId: String, amount: String) -> Unit,
     onDeliver: (orderId: String, version: Int) -> Unit,
 ) {
@@ -51,6 +52,26 @@ fun CashierOperationalScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item { OperationalHeader("Caja", "Ventanas 32–33", onBack) }
+        item {
+            val open = state.cashSessionOpen
+            Text(
+                text = when (open) {
+                    true -> "Sesión de caja abierta"
+                    false -> "Sesión de caja cerrada — ábrela para recibir pedidos"
+                    null -> "Consultando sesión de caja…"
+                },
+                color = MutedInk,
+            )
+            if (open == false) {
+                androidx.compose.material3.Button(
+                    onClick = onOpenCashSession,
+                    enabled = !state.acting,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Abrir caja (500.00)", fontWeight = FontWeight.Black)
+                }
+            }
+        }
         item { SectionLabel("Por cobrar") }
         if (pending.isEmpty()) {
             item {

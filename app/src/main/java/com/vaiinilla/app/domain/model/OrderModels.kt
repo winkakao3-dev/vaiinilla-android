@@ -31,6 +31,7 @@ data class OrderDetail(
     val user: OrderUser?,
     val kitchenNotes: String,
     val items: List<OrderItem>,
+    val pickupToken: String? = null,
 )
 
 data class OrderSummary(

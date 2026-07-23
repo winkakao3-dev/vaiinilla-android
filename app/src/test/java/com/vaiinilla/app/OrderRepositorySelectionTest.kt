@@ -1,6 +1,7 @@
 package com.vaiinilla.app
 
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.security.InMemoryPickupTokenStore
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.data.order.RemoteOrderRepository
 import com.vaiinilla.app.domain.model.CreateOrderItem
@@ -22,16 +23,18 @@ class OrderRepositorySelectionTest {
                 postResponse = sampleOrderEnvelope(OrderState.PENDING_PAYMENT.wireValue),
             ),
             OrderContractJson(),
+            InMemoryPickupTokenStore(),
         )
         val result = repository.createOrder(validRequest(), UUID.randomUUID().toString())
         assertTrue(result.isSuccess)
         assertEquals(OrderState.PENDING_PAYMENT, result.getOrThrow().summary.state)
+        assertEquals("v1.test-token", result.getOrThrow().pickupToken)
     }
 
     @Test
     fun `remote repository emits approved path body and idempotency header`() {
         val client = RecordingApiClient()
-        val repository = RemoteOrderRepository(client, OrderContractJson())
+        val repository = RemoteOrderRepository(client, OrderContractJson(), InMemoryPickupTokenStore())
         val key = UUID.randomUUID().toString()
 
         repository.createOrder(validRequest(), key)
@@ -54,7 +57,7 @@ class OrderRepositorySelectionTest {
             ),
             postResponse = sampleCashEnvelope("cobrado", version = 2),
         )
-        val repository = RemoteOrderRepository(client, OrderContractJson())
+        val repository = RemoteOrderRepository(client, OrderContractJson(), InMemoryPickupTokenStore())
 
         val result = repository.collectCash("order-1", "26.00", UUID.randomUUID().toString())
 
@@ -62,6 +65,27 @@ class OrderRepositorySelectionTest {
         assertEquals("pedidos/order-1/cobros-efectivo", client.lastPath)
         assertTrue(client.lastBody.contains("\"monto_recibido\":\"26.00\""))
         assertTrue(client.lastBody.contains("\"version_esperada\":1"))
+    }
+
+    @Test
+    fun `remote deliver transition includes cached qr_token`() {
+        val store = InMemoryPickupTokenStore()
+        store.save("order-1", "v1.cached")
+        val client = RecordingApiClient(
+            postResponse = sampleOrderEnvelope("entregado", version = 5),
+        )
+        val repository = RemoteOrderRepository(client, OrderContractJson(), store)
+
+        val result = repository.transition(
+            orderId = "order-1",
+            targetState = OrderState.DELIVERED,
+            expectedVersion = 4,
+            idempotencyKey = UUID.randomUUID().toString(),
+        )
+
+        assertTrue(result.isSuccess)
+        assertTrue(client.lastBody.contains("\"qr_token\":\"v1.cached\""))
+        assertTrue(client.lastBody.contains("\"estado_objetivo\":\"entregado\""))
     }
 
     private fun validRequest() = CreateOrderRequest(
@@ -90,7 +114,8 @@ class OrderRepositorySelectionTest {
             "creado_en": "2026-07-21T12:00:00.000Z",
             "actualizado_en": "2026-07-21T12:00:00.000Z",
             "notas_cocina": "",
-            "items": []
+            "items": [],
+            "qr_token": "v1.test-token"
           },
           "meta": { "page": null, "total_pages": null, "total_items": null, "cursor": null },
           "error": null

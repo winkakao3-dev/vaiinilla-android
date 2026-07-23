@@ -32,6 +32,10 @@ val selectedApiBaseUrl = readConfig(
 )
 
 val bootstrapAccessToken = readConfig("vaiinillaAccessToken", "")
+val tokenCliente = readConfig("vaiinillaAccessTokenCliente", bootstrapAccessToken)
+val tokenCajero = readConfig("vaiinillaAccessTokenCajero", "")
+val tokenCocina = readConfig("vaiinillaAccessTokenCocina", "")
+val tokenMesero = readConfig("vaiinillaAccessTokenMesero", "")
 
 android {
     namespace = "com.vaiinilla.app"
@@ -41,13 +45,16 @@ android {
         applicationId = "com.vaiinilla.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.3.0-vai11-local"
+        versionCode = 2
+        versionName = "0.3.1-vai11"
 
         buildConfigField("String", "DATA_SOURCE_MODE", "\"$selectedDataSource\"")
         buildConfigField("String", "API_BASE_URL", "\"$selectedApiBaseUrl\"")
         buildConfigField("String", "BOOTSTRAP_ACCESS_TOKEN", "\"$bootstrapAccessToken\"")
-
+        buildConfigField("String", "ACCESS_TOKEN_CLIENTE", "\"$tokenCliente\"")
+        buildConfigField("String", "ACCESS_TOKEN_CAJERO", "\"$tokenCajero\"")
+        buildConfigField("String", "ACCESS_TOKEN_COCINA", "\"$tokenCocina\"")
+        buildConfigField("String", "ACCESS_TOKEN_MESERO", "\"$tokenMesero\"")
     }
 
     buildFeatures {

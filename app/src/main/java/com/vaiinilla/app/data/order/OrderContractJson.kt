@@ -28,11 +28,20 @@ class OrderContractJson @Inject constructor() {
         ),
     )
 
-    fun encodeTransition(targetState: OrderState, expectedVersion: Int): String = json.encodeToString(
+    fun encodeTransition(
+        targetState: OrderState,
+        expectedVersion: Int,
+        pickupToken: String? = null,
+    ): String = json.encodeToString(
         TransitionRequestDto(
             targetState = targetState.wireValue,
             expectedVersion = expectedVersion,
+            pickupToken = pickupToken,
         ),
+    )
+
+    fun encodeOpenCashSession(initialAmount: String): String = json.encodeToString(
+        OpenCashSessionRequestDto(initialAmount = initialAmount),
     )
 
     fun parseOrderDetail(raw: String): OrderDetail {
@@ -51,6 +60,12 @@ class OrderContractJson @Inject constructor() {
         val envelope = json.decodeFromString<CashCollectionEnvelopeDto>(raw)
         requireEnvelopeSuccess(envelope.error)
         return envelope.data.order.toDomain()
+    }
+
+    fun parseCashSession(raw: String): CashSessionDto? {
+        val envelope = json.decodeFromString<CashSessionEnvelopeDto>(raw)
+        requireEnvelopeSuccess(envelope.error)
+        return envelope.data
     }
 
     private fun requireEnvelopeSuccess(error: JsonElement?) {

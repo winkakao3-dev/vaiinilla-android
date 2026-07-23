@@ -3,6 +3,7 @@ package com.vaiinilla.app.domain.usecase
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.OrderRepository
 import javax.inject.Inject
 
@@ -37,5 +38,19 @@ class TransitionOrderUseCase @Inject constructor(
         targetState: OrderState,
         expectedVersion: Int,
         idempotencyKey: String,
-    ): Result<OrderDetail> = repository.transition(orderId, targetState, expectedVersion, idempotencyKey)
+        pickupToken: String? = null,
+    ): Result<OrderDetail> = repository.transition(
+        orderId = orderId,
+        targetState = targetState,
+        expectedVersion = expectedVersion,
+        idempotencyKey = idempotencyKey,
+        pickupToken = pickupToken,
+    )
+}
+
+class OpenCashSessionUseCase @Inject constructor(
+    private val repository: CashSessionRepository,
+) {
+    operator fun invoke(initialAmount: String, idempotencyKey: String): Result<Unit> =
+        repository.openSession(initialAmount, idempotencyKey)
 }

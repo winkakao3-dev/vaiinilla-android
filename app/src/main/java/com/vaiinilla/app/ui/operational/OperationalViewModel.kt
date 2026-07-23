@@ -4,13 +4,16 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.security.RoleAccessTokenStore
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.usecase.CollectCashUseCase
 import com.vaiinilla.app.domain.usecase.GetOrderUseCase
 import com.vaiinilla.app.domain.usecase.ListOrdersUseCase
+import com.vaiinilla.app.domain.usecase.OpenCashSessionUseCase
 import com.vaiinilla.app.domain.usecase.TransitionOrderUseCase
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,7 +30,10 @@ class OperationalViewModel @Inject constructor(
     private val getOrder: GetOrderUseCase,
     private val collectCash: CollectCashUseCase,
     private val transitionOrder: TransitionOrderUseCase,
+    private val openCashSession: OpenCashSessionUseCase,
+    private val cashSessionRepository: CashSessionRepository,
     private val heartbeatRepository: DeviceHeartbeatRepository,
+    private val roleAccessTokenStore: RoleAccessTokenStore,
 ) : ViewModel() {
     private val _uiState = mutableStateOf(OperationalUiState())
     val uiState: State<OperationalUiState> = _uiState
@@ -36,8 +42,15 @@ class OperationalViewModel @Inject constructor(
     private var lastUpdatedSince: String? = null
 
     fun setRole(role: OperationalRole) {
-        _uiState.value = _uiState.value.copy(role = role, selectedOrderId = null, errorMessage = null)
+        roleAccessTokenStore.applyRole(role)
+        _uiState.value = _uiState.value.copy(
+            role = role,
+            selectedOrderId = null,
+            errorMessage = null,
+            cashSessionOpen = null,
+        )
         sendHeartbeatIfNeeded()
+        refreshCashSession()
         refresh()
         startPolling()
     }
@@ -91,6 +104,18 @@ class OperationalViewModel @Inject constructor(
         }
     }
 
+    fun openCashRegister(initialAmount: String = "500.00") {
+        _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
+        openCashSession(initialAmount, UUID.randomUUID().toString())
+            .onSuccess {
+                sendHeartbeatIfNeeded()
+                _uiState.value = _uiState.value.copy(acting = false, cashSessionOpen = true)
+            }
+            .onFailure { error ->
+                _uiState.value = _uiState.value.copy(acting = false, errorMessage = error.message)
+            }
+    }
+
     fun collectCash(orderId: String, amountReceived: String) {
         performMutation {
             collectCash(orderId, amountReceived, UUID.randomUUID().toString()).getOrThrow()
@@ -120,12 +145,14 @@ class OperationalViewModel @Inject constructor(
     }
 
     fun deliver(orderId: String, expectedVersion: Int) {
+        val pickupToken = _uiState.value.orders.firstOrNull { it.summary.id == orderId }?.pickupToken
         performMutation {
             transitionOrder(
                 orderId = orderId,
                 targetState = OrderState.DELIVERED,
                 expectedVersion = expectedVersion,
                 idempotencyKey = UUID.randomUUID().toString(),
+                pickupToken = pickupToken,
             ).getOrThrow()
         }
     }
@@ -140,6 +167,17 @@ class OperationalViewModel @Inject constructor(
             "Listo para entrega en tu espacio."
         }
         OrderState.DELIVERED -> "Pedido entregado. Gracias por usar Vaiinilla."
+    }
+
+    private fun refreshCashSession() {
+        if (_uiState.value.role != OperationalRole.CASHIER) return
+        cashSessionRepository.hasActiveSession()
+            .onSuccess { open ->
+                _uiState.value = _uiState.value.copy(cashSessionOpen = open)
+            }
+            .onFailure { error ->
+                _uiState.value = _uiState.value.copy(errorMessage = error.message)
+            }
     }
 
     private fun performMutation(block: () -> OrderDetail) {

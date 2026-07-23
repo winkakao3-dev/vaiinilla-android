@@ -134,6 +134,7 @@ fun AppNavHost(navController: NavHostController) {
             CashierOperationalScreen(
                 state = operationalState,
                 onBack = returnToRoles(navController, operationalViewModel),
+                onOpenCashSession = operationalViewModel::openCashRegister,
                 onCollect = operationalViewModel::collectCash,
                 onDeliver = operationalViewModel::deliver,
             )

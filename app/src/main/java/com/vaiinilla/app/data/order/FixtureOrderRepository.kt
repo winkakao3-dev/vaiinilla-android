@@ -119,6 +119,7 @@ class FixtureOrderRepository(
             user = null,
             kitchenNotes = request.kitchenNotes,
             items = orderItems,
+            pickupToken = "v1.fixture-${idempotencyKey.replace("-", "").take(32)}",
         )
         persist(order)
         createRequestsByKey[idempotencyKey] = StoredCreateRequest(request, order)
@@ -177,6 +178,7 @@ class FixtureOrderRepository(
         targetState: OrderState,
         expectedVersion: Int,
         idempotencyKey: String,
+        pickupToken: String?,
     ): Result<OrderDetail> = runMutation(idempotencyKey) {
         requireUuid(idempotencyKey)
         val order = requireOrder(orderId)
@@ -193,6 +195,12 @@ class FixtureOrderRepository(
         }
         if (!allowed) {
             throw OrderRepositoryException("INVALID_TRANSITION", "La transición solicitada no es válida.")
+        }
+        if (targetState == OrderState.DELIVERED) {
+            val token = pickupToken ?: order.pickupToken
+            if (token.isNullOrBlank()) {
+                throw OrderRepositoryException("INVALID_PICKUP_TOKEN", "Entregar exige qr_token.")
+            }
         }
 
         val timestamp = bumpTimestamp(order.summary.updatedAt)

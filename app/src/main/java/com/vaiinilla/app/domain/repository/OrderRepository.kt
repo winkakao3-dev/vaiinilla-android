@@ -23,6 +23,7 @@ interface OrderRepository {
         targetState: OrderState,
         expectedVersion: Int,
         idempotencyKey: String,
+        pickupToken: String? = null,
     ): Result<OrderDetail>
 }
 

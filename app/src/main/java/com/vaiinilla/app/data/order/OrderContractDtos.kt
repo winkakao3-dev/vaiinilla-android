@@ -1,6 +1,8 @@
 package com.vaiinilla.app.data.order
 
 import com.vaiinilla.app.data.fixture.MetaDto
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
@@ -48,10 +50,13 @@ data class CashCollectionEnvelopeDto(
     val error: JsonElement? = null,
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class TransitionRequestDto(
     @SerialName("estado_objetivo") val targetState: String,
     @SerialName("version_esperada") val expectedVersion: Int,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("qr_token") val pickupToken: String? = null,
 )
 
 @Serializable
@@ -78,8 +83,29 @@ data class OrderDetailDto(
     @SerialName("creado_en") val createdAt: String,
     @SerialName("actualizado_en") val updatedAt: String,
     @SerialName("usuario") val user: OrderUserDto? = null,
-    @SerialName("notas_cocina") val kitchenNotes: String,
-    @SerialName("items") val items: List<OrderItemDto>,
+    @SerialName("notas_cocina") val kitchenNotes: String? = null,
+    @SerialName("items") val items: List<OrderItemDto> = emptyList(),
+    @SerialName("qr_token") val pickupToken: String? = null,
+)
+
+@Serializable
+data class OpenCashSessionRequestDto(
+    @SerialName("monto_inicial") val initialAmount: String,
+)
+
+@Serializable
+data class CashSessionDto(
+    val id: String,
+    @SerialName("fecha_operativa") val operationalDate: String,
+    @SerialName("monto_inicial") val initialAmount: String,
+    @SerialName("abierta_en") val openedAt: String,
+)
+
+@Serializable
+data class CashSessionEnvelopeDto(
+    val data: CashSessionDto?,
+    val meta: MetaDto,
+    val error: JsonElement? = null,
 )
 
 @Serializable
