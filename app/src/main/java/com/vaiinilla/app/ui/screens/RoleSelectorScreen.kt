@@ -50,13 +50,13 @@ fun RoleSelectorScreen(
             Text("Vaiinilla", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
             Spacer(Modifier.height(4.dp))
             Text(
-                "Entrega 01 · demo local VAI-11",
+                "Entrega VAI-11 · seguimiento operativo",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MutedInk,
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                "Elige un rol para recorrer el flujo. Las transiciones usan fixtures hasta que Saúl libere el backend.",
+                "Elige un rol. MOCK usa fixtures locales; REMOTE habla con Railway si hay JWT válidos en local.properties.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MutedInk,
             )
