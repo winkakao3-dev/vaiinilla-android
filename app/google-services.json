@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "697485438624",
+    "project_id": "vaiinilla-b3a70",
+    "storage_bucket": "vaiinilla-b3a70.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:697485438624:android:4ea7499636c7157b97a3c5",
+        "android_client_info": {
+          "package_name": "com.vaiinilla.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "697485438624-6i7o7q74il519m5i9tju6kmij6cr5a59.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDyTQEoziF4FQiZ3MuzPW9ywymaLDwU-5A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "697485438624-6i7o7q74il519m5i9tju6kmij6cr5a59.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "697485438624-3d280pcbnpaoncrilgrtslbcgiovp19q.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "om.innovapro.vaiinilla"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.config.DataSourceMode
 import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
+import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.OptionGroup
@@ -204,7 +205,9 @@ class OrderFlowViewModel @Inject constructor(
         viewModelScope.launch {
             var current = _uiState.value
             if (environment.dataSourceMode == DataSourceMode.REMOTE) {
-                withContext(Dispatchers.IO) { staffPresenceCoordinator.primeStaffPresence() }
+                withContext(Dispatchers.IO) {
+                    staffPresenceCoordinator.primeStaffPresence(activeRole = OperationalRole.CLIENT)
+                }
                 val status = withContext(Dispatchers.IO) { getOperationalStatus() }.getOrNull()
                 if (status != null) {
                     current = current.copy(operationalStatus = status)

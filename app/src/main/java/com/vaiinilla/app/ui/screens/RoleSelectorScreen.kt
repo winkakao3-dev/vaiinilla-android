@@ -19,10 +19,12 @@ import androidx.compose.material.icons.rounded.LocalDining
 import androidx.compose.material.icons.rounded.PointOfSale
 import androidx.compose.material.icons.rounded.RoomService
 import androidx.compose.material.icons.rounded.SentimentSatisfiedAlt
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,8 +39,13 @@ import com.vaiinilla.app.ui.theme.MutedInk
 
 @Composable
 fun RoleSelectorScreen(
+    loadingRole: OperationalRole? = null,
+    errorMessage: String? = null,
+    onDismissError: () -> Unit = {},
     onRoleSelected: (OperationalRole) -> Unit,
 ) {
+    val isLoading = loadingRole != null
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -56,13 +63,38 @@ fun RoleSelectorScreen(
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                "Elige un rol. MOCK usa fixtures locales; REMOTE habla con Railway si hay JWT válidos en local.properties.",
+                "Elige un rol. MOCK usa fixtures locales; REMOTE inicia sesión con cuentas seed de Firebase.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MutedInk,
             )
+            if (errorMessage != null) {
+                Spacer(Modifier.height(12.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Text(
+                            errorMessage,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                        TextButton(onClick = onDismissError) {
+                            Text("Cerrar")
+                        }
+                    }
+                }
+            }
         }
         items(roleOptions) { option ->
-            RoleCard(option = option, onClick = { onRoleSelected(option.role) })
+            val roleLoading = loadingRole == option.role
+            RoleCard(
+                option = option,
+                loading = roleLoading,
+                enabled = !isLoading,
+                onClick = { onRoleSelected(option.role) },
+            )
         }
     }
 }
@@ -104,14 +136,16 @@ private val roleOptions = listOf(
 @Composable
 private fun RoleCard(
     option: RoleOption,
+    loading: Boolean = false,
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled && !loading, onClick = onClick),
         shape = RoundedCornerShape(24.dp),
-        color = Lime.copy(alpha = 0.35f),
+        color = Lime.copy(alpha = if (enabled) 0.35f else 0.2f),
     ) {
         Row(
             modifier = Modifier.padding(18.dp),
@@ -133,6 +167,12 @@ private fun RoleCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(option.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
                 Text(option.subtitle, style = MaterialTheme.typography.bodyMedium, color = MutedInk)
+            }
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp,
+                )
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.vaiinilla.app.core.network
 
+import com.vaiinilla.app.core.auth.ActiveSessionRefresher
 import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.security.SecureSessionStore
 import java.io.BufferedReader
@@ -15,6 +16,7 @@ class HttpVaiinillaApiClient @Inject constructor(
     environment: AppEnvironment,
     private val sessionStore: SecureSessionStore,
     private val responseParser: ApiResponseParser,
+    private val sessionRefresher: ActiveSessionRefresher,
 ) : VaiinillaApiClient {
     override val baseUrl: String = environment.apiBaseUrl
 
@@ -40,6 +42,20 @@ class HttpVaiinillaApiClient @Inject constructor(
         accessToken = accessToken,
     )
 
+    fun postWithBearer(
+        bearer: String,
+        path: String,
+        body: String,
+        headers: Map<String, String> = emptyMap(),
+    ): Result<String> = execute(
+        method = "POST",
+        path = path,
+        body = body,
+        headers = headers,
+        accessToken = bearer,
+        allowSessionRefresh = false,
+    )
+
     private fun execute(
         method: String,
         path: String,
@@ -47,7 +63,28 @@ class HttpVaiinillaApiClient @Inject constructor(
         body: String? = null,
         headers: Map<String, String> = emptyMap(),
         accessToken: String? = null,
+        allowSessionRefresh: Boolean = true,
     ): Result<String> = runCatching {
+        executeOnce(
+            method = method,
+            path = path,
+            query = query,
+            body = body,
+            headers = headers,
+            accessToken = accessToken,
+            allowSessionRefresh = allowSessionRefresh,
+        )
+    }
+
+    private fun executeOnce(
+        method: String,
+        path: String,
+        query: Map<String, String>,
+        body: String?,
+        headers: Map<String, String>,
+        accessToken: String?,
+        allowSessionRefresh: Boolean,
+    ): String {
         val token = accessToken?.takeIf { it.isNotBlank() }
             ?: sessionStore.readAccessToken()?.takeIf { it.isNotBlank() }
             ?: throw MissingAccessTokenException()
@@ -70,10 +107,27 @@ class HttpVaiinillaApiClient @Inject constructor(
         val status = connection.responseCode
         val raw = readBody(connection, status)
         if (status in 200..299) {
-            raw
-        } else {
-            throw responseParser.parseError(raw, status)
+            return raw
         }
+
+        val error = responseParser.parseError(raw, status)
+        if (
+            allowSessionRefresh &&
+            error.httpStatus == 401 &&
+            error.code.equals("UNAUTHENTICATED", ignoreCase = true)
+        ) {
+            sessionRefresher.refreshActiveSession().getOrThrow()
+            return executeOnce(
+                method = method,
+                path = path,
+                query = query,
+                body = body,
+                headers = headers,
+                accessToken = null,
+                allowSessionRefresh = false,
+            )
+        }
+        throw error
     }
 
     private fun openConnection(

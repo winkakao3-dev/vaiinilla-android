@@ -9,8 +9,9 @@ vaiinillaDataSource=MOCK
 # Backend Railway de desarrollo (Saúl)
 vaiinillaApiBaseUrl=https://vaiinillaback-development-3f6c.up.railway.app/api/v1/
 
-# JWT RS256 de contexto Vaiinilla por rol (15 min). No hardcodear ni commitear.
-# Se obtienen con Firebase login + POST /api/v1/sesiones/contexto.
+# REMOTE: la app inicia sesión con cuentas seed Firebase (@vaiinilla.test) y obtiene
+# JWT vía POST /api/v1/sesiones/contexto al elegir rol. Ver docs/FIREBASE_SEED_AUTH.md.
+# Los campos siguientes son opcionales (MOCK o override manual); no commitear valores.
 vaiinillaAccessToken=
 vaiinillaAccessTokenCliente=
 vaiinillaAccessTokenCajero=

@@ -8,6 +8,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.ui.auth.RoleAuthViewModel
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.screens.CartScreen
@@ -23,8 +24,10 @@ import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
 fun AppNavHost(navController: NavHostController) {
     val orderFlowViewModel: OrderFlowViewModel = viewModel()
     val operationalViewModel: OperationalViewModel = viewModel()
+    val roleAuthViewModel: RoleAuthViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
+    val roleAuthState by roleAuthViewModel.state
 
     LaunchedEffect(orderState.createdOrder?.summary?.id) {
         val created = orderState.createdOrder ?: return@LaunchedEffect
@@ -41,23 +44,28 @@ fun AppNavHost(navController: NavHostController) {
     NavHost(navController = navController, startDestination = Routes.ROLE_SELECTOR) {
         composable(Routes.ROLE_SELECTOR) {
             RoleSelectorScreen(
+                loadingRole = roleAuthState.authenticatingRole.takeIf { roleAuthState.loading },
+                errorMessage = roleAuthState.errorMessage,
+                onDismissError = roleAuthViewModel::clearError,
                 onRoleSelected = { role ->
-                    operationalViewModel.setRole(role)
-                    when (role) {
-                        OperationalRole.CLIENT -> {
-                            orderFlowViewModel.refresh()
-                            navController.navigate(Routes.CATALOG) {
+                    roleAuthViewModel.authenticate(role) {
+                        operationalViewModel.setRole(role)
+                        when (role) {
+                            OperationalRole.CLIENT -> {
+                                orderFlowViewModel.refresh()
+                                navController.navigate(Routes.CATALOG) {
+                                    launchSingleTop = true
+                                }
+                            }
+                            OperationalRole.CASHIER -> navController.navigate(Routes.CASHIER) {
                                 launchSingleTop = true
                             }
-                        }
-                        OperationalRole.CASHIER -> navController.navigate(Routes.CASHIER) {
-                            launchSingleTop = true
-                        }
-                        OperationalRole.KITCHEN -> navController.navigate(Routes.KITCHEN) {
-                            launchSingleTop = true
-                        }
-                        OperationalRole.WAITER -> navController.navigate(Routes.WAITER) {
-                            launchSingleTop = true
+                            OperationalRole.KITCHEN -> navController.navigate(Routes.KITCHEN) {
+                                launchSingleTop = true
+                            }
+                            OperationalRole.WAITER -> navController.navigate(Routes.WAITER) {
+                                launchSingleTop = true
+                            }
                         }
                     }
                 },
