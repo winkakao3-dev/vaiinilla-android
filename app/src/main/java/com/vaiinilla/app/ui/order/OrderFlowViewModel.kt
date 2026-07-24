@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.config.DataSourceMode
+import com.vaiinilla.app.core.config.EffectiveDataSourceResolver
 import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.ContractRules
@@ -33,10 +34,14 @@ class OrderFlowViewModel @Inject constructor(
     private val createOrder: CreateOrderUseCase,
     private val createStudentCheckout: CreateStudentCheckoutUseCase,
     private val staffPresenceCoordinator: StaffPresenceCoordinator,
+    private val dataSourceResolver: EffectiveDataSourceResolver,
     private val environment: AppEnvironment,
 ) : ViewModel() {
     private val _uiState = mutableStateOf(
-        OrderFlowUiState(dataSourceMode = environment.dataSourceMode),
+        OrderFlowUiState(
+            dataSourceMode = environment.dataSourceMode,
+            testOnlyMode = dataSourceResolver.isTestOnlyMode,
+        ),
     )
     val uiState: State<OrderFlowUiState> = _uiState
 
@@ -48,7 +53,12 @@ class OrderFlowViewModel @Inject constructor(
 
     fun refresh() {
         val previous = _uiState.value
-        _uiState.value = previous.copy(loading = true, errorMessage = null)
+        _uiState.value = previous.copy(
+            loading = true,
+            errorMessage = null,
+            testOnlyMode = dataSourceResolver.isTestOnlyMode,
+            dataSourceMode = dataSourceResolver.effectiveMode(),
+        )
         viewModelScope.launch {
             val catalogResult = withContext(Dispatchers.IO) { getCatalog() }
             val statusResult = withContext(Dispatchers.IO) { getOperationalStatus() }
@@ -211,6 +221,16 @@ class OrderFlowViewModel @Inject constructor(
         )
     }
 
+    fun applyTestOnlyMode(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(
+            testOnlyMode = enabled,
+            dataSourceMode = dataSourceResolver.effectiveMode(),
+            createOrderError = null,
+            errorMessage = null,
+        )
+        refresh()
+    }
+
     fun submitOrder(walletBalance: Int = 0, onWalletDebit: (Int) -> Unit = {}) {
         val state = _uiState.value
         if (state.cartLines.isEmpty()) {
@@ -231,7 +251,7 @@ class OrderFlowViewModel @Inject constructor(
         _uiState.value = state.copy(creatingOrder = true, createOrderError = null)
         viewModelScope.launch {
             var current = _uiState.value
-            if (environment.dataSourceMode == DataSourceMode.REMOTE && current.usesStudentCheckout) {
+            if (dataSourceResolver.usesNetwork() && current.usesStudentCheckout) {
                 _uiState.value = current.copy(
                     creatingOrder = false,
                     createOrderError = "Saldo, tarjeta y mesa están disponibles en modo demo local.",
@@ -239,7 +259,7 @@ class OrderFlowViewModel @Inject constructor(
                 return@launch
             }
 
-            if (environment.dataSourceMode == DataSourceMode.REMOTE) {
+            if (dataSourceResolver.usesNetwork()) {
                 withContext(Dispatchers.IO) { staffPresenceCoordinator.primeStaffPresence() }
                 val status = withContext(Dispatchers.IO) { getOperationalStatus() }.getOrNull()
                 if (status != null) {

@@ -256,6 +256,12 @@ class OperationalViewModel @Inject constructor(
         }
     }
 
+    fun onRuntimeModeChanged() {
+        val role = _uiState.value.role ?: return
+        refreshCashSession()
+        refresh()
+    }
+
     override fun onCleared() {
         pollingJob?.cancel()
         super.onCleared()

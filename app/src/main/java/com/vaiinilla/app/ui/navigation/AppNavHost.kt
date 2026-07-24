@@ -3,13 +3,19 @@ package com.vaiinilla.app.ui.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.vaiinilla.app.di.DataSourceResolverEntryPoint
 import com.vaiinilla.app.domain.model.OperationalRole
+import dagger.hilt.android.EntryPointAccessors
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
@@ -38,6 +44,20 @@ fun AppNavHost(navController: NavHostController) {
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
     val walletState = rememberWalletUiState()
+    val context = LocalContext.current
+    val dataSourceResolver = remember {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            DataSourceResolverEntryPoint::class.java,
+        ).effectiveDataSourceResolver()
+    }
+    var testOnlyMode by remember { mutableStateOf(dataSourceResolver.isTestOnlyMode) }
+
+    LaunchedEffect(testOnlyMode) {
+        dataSourceResolver.isTestOnlyMode = testOnlyMode
+        orderFlowViewModel.applyTestOnlyMode(testOnlyMode)
+        operationalViewModel.onRuntimeModeChanged()
+    }
 
     LaunchedEffect(orderState.createdOrder?.summary?.id) {
         val created = orderState.createdOrder ?: return@LaunchedEffect
@@ -69,6 +89,8 @@ fun AppNavHost(navController: NavHostController) {
 
         composable(Routes.ROLE_SELECTOR) {
             RoleSelectorScreen(
+                testOnlyMode = testOnlyMode,
+                onTestOnlyModeChange = { enabled -> testOnlyMode = enabled },
                 onRoleSelected = { role ->
                     operationalViewModel.setRole(role)
                     when (role) {

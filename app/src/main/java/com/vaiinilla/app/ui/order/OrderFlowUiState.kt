@@ -17,6 +17,7 @@ data class OrderFlowUiState(
     val catalog: Catalog? = null,
     val operationalStatus: OperationalStatus? = null,
     val dataSourceMode: DataSourceMode = DataSourceMode.MOCK,
+    val testOnlyMode: Boolean = false,
     val errorMessage: String? = null,
     val searchQuery: String = "",
     val selectedCategoryId: Int? = null,

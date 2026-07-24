@@ -33,11 +33,15 @@ import com.vaiinilla.app.ui.theme.Ink
 import com.vaiinilla.app.ui.theme.Ink2
 import com.vaiinilla.app.ui.theme.Lime
 import com.vaiinilla.app.ui.theme.Yolk
+import com.vaiinilla.app.ui.components.TestOnlyModeBadge
+import com.vaiinilla.app.ui.components.TestOnlyModeCard
 import com.vaiinilla.app.ui.components.ThemeCycleButton
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 @Composable
 fun RoleSelectorScreen(
+    testOnlyMode: Boolean,
+    onTestOnlyModeChange: (Boolean) -> Unit,
     onRoleSelected: (OperationalRole) -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -69,7 +73,18 @@ fun RoleSelectorScreen(
                     color = colors.ink,
                 )
                 ThemeCycleButton()
+                if (testOnlyMode) {
+                    TestOnlyModeBadge(modifier = Modifier.padding(start = 8.dp))
+                }
             }
+        }
+
+        item {
+            TestOnlyModeCard(
+                enabled = testOnlyMode,
+                onEnabledChange = onTestOnlyModeChange,
+                modifier = Modifier.padding(top = 4.dp),
+            )
         }
 
         item {

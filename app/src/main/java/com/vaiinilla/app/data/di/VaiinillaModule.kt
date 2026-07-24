@@ -4,12 +4,17 @@ import android.content.Context
 import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.config.DataSourceMode
+import com.vaiinilla.app.core.config.EffectiveDataSourceResolver
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.security.AndroidKeyStoreSessionStore
 import com.vaiinilla.app.core.security.PickupTokenStore
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.core.security.SharedPreferencesPickupTokenStore
+import com.vaiinilla.app.data.SwitchingCashSessionRepository
+import com.vaiinilla.app.data.SwitchingCatalogRepository
+import com.vaiinilla.app.data.SwitchingDeviceHeartbeatRepository
+import com.vaiinilla.app.data.SwitchingOrderRepository
 import com.vaiinilla.app.data.catalog.FixtureCatalogRepository
 import com.vaiinilla.app.data.catalog.RemoteCatalogRepository
 import com.vaiinilla.app.data.fixture.ContractFixtureParser
@@ -70,48 +75,69 @@ object VaiinillaModule {
 
     @Provides
     @Singleton
-    fun provideCatalogRepository(
-        environment: AppEnvironment,
+    fun provideFixtureCatalogRepository(
         fixtureSource: FixtureSource,
         parser: ContractFixtureParser,
+    ): FixtureCatalogRepository = FixtureCatalogRepository(fixtureSource, parser)
+
+    @Provides
+    @Singleton
+    fun provideRemoteCatalogRepository(
         apiClient: VaiinillaApiClient,
-    ): CatalogRepository = when (environment.dataSourceMode) {
-        DataSourceMode.MOCK -> FixtureCatalogRepository(fixtureSource, parser)
-        DataSourceMode.REMOTE -> RemoteCatalogRepository(apiClient, parser)
-    }
+        parser: ContractFixtureParser,
+    ): RemoteCatalogRepository = RemoteCatalogRepository(apiClient, parser)
+
+    @Provides
+    @Singleton
+    fun provideCatalogRepository(
+        resolver: EffectiveDataSourceResolver,
+        fixture: FixtureCatalogRepository,
+        remote: RemoteCatalogRepository,
+    ): CatalogRepository = SwitchingCatalogRepository(resolver, fixture, remote)
+
+    @Provides
+    @Singleton
+    fun provideFixtureOrderRepository(
+        fixtureSource: FixtureSource,
+        parser: ContractFixtureParser,
+    ): FixtureOrderRepository = FixtureOrderRepository(fixtureSource, parser)
+
+    @Provides
+    @Singleton
+    fun provideRemoteOrderRepository(
+        apiClient: VaiinillaApiClient,
+        orderContractJson: OrderContractJson,
+        pickupTokenStore: PickupTokenStore,
+    ): RemoteOrderRepository = RemoteOrderRepository(apiClient, orderContractJson, pickupTokenStore)
 
     @Provides
     @Singleton
     fun provideOrderRepository(
-        environment: AppEnvironment,
-        fixtureSource: FixtureSource,
-        parser: ContractFixtureParser,
-        apiClient: VaiinillaApiClient,
-        orderContractJson: OrderContractJson,
-        pickupTokenStore: PickupTokenStore,
-    ): OrderRepository = when (environment.dataSourceMode) {
-        DataSourceMode.MOCK -> FixtureOrderRepository(fixtureSource, parser)
-        DataSourceMode.REMOTE -> RemoteOrderRepository(apiClient, orderContractJson, pickupTokenStore)
-    }
+        resolver: EffectiveDataSourceResolver,
+        fixture: FixtureOrderRepository,
+        remote: RemoteOrderRepository,
+    ): OrderRepository = SwitchingOrderRepository(resolver, fixture, remote)
 
     @Provides
     @Singleton
     fun provideDeviceHeartbeatRepository(
-        environment: AppEnvironment,
+        resolver: EffectiveDataSourceResolver,
         apiClient: VaiinillaApiClient,
-    ): DeviceHeartbeatRepository = when (environment.dataSourceMode) {
-        DataSourceMode.MOCK -> NoOpDeviceHeartbeatRepository()
-        DataSourceMode.REMOTE -> RemoteDeviceHeartbeatRepository(apiClient)
-    }
+    ): DeviceHeartbeatRepository = SwitchingDeviceHeartbeatRepository(
+        resolver = resolver,
+        noop = NoOpDeviceHeartbeatRepository(),
+        remote = RemoteDeviceHeartbeatRepository(apiClient),
+    )
 
     @Provides
     @Singleton
     fun provideCashSessionRepository(
-        environment: AppEnvironment,
+        resolver: EffectiveDataSourceResolver,
         apiClient: VaiinillaApiClient,
         orderContractJson: OrderContractJson,
-    ): CashSessionRepository = when (environment.dataSourceMode) {
-        DataSourceMode.MOCK -> NoOpCashSessionRepository()
-        DataSourceMode.REMOTE -> RemoteCashSessionRepository(apiClient, orderContractJson)
-    }
+    ): CashSessionRepository = SwitchingCashSessionRepository(
+        resolver = resolver,
+        noop = NoOpCashSessionRepository(),
+        remote = RemoteCashSessionRepository(apiClient, orderContractJson),
+    )
 }

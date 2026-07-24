@@ -1,7 +1,6 @@
 package com.vaiinilla.app.data.operational
 
-import com.vaiinilla.app.core.config.AppEnvironment
-import com.vaiinilla.app.core.config.DataSourceMode
+import com.vaiinilla.app.core.config.EffectiveDataSourceResolver
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
 import com.vaiinilla.app.core.security.RoleAccessTokenStore
 import com.vaiinilla.app.domain.model.OperationalRole
@@ -15,7 +14,7 @@ import kotlinx.serialization.json.Json
 
 @Singleton
 class StaffPresenceCoordinator @Inject constructor(
-    private val environment: AppEnvironment,
+    private val dataSourceResolver: EffectiveDataSourceResolver,
     private val roleAccessTokenStore: RoleAccessTokenStore,
     private val apiClient: HttpVaiinillaApiClient,
 ) {
@@ -25,7 +24,7 @@ class StaffPresenceCoordinator @Inject constructor(
     }
 
     fun primeStaffPresence(): Result<Unit> {
-        if (environment.dataSourceMode != DataSourceMode.REMOTE) {
+        if (!dataSourceResolver.usesNetwork()) {
             return Result.success(Unit)
         }
 
