@@ -59,10 +59,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.ui.components.moneyLabel
-import com.vaiinilla.app.ui.theme.Cream
-import com.vaiinilla.app.ui.theme.Ink
 import com.vaiinilla.app.ui.theme.Lime
-import com.vaiinilla.app.ui.theme.MutedInk
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import kotlinx.coroutines.delay
 import kotlin.math.sin
 
@@ -78,15 +76,17 @@ fun OrderConfirmationScreen(
     order: OrderDetail?,
     onReturnToMenu: () -> Unit,
     onViewTracking: () -> Unit = {},
+    onViewSticker: () -> Unit = {},
 ) {
     if (order == null) {
+        val colors = LocalVaiinillaColors.current
         Box(
-            modifier = Modifier.fillMaxSize().background(Cream),
+            modifier = Modifier.fillMaxSize().background(colors.paper),
             contentAlignment = Alignment.Center,
         ) {
             Button(
                 onClick = onReturnToMenu,
-                colors = ButtonDefaults.buttonColors(containerColor = Lime, contentColor = Ink),
+                colors = ButtonDefaults.buttonColors(containerColor = colors.accent, contentColor = colors.accentInk),
             ) {
                 Text("Volver al menú", fontWeight = FontWeight.Black)
             }
@@ -108,10 +108,11 @@ fun OrderConfirmationScreen(
         printed = true
     }
 
+    val colors = LocalVaiinillaColors.current
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(colors.paper)
             .statusBarsPadding(),
     ) {
         val compact = maxWidth < 360.dp
@@ -167,8 +168,8 @@ fun OrderConfirmationScreen(
                             .height(56.dp),
                         shape = RoundedCornerShape(20.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Lime,
-                            contentColor = Ink,
+                            containerColor = colors.accent,
+                            contentColor = colors.accentInk,
                         ),
                     ) {
                         Text(
@@ -178,14 +179,14 @@ fun OrderConfirmationScreen(
                         )
                     }
                     Button(
-                        onClick = { /* Phase 2: sticker viewer */ },
+                        onClick = onViewSticker,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
                         shape = RoundedCornerShape(20.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Cream,
-                            contentColor = Ink,
+                            containerColor = colors.paper2,
+                            contentColor = colors.ink,
                         ),
                     ) {
                         Text(
@@ -202,7 +203,7 @@ fun OrderConfirmationScreen(
                         shape = RoundedCornerShape(20.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = PrinterInk,
-                            contentColor = Cream,
+                            contentColor = colors.paper,
                         ),
                     ) {
                         Text(
@@ -219,6 +220,7 @@ fun OrderConfirmationScreen(
 
 @Composable
 private fun ReceiptConfirmHeader(modifier: Modifier = Modifier) {
+    val colors = LocalVaiinillaColors.current
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -227,14 +229,14 @@ private fun ReceiptConfirmHeader(modifier: Modifier = Modifier) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 "PEDIDO CREADO",
-                color = MutedInk,
+                color = colors.muted,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.2.sp,
             )
             Text(
                 "Tu pase de Caja acaba de salir.",
-                color = Ink,
+                color = colors.ink,
                 fontSize = 26.sp,
                 lineHeight = 28.sp,
                 fontWeight = FontWeight.Black,
@@ -242,7 +244,7 @@ private fun ReceiptConfirmHeader(modifier: Modifier = Modifier) {
             )
             Text(
                 "Págalo en efectivo y usa este receipt sticker para identificar la orden.",
-                color = MutedInk,
+                color = colors.muted,
                 fontSize = 15.sp,
                 lineHeight = 22.sp,
                 modifier = Modifier.padding(top = 8.dp),
@@ -252,10 +254,10 @@ private fun ReceiptConfirmHeader(modifier: Modifier = Modifier) {
             modifier = Modifier
                 .padding(start = 12.dp)
                 .size(52.dp)
-                .background(Lime, CircleShape),
+                .background(colors.accent, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Text("✓", color = Ink, fontSize = 24.sp, fontWeight = FontWeight.Black)
+            Text("✓", color = colors.accentInk, fontSize = 24.sp, fontWeight = FontWeight.Black)
         }
     }
 }

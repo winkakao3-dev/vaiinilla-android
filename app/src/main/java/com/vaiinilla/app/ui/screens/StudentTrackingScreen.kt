@@ -1,117 +1,156 @@
 package com.vaiinilla.app.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.vaiinilla.app.domain.model.OrderDetail
-import com.vaiinilla.app.ui.components.OperationalEmptyState
-import com.vaiinilla.app.ui.components.OrderSummaryCard
-import com.vaiinilla.app.ui.components.OrderTimeline
+import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.ui.components.DemoEmptyState
+import com.vaiinilla.app.ui.components.OrderDetailSummary
+import com.vaiinilla.app.ui.components.OrderTrackingCard
+import com.vaiinilla.app.ui.components.OrderTrackingTimeline
+import com.vaiinilla.app.ui.components.StudentTab
+import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.operational.OperationalUiState
-import com.vaiinilla.app.ui.theme.Cream
-import com.vaiinilla.app.ui.theme.Ink
-import com.vaiinilla.app.ui.theme.Lime
-import com.vaiinilla.app.ui.theme.MutedInk
+import com.vaiinilla.app.ui.order.OrderFlowUiState
+import com.vaiinilla.app.ui.order.cartItemCount
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 @Composable
 fun StudentTrackingScreen(
     state: OperationalUiState,
-    trackingHint: (OrderDetail) -> String,
-    onBack: () -> Unit,
+    orderState: OrderFlowUiState,
+    onMenu: () -> Unit,
+    onAssistant: () -> Unit,
+    onWallet: () -> Unit,
+    onCart: () -> Unit,
     onOpenCatalog: () -> Unit,
     onSelectOrder: (String) -> Unit,
-    onClearSelection: () -> Unit,
+    onViewSticker: () -> Unit = {},
 ) {
+    LaunchedEffect(Unit) {
+        if (state.role != OperationalRole.CLIENT) {
+            // Role is set by AppNavHost before navigation.
+        }
+    }
+
     val selected = state.selectedOrder
-    LazyColumn(
+    val colors = LocalVaiinillaColors.current
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+            .background(colors.paper),
     ) {
-        item {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Seguimiento", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
-                Text(
-                    "Roles",
-                    modifier = Modifier.clickable(onClick = onBack),
-                    color = MutedInk,
-                    fontWeight = FontWeight.Bold,
-                )
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding(),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 132.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                Text("Mis pedidos", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 22.sp)
             }
-            Text(
-                "Ventanas 20–24 del mockup. Polling local cada 5 s.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MutedInk,
-            )
+
+            when {
+                state.orders.isEmpty() -> {
+                    item {
+                        DemoEmptyState(
+                            icon = Icons.Outlined.ReceiptLong,
+                            title = "Sin pedidos activos",
+                            message = "Cuando confirmes uno aparecerá aquí.",
+                            actionLabel = "Pedir algo",
+                            onAction = onOpenCatalog,
+                        )
+                    }
+                }
+                selected != null -> {
+                    item {
+                        OrderTrackingCard(order = selected, showEyebrow = true)
+                    }
+                    item {
+                        TrackingSectionHead()
+                    }
+                    item {
+                        OrderTrackingTimeline(current = selected.summary.state)
+                    }
+                    item {
+                        Text("Resumen", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                    }
+                    item {
+                        OrderDetailSummary(order = selected)
+                    }
+                    item {
+                        Button(
+                            onClick = onViewSticker,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = colors.paper2,
+                                contentColor = colors.ink,
+                            ),
+                        ) {
+                            Text("Ver sticker", fontWeight = FontWeight.Black)
+                        }
+                    }
+                }
+                else -> {
+                    items(state.orders, key = { it.summary.id }) { order ->
+                        OrderTrackingCard(
+                            order = order,
+                            showEyebrow = false,
+                            onClick = { onSelectOrder(order.summary.id) },
+                        )
+                    }
+                }
+            }
         }
 
-        if (selected == null) {
-            item {
-                Button(
-                    onClick = onOpenCatalog,
-                    colors = ButtonDefaults.buttonColors(containerColor = Lime, contentColor = Ink),
-                ) {
-                    Text("Ir al catálogo", fontWeight = FontWeight.Black)
-                }
-            }
-            if (state.orders.isEmpty()) {
-                item {
-                    OperationalEmptyState(
-                        title = "Sin pedidos activos",
-                        message = "Crea un pedido en efectivo para ver el seguimiento aquí.",
-                    )
-                }
-            } else {
-                items(state.orders, key = { it.summary.id }) { order ->
-                    OrderSummaryCard(
-                        order = order,
-                        modifier = Modifier.clickable { onSelectOrder(order.summary.id) },
-                    )
-                }
-            }
-        } else {
-            item {
-                Text(
-                    "← Volver a la lista",
-                    modifier = Modifier.clickable(onClick = onClearSelection),
-                    color = MutedInk,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-            item {
-                OrderSummaryCard(order = selected)
-            }
-            item {
-                Text("Estado del pedido", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
-                Spacer(Modifier.height(8.dp))
-                OrderTimeline(current = selected.summary.state)
-            }
-            item {
-                Text(
-                    trackingHint(selected),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MutedInk,
-                )
-            }
-        }
+        VaiinillaBottomNav(
+            activeTab = StudentTab.ORDERS,
+            cartCount = orderState.cartItemCount,
+            onMenu = onMenu,
+            onAssistant = onAssistant,
+            onOrders = {},
+            onWallet = onWallet,
+            onCart = onCart,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
+    }
+}
+
+@Composable
+private fun TrackingSectionHead() {
+    val colors = LocalVaiinillaColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        Text("Seguimiento", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
+        Text("Actualización en vivo", color = colors.muted, fontSize = 12.sp)
     }
 }

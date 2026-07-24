@@ -5,20 +5,31 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
+import com.vaiinilla.app.ui.screens.AssistantChatScreen
+import com.vaiinilla.app.ui.screens.AssistantScreen
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CashierOperationalScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
+import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
 import com.vaiinilla.app.ui.screens.RoleSelectorScreen
 import com.vaiinilla.app.ui.screens.SplashScreen
 import com.vaiinilla.app.ui.screens.StudentTrackingScreen
 import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
+import com.vaiinilla.app.ui.screens.WalletAccountScreen
+import com.vaiinilla.app.ui.screens.WalletAddCardScreen
+import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
+import com.vaiinilla.app.ui.screens.WalletPaymentMethodsScreen
+import com.vaiinilla.app.ui.screens.WalletScreen
+import com.vaiinilla.app.ui.wallet.rememberWalletUiState
 
 @Composable
 fun AppNavHost(navController: NavHostController) {
@@ -26,6 +37,7 @@ fun AppNavHost(navController: NavHostController) {
     val operationalViewModel: OperationalViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
+    val walletState = rememberWalletUiState()
 
     LaunchedEffect(orderState.createdOrder?.summary?.id) {
         val created = orderState.createdOrder ?: return@LaunchedEffect
@@ -38,6 +50,10 @@ fun AppNavHost(navController: NavHostController) {
             }
         }
     }
+
+    val activeOrder = orderState.createdOrder
+        ?: operationalState.selectedOrder
+        ?: operationalState.orders.firstOrNull()
 
     NavHost(navController = navController, startDestination = Routes.SPLASH) {
         composable(Routes.SPLASH) {
@@ -79,6 +95,7 @@ fun AppNavHost(navController: NavHostController) {
         composable(Routes.CATALOG) {
             CatalogScreen(
                 state = orderState,
+                activeOrder = activeOrder,
                 onRetry = orderFlowViewModel::refresh,
                 onSearchChange = orderFlowViewModel::updateSearch,
                 onCategorySelected = orderFlowViewModel::selectCategory,
@@ -88,15 +105,83 @@ fun AppNavHost(navController: NavHostController) {
                 onClearOptionalGroup = orderFlowViewModel::clearOptionalGroup,
                 onQuantityChange = orderFlowViewModel::changeSelectedQuantity,
                 onAddProduct = orderFlowViewModel::addSelectedProductToCart,
-                onOpenCart = {
-                    orderFlowViewModel.closeProduct()
-                    navController.navigate(Routes.CART) { launchSingleTop = true }
-                },
-                onOpenTracking = {
-                    operationalViewModel.setRole(OperationalRole.CLIENT)
-                    navController.navigate(Routes.STUDENT_TRACKING) { launchSingleTop = true }
-                },
+                onOpenCart = { navController.navigateStudent(Routes.CART) },
+                onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
+                onOpenAssistant = { navController.navigateStudent(Routes.ASSISTANT) },
+                onOpenWallet = { navController.navigateStudent(Routes.WALLET) },
             )
+        }
+
+        composable(Routes.ASSISTANT) {
+            AssistantScreen(
+                state = orderState,
+                onOpenChat = { navController.navigate(Routes.ASSISTANT_CHAT) { launchSingleTop = true } },
+                onOpenProduct = { productId ->
+                    orderFlowViewModel.openProduct(productId)
+                    navController.navigateStudent(Routes.CATALOG)
+                },
+                onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
+                onWallet = { navController.navigateStudent(Routes.WALLET) },
+                onCart = { navController.navigateStudent(Routes.CART) },
+            )
+        }
+
+        composable(Routes.ASSISTANT_CHAT) {
+            AssistantChatScreen(
+                state = orderState,
+                onClose = { navController.popBackStack() },
+                onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
+                onWallet = { navController.navigateStudent(Routes.WALLET) },
+                onCart = { navController.navigateStudent(Routes.CART) },
+            )
+        }
+
+        composable(Routes.WALLET) {
+            WalletScreen(
+                state = orderState,
+                balance = walletState.balance,
+                onAddMoney = { navController.navigate("wallet/add-money?method=card") },
+                onPaymentMethods = { navController.navigate(Routes.WALLET_METHODS) },
+                onAccount = { navController.navigate(Routes.WALLET_ACCOUNT) },
+                onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                onAssistant = { navController.navigateStudent(Routes.ASSISTANT) },
+                onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
+                onCart = { navController.navigateStudent(Routes.CART) },
+            )
+        }
+
+        composable(
+            route = Routes.WALLET_ADD_MONEY,
+            arguments = listOf(navArgument("method") { type = NavType.StringType; defaultValue = "card" }),
+        ) { entry ->
+            WalletAddMoneyScreen(
+                walletState = walletState,
+                initialMethod = entry.arguments?.getString("method") ?: "card",
+                onBack = { navController.popBackStack() },
+                onCreditBalance = { amount -> walletState.balance += amount },
+            )
+        }
+
+        composable(Routes.WALLET_METHODS) {
+            WalletPaymentMethodsScreen(
+                walletState = walletState,
+                onBack = { navController.popBackStack() },
+                onAddCard = { navController.navigate(Routes.WALLET_ADD_CARD) },
+            )
+        }
+
+        composable(Routes.WALLET_ADD_CARD) {
+            WalletAddCardScreen(
+                walletState = walletState,
+                onBack = { navController.popBackStack() },
+                onSaved = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.WALLET_ACCOUNT) {
+            WalletAccountScreen(onBack = { navController.popBackStack() })
         }
 
         composable(Routes.CART) {
@@ -105,14 +190,13 @@ fun AppNavHost(navController: NavHostController) {
             }
             CartScreen(
                 state = orderState,
-                onMenu = { navController.popBackStack(Routes.CATALOG, inclusive = false) },
+                onMenu = { navController.navigateStudent(Routes.CATALOG) },
                 onQuantityChange = orderFlowViewModel::changeCartLineQuantity,
                 onNotesChange = orderFlowViewModel::updateKitchenNotes,
                 onConfirm = orderFlowViewModel::submitOrder,
-                onOpenTracking = {
-                    operationalViewModel.setRole(OperationalRole.CLIENT)
-                    navController.navigate(Routes.STUDENT_TRACKING) { launchSingleTop = true }
-                },
+                onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
+                onOpenAssistant = { navController.navigateStudent(Routes.ASSISTANT) },
+                onOpenWallet = { navController.navigateStudent(Routes.WALLET) },
             )
         }
 
@@ -129,26 +213,33 @@ fun AppNavHost(navController: NavHostController) {
                 onViewTracking = {
                     operationalViewModel.setRole(OperationalRole.CLIENT)
                     orderState.createdOrder?.summary?.id?.let(operationalViewModel::selectOrder)
-                    navController.navigate(Routes.STUDENT_TRACKING) { launchSingleTop = true }
+                    navController.navigateStudent(Routes.STUDENT_TRACKING)
                 },
+                onViewSticker = { navController.navigate(Routes.RECEIPT_STICKER) },
+            )
+        }
+
+        composable(Routes.RECEIPT_STICKER) {
+            ReceiptStickerScreen(
+                order = orderState.createdOrder ?: operationalState.selectedOrder,
+                onBack = { navController.popBackStack() },
             )
         }
 
         composable(Routes.STUDENT_TRACKING) {
+            LaunchedEffect(Unit) {
+                operationalViewModel.setRole(OperationalRole.CLIENT)
+            }
             StudentTrackingScreen(
                 state = operationalState,
-                trackingHint = operationalViewModel::trackingHint,
-                onBack = {
-                    operationalViewModel.clearRole()
-                    navController.navigate(Routes.ROLE_SELECTOR) {
-                        popUpTo(Routes.ROLE_SELECTOR) { inclusive = true }
-                    }
-                },
-                onOpenCatalog = {
-                    navController.navigate(Routes.CATALOG) { launchSingleTop = true }
-                },
+                orderState = orderState,
+                onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                onAssistant = { navController.navigateStudent(Routes.ASSISTANT) },
+                onWallet = { navController.navigateStudent(Routes.WALLET) },
+                onCart = { navController.navigateStudent(Routes.CART) },
+                onOpenCatalog = { navController.navigateStudent(Routes.CATALOG) },
                 onSelectOrder = operationalViewModel::selectOrder,
-                onClearSelection = { operationalViewModel.selectOrder(null) },
+                onViewSticker = { navController.navigate(Routes.RECEIPT_STICKER) },
             )
         }
 
@@ -179,6 +270,10 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
     }
+}
+
+private fun NavHostController.navigateStudent(route: String) {
+    navigate(route) { launchSingleTop = true }
 }
 
 private fun returnToRoles(

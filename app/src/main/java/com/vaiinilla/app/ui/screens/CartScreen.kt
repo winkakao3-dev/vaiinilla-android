@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.Button
@@ -29,10 +30,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,7 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Money
-import com.vaiinilla.app.ui.components.ComingSoonSheet
+import com.vaiinilla.app.ui.components.DemoEmptyState
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
@@ -55,6 +52,7 @@ import com.vaiinilla.app.ui.theme.Cream
 import com.vaiinilla.app.ui.theme.CreamDeep
 import com.vaiinilla.app.ui.theme.Ink
 import com.vaiinilla.app.ui.theme.Lime
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.MutedInk
 
 @Composable
@@ -65,13 +63,14 @@ fun CartScreen(
     onNotesChange: (String) -> Unit,
     onConfirm: () -> Unit,
     onOpenTracking: () -> Unit = {},
+    onOpenAssistant: () -> Unit = {},
+    onOpenWallet: () -> Unit = {},
 ) {
-    var comingSoonTitle by remember { mutableStateOf<String?>(null) }
-    var comingSoonDescription by remember { mutableStateOf<String?>(null) }
+    val colors = LocalVaiinillaColors.current
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream),
+            .background(colors.paper),
     ) {
         LazyColumn(
             modifier = Modifier
@@ -165,31 +164,12 @@ fun CartScreen(
             activeTab = StudentTab.CART,
             cartCount = state.cartItemCount,
             onMenu = onMenu,
-            onAssistant = {
-                comingSoonTitle = "Asistente Vaiinilla"
-                comingSoonDescription = "Recomendaciones y chat guiado llegarán en la siguiente fase."
-            },
+            onAssistant = onOpenAssistant,
             onOrders = onOpenTracking,
-            onWallet = {
-                comingSoonTitle = "Cartera"
-                comingSoonDescription = "Saldo, recargas y stickers digitales llegarán en la siguiente fase."
-            },
+            onWallet = onOpenWallet,
             onCart = {},
             modifier = Modifier.align(Alignment.BottomCenter),
         )
-
-        val title = comingSoonTitle
-        val description = comingSoonDescription
-        if (title != null && description != null) {
-            ComingSoonSheet(
-                title = title,
-                description = description,
-                onDismiss = {
-                    comingSoonTitle = null
-                    comingSoonDescription = null
-                },
-            )
-        }
     }
 }
 
@@ -371,25 +351,11 @@ private fun SummaryRow(label: String, value: String) {
 
 @Composable
 private fun EmptyCart(onMenu: () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = CreamDeep,
-        shape = RoundedCornerShape(28.dp),
-    ) {
-        Column(
-            modifier = Modifier.padding(28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Icon(Icons.Outlined.Payments, contentDescription = null, tint = MutedInk, modifier = Modifier.size(42.dp))
-            Text("Tu carrito está vacío", color = Ink, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 14.dp))
-            Text("Agrega algo del menú para comenzar.", color = MutedInk, modifier = Modifier.padding(top = 6.dp))
-            Button(
-                onClick = onMenu,
-                colors = ButtonDefaults.buttonColors(containerColor = Lime, contentColor = Ink),
-                modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
-            ) {
-                Text("Ver menú", fontWeight = FontWeight.Black)
-            }
-        }
-    }
+    DemoEmptyState(
+        icon = Icons.Outlined.ShoppingCart,
+        title = "Tu pedido está vacío",
+        message = "Agrega algo del menú para empezar.",
+        actionLabel = "Ver menú",
+        onAction = onMenu,
+    )
 }

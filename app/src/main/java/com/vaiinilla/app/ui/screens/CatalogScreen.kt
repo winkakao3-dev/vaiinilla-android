@@ -1,6 +1,8 @@
 package com.vaiinilla.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,11 +33,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,8 +43,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.domain.model.Category
+import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.Product
-import com.vaiinilla.app.ui.components.ComingSoonSheet
+import com.vaiinilla.app.ui.components.ActiveOrderBanner
+import com.vaiinilla.app.ui.components.DemoEmptyState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductDetailSheet
 import com.vaiinilla.app.ui.components.ProductImage
@@ -60,15 +62,16 @@ import com.vaiinilla.app.ui.order.isSelectedProductValid
 import com.vaiinilla.app.ui.order.selectedProduct
 import com.vaiinilla.app.ui.order.selectedProductPreviewPrice
 import com.vaiinilla.app.ui.order.selectedProductPreviewTotal
-import com.vaiinilla.app.ui.theme.Cream
-import com.vaiinilla.app.ui.theme.CreamDeep
-import com.vaiinilla.app.ui.theme.Ink
-import com.vaiinilla.app.ui.theme.Lime
-import com.vaiinilla.app.ui.theme.MutedInk
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
+import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
+import com.vaiinilla.app.ui.theme.AmoledLimeWash
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
 @Composable
 fun CatalogScreen(
     state: OrderFlowUiState,
+    activeOrder: OrderDetail? = null,
     onRetry: () -> Unit,
     onSearchChange: (String) -> Unit,
     onCategorySelected: (Int?) -> Unit,
@@ -88,6 +91,7 @@ fun CatalogScreen(
         state.errorMessage != null -> CatalogError(state.errorMessage, onRetry)
         state.catalog != null -> CatalogContent(
             state = state,
+            activeOrder = activeOrder,
             onSearchChange = onSearchChange,
             onCategorySelected = onCategorySelected,
             onProductSelected = onProductSelected,
@@ -108,9 +112,11 @@ fun CatalogScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CatalogContent(
     state: OrderFlowUiState,
+    activeOrder: OrderDetail?,
     onSearchChange: (String) -> Unit,
     onCategorySelected: (Int?) -> Unit,
     onProductSelected: (Int) -> Unit,
@@ -125,13 +131,26 @@ private fun CatalogContent(
     onOpenWallet: () -> Unit,
 ) {
     val catalog = requireNotNull(state.catalog)
-    var comingSoonTitle by remember { mutableStateOf<String?>(null) }
-    var comingSoonDescription by remember { mutableStateOf<String?>(null) }
+    val colors = LocalVaiinillaColors.current
+    val themeMode = LocalVaiinillaThemeMode.current
+    val themeChanger = LocalVaiinillaThemeModeChanger.current
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream),
+            .background(colors.paper),
     ) {
+        if (themeMode == VaiinillaThemeMode.Amoled) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        androidx.compose.ui.graphics.Brush.radialGradient(
+                            colors = listOf(AmoledLimeWash, colors.paper),
+                            radius = 900f,
+                        ),
+                    ),
+            )
+        }
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             modifier = Modifier
@@ -148,11 +167,21 @@ private fun CatalogContent(
                     onSearchChange = onSearchChange,
                     onCategorySelected = onCategorySelected,
                     onOpenCart = onOpenCart,
-                    onOpenAssistant = {
-                        comingSoonTitle = "Asistente Vaiinilla"
-                        comingSoonDescription = "Recomendaciones y chat guiado llegarán en la siguiente fase."
-                    },
+                    onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
                 )
+            }
+
+            activeOrder?.let { order ->
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    ActiveOrderBanner(
+                        folio = order.summary.folio.toString(),
+                        statusLabel = order.summary.state.label,
+                        itemCount = order.items.sumOf { it.quantity },
+                        destination = order.summary.destination.label,
+                        onClick = onOpenTracking,
+                        modifier = Modifier.padding(bottom = 4.dp),
+                    )
+                }
             }
 
             item(span = { GridItemSpan(maxLineSpan) }) {
@@ -160,20 +189,22 @@ private fun CatalogContent(
                     modifier = Modifier.padding(top = 18.dp, bottom = 4.dp),
                     onActionClick = { action ->
                         if (action.title == "Asistente") {
-                            comingSoonTitle = "Asistente Vaiinilla"
-                            comingSoonDescription = "Pregúntale qué pedir cuando el asistente esté disponible."
+                            onOpenAssistant()
                         }
                     },
                 )
             }
 
             item(span = { GridItemSpan(maxLineSpan) }) {
-                MenuSectionHead(state = state)
+                MenuSectionHead(
+                    state = state,
+                    onOpenAssistant = onOpenAssistant,
+                )
             }
 
             if (state.filteredProducts.isEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    EmptySearchState()
+                    EmptySearchState(onClearSearch = { onSearchChange("") })
                 }
             } else {
                 items(state.filteredProducts, key = Product::id) { product ->
@@ -186,33 +217,12 @@ private fun CatalogContent(
             activeTab = StudentTab.MENU,
             cartCount = state.cartItemCount,
             onMenu = {},
-            onAssistant = {
-                comingSoonTitle = "Asistente Vaiinilla"
-                comingSoonDescription = "Recomendaciones y chat guiado llegarán en la siguiente fase."
-                onOpenAssistant()
-            },
+            onAssistant = onOpenAssistant,
             onOrders = onOpenTracking,
-            onWallet = {
-                comingSoonTitle = "Cartera"
-                comingSoonDescription = "Saldo, recargas y stickers digitales llegarán en la siguiente fase."
-                onOpenWallet()
-            },
+            onWallet = onOpenWallet,
             onCart = onOpenCart,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
-
-        val title = comingSoonTitle
-        val description = comingSoonDescription
-        if (title != null && description != null) {
-            ComingSoonSheet(
-                title = title,
-                description = description,
-                onDismiss = {
-                    comingSoonTitle = null
-                    comingSoonDescription = null
-                },
-            )
-        }
 
         state.selectedProduct?.let { product ->
             val category = catalog.categories.firstOrNull { it.id == product.categoryId }
@@ -242,16 +252,17 @@ private fun CatalogHeader(
     onSearchChange: (String) -> Unit,
     onCategorySelected: (Int?) -> Unit,
     onOpenCart: () -> Unit,
-    onOpenAssistant: () -> Unit = {},
+    onCycleTheme: () -> Unit,
 ) {
+    val colors = LocalVaiinillaColors.current
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column {
-                Text("Hola, Dani", color = MutedInk, fontWeight = FontWeight.ExtraBold)
-                Text("¿Qué se te antoja?", color = Ink, fontWeight = FontWeight.Black)
+                Text("Hola, Dani", color = colors.muted, fontWeight = FontWeight.ExtraBold)
+                Text("¿Qué se te antoja?", color = colors.ink, fontWeight = FontWeight.Black)
             }
             Spacer(Modifier.weight(1f))
             Box {
@@ -260,19 +271,19 @@ private fun CatalogHeader(
                     modifier = Modifier
                         .size(42.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(CreamDeep),
+                        .background(colors.paper2),
                 ) {
-                    Icon(Icons.Outlined.ShoppingCart, contentDescription = "Abrir carrito", tint = Ink)
+                    Icon(Icons.Outlined.ShoppingCart, contentDescription = "Abrir carrito", tint = colors.ink)
                 }
                 if (state.cartItemCount > 0) {
                     Surface(
                         modifier = Modifier.align(Alignment.TopEnd),
-                        color = Lime,
+                        color = colors.accent,
                         shape = RoundedCornerShape(99.dp),
                     ) {
                         Text(
                             text = state.cartItemCount.toString(),
-                            color = Ink,
+                            color = colors.accentInk,
                             fontWeight = FontWeight.Black,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         )
@@ -284,35 +295,39 @@ private fun CatalogHeader(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(RoundedCornerShape(15.dp))
-                    .background(Ink),
+                    .background(colors.ink)
+                    .combinedClickable(
+                        onClick = {},
+                        onLongClick = onCycleTheme,
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("DA", color = Cream, fontWeight = FontWeight.Black)
+                Text("DA", color = colors.paper, fontWeight = FontWeight.Black)
             }
         }
 
         Spacer(Modifier.height(16.dp))
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = CreamDeep,
+            color = colors.paper2,
             shape = RoundedCornerShape(19.dp),
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 15.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Outlined.Search, contentDescription = null, tint = MutedInk)
+                Icon(Icons.Outlined.Search, contentDescription = null, tint = colors.muted)
                 Spacer(Modifier.size(10.dp))
                 BasicTextField(
                     value = state.searchQuery,
                     onValueChange = onSearchChange,
                     modifier = Modifier.weight(1f),
                     singleLine = true,
-                    textStyle = androidx.compose.ui.text.TextStyle(color = Ink),
+                    textStyle = androidx.compose.ui.text.TextStyle(color = colors.ink),
                     decorationBox = { input ->
                         Box {
                             if (state.searchQuery.isBlank()) {
-                                Text("Buscar burritos, bebidas…", color = MutedInk)
+                                Text("Buscar burritos, bebidas…", color = colors.muted)
                             }
                             input()
                         }
@@ -342,7 +357,11 @@ private fun CatalogHeader(
 }
 
 @Composable
-private fun MenuSectionHead(state: OrderFlowUiState) {
+private fun MenuSectionHead(
+    state: OrderFlowUiState,
+    onOpenAssistant: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -350,22 +369,27 @@ private fun MenuSectionHead(state: OrderFlowUiState) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Bottom,
     ) {
-        Text("Menú de hoy", color = Ink, fontWeight = FontWeight.Black)
-        state.operationalStatus?.let { status ->
-            Surface(
-                color = if (status.acceptingOrders && status.cashSessionOpen) Lime else CreamDeep,
-                shape = RoundedCornerShape(12.dp),
-            ) {
-                Text(
-                    text = if (status.acceptingOrders && status.cashSessionOpen) {
-                        "${status.estimatedTimeMinutes} min"
-                    } else {
-                        "No disponible"
-                    },
-                    color = Ink,
-                    fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                )
+        Text("Menú de hoy", color = colors.ink, fontWeight = FontWeight.Black)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onOpenAssistant) {
+                Text("No sé qué pedir", color = colors.muted, fontWeight = FontWeight.Bold)
+            }
+            state.operationalStatus?.let { status ->
+                Surface(
+                    color = if (status.acceptingOrders && status.cashSessionOpen) colors.accent else colors.paper2,
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text(
+                        text = if (status.acceptingOrders && status.cashSessionOpen) {
+                            "${status.estimatedTimeMinutes} min"
+                        } else {
+                            "No disponible"
+                        },
+                        color = colors.accentInk,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                    )
+                }
             }
         }
     }
@@ -373,16 +397,17 @@ private fun MenuSectionHead(state: OrderFlowUiState) {
 
 @Composable
 private fun CategoryChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val colors = LocalVaiinillaColors.current
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(13.dp))
-            .background(if (selected) Ink else CreamDeep)
+            .background(if (selected) colors.ink else colors.paper2)
             .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
         Text(
             text = label,
-            color = if (selected) Cream else Ink,
+            color = if (selected) colors.paper else colors.ink,
             fontWeight = FontWeight.ExtraBold,
         )
     }
@@ -390,11 +415,12 @@ private fun CategoryChip(label: String, selected: Boolean, onClick: () -> Unit) 
 
 @Composable
 private fun ProductCard(product: Product, onClick: () -> Unit) {
+    val colors = LocalVaiinillaColors.current
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .physicalPress(scale = PhysicalPressScale.ProductCard, onClick = onClick),
-        color = CreamDeep,
+        color = colors.paper2,
         shape = RoundedCornerShape(28.dp),
     ) {
         Column {
@@ -408,14 +434,14 @@ private fun ProductCard(product: Product, onClick: () -> Unit) {
             Column(modifier = Modifier.padding(horizontal = 13.dp, vertical = 14.dp)) {
                 Text(
                     text = product.name,
-                    color = Ink,
+                    color = colors.ink,
                     fontWeight = FontWeight.Black,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = moneyLabel(product.digitalPrice),
-                    color = Ink,
+                    color = colors.ink,
                     fontWeight = FontWeight.Black,
                     modifier = Modifier.padding(top = 9.dp),
                 )
@@ -425,49 +451,44 @@ private fun ProductCard(product: Product, onClick: () -> Unit) {
 }
 
 @Composable
-private fun EmptySearchState() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = CreamDeep,
-        shape = RoundedCornerShape(28.dp),
-    ) {
-        Column(
-            modifier = Modifier.padding(26.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Icon(Icons.Outlined.Search, contentDescription = null, tint = MutedInk, modifier = Modifier.size(36.dp))
-            Text("No encontramos productos", color = Ink, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 12.dp))
-            Text("Prueba con otra búsqueda o categoría.", color = MutedInk, modifier = Modifier.padding(top = 5.dp))
-        }
-    }
+private fun EmptySearchState(onClearSearch: () -> Unit) {
+    DemoEmptyState(
+        icon = Icons.Outlined.Search,
+        title = "No encontramos eso",
+        message = "Prueba otra palabra o categoría.",
+        actionLabel = "Limpiar búsqueda",
+        onAction = onClearSearch,
+    )
 }
 
 @Composable
 private fun LoadingCatalog() {
+    val colors = LocalVaiinillaColors.current
     Box(
-        modifier = Modifier.fillMaxSize().background(Cream),
+        modifier = Modifier.fillMaxSize().background(colors.paper),
         contentAlignment = Alignment.Center,
     ) {
-        CircularProgressIndicator(color = Lime)
+        CircularProgressIndicator(color = colors.accent)
     }
 }
 
 @Composable
 private fun CatalogError(message: String, onRetry: () -> Unit) {
+    val colors = LocalVaiinillaColors.current
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(colors.paper)
             .statusBarsPadding()
             .padding(24.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text("No pudimos abrir el menú", color = Ink, fontWeight = FontWeight.Black)
-        Text(message, color = MutedInk, modifier = Modifier.padding(top = 8.dp))
+        Text("No pudimos abrir el menú", color = colors.ink, fontWeight = FontWeight.Black)
+        Text(message, color = colors.muted, modifier = Modifier.padding(top = 8.dp))
         Button(
             onClick = onRetry,
             modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Lime, contentColor = Ink),
+            colors = ButtonDefaults.buttonColors(containerColor = colors.accent, contentColor = colors.accentInk),
         ) {
             Text("Reintentar", fontWeight = FontWeight.Black)
         }

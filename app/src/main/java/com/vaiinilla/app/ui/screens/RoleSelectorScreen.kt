@@ -32,17 +32,19 @@ import com.vaiinilla.app.ui.theme.CreamDeep
 import com.vaiinilla.app.ui.theme.Ink
 import com.vaiinilla.app.ui.theme.Ink2
 import com.vaiinilla.app.ui.theme.Lime
-import com.vaiinilla.app.ui.theme.MutedInk
 import com.vaiinilla.app.ui.theme.Yolk
+import com.vaiinilla.app.ui.components.ThemeCycleButton
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 @Composable
 fun RoleSelectorScreen(
     onRoleSelected: (OperationalRole) -> Unit,
 ) {
+    val colors = LocalVaiinillaColors.current
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
+            .background(colors.paper)
             .padding(horizontal = 20.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -54,26 +56,19 @@ fun RoleSelectorScreen(
                 Box(
                     modifier = Modifier
                         .size(42.dp)
-                        .background(Ink, RoundedCornerShape(15.dp)),
+                        .background(colors.ink, RoundedCornerShape(15.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("VA", color = Cream, fontWeight = FontWeight.Black, fontSize = 13.sp)
+                    Text("VA", color = colors.paper, fontWeight = FontWeight.Black, fontSize = 13.sp)
                 }
                 Text(
                     "Vaiinilla",
                     modifier = Modifier.padding(start = 10.dp).weight(1f),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Black,
-                    color = Ink,
+                    color = colors.ink,
                 )
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .background(CreamDeep, RoundedCornerShape(16.dp)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("◐", fontSize = 18.sp, color = Ink)
-                }
+                ThemeCycleButton()
             }
         }
 
@@ -86,21 +81,21 @@ fun RoleSelectorScreen(
                 Text(
                     "V",
                     modifier = Modifier.align(Alignment.TopEnd),
-                    color = Lime.copy(alpha = 0.18f),
+                    color = colors.accent.copy(alpha = 0.18f),
                     fontSize = 120.sp,
                     fontWeight = FontWeight.Black,
                 )
                 Column(modifier = Modifier.padding(top = 8.dp, end = 12.dp)) {
                     Text(
                         "COMEDOR CONECTADO",
-                        color = MutedInk,
+                        color = colors.muted,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.ExtraBold,
                         letterSpacing = 1.2.sp,
                     )
                     Text(
                         "Come mejor.\nEspera menos.",
-                        color = Ink,
+                        color = colors.ink,
                         fontSize = 34.sp,
                         lineHeight = 33.sp,
                         fontWeight = FontWeight.Black,
@@ -109,7 +104,7 @@ fun RoleSelectorScreen(
                     )
                     Text(
                         "Una sola demo para pedir, cobrar, preparar, entregar y administrar.",
-                        color = MutedInk,
+                        color = colors.muted,
                         fontSize = 15.sp,
                         lineHeight = 22.sp,
                         modifier = Modifier.padding(top = 12.dp),
@@ -119,12 +114,12 @@ fun RoleSelectorScreen(
                             .fillMaxWidth()
                             .padding(top = 18.dp)
                             .physicalPress(onClick = { onRoleSelected(OperationalRole.CLIENT) }),
-                        color = Ink,
+                        color = colors.ink,
                         shape = RoundedCornerShape(20.dp),
                     ) {
                         Text(
                             "Entrar como alumno",
-                            color = Cream,
+                        color = colors.paper,
                             fontWeight = FontWeight.Black,
                             modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
                         )
@@ -141,8 +136,8 @@ fun RoleSelectorScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Bottom,
             ) {
-                Text("Elige una vista", color = Ink, fontSize = 19.sp, fontWeight = FontWeight.Black)
-                Text("5 roles", color = MutedInk, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                Text("Elige una vista", color = colors.ink, fontSize = 19.sp, fontWeight = FontWeight.Black)
+                Text("5 roles", color = colors.muted, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
             }
         }
 
