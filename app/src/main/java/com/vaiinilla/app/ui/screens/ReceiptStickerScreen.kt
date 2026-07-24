@@ -44,7 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDetail
-import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.ui.components.paymentMethodLabel
 import com.vaiinilla.app.ui.components.sticker.StickerOrderData
 import com.vaiinilla.app.ui.components.sticker.StickerSize
 import com.vaiinilla.app.ui.components.sticker.StickerStyle
@@ -218,9 +218,7 @@ private fun StyleChip(
 private fun OrderDetail?.toStickerOrderData(): StickerOrderData {
     if (this == null) return demoStickerOrderData()
     val productName = items.firstOrNull()?.productName ?: "Burrito norteño"
-    val paymentLabel = when (summary.paymentMethod) {
-        PaymentMethod.CASH -> "Efectivo"
-    }
+    val paymentLabel = paymentMethodLabel(summary.paymentMethod)
     return StickerOrderData(
         folio = summary.folio,
         total = summary.total,

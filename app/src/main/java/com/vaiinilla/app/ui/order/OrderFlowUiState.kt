@@ -4,9 +4,12 @@ import com.vaiinilla.app.core.config.DataSourceMode
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.ContractRules
+import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OperationalStatus
+import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.Product
 
 data class OrderFlowUiState(
@@ -22,6 +25,8 @@ data class OrderFlowUiState(
     val selectedQuantity: Int = 1,
     val cartLines: List<CartLine> = emptyList(),
     val kitchenNotes: String = "",
+    val checkoutDestination: OrderDestination = OrderDestination.TAKE_AWAY,
+    val checkoutPayment: PaymentMethod = PaymentMethod.CASH,
     val creatingOrder: Boolean = false,
     val createOrderError: String? = null,
     val createdOrder: OrderDetail? = null,
@@ -72,8 +77,28 @@ val OrderFlowUiState.isOperationallyReady: Boolean
 val OrderFlowUiState.canSubmitCart: Boolean
     get() = cartLines.isNotEmpty() && !creatingOrder
 
+val OrderFlowUiState.requiresOperationalReady: Boolean
+    get() = checkoutPayment == PaymentMethod.CASH
+
 val OrderFlowUiState.canCreateOrder: Boolean
-    get() = canSubmitCart && isOperationallyReady
+    get() = canSubmitCart && (!requiresOperationalReady || isOperationallyReady)
+
+val OrderFlowUiState.checkoutSpaceId: Int?
+    get() = if (checkoutDestination == OrderDestination.IN_SPACE) {
+        DemoCheckoutFixtures.SPACE_ID
+    } else {
+        null
+    }
+
+fun OrderFlowUiState.hasSufficientBalance(walletBalance: Int): Boolean {
+    if (checkoutPayment != PaymentMethod.BALANCE) return true
+    val total = Money.parse(cartPreviewTotal).toInt()
+    return walletBalance >= total
+}
+
+val OrderFlowUiState.usesStudentCheckout: Boolean
+    get() = checkoutPayment != PaymentMethod.CASH ||
+        checkoutDestination != OrderDestination.TAKE_AWAY
 
 val OrderFlowUiState.operationalBlockerMessage: String?
     get() {

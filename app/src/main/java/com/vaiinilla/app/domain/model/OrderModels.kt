@@ -79,14 +79,26 @@ data class OrderItemOption(
     val extraPrice: String,
 )
 
-enum class PaymentMethod(val wireValue: String) {
-    CASH("efectivo");
+enum class PaymentMethod(val wireValue: String, val label: String) {
+    CASH("efectivo", "Efectivo"),
+    BALANCE("saldo", "Saldo"),
+    CARD("tarjeta", "Tarjeta"),
+    ;
+
+    val isInstantDemoPayment: Boolean
+        get() = this == BALANCE || this == CARD
 
     companion object {
         fun fromWireValue(value: String): PaymentMethod = entries.firstOrNull {
             it.wireValue == value
         } ?: throw IllegalArgumentException("metodo_pago no soportado: $value")
     }
+}
+
+object DemoCheckoutFixtures {
+    const val SPACE_ID = 701
+    const val SPACE_NAME = "Mesa 12"
+    const val SPACE_TYPE = "mesa"
 }
 
 enum class OrderDestination(val wireValue: String, val label: String) {

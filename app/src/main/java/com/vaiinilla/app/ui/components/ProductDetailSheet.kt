@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -37,13 +38,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
-import com.vaiinilla.app.ui.theme.Cream
-import com.vaiinilla.app.ui.theme.CreamDeep
-import com.vaiinilla.app.ui.theme.Ink
-import com.vaiinilla.app.ui.theme.Lime
-import com.vaiinilla.app.ui.theme.MutedInk
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -51,6 +49,7 @@ fun ProductDetailSheet(
     product: Product,
     categoryName: String,
     selectedOptionIds: Set<Int>,
+    defaultOptionIds: Set<Int> = emptySet(),
     quantity: Int,
     previewPrice: String,
     previewTotal: String,
@@ -62,6 +61,8 @@ fun ProductDetailSheet(
     onQuantityChange: (delta: Int) -> Unit,
     onAdd: () -> Unit,
 ) {
+    val colors = LocalVaiinillaColors.current
+    val isCustomized = selectedOptionIds != defaultOptionIds
     val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
@@ -80,7 +81,7 @@ fun ProductDetailSheet(
                     indication = null,
                     onClick = {},
                 ),
-            color = Cream,
+            color = colors.paper,
             shape = RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp),
             shadowElevation = 26.dp,
         ) {
@@ -91,7 +92,7 @@ fun ProductDetailSheet(
                         .width(42.dp)
                         .height(5.dp)
                         .clip(RoundedCornerShape(99.dp))
-                        .background(Ink.copy(alpha = 0.14f))
+                        .background(colors.ink.copy(alpha = 0.14f))
                         .align(Alignment.CenterHorizontally),
                 )
 
@@ -106,23 +107,40 @@ fun ProductDetailSheet(
                             .fillMaxWidth()
                             .height(240.dp)
                             .clip(RoundedCornerShape(26.dp))
-                            .background(CreamDeep),
+                            .background(colors.paper2),
                     ) {
                         ProductImage(
                             imageUrl = product.imageUrl,
                             contentDescription = product.name,
                             modifier = Modifier.fillMaxWidth().fillMaxHeight(),
                         )
+                        if (isCustomized) {
+                            Surface(
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .padding(12.dp),
+                                color = colors.accent,
+                                shape = RoundedCornerShape(12.dp),
+                            ) {
+                                Text(
+                                    text = "Personalizado",
+                                    color = colors.accentInk,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                )
+                            }
+                        }
                         Surface(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
                                 .padding(12.dp),
-                            color = Ink,
+                            color = colors.ink,
                             shape = RoundedCornerShape(17.dp),
                         ) {
                             Text(
                                 text = moneyLabel(previewPrice),
-                                color = Cream,
+                                color = colors.paper,
                                 fontWeight = FontWeight.Black,
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
                             )
@@ -138,12 +156,12 @@ fun ProductDetailSheet(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = categoryName.uppercase(),
-                                color = MutedInk,
+                                color = colors.muted,
                                 fontWeight = FontWeight.ExtraBold,
                             )
                             Text(
                                 text = product.name,
-                                color = Ink,
+                                color = colors.ink,
                                 fontWeight = FontWeight.Black,
                                 modifier = Modifier.padding(top = 3.dp),
                             )
@@ -153,14 +171,14 @@ fun ProductDetailSheet(
                             modifier = Modifier
                                 .size(42.dp)
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(CreamDeep),
+                                .background(colors.paper2),
                         ) {
-                            Icon(Icons.Rounded.Close, contentDescription = "Cerrar")
+                            Icon(Icons.Rounded.Close, contentDescription = "Cerrar", tint = colors.ink)
                         }
                     }
                     Text(
                         text = product.description,
-                        color = MutedInk,
+                        color = colors.muted,
                         modifier = Modifier.padding(top = 9.dp),
                     )
 
@@ -186,22 +204,34 @@ fun ProductDetailSheet(
                     Spacer(Modifier.height(18.dp))
                 }
 
-                Surface(color = Cream, shadowElevation = 14.dp) {
+                Surface(color = colors.paper, shadowElevation = 14.dp) {
                     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
+                        val selectionSurfaceModifier = if (isCustomized) {
+                            Modifier
+                                .border(2.dp, colors.accent, RoundedCornerShape(18.dp))
+                                .background(colors.paper2, RoundedCornerShape(18.dp))
+                                .padding(12.dp)
+                        } else {
+                            Modifier
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Tu selección", color = MutedInk, fontWeight = FontWeight.Bold)
-                                val selection = product.optionGroups
-                                    .flatMap { it.options }
-                                    .filter { it.id in selectedOptionIds }
-                                    .joinToString(" · ") { it.name }
+                            Column(modifier = Modifier.weight(1f).then(selectionSurfaceModifier)) {
                                 Text(
-                                    text = selection.ifBlank { "Sin opciones adicionales" },
-                                    color = Ink,
+                                    if (isCustomized) "Tu personalización" else "Tu selección",
+                                    color = colors.muted,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                Text(
+                                    text = product.optionGroups
+                                        .flatMap { it.options }
+                                        .filter { it.id in selectedOptionIds }
+                                        .joinToString(" · ") { it.name }
+                                        .ifBlank { "Sin opciones adicionales" },
+                                    color = colors.ink,
                                     fontWeight = FontWeight.ExtraBold,
                                 )
                             }
@@ -218,14 +248,18 @@ fun ProductDetailSheet(
                             modifier = Modifier.fillMaxWidth().height(52.dp),
                             shape = RoundedCornerShape(18.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Lime,
-                                contentColor = Ink,
-                                disabledContainerColor = CreamDeep,
-                                disabledContentColor = MutedInk,
+                                containerColor = colors.accent,
+                                contentColor = colors.accentInk,
+                                disabledContainerColor = colors.paper2,
+                                disabledContentColor = colors.muted,
                             ),
                         ) {
                             Text(
-                                text = "Agregar · ${moneyLabel(previewTotal)}",
+                                text = if (isCustomized) {
+                                    "Agregar personalizado · ${moneyLabel(previewTotal)}"
+                                } else {
+                                    "Agregar · ${moneyLabel(previewTotal)}"
+                                },
                                 fontWeight = FontWeight.Black,
                             )
                         }
@@ -252,16 +286,17 @@ private fun OptionGroupSection(
     onToggleOption: (Int, Int) -> Unit,
     onClearOptionalGroup: (Int) -> Unit,
 ) {
+    val colors = LocalVaiinillaColors.current
     Column(modifier = Modifier.padding(top = 20.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(group.name, color = Ink, fontWeight = FontWeight.ExtraBold)
+            Text(group.name, color = colors.ink, fontWeight = FontWeight.ExtraBold)
             Text(
                 text = if (group.minimumSelections > 0) "Obligatorio" else "Opcional",
-                color = MutedInk,
+                color = colors.muted,
                 fontWeight = FontWeight.Bold,
             )
         }
@@ -292,27 +327,29 @@ private fun OptionGroupSection(
 
 @Composable
 private fun OptionChip(text: String, selected: Boolean, onClick: () -> Unit) {
+    val colors = LocalVaiinillaColors.current
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(13.dp))
-            .background(if (selected) Lime else CreamDeep)
+            .background(if (selected) colors.accent else colors.paper2)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
-        Text(text = text, color = Ink, fontWeight = FontWeight.ExtraBold)
+        Text(text = text, color = colors.ink, fontWeight = FontWeight.ExtraBold)
     }
 }
 
 @Composable
 private fun MetaRow(label: String, value: String) {
+    val colors = LocalVaiinillaColors.current
     Surface(
-        color = CreamDeep,
+        color = colors.paper2,
         shape = RoundedCornerShape(17.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(13.dp)) {
-            Text(label, color = Ink, fontWeight = FontWeight.ExtraBold)
-            Text(value, color = MutedInk, modifier = Modifier.padding(top = 3.dp))
+            Text(label, color = colors.ink, fontWeight = FontWeight.ExtraBold)
+            Text(value, color = colors.muted, modifier = Modifier.padding(top = 3.dp))
         }
     }
 }
@@ -323,19 +360,20 @@ private fun QuantityControl(
     onMinus: () -> Unit,
     onPlus: () -> Unit,
 ) {
+    val colors = LocalVaiinillaColors.current
     Row(verticalAlignment = Alignment.CenterVertically) {
         IconButton(
             onClick = onMinus,
             modifier = Modifier
                 .size(34.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Ink),
+                .background(colors.ink),
         ) {
-            Icon(Icons.Rounded.Remove, contentDescription = "Quitar uno", tint = Cream)
+            Icon(Icons.Rounded.Remove, contentDescription = "Quitar uno", tint = colors.paper)
         }
         Text(
             text = quantity.toString(),
-            color = Ink,
+            color = colors.ink,
             fontWeight = FontWeight.Black,
             modifier = Modifier.padding(horizontal = 10.dp),
         )
@@ -344,9 +382,9 @@ private fun QuantityControl(
             modifier = Modifier
                 .size(34.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Ink),
+                .background(colors.ink),
         ) {
-            Icon(Icons.Rounded.Add, contentDescription = "Agregar uno", tint = Cream)
+            Icon(Icons.Rounded.Add, contentDescription = "Agregar uno", tint = colors.paper)
         }
     }
 }

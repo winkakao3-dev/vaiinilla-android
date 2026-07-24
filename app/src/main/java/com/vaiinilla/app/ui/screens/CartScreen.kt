@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Remove
@@ -37,36 +36,46 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.domain.model.CartLine
+import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
 import com.vaiinilla.app.domain.model.Money
+import com.vaiinilla.app.domain.model.OrderDestination
+import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.ui.components.CheckoutDestinationPicker
+import com.vaiinilla.app.ui.components.CheckoutPaymentPicker
 import com.vaiinilla.app.ui.components.DemoEmptyState
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.components.paymentMethodLabel
 import com.vaiinilla.app.ui.order.OrderFlowUiState
-import com.vaiinilla.app.ui.order.canSubmitCart
-import com.vaiinilla.app.ui.order.operationalBlockerMessage
+import com.vaiinilla.app.ui.order.canCreateOrder
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.cartPreviewTotal
-import com.vaiinilla.app.ui.theme.Cream
-import com.vaiinilla.app.ui.theme.CreamDeep
-import com.vaiinilla.app.ui.theme.Ink
-import com.vaiinilla.app.ui.theme.Lime
+import com.vaiinilla.app.ui.order.hasSufficientBalance
+import com.vaiinilla.app.ui.order.operationalBlockerMessage
+import com.vaiinilla.app.ui.order.requiresOperationalReady
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import com.vaiinilla.app.ui.theme.MutedInk
 
 @Composable
 fun CartScreen(
     state: OrderFlowUiState,
+    walletBalance: Int = 200,
     onMenu: () -> Unit,
     onQuantityChange: (lineKey: String, delta: Int) -> Unit,
     onNotesChange: (String) -> Unit,
+    onDestinationChange: (OrderDestination) -> Unit,
+    onPaymentChange: (PaymentMethod) -> Unit,
     onConfirm: () -> Unit,
     onOpenTracking: () -> Unit = {},
     onOpenAssistant: () -> Unit = {},
     onOpenWallet: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
+    val insufficientBalance = state.checkoutPayment == PaymentMethod.BALANCE &&
+        !state.hasSufficientBalance(walletBalance)
+    val canConfirm = state.canCreateOrder && !insufficientBalance
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -80,7 +89,7 @@ fun CartScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                Text("Tu pedido", color = Ink, fontWeight = FontWeight.Black)
+                Text("Tu pedido", color = colors.ink, fontWeight = FontWeight.Black)
                 Spacer(Modifier.height(8.dp))
             }
 
@@ -96,9 +105,20 @@ fun CartScreen(
                 }
 
                 item { SectionTitle("Entrega") }
-                item { TakeAwayCard() }
+                item {
+                    CheckoutDestinationPicker(
+                        selected = state.checkoutDestination,
+                        onSelect = onDestinationChange,
+                    )
+                }
                 item { SectionTitle("Pago") }
-                item { CashPaymentCard() }
+                item {
+                    CheckoutPaymentPicker(
+                        selected = state.checkoutPayment,
+                        walletBalance = walletBalance,
+                        onSelect = onPaymentChange,
+                    )
+                }
                 item {
                     OutlinedTextField(
                         value = state.kitchenNotes,
@@ -110,50 +130,45 @@ fun CartScreen(
                         shape = RoundedCornerShape(17.dp),
                     )
                 }
-                item { OrderSummaryCard(total = state.cartPreviewTotal) }
-                state.operationalBlockerMessage?.let { blocker ->
-                    item {
-                        Surface(
-                            color = Color(0xFFFFF1CC),
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(blocker, color = Ink, modifier = Modifier.padding(14.dp))
+                item { OrderSummaryCard(state = state) }
+                if (state.requiresOperationalReady) {
+                    state.operationalBlockerMessage?.let { blocker ->
+                        item {
+                            WarningBanner(message = blocker)
                         }
+                    }
+                }
+                if (insufficientBalance) {
+                    item {
+                        WarningBanner(message = "Saldo insuficiente. Tienes $$walletBalance disponible.")
                     }
                 }
                 state.createOrderError?.let { error ->
                     item {
-                        Surface(
-                            color = Color(0xFFFFDED9),
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(error, color = Ink, modifier = Modifier.padding(14.dp))
-                        }
+                        ErrorBanner(message = error)
                     }
                 }
                 item {
                     Button(
                         onClick = onConfirm,
-                        enabled = state.canSubmitCart,
+                        enabled = canConfirm,
                         modifier = Modifier.fillMaxWidth().height(52.dp),
                         shape = RoundedCornerShape(18.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Lime,
-                            contentColor = Ink,
-                            disabledContainerColor = CreamDeep,
-                            disabledContentColor = MutedInk,
+                            containerColor = colors.accent,
+                            contentColor = colors.accentInk,
+                            disabledContainerColor = colors.paper2,
+                            disabledContentColor = colors.muted,
                         ),
                     ) {
                         if (state.creatingOrder) {
                             CircularProgressIndicator(
-                                color = Ink,
+                                color = colors.accentInk,
                                 strokeWidth = 2.dp,
                                 modifier = Modifier.size(22.dp),
                             )
                         } else {
-                            Text("Confirmar pedido", fontWeight = FontWeight.Black)
+                            Text(confirmLabel(state.checkoutPayment), fontWeight = FontWeight.Black)
                         }
                     }
                 }
@@ -173,11 +188,18 @@ fun CartScreen(
     }
 }
 
+private fun confirmLabel(payment: PaymentMethod): String = when (payment) {
+    PaymentMethod.CASH -> "Confirmar pedido"
+    PaymentMethod.BALANCE -> "Pagar con saldo"
+    PaymentMethod.CARD -> "Pagar con tarjeta"
+}
+
 @Composable
 private fun CartLineCard(line: CartLine, onMinus: () -> Unit, onPlus: () -> Unit) {
+    val colors = LocalVaiinillaColors.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = CreamDeep,
+        color = colors.paper2,
         shape = RoundedCornerShape(22.dp),
     ) {
         Row(
@@ -196,7 +218,7 @@ private fun CartLineCard(line: CartLine, onMinus: () -> Unit, onPlus: () -> Unit
                     .weight(1f)
                     .padding(horizontal = 12.dp),
             ) {
-                Text(line.product.name, color = Ink, fontWeight = FontWeight.Black)
+                Text(line.product.name, color = colors.ink, fontWeight = FontWeight.Black)
                 val variants = line.product.optionGroups
                     .flatMap { it.options }
                     .filter { it.id in line.selectedOptionIds }
@@ -204,11 +226,11 @@ private fun CartLineCard(line: CartLine, onMinus: () -> Unit, onPlus: () -> Unit
                         if (option.extraPrice == "0.00") option.name else "${option.name} +${moneyLabel(option.extraPrice)}"
                     }
                 if (variants.isNotBlank()) {
-                    Text(variants, color = MutedInk, modifier = Modifier.padding(top = 4.dp))
+                    Text(variants, color = colors.muted, modifier = Modifier.padding(top = 4.dp))
                 }
                 Text(
                     moneyLabel(Money.cartLinePreview(line)),
-                    color = Ink,
+                    color = colors.ink,
                     fontWeight = FontWeight.Black,
                     modifier = Modifier.padding(top = 7.dp),
                 )
@@ -217,7 +239,7 @@ private fun CartLineCard(line: CartLine, onMinus: () -> Unit, onPlus: () -> Unit
                 QuantityButton(icon = Icons.Rounded.Remove, description = "Quitar uno", onClick = onMinus)
                 Text(
                     line.quantity.toString(),
-                    color = Ink,
+                    color = colors.ink,
                     fontWeight = FontWeight.Black,
                     modifier = Modifier.padding(horizontal = 7.dp),
                 )
@@ -233,105 +255,56 @@ private fun QuantityButton(
     description: String,
     onClick: () -> Unit,
 ) {
+    val colors = LocalVaiinillaColors.current
     IconButton(
         onClick = onClick,
         modifier = Modifier
             .size(30.dp)
             .clip(RoundedCornerShape(11.dp))
-            .background(Ink),
+            .background(colors.ink),
     ) {
-        Icon(icon, contentDescription = description, tint = Cream, modifier = Modifier.size(18.dp))
+        Icon(icon, contentDescription = description, tint = colors.paper, modifier = Modifier.size(18.dp))
     }
 }
 
 @Composable
 private fun SectionTitle(title: String) {
+    val colors = LocalVaiinillaColors.current
     Text(
         title,
-        color = Ink,
+        color = colors.ink,
         fontWeight = FontWeight.Black,
         modifier = Modifier.padding(top = 10.dp, start = 4.dp),
     )
 }
 
 @Composable
-private fun TakeAwayCard() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Ink,
-        shape = RoundedCornerShape(18.dp),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("Para llevar", color = Cream, fontWeight = FontWeight.Black)
-            Spacer(Modifier.weight(1f))
-            Surface(color = Lime, shape = RoundedCornerShape(99.dp)) {
-                Text("SELECCIONADO", color = Ink, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp))
-            }
-        }
+private fun OrderSummaryCard(state: OrderFlowUiState) {
+    val colors = LocalVaiinillaColors.current
+    val destinationLabel = when (state.checkoutDestination) {
+        OrderDestination.TAKE_AWAY -> "Para llevar"
+        OrderDestination.IN_SPACE -> DemoCheckoutFixtures.SPACE_NAME
     }
-}
-
-@Composable
-private fun CashPaymentCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = CreamDeep,
-        shape = RoundedCornerShape(20.dp),
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .clip(RoundedCornerShape(15.dp))
-                    .background(Ink),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Outlined.Payments, contentDescription = null, tint = Cream)
-            }
-            Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
-                Text("Efectivo en Caja", color = Ink, fontWeight = FontWeight.Black)
-                Text("El pedido nace por cobrar y se prepara después del pago.", color = MutedInk)
-            }
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Lime),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("✓", color = Ink, fontWeight = FontWeight.Black)
-            }
-        }
-    }
-}
-
-@Composable
-private fun OrderSummaryCard(total: String) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Ink,
+        color = colors.ink,
         shape = RoundedCornerShape(28.dp),
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            SummaryRow("Subtotal visual", moneyLabel(total))
-            SummaryRow("Método", "Efectivo")
+            SummaryRow("Subtotal", moneyLabel(state.cartPreviewTotal), colors)
+            SummaryRow("Entrega", destinationLabel, colors)
+            SummaryRow("Método", paymentMethodLabel(state.checkoutPayment), colors)
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Total visual", color = Cream, fontWeight = FontWeight.Black)
-                Text(moneyLabel(total), color = Cream, fontWeight = FontWeight.Black)
+                Text("Total", color = colors.paper, fontWeight = FontWeight.Black)
+                Text(moneyLabel(state.cartPreviewTotal), color = colors.paper, fontWeight = FontWeight.Black)
             }
             Text(
                 "El servidor confirmará precios y total al crear el pedido.",
-                color = Cream.copy(alpha = 0.65f),
+                color = colors.paper.copy(alpha = 0.65f),
                 modifier = Modifier.padding(top = 9.dp),
             )
         }
@@ -339,13 +312,35 @@ private fun OrderSummaryCard(total: String) {
 }
 
 @Composable
-private fun SummaryRow(label: String, value: String) {
+private fun SummaryRow(label: String, value: String, colors: com.vaiinilla.app.ui.theme.VaiinillaColors) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(label, color = Cream.copy(alpha = 0.75f))
-        Text(value, color = Cream, fontWeight = FontWeight.ExtraBold)
+        Text(label, color = colors.paper.copy(alpha = 0.75f))
+        Text(value, color = colors.paper, fontWeight = FontWeight.ExtraBold)
+    }
+}
+
+@Composable
+private fun WarningBanner(message: String) {
+    Surface(
+        color = Color(0xFFFFF1CC),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(message, color = Color(0xFF171817), modifier = Modifier.padding(14.dp))
+    }
+}
+
+@Composable
+private fun ErrorBanner(message: String) {
+    Surface(
+        color = Color(0xFFFFDED9),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(message, color = Color(0xFF171817), modifier = Modifier.padding(14.dp))
     }
 }
 

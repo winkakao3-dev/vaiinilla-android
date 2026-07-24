@@ -8,6 +8,8 @@ import com.vaiinilla.app.domain.model.OrderState
 interface OrderRepository {
     fun createOrder(request: CreateOrderRequest, idempotencyKey: String): Result<OrderDetail>
 
+    fun createStudentCheckout(request: CreateOrderRequest, idempotencyKey: String): Result<OrderDetail>
+
     fun getOrder(orderId: String): Result<OrderDetail>
 
     fun listOrders(role: OperationalRole, updatedSince: String? = null): Result<List<OrderDetail>>

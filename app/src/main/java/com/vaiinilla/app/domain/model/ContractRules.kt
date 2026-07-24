@@ -71,6 +71,25 @@ object ContractRules {
             "VAI-10 solo acepta destino para_llevar."
         }
         require(request.spaceId == null) { "para_llevar exige espacio_id null." }
+        validateOrderItems(request)
+    }
+
+    fun validateStudentCheckoutRequest(request: CreateOrderRequest) {
+        require(request.paymentMethod in PaymentMethod.entries) {
+            "metodo_pago no soportado en checkout alumno."
+        }
+        when (request.destination) {
+            OrderDestination.TAKE_AWAY -> require(request.spaceId == null) {
+                "para_llevar exige espacio_id null."
+            }
+            OrderDestination.IN_SPACE -> require(request.spaceId == DemoCheckoutFixtures.SPACE_ID) {
+                "en_espacio requiere el espacio demo."
+            }
+        }
+        validateOrderItems(request)
+    }
+
+    private fun validateOrderItems(request: CreateOrderRequest) {
         require(request.items.size in 1..50) { "El pedido debe contener entre 1 y 50 líneas." }
         request.items.forEach { item ->
             require(item.quantity in 1..20) { "cantidad debe estar entre 1 y 20." }

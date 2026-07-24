@@ -226,10 +226,14 @@ private fun CatalogContent(
 
         state.selectedProduct?.let { product ->
             val category = catalog.categories.firstOrNull { it.id == product.categoryId }
+            val defaultOptionIds = product.optionGroups.flatMap { group ->
+                group.options.take(group.minimumSelections).map { it.id }
+            }.toSet()
             ProductDetailSheet(
                 product = product,
                 categoryName = category?.name.orEmpty(),
                 selectedOptionIds = state.selectedOptionIds,
+                defaultOptionIds = defaultOptionIds,
                 quantity = state.selectedQuantity,
                 previewPrice = state.selectedProductPreviewPrice,
                 previewTotal = state.selectedProductPreviewTotal,

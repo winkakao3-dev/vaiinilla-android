@@ -26,6 +26,16 @@ class RemoteOrderRepository(
         .mapCatching { pickupTokenStore.attach(it) }
         .mapApiErrors()
 
+    override fun createStudentCheckout(
+        request: CreateOrderRequest,
+        idempotencyKey: String,
+    ): Result<OrderDetail> = Result.failure(
+        OrderRepositoryException(
+            code = "STUDENT_CHECKOUT_UNSUPPORTED",
+            message = "Saldo, tarjeta y mesa están disponibles en modo demo local.",
+        ),
+    )
+
     override fun getOrder(orderId: String): Result<OrderDetail> = apiClient.get("pedidos/$orderId")
         .mapCatching { contractJson.parseOrderDetail(it) }
         .mapCatching { pickupTokenStore.attach(it) }

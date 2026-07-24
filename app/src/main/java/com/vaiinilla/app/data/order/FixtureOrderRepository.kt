@@ -4,12 +4,14 @@ import com.vaiinilla.app.data.fixture.ContractFixtureParser
 import com.vaiinilla.app.data.fixture.FixtureSource
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.CreateOrderRequest
+import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderItemOption
+import com.vaiinilla.app.domain.model.OrderSpace
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PreparationStation
@@ -28,6 +30,50 @@ class FixtureOrderRepository(
 
     @Synchronized
     override fun createOrder(request: CreateOrderRequest, idempotencyKey: String): Result<OrderDetail> = runCatching {
+        createOrderInternal(
+            request = request,
+            idempotencyKey = idempotencyKey,
+            validate = ContractRules::validateCreateOrderRequest,
+            initialState = OrderState.PENDING_PAYMENT,
+            space = null,
+        )
+    }
+
+    @Synchronized
+    override fun createStudentCheckout(
+        request: CreateOrderRequest,
+        idempotencyKey: String,
+    ): Result<OrderDetail> = runCatching {
+        val initialState = if (request.paymentMethod.isInstantDemoPayment) {
+            OrderState.PAID
+        } else {
+            OrderState.PENDING_PAYMENT
+        }
+        val space = if (request.destination == OrderDestination.IN_SPACE) {
+            OrderSpace(
+                id = DemoCheckoutFixtures.SPACE_ID,
+                name = DemoCheckoutFixtures.SPACE_NAME,
+                type = DemoCheckoutFixtures.SPACE_TYPE,
+            )
+        } else {
+            null
+        }
+        createOrderInternal(
+            request = request,
+            idempotencyKey = idempotencyKey,
+            validate = ContractRules::validateStudentCheckoutRequest,
+            initialState = initialState,
+            space = space,
+        )
+    }
+
+    private fun createOrderInternal(
+        request: CreateOrderRequest,
+        idempotencyKey: String,
+        validate: (CreateOrderRequest) -> Unit,
+        initialState: OrderState,
+        space: OrderSpace?,
+    ): OrderDetail {
         requireUuid(idempotencyKey)
         createRequestsByKey[idempotencyKey]?.let { stored ->
             if (stored.request != request) {
@@ -36,10 +82,10 @@ class FixtureOrderRepository(
                     message = "La llave de idempotencia ya fue usada con otro request.",
                 )
             }
-            return@runCatching stored.order
+            return stored.order
         }
 
-        ContractRules.validateCreateOrderRequest(request)
+        validate(request)
         val status = parser.parseOperationalStatus(fixtureSource.read(OPERATIONAL_STATUS_PATH))
         ContractRules.validateOperationalStatus(status)
         if (!status.acceptingOrders || !status.cashSessionOpen) {
@@ -104,10 +150,10 @@ class FixtureOrderRepository(
                 id = UUID.nameUUIDFromBytes("vaiinilla:$idempotencyKey".toByteArray()).toString(),
                 folio = 3472 + sequence,
                 operationalDate = consultedAt.substringBefore('T'),
-                state = OrderState.PENDING_PAYMENT,
+                state = initialState,
                 paymentMethod = request.paymentMethod,
                 destination = request.destination,
-                space = null,
+                space = space,
                 subtotal = total,
                 combinedSavings = "0.00",
                 cashbackAwarded = "0.00",
@@ -123,7 +169,7 @@ class FixtureOrderRepository(
         )
         persist(order)
         createRequestsByKey[idempotencyKey] = StoredCreateRequest(request, order)
-        order
+        return order
     }
 
     @Synchronized

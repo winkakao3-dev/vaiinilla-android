@@ -9,9 +9,13 @@ import com.vaiinilla.app.core.config.DataSourceMode
 import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.ContractRules
+import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OptionGroup
+import com.vaiinilla.app.domain.model.OrderDestination
+import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
 import com.vaiinilla.app.domain.usecase.CreateOrderUseCase
+import com.vaiinilla.app.domain.usecase.CreateStudentCheckoutUseCase
 import com.vaiinilla.app.domain.usecase.GetCatalogUseCase
 import com.vaiinilla.app.domain.usecase.GetOperationalStatusUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +31,7 @@ class OrderFlowViewModel @Inject constructor(
     private val getOperationalStatus: GetOperationalStatusUseCase,
     private val buildCreateOrderRequest: BuildCreateOrderRequestUseCase,
     private val createOrder: CreateOrderUseCase,
+    private val createStudentCheckout: CreateStudentCheckoutUseCase,
     private val staffPresenceCoordinator: StaffPresenceCoordinator,
     private val environment: AppEnvironment,
 ) : ViewModel() {
@@ -190,7 +195,23 @@ class OrderFlowViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(kitchenNotes = notes, createOrderError = null)
     }
 
-    fun submitOrder() {
+    fun updateCheckoutDestination(destination: OrderDestination) {
+        pendingIdempotencyKey = null
+        _uiState.value = _uiState.value.copy(
+            checkoutDestination = destination,
+            createOrderError = null,
+        )
+    }
+
+    fun updateCheckoutPayment(payment: PaymentMethod) {
+        pendingIdempotencyKey = null
+        _uiState.value = _uiState.value.copy(
+            checkoutPayment = payment,
+            createOrderError = null,
+        )
+    }
+
+    fun submitOrder(walletBalance: Int = 0, onWalletDebit: (Int) -> Unit = {}) {
         val state = _uiState.value
         if (state.cartLines.isEmpty()) {
             _uiState.value = state.copy(
@@ -200,9 +221,24 @@ class OrderFlowViewModel @Inject constructor(
         }
         if (state.creatingOrder) return
 
+        if (state.checkoutPayment == PaymentMethod.BALANCE && !state.hasSufficientBalance(walletBalance)) {
+            _uiState.value = state.copy(
+                createOrderError = "Saldo insuficiente. Añade dinero en Cartera o elige otro método.",
+            )
+            return
+        }
+
         _uiState.value = state.copy(creatingOrder = true, createOrderError = null)
         viewModelScope.launch {
             var current = _uiState.value
+            if (environment.dataSourceMode == DataSourceMode.REMOTE && current.usesStudentCheckout) {
+                _uiState.value = current.copy(
+                    creatingOrder = false,
+                    createOrderError = "Saldo, tarjeta y mesa están disponibles en modo demo local.",
+                )
+                return@launch
+            }
+
             if (environment.dataSourceMode == DataSourceMode.REMOTE) {
                 withContext(Dispatchers.IO) { staffPresenceCoordinator.primeStaffPresence() }
                 val status = withContext(Dispatchers.IO) { getOperationalStatus() }.getOrNull()
@@ -212,7 +248,7 @@ class OrderFlowViewModel @Inject constructor(
                 }
             }
 
-            if (!current.isOperationallyReady) {
+            if (current.requiresOperationalReady && !current.isOperationallyReady) {
                 val blocker = current.operationalBlockerMessage
                     ?: "El establecimiento no está recibiendo pedidos en este momento."
                 _uiState.value = current.copy(
@@ -222,18 +258,36 @@ class OrderFlowViewModel @Inject constructor(
                 return@launch
             }
 
-            val request = buildCreateOrderRequest(current.cartLines, current.kitchenNotes)
+            val request = buildCreateOrderRequest(
+                lines = current.cartLines,
+                kitchenNotes = current.kitchenNotes,
+                paymentMethod = current.checkoutPayment,
+                destination = current.checkoutDestination,
+                spaceId = current.checkoutSpaceId,
+            )
             val idempotencyKey = pendingIdempotencyKey ?: UUID.randomUUID().toString().also {
                 pendingIdempotencyKey = it
             }
-            val result = withContext(Dispatchers.IO) { createOrder(request, idempotencyKey) }
+            val result = withContext(Dispatchers.IO) {
+                if (current.usesStudentCheckout) {
+                    createStudentCheckout(request, idempotencyKey)
+                } else {
+                    createOrder(request, idempotencyKey)
+                }
+            }
             result.fold(
                 onSuccess = { order ->
                     pendingIdempotencyKey = null
+                    if (current.checkoutPayment == PaymentMethod.BALANCE) {
+                        val total = Money.parse(order.summary.total).toInt()
+                        onWalletDebit(total)
+                    }
                     _uiState.value = _uiState.value.copy(
                         creatingOrder = false,
                         cartLines = emptyList(),
                         kitchenNotes = "",
+                        checkoutDestination = OrderDestination.TAKE_AWAY,
+                        checkoutPayment = PaymentMethod.CASH,
                         createdOrder = order,
                         createOrderError = null,
                     )

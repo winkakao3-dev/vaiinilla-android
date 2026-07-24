@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
-import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.theme.Cream
 import com.vaiinilla.app.ui.theme.CreamDeep
 import com.vaiinilla.app.ui.theme.Ink
@@ -113,7 +112,7 @@ fun OrderTrackingCard(
             ) {
                 Text(moneyLabel(order.summary.total), color = TaskCardText.copy(alpha = 0.82f), fontSize = 13.sp)
                 Text(order.summary.destination.label, color = TaskCardText.copy(alpha = 0.82f), fontSize = 13.sp)
-                Text(paymentLabel(order.summary.paymentMethod), color = TaskCardText.copy(alpha = 0.82f), fontSize = 13.sp)
+                Text(paymentMethodLabel(order.summary.paymentMethod), color = TaskCardText.copy(alpha = 0.82f), fontSize = 13.sp)
             }
         }
     }
@@ -230,6 +229,3 @@ fun OrderDetailSummary(
     }
 }
 
-private fun paymentLabel(method: PaymentMethod): String = when (method) {
-    PaymentMethod.CASH -> "Efectivo"
-}

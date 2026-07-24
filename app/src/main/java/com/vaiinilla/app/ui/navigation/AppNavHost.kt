@@ -190,10 +190,18 @@ fun AppNavHost(navController: NavHostController) {
             }
             CartScreen(
                 state = orderState,
+                walletBalance = walletState.balance,
                 onMenu = { navController.navigateStudent(Routes.CATALOG) },
                 onQuantityChange = orderFlowViewModel::changeCartLineQuantity,
                 onNotesChange = orderFlowViewModel::updateKitchenNotes,
-                onConfirm = orderFlowViewModel::submitOrder,
+                onDestinationChange = orderFlowViewModel::updateCheckoutDestination,
+                onPaymentChange = orderFlowViewModel::updateCheckoutPayment,
+                onConfirm = {
+                    orderFlowViewModel.submitOrder(
+                        walletBalance = walletState.balance,
+                        onWalletDebit = { amount -> walletState.balance -= amount },
+                    )
+                },
                 onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
                 onOpenAssistant = { navController.navigateStudent(Routes.ASSISTANT) },
                 onOpenWallet = { navController.navigateStudent(Routes.WALLET) },

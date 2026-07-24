@@ -58,6 +58,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.ui.components.paymentMethodLabel
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.theme.Lime
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -128,6 +130,7 @@ fun OrderConfirmationScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             ReceiptConfirmHeader(
+                paymentMethod = order.summary.paymentMethod,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = horizontalPadding, vertical = 12.dp),
@@ -136,6 +139,7 @@ fun OrderConfirmationScreen(
             ReceiptPrinterMachine(
                 folio = order.summary.folio,
                 printed = printed,
+                paymentMethod = order.summary.paymentMethod,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -219,8 +223,12 @@ fun OrderConfirmationScreen(
 }
 
 @Composable
-private fun ReceiptConfirmHeader(modifier: Modifier = Modifier) {
+private fun ReceiptConfirmHeader(
+    paymentMethod: PaymentMethod,
+    modifier: Modifier = Modifier,
+) {
     val colors = LocalVaiinillaColors.current
+    val copy = confirmationCopy(paymentMethod)
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -228,14 +236,14 @@ private fun ReceiptConfirmHeader(modifier: Modifier = Modifier) {
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                "PEDIDO CREADO",
+                copy.eyebrow,
                 color = colors.muted,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.2.sp,
             )
             Text(
-                "Tu pase de Caja acaba de salir.",
+                copy.title,
                 color = colors.ink,
                 fontSize = 26.sp,
                 lineHeight = 28.sp,
@@ -243,7 +251,7 @@ private fun ReceiptConfirmHeader(modifier: Modifier = Modifier) {
                 modifier = Modifier.padding(top = 8.dp),
             )
             Text(
-                "Págalo en efectivo y usa este receipt sticker para identificar la orden.",
+                copy.subtitle,
                 color = colors.muted,
                 fontSize = 15.sp,
                 lineHeight = 22.sp,
@@ -262,12 +270,44 @@ private fun ReceiptConfirmHeader(modifier: Modifier = Modifier) {
     }
 }
 
+private data class ConfirmationCopy(
+    val eyebrow: String,
+    val title: String,
+    val subtitle: String,
+)
+
+private fun confirmationCopy(paymentMethod: PaymentMethod): ConfirmationCopy = when (paymentMethod) {
+    PaymentMethod.CASH -> ConfirmationCopy(
+        eyebrow = "PEDIDO CREADO",
+        title = "Tu pase de Caja acaba de salir.",
+        subtitle = "Págalo en efectivo y usa este receipt sticker para identificar la orden.",
+    )
+    PaymentMethod.BALANCE -> ConfirmationCopy(
+        eyebrow = "PAGO CON SALDO",
+        title = "Saldo descontado y comanda enviada.",
+        subtitle = "Tu pedido ya está en cocina. Puedes seguirlo en Mis pedidos.",
+    )
+    PaymentMethod.CARD -> ConfirmationCopy(
+        eyebrow = "PAGO CON TARJETA",
+        title = "Cargo confirmado en •••• 4242.",
+        subtitle = "La comanda ya fue enviada. Revisa el seguimiento cuando quieras.",
+    )
+}
+
 @Composable
 private fun ReceiptPrinterMachine(
     folio: Int,
     printed: Boolean,
+    paymentMethod: PaymentMethod,
     modifier: Modifier = Modifier,
 ) {
+    val isInstant = paymentMethod.isInstantDemoPayment
+    val passLabel = if (isInstant) "COMANDA ENVIADA" else "PASE DE CAJA"
+    val statusLabel = if (printed) {
+        if (isInstant) "COMANDA LISTA" else "PASE LISTO"
+    } else {
+        if (isInstant) "ENVIANDO COMANDA…" else "IMPRIMIENDO PASE…"
+    }
     val ledTransition = rememberInfiniteTransition(label = "receipt-printer-led")
     val ledAlpha by ledTransition.animateFloat(
         initialValue = 1f,
@@ -323,7 +363,7 @@ private fun ReceiptPrinterMachine(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "PASE DE CAJA",
+                    passLabel,
                     color = PaperText,
                     fontSize = 23.sp,
                     lineHeight = 24.sp,
@@ -352,7 +392,7 @@ private fun ReceiptPrinterMachine(
                         .background(Color(0xFFFFD15B), CircleShape),
                 )
                 Text(
-                    if (printed) "PASE LISTO" else "IMPRIMIENDO PASE…",
+                    statusLabel,
                     modifier = Modifier.padding(start = 9.dp),
                     color = Color(0xFFB7B8B2),
                     fontSize = 10.sp,

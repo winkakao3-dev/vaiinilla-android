@@ -56,19 +56,43 @@ import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.OrderFlowUiState
-import com.vaiinilla.app.ui.theme.AccentInk
-import com.vaiinilla.app.ui.theme.Cream
-import com.vaiinilla.app.ui.theme.CreamDeep
-import com.vaiinilla.app.ui.theme.Ink
-import com.vaiinilla.app.ui.theme.Lime
-import com.vaiinilla.app.ui.theme.MutedInk
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 private val assistantChips = listOf(
     "Rápido y llenador",
-    "Menos de $60",
+    "Menos de \$60",
     "Algo ligero",
     "Combo con bebida",
 )
+
+private data class AssistantHeroCopy(
+    val eyebrow: String,
+    val title: String,
+    val subtitle: String,
+)
+
+private fun assistantHeroForChip(chip: String): AssistantHeroCopy = when (chip) {
+    "Menos de \$60" -> AssistantHeroCopy(
+        eyebrow = "MODO PRESUPUESTO",
+        title = "¿Qué rinde sin pasarte?",
+        subtitle = "Filtramos opciones bajo $60 para que decidas rápido.",
+    )
+    "Algo ligero" -> AssistantHeroCopy(
+        eyebrow = "MODO LIGERO",
+        title = "Algo fresco y sin pesadez",
+        subtitle = "Bebidas, fruta y opciones rápidas para acompañar tu día.",
+    )
+    "Combo con bebida" -> AssistantHeroCopy(
+        eyebrow = "MODO COMBO",
+        title = "Arma tu combo completo",
+        subtitle = "Comida + bebida en una sola pasada por el menú.",
+    )
+    else -> AssistantHeroCopy(
+        eyebrow = "RECOMENDACIÓN RÁPIDA",
+        title = "¿Qué necesitas hoy?",
+        subtitle = "Pide sin pensarlo tanto. Te sugerimos lo más pedido del menú.",
+    )
+}
 
 @Composable
 fun AssistantScreen(
@@ -99,10 +123,13 @@ fun AssistantScreen(
         label = "assistant-hero-offset",
     )
 
+    val heroCopy = assistantHeroForChip(selectedChip)
+    val colors = LocalVaiinillaColors.current
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream),
+            .background(colors.paper),
     ) {
         LazyColumn(
             modifier = Modifier
@@ -118,7 +145,7 @@ fun AssistantScreen(
                 ) {
                     Text(
                         "Asistente Vaiinilla",
-                        color = Ink,
+                        color = colors.ink,
                         fontWeight = FontWeight.Black,
                         fontSize = 22.sp,
                         modifier = Modifier.weight(1f),
@@ -128,9 +155,9 @@ fun AssistantScreen(
                         modifier = Modifier
                             .size(42.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(CreamDeep),
+                            .background(colors.paper2),
                     ) {
-                        Icon(Icons.Outlined.Chat, contentDescription = "Abrir chat", tint = Ink)
+                        Icon(Icons.Outlined.Chat, contentDescription = "Abrir chat", tint = colors.ink)
                     }
                     Spacer(Modifier.size(8.dp))
                     IconButton(
@@ -138,9 +165,9 @@ fun AssistantScreen(
                         modifier = Modifier
                             .size(42.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(CreamDeep),
+                            .background(colors.paper2),
                     ) {
-                        Icon(Icons.Outlined.Notifications, contentDescription = "Notificaciones", tint = Ink)
+                        Icon(Icons.Outlined.Notifications, contentDescription = "Notificaciones", tint = colors.ink)
                     }
                 }
             }
@@ -153,7 +180,7 @@ fun AssistantScreen(
                             alpha = heroAlpha
                             translationY = if (reduceMotion) 0f else heroOffset
                         },
-                    color = Ink,
+                    color = colors.ink,
                     shape = RoundedCornerShape(32.dp),
                 ) {
                     Column(
@@ -161,22 +188,31 @@ fun AssistantScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
-                            "Pide sin pensarlo tanto",
-                            color = MutedInk.copy(alpha = 0.85f),
+                            heroCopy.eyebrow,
+                            color = colors.muted.copy(alpha = 0.85f),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.8.sp,
                         )
-                        AssistantMascot(modifier = Modifier.padding(vertical = 16.dp))
+                        AssistantMascot(colors = colors, modifier = Modifier.padding(vertical = 16.dp))
                         Text(
-                            "¿Qué necesitas hoy?",
+                            heroCopy.title,
                             color = Color(0xFFF6F1E5),
                             fontWeight = FontWeight.Black,
                             fontSize = 30.sp,
                             lineHeight = 32.sp,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         )
+                        Text(
+                            heroCopy.subtitle,
+                            color = Color(0xFFF6F1E5).copy(alpha = 0.72f),
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
                         TextButton(onClick = onOpenChat, modifier = Modifier.padding(top = 8.dp)) {
-                            Text("Chatear", color = Lime, fontWeight = FontWeight.Black)
+                            Text("Chatear", color = colors.accent, fontWeight = FontWeight.Black)
                         }
                     }
                 }
@@ -200,8 +236,8 @@ fun AssistantScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Bottom,
                 ) {
-                    Text("Te recomendamos", color = Ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
-                    Text("Según tu elección", color = MutedInk, fontSize = 12.sp)
+                    Text("Te recomendamos", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                    Text(chipSectionLabel(selectedChip), color = colors.muted, fontSize = 12.sp)
                 }
             }
 
@@ -227,7 +263,10 @@ fun AssistantScreen(
 }
 
 @Composable
-private fun AssistantMascot(modifier: Modifier = Modifier) {
+private fun AssistantMascot(
+    colors: com.vaiinilla.app.ui.theme.VaiinillaColors,
+    modifier: Modifier = Modifier,
+) {
     Canvas(modifier = modifier.size(width = 92.dp, height = 82.dp)) {
         val triangle = Path().apply {
             moveTo(size.width / 2f, size.height * 0.024f)
@@ -235,15 +274,15 @@ private fun AssistantMascot(modifier: Modifier = Modifier) {
             lineTo(size.width * 0.022f, size.height * 0.915f)
             close()
         }
-        drawPath(triangle, Lime)
-        drawCircle(AccentInk, radius = size.width * 0.043f, center = Offset(size.width * 0.38f, size.height * 0.585f))
-        drawCircle(AccentInk, radius = size.width * 0.043f, center = Offset(size.width * 0.62f, size.height * 0.585f))
+        drawPath(triangle, colors.accent)
+        drawCircle(colors.accentInk, radius = size.width * 0.043f, center = Offset(size.width * 0.38f, size.height * 0.585f))
+        drawCircle(colors.accentInk, radius = size.width * 0.043f, center = Offset(size.width * 0.62f, size.height * 0.585f))
         drawPath(
             path = Path().apply {
                 moveTo(size.width * 0.359f, size.height * 0.732f)
                 quadraticBezierTo(size.width / 2f, size.height * 0.878f, size.width * 0.641f, size.height * 0.732f)
             },
-            color = AccentInk,
+            color = colors.accentInk,
             style = Stroke(width = size.width * 0.033f),
         )
     }
@@ -251,29 +290,38 @@ private fun AssistantMascot(modifier: Modifier = Modifier) {
 
 @Composable
 private fun AssistantChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val colors = LocalVaiinillaColors.current
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(13.dp))
-            .background(if (selected) Ink else CreamDeep)
+            .background(if (selected) colors.ink else colors.paper2)
             .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
         Text(
             text = label,
-            color = if (selected) Cream else Ink,
+            color = if (selected) colors.paper else colors.ink,
             fontWeight = FontWeight.ExtraBold,
             fontSize = 13.sp,
         )
     }
 }
 
+private fun chipSectionLabel(chip: String): String = when (chip) {
+    "Menos de \$60" -> "Bajo $60"
+    "Algo ligero" -> "Fresco y rápido"
+    "Combo con bebida" -> "Comida + bebida"
+    else -> "Según tu elección"
+}
+
 @Composable
 private fun RecommendationRow(item: AssistantRecommendation, onClick: () -> Unit) {
+    val colors = LocalVaiinillaColors.current
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .physicalPress(onClick = onClick),
-        color = CreamDeep,
+        color = colors.paper2,
         shape = RoundedCornerShape(22.dp),
     ) {
         Row(
@@ -292,10 +340,10 @@ private fun RecommendationRow(item: AssistantRecommendation, onClick: () -> Unit
                     .weight(1f)
                     .padding(horizontal = 12.dp),
             ) {
-                Text(item.name, color = Ink, fontWeight = FontWeight.Black, fontSize = 15.sp)
-                Text(item.meta, color = MutedInk, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                Text(item.name, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 15.sp)
+                Text(item.meta, color = colors.muted, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
             }
-            Text(moneyLabel(item.price), color = Ink, fontWeight = FontWeight.Black, fontSize = 16.sp)
+            Text(moneyLabel(item.price), color = colors.ink, fontWeight = FontWeight.Black, fontSize = 16.sp)
         }
     }
 }
