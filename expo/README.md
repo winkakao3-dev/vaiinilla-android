@@ -50,36 +50,24 @@ npm run web
 - Cash orders → `por_cobrar`; saldo/tarjeta → `cobrado` instantly (demo).
 - Wallet balance is local (AsyncStorage); saldo checkout debits on confirm.
 
-### REMOTE
+### REMOTE (same Firebase as Jesús Android)
 
-1. Copy `expo/.env.example` → `expo/.env`
-2. Set `EXPO_PUBLIC_VAIINILLA_DATA_SOURCE=REMOTE`
-3. Fill `EXPO_PUBLIC_FIREBASE_*` and optionally `EXPO_PUBLIC_API_BASE_URL`
-4. Restart Expo (`npm run start`)
-5. Roles or Login screen shows **MOCK/REMOTE** chip + Firebase status
-6. Login: Firebase email/password → `POST /sesiones/contexto` → Bearer on API calls
+Firebase client defaults are already wired from project **`vaiinilla-b3a70`** (same `google-services.json` as the Android seed-login build). To run live:
+
+```bash
+cp .env.example .env   # already filled with Jesús keys + REMOTE
+npm run start          # restart so Expo picks up .env
+```
+
+1. Roles chip should show **REMOTE · Firebase configurado**
+2. Login (or role entry): Firebase email/password → `POST /sesiones/contexto` → Bearer on API calls
+3. Seed password: **`saul1234`**
 
 **Note:** Student checkout with saldo, tarjeta, or mesa is blocked in REMOTE (MOCK-only); cash + para llevar uses the API.
 
-## Firebase env (optional)
+## Firebase env
 
-If any value is missing, screens show **Firebase no configurado** and MOCK still works.
-
-```bash
-cp .env.example .env
-# edit .env — do not commit .env
-```
-
-```env
-EXPO_PUBLIC_VAIINILLA_DATA_SOURCE=REMOTE
-EXPO_PUBLIC_API_BASE_URL=
-EXPO_PUBLIC_FIREBASE_API_KEY=
-EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=
-EXPO_PUBLIC_FIREBASE_PROJECT_ID=
-EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=
-EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-EXPO_PUBLIC_FIREBASE_APP_ID=
-```
+`.env.example` ships the Jesús/demo keys. Local `.env` is gitignored. Code also falls back to the same defaults in `src/core/config.ts` if env vars are empty.
 
 ## EAS preview build (config only)
 
