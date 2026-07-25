@@ -18,6 +18,13 @@ data class VaiinillaColors(
     val accentInk: Color,
     val coral: Color,
     val yolk: Color,
+    val navGlass: Color,
+    val navBorder: Color,
+    val navInsetHighlight: Color,
+    val navShadow: Color,
+    val navPill: Color,
+    val navTextIdle: Color,
+    val navTextActive: Color,
 )
 
 val LocalVaiinillaColors = staticCompositionLocalOf {

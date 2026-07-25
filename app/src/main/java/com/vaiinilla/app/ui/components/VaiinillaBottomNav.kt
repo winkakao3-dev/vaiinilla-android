@@ -37,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -47,10 +48,14 @@ import com.vaiinilla.app.ui.theme.Coral
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.NavBorder
 import com.vaiinilla.app.ui.theme.NavGlass
+import com.vaiinilla.app.ui.theme.NavInsetHighlight
 import com.vaiinilla.app.ui.theme.NavPill
+import com.vaiinilla.app.ui.theme.NavShadow
 import com.vaiinilla.app.ui.theme.NavTextActive
 import com.vaiinilla.app.ui.theme.NavTextIdle
 
+private val NavShape = RoundedCornerShape(44.dp)
+private val PillShape = RoundedCornerShape(999.dp)
 private val NavEase = CubicBezierEasing(0.22f, 0.8f, 0.25f, 1f)
 private val BounceEase = CubicBezierEasing(0.2f, 0.9f, 0.25f, 1f)
 
@@ -98,9 +103,16 @@ fun VaiinillaBottomNav(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(88.dp)
-                .clip(RoundedCornerShape(44.dp))
+                .shadow(
+                    elevation = 18.dp,
+                    shape = NavShape,
+                    clip = false,
+                    ambientColor = NavShadow,
+                    spotColor = NavShadow,
+                )
+                .clip(NavShape)
                 .background(NavGlass)
-                .border(1.dp, NavBorder, RoundedCornerShape(44.dp))
+                .border(1.dp, NavBorder, NavShape)
                 .padding(9.dp),
         ) {
             val tabWidth = maxWidth / tabs.size
@@ -109,8 +121,17 @@ fun VaiinillaBottomNav(
                     .fillMaxHeight()
                     .width(tabWidth)
                     .offset(x = tabWidth * pillOffset)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(NavPill),
+                    .clip(PillShape)
+                    .background(NavPill)
+                    .border(1.dp, NavInsetHighlight, PillShape),
+            )
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(NavInsetHighlight),
             )
 
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -175,12 +196,12 @@ private fun NavItem(
     Box(
         modifier = modifier
             .fillMaxHeight()
-            .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick),
+            .physicalPress(scale = PhysicalPressScale.Nav, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
+            verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically),
         ) {
             Box {
                 Icon(
@@ -221,9 +242,10 @@ private fun NavItem(
             Text(
                 text = label,
                 color = foreground,
-                fontSize = 12.sp,
-                lineHeight = 13.sp,
+                fontSize = 14.sp,
+                lineHeight = 15.sp,
                 fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                letterSpacing = (-0.35).sp,
                 modifier = Modifier.graphicsLayer {
                     translationY = when {
                         labelBounce.value <= 0f -> 0f

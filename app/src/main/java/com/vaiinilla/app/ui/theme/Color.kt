@@ -15,11 +15,15 @@ val Coral = Color(0xFFF15B55)
 val Yolk = Color(0xFFFFD15B)
 val White = Color(0xFFFFFFFF)
 val Line = Color(0x1F171817)
-val NavGlass = Color(0xA618191B)
-val NavBorder = Color(0x29FFFFFF)
-val NavPill = Color(0x21FFFFFF)
-val NavTextIdle = Color(0xB3FFFFFF)
-val NavTextActive = Color(0xFFFFFFFF)
+
+// Uber frosted bottom nav (docs/ui-v2/uber_navbar_replica.html)
+val NavGlass = Color(0xF7111111) // rgba(17, 17, 17, 0.97)
+val NavBorder = Color(0x1AFFFFFF) // rgba(255, 255, 255, 0.10)
+val NavPill = Color(0xFF292929) // --active-bg
+val NavTextActive = Color(0xFFF2F2F2) // --text-active
+val NavTextIdle = Color(0xFFB7B7B7) // --text-idle
+val NavInsetHighlight = Color(0x06FFFFFF) // inset hairline ~2.5%
+val NavShadow = Color(0x80000000) // 0 18dp 50dp @ 50%
 
 // Dark theme tokens (demo screen 03)
 val DarkPaper = Color(0xFF1D1E1C)

@@ -15,6 +15,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 enum class PhysicalPressScale {
     Default,
     Small,
+    Nav,
     ProductCard,
 }
 
@@ -27,6 +28,7 @@ fun Modifier.physicalPress(
     val targetScale = when {
         !pressed -> 1f
         scale == PhysicalPressScale.Small -> 0.93f
+        scale == PhysicalPressScale.Nav -> 0.97f
         scale == PhysicalPressScale.ProductCard -> 0.955f
         else -> 0.965f
     }

@@ -25,6 +25,13 @@ enum class VaiinillaThemeMode(val storageKey: String) {
             accentInk = AccentInk,
             coral = Coral,
             yolk = Yolk,
+            navGlass = NavGlass,
+            navBorder = NavBorder,
+            navInsetHighlight = NavInsetHighlight,
+            navShadow = NavShadow,
+            navPill = NavPill,
+            navTextIdle = NavTextIdle,
+            navTextActive = NavTextActive,
         )
         Dark -> VaiinillaColors(
             paper = DarkPaper,
@@ -38,6 +45,13 @@ enum class VaiinillaThemeMode(val storageKey: String) {
             accentInk = DarkAccentInk,
             coral = Coral,
             yolk = Yolk,
+            navGlass = NavGlass,
+            navBorder = NavBorder,
+            navInsetHighlight = NavInsetHighlight,
+            navShadow = NavShadow,
+            navPill = NavPill,
+            navTextIdle = NavTextIdle,
+            navTextActive = NavTextActive,
         )
         Amoled -> VaiinillaColors(
             paper = AmoledPaper,
@@ -51,6 +65,13 @@ enum class VaiinillaThemeMode(val storageKey: String) {
             accentInk = AmoledAccentInk,
             coral = Coral,
             yolk = Yolk,
+            navGlass = NavGlass,
+            navBorder = NavBorder,
+            navInsetHighlight = NavInsetHighlight,
+            navShadow = NavShadow,
+            navPill = NavPill,
+            navTextIdle = NavTextIdle,
+            navTextActive = NavTextActive,
         )
     }
 
