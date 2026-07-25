@@ -3,6 +3,7 @@ import React from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -16,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav } from '@/components/bottom-nav';
 import { PhysicalPress } from '@/components/physical-press';
 import { ProductCard } from '@/components/product-card';
+import { LOGO_IMAGE, ProductImage } from '@/components/product-image';
 import { moneyLabel } from '@/domain/models';
 import { useOrderFlow } from '@/hooks/use-order-flow';
 import { useStudentNav } from '@/hooks/use-student-nav';
@@ -58,9 +60,12 @@ export function CatalogScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.hero}>
-          <Text style={styles.greeting}>Hola Dani</Text>
-          <Text style={styles.headline}>¿Qué se te antoja?</Text>
+        <View style={styles.header}>
+          <Image source={LOGO_IMAGE} style={styles.brandMark} accessibilityLabel="Vaiinilla" />
+          <View style={styles.headerCopy}>
+            <Text style={styles.menuLabel}>Menú</Text>
+            <Text style={styles.headline}>¿Qué se te antoja?</Text>
+          </View>
         </View>
 
         <View style={styles.search}>
@@ -71,6 +76,8 @@ export function CatalogScreen() {
             placeholder="Buscar burritos, bebidas…"
             placeholderTextColor={colors.muted}
             style={styles.searchInput}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
           />
         </View>
 
@@ -142,60 +149,70 @@ function ProductSheet() {
     <Modal visible transparent animationType="slide" onRequestClose={flow.closeProduct}>
       <Pressable style={styles.sheetBackdrop} onPress={flow.closeProduct} />
       <View style={styles.sheet}>
-        <View style={styles.sheetHandle} />
-        <Text style={styles.sheetTitle}>{product.name}</Text>
-        <Text style={styles.sheetDescription}>{product.description}</Text>
-
-        {product.optionGroups.map((group) => (
-          <View key={group.id} style={styles.optionGroup}>
-            <Text style={styles.optionTitle}>
-              {group.name} · {group.minimumSelections}-{group.maximumSelections}
-            </Text>
-            <View style={styles.optionList}>
-              {group.options.map((option) => {
-                const selected = flow.selectedOptionIds.includes(option.id);
-                return (
-                  <PhysicalPress
-                    key={option.id}
-                    style={[styles.optionChip, selected && styles.optionChipActive]}
-                    onPress={() => flow.toggleOption(group.id, option.id)}
-                  >
-                    <Text style={[styles.optionText, selected && styles.optionTextActive]}>
-                      {option.name}
-                      {option.extraPrice !== '0.00' ? ` +${moneyLabel(option.extraPrice)}` : ''}
-                    </Text>
-                  </PhysicalPress>
-                );
-              })}
-            </View>
-          </View>
-        ))}
-
-        <View style={styles.qtyRow}>
-          <PhysicalPress
-            style={styles.qtyButton}
-            onPress={() => flow.setSelectedQuantity(flow.selectedQuantity - 1)}
-          >
-            <Text style={styles.qtyButtonText}>−</Text>
-          </PhysicalPress>
-          <Text style={styles.qtyValue}>{flow.selectedQuantity}</Text>
-          <PhysicalPress
-            style={styles.qtyButton}
-            onPress={() => flow.setSelectedQuantity(flow.selectedQuantity + 1)}
-          >
-            <Text style={styles.qtyButtonText}>+</Text>
-          </PhysicalPress>
+        <View style={styles.sheetHero}>
+          <ProductImage
+            imageUrl={product.imageUrl}
+            style={styles.sheetImage}
+            accessibilityLabel={product.name}
+          />
+          <View style={styles.sheetHandle} />
         </View>
 
-        <PhysicalPress
-          style={[styles.addButton, !flow.isSelectedProductValid && styles.addButtonDisabled]}
-          disabled={!flow.isSelectedProductValid}
-          onPress={flow.addSelectedProductToCart}
-        >
-          <Text style={styles.addButtonText}>
-            Agregar · {moneyLabel(flow.selectedProductPreviewTotal)}
-          </Text>
-        </PhysicalPress>
+        <View style={styles.sheetBody}>
+          <Text style={styles.sheetTitle}>{product.name}</Text>
+          <Text style={styles.sheetDescription}>{product.description}</Text>
+
+          {product.optionGroups.map((group) => (
+            <View key={group.id} style={styles.optionGroup}>
+              <Text style={styles.optionTitle}>
+                {group.name} · {group.minimumSelections}-{group.maximumSelections}
+              </Text>
+              <View style={styles.optionList}>
+                {group.options.map((option) => {
+                  const selected = flow.selectedOptionIds.includes(option.id);
+                  return (
+                    <PhysicalPress
+                      key={option.id}
+                      style={[styles.optionChip, selected && styles.optionChipActive]}
+                      onPress={() => flow.toggleOption(group.id, option.id)}
+                    >
+                      <Text style={[styles.optionText, selected && styles.optionTextActive]}>
+                        {option.name}
+                        {option.extraPrice !== '0.00' ? ` +${moneyLabel(option.extraPrice)}` : ''}
+                      </Text>
+                    </PhysicalPress>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
+
+          <View style={styles.qtyRow}>
+            <PhysicalPress
+              style={styles.qtyButton}
+              onPress={() => flow.setSelectedQuantity(flow.selectedQuantity - 1)}
+            >
+              <Text style={styles.qtyButtonText}>−</Text>
+            </PhysicalPress>
+            <Text style={styles.qtyValue}>{flow.selectedQuantity}</Text>
+            <PhysicalPress
+              style={styles.qtyButton}
+              onPress={() => flow.setSelectedQuantity(flow.selectedQuantity + 1)}
+            >
+              <Text style={styles.qtyButtonText}>+</Text>
+            </PhysicalPress>
+          </View>
+
+          <PhysicalPress
+            style={[styles.addButton, !flow.isSelectedProductValid && styles.addButtonDisabled]}
+            disabled={!flow.isSelectedProductValid}
+            onPress={flow.addSelectedProductToCart}
+          >
+            <Text style={styles.addButtonText}>
+              Agregar · {moneyLabel(flow.selectedProductPreviewTotal)}
+            </Text>
+          </PhysicalPress>
+        </View>
       </View>
     </Modal>
   );
@@ -205,9 +222,26 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.paper },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
   content: { paddingHorizontal: spacing.screen },
-  hero: { gap: 6, marginBottom: spacing.lg },
-  greeting: { fontFamily: fonts.body, fontSize: 14, color: colors.muted },
-  headline: { fontFamily: fonts.displayBlack, fontSize: 30, color: colors.ink },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  brandMark: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+  },
+  headerCopy: { flex: 1, gap: 2 },
+  menuLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    color: colors.muted,
+  },
+  headline: { fontFamily: fonts.displayBlack, fontSize: 28, color: colors.ink },
   search: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -220,7 +254,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     marginBottom: spacing.md,
   },
-  searchInput: { flex: 1, fontFamily: fonts.body, fontSize: 15, color: colors.ink },
+  searchInput: { flex: 1, fontFamily: fonts.body, fontSize: 15, color: colors.ink, padding: 0 },
   chips: { gap: spacing.sm, paddingBottom: spacing.md },
   chip: {
     paddingHorizontal: spacing.lg,
@@ -233,25 +267,25 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
   chipText: { fontFamily: fonts.bodyBold, fontSize: 13, color: colors.ink },
   chipTextActive: { color: colors.paper },
-  quickRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
+  quickRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
   quickCard: {
     flex: 1,
     backgroundColor: colors.coral,
     borderRadius: radius.card,
     padding: spacing.lg,
-    minHeight: 96,
+    minHeight: 88,
   },
   quickCardAlt: {
     flex: 1,
     backgroundColor: colors.yolk,
     borderRadius: radius.card,
     padding: spacing.lg,
-    minHeight: 96,
+    minHeight: 88,
   },
   quickEyebrow: { fontFamily: fonts.bodyBold, fontSize: 11, color: colors.ink, opacity: 0.7 },
-  quickTitle: { fontFamily: fonts.display, fontSize: 18, color: colors.ink, marginTop: 6 },
-  grid: { gap: spacing.md },
-  gridRow: { gap: spacing.md },
+  quickTitle: { fontFamily: fonts.display, fontSize: 17, color: colors.ink, marginTop: 4 },
+  grid: { gap: spacing.sm },
+  gridRow: { gap: spacing.sm },
   empty: { fontFamily: fonts.body, color: colors.muted, textAlign: 'center', paddingVertical: spacing.xl },
   error: { fontFamily: fonts.body, color: colors.coral, marginBottom: spacing.md },
   retry: {
@@ -266,17 +300,30 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
     borderTopLeftRadius: radius.sheet,
     borderTopRightRadius: radius.sheet,
-    padding: spacing.screen,
-    paddingBottom: spacing.xxl,
-    gap: spacing.md,
+    overflow: 'hidden',
+    maxHeight: '88%',
+  },
+  sheetHero: {
+    height: 220,
+    backgroundColor: colors.line,
+  },
+  sheetImage: {
+    width: '100%',
+    height: '100%',
   },
   sheetHandle: {
+    position: 'absolute',
+    top: spacing.sm,
     alignSelf: 'center',
     width: 44,
     height: 5,
     borderRadius: 999,
-    backgroundColor: colors.line,
-    marginBottom: spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+  },
+  sheetBody: {
+    padding: spacing.screen,
+    paddingBottom: spacing.xxl,
+    gap: spacing.md,
   },
   sheetTitle: { fontFamily: fonts.displayBlack, fontSize: 24, color: colors.ink },
   sheetDescription: { fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: colors.ink2 },

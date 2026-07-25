@@ -35,17 +35,21 @@ export function ConfirmationScreen() {
   const instant = isInstantDemoPayment(order.summary.paymentMethod);
   const eyebrow = instant ? 'COMANDA ENVIADA' : 'PEDIDO CREADO';
   const title = instant
-    ? 'Tu pedido ya está en cocina.'
-    : 'Tu pase de Caja acaba de salir.';
+    ? '¡Listo! Tu pedido ya está en cocina.'
+    : '¡Pedido registrado! Pasa a caja.';
   const subtitle = instant
     ? 'Saldo o tarjeta demo confirmados. Sigue el avance en Pedidos.'
-    : 'Págalo en efectivo y usa este receipt sticker para identificar la orden.';
+    : 'Págalo en efectivo y usa el sticker para identificar tu orden.';
 
   return (
     <ScrollView
       style={styles.root}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.xl }]}
     >
+      <View style={styles.successMark}>
+        <Text style={styles.successGlyph}>✓</Text>
+      </View>
+
       <Text style={styles.eyebrow}>{eyebrow}</Text>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.subtitle}>{subtitle}</Text>
@@ -62,7 +66,7 @@ export function ConfirmationScreen() {
         <Text style={styles.receiptTitle}>DETALLE</Text>
         {order.items.map((item) => (
           <View key={item.id} style={styles.receiptLine}>
-            <Text style={styles.receiptItem}>
+            <Text style={styles.receiptItem} numberOfLines={2}>
               {item.quantity} × {item.productName}
             </Text>
             <Text style={styles.receiptPrice}>{moneyLabel(item.subtotal)}</Text>
@@ -75,6 +79,16 @@ export function ConfirmationScreen() {
       </View>
 
       <PhysicalPress
+        style={styles.cta}
+        onPress={() => {
+          flow.clearCreatedOrder();
+          router.replace('/(student)/orders');
+        }}
+      >
+        <Text style={styles.ctaText}>Ver pedidos</Text>
+      </PhysicalPress>
+
+      <PhysicalPress
         style={styles.secondary}
         onPress={() =>
           router.push({
@@ -83,17 +97,7 @@ export function ConfirmationScreen() {
           })
         }
       >
-        <Text style={styles.secondaryText}>Ver sticker</Text>
-      </PhysicalPress>
-
-      <PhysicalPress
-        style={styles.cta}
-        onPress={() => {
-          flow.clearCreatedOrder();
-          router.replace('/(student)/orders');
-        }}
-      >
-        <Text style={styles.ctaText}>Ver pedidos</Text>
+        <Text style={styles.secondaryText}>Ver sticker de recibo</Text>
       </PhysicalPress>
     </ScrollView>
   );
@@ -109,13 +113,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: spacing.screen,
   },
+  successMark: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  successGlyph: {
+    fontFamily: fonts.displayBlack,
+    fontSize: 28,
+    color: colors.accentInk,
+    lineHeight: 32,
+  },
   eyebrow: {
     fontFamily: fonts.bodyBold,
     fontSize: 11,
     letterSpacing: 1.2,
     color: colors.muted,
   },
-  title: { fontFamily: fonts.displayBlack, fontSize: 28, lineHeight: 30, color: colors.ink },
+  title: { fontFamily: fonts.displayBlack, fontSize: 30, lineHeight: 34, color: colors.ink },
   subtitle: { fontFamily: fonts.body, fontSize: 15, lineHeight: 22, color: colors.muted },
   folioCard: {
     backgroundColor: colors.paper2,
@@ -162,7 +181,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
   },
-  secondaryText: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.ink },
+  secondaryText: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.ink },
   cta: {
     backgroundColor: colors.ink,
     borderRadius: radius.button,

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import React from 'react';
 import {
+  Image,
   ScrollView,
   StyleSheet,
   Switch,
@@ -9,8 +10,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DataModeChip } from '@/components/data-mode-chip';
 import { PhysicalPress } from '@/components/physical-press';
-import { DATA_SOURCE } from '@/core/config';
+import { LOGO_IMAGE } from '@/components/product-image';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { fonts } from '@/theme/typography';
@@ -33,19 +35,17 @@ export function RoleSelectorScreen({
       style={styles.root}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.xl }]}
     >
-      <View style={styles.header}>
-        <View style={styles.logo}>
-          <Text style={styles.logoText}>VA</Text>
-        </View>
+      <View style={styles.hero}>
+        <Image source={LOGO_IMAGE} style={styles.logo} accessibilityLabel="Vaiinilla" />
         <Text style={styles.brand}>Vaiinilla</Text>
+        <Text style={styles.tagline}>Cafetería universitaria · pedido digital</Text>
+        <DataModeChip />
       </View>
 
       <View style={styles.testCard}>
         <View style={styles.testCopy}>
           <Text style={styles.testTitle}>Solo pruebas</Text>
-          <Text style={styles.testSubtitle}>
-            Fixtures locales · sin backend ({DATA_SOURCE})
-          </Text>
+          <Text style={styles.testSubtitle}>Fixtures locales · sin backend</Text>
         </View>
         <Switch
           value={testOnlyMode}
@@ -112,29 +112,28 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
     gap: spacing.md,
   },
-  header: {
-    flexDirection: 'row',
+  hero: {
     alignItems: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
+    paddingVertical: spacing.lg,
   },
   logo: {
-    width: 42,
-    height: 42,
-    borderRadius: 15,
-    backgroundColor: colors.ink,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoText: {
-    color: colors.paper,
-    fontFamily: fonts.displayBlack,
-    fontSize: 13,
+    width: 72,
+    height: 72,
+    borderRadius: 22,
   },
   brand: {
     fontFamily: fonts.displayBlack,
-    fontSize: 16,
+    fontSize: 32,
     color: colors.ink,
+    letterSpacing: -0.5,
+  },
+  tagline: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: colors.muted,
+    textAlign: 'center',
   },
   testCard: {
     backgroundColor: colors.paper2,

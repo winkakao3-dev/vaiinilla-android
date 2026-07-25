@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav } from '@/components/bottom-nav';
 import { PhysicalPress } from '@/components/physical-press';
 import { ProductCard } from '@/components/product-card';
+import { ProductImage } from '@/components/product-image';
 import { filterByChip } from '@/domain/assistant-local-replies';
 import { moneyLabel } from '@/domain/models';
 import { useOrderFlow } from '@/hooks/use-order-flow';
@@ -70,8 +71,15 @@ export function AssistantScreen() {
               style={styles.recoCard}
               onPress={() => item.productId && flow.openProduct(item.productId)}
             >
-              <Text style={styles.recoName}>{item.name}</Text>
-              <Text style={styles.recoMeta}>{item.meta}</Text>
+              <View style={styles.recoThumb}>
+                <ProductImage imageUrl={item.imageUrl} style={styles.recoImage} accessibilityLabel={item.name} />
+              </View>
+              <Text style={styles.recoName} numberOfLines={2}>
+                {item.name}
+              </Text>
+              <Text style={styles.recoMeta} numberOfLines={1}>
+                {item.meta}
+              </Text>
               <Text style={styles.recoPrice}>{moneyLabel(item.price)}</Text>
             </PhysicalPress>
           ))}
@@ -126,12 +134,21 @@ const styles = StyleSheet.create({
     flexBasis: '48%',
     backgroundColor: colors.paper2,
     borderRadius: radius.card,
-    padding: spacing.lg,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.line,
     gap: 4,
+    overflow: 'hidden',
   },
-  recoName: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.ink },
+  recoThumb: {
+    height: 72,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: colors.line,
+    marginBottom: 4,
+  },
+  recoImage: { width: '100%', height: '100%' },
+  recoName: { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.ink, minHeight: 36 },
   recoMeta: { fontFamily: fonts.body, fontSize: 12, color: colors.muted },
-  recoPrice: { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.ink, marginTop: 4 },
+  recoPrice: { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.ink, marginTop: 2 },
 });

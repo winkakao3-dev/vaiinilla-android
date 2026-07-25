@@ -2,20 +2,12 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { PhysicalPress } from '@/components/physical-press';
+import { ProductImage } from '@/components/product-image';
 import { moneyLabel, type Product } from '@/domain/models';
 import { productUnitPreview } from '@/domain/contract-rules';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { fonts } from '@/theme/typography';
-
-const PRODUCT_COLORS: Record<string, string> = {
-  jamaica: '#c94b4b',
-  waffle: '#d9a441',
-  burrito_norteno: '#8b5a2b',
-  burrito_barbacoa: '#6d3b1f',
-  burrito_frijol_queso: '#c9a227',
-  burrito_machaca: '#a0522d',
-};
 
 interface ProductCardProps {
   product: Product;
@@ -23,14 +15,16 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, onPress }: ProductCardProps) {
-  const imageKey = product.imageUrl.replace('fixture://', '');
-  const swatch = PRODUCT_COLORS[imageKey] ?? colors.accentSoft;
   const preview = productUnitPreview(product, []);
 
   return (
     <PhysicalPress scale="card" style={styles.card} onPress={onPress}>
-      <View style={[styles.image, { backgroundColor: swatch }]}>
-        <Text style={styles.imageMark}>{product.name.slice(0, 1)}</Text>
+      <View style={styles.imageWrap}>
+        <ProductImage
+          imageUrl={product.imageUrl}
+          style={styles.image}
+          accessibilityLabel={product.name}
+        />
       </View>
       <View style={styles.body}>
         <Text style={styles.name} numberOfLines={2}>
@@ -52,16 +46,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
   },
-  image: {
+  imageWrap: {
     height: 112,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: colors.line,
+    overflow: 'hidden',
   },
-  imageMark: {
-    fontFamily: fonts.displayBlack,
-    fontSize: 34,
-    color: colors.white,
-    opacity: 0.85,
+  image: {
+    width: '100%',
+    height: '100%',
   },
   body: {
     padding: spacing.md,

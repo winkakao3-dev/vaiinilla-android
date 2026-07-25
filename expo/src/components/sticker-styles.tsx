@@ -49,10 +49,14 @@ export function StickerStyleContent({ styleId, order }: StickerStyleContentProps
 function EditorialSticker({ order }: { order: StickerOrderData }) {
   return (
     <View style={[styles.base, styles.editorial]}>
-      <Text style={styles.editorialTitle}>ANTOJO</Text>
+      <Text style={styles.editorialTitle} numberOfLines={1} adjustsFontSizeToFit>
+        ANTOJO
+      </Text>
       <Text style={styles.editorialFolio}>#{order.folio}</Text>
-      <Text style={styles.editorialProduct}>{order.productName}</Text>
-      <Text style={styles.editorialMeta}>
+      <Text style={styles.editorialProduct} numberOfLines={2}>
+        {order.productName}
+      </Text>
+      <Text style={styles.editorialMeta} numberOfLines={1}>
         {order.paymentLabel} · {order.destinationLabel}
       </Text>
       <Text style={styles.editorialTotal}>{moneyLabel(order.total)}</Text>
@@ -68,7 +72,9 @@ function CoreSticker({ order }: { order: StickerOrderData }) {
       <View style={styles.corePill}>
         <Text style={styles.corePillText}>{order.paymentLabel}</Text>
       </View>
-      <Text style={styles.coreProduct}>{order.productName}</Text>
+      <Text style={styles.coreProduct} numberOfLines={2}>
+        {order.productName}
+      </Text>
       <Text style={styles.coreTotal}>{moneyLabel(order.total)}</Text>
     </View>
   );
@@ -79,7 +85,9 @@ function LimitedSticker({ order }: { order: StickerOrderData }) {
     <View style={[styles.base, styles.limited]}>
       <Text style={styles.limitedTag}>LIMITED DROP</Text>
       <Text style={styles.limitedFolio}>#{order.folio}</Text>
-      <Text style={styles.limitedProduct}>{order.productName}</Text>
+      <Text style={styles.limitedProduct} numberOfLines={2}>
+        {order.productName}
+      </Text>
       <Text style={styles.limitedTotal}>{moneyLabel(order.total)}</Text>
     </View>
   );
@@ -90,8 +98,12 @@ function BreakfastSticker({ order }: { order: StickerOrderData }) {
     <View style={[styles.base, styles.breakfast]}>
       <Text style={styles.breakfastTitle}>BREAKFAST CLUB</Text>
       <Text style={styles.breakfastFolio}>#{order.folio}</Text>
-      <Text style={styles.breakfastProduct}>{order.productName}</Text>
-      <Text style={styles.breakfastMeta}>{order.destinationLabel}</Text>
+      <Text style={styles.breakfastProduct} numberOfLines={2}>
+        {order.productName}
+      </Text>
+      <Text style={styles.breakfastMeta} numberOfLines={1}>
+        {order.destinationLabel}
+      </Text>
     </View>
   );
 }
@@ -104,8 +116,12 @@ function QrLiveSticker({ order }: { order: StickerOrderData }) {
       </View>
       <View style={styles.qrCopy}>
         <Text style={styles.qrFolio}>#{order.folio}</Text>
-        <Text style={styles.qrProduct}>{order.productName}</Text>
-        <Text style={styles.qrMeta}>{PAYMENT_LABELS.efectivo === order.paymentLabel ? order.paymentLabel : order.paymentLabel}</Text>
+        <Text style={styles.qrProduct} numberOfLines={2}>
+          {order.productName}
+        </Text>
+        <Text style={styles.qrMeta} numberOfLines={1}>
+          {order.paymentLabel}
+        </Text>
       </View>
     </View>
   );
@@ -114,9 +130,13 @@ function QrLiveSticker({ order }: { order: StickerOrderData }) {
 function ThermalSticker({ order }: { order: StickerOrderData }) {
   return (
     <View style={[styles.base, styles.thermal]}>
-      <Text style={styles.thermalMono}>VAIINILLA CAFETERIA</Text>
+      <Text style={styles.thermalMono} numberOfLines={1}>
+        VAIINILLA CAFETERIA
+      </Text>
       <Text style={styles.thermalMono}>FOLIO {order.folio}</Text>
-      <Text style={styles.thermalMono}>{order.productName.toUpperCase()}</Text>
+      <Text style={styles.thermalMono} numberOfLines={2}>
+        {order.productName.toUpperCase()}
+      </Text>
       <Text style={styles.thermalMono}>TOTAL {moneyLabel(order.total)}</Text>
       <Text style={styles.thermalMono}>{order.date}</Text>
     </View>
@@ -145,6 +165,7 @@ const styles = StyleSheet.create({
     minHeight: 220,
     justifyContent: 'center',
     gap: spacing.sm,
+    overflow: 'hidden',
   },
   editorial: { backgroundColor: '#171817' },
   editorialTitle: { fontFamily: fonts.displayBlack, fontSize: 42, color: '#f4f1e7', letterSpacing: -1 },

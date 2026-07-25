@@ -44,13 +44,31 @@ export async function apiRequest<T>(
     headers['Idempotency-Key'] = options.idempotencyKey;
   }
 
-  const response = await fetch(`${API_BASE_URL}${path.replace(/^\//, '')}`, {
-    method: options.method ?? 'GET',
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path.replace(/^\//, '')}`, {
+      method: options.method ?? 'GET',
+      headers,
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+  } catch {
+    throw new ApiClientError(
+      'Sin conexión al servidor. Revisa tu red o EXPO_PUBLIC_API_BASE_URL.',
+      'NETWORK',
+      0,
+    );
+  }
 
-  const payload = (await response.json()) as ApiEnvelope<T>;
+  let payload: ApiEnvelope<T>;
+  try {
+    payload = (await response.json()) as ApiEnvelope<T>;
+  } catch {
+    throw new ApiClientError(
+      'Respuesta inválida del servidor. Intenta de nuevo en unos segundos.',
+      'INVALID_JSON',
+      response.status,
+    );
+  }
   if (!response.ok || payload.error) {
     throw new ApiClientError(
       payload.error?.message ?? `HTTP ${response.status}`,

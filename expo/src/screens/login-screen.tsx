@@ -9,8 +9,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DataModeChip } from '@/components/data-mode-chip';
 import { PhysicalPress } from '@/components/physical-press';
-import { isFirebaseConfigured } from '@/core/config';
+import { DATA_SOURCE, isFirebaseConfigured } from '@/core/config';
 import { authenticateSeedUser } from '@/data/auth/seed-auth-repository';
 import { SEED_ACCOUNTS, SEED_PASSWORD } from '@/data/auth/seed-accounts';
 import { colors } from '@/theme/colors';
@@ -30,6 +31,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [success, setSuccess] = useState<string | null>(null);
 
   const firebaseReady = isFirebaseConfigured();
+  const isRemote = DATA_SOURCE === 'REMOTE';
 
   const handleLogin = async () => {
     setLoading(true);
@@ -58,11 +60,20 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
         Usa las cuentas `@vaiinilla.test` con contraseña `{SEED_PASSWORD}`.
       </Text>
 
-      {!firebaseReady ? (
+      <DataModeChip />
+
+      {isRemote && !firebaseReady ? (
+        <View style={styles.banner}>
+          <Text style={styles.bannerTitle}>REMOTE sin Firebase</Text>
+          <Text style={styles.bannerBody}>
+            Copia `expo/.env.example` → `.env`, completa `EXPO_PUBLIC_FIREBASE_*`, reinicia Expo y vuelve a intentar.
+          </Text>
+        </View>
+      ) : !firebaseReady ? (
         <View style={styles.banner}>
           <Text style={styles.bannerTitle}>Firebase no configurado</Text>
           <Text style={styles.bannerBody}>
-            Agrega `EXPO_PUBLIC_FIREBASE_*` para REMOTE. En MOCK la app funciona sin Firebase.
+            En MOCK la app funciona sin Firebase. Para REMOTE, agrega las variables en `.env`.
           </Text>
         </View>
       ) : null}

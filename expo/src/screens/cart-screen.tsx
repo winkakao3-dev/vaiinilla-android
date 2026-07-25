@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomNav } from '@/components/bottom-nav';
 import { PhysicalPress } from '@/components/physical-press';
+import { ProductImage } from '@/components/product-image';
 import { DEMO_SPACES } from '@/domain/checkout-fixtures';
 import { cartLinePreview } from '@/domain/contract-rules';
 import { cartLineKey, moneyLabel } from '@/domain/models';
@@ -23,9 +24,9 @@ import { radius, spacing } from '@/theme/spacing';
 import { fonts } from '@/theme/typography';
 
 const PAYMENT_OPTIONS = [
-  { key: 'efectivo' as const, label: 'Efectivo', badge: 'CASH' },
-  { key: 'saldo' as const, label: 'Saldo', badge: 'SALDO' },
-  { key: 'tarjeta' as const, label: 'Tarjeta', badge: 'VISA' },
+  { key: 'efectivo' as const, label: 'Efectivo', badge: 'CASH', hint: 'Paga en caja al recoger' },
+  { key: 'saldo' as const, label: 'Saldo Vaiinilla', badge: 'SALDO', hint: null },
+  { key: 'tarjeta' as const, label: 'Tarjeta', badge: 'VISA', hint: 'Demo sin cargo real' },
 ];
 
 export function CartScreen() {
@@ -41,17 +42,19 @@ export function CartScreen() {
     }
   };
 
+  const hasItems = flow.cartLines.length > 0;
+
   return (
     <View style={styles.root}>
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + spacing.lg, paddingBottom: 140 },
+          { paddingTop: insets.top + spacing.lg, paddingBottom: hasItems ? 120 : 140 },
         ]}
       >
         <Text style={styles.title}>Tu pedido</Text>
 
-        {flow.cartLines.length === 0 ? (
+        {!hasItems ? (
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>Tu carrito está vacío</Text>
             <PhysicalPress style={styles.emptyButton} onPress={() => router.push('/(student)/menu')}>
@@ -62,10 +65,17 @@ export function CartScreen() {
           <>
             {flow.cartLines.map((line) => (
               <View key={`${line.product.id}-${line.selectedOptionIds.join('-')}`} style={styles.lineCard}>
+                <View style={styles.thumbWrap}>
+                  <ProductImage
+                    imageUrl={line.product.imageUrl}
+                    style={styles.thumb}
+                    accessibilityLabel={line.product.name}
+                  />
+                </View>
                 <View style={styles.lineCopy}>
                   <Text style={styles.lineTitle}>{line.product.name}</Text>
                   {line.selectedOptionIds.length > 0 ? (
-                    <Text style={styles.lineMeta}>
+                    <Text style={styles.lineMeta} numberOfLines={2}>
                       {line.product.optionGroups
                         .flatMap((group) => group.options)
                         .filter((option) => line.selectedOptionIds.includes(option.id))
@@ -144,12 +154,16 @@ export function CartScreen() {
                   >
                     <View style={styles.paymentHeader}>
                       <Text style={styles.optionTitle}>{option.label}</Text>
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{option.badge}</Text>
+                      <View style={[styles.badge, active && styles.badgeActive]}>
+                        <Text style={[styles.badgeText, active && styles.badgeTextActive]}>
+                          {option.badge}
+                        </Text>
                       </View>
                     </View>
                     {option.key === 'saldo' ? (
                       <Text style={styles.paymentHint}>Saldo: {moneyLabel(wallet.balance)}</Text>
+                    ) : option.hint ? (
+                      <Text style={styles.paymentHint}>{option.hint}</Text>
                     ) : null}
                   </PhysicalPress>
                 );
@@ -172,21 +186,29 @@ export function CartScreen() {
             </View>
 
             {flow.submitError ? <Text style={styles.error}>{flow.submitError}</Text> : null}
-
-            <PhysicalPress
-              style={[styles.confirmButton, (!flow.canCreateOrder || flow.submitting) && styles.confirmDisabled]}
-              disabled={!flow.canCreateOrder || flow.submitting}
-              onPress={() => void handleConfirm()}
-            >
-              {flow.submitting ? (
-                <ActivityIndicator color={colors.paper} />
-              ) : (
-                <Text style={styles.confirmText}>Confirmar pedido</Text>
-              )}
-            </PhysicalPress>
           </>
         )}
       </ScrollView>
+
+      {hasItems ? (
+        <View style={[styles.stickyBar, { paddingBottom: insets.bottom + 72 }]}>
+          <View style={styles.stickyTotal}>
+            <Text style={styles.stickyLabel}>Total</Text>
+            <Text style={styles.stickyValue}>{moneyLabel(flow.cartTotal)}</Text>
+          </View>
+          <PhysicalPress
+            style={[styles.confirmButton, (!flow.canCreateOrder || flow.submitting) && styles.confirmDisabled]}
+            disabled={!flow.canCreateOrder || flow.submitting}
+            onPress={() => void handleConfirm()}
+          >
+            {flow.submitting ? (
+              <ActivityIndicator color={colors.paper} />
+            ) : (
+              <Text style={styles.confirmText}>Confirmar pedido</Text>
+            )}
+          </PhysicalPress>
+        </View>
+      ) : null}
 
       <BottomNav {...nav} />
     </View>
@@ -217,27 +239,36 @@ const styles = StyleSheet.create({
   lineCard: {
     backgroundColor: colors.paper2,
     borderRadius: radius.card,
-    padding: spacing.lg,
+    padding: spacing.md,
     flexDirection: 'row',
     gap: spacing.md,
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.line,
   },
-  lineCopy: { flex: 1, gap: 4 },
-  lineTitle: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.ink },
+  thumbWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: colors.line,
+  },
+  thumb: { width: 52, height: 52 },
+  lineCopy: { flex: 1, gap: 2 },
+  lineTitle: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.ink },
   lineMeta: { fontFamily: fonts.body, fontSize: 12, color: colors.muted },
-  linePrice: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.ink, marginTop: 4 },
-  qtyRow: { alignItems: 'center', gap: spacing.sm },
+  linePrice: { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.ink, marginTop: 2 },
+  qtyRow: { alignItems: 'center', gap: spacing.xs },
   qtyButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.paper,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  qtyButtonText: { fontFamily: fonts.bodyBold, fontSize: 18, color: colors.ink },
-  qtyValue: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.ink },
+  qtyButtonText: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.ink },
+  qtyValue: { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.ink },
   section: { fontFamily: fonts.bodyBold, fontSize: 13, color: colors.muted, marginTop: spacing.sm },
   optionRow: { flexDirection: 'row', gap: spacing.sm },
   optionCard: {
@@ -271,15 +302,17 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     gap: 4,
   },
-  paymentCardActive: { borderColor: colors.accent },
+  paymentCardActive: { borderColor: colors.accent, backgroundColor: '#edf3d8' },
   paymentHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   badge: {
     backgroundColor: colors.ink,
     borderRadius: 8,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: 3,
   },
+  badgeActive: { backgroundColor: colors.accentInk },
   badgeText: { fontFamily: fonts.bodyBold, fontSize: 10, color: colors.paper, letterSpacing: 0.6 },
+  badgeTextActive: { color: colors.paper },
   paymentHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted },
   notes: {
     minHeight: 88,
@@ -302,12 +335,29 @@ const styles = StyleSheet.create({
   totalLabel: { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.muted },
   totalValue: { fontFamily: fonts.displayBlack, fontSize: 28, color: colors.ink },
   error: { fontFamily: fonts.body, color: colors.coral },
+  stickyBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.paper,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    paddingHorizontal: spacing.screen,
+    paddingTop: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  stickyTotal: { flex: 1, gap: 2 },
+  stickyLabel: { fontFamily: fonts.body, fontSize: 12, color: colors.muted },
+  stickyValue: { fontFamily: fonts.displayBlack, fontSize: 22, color: colors.ink },
   confirmButton: {
+    flex: 1.2,
     backgroundColor: colors.ink,
     borderRadius: radius.button,
     paddingVertical: spacing.lg,
     alignItems: 'center',
-    marginTop: spacing.sm,
   },
   confirmDisabled: { opacity: 0.45 },
   confirmText: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.paper },

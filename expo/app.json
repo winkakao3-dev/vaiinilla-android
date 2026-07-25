@@ -14,9 +14,11 @@
       "backgroundColor": "#f4f1e7"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.vaiinilla.expo"
     },
     "android": {
+      "package": "com.vaiinilla.expo",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#f4f1e7"
