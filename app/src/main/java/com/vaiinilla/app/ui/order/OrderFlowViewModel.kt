@@ -213,6 +213,14 @@ class OrderFlowViewModel @Inject constructor(
         )
     }
 
+    fun updateCheckoutSpace(spaceId: Int) {
+        pendingIdempotencyKey = null
+        _uiState.value = _uiState.value.copy(
+            selectedSpaceId = spaceId,
+            createOrderError = null,
+        )
+    }
+
     fun updateCheckoutPayment(payment: PaymentMethod) {
         pendingIdempotencyKey = null
         _uiState.value = _uiState.value.copy(

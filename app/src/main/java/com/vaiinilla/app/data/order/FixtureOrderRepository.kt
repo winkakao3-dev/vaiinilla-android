@@ -49,14 +49,14 @@ class FixtureOrderRepository(
         } else {
             OrderState.PENDING_PAYMENT
         }
-        val space = if (request.destination == OrderDestination.IN_SPACE) {
-            OrderSpace(
-                id = DemoCheckoutFixtures.SPACE_ID,
-                name = DemoCheckoutFixtures.SPACE_NAME,
-                type = DemoCheckoutFixtures.SPACE_TYPE,
-            )
-        } else {
-            null
+        val space = request.spaceId?.let { spaceId ->
+            DemoCheckoutFixtures.spaceForId(spaceId)?.let { demoSpace ->
+                OrderSpace(
+                    id = demoSpace.id,
+                    name = demoSpace.name,
+                    type = DemoCheckoutFixtures.SPACE_TYPE,
+                )
+            }
         }
         createOrderInternal(
             request = request,

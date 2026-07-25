@@ -30,7 +30,6 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.ui.components.DemoEmptyState
 import com.vaiinilla.app.ui.components.OrderDetailSummary
-import com.vaiinilla.app.ui.components.OrderStateTrackingHero
 import com.vaiinilla.app.ui.components.OrderTrackingCard
 import com.vaiinilla.app.ui.components.OrderTrackingTimeline
 import com.vaiinilla.app.ui.components.StudentTab
@@ -90,13 +89,7 @@ fun StudentTrackingScreen(
                 }
                 selected != null -> {
                     item {
-                        OrderStateTrackingHero(
-                            state = selected.summary.state,
-                            destination = selected.summary.destination,
-                        )
-                    }
-                    item {
-                        OrderTrackingCard(order = selected, showEyebrow = false)
+                        OrderTrackingCard(order = selected, showEyebrow = true)
                     }
                     item {
                         TrackingSectionHead()
@@ -105,6 +98,7 @@ fun StudentTrackingScreen(
                         OrderTrackingTimeline(
                             current = selected.summary.state,
                             destination = selected.summary.destination,
+                            paymentMethod = selected.summary.paymentMethod,
                         )
                     }
                     item {

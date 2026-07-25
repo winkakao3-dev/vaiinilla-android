@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -158,6 +160,7 @@ private fun trackingHeroContent(state: OrderState, destination: OrderDestination
 @Composable
 fun CheckoutDestinationPicker(
     selected: OrderDestination,
+    selectedSpaceName: String,
     onSelect: (OrderDestination) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -175,12 +178,54 @@ fun CheckoutDestinationPicker(
         )
         DestinationOption(
             title = "En mesa",
-            subtitle = DemoCheckoutFixtures.SPACE_NAME,
+            subtitle = selectedSpaceName,
             icon = Icons.Outlined.Restaurant,
             selected = selected == OrderDestination.IN_SPACE,
             onClick = { onSelect(OrderDestination.IN_SPACE) },
             modifier = Modifier.weight(1f),
         )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun CheckoutSpacePicker(
+    selectedSpaceId: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            "Selecciona tu mesa",
+            color = colors.ink,
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp,
+        )
+        FlowRow(
+            modifier = Modifier.padding(top = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            DemoCheckoutFixtures.DEMO_SPACES.forEach { space ->
+                val selected = space.id == selectedSpaceId
+                Surface(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { onSelect(space.id) },
+                    color = if (selected) colors.ink else colors.paper2,
+                    shape = RoundedCornerShape(14.dp),
+                ) {
+                    Text(
+                        space.name,
+                        color = if (selected) colors.paper else colors.ink,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -231,32 +276,45 @@ fun CheckoutPaymentPicker(
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         PaymentOption(
+            brand = "CASH",
             title = "Efectivo en Caja",
-            subtitle = "Paga en mostrador y luego se prepara",
+            subtitle = "Se envía a Cocina después del cobro",
             selected = selected == PaymentMethod.CASH,
             onClick = { onSelect(PaymentMethod.CASH) },
         )
         PaymentOption(
-            title = "Saldo Vaiinilla",
-            subtitle = "Disponible: $$walletBalance",
+            brand = "SALDO",
+            title = "Saldo Vaiinilla · $$walletBalance",
+            subtitle = "Pago inmediato y cashback",
+            brandIsTransfer = true,
             selected = selected == PaymentMethod.BALANCE,
             onClick = { onSelect(PaymentMethod.BALANCE) },
         )
         PaymentOption(
+            brand = "VISA",
             title = "Tarjeta •••• 4242",
-            subtitle = "Cargo inmediato en la demo",
+            subtitle = "Pago directo, sin usar saldo",
             selected = selected == PaymentMethod.CARD,
             onClick = { onSelect(PaymentMethod.CARD) },
+        )
+        Text(
+            "Transferencia: sólo para añadir dinero al saldo desde Cartera.",
+            color = LocalVaiinillaColors.current.muted,
+            fontSize = 12.sp,
+            lineHeight = 17.sp,
+            modifier = Modifier.padding(top = 4.dp),
         )
     }
 }
 
 @Composable
 private fun PaymentOption(
+    brand: String,
     title: String,
     subtitle: String,
     selected: Boolean,
     onClick: () -> Unit,
+    brandIsTransfer: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     Surface(
@@ -277,7 +335,9 @@ private fun PaymentOption(
         Row(
             modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            PaymentBrandBadge(label = brand, isTransfer = brandIsTransfer)
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, color = colors.ink, fontWeight = FontWeight.Black)
                 Text(subtitle, color = colors.muted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
@@ -291,5 +351,26 @@ private fun PaymentOption(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun PaymentBrandBadge(
+    label: String,
+    isTransfer: Boolean = false,
+) {
+    val colors = LocalVaiinillaColors.current
+    Surface(
+        color = if (isTransfer) colors.accent.copy(alpha = 0.22f) else colors.ink,
+        shape = RoundedCornerShape(10.dp),
+    ) {
+        Text(
+            label,
+            color = if (isTransfer) colors.accentInk else colors.paper,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 0.6.sp,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+        )
     }
 }

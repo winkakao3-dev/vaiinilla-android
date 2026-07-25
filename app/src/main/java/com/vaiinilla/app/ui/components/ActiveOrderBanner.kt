@@ -27,6 +27,9 @@ fun ActiveOrderBanner(
     onClick: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    val isPreparing = statusLabel.equals("Preparando", ignoreCase = true)
+    val badgeBackground = if (isPreparing) colors.yolk else Color.White.copy(alpha = 0.33f)
+    val badgeText = if (isPreparing) colors.ink else colors.paper
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -42,11 +45,11 @@ fun ActiveOrderBanner(
             ) {
                 Column {
                     Text(
-                        text = "PEDIDO ACTIVO",
-                        color = Color(0xFFAAAAAA),
+                        text = "Pedido activo",
+                        color = colors.muted,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.2.sp,
+                        letterSpacing = 0.4.sp,
                     )
                     Text(
                         text = "#$folio",
@@ -57,12 +60,12 @@ fun ActiveOrderBanner(
                     )
                 }
                 Surface(
-                    color = Color(0x33FFFFFF),
+                    color = badgeBackground,
                     shape = RoundedCornerShape(99.dp),
                 ) {
                     Text(
-                        text = statusLabel,
-                        color = colors.paper,
+                        text = statusLabel.uppercase(),
+                        color = badgeText,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Black,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),

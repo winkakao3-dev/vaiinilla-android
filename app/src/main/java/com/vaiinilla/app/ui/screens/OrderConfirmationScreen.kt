@@ -171,6 +171,10 @@ fun OrderConfirmationScreen(
                         .fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    ReceiptCollectionUnlockStrip(
+                        paymentMethod = order.summary.paymentMethod,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     Button(
                         onClick = onViewTracking,
                         modifier = Modifier
@@ -183,7 +187,7 @@ fun OrderConfirmationScreen(
                         ),
                     ) {
                         Text(
-                            "Ver seguimiento",
+                            "Seguir pedido",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Black,
                         )
@@ -301,19 +305,53 @@ private fun confirmationCopy(paymentMethod: PaymentMethod): ConfirmationCopy = w
 }
 
 @Composable
+private fun ReceiptCollectionUnlockStrip(
+    paymentMethod: PaymentMethod,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    val unlockedLabel = when (paymentMethod) {
+        PaymentMethod.CASH -> "Receipt editorial desbloqueado"
+        PaymentMethod.BALANCE -> "Vaiinilla Core añadido a tu colección"
+        PaymentMethod.CARD -> "Live Receipt añadido a tu colección"
+    }
+    Surface(
+        modifier = modifier,
+        color = colors.paper2,
+        shape = RoundedCornerShape(20.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Text("✦", color = colors.accent, fontSize = 18.sp, fontWeight = FontWeight.Black)
+            Column {
+                Text(
+                    unlockedLabel,
+                    color = colors.ink,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black,
+                )
+                Text(
+                    "Se guardó automáticamente en tu colección.",
+                    color = colors.muted,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun ReceiptPrinterMachine(
     folio: Int,
     printed: Boolean,
     paymentMethod: PaymentMethod,
     modifier: Modifier = Modifier,
 ) {
-    val isInstant = paymentMethod.isInstantDemoPayment
-    val passLabel = if (isInstant) "COMANDA ENVIADA" else "PASE DE CAJA"
-    val statusLabel = if (printed) {
-        if (isInstant) "COMANDA LISTA" else "PASE LISTO"
-    } else {
-        if (isInstant) "ENVIANDO COMANDA…" else "IMPRIMIENDO PASE…"
-    }
+    val statusLabel = if (printed) "STICKER LISTO" else "IMPRIMIENDO STICKER…"
     val ledTransition = rememberInfiniteTransition(label = "receipt-printer-led")
     val ledAlpha by ledTransition.animateFloat(
         initialValue = 1f,
@@ -369,7 +407,7 @@ private fun ReceiptPrinterMachine(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    passLabel,
+                    if (paymentMethod.isInstantDemoPayment) "COMANDA ENVIADA" else "PASE DE CAJA",
                     color = PaperText,
                     fontSize = 23.sp,
                     lineHeight = 24.sp,

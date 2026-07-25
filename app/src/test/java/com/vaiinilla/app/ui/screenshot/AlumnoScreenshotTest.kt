@@ -431,4 +431,46 @@ class AlumnoScreenshotTest {
         composeTestRule.waitForIdle()
         composeTestRule.onRoot().captureRoboImage("20_sticker_receipt.png")
     }
+
+    @Test
+    fun `21_tracking_pagado`() {
+        val order = ScreenshotFixtures.sampleOrder(
+            state = OrderState.PAID,
+            paymentMethod = PaymentMethod.BALANCE,
+        )
+        val orderState = ScreenshotFixtures.catalogLoadedState()
+        val trackingState = ScreenshotFixtures.trackingState(order)
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                StudentTrackingScreen(
+                    state = trackingState,
+                    orderState = orderState,
+                    onMenu = {},
+                    onAssistant = {},
+                    onWallet = {},
+                    onCart = {},
+                    onOpenCatalog = {},
+                    onSelectOrder = {},
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onRoot().captureRoboImage("21_tracking_pagado.png")
+    }
+
+    @Test
+    fun `22_confirm_saldo`() {
+        val order = ScreenshotFixtures.sampleOrder(paymentMethod = PaymentMethod.BALANCE)
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                OrderConfirmationScreen(
+                    order = order,
+                    onReturnToMenu = {},
+                    screenshotPrinted = true,
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onRoot().captureRoboImage("22_confirm_saldo.png")
+    }
 }

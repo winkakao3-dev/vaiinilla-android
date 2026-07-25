@@ -217,6 +217,7 @@ fun AppNavHost(navController: NavHostController) {
                 onQuantityChange = orderFlowViewModel::changeCartLineQuantity,
                 onNotesChange = orderFlowViewModel::updateKitchenNotes,
                 onDestinationChange = orderFlowViewModel::updateCheckoutDestination,
+                onSpaceChange = orderFlowViewModel::updateCheckoutSpace,
                 onPaymentChange = orderFlowViewModel::updateCheckoutPayment,
                 onConfirm = {
                     orderFlowViewModel.submitOrder(

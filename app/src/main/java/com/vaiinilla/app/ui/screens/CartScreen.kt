@@ -36,12 +36,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.domain.model.CartLine
-import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.components.CheckoutDestinationPicker
 import com.vaiinilla.app.ui.components.CheckoutPaymentPicker
+import com.vaiinilla.app.ui.components.CheckoutSpacePicker
 import com.vaiinilla.app.ui.components.DemoEmptyState
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.StudentTab
@@ -55,6 +55,7 @@ import com.vaiinilla.app.ui.order.cartPreviewTotal
 import com.vaiinilla.app.ui.order.hasSufficientBalance
 import com.vaiinilla.app.ui.order.operationalBlockerMessage
 import com.vaiinilla.app.ui.order.requiresOperationalReady
+import com.vaiinilla.app.ui.order.selectedSpaceName
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 @Composable
@@ -65,6 +66,7 @@ fun CartScreen(
     onQuantityChange: (lineKey: String, delta: Int) -> Unit,
     onNotesChange: (String) -> Unit,
     onDestinationChange: (OrderDestination) -> Unit,
+    onSpaceChange: (Int) -> Unit = {},
     onPaymentChange: (PaymentMethod) -> Unit,
     onConfirm: () -> Unit,
     onOpenTracking: () -> Unit = {},
@@ -108,8 +110,17 @@ fun CartScreen(
                 item {
                     CheckoutDestinationPicker(
                         selected = state.checkoutDestination,
+                        selectedSpaceName = state.selectedSpaceName,
                         onSelect = onDestinationChange,
                     )
+                }
+                if (state.checkoutDestination == OrderDestination.IN_SPACE) {
+                    item {
+                        CheckoutSpacePicker(
+                            selectedSpaceId = state.selectedSpaceId,
+                            onSelect = onSpaceChange,
+                        )
+                    }
                 }
                 item { SectionTitle("Pago") }
                 item {
@@ -283,7 +294,7 @@ private fun OrderSummaryCard(state: OrderFlowUiState) {
     val colors = LocalVaiinillaColors.current
     val destinationLabel = when (state.checkoutDestination) {
         OrderDestination.TAKE_AWAY -> "Para llevar"
-        OrderDestination.IN_SPACE -> DemoCheckoutFixtures.SPACE_NAME
+        OrderDestination.IN_SPACE -> state.selectedSpaceName
     }
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -324,23 +335,25 @@ private fun SummaryRow(label: String, value: String, colors: com.vaiinilla.app.u
 
 @Composable
 private fun WarningBanner(message: String) {
+    val colors = LocalVaiinillaColors.current
     Surface(
-        color = Color(0xFFFFF1CC),
+        color = colors.yolk.copy(alpha = 0.35f),
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Text(message, color = Color(0xFF171817), modifier = Modifier.padding(14.dp))
+        Text(message, color = colors.ink, modifier = Modifier.padding(14.dp))
     }
 }
 
 @Composable
 private fun ErrorBanner(message: String) {
+    val colors = LocalVaiinillaColors.current
     Surface(
-        color = Color(0xFFFFDED9),
+        color = colors.coral.copy(alpha = 0.22f),
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Text(message, color = Color(0xFF171817), modifier = Modifier.padding(14.dp))
+        Text(message, color = colors.ink, modifier = Modifier.padding(14.dp))
     }
 }
 

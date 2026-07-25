@@ -96,9 +96,22 @@ enum class PaymentMethod(val wireValue: String, val label: String) {
 }
 
 object DemoCheckoutFixtures {
-    const val SPACE_ID = 701
-    const val SPACE_NAME = "Mesa 12"
     const val SPACE_TYPE = "mesa"
+
+    data class DemoSpace(val id: Int, val number: Int, val name: String)
+
+    val DEMO_SPACES: List<DemoSpace> = (1..6).map { number ->
+        DemoSpace(id = 700 + number, number = number, name = "Mesa $number")
+    }
+
+    val DEFAULT_SPACE: DemoSpace = DEMO_SPACES.first { it.number == 4 }
+
+    val DEMO_SPACE_IDS: Set<Int> = DEMO_SPACES.map { it.id }.toSet()
+
+    const val SPACE_ID: Int = 704
+    const val SPACE_NAME: String = "Mesa 4"
+
+    fun spaceForId(id: Int): DemoSpace? = DEMO_SPACES.firstOrNull { it.id == id }
 }
 
 enum class OrderDestination(val wireValue: String, val label: String) {

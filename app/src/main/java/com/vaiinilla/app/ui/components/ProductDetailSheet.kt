@@ -198,7 +198,7 @@ fun ProductDetailSheet(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         MetaRow("Ingredientes", product.ingredients)
-                        MetaRow("Tiempo estimado", "${product.estimatedTimeMinutes} min")
+                        MetaRow("Tiempo estimado", estimatedTimeLabel(product.estimatedTimeMinutes))
                         MetaRow("Alérgenos", product.allergens)
                     }
                     Spacer(Modifier.height(18.dp))
@@ -255,11 +255,7 @@ fun ProductDetailSheet(
                             ),
                         ) {
                             Text(
-                                text = if (isCustomized) {
-                                    "Agregar personalizado · ${moneyLabel(previewTotal)}"
-                                } else {
-                                    "Agregar · ${moneyLabel(previewTotal)}"
-                                },
+                                text = "Agregar · ${moneyLabel(previewTotal)}",
                                 fontWeight = FontWeight.Black,
                             )
                         }
@@ -277,6 +273,9 @@ fun ProductDetailSheet(
         }
     }
 }
+
+private fun estimatedTimeLabel(minutes: Int): String =
+    if (minutes in 8..10) "8–10 min" else "$minutes min"
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

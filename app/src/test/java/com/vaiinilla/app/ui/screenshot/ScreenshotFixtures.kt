@@ -43,6 +43,7 @@ object ScreenshotFixtures {
     fun cartState(
         paymentMethod: PaymentMethod = PaymentMethod.CASH,
         destination: OrderDestination = OrderDestination.TAKE_AWAY,
+        spaceId: Int = DemoCheckoutFixtures.DEFAULT_SPACE.id,
     ): OrderFlowUiState {
         val loadedCatalog = catalog()
         val firstProduct = loadedCatalog.products.first()
@@ -63,6 +64,7 @@ object ScreenshotFixtures {
             ),
             checkoutPayment = paymentMethod,
             checkoutDestination = destination,
+            selectedSpaceId = spaceId,
         )
     }
 
@@ -70,14 +72,17 @@ object ScreenshotFixtures {
         state: OrderState = OrderState.PENDING_PAYMENT,
         paymentMethod: PaymentMethod = PaymentMethod.CASH,
         destination: OrderDestination = OrderDestination.TAKE_AWAY,
+        spaceId: Int = DemoCheckoutFixtures.DEFAULT_SPACE.id,
     ): OrderDetail {
         val order = orderJson.parseOrderDetail(fixtureSource.read("fixtures/created_order.json"))
         val space = if (destination == OrderDestination.IN_SPACE) {
-            OrderSpace(
-                id = DemoCheckoutFixtures.SPACE_ID,
-                name = DemoCheckoutFixtures.SPACE_NAME,
-                type = DemoCheckoutFixtures.SPACE_TYPE,
-            )
+            DemoCheckoutFixtures.spaceForId(spaceId)?.let { demoSpace ->
+                OrderSpace(
+                    id = demoSpace.id,
+                    name = demoSpace.name,
+                    type = DemoCheckoutFixtures.SPACE_TYPE,
+                )
+            }
         } else {
             null
         }

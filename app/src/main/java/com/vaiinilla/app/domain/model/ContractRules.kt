@@ -82,8 +82,8 @@ object ContractRules {
             OrderDestination.TAKE_AWAY -> require(request.spaceId == null) {
                 "para_llevar exige espacio_id null."
             }
-            OrderDestination.IN_SPACE -> require(request.spaceId == DemoCheckoutFixtures.SPACE_ID) {
-                "en_espacio requiere el espacio demo."
+            OrderDestination.IN_SPACE -> require(request.spaceId in DemoCheckoutFixtures.DEMO_SPACE_IDS) {
+                "en_espacio requiere un espacio demo válido."
             }
         }
         validateOrderItems(request)

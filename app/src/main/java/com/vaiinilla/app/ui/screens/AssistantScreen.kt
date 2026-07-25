@@ -169,7 +169,7 @@ fun AssistantScreen(
                         AssistantMascot(colors = colors, modifier = Modifier.padding(vertical = 16.dp))
                         Text(
                             "¿Qué necesitas hoy?",
-                            color = Color(0xFFF6F1E5),
+                            color = colors.paper,
                             fontWeight = FontWeight.Black,
                             fontSize = 30.sp,
                             lineHeight = 32.sp,

@@ -27,6 +27,7 @@ data class OrderFlowUiState(
     val cartLines: List<CartLine> = emptyList(),
     val kitchenNotes: String = "",
     val checkoutDestination: OrderDestination = OrderDestination.TAKE_AWAY,
+    val selectedSpaceId: Int = DemoCheckoutFixtures.DEFAULT_SPACE.id,
     val checkoutPayment: PaymentMethod = PaymentMethod.CASH,
     val creatingOrder: Boolean = false,
     val createOrderError: String? = null,
@@ -86,10 +87,13 @@ val OrderFlowUiState.canCreateOrder: Boolean
 
 val OrderFlowUiState.checkoutSpaceId: Int?
     get() = if (checkoutDestination == OrderDestination.IN_SPACE) {
-        DemoCheckoutFixtures.SPACE_ID
+        selectedSpaceId
     } else {
         null
     }
+
+val OrderFlowUiState.selectedSpaceName: String
+    get() = DemoCheckoutFixtures.spaceForId(selectedSpaceId)?.name ?: DemoCheckoutFixtures.SPACE_NAME
 
 fun OrderFlowUiState.hasSufficientBalance(walletBalance: Int): Boolean {
     if (checkoutPayment != PaymentMethod.BALANCE) return true

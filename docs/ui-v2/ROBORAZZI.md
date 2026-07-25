@@ -58,6 +58,10 @@ Recorded files (one per test):
 - `app/src/test/roborazzi/18_chat_welcome.png`
 - `app/src/test/roborazzi/19_catalog_dark.png`
 - `app/src/test/roborazzi/20_sticker_receipt.png`
+- `app/src/test/roborazzi/21_tracking_pagado.png`
+- `app/src/test/roborazzi/22_confirm_saldo.png`
+
+Phase 6 re-records after checkout/tracking/confirmation parity: at minimum `05_assistant_hub`, `11_cart_mesa_saldo`, `12_cart_tarjeta`, `13_confirm_cash`, `15_tracking_por_cobrar`, `16_tracking_preparando`, plus new `21_tracking_pagado` and `22_confirm_saldo`.
 
 ## Test sources
 
