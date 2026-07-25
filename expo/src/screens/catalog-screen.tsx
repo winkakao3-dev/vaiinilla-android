@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import React from 'react';
 import {
   ActivityIndicator,
@@ -19,6 +18,7 @@ import { PhysicalPress } from '@/components/physical-press';
 import { ProductCard } from '@/components/product-card';
 import { moneyLabel } from '@/domain/models';
 import { useOrderFlow } from '@/hooks/use-order-flow';
+import { useStudentNav } from '@/hooks/use-student-nav';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { fonts } from '@/theme/typography';
@@ -26,6 +26,7 @@ import { fonts } from '@/theme/typography';
 export function CatalogScreen() {
   const insets = useSafeAreaInsets();
   const flow = useOrderFlow();
+  const nav = useStudentNav('menu');
 
   if (flow.loading) {
     return (
@@ -123,15 +124,7 @@ export function CatalogScreen() {
         />
       </ScrollView>
 
-      <BottomNav
-        activeTab="menu"
-        cartCount={flow.cartCount}
-        onMenu={() => {}}
-        onAssistant={() => {}}
-        onOrders={() => {}}
-        onWallet={() => {}}
-        onCart={() => router.push('/(student)/cart')}
-      />
+      <BottomNav {...nav} />
 
       <ProductSheet />
     </View>

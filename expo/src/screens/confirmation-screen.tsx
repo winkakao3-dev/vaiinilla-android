@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PhysicalPress } from '@/components/physical-press';
+import { isInstantDemoPayment } from '@/domain/checkout-fixtures';
 import { moneyLabel } from '@/domain/models';
 import { useOrderFlow } from '@/hooks/use-order-flow';
 import { colors } from '@/theme/colors';
@@ -31,21 +32,30 @@ export function ConfirmationScreen() {
     );
   }
 
+  const instant = isInstantDemoPayment(order.summary.paymentMethod);
+  const eyebrow = instant ? 'COMANDA ENVIADA' : 'PEDIDO CREADO';
+  const title = instant
+    ? 'Tu pedido ya está en cocina.'
+    : 'Tu pase de Caja acaba de salir.';
+  const subtitle = instant
+    ? 'Saldo o tarjeta demo confirmados. Sigue el avance en Pedidos.'
+    : 'Págalo en efectivo y usa este receipt sticker para identificar la orden.';
+
   return (
     <ScrollView
       style={styles.root}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.xl }]}
     >
-      <Text style={styles.eyebrow}>PEDIDO CREADO</Text>
-      <Text style={styles.title}>Tu pase de Caja acaba de salir.</Text>
-      <Text style={styles.subtitle}>
-        Págalo en efectivo y usa este receipt sticker para identificar la orden.
-      </Text>
+      <Text style={styles.eyebrow}>{eyebrow}</Text>
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.subtitle}>{subtitle}</Text>
 
       <View style={styles.folioCard}>
         <Text style={styles.folioLabel}>Folio</Text>
         <Text style={styles.folioValue}>#{order.summary.folio}</Text>
-        <Text style={styles.folioState}>Estado: por cobrar</Text>
+        <Text style={styles.folioState}>
+          Estado: {instant ? 'cobrado' : 'por cobrar'}
+        </Text>
       </View>
 
       <View style={styles.receipt}>
@@ -65,13 +75,25 @@ export function ConfirmationScreen() {
       </View>
 
       <PhysicalPress
+        style={styles.secondary}
+        onPress={() =>
+          router.push({
+            pathname: '/(student)/sticker',
+            params: { orderId: order.summary.id },
+          })
+        }
+      >
+        <Text style={styles.secondaryText}>Ver sticker</Text>
+      </PhysicalPress>
+
+      <PhysicalPress
         style={styles.cta}
         onPress={() => {
           flow.clearCreatedOrder();
-          router.replace('/(student)/menu');
+          router.replace('/(student)/orders');
         }}
       >
-        <Text style={styles.ctaText}>Volver al menú</Text>
+        <Text style={styles.ctaText}>Ver pedidos</Text>
       </PhysicalPress>
     </ScrollView>
   );
@@ -132,12 +154,20 @@ const styles = StyleSheet.create({
   },
   receiptTotalLabel: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.paper, opacity: 0.7 },
   receiptTotal: { fontFamily: fonts.displayBlack, fontSize: 24, color: colors.accent },
+  secondary: {
+    backgroundColor: colors.paper2,
+    borderRadius: radius.button,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  secondaryText: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.ink },
   cta: {
     backgroundColor: colors.ink,
     borderRadius: radius.button,
     paddingVertical: spacing.lg,
     alignItems: 'center',
-    marginTop: spacing.md,
   },
   ctaText: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.paper },
 });

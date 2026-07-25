@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import React, { useEffect, useRef } from 'react';
 import {
-  Alert,
   Animated,
   Platform,
   StyleSheet,
@@ -77,11 +76,7 @@ export function BottomNav({
   };
 
   const handlePress = (tab: StudentTab) => {
-    if (tab === 'menu' || tab === 'cart') {
-      handlers[tab]();
-      return;
-    }
-    Alert.alert('Próximamente', 'Esta fase llegará en una siguiente entrega.');
+    handlers[tab]();
   };
 
   const shell = (

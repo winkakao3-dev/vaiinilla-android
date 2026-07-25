@@ -1,7 +1,6 @@
 import { router } from 'expo-router';
 import React from 'react';
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Switch,
@@ -58,9 +57,10 @@ export function RoleSelectorScreen({
 
       <PhysicalPress
         style={styles.galleryButton}
-        onPress={() =>
-          Alert.alert('Ver todas las fases', 'La galería demo llegará en una fase posterior.')
-        }
+        onPress={() => {
+          onTestOnlyModeChange(true);
+          router.push('/demo/gallery');
+        }}
       >
         <Text style={styles.galleryTitle}>Ver todas las fases</Text>
         <Text style={styles.gallerySubtitle}>Salta a cualquier pantalla con fixtures locales.</Text>
@@ -71,26 +71,30 @@ export function RoleSelectorScreen({
       <PhysicalPress style={[styles.roleCard, styles.roleStudent]} onPress={onStudentSelected}>
         <Text style={styles.roleEyebrow}>Alumno</Text>
         <Text style={styles.roleTitle}>Menú, carrito y pedido</Text>
-        <Text style={styles.roleBody}>Flujo estudiante con catálogo y checkout en efectivo.</Text>
+        <Text style={styles.roleBody}>Flujo estudiante con catálogo, asistente, cartera y tracking.</Text>
       </PhysicalPress>
 
-      <PhysicalPress
-        style={styles.roleCard}
-        onPress={() => Alert.alert('Próximamente', 'Roles operativos llegarán en fases posteriores.')}
-      >
+      <PhysicalPress style={styles.roleCard} onPress={() => router.push('/(ops)/caja')}>
         <Text style={styles.roleEyebrow}>Cajero</Text>
         <Text style={styles.roleTitle}>Caja y cobro</Text>
-        <Text style={styles.roleBody}>Operación REMOTE en roadmap.</Text>
+        <Text style={styles.roleBody}>Lista por cobrar y cobro en efectivo (MOCK).</Text>
       </PhysicalPress>
 
       <PhysicalPress
         style={styles.roleCard}
-        onPress={() => Alert.alert('Próximamente', 'Roles operativos llegarán en fases posteriores.')}
+        onPress={() => router.push('/(ops)/cocina')}
       >
-        <Text style={styles.roleEyebrow}>Cocina / Mesero</Text>
-        <Text style={styles.roleTitle}>Preparación y entrega</Text>
-        <Text style={styles.roleBody}>Pantallas operativas en roadmap.</Text>
+        <Text style={styles.roleEyebrow}>Cocina</Text>
+        <Text style={styles.roleTitle}>Preparación</Text>
+        <Text style={styles.roleBody}>Avanza pedidos cobrados a preparando/listo.</Text>
       </PhysicalPress>
+
+      <PhysicalPress style={styles.roleCard} onPress={() => router.push('/(ops)/mesero')}>
+        <Text style={styles.roleEyebrow}>Mesero</Text>
+        <Text style={styles.roleTitle}>Entrega en mesa</Text>
+        <Text style={styles.roleBody}>Marca pedidos listos como entregados.</Text>
+      </PhysicalPress>
+
       <PhysicalPress style={styles.loginLink} onPress={() => router.push('/login')}>
         <Text style={styles.loginLinkText}>Iniciar sesión (Firebase seed)</Text>
       </PhysicalPress>

@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 
 import { OrderFlowProvider } from '@/hooks/use-order-flow';
+import { WalletProvider } from '@/hooks/use-wallet';
 import { colors } from '@/theme/colors';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -31,14 +32,16 @@ export default function RootLayout() {
   }
 
   return (
-    <OrderFlowProvider>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.paper },
-          animation: 'fade',
-        }}
-      />
-    </OrderFlowProvider>
+    <WalletProvider>
+      <OrderFlowProvider>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.paper },
+            animation: 'fade',
+          }}
+        />
+      </OrderFlowProvider>
+    </WalletProvider>
   );
 }

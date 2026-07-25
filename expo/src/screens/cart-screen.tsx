@@ -12,16 +12,27 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomNav } from '@/components/bottom-nav';
 import { PhysicalPress } from '@/components/physical-press';
+import { DEMO_SPACES } from '@/domain/checkout-fixtures';
 import { cartLinePreview } from '@/domain/contract-rules';
 import { cartLineKey, moneyLabel } from '@/domain/models';
 import { useOrderFlow } from '@/hooks/use-order-flow';
+import { useStudentNav } from '@/hooks/use-student-nav';
+import { useWallet } from '@/hooks/use-wallet';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { fonts } from '@/theme/typography';
 
+const PAYMENT_OPTIONS = [
+  { key: 'efectivo' as const, label: 'Efectivo', badge: 'CASH' },
+  { key: 'saldo' as const, label: 'Saldo', badge: 'SALDO' },
+  { key: 'tarjeta' as const, label: 'Tarjeta', badge: 'VISA' },
+];
+
 export function CartScreen() {
   const insets = useSafeAreaInsets();
   const flow = useOrderFlow();
+  const wallet = useWallet();
+  const nav = useStudentNav('cart');
 
   const handleConfirm = async () => {
     const order = await flow.confirmOrder();
@@ -83,15 +94,66 @@ export function CartScreen() {
             ))}
 
             <Text style={styles.section}>Entrega</Text>
-            <View style={styles.pickerCard}>
-              <Text style={styles.pickerActive}>Para llevar</Text>
-              <Text style={styles.pickerHint}>Fase 0: solo para llevar.</Text>
+            <View style={styles.optionRow}>
+              <PhysicalPress
+                style={[
+                  styles.optionCard,
+                  flow.checkoutDestination === 'para_llevar' && styles.optionCardActive,
+                ]}
+                onPress={() => flow.setCheckoutDestination('para_llevar')}
+              >
+                <Text style={styles.optionTitle}>Para llevar</Text>
+              </PhysicalPress>
+              <PhysicalPress
+                style={[
+                  styles.optionCard,
+                  flow.checkoutDestination === 'en_espacio' && styles.optionCardActive,
+                ]}
+                onPress={() => flow.setCheckoutDestination('en_espacio')}
+              >
+                <Text style={styles.optionTitle}>En mesa</Text>
+              </PhysicalPress>
             </View>
 
+            {flow.checkoutDestination === 'en_espacio' ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.spaceRow}>
+                {DEMO_SPACES.map((space) => {
+                  const active = flow.selectedSpaceId === space.id;
+                  return (
+                    <PhysicalPress
+                      key={space.id}
+                      style={[styles.spaceChip, active && styles.spaceChipActive]}
+                      onPress={() => flow.setSelectedSpaceId(space.id)}
+                    >
+                      <Text style={[styles.spaceText, active && styles.spaceTextActive]}>{space.name}</Text>
+                    </PhysicalPress>
+                  );
+                })}
+              </ScrollView>
+            ) : null}
+
             <Text style={styles.section}>Pago</Text>
-            <View style={styles.pickerCard}>
-              <Text style={styles.pickerActive}>Efectivo</Text>
-              <Text style={styles.pickerHint}>VAI-10: cobro en caja con pase por cobrar.</Text>
+            <View style={styles.paymentColumn}>
+              {PAYMENT_OPTIONS.map((option) => {
+                const active = flow.checkoutPayment === option.key;
+                return (
+                  <PhysicalPress
+                    key={option.key}
+                    style={[styles.paymentCard, active && styles.paymentCardActive]}
+                    onPress={() => flow.setCheckoutPayment(option.key)}
+                  >
+                    <View style={styles.paymentHeader}>
+                      <Text style={styles.optionTitle}>{option.label}</Text>
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{option.badge}</Text>
+                      </View>
+                    </View>
+                    {option.key === 'saldo' ? (
+                      <Text style={styles.paymentHint}>Saldo: {moneyLabel(wallet.balance)}</Text>
+                    ) : null}
+                  </PhysicalPress>
+                );
+              })}
             </View>
 
             <Text style={styles.section}>Notas para cocina</Text>
@@ -126,15 +188,7 @@ export function CartScreen() {
         )}
       </ScrollView>
 
-      <BottomNav
-        activeTab="cart"
-        cartCount={flow.cartCount}
-        onMenu={() => router.push('/(student)/menu')}
-        onAssistant={() => {}}
-        onOrders={() => {}}
-        onWallet={() => {}}
-        onCart={() => {}}
-      />
+      <BottomNav {...nav} />
     </View>
   );
 }
@@ -185,16 +239,48 @@ const styles = StyleSheet.create({
   qtyButtonText: { fontFamily: fonts.bodyBold, fontSize: 18, color: colors.ink },
   qtyValue: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.ink },
   section: { fontFamily: fonts.bodyBold, fontSize: 13, color: colors.muted, marginTop: spacing.sm },
-  pickerCard: {
+  optionRow: { flexDirection: 'row', gap: spacing.sm },
+  optionCard: {
+    flex: 1,
     backgroundColor: colors.paper2,
     borderRadius: radius.button,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.accent,
+    borderColor: colors.line,
+  },
+  optionCardActive: { borderColor: colors.accent, backgroundColor: '#edf3d8' },
+  optionTitle: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.ink },
+  spaceRow: { gap: spacing.sm, paddingVertical: spacing.sm },
+  spaceChip: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.chip,
+    backgroundColor: colors.paper2,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  spaceChipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
+  spaceText: { fontFamily: fonts.bodyBold, fontSize: 13, color: colors.ink },
+  spaceTextActive: { color: colors.paper },
+  paymentColumn: { gap: spacing.sm },
+  paymentCard: {
+    backgroundColor: colors.paper2,
+    borderRadius: radius.button,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
     gap: 4,
   },
-  pickerActive: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.ink },
-  pickerHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted },
+  paymentCardActive: { borderColor: colors.accent },
+  paymentHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  badge: {
+    backgroundColor: colors.ink,
+    borderRadius: 8,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  badgeText: { fontFamily: fonts.bodyBold, fontSize: 10, color: colors.paper, letterSpacing: 0.6 },
+  paymentHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted },
   notes: {
     minHeight: 88,
     backgroundColor: colors.paper2,

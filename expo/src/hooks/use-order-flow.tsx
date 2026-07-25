@@ -9,9 +9,15 @@ import React, {
   type ReactNode,
 } from 'react';
 
+import { DATA_SOURCE } from '@/core/config';
+import { DEFAULT_SPACE } from '@/domain/checkout-fixtures';
 import { getCatalog } from '@/data/catalog-repository';
-import { createOrder, generateIdempotencyKey } from '@/data/order-repository';
-import { cartPreview, productUnitPreview, validateSelections } from '@/domain/contract-rules';
+import {
+  createStudentCheckout,
+  generateIdempotencyKey,
+  listOrders,
+} from '@/data/order-repository';
+import { cartPreview, parseMoney, productUnitPreview, validateSelections } from '@/domain/contract-rules';
 import { cartLineKey } from '@/domain/models';
 import type {
   CartLine,
@@ -22,6 +28,7 @@ import type {
   PaymentMethod,
   Product,
 } from '@/domain/models';
+import { useWallet } from '@/hooks/use-wallet';
 
 const TEST_ONLY_KEY = 'vaiinilla.test_only_mode';
 
@@ -38,9 +45,12 @@ interface OrderFlowState {
   kitchenNotes: string;
   checkoutDestination: OrderDestination;
   checkoutPayment: PaymentMethod;
+  selectedSpaceId: number;
   submitting: boolean;
   submitError: string | null;
   createdOrder: OrderDetail | null;
+  clientOrders: OrderDetail[];
+  selectedOrderId: string | null;
   testOnlyMode: boolean;
 }
 
@@ -53,7 +63,9 @@ interface OrderFlowContextValue extends OrderFlowState {
   selectedProductPreviewPrice: string;
   selectedProductPreviewTotal: string;
   canCreateOrder: boolean;
+  selectedOrder: OrderDetail | null;
   loadCatalog: () => Promise<void>;
+  refreshClientOrders: () => Promise<void>;
   setSearchQuery: (value: string) => void;
   setSelectedCategoryId: (value: number | null) => void;
   openProduct: (productId: number) => void;
@@ -62,9 +74,15 @@ interface OrderFlowContextValue extends OrderFlowState {
   setSelectedQuantity: (quantity: number) => void;
   addSelectedProductToCart: () => void;
   updateCartQuantity: (lineKey: string, delta: number) => void;
+  clearCart: () => void;
+  setCartLines: (lines: CartLine[]) => void;
   setKitchenNotes: (notes: string) => void;
   setCheckoutDestination: (destination: OrderDestination) => void;
   setCheckoutPayment: (payment: PaymentMethod) => void;
+  setSelectedSpaceId: (spaceId: number) => void;
+  setCreatedOrder: (order: OrderDetail | null) => void;
+  setClientOrders: (orders: OrderDetail[], selectedId: string | null) => void;
+  selectOrder: (orderId: string | null) => void;
   confirmOrder: () => Promise<OrderDetail | null>;
   clearCreatedOrder: () => void;
   setTestOnlyMode: (enabled: boolean) => void;
@@ -83,9 +101,12 @@ const defaultState: OrderFlowState = {
   kitchenNotes: '',
   checkoutDestination: 'para_llevar',
   checkoutPayment: 'efectivo',
+  selectedSpaceId: DEFAULT_SPACE.id,
   submitting: false,
   submitError: null,
   createdOrder: null,
+  clientOrders: [],
+  selectedOrderId: null,
   testOnlyMode: true,
 };
 
@@ -101,16 +122,8 @@ function getDefaultSelections(product: Product): number[] {
 }
 
 export function OrderFlowProvider({ children }: { children: ReactNode }) {
+  const wallet = useWallet();
   const [state, setState] = useState<OrderFlowState>(defaultState);
-
-  useEffect(() => {
-    AsyncStorage.getItem(TEST_ONLY_KEY).then((value) => {
-      if (value !== null) {
-        setState((current) => ({ ...current, testOnlyMode: value === 'true' }));
-      }
-    });
-    void loadCatalog();
-  }, []);
 
   const loadCatalog = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, errorMessage: null }));
@@ -125,6 +138,29 @@ export function OrderFlowProvider({ children }: { children: ReactNode }) {
       }));
     }
   }, []);
+
+  const refreshClientOrders = useCallback(async () => {
+    try {
+      const orders = await listOrders('cliente');
+      setState((current) => ({
+        ...current,
+        clientOrders: orders,
+        selectedOrderId: current.selectedOrderId ?? orders[0]?.summary.id ?? null,
+      }));
+    } catch {
+      // Keep local gallery seeds if list fails.
+    }
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem(TEST_ONLY_KEY).then((value) => {
+      if (value !== null) {
+        setState((current) => ({ ...current, testOnlyMode: value === 'true' }));
+      }
+    });
+    void loadCatalog();
+    void refreshClientOrders();
+  }, [loadCatalog, refreshClientOrders]);
 
   const setTestOnlyMode = useCallback((enabled: boolean) => {
     void AsyncStorage.setItem(TEST_ONLY_KEY, String(enabled));
@@ -170,18 +206,27 @@ export function OrderFlowProvider({ children }: { children: ReactNode }) {
     ? productUnitPreview(selectedProduct, state.selectedOptionIds)
     : '0.00';
 
-  const selectedProductPreviewTotal = selectedProduct
-    ? productUnitPreview(selectedProduct, state.selectedOptionIds)
-    : '0.00';
+  const selectedProductPreviewTotal = selectedProductPreviewPrice;
 
   const cartCount = state.cartLines.reduce((sum, line) => sum + line.quantity, 0);
   const cartTotal = cartPreview(state.cartLines);
 
+  const hasEnoughBalance =
+    state.checkoutPayment !== 'saldo' ||
+    parseMoney(wallet.balance).gte(parseMoney(cartTotal));
+
   const canCreateOrder =
     state.cartLines.length > 0 &&
-    state.checkoutDestination === 'para_llevar' &&
-    state.checkoutPayment === 'efectivo' &&
-    !state.submitting;
+    !state.submitting &&
+    hasEnoughBalance &&
+    (state.testOnlyMode || DATA_SOURCE === 'MOCK' || state.checkoutPayment === 'efectivo');
+
+  const selectedOrder = useMemo(() => {
+    if (!state.selectedOrderId) {
+      return state.clientOrders[0] ?? null;
+    }
+    return state.clientOrders.find((order) => order.summary.id === state.selectedOrderId) ?? null;
+  }, [state.clientOrders, state.selectedOrderId]);
 
   const setSearchQuery = useCallback((value: string) => {
     setState((current) => ({ ...current, searchQuery: value }));
@@ -305,6 +350,14 @@ export function OrderFlowProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const clearCart = useCallback(() => {
+    setState((current) => ({ ...current, cartLines: [], kitchenNotes: '' }));
+  }, []);
+
+  const setCartLines = useCallback((lines: CartLine[]) => {
+    setState((current) => ({ ...current, cartLines: lines }));
+  }, []);
+
   const setKitchenNotes = useCallback((notes: string) => {
     setState((current) => ({ ...current, kitchenNotes: notes }));
   }, []);
@@ -317,15 +370,48 @@ export function OrderFlowProvider({ children }: { children: ReactNode }) {
     setState((current) => ({ ...current, checkoutPayment: payment }));
   }, []);
 
+  const setSelectedSpaceId = useCallback((spaceId: number) => {
+    setState((current) => ({ ...current, selectedSpaceId: spaceId }));
+  }, []);
+
+  const setCreatedOrder = useCallback((order: OrderDetail | null) => {
+    setState((current) => ({ ...current, createdOrder: order }));
+  }, []);
+
+  const setClientOrders = useCallback((orders: OrderDetail[], selectedId: string | null) => {
+    setState((current) => ({
+      ...current,
+      clientOrders: orders,
+      selectedOrderId: selectedId,
+    }));
+  }, []);
+
+  const selectOrder = useCallback((orderId: string | null) => {
+    setState((current) => ({ ...current, selectedOrderId: orderId }));
+  }, []);
+
   const confirmOrder = useCallback(async () => {
     if (!canCreateOrder) {
       return null;
     }
 
+    if (
+      DATA_SOURCE === 'REMOTE' &&
+      !state.testOnlyMode &&
+      (state.checkoutPayment !== 'efectivo' || state.checkoutDestination !== 'para_llevar')
+    ) {
+      setState((current) => ({
+        ...current,
+        submitError:
+          'Checkout con saldo, tarjeta o mesa solo está disponible en Solo pruebas / MOCK.',
+      }));
+      return null;
+    }
+
     const request: CreateOrderRequest = {
-      paymentMethod: 'efectivo',
-      destination: 'para_llevar',
-      spaceId: null,
+      paymentMethod: state.checkoutPayment,
+      destination: state.checkoutDestination,
+      spaceId: state.checkoutDestination === 'en_espacio' ? state.selectedSpaceId : null,
       kitchenNotes: state.kitchenNotes,
       items: state.cartLines.map((line) => ({
         productId: line.product.id,
@@ -336,14 +422,20 @@ export function OrderFlowProvider({ children }: { children: ReactNode }) {
 
     setState((current) => ({ ...current, submitting: true, submitError: null }));
     try {
+      if (state.checkoutPayment === 'saldo') {
+        await wallet.debitForOrder(cartTotal);
+      }
+
       const idempotencyKey = await generateIdempotencyKey();
-      const order = await createOrder(request, idempotencyKey);
+      const order = await createStudentCheckout(request, idempotencyKey);
       setState((current) => ({
         ...current,
         submitting: false,
         createdOrder: order,
         cartLines: [],
         kitchenNotes: '',
+        clientOrders: [order, ...current.clientOrders.filter((item) => item.summary.id !== order.summary.id)],
+        selectedOrderId: order.summary.id,
       }));
       return order;
     } catch (error) {
@@ -354,7 +446,17 @@ export function OrderFlowProvider({ children }: { children: ReactNode }) {
       }));
       return null;
     }
-  }, [canCreateOrder, state.cartLines, state.kitchenNotes]);
+  }, [
+    canCreateOrder,
+    cartTotal,
+    state.cartLines,
+    state.checkoutDestination,
+    state.checkoutPayment,
+    state.kitchenNotes,
+    state.selectedSpaceId,
+    state.testOnlyMode,
+    wallet,
+  ]);
 
   const clearCreatedOrder = useCallback(() => {
     setState((current) => ({ ...current, createdOrder: null }));
@@ -371,7 +473,9 @@ export function OrderFlowProvider({ children }: { children: ReactNode }) {
       selectedProductPreviewPrice,
       selectedProductPreviewTotal,
       canCreateOrder,
+      selectedOrder,
       loadCatalog,
+      refreshClientOrders,
       setSearchQuery,
       setSelectedCategoryId,
       openProduct,
@@ -380,9 +484,15 @@ export function OrderFlowProvider({ children }: { children: ReactNode }) {
       setSelectedQuantity,
       addSelectedProductToCart,
       updateCartQuantity,
+      clearCart,
+      setCartLines,
       setKitchenNotes,
       setCheckoutDestination,
       setCheckoutPayment,
+      setSelectedSpaceId,
+      setCreatedOrder,
+      setClientOrders,
+      selectOrder,
       confirmOrder,
       clearCreatedOrder,
       setTestOnlyMode,
@@ -397,7 +507,9 @@ export function OrderFlowProvider({ children }: { children: ReactNode }) {
       selectedProductPreviewPrice,
       selectedProductPreviewTotal,
       canCreateOrder,
+      selectedOrder,
       loadCatalog,
+      refreshClientOrders,
       setSearchQuery,
       setSelectedCategoryId,
       openProduct,
@@ -406,9 +518,15 @@ export function OrderFlowProvider({ children }: { children: ReactNode }) {
       setSelectedQuantity,
       addSelectedProductToCart,
       updateCartQuantity,
+      clearCart,
+      setCartLines,
       setKitchenNotes,
       setCheckoutDestination,
       setCheckoutPayment,
+      setSelectedSpaceId,
+      setCreatedOrder,
+      setClientOrders,
+      selectOrder,
       confirmOrder,
       clearCreatedOrder,
       setTestOnlyMode,

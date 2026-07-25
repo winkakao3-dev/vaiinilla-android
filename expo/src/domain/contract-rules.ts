@@ -1,5 +1,6 @@
 import Decimal from 'decimal.js';
 
+import { DEMO_SPACE_IDS } from '@/domain/checkout-fixtures';
 import type { Catalog, CreateOrderRequest, Product } from '@/domain/models';
 
 const moneyPattern = /^(0|[1-9]\d*)\.\d{2}$/;
@@ -102,6 +103,22 @@ export function validateCreateOrderRequest(request: CreateOrderRequest): void {
   }
   if (request.spaceId !== null) {
     throw new Error('para_llevar exige espacio_id null.');
+  }
+  validateOrderItems(request);
+}
+
+export function validateStudentCheckoutRequest(request: CreateOrderRequest): void {
+  if (!['efectivo', 'saldo', 'tarjeta'].includes(request.paymentMethod)) {
+    throw new Error('metodo_pago no soportado en checkout alumno.');
+  }
+  if (request.destination === 'para_llevar') {
+    if (request.spaceId !== null) {
+      throw new Error('para_llevar exige espacio_id null.');
+    }
+  } else if (request.destination === 'en_espacio') {
+    if (!request.spaceId || !DEMO_SPACE_IDS.has(request.spaceId)) {
+      throw new Error('en_espacio requiere un espacio demo válido.');
+    }
   }
   validateOrderItems(request);
 }
