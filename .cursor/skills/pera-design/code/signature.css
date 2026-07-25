@@ -1,0 +1,117 @@
+/* Pera signature details — working code. Prose catalog: reference/signature.md
+   All of these are compositor- or paint-cheap and reverse with the scroll thumb. */
+
+/* ── A1. Ink-fill headline — letters ink up as you scroll (flagship) ──
+   JS fallback writes --p (0→1); CSS path needs no JS at all. */
+.ink-fill {
+  --p: 1;                                   /* final state by default: fully inked */
+  background: linear-gradient(
+    to right,
+    var(--fg) 50%,
+    color-mix(in oklab, var(--fg) 18%, transparent) 50%
+  );
+  background-size: 200% 100%;
+  background-position-x: calc(100% - var(--p) * 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@supports (animation-timeline: view()) {
+  .ink-fill {
+    background-position-x: 100%;
+    animation: ink-fill linear both;
+    animation-timeline: view();
+    animation-range: entry 25% cover 55%;
+  }
+}
+@keyframes ink-fill { to { background-position-x: 0%; } }
+
+/* Per-word variant: wrap words in <span class="ink-word"> and offset the range. */
+.ink-word { animation-range: entry calc(25% + var(--i) * 4%) cover 55%; }
+
+/* ── A2. Word-by-word opacity scrub ── */
+.word-scrub > span {
+  opacity: calc(0.2 + var(--p, 1) * 0.8);
+}
+@supports (animation-timeline: view()) {
+  .word-scrub > span {
+    opacity: 0.2;
+    animation: word-in linear both;
+    animation-timeline: view();
+    animation-range: entry calc(20% + var(--i) * 3%) cover 50%;
+  }
+}
+@keyframes word-in { to { opacity: 1; } }
+
+/* ── A5. Underline draw — in-content links draw instead of toggling ── */
+a.draw {
+  text-decoration: none;
+  background: linear-gradient(currentColor, currentColor) 0 100% / 0% 1.5px no-repeat;
+  transition: background-size 0.35s var(--ease-out);
+}
+a.draw:hover,
+a.draw:focus-visible { background-size: 100% 1.5px; }
+
+/* ── B2. Scroll spine — 2px progress line, cheapest signature ── */
+.spine {
+  position: fixed; inset: 0 0 auto 0; height: 2px;
+  background: var(--fg);
+  transform-origin: 0 50%;
+  transform: scaleX(var(--sp, 0));
+  z-index: 100;
+}
+@supports (animation-timeline: scroll()) {
+  .spine {
+    transform: scaleX(0);
+    animation: spine-grow linear both;
+    animation-timeline: scroll();
+  }
+}
+@keyframes spine-grow { to { transform: scaleX(1); } }
+
+/* ── B3. Hero exit — headline drifts and blurs, media scales, as you leave 100vh ── */
+.hero-exit-title {
+  transform: translateY(calc(var(--p, 0) * -8%));
+  filter: blur(calc(var(--p, 0) * 4px));
+}
+.hero-exit-media {
+  transform: scale(calc(1 + var(--p, 0) * 0.06));
+  opacity: calc(1 - var(--p, 0) * 0.15);
+}
+
+/* ── B4. Image clip reveal ── */
+.clip-reveal {
+  clip-path: inset(0% round 0px);
+  transform: scale(1);
+}
+@supports (animation-timeline: view()) {
+  .clip-reveal {
+    animation: clip-in linear both;
+    animation-timeline: view();
+    animation-range: entry 10% cover 45%;
+  }
+}
+@keyframes clip-in {
+  from { clip-path: inset(12% round var(--radius-panel)); transform: scale(1.12); }
+  to   { clip-path: inset(0% round 0px);                   transform: scale(1); }
+}
+
+/* ── B6. Parallax whisper — media only, never type, ≤8% of section height ── */
+.parallax-whisper { transform: translateY(calc(var(--p, 0.5) * 8% - 4%)); }
+
+/* ── Grain pass — static, 2–4%, never animated ── */
+.grain::after {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.8'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Reduced motion: every scrub lands on its final state. */
+@media (prefers-reduced-motion: reduce) {
+  .ink-fill { --p: 1; animation: none; background-position-x: 0%; }
+  .word-scrub > span { opacity: 1; animation: none; }
+  .clip-reveal { animation: none; }
+  .hero-exit-title, .hero-exit-media, .parallax-whisper { transform: none; filter: none; opacity: 1; }
+}

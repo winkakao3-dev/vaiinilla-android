@@ -1,0 +1,12 @@
+{
+  "data": {
+    "recibiendo_pedidos": true,
+    "sesion_caja_abierta": true,
+    "caja_en_linea": true,
+    "cocina_en_linea": true,
+    "tiempo_estimado_min": 12,
+    "consultado_en": "2026-07-20T15:00:00.000Z"
+  },
+  "meta": { "page": null, "total_pages": null, "total_items": null, "cursor": null },
+  "error": null
+}
