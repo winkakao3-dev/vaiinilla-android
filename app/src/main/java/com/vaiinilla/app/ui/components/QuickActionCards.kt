@@ -21,8 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.theme.Coral
-import com.vaiinilla.app.ui.theme.CreamDeep
-import com.vaiinilla.app.ui.theme.Ink
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.Yolk
 
 data class QuickAction(
@@ -33,42 +32,47 @@ data class QuickAction(
     val contentColor: Color,
 )
 
-private val defaultQuickActions = listOf(
-    QuickAction(
-        icon = "↻",
-        title = "Pedir de nuevo",
-        subtitle = "Burrito norteño + jamaica",
-        background = CreamDeep,
-        contentColor = Ink,
-    ),
-    QuickAction(
-        icon = "☀",
-        title = "Antojo del día",
-        subtitle = "Waffle de la casa",
-        background = Yolk,
-        contentColor = Color(0xFF29200B),
-    ),
-    QuickAction(
-        icon = "✦",
-        title = "Asistente",
-        subtitle = "No sé qué pedir",
-        background = Coral,
-        contentColor = Color(0xFF2D1210),
-    ),
-)
+@Composable
+private fun defaultQuickActions(): List<QuickAction> {
+    val colors = LocalVaiinillaColors.current
+    return listOf(
+        QuickAction(
+            icon = "↻",
+            title = "Pedir de nuevo",
+            subtitle = "Burrito norteño + jamaica",
+            background = colors.paper2,
+            contentColor = colors.ink,
+        ),
+        QuickAction(
+            icon = "☀",
+            title = "Antojo del día",
+            subtitle = "Waffle de la casa",
+            background = Yolk,
+            contentColor = Color(0xFF29200B),
+        ),
+        QuickAction(
+            icon = "✦",
+            title = "Asistente",
+            subtitle = "No sé qué pedir",
+            background = Coral,
+            contentColor = Color(0xFF2D1210),
+        ),
+    )
+}
 
 @Composable
 fun QuickActionCards(
     modifier: Modifier = Modifier,
-    actions: List<QuickAction> = defaultQuickActions,
+    actions: List<QuickAction>? = null,
     onActionClick: (QuickAction) -> Unit = {},
 ) {
+    val resolvedActions = actions ?: defaultQuickActions()
     LazyRow(
         modifier = modifier,
         contentPadding = PaddingValues(horizontal = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        items(actions, key = QuickAction::title) { action ->
+        items(resolvedActions, key = QuickAction::title) { action ->
             QuickActionCard(action = action, onClick = { onActionClick(action) })
         }
     }
@@ -79,6 +83,7 @@ private fun QuickActionCard(
     action: QuickAction,
     onClick: () -> Unit,
 ) {
+    val colors = LocalVaiinillaColors.current
     Surface(
         modifier = Modifier
             .width(156.dp)
@@ -98,7 +103,7 @@ private fun QuickActionCard(
                 contentAlignment = Alignment.Center,
             ) {
                 Surface(
-                    color = Ink,
+                    color = colors.ink,
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.size(45.dp),
                 ) {

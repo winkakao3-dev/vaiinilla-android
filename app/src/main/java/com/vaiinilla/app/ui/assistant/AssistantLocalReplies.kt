@@ -56,10 +56,7 @@ object AssistantLocalReplies {
     fun filterByChip(chip: String, products: List<Product>): List<AssistantRecommendation> {
         val available = products.filter(Product::available)
         return when (chip) {
-            "Menos de \$60" -> available
-                .filter { parsePrice(it.digitalPrice) < BigDecimal("60") }
-                .take(3)
-                .map { it.toRecommendation() }
+            "Menos de \$60" -> budgetRecommendations(available)
             "Algo ligero" -> available
                 .filter {
                     val name = it.name.lowercase()
@@ -77,42 +74,22 @@ object AssistantLocalReplies {
         }
     }
 
-    private fun defaultRecommendations(products: List<Product>): List<AssistantRecommendation> {
-        val demoNames = listOf("torta", "burrito", "quesadilla")
-        val matched = demoNames.mapNotNull { keyword ->
-            products.firstOrNull { it.name.contains(keyword, ignoreCase = true) }
+    private fun budgetRecommendations(products: List<Product>): List<AssistantRecommendation> {
+        val underBudget = products.filter { parsePrice(it.digitalPrice) <= BigDecimal("60") }
+        val preferred = listOf("waffle", "torta", "quesadilla")
+        val ordered = preferred.mapNotNull { keyword ->
+            underBudget.firstOrNull { it.name.contains(keyword, ignoreCase = true) }
         }
-        val result = if (matched.size >= 2) {
-            matched.take(3)
-        } else {
-            products.take(3)
-        }
-        return result.map { it.toRecommendation() }.ifEmpty { fallbackRecommendations() }
+        val rest = underBudget.filter { product -> ordered.none { it.id == product.id } }
+        return (ordered + rest).take(3).map { it.toRecommendation() }
     }
 
-    private fun fallbackRecommendations(): List<AssistantRecommendation> = listOf(
-        AssistantRecommendation(
-            productId = null,
-            name = "Torta de jamón",
-            meta = "5–7 min · Comida",
-            price = "45",
-            imageUrl = "fixture://torta",
-        ),
-        AssistantRecommendation(
-            productId = null,
-            name = "Burrito norteño",
-            meta = "8–10 min · Comida",
-            price = "64",
-            imageUrl = "fixture://burrito_norteno",
-        ),
-        AssistantRecommendation(
-            productId = null,
-            name = "Quesadillas (2)",
-            meta = "6–8 min · Comida",
-            price = "40",
-            imageUrl = "fixture://quesa",
-        ),
-    )
+    private fun defaultRecommendations(products: List<Product>): List<AssistantRecommendation> {
+        val demoKeywords = listOf("torta", "burrito", "quesadilla")
+        return demoKeywords.mapNotNull { keyword ->
+            products.firstOrNull { it.name.contains(keyword, ignoreCase = true) }
+        }.map { it.toRecommendation() }
+    }
 
     private fun Product.toRecommendation(): AssistantRecommendation {
         val categoryLabel = if (categoryId == 10) "Bebida" else "Comida"

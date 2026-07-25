@@ -102,7 +102,10 @@ fun StudentTrackingScreen(
                         TrackingSectionHead()
                     }
                     item {
-                        OrderTrackingTimeline(current = selected.summary.state)
+                        OrderTrackingTimeline(
+                            current = selected.summary.state,
+                            destination = selected.summary.destination,
+                        )
                     }
                     item {
                         Text("Resumen", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)

@@ -44,7 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.theme.Coral
-import com.vaiinilla.app.ui.theme.Ink
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.NavBorder
 import com.vaiinilla.app.ui.theme.NavGlass
 import com.vaiinilla.app.ui.theme.NavPill
@@ -140,6 +140,7 @@ private fun NavItem(
     badge: Int = 0,
     bounceKey: Int = -1,
 ) {
+    val colors = LocalVaiinillaColors.current
     val iconBounce = remember { Animatable(0f) }
     val labelBounce = remember { Animatable(0f) }
     var lastBounceKey by remember { mutableIntStateOf(bounceKey) }
@@ -204,7 +205,7 @@ private fun NavItem(
                             .width(if (badge > 9) 20.dp else 15.dp)
                             .clip(RoundedCornerShape(99.dp))
                             .background(Coral)
-                            .border(2.dp, Ink, RoundedCornerShape(99.dp)),
+                            .border(2.dp, colors.ink, RoundedCornerShape(99.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(

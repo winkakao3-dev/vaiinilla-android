@@ -24,13 +24,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
-import com.vaiinilla.app.ui.theme.Cream
-import com.vaiinilla.app.ui.theme.CreamDeep
-import com.vaiinilla.app.ui.theme.Ink
-import com.vaiinilla.app.ui.theme.Lime
-import com.vaiinilla.app.ui.theme.MutedInk
-import com.vaiinilla.app.ui.theme.Yolk
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 private val TaskCardDark = Color(0xFF1C1D1B)
 private val TaskCardText = Color(0xFFF5F2E8)
@@ -38,15 +34,21 @@ private val TaskCardText = Color(0xFFF5F2E8)
 private data class TimelineStep(
     val state: OrderState,
     val title: String,
-    val description: String,
+    val description: (OrderDestination) -> String,
 )
 
 private val demoTimelineSteps = listOf(
-    TimelineStep(OrderState.PENDING_PAYMENT, "POR COBRAR", "Caja espera el pago en efectivo."),
-    TimelineStep(OrderState.PAID, "COBRADO", "Cocina recibió la comanda."),
-    TimelineStep(OrderState.PREPARING, "PREPARANDO", "Tu comida se está preparando."),
-    TimelineStep(OrderState.READY, "LISTO", "Recógelo en la barra."),
-    TimelineStep(OrderState.DELIVERED, "ENTREGADO", "Pedido completado."),
+    TimelineStep(OrderState.PENDING_PAYMENT, "POR COBRAR") { "Caja espera el pago en efectivo." },
+    TimelineStep(OrderState.PAID, "COBRADO") { "Cocina recibió la comanda." },
+    TimelineStep(OrderState.PREPARING, "PREPARANDO") { "Tu comida se está preparando." },
+    TimelineStep(OrderState.READY, "LISTO") { destination ->
+        if (destination == OrderDestination.IN_SPACE) {
+            "El mesero lo llevará a tu mesa."
+        } else {
+            "Recógelo en la barra."
+        }
+    },
+    TimelineStep(OrderState.DELIVERED, "ENTREGADO") { "Pedido completado." },
 )
 
 @Composable
@@ -56,6 +58,7 @@ fun OrderTrackingCard(
     showEyebrow: Boolean = true,
     onClick: (() -> Unit)? = null,
 ) {
+    val colors = LocalVaiinillaColors.current
     val clickableModifier = if (onClick != null) {
         modifier.physicalPress(onClick = onClick)
     } else {
@@ -96,7 +99,7 @@ fun OrderTrackingCard(
                 ) {
                     Text(
                         text = order.summary.state.label.uppercase(),
-                        color = Ink,
+                        color = colors.ink,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 0.8.sp,
@@ -121,8 +124,10 @@ fun OrderTrackingCard(
 @Composable
 fun OrderTrackingTimeline(
     current: OrderState,
+    destination: OrderDestination = OrderDestination.TAKE_AWAY,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalVaiinillaColors.current
     Column(modifier = modifier) {
         demoTimelineSteps.forEachIndexed { index, step ->
             val stepIndex = step.state.trackingIndex
@@ -132,10 +137,11 @@ fun OrderTrackingTimeline(
             TimelineRow(
                 stepNumber = index + 1,
                 title = step.title,
-                description = step.description,
+                description = step.description(destination),
                 isDone = isDone,
                 isCurrent = isCurrent,
                 showLine = index < demoTimelineSteps.lastIndex,
+                colors = colors,
             )
         }
     }
@@ -149,31 +155,42 @@ private fun TimelineRow(
     isDone: Boolean,
     isCurrent: Boolean,
     showLine: Boolean,
+    colors: com.vaiinilla.app.ui.theme.VaiinillaColors,
 ) {
     Row(modifier = Modifier.fillMaxWidth()) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(
-                        when {
-                            isCurrent -> Yolk
-                            isDone -> Lime
-                            else -> CreamDeep
-                        },
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (isDone || isCurrent) {
-                    Text("✓", color = Ink, fontWeight = FontWeight.Black, fontSize = 12.sp)
-                } else {
-                    Text(
-                        stepNumber.toString(),
-                        color = MutedInk,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 11.sp,
+            Box(contentAlignment = Alignment.Center) {
+                if (isCurrent) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(colors.yolk.copy(alpha = 0.35f)),
                     )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(
+                            when {
+                                isCurrent -> colors.yolk
+                                isDone -> colors.accent
+                                else -> colors.paper2
+                            },
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (isDone || isCurrent) {
+                        Text("✓", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                    } else {
+                        Text(
+                            stepNumber.toString(),
+                            color = colors.muted,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 11.sp,
+                        )
+                    }
                 }
             }
             if (showLine) {
@@ -181,14 +198,19 @@ private fun TimelineRow(
                     modifier = Modifier
                         .width(2.dp)
                         .height(40.dp)
-                        .background(if (isDone) Lime else CreamDeep),
+                        .background(if (isDone) colors.accent else colors.paper2),
                 )
             }
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.padding(top = 4.dp, bottom = if (showLine) 8.dp else 0.dp)) {
-            Text(title, color = if (isDone || isCurrent) Ink else MutedInk, fontWeight = FontWeight.Black, fontSize = 13.sp)
-            Text(description, color = MutedInk, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
+            Text(
+                title,
+                color = if (isDone || isCurrent) colors.ink else colors.muted,
+                fontWeight = FontWeight.Black,
+                fontSize = 13.sp,
+            )
+            Text(description, color = colors.muted, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
         }
     }
 }
@@ -198,9 +220,10 @@ fun OrderDetailSummary(
     order: OrderDetail,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalVaiinillaColors.current
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = CreamDeep,
+        color = colors.paper2,
         shape = RoundedCornerShape(22.dp),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -211,8 +234,8 @@ fun OrderDetailSummary(
                         .padding(vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text("${item.quantity}× ${item.productName}", color = Ink, fontWeight = FontWeight.Bold)
-                    Text(moneyLabel(item.subtotal), color = Ink, fontWeight = FontWeight.Black)
+                    Text("${item.quantity}× ${item.productName}", color = colors.ink, fontWeight = FontWeight.Bold)
+                    Text(moneyLabel(item.subtotal), color = colors.ink, fontWeight = FontWeight.Black)
                 }
             }
             Row(
@@ -222,10 +245,9 @@ fun OrderDetailSummary(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Total", color = Ink, fontWeight = FontWeight.Black)
-                Text(moneyLabel(order.summary.total), color = Ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                Text("Total", color = colors.ink, fontWeight = FontWeight.Black)
+                Text(moneyLabel(order.summary.total), color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
             }
         }
     }
 }
-

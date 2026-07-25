@@ -5,6 +5,9 @@ import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
 @Composable
-fun ScreenshotTheme(content: @Composable () -> Unit) {
-    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light, content = content)
+fun ScreenshotTheme(
+    mode: VaiinillaThemeMode = VaiinillaThemeMode.Light,
+    content: @Composable () -> Unit,
+) {
+    VaiinillaTheme(themeMode = mode, content = content)
 }

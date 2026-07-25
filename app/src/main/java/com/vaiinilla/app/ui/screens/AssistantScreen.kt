@@ -27,7 +27,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -65,35 +64,6 @@ private val assistantChips = listOf(
     "Combo con bebida",
 )
 
-private data class AssistantHeroCopy(
-    val eyebrow: String,
-    val title: String,
-    val subtitle: String,
-)
-
-private fun assistantHeroForChip(chip: String): AssistantHeroCopy = when (chip) {
-    "Menos de \$60" -> AssistantHeroCopy(
-        eyebrow = "MODO PRESUPUESTO",
-        title = "¿Qué rinde sin pasarte?",
-        subtitle = "Filtramos opciones bajo $60 para que decidas rápido.",
-    )
-    "Algo ligero" -> AssistantHeroCopy(
-        eyebrow = "MODO LIGERO",
-        title = "Algo fresco y sin pesadez",
-        subtitle = "Bebidas, fruta y opciones rápidas para acompañar tu día.",
-    )
-    "Combo con bebida" -> AssistantHeroCopy(
-        eyebrow = "MODO COMBO",
-        title = "Arma tu combo completo",
-        subtitle = "Comida + bebida en una sola pasada por el menú.",
-    )
-    else -> AssistantHeroCopy(
-        eyebrow = "RECOMENDACIÓN RÁPIDA",
-        title = "¿Qué necesitas hoy?",
-        subtitle = "Pide sin pensarlo tanto. Te sugerimos lo más pedido del menú.",
-    )
-}
-
 @Composable
 fun AssistantScreen(
     state: OrderFlowUiState,
@@ -103,9 +73,12 @@ fun AssistantScreen(
     onOrders: () -> Unit,
     onWallet: () -> Unit,
     onCart: () -> Unit,
+    initialChip: String? = null,
 ) {
     val products = state.catalog?.products.orEmpty()
-    var selectedChip by remember { mutableStateOf(assistantChips.first()) }
+    var selectedChip by remember {
+        mutableStateOf(initialChip?.takeIf { it in assistantChips } ?: assistantChips.first())
+    }
     val recommendations = remember(selectedChip, products) {
         AssistantLocalReplies.filterByChip(selectedChip, products)
     }
@@ -123,7 +96,6 @@ fun AssistantScreen(
         label = "assistant-hero-offset",
     )
 
-    val heroCopy = assistantHeroForChip(selectedChip)
     val colors = LocalVaiinillaColors.current
 
     Box(
@@ -188,7 +160,7 @@ fun AssistantScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
-                            heroCopy.eyebrow,
+                            "Pide sin pensarlo tanto",
                             color = colors.muted.copy(alpha = 0.85f),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.ExtraBold,
@@ -196,24 +168,13 @@ fun AssistantScreen(
                         )
                         AssistantMascot(colors = colors, modifier = Modifier.padding(vertical = 16.dp))
                         Text(
-                            heroCopy.title,
+                            "¿Qué necesitas hoy?",
                             color = Color(0xFFF6F1E5),
                             fontWeight = FontWeight.Black,
                             fontSize = 30.sp,
                             lineHeight = 32.sp,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         )
-                        Text(
-                            heroCopy.subtitle,
-                            color = Color(0xFFF6F1E5).copy(alpha = 0.72f),
-                            fontSize = 14.sp,
-                            lineHeight = 20.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            modifier = Modifier.padding(top = 8.dp),
-                        )
-                        TextButton(onClick = onOpenChat, modifier = Modifier.padding(top = 8.dp)) {
-                            Text("Chatear", color = colors.accent, fontWeight = FontWeight.Black)
-                        }
                     }
                 }
             }
@@ -307,12 +268,8 @@ private fun AssistantChip(label: String, selected: Boolean, onClick: () -> Unit)
     }
 }
 
-private fun chipSectionLabel(chip: String): String = when (chip) {
-    "Menos de \$60" -> "Bajo $60"
-    "Algo ligero" -> "Fresco y rápido"
-    "Combo con bebida" -> "Comida + bebida"
-    else -> "Según tu elección"
-}
+private fun chipSectionLabel(@Suppress("UNUSED_PARAMETER") chip: String): String =
+    "Según tu elección"
 
 @Composable
 private fun RecommendationRow(item: AssistantRecommendation, onClick: () -> Unit) {

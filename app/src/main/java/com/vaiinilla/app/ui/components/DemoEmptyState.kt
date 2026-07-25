@@ -17,11 +17,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.vaiinilla.app.ui.theme.AccentInk
-import com.vaiinilla.app.ui.theme.CreamDeep
-import com.vaiinilla.app.ui.theme.Ink
-import com.vaiinilla.app.ui.theme.Lime
-import com.vaiinilla.app.ui.theme.MutedInk
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 @Composable
 fun DemoEmptyState(
@@ -32,9 +28,10 @@ fun DemoEmptyState(
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
 ) {
+    val colors = LocalVaiinillaColors.current
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = CreamDeep,
+        color = colors.paper2,
         shape = RoundedCornerShape(28.dp),
     ) {
         Column(
@@ -42,13 +39,13 @@ fun DemoEmptyState(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Surface(
-                color = Lime,
+                color = colors.accent,
                 shape = RoundedCornerShape(25.dp),
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = AccentInk,
+                    tint = colors.accentInk,
                     modifier = Modifier
                         .padding(18.dp)
                         .size(36.dp),
@@ -56,21 +53,24 @@ fun DemoEmptyState(
             }
             Text(
                 text = title,
-                color = Ink,
+                color = colors.ink,
                 fontWeight = FontWeight.Black,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 16.dp),
             )
             Text(
                 text = message,
-                color = MutedInk,
+                color = colors.muted,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 6.dp),
             )
             if (actionLabel != null && onAction != null) {
                 Button(
                     onClick = onAction,
-                    colors = ButtonDefaults.buttonColors(containerColor = Lime, contentColor = Ink),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.accent,
+                        contentColor = colors.ink,
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 18.dp),

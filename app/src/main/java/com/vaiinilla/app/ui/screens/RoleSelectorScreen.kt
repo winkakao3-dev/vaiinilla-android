@@ -27,9 +27,6 @@ import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.theme.AccentInk
 import com.vaiinilla.app.ui.theme.Coral
-import com.vaiinilla.app.ui.theme.Cream
-import com.vaiinilla.app.ui.theme.CreamDeep
-import com.vaiinilla.app.ui.theme.Ink
 import com.vaiinilla.app.ui.theme.Ink2
 import com.vaiinilla.app.ui.theme.Lime
 import com.vaiinilla.app.ui.theme.Yolk
@@ -157,9 +154,10 @@ fun RoleSelectorScreen(
         }
 
         item {
+            val options = roleOptions(colors)
             Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(11.dp)) {
-                    roleOptions.take(2).forEach { option ->
+                    options.take(2).forEach { option ->
                         RoleCard(
                             option = option,
                             modifier = Modifier.weight(1f),
@@ -168,7 +166,7 @@ fun RoleSelectorScreen(
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(11.dp)) {
-                    roleOptions.drop(2).take(2).forEach { option ->
+                    options.drop(2).take(2).forEach { option ->
                         RoleCard(
                             option = option,
                             modifier = Modifier.weight(1f),
@@ -177,9 +175,9 @@ fun RoleSelectorScreen(
                     }
                 }
                 RoleCard(
-                    option = roleOptions[4],
+                    option = options[4],
                     modifier = Modifier.fillMaxWidth(),
-                    onClick = { roleOptions[4].role?.let(onRoleSelected) },
+                    onClick = { options[4].role?.let(onRoleSelected) },
                 )
             }
         }
@@ -195,7 +193,7 @@ private data class RoleOption(
     val contentColor: Color,
 )
 
-private val roleOptions = listOf(
+private fun roleOptions(colors: com.vaiinilla.app.ui.theme.VaiinillaColors) = listOf(
     RoleOption(
         role = OperationalRole.CLIENT,
         title = "Alumno",
@@ -233,8 +231,8 @@ private val roleOptions = listOf(
         title = "Administración",
         subtitle = "Reportes, menú, promociones e integraciones.",
         icon = "⌘",
-        background = CreamDeep,
-        contentColor = Ink,
+        background = colors.paper2,
+        contentColor = colors.ink,
     ),
 )
 

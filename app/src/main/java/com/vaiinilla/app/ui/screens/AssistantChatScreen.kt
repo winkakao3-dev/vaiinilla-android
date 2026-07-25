@@ -49,13 +49,7 @@ import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.VaiinillaMark
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.cartItemCount
-import com.vaiinilla.app.ui.theme.AccentInk
-import com.vaiinilla.app.ui.theme.Cream
-import com.vaiinilla.app.ui.theme.CreamDeep
-import com.vaiinilla.app.ui.theme.Ink
-import com.vaiinilla.app.ui.theme.Lime
-import com.vaiinilla.app.ui.theme.LimeSoft
-import com.vaiinilla.app.ui.theme.MutedInk
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 private val chatSuggestions = listOf(
     "¿Qué es bueno sin gluten?",
@@ -77,6 +71,7 @@ fun AssistantChatScreen(
     onWallet: () -> Unit,
     onCart: () -> Unit,
 ) {
+    val colors = LocalVaiinillaColors.current
     val products = state.catalog?.products.orEmpty()
     val messages = remember { mutableStateListOf<ChatMessage>() }
     var input by remember { mutableStateOf("") }
@@ -95,12 +90,12 @@ fun AssistantChatScreen(
             .fillMaxSize()
             .background(
                 Brush.radialGradient(
-                    colors = listOf(Lime.copy(alpha = 0.16f), Color.Transparent),
+                    colors = listOf(colors.accent.copy(alpha = 0.16f), Color.Transparent),
                     radius = 900f,
                     center = androidx.compose.ui.geometry.Offset(0.5f, 0f),
                 ),
             )
-            .background(Cream),
+            .background(colors.paper),
     ) {
         Column(
             modifier = Modifier
@@ -115,20 +110,20 @@ fun AssistantChatScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Surface(
-                    color = LimeSoft.copy(alpha = 0.28f),
+                    color = colors.accent2.copy(alpha = 0.28f),
                     shape = RoundedCornerShape(13.dp),
                 ) {
                     Text(
                         "✦",
                         modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
-                        color = AccentInk,
+                        color = colors.accentInk,
                         fontWeight = FontWeight.Black,
                         fontSize = 16.sp,
                     )
                 }
                 Text(
                     "Asistente Vaiinilla",
-                    color = Ink,
+                    color = colors.ink,
                     fontWeight = FontWeight.Black,
                     fontSize = 15.sp,
                     modifier = Modifier
@@ -136,10 +131,10 @@ fun AssistantChatScreen(
                         .padding(start = 9.dp),
                 )
                 IconButton(onClick = { messages.clear() }) {
-                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "Limpiar chat", tint = Ink)
+                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "Limpiar chat", tint = colors.ink)
                 }
                 IconButton(onClick = onClose) {
-                    Icon(Icons.Outlined.Close, contentDescription = "Cerrar", tint = Ink)
+                    Icon(Icons.Outlined.Close, contentDescription = "Cerrar", tint = colors.ink)
                 }
             }
 
@@ -155,7 +150,7 @@ fun AssistantChatScreen(
                     VaiinillaMark(modifier = Modifier.size(width = 132.dp, height = 110.dp))
                     Text(
                         "¡Hola! Soy tu Asistente Vaiinilla. Pregúntame sobre el menú: dietas, recomendaciones, ingredientes y más.",
-                        color = MutedInk,
+                        color = colors.muted,
                         fontSize = 15.sp,
                         lineHeight = 22.sp,
                         modifier = Modifier.padding(top = 14.dp),
@@ -214,16 +209,17 @@ fun AssistantChatScreen(
 
 @Composable
 private fun ChatSuggestionChip(label: String, onClick: () -> Unit) {
+    val colors = LocalVaiinillaColors.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        color = Cream,
+        color = colors.paper,
         shape = RoundedCornerShape(999.dp),
-        border = androidx.compose.foundation.BorderStroke(1.5.dp, Lime.copy(alpha = 0.55f)),
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, colors.accent.copy(alpha = 0.55f)),
     ) {
         Text(
             label,
-            color = Ink,
+            color = colors.ink,
             fontWeight = FontWeight.ExtraBold,
             fontSize = 13.sp,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -233,6 +229,7 @@ private fun ChatSuggestionChip(label: String, onClick: () -> Unit) {
 
 @Composable
 private fun ChatBubble(message: ChatMessage, reduceMotion: Boolean) {
+    val colors = LocalVaiinillaColors.current
     var visible by remember(message) { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (visible || reduceMotion) 1f else 0.94f,
@@ -258,12 +255,12 @@ private fun ChatBubble(message: ChatMessage, reduceMotion: Boolean) {
                     scaleY = scale
                     this.alpha = alpha
                 },
-            color = if (message.fromUser) LimeSoft else CreamDeep,
+            color = if (message.fromUser) colors.accent2 else colors.paper2,
             shape = RoundedCornerShape(18.dp),
         ) {
             Text(
                 message.text,
-                color = Ink,
+                color = colors.ink,
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
                 modifier = Modifier.padding(12.dp),
@@ -279,11 +276,12 @@ private fun ChatComposer(
     onSend: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalVaiinillaColors.current
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = CreamDeep,
+        color = colors.paper2,
         shape = RoundedCornerShape(22.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Ink.copy(alpha = 0.12f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.ink.copy(alpha = 0.12f)),
     ) {
         Row(
             modifier = Modifier.padding(start = 14.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
@@ -294,27 +292,27 @@ private fun ChatComposer(
                 onValueChange = onValueChange,
                 modifier = Modifier.weight(1f),
                 singleLine = true,
-                textStyle = androidx.compose.ui.text.TextStyle(color = Ink, fontSize = 14.sp),
+                textStyle = androidx.compose.ui.text.TextStyle(color = colors.ink, fontSize = 14.sp),
                 decorationBox = { inner ->
                     Box {
                         if (value.isBlank()) {
-                            Text("Pregúntame sobre el menú…", color = MutedInk, fontSize = 14.sp)
+                            Text("Pregúntame sobre el menú…", color = colors.muted, fontSize = 14.sp)
                         }
                         inner()
                     }
                 },
             )
             IconButton(onClick = {}, modifier = Modifier.size(40.dp)) {
-                Icon(Icons.Outlined.Mic, contentDescription = "Micrófono", tint = Ink)
+                Icon(Icons.Outlined.Mic, contentDescription = "Micrófono", tint = colors.ink)
             }
             IconButton(
                 onClick = onSend,
                 modifier = Modifier
                     .size(40.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Lime),
+                    .background(colors.accent),
             ) {
-                Icon(Icons.Outlined.Send, contentDescription = "Enviar", tint = AccentInk)
+                Icon(Icons.Outlined.Send, contentDescription = "Enviar", tint = colors.accentInk)
             }
         }
     }

@@ -15,9 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.ui.theme.Cream
-import com.vaiinilla.app.ui.theme.Ink
-import com.vaiinilla.app.ui.theme.MutedInk
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 @Composable
 fun ActiveOrderBanner(
@@ -28,11 +26,12 @@ fun ActiveOrderBanner(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val colors = LocalVaiinillaColors.current
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .physicalPress(onClick = onClick),
-        color = Ink,
+        color = colors.ink,
         shape = RoundedCornerShape(24.dp),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -51,7 +50,7 @@ fun ActiveOrderBanner(
                     )
                     Text(
                         text = "#$folio",
-                        color = Cream,
+                        color = colors.paper,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Black,
                         modifier = Modifier.padding(top = 4.dp),
@@ -63,7 +62,7 @@ fun ActiveOrderBanner(
                 ) {
                     Text(
                         text = statusLabel,
-                        color = Cream,
+                        color = colors.paper,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Black,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -76,8 +75,8 @@ fun ActiveOrderBanner(
                     .padding(top = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Text("$itemCount productos", color = MutedInk, fontSize = 12.sp)
-                Text(destination, color = MutedInk, fontSize = 12.sp)
+                Text("$itemCount productos", color = colors.muted, fontSize = 12.sp)
+                Text(destination, color = colors.muted, fontSize = 12.sp)
             }
         }
     }

@@ -79,6 +79,7 @@ fun OrderConfirmationScreen(
     onReturnToMenu: () -> Unit,
     onViewTracking: () -> Unit = {},
     onViewSticker: () -> Unit = {},
+    screenshotPrinted: Boolean = false,
 ) {
     if (order == null) {
         val colors = LocalVaiinillaColors.current
@@ -96,10 +97,15 @@ fun OrderConfirmationScreen(
         return
     }
 
-    val printProgress = remember(order.summary.id) { Animatable(0f) }
-    var printed by remember(order.summary.id) { mutableStateOf(false) }
+    val printProgress = remember(order.summary.id) { Animatable(if (screenshotPrinted) 1f else 0f) }
+    var printed by remember(order.summary.id) { mutableStateOf(screenshotPrinted) }
 
-    LaunchedEffect(order.summary.id) {
+    LaunchedEffect(order.summary.id, screenshotPrinted) {
+        if (screenshotPrinted) {
+            printed = true
+            printProgress.snapTo(1f)
+            return@LaunchedEffect
+        }
         printed = false
         printProgress.snapTo(0f)
         delay(180)
@@ -283,14 +289,14 @@ private fun confirmationCopy(paymentMethod: PaymentMethod): ConfirmationCopy = w
         subtitle = "Págalo en efectivo y usa este receipt sticker para identificar la orden.",
     )
     PaymentMethod.BALANCE -> ConfirmationCopy(
-        eyebrow = "PAGO CON SALDO",
-        title = "Saldo descontado y comanda enviada.",
-        subtitle = "Tu pedido ya está en cocina. Puedes seguirlo en Mis pedidos.",
+        eyebrow = "PAGO CONFIRMADO",
+        title = "Tu compra se volvió un sticker.",
+        subtitle = "El saldo fue descontado y Cocina ya recibió la comanda.",
     )
     PaymentMethod.CARD -> ConfirmationCopy(
-        eyebrow = "PAGO CON TARJETA",
-        title = "Cargo confirmado en •••• 4242.",
-        subtitle = "La comanda ya fue enviada. Revisa el seguimiento cuando quieras.",
+        eyebrow = "TARJETA AUTORIZADA",
+        title = "Tu comprobante digital está saliendo.",
+        subtitle = "La compra fue autorizada y el pedido ya llegó a Cocina.",
     )
 }
 
