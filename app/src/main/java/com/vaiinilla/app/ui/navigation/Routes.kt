@@ -3,6 +3,7 @@ package com.vaiinilla.app.ui.navigation
 object Routes {
     const val SPLASH = "splash"
     const val ROLE_SELECTOR = "roles"
+    const val DEMO_GALLERY = "demo/gallery"
 
     const val CATALOG = "catalog"
     const val CART = "cart"
@@ -15,7 +16,9 @@ object Routes {
     const val WALLET_METHODS = "wallet/methods"
     const val WALLET_ADD_CARD = "wallet/add-card"
     const val WALLET_ACCOUNT = "wallet/account"
-    const val RECEIPT_STICKER = "receipt-sticker"
+    const val RECEIPT_STICKER = "receipt-sticker?style={style}"
+
+    fun receiptStickerRoute(styleIndex: Int = 0): String = "receipt-sticker?style=$styleIndex"
 
     const val CASHIER = "cashier"
     const val KITCHEN = "kitchen"

@@ -10,9 +10,11 @@ import com.vaiinilla.app.core.config.EffectiveDataSourceResolver
 import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.ContractRules
+import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.OrderDestination
+import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
 import com.vaiinilla.app.domain.usecase.CreateOrderUseCase
@@ -332,5 +334,82 @@ class OrderFlowViewModel @Inject constructor(
 
     fun clearCreatedOrder() {
         _uiState.value = _uiState.value.copy(createdOrder = null)
+    }
+
+    fun applyGalleryCatalog(
+        searchQuery: String = "",
+        openFirstProduct: Boolean = false,
+    ) {
+        val catalog = _uiState.value.catalog
+        val firstProduct = catalog?.products?.firstOrNull()
+        val productId = if (openFirstProduct) firstProduct?.id else null
+        val defaults = if (openFirstProduct && firstProduct != null) {
+            firstProduct.optionGroups.flatMapTo(linkedSetOf()) { group ->
+                group.options.take(group.minimumSelections).map { it.id }
+            }
+        } else {
+            emptySet()
+        }
+        _uiState.value = _uiState.value.copy(
+            searchQuery = searchQuery,
+            selectedCategoryId = null,
+            selectedProductId = productId,
+            selectedOptionIds = defaults,
+            selectedQuantity = 1,
+            cartLines = emptyList(),
+            kitchenNotes = "",
+            checkoutDestination = OrderDestination.TAKE_AWAY,
+            checkoutPayment = PaymentMethod.CASH,
+            selectedSpaceId = DemoCheckoutFixtures.DEFAULT_SPACE.id,
+            createdOrder = null,
+            createOrderError = null,
+        )
+    }
+
+    fun seedCartWithFirstProduct() {
+        val catalog = _uiState.value.catalog ?: return
+        val firstProduct = catalog.products.firstOrNull() ?: return
+        val defaultOptionIds = firstProduct.optionGroups
+            .firstOrNull()
+            ?.options
+            ?.firstOrNull()
+            ?.id
+            ?.let { setOf(it) }
+            ?: emptySet()
+        _uiState.value = _uiState.value.copy(
+            cartLines = listOf(
+                CartLine(
+                    product = firstProduct,
+                    quantity = 1,
+                    selectedOptionIds = defaultOptionIds,
+                ),
+            ),
+            createdOrder = null,
+            createOrderError = null,
+        )
+    }
+
+    fun seedCheckout(
+        destination: OrderDestination,
+        payment: PaymentMethod,
+        spaceId: Int = DemoCheckoutFixtures.DEFAULT_SPACE.id,
+    ) {
+        seedCartWithFirstProduct()
+        _uiState.value = _uiState.value.copy(
+            checkoutDestination = destination,
+            checkoutPayment = payment,
+            selectedSpaceId = spaceId,
+            createdOrder = null,
+            createOrderError = null,
+        )
+    }
+
+    fun seedCreatedOrder(order: OrderDetail) {
+        _uiState.value = _uiState.value.copy(
+            cartLines = emptyList(),
+            kitchenNotes = "",
+            createdOrder = order,
+            createOrderError = null,
+        )
     }
 }

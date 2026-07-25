@@ -10,6 +10,7 @@ import com.vaiinilla.app.ui.screens.AssistantChatScreen
 import com.vaiinilla.app.ui.screens.AssistantScreen
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
+import com.vaiinilla.app.ui.screens.DemoGalleryScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
 import com.vaiinilla.app.ui.screens.RoleSelectorScreen
@@ -54,6 +55,7 @@ class AlumnoScreenshotTest {
                     testOnlyMode = true,
                     onTestOnlyModeChange = {},
                     onRoleSelected = {},
+                    onOpenDemoGallery = {},
                 )
             }
         }
@@ -472,5 +474,19 @@ class AlumnoScreenshotTest {
         }
         composeTestRule.waitForIdle()
         composeTestRule.onRoot().captureRoboImage("22_confirm_saldo.png")
+    }
+
+    @Test
+    fun `23_demo_gallery`() {
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                DemoGalleryScreen(
+                    onBack = {},
+                    onItemSelected = {},
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onRoot().captureRoboImage("23_demo_gallery.png")
     }
 }

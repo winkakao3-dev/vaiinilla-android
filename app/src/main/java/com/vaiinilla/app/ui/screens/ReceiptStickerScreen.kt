@@ -58,6 +58,7 @@ import kotlinx.coroutines.launch
 fun ReceiptStickerScreen(
     order: OrderDetail?,
     onBack: () -> Unit,
+    initialStyleIndex: Int = 0,
 ) {
     val colors = LocalVaiinillaColors.current
     val context = LocalContext.current
@@ -72,7 +73,10 @@ fun ReceiptStickerScreen(
     }
     val stickerOrder = remember(order) { order.toStickerOrderData() }
     val styles = StickerStyle.entries
-    val pagerState = rememberPagerState(pageCount = { styles.size })
+    val pagerState = rememberPagerState(
+        initialPage = initialStyleIndex.coerceIn(0, (styles.size - 1).coerceAtLeast(0)),
+        pageCount = { styles.size },
+    )
     var selectedSize by rememberSaveable { mutableStateOf(StickerSize.M) }
     var entered by remember { mutableStateOf(reducedMotion) }
 

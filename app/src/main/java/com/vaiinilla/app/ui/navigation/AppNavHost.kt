@@ -14,8 +14,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.vaiinilla.app.di.DataSourceResolverEntryPoint
+import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
 import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.domain.model.OrderDestination
+import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.PaymentMethod
 import dagger.hilt.android.EntryPointAccessors
+import com.vaiinilla.app.ui.demo.DemoGallerySeeder
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
@@ -23,6 +28,7 @@ import com.vaiinilla.app.ui.screens.AssistantScreen
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CashierOperationalScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
+import com.vaiinilla.app.ui.screens.DemoGalleryScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
@@ -51,7 +57,140 @@ fun AppNavHost(navController: NavHostController) {
             DataSourceResolverEntryPoint::class.java,
         ).effectiveDataSourceResolver()
     }
+    val demoGallerySeeder = remember {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            DataSourceResolverEntryPoint::class.java,
+        ).demoGallerySeeder()
+    }
     var testOnlyMode by remember { mutableStateOf(dataSourceResolver.isTestOnlyMode) }
+
+    fun navigateGalleryItem(itemId: String) {
+        operationalViewModel.setRole(OperationalRole.CLIENT)
+        orderFlowViewModel.clearCreatedOrder()
+        when (itemId) {
+            "splash" -> navController.navigate(Routes.SPLASH) { launchSingleTop = true }
+            "01" -> navController.navigate(Routes.ROLE_SELECTOR) { launchSingleTop = true }
+            "02" -> {
+                demoGallerySeeder.seedCatalogCleared(orderFlowViewModel)
+                operationalViewModel.applyGalleryClientOrders(emptyList(), selectedOrderId = null)
+                navController.navigate(Routes.CATALOG) { launchSingleTop = true }
+            }
+            "05" -> {
+                demoGallerySeeder.seedCatalogActiveOrder(orderFlowViewModel, operationalViewModel)
+                navController.navigate(Routes.CATALOG) { launchSingleTop = true }
+            }
+            "06" -> {
+                demoGallerySeeder.seedCatalogEmptySearch(orderFlowViewModel)
+                navController.navigate(Routes.CATALOG) { launchSingleTop = true }
+            }
+            "07" -> {
+                demoGallerySeeder.seedCatalogProductSheet(orderFlowViewModel)
+                navController.navigate(Routes.CATALOG) { launchSingleTop = true }
+            }
+            "09" -> navController.navigate(Routes.ASSISTANT) { launchSingleTop = true }
+            "57" -> navController.navigate(Routes.ASSISTANT_CHAT) { launchSingleTop = true }
+            "12" -> {
+                demoGallerySeeder.seedCartEmpty(orderFlowViewModel)
+                navController.navigate(Routes.CART) { launchSingleTop = true }
+            }
+            "13" -> {
+                demoGallerySeeder.seedCheckout(
+                    orderFlowViewModel,
+                    OrderDestination.TAKE_AWAY,
+                    PaymentMethod.CASH,
+                )
+                navController.navigate(Routes.CART) { launchSingleTop = true }
+            }
+            "14" -> {
+                demoGallerySeeder.seedCheckout(
+                    orderFlowViewModel,
+                    OrderDestination.IN_SPACE,
+                    PaymentMethod.BALANCE,
+                    DemoCheckoutFixtures.DEFAULT_SPACE.id,
+                )
+                navController.navigate(Routes.CART) { launchSingleTop = true }
+            }
+            "15" -> {
+                demoGallerySeeder.seedCheckout(
+                    orderFlowViewModel,
+                    OrderDestination.TAKE_AWAY,
+                    PaymentMethod.CARD,
+                )
+                navController.navigate(Routes.CART) { launchSingleTop = true }
+            }
+            "16" -> demoGallerySeeder.seedConfirmation(orderFlowViewModel, PaymentMethod.CASH)
+            "17" -> demoGallerySeeder.seedConfirmation(orderFlowViewModel, PaymentMethod.BALANCE)
+            "18" -> demoGallerySeeder.seedConfirmation(orderFlowViewModel, PaymentMethod.CARD)
+            "19" -> {
+                demoGallerySeeder.seedTrackingEmpty(operationalViewModel)
+                navController.navigate(Routes.STUDENT_TRACKING) { launchSingleTop = true }
+            }
+            "20" -> {
+                demoGallerySeeder.seedTrackingOrder(
+                    operationalViewModel,
+                    OrderState.PENDING_PAYMENT,
+                    PaymentMethod.CASH,
+                )
+                navController.navigate(Routes.STUDENT_TRACKING) { launchSingleTop = true }
+            }
+            "21" -> {
+                demoGallerySeeder.seedTrackingOrder(
+                    operationalViewModel,
+                    OrderState.PAID,
+                    PaymentMethod.BALANCE,
+                )
+                navController.navigate(Routes.STUDENT_TRACKING) { launchSingleTop = true }
+            }
+            "22" -> {
+                demoGallerySeeder.seedTrackingOrder(
+                    operationalViewModel,
+                    OrderState.PREPARING,
+                    PaymentMethod.CASH,
+                )
+                navController.navigate(Routes.STUDENT_TRACKING) { launchSingleTop = true }
+            }
+            "23" -> {
+                demoGallerySeeder.seedTrackingOrder(
+                    operationalViewModel,
+                    OrderState.READY,
+                    PaymentMethod.CASH,
+                )
+                navController.navigate(Routes.STUDENT_TRACKING) { launchSingleTop = true }
+            }
+            "24" -> {
+                demoGallerySeeder.seedTrackingOrder(
+                    operationalViewModel,
+                    OrderState.DELIVERED,
+                    PaymentMethod.CASH,
+                )
+                navController.navigate(Routes.STUDENT_TRACKING) { launchSingleTop = true }
+            }
+            "25" -> navController.navigate(Routes.WALLET) { launchSingleTop = true }
+            "26" -> navController.navigate("wallet/add-money?method=card") { launchSingleTop = true }
+            "27" -> navController.navigate("wallet/add-money?method=spei") { launchSingleTop = true }
+            "28" -> navController.navigate(Routes.WALLET_METHODS) { launchSingleTop = true }
+            "29" -> navController.navigate(Routes.WALLET_ADD_CARD) { launchSingleTop = true }
+            "30" -> navController.navigate(Routes.WALLET_ACCOUNT) { launchSingleTop = true }
+            "51", "52", "53", "54", "55", "56" -> {
+                val styleIndex = itemId.toInt() - 51
+                operationalViewModel.applyGalleryClientOrders(emptyList(), selectedOrderId = null)
+                navController.navigate(Routes.receiptStickerRoute(styleIndex)) { launchSingleTop = true }
+            }
+            "caja" -> {
+                operationalViewModel.setRole(OperationalRole.CASHIER)
+                navController.navigate(Routes.CASHIER) { launchSingleTop = true }
+            }
+            "cocina" -> {
+                operationalViewModel.setRole(OperationalRole.KITCHEN)
+                navController.navigate(Routes.KITCHEN) { launchSingleTop = true }
+            }
+            "mesero" -> {
+                operationalViewModel.setRole(OperationalRole.WAITER)
+                navController.navigate(Routes.WAITER) { launchSingleTop = true }
+            }
+        }
+    }
 
     LaunchedEffect(testOnlyMode) {
         dataSourceResolver.isTestOnlyMode = testOnlyMode
@@ -91,6 +230,12 @@ fun AppNavHost(navController: NavHostController) {
             RoleSelectorScreen(
                 testOnlyMode = testOnlyMode,
                 onTestOnlyModeChange = { enabled -> testOnlyMode = enabled },
+                onOpenDemoGallery = {
+                    testOnlyMode = true
+                    navController.navigate(Routes.DEMO_GALLERY) {
+                        launchSingleTop = true
+                    }
+                },
                 onRoleSelected = { role ->
                     operationalViewModel.setRole(role)
                     when (role) {
@@ -111,6 +256,19 @@ fun AppNavHost(navController: NavHostController) {
                         }
                     }
                 },
+            )
+        }
+
+        composable(Routes.DEMO_GALLERY) {
+            LaunchedEffect(Unit) {
+                testOnlyMode = true
+                orderFlowViewModel.refresh()
+            }
+            DemoGalleryScreen(
+                onBack = {
+                    navController.popBackStack()
+                },
+                onItemSelected = { itemId -> navigateGalleryItem(itemId) },
             )
         }
 
@@ -246,14 +404,24 @@ fun AppNavHost(navController: NavHostController) {
                     orderState.createdOrder?.summary?.id?.let(operationalViewModel::selectOrder)
                     navController.navigateStudent(Routes.STUDENT_TRACKING)
                 },
-                onViewSticker = { navController.navigate(Routes.RECEIPT_STICKER) },
+                onViewSticker = { navController.navigate(Routes.receiptStickerRoute()) },
             )
         }
 
-        composable(Routes.RECEIPT_STICKER) {
+        composable(
+            route = Routes.RECEIPT_STICKER,
+            arguments = listOf(
+                navArgument("style") {
+                    type = NavType.IntType
+                    defaultValue = 0
+                },
+            ),
+        ) { entry ->
+            val styleIndex = entry.arguments?.getInt("style") ?: 0
             ReceiptStickerScreen(
                 order = orderState.createdOrder ?: operationalState.selectedOrder,
                 onBack = { navController.popBackStack() },
+                initialStyleIndex = styleIndex,
             )
         }
 
@@ -270,7 +438,7 @@ fun AppNavHost(navController: NavHostController) {
                 onCart = { navController.navigateStudent(Routes.CART) },
                 onOpenCatalog = { navController.navigateStudent(Routes.CATALOG) },
                 onSelectOrder = operationalViewModel::selectOrder,
-                onViewSticker = { navController.navigate(Routes.RECEIPT_STICKER) },
+                onViewSticker = { navController.navigate(Routes.receiptStickerRoute()) },
             )
         }
 

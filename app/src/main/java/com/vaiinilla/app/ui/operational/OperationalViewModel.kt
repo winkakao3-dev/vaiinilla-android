@@ -262,6 +262,20 @@ class OperationalViewModel @Inject constructor(
         refresh()
     }
 
+    fun applyGalleryClientOrders(orders: List<OrderDetail>, selectedOrderId: String?) {
+        pollingJob?.cancel()
+        pollingJob = null
+        roleAccessTokenStore.applyRole(OperationalRole.CLIENT)
+        _uiState.value = _uiState.value.copy(
+            role = OperationalRole.CLIENT,
+            orders = orders.sortedByDescending { it.summary.updatedAt },
+            selectedOrderId = selectedOrderId,
+            loading = false,
+            acting = false,
+            errorMessage = null,
+        )
+    }
+
     override fun onCleared() {
         pollingJob?.cancel()
         super.onCleared()
