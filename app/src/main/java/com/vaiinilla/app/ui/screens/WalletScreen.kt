@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -189,7 +190,8 @@ private fun BalanceCard(
             fontWeight = FontWeight.Black,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 8.dp, bottom = (-12).dp),
+                .offset(y = 12.dp)
+                .padding(end = 8.dp),
         )
         Column(modifier = Modifier.padding(24.dp)) {
             Text(

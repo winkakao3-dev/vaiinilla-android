@@ -7,6 +7,9 @@ local.properties
 build/
 **/build/
 captures/
+
+# Roborazzi compare/diff artifacts (reference PNGs live under app/src/test/roborazzi/)
+app/build/outputs/roborazzi/
 .externalNativeBuild/
 .cxx/
 

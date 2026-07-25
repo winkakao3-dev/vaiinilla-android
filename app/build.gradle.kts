@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.roborazzi)
 }
 
 val localProperties = Properties().apply {
@@ -72,14 +73,22 @@ android {
     }
 
     testOptions {
-        unitTests.all {
-            it.useJUnit()
-            it.systemProperty(
-                "vaiinilla.fixtureDir",
-                file("src/main/assets/fixtures").absolutePath,
-            )
+        unitTests {
+            isIncludeAndroidResources = true
+            all {
+                it.useJUnit()
+                it.systemProperty(
+                    "vaiinilla.fixtureDir",
+                    file("src/main/assets/fixtures").absolutePath,
+                )
+                it.systemProperties["robolectric.pixelCopyRenderMode"] = "hardware"
+            }
         }
     }
+}
+
+roborazzi {
+    outputDir.set(file("src/test/roborazzi"))
 }
 
 kotlin {
@@ -105,6 +114,12 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     testImplementation(libs.junit)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.junit.rule)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
