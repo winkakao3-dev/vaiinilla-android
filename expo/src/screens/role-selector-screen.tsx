@@ -1,21 +1,13 @@
 import { router } from 'expo-router';
 import React from 'react';
-import {
-  Image,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { DataModeChip } from '@/components/data-mode-chip';
 import { PhysicalPress } from '@/components/physical-press';
-import { LOGO_IMAGE } from '@/components/product-image';
+import { IconButton, PrimaryButton, SectionHead, TopBar } from '@/components/ui';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
-import { fonts } from '@/theme/typography';
+import { fontFamily, typography, weight } from '@/theme/typography';
 
 interface RoleSelectorScreenProps {
   testOnlyMode: boolean;
@@ -24,10 +16,16 @@ interface RoleSelectorScreenProps {
   onCashierSelected: () => void;
   onKitchenSelected: () => void;
   onWaiterSelected: () => void;
+  onAdminSelected?: () => void;
   entering?: boolean;
   enterError?: string | null;
 }
 
+/**
+ * Pantalla 01 del demo (portada, sin nav).
+ * .hero en accent con marca de agua, .section-head "Elige una vista" y el
+ * .role-grid de cinco tarjetas con su color por posicion.
+ */
 export function RoleSelectorScreen({
   testOnlyMode,
   onTestOnlyModeChange,
@@ -35,38 +33,130 @@ export function RoleSelectorScreen({
   onCashierSelected,
   onKitchenSelected,
   onWaiterSelected,
+  onAdminSelected,
   entering = false,
   enterError = null,
 }: RoleSelectorScreenProps) {
   const insets = useSafeAreaInsets();
 
+  const roles = [
+    {
+      icon: '☻',
+      title: 'Alumno',
+      copy: 'Menú, pedido, seguimiento y saldo.',
+      onPress: onStudentSelected,
+      tone: { backgroundColor: colors.accent, color: colors.accentInk },
+    },
+    {
+      icon: '▣',
+      title: 'Caja',
+      copy: 'Cobros, entregas y recargas.',
+      onPress: onCashierSelected,
+      tone: { backgroundColor: colors.yolk, color: '#28200b' },
+    },
+    {
+      icon: '♨',
+      title: 'Cocina',
+      copy: 'Comandas y preparación.',
+      onPress: onKitchenSelected,
+      tone: { backgroundColor: '#262724', color: '#f7f4e9' },
+    },
+    {
+      icon: '⌁',
+      title: 'Mesero',
+      copy: 'Pedidos listos para mesa.',
+      onPress: onWaiterSelected,
+      tone: { backgroundColor: colors.coral, color: '#2c100e' },
+    },
+    {
+      icon: '⌘',
+      title: 'Administración',
+      copy: 'Reportes, menú, promociones e integraciones.',
+      onPress: onAdminSelected ?? (() => router.push('/(ops)/admin')),
+      tone: { backgroundColor: colors.paper2, color: colors.ink },
+      wide: true,
+    },
+  ];
+
   return (
     <ScrollView
       style={styles.root}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.xl }]}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={[
+        styles.body,
+        {
+          paddingTop: Math.max(spacing.screenTop, insets.top + spacing.md),
+          paddingBottom: spacing.screenBottomNoNav + insets.bottom,
+        },
+      ]}
     >
+      <TopBar
+        title="Vaiinilla"
+        left={
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>VA</Text>
+          </View>
+        }
+        right={<IconButton name="contrast-outline" accessibilityLabel="Cambiar tema" />}
+      />
+
+      {/* .hero { radius:34; padding:24; min-height:208; accent; justify-end } */}
       <View style={styles.hero}>
-        <Image source={LOGO_IMAGE} style={styles.logo} accessibilityLabel="Vaiinilla" />
-        <Text style={styles.brand}>Vaiinilla</Text>
-        <Text style={styles.tagline}>Cafetería universitaria · pedido digital</Text>
-        <DataModeChip />
+        <Text style={styles.heroWatermark}>V</Text>
+        <Text style={styles.heroEyebrow}>Comedor conectado</Text>
+        <Text style={styles.heroTitle}>Come mejor. Espera menos.</Text>
+        <Text style={styles.heroCopy}>
+          Una sola demo para pedir, cobrar, preparar, entregar y administrar.
+        </Text>
+        <View style={styles.heroActions}>
+          <PrimaryButton
+            label="Entrar como alumno"
+            onPress={onStudentSelected}
+            disabled={entering}
+          />
+        </View>
       </View>
 
-      <View style={styles.testCard}>
-        <View style={styles.testCopy}>
-          <Text style={styles.testTitle}>Solo pruebas</Text>
-          <Text style={styles.testSubtitle}>Fixtures locales · sin backend</Text>
+      {enterError ? <Text style={styles.enterError}>{enterError}</Text> : null}
+
+      <SectionHead title="Elige una vista" actionLabel="5 roles" />
+
+      {/* .role-grid { gap:11 } */}
+      <View style={styles.roleGrid}>
+        {roles.map((role) => (
+          <PhysicalPress
+            key={role.title}
+            style={[
+              styles.roleCard,
+              { backgroundColor: role.tone.backgroundColor },
+              role.wide ? styles.roleCardWide : null,
+            ]}
+            onPress={role.onPress}
+            disabled={entering}
+          >
+            <Text style={[styles.roleIcon, { color: role.tone.color }]}>{role.icon}</Text>
+            <View>
+              <Text style={[styles.roleTitle, { color: role.tone.color }]}>{role.title}</Text>
+              <Text style={[styles.roleCopy, { color: role.tone.color }]}>{role.copy}</Text>
+            </View>
+          </PhysicalPress>
+        ))}
+      </View>
+
+      {/* Controles propios de la app (no existen en el demo web) */}
+      <View style={styles.testRow}>
+        <View style={styles.flex}>
+          <Text style={styles.testTitle}>Modo solo pruebas</Text>
+          <Text style={styles.testCopy}>Usa fixtures locales, sin Firebase.</Text>
         </View>
         <Switch
           value={testOnlyMode}
           onValueChange={onTestOnlyModeChange}
           trackColor={{ false: colors.paper2, true: colors.accent }}
-          thumbColor={colors.white}
+          thumbColor={colors.paper}
           disabled={entering}
         />
       </View>
-
-      {enterError ? <Text style={styles.enterError}>{enterError}</Text> : null}
 
       <PhysicalPress
         style={styles.galleryButton}
@@ -77,172 +167,114 @@ export function RoleSelectorScreen({
         }}
       >
         <Text style={styles.galleryTitle}>Ver todas las fases</Text>
-        <Text style={styles.gallerySubtitle}>Salta a cualquier pantalla con fixtures locales.</Text>
-      </PhysicalPress>
-
-      <Text style={styles.section}>Entrar como</Text>
-
-      <PhysicalPress
-        style={[styles.roleCard, styles.roleStudent]}
-        onPress={onStudentSelected}
-        disabled={entering}
-      >
-        <Text style={styles.roleEyebrow}>Alumno</Text>
-        <Text style={styles.roleTitle}>Menú, carrito y pedido</Text>
-        <Text style={styles.roleBody}>Flujo estudiante con catálogo, asistente, cartera y tracking.</Text>
-      </PhysicalPress>
-
-      <PhysicalPress style={styles.roleCard} onPress={onCashierSelected} disabled={entering}>
-        <Text style={styles.roleEyebrow}>Cajero</Text>
-        <Text style={styles.roleTitle}>Caja y cobro</Text>
-        <Text style={styles.roleBody}>Lista por cobrar y cobro en efectivo.</Text>
-      </PhysicalPress>
-
-      <PhysicalPress style={styles.roleCard} onPress={onKitchenSelected} disabled={entering}>
-        <Text style={styles.roleEyebrow}>Cocina</Text>
-        <Text style={styles.roleTitle}>Preparación</Text>
-        <Text style={styles.roleBody}>Avanza pedidos cobrados a preparando/listo.</Text>
-      </PhysicalPress>
-
-      <PhysicalPress style={styles.roleCard} onPress={onWaiterSelected} disabled={entering}>
-        <Text style={styles.roleEyebrow}>Mesero</Text>
-        <Text style={styles.roleTitle}>Entrega en mesa</Text>
-        <Text style={styles.roleBody}>Marca pedidos listos como entregados.</Text>
-      </PhysicalPress>
-
-      <PhysicalPress
-        style={styles.loginLink}
-        onPress={() => router.push('/login')}
-        disabled={entering}
-      >
-        <Text style={styles.loginLinkText}>Iniciar sesión (Firebase seed)</Text>
+        <Text style={styles.gallerySubtitle}>
+          Salta a cualquier pantalla con fixtures locales.
+        </Text>
       </PhysicalPress>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.paper,
-  },
-  content: {
-    paddingHorizontal: spacing.screen,
-    paddingBottom: spacing.xxl,
-    gap: spacing.md,
-  },
-  hero: {
+  flex: { flex: 1, minWidth: 0 },
+  root: { flex: 1, backgroundColor: colors.paper },
+  body: { paddingHorizontal: spacing.screen },
+
+  // .avatar { 42x42; radius:15; ink }
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 15,
+    backgroundColor: colors.ink,
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-    paddingVertical: spacing.lg,
+    justifyContent: 'center',
   },
-  logo: {
-    width: 72,
-    height: 72,
-    borderRadius: 22,
+  avatarText: { fontFamily, fontSize: 13, fontWeight: weight.black, color: colors.paper },
+
+  // .hero
+  hero: {
+    borderRadius: radius.hero,
+    padding: 24,
+    minHeight: 208,
+    backgroundColor: colors.accent,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
   },
-  brand: {
-    fontFamily: fonts.displayBlack,
-    fontSize: 32,
-    color: colors.ink,
-    letterSpacing: -0.5,
+  // .hero-watermark { right:-5; top:-38; 180px; opacity:.09 }
+  heroWatermark: {
+    position: 'absolute',
+    right: -5,
+    top: -38,
+    fontFamily,
+    fontSize: 180,
+    fontWeight: weight.black,
+    color: colors.accentInk,
+    opacity: 0.09,
   },
-  tagline: {
-    fontFamily: fonts.body,
+  heroEyebrow: {
+    fontFamily,
+    fontSize: 11,
+    fontWeight: weight.bold,
+    letterSpacing: 1.32,
+    color: colors.accentInk,
+    opacity: 0.72,
+  },
+  // .display { 34px; line-height:.98; letter-spacing:-.055em; 950 }
+  heroTitle: {
+    ...typography.display,
+    color: colors.accentInk,
+    marginTop: 6,
+  },
+  // .hero-copy { max-width:28ch; margin-top:10; opacity:.72 }
+  heroCopy: {
+    fontFamily,
     fontSize: 14,
-    color: colors.muted,
-    textAlign: 'center',
+    lineHeight: 14 * 1.5,
+    color: colors.accentInk,
+    opacity: 0.72,
+    maxWidth: 280,
+    marginTop: 10,
   },
-  testCard: {
-    backgroundColor: colors.paper2,
+  heroActions: { flexDirection: 'row', gap: 8, marginTop: 20 },
+
+  enterError: {
+    fontFamily,
+    fontSize: 12,
+    color: colors.coral,
+    marginTop: spacing.md,
+  },
+
+  // .role-grid / .role-card
+  roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 11 },
+  roleCard: {
+    width: '48%',
+    flexGrow: 1,
     borderRadius: radius.card,
-    padding: spacing.lg,
+    padding: 17,
+    minHeight: 148,
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+  },
+  roleCardWide: { width: '100%' },
+  roleIcon: { fontFamily, fontSize: 29 },
+  roleTitle: { fontFamily, fontSize: 19, lineHeight: 19, fontWeight: weight.black },
+  roleCopy: { fontFamily, fontSize: 12, lineHeight: 12 * 1.3, marginTop: 5, opacity: 0.65 },
+
+  testRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.line,
+    gap: 12,
+    marginTop: 22,
+    paddingVertical: 12,
   },
-  enterError: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    color: colors.coral,
-  },
-  testCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  testTitle: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 16,
-    color: colors.ink,
-  },
-  testSubtitle: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.muted,
-  },
+  testTitle: { fontFamily, fontSize: 13, fontWeight: weight.black, color: colors.ink },
+  testCopy: { fontFamily, fontSize: 11, color: colors.muted, marginTop: 2 },
+
   galleryButton: {
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  galleryTitle: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 14,
-    color: colors.ink,
-  },
-  gallerySubtitle: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  section: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 13,
-    color: colors.muted,
-    marginTop: spacing.sm,
-  },
-  roleCard: {
+    borderRadius: radius.lineItem,
     backgroundColor: colors.paper2,
-    borderRadius: radius.card,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.line,
-    gap: 6,
+    padding: 16,
   },
-  roleStudent: {
-    borderColor: colors.accent,
-    backgroundColor: '#edf3d8',
-  },
-  roleEyebrow: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: colors.muted,
-  },
-  roleTitle: {
-    fontFamily: fonts.display,
-    fontSize: 22,
-    color: colors.ink,
-  },
-  roleBody: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.ink2,
-  },
-  loginLink: {
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
-  },
-  loginLinkText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 13,
-    color: colors.ink,
-    textDecorationLine: 'underline',
-  },
+  galleryTitle: { fontFamily, fontSize: 13, fontWeight: weight.black, color: colors.ink },
+  gallerySubtitle: { fontFamily, fontSize: 11, color: colors.muted, marginTop: 3 },
 });

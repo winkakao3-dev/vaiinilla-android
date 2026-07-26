@@ -58,6 +58,7 @@ export default function RolesRoute() {
         onCashierSelected={() => void enterRole('cajero')}
         onKitchenSelected={() => void enterRole('cocina')}
         onWaiterSelected={() => void enterRole('mesero')}
+        onAdminSelected={() => router.push('/(ops)/admin')}
         entering={entering}
         enterError={enterError}
       />

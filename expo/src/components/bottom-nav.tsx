@@ -1,20 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import React, { useEffect, useRef } from 'react';
-import {
-  Animated,
-  Platform,
-  StyleSheet,
-  Text,
-  View,
-  type LayoutChangeEvent,
-} from 'react-native';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PhysicalPress } from '@/components/physical-press';
-import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
-import { fonts } from '@/theme/typography';
+import { colors, navShadow } from '@/theme/colors';
+import { nav as navToken, radius } from '@/theme/spacing';
+import { fontFamily, weight } from '@/theme/typography';
 
 export type StudentTab = 'menu' | 'assistant' | 'orders' | 'wallet' | 'cart';
 
@@ -32,14 +24,20 @@ const TABS: Array<{
   key: StudentTab;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
+  activeIcon: keyof typeof Ionicons.glyphMap;
 }> = [
-  { key: 'menu', label: 'Menú', icon: 'home-outline' },
-  { key: 'assistant', label: 'Asistente', icon: 'sparkles-outline' },
-  { key: 'orders', label: 'Pedidos', icon: 'receipt-outline' },
-  { key: 'wallet', label: 'Cartera', icon: 'wallet-outline' },
-  { key: 'cart', label: 'Carrito', icon: 'cart-outline' },
+  { key: 'menu', label: 'Menú', icon: 'home-outline', activeIcon: 'home' },
+  { key: 'assistant', label: 'Asistente', icon: 'sparkles-outline', activeIcon: 'sparkles' },
+  { key: 'orders', label: 'Pedidos', icon: 'receipt-outline', activeIcon: 'receipt' },
+  { key: 'wallet', label: 'Cartera', icon: 'wallet-outline', activeIcon: 'wallet' },
+  { key: 'cart', label: 'Carrito', icon: 'cart-outline', activeIcon: 'cart' },
 ];
 
+/**
+ * Replica de `.nav` del demo:
+ * barra solida #171817, 68px de alto, radio 24, padding 7, gap 4,
+ * item activo con fondo --accent y radio 18.
+ */
 export function BottomNav({
   activeTab,
   cartCount,
@@ -50,17 +48,6 @@ export function BottomNav({
   onCart,
 }: BottomNavProps) {
   const insets = useSafeAreaInsets();
-  const activeIndex = TABS.findIndex((tab) => tab.key === activeTab);
-  const pillX = useRef(new Animated.Value(0)).current;
-  const tabWidth = useRef(0);
-
-  useEffect(() => {
-    Animated.timing(pillX, {
-      toValue: activeIndex * tabWidth.current,
-      duration: 340,
-      useNativeDriver: true,
-    }).start();
-  }, [activeIndex, pillX]);
 
   const handlers: Record<StudentTab, () => void> = {
     menu: onMenu,
@@ -70,147 +57,96 @@ export function BottomNav({
     cart: onCart,
   };
 
-  const onLayout = (event: LayoutChangeEvent) => {
-    tabWidth.current = (event.nativeEvent.layout.width - spacing.md * 2) / TABS.length;
-    pillX.setValue(activeIndex * tabWidth.current);
-  };
-
-  const handlePress = (tab: StudentTab) => {
-    handlers[tab]();
-  };
-
-  const shell = (
-    <View style={styles.shell} onLayout={onLayout}>
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.pill,
-          {
-            width: tabWidth.current || '20%',
-            transform: [{ translateX: pillX }],
-          },
-        ]}
-      />
+  return (
+    <View
+      style={[styles.nav, { bottom: navToken.bottom + insets.bottom }]}
+      accessibilityRole="tablist"
+    >
       {TABS.map((tab) => {
         const selected = tab.key === activeTab;
         return (
           <PhysicalPress
             key={tab.key}
             scale="nav"
-            style={styles.tab}
-            onPress={() => handlePress(tab.key)}
+            style={[styles.item, selected && styles.itemActive]}
+            onPress={handlers[tab.key]}
             accessibilityRole="tab"
             accessibilityState={{ selected }}
           >
-            <View style={styles.iconWrap}>
+            <View>
               <Ionicons
-                name={tab.icon}
+                name={selected ? tab.activeIcon : tab.icon}
                 size={22}
-                color={selected ? colors.navTextActive : colors.navTextIdle}
+                color={selected ? colors.accentInk : colors.navTextIdle}
               />
               {tab.key === 'cart' && cartCount > 0 ? (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{cartCount}</Text>
+                <View style={styles.cartDot}>
+                  <Text style={styles.cartDotText}>{cartCount}</Text>
                 </View>
               ) : null}
             </View>
-            <Text style={[styles.label, selected && styles.labelActive]}>{tab.label}</Text>
+            <Text
+              style={[styles.label, { color: selected ? colors.accentInk : colors.navTextIdle }]}
+              numberOfLines={1}
+            >
+              {tab.label}
+            </Text>
           </PhysicalPress>
         );
       })}
     </View>
   );
-
-  return (
-    <View style={[styles.dock, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
-      {Platform.OS === 'ios' ? (
-        <BlurView intensity={40} tint="dark" style={styles.blur}>
-          {shell}
-        </BlurView>
-      ) : (
-        <View style={styles.androidShell}>{shell}</View>
-      )}
-    </View>
-  );
 }
 
 const styles = StyleSheet.create({
-  dock: {
+  nav: {
     position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
-    bottom: 0,
-  },
-  blur: {
+    zIndex: 70,
+    left: navToken.inset,
+    right: navToken.inset,
+    height: navToken.height,
     borderRadius: radius.nav,
-    overflow: 'hidden',
-  },
-  androidShell: {
-    borderRadius: radius.nav,
-    overflow: 'hidden',
-    backgroundColor: colors.navGlass,
-    borderWidth: 1,
-    borderColor: colors.navBorder,
-    shadowColor: '#000',
-    shadowOpacity: 0.5,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 18 },
-    elevation: 18,
-  },
-  shell: {
-    minHeight: 88,
-    padding: 9,
+    backgroundColor: colors.navBg,
     flexDirection: 'row',
-    alignItems: 'stretch',
-    backgroundColor: Platform.OS === 'ios' ? colors.navGlass : 'transparent',
-    borderWidth: Platform.OS === 'ios' ? 1 : 0,
-    borderColor: colors.navBorder,
-    borderRadius: radius.nav,
+    alignItems: 'center',
+    padding: navToken.padding,
+    gap: navToken.gap,
+    ...navShadow,
   },
-  pill: {
-    position: 'absolute',
-    top: 9,
-    bottom: 9,
-    left: 9,
-    borderRadius: 999,
-    backgroundColor: colors.navPill,
-    borderWidth: 1,
-    borderColor: colors.navInsetHighlight,
-  },
-  tab: {
+  item: {
     flex: 1,
+    height: navToken.itemHeight,
+    borderRadius: radius.navItem,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    zIndex: 1,
+    gap: 3,
   },
-  iconWrap: {
-    position: 'relative',
-  },
-  badge: {
-    position: 'absolute',
-    top: -6,
-    right: -10,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: colors.coral,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: colors.white,
-    fontFamily: fonts.bodyBold,
-    fontSize: 10,
+  itemActive: {
+    backgroundColor: colors.accent,
   },
   label: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 11,
-    color: colors.navTextIdle,
+    fontFamily,
+    fontSize: 10,
+    fontWeight: weight.bold,
   },
-  labelActive: {
-    color: colors.navTextActive,
-    fontFamily: fonts.bodyBold,
+  cartDot: {
+    position: 'absolute',
+    top: -6,
+    left: 14,
+    minWidth: 17,
+    height: 17,
+    paddingHorizontal: 4,
+    borderRadius: 99,
+    backgroundColor: colors.coral,
+    borderWidth: 2,
+    borderColor: colors.navBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cartDotText: {
+    fontFamily,
+    fontSize: 9,
+    fontWeight: weight.black,
+    color: '#28100d',
   },
 });

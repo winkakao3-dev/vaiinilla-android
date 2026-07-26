@@ -9,14 +9,20 @@ import {
   STICKER_STYLES,
   StickerStyleContent,
 } from '@/components/sticker-styles';
-import { destinationDisplayLabel } from '@/domain/tracking-timeline';
-import { PAYMENT_LABELS } from '@/domain/models';
+import { IconButton, TopBar } from '@/components/ui';
 import { getSampleOrder } from '@/data/order-repository';
+import { PAYMENT_LABELS } from '@/domain/models';
+import { destinationDisplayLabel } from '@/domain/tracking-timeline';
 import { useOrderFlow } from '@/hooks/use-order-flow';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
-import { fonts } from '@/theme/typography';
+import { fontFamily, weight } from '@/theme/typography';
 
+/**
+ * Pantallas 51 a 56 del demo (.ticket-screen, sin nav).
+ * topbar volver / "Tu receipt sticker" / compartir, y el .ticket-stage con
+ * la variante seleccionada.
+ */
 export function StickerScreen() {
   const insets = useSafeAreaInsets();
   const flow = useOrderFlow();
@@ -47,49 +53,82 @@ export function StickerScreen() {
   );
 
   return (
-    <ScrollView
-      style={styles.root}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
-    >
-      <PhysicalPress onPress={() => router.back()}>
-        <Text style={styles.back}>← Volver</Text>
-      </PhysicalPress>
-      <Text style={styles.title}>Receipt sticker</Text>
+    <View style={styles.root}>
+      <View
+        style={[
+          styles.header,
+          { paddingTop: Math.max(spacing.screenTop, insets.top + spacing.md) },
+        ]}
+      >
+        <TopBar
+          title="Tu receipt sticker"
+          left={
+            <IconButton
+              name="chevron-back"
+              accessibilityLabel="Volver"
+              onPress={() => router.back()}
+            />
+          }
+          right={
+            <IconButton name="share-outline" accessibilityLabel="Compartir receipt sticker" />
+          }
+        />
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-        {STICKER_STYLES.map((style) => (
-          <PhysicalPress
-            key={style.id}
-            style={[styles.chip, styleId === style.id && styles.chipActive]}
-            onPress={() => setStyleId(style.id)}
-          >
-            <Text style={[styles.chipText, styleId === style.id && styles.chipTextActive]}>
-              {style.label}
-            </Text>
-          </PhysicalPress>
-        ))}
+        {/* Selector de variante (el demo usa una pantalla por estilo) */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chips}
+        >
+          {STICKER_STYLES.map((style) => (
+            <PhysicalPress
+              key={style.id}
+              style={[styles.chip, styleId === style.id ? styles.chipActive : null]}
+              onPress={() => setStyleId(style.id)}
+            >
+              <Text
+                style={[styles.chipText, styleId === style.id ? styles.chipTextActive : null]}
+              >
+                {style.label}
+              </Text>
+            </PhysicalPress>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* .ticket-stage { padding:10; align-items:flex-start; scroll } */}
+      <ScrollView
+        style={styles.stage}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.stageContent,
+          { paddingBottom: spacing.screenBottomNoNav + insets.bottom },
+        ]}
+      >
+        <StickerStyleContent styleId={styleId} order={stickerData} />
       </ScrollView>
-
-      <StickerStyleContent styleId={styleId} order={stickerData} />
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.paper },
-  content: { paddingHorizontal: spacing.screen, gap: spacing.md, paddingBottom: spacing.xxl },
-  back: { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.ink },
-  title: { fontFamily: fonts.displayBlack, fontSize: 28, color: colors.ink },
-  chips: { gap: spacing.sm, paddingVertical: spacing.sm },
+  header: { paddingHorizontal: spacing.screen },
+
+  // .chips { gap:8; padding:0 20 4 }
+  chips: { gap: 8, paddingBottom: 4 },
   chip: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    height: 36,
+    paddingHorizontal: 14,
     borderRadius: radius.chip,
     backgroundColor: colors.paper2,
-    borderWidth: 1,
-    borderColor: colors.line,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  chipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
-  chipText: { fontFamily: fonts.bodyBold, fontSize: 13, color: colors.ink },
+  chipActive: { backgroundColor: colors.ink },
+  chipText: { fontFamily, fontSize: 12, fontWeight: weight.bold, color: colors.ink },
   chipTextActive: { color: colors.paper },
+
+  stage: { flex: 1, marginTop: spacing.md },
+  stageContent: { paddingHorizontal: 10, paddingTop: 10 },
 });

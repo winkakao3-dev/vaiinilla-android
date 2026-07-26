@@ -24,6 +24,7 @@ import { useStudentNav } from '@/hooks/use-student-nav';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { fonts } from '@/theme/typography';
+import { FeedbackOverlay } from '@/components/feedback-overlay';
 
 export function CatalogScreen() {
   const insets = useSafeAreaInsets();
@@ -143,6 +144,7 @@ export function CatalogScreen() {
       </ScrollView>
 
       <BottomNav {...nav} />
+      <FeedbackOverlay screenName="student-menu" />
 
       <ProductSheet />
     </View>
