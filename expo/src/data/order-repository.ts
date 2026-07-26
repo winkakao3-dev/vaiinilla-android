@@ -28,7 +28,7 @@ import type {
 import { parseCatalog, parseOperationalStatus } from '@/data/fixtures/parser';
 import { parseSampleOrder } from '@/data/fixtures/order-parser';
 import { apiRequest } from '@/core/http-client';
-import { DATA_SOURCE } from '@/core/config';
+import { isMockDataSource } from '@/core/runtime-data-source';
 
 const ORDER_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
@@ -330,7 +330,7 @@ export async function createOrder(
 ): Promise<OrderDetail> {
   const key = idempotencyKey ?? Crypto.randomUUID();
 
-  if (DATA_SOURCE === 'MOCK') {
+  if (isMockDataSource()) {
     return createOrderMock(request, key);
   }
 
@@ -364,7 +364,7 @@ export async function createStudentCheckout(
 ): Promise<OrderDetail> {
   const key = idempotencyKey ?? Crypto.randomUUID();
 
-  if (DATA_SOURCE === 'MOCK') {
+  if (isMockDataSource()) {
     return createStudentCheckoutMock(request, key);
   }
 
@@ -379,7 +379,7 @@ export async function createStudentCheckout(
 }
 
 export async function getOrder(orderId: string): Promise<OrderDetail> {
-  if (DATA_SOURCE === 'MOCK') {
+  if (isMockDataSource()) {
     const order = ordersById.get(orderId);
     if (!order) {
       throw new OrderRepositoryError('El pedido no existe.', 'ORDER_NOT_FOUND');
@@ -398,7 +398,7 @@ export async function getOrder(orderId: string): Promise<OrderDetail> {
 }
 
 export async function listOrders(role: OperationalRole = 'cliente'): Promise<OrderDetail[]> {
-  if (DATA_SOURCE === 'MOCK') {
+  if (isMockDataSource()) {
     return [...ordersById.values()]
       .filter((order) => matchesRole(role, order))
       .sort((a, b) => b.summary.updatedAt.localeCompare(a.summary.updatedAt));
@@ -420,7 +420,7 @@ export async function collectCash(
   expectedVersion: number,
   idempotencyKey: string,
 ): Promise<OrderDetail> {
-  if (DATA_SOURCE === 'MOCK') {
+  if (isMockDataSource()) {
     const cached = mutationResultsByKey.get(idempotencyKey);
     if (cached) {
       return cached;
@@ -479,7 +479,7 @@ export async function transitionOrder(
   expectedVersion: number,
   idempotencyKey: string,
 ): Promise<OrderDetail> {
-  if (DATA_SOURCE === 'MOCK') {
+  if (isMockDataSource()) {
     const cached = mutationResultsByKey.get(idempotencyKey);
     if (cached) {
       return cached;

@@ -21,12 +21,22 @@ interface RoleSelectorScreenProps {
   testOnlyMode: boolean;
   onTestOnlyModeChange: (enabled: boolean) => void;
   onStudentSelected: () => void;
+  onCashierSelected: () => void;
+  onKitchenSelected: () => void;
+  onWaiterSelected: () => void;
+  entering?: boolean;
+  enterError?: string | null;
 }
 
 export function RoleSelectorScreen({
   testOnlyMode,
   onTestOnlyModeChange,
   onStudentSelected,
+  onCashierSelected,
+  onKitchenSelected,
+  onWaiterSelected,
+  entering = false,
+  enterError = null,
 }: RoleSelectorScreenProps) {
   const insets = useSafeAreaInsets();
 
@@ -52,11 +62,15 @@ export function RoleSelectorScreen({
           onValueChange={onTestOnlyModeChange}
           trackColor={{ false: colors.paper2, true: colors.accent }}
           thumbColor={colors.white}
+          disabled={entering}
         />
       </View>
 
+      {enterError ? <Text style={styles.enterError}>{enterError}</Text> : null}
+
       <PhysicalPress
         style={styles.galleryButton}
+        disabled={entering}
         onPress={() => {
           onTestOnlyModeChange(true);
           router.push('/demo/gallery');
@@ -68,34 +82,39 @@ export function RoleSelectorScreen({
 
       <Text style={styles.section}>Entrar como</Text>
 
-      <PhysicalPress style={[styles.roleCard, styles.roleStudent]} onPress={onStudentSelected}>
+      <PhysicalPress
+        style={[styles.roleCard, styles.roleStudent]}
+        onPress={onStudentSelected}
+        disabled={entering}
+      >
         <Text style={styles.roleEyebrow}>Alumno</Text>
         <Text style={styles.roleTitle}>Menú, carrito y pedido</Text>
         <Text style={styles.roleBody}>Flujo estudiante con catálogo, asistente, cartera y tracking.</Text>
       </PhysicalPress>
 
-      <PhysicalPress style={styles.roleCard} onPress={() => router.push('/(ops)/caja')}>
+      <PhysicalPress style={styles.roleCard} onPress={onCashierSelected} disabled={entering}>
         <Text style={styles.roleEyebrow}>Cajero</Text>
         <Text style={styles.roleTitle}>Caja y cobro</Text>
-        <Text style={styles.roleBody}>Lista por cobrar y cobro en efectivo (MOCK).</Text>
+        <Text style={styles.roleBody}>Lista por cobrar y cobro en efectivo.</Text>
       </PhysicalPress>
 
-      <PhysicalPress
-        style={styles.roleCard}
-        onPress={() => router.push('/(ops)/cocina')}
-      >
+      <PhysicalPress style={styles.roleCard} onPress={onKitchenSelected} disabled={entering}>
         <Text style={styles.roleEyebrow}>Cocina</Text>
         <Text style={styles.roleTitle}>Preparación</Text>
         <Text style={styles.roleBody}>Avanza pedidos cobrados a preparando/listo.</Text>
       </PhysicalPress>
 
-      <PhysicalPress style={styles.roleCard} onPress={() => router.push('/(ops)/mesero')}>
+      <PhysicalPress style={styles.roleCard} onPress={onWaiterSelected} disabled={entering}>
         <Text style={styles.roleEyebrow}>Mesero</Text>
         <Text style={styles.roleTitle}>Entrega en mesa</Text>
         <Text style={styles.roleBody}>Marca pedidos listos como entregados.</Text>
       </PhysicalPress>
 
-      <PhysicalPress style={styles.loginLink} onPress={() => router.push('/login')}>
+      <PhysicalPress
+        style={styles.loginLink}
+        onPress={() => router.push('/login')}
+        disabled={entering}
+      >
         <Text style={styles.loginLinkText}>Iniciar sesión (Firebase seed)</Text>
       </PhysicalPress>
     </ScrollView>
@@ -144,6 +163,11 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     borderWidth: 1,
     borderColor: colors.line,
+  },
+  enterError: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: colors.coral,
   },
   testCopy: {
     flex: 1,

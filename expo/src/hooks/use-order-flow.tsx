@@ -10,6 +10,8 @@ import React, {
 } from 'react';
 
 import { DATA_SOURCE } from '@/core/config';
+import { getAccessToken } from '@/core/session-store';
+import { setForceMock } from '@/core/runtime-data-source';
 import { DEFAULT_SPACE } from '@/domain/checkout-fixtures';
 import { getCatalog } from '@/data/catalog-repository';
 import {
@@ -153,19 +155,79 @@ export function OrderFlowProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    AsyncStorage.getItem(TEST_ONLY_KEY).then((value) => {
-      if (value !== null) {
-        setState((current) => ({ ...current, testOnlyMode: value === 'true' }));
+    let cancelled = false;
+
+    const bootstrap = async () => {
+      const stored = await AsyncStorage.getItem(TEST_ONLY_KEY);
+      const testOnly = stored === null ? true : stored === 'true';
+      setForceMock(testOnly);
+      if (!cancelled) {
+        setState((current) => ({ ...current, testOnlyMode: testOnly }));
       }
-    });
-    void loadCatalog();
-    void refreshClientOrders();
+
+      // REMOTE without session: wait for role login — don't flash "Falta el token".
+      if (DATA_SOURCE === 'REMOTE' && !testOnly) {
+        const token = await getAccessToken();
+        if (!token) {
+          if (!cancelled) {
+            setState((current) => ({
+              ...current,
+              loading: false,
+              errorMessage: null,
+              catalog: null,
+            }));
+          }
+          return;
+        }
+      }
+
+      if (!cancelled) {
+        await loadCatalog();
+        await refreshClientOrders();
+      }
+    };
+
+    void bootstrap();
+    return () => {
+      cancelled = true;
+    };
   }, [loadCatalog, refreshClientOrders]);
 
-  const setTestOnlyMode = useCallback((enabled: boolean) => {
-    void AsyncStorage.setItem(TEST_ONLY_KEY, String(enabled));
-    setState((current) => ({ ...current, testOnlyMode: enabled }));
-  }, []);
+  const setTestOnlyMode = useCallback(
+    (enabled: boolean) => {
+      void AsyncStorage.setItem(TEST_ONLY_KEY, String(enabled));
+      setForceMock(enabled);
+      setState((current) => ({ ...current, testOnlyMode: enabled }));
+      // Reload catalog for the new source mode.
+      void (async () => {
+        setState((current) => ({ ...current, loading: true, errorMessage: null }));
+        try {
+          if (DATA_SOURCE === 'REMOTE' && !enabled) {
+            const token = await getAccessToken();
+            if (!token) {
+              setState((current) => ({
+                ...current,
+                loading: false,
+                catalog: null,
+                errorMessage: null,
+              }));
+              return;
+            }
+          }
+          const catalog = await getCatalog();
+          setState((current) => ({ ...current, loading: false, catalog }));
+          await refreshClientOrders();
+        } catch (error) {
+          setState((current) => ({
+            ...current,
+            loading: false,
+            errorMessage: error instanceof Error ? error.message : 'No pudimos cargar el catálogo.',
+          }));
+        }
+      })();
+    },
+    [refreshClientOrders],
+  );
 
   const filteredProducts = useMemo(() => {
     if (!state.catalog) {

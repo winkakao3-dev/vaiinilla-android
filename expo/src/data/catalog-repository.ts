@@ -1,6 +1,6 @@
 import catalogFixture from '../../assets/fixtures/catalog.json';
 import { apiRequest } from '@/core/http-client';
-import { DATA_SOURCE } from '@/core/config';
+import { isMockDataSource } from '@/core/runtime-data-source';
 import { validateCatalog } from '@/domain/contract-rules';
 import type { Catalog } from '@/domain/models';
 import { parseCatalog } from '@/data/fixtures/parser';
@@ -16,7 +16,7 @@ export class CatalogRepositoryError extends Error {
 }
 
 export async function getCatalog(): Promise<Catalog> {
-  if (DATA_SOURCE === 'MOCK') {
+  if (isMockDataSource()) {
     const catalog = parseCatalog(catalogFixture);
     validateCatalog(catalog);
     return catalog;

@@ -49,7 +49,18 @@ export function CatalogScreen() {
     );
   }
 
-  const categories = flow.catalog?.categories ?? [];
+  if (!flow.catalog) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.error}>Entra desde Roles para cargar el menú.</Text>
+        <PhysicalPress style={styles.retry} onPress={() => void flow.loadCatalog()}>
+          <Text style={styles.retryText}>Reintentar</Text>
+        </PhysicalPress>
+      </View>
+    );
+  }
+
+  const categories = flow.catalog.categories;
 
   return (
     <View style={styles.root}>
