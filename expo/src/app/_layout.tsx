@@ -3,7 +3,7 @@ import { Fraunces_700Bold, Fraunces_900Black } from '@expo-google-fonts/fraunces
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { OrderFlowProvider } from '@/hooks/use-order-flow';
@@ -13,21 +13,34 @@ import { colors } from '@/theme/colors';
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 export default function RootLayout() {
-  const [loaded] = useFonts({
+  const [loaded, error] = useFonts({
     DMSans_400Regular,
     DMSans_500Medium,
     DMSans_700Bold,
     Fraunces_700Bold,
     Fraunces_900Black,
   });
+  const [forceReady, setForceReady] = useState(false);
 
   useEffect(() => {
-    if (loaded) {
+    if (loaded || error) {
       SplashScreen.hideAsync().catch(() => undefined);
     }
-  }, [loaded]);
+  }, [loaded, error]);
 
-  if (!loaded) {
+  useEffect(() => {
+    const t = setTimeout(() => {
+      SplashScreen.hideAsync().catch(() => undefined);
+    }, 2500);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => setForceReady(true), 2500);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (!loaded && !error && !forceReady) {
     return <View style={{ flex: 1, backgroundColor: colors.paper }} />;
   }
 

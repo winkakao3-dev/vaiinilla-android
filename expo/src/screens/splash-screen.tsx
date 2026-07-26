@@ -11,15 +11,29 @@ export function SplashScreen({ onFinished }: SplashScreenProps) {
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.7)).current;
   const splashOpacity = useRef(new Animated.Value(1)).current;
+  const onFinishedRef = useRef(onFinished);
+  const finishedRef = useRef(false);
+
+  onFinishedRef.current = onFinished;
+
+  const finish = () => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    onFinishedRef.current();
+  };
 
   useEffect(() => {
     let cancelled = false;
+
+    const hardTimeout = setTimeout(() => {
+      finish();
+    }, 3500);
 
     const run = async () => {
       const reducedMotion = await AccessibilityInfo.isReduceMotionEnabled();
       if (reducedMotion) {
         if (!cancelled) {
-          onFinished();
+          finish();
         }
         return;
       }
@@ -39,7 +53,7 @@ export function SplashScreen({ onFinished }: SplashScreenProps) {
               useNativeDriver: true,
             }).start(() => {
               if (!cancelled) {
-                onFinished();
+                finish();
               }
             });
           });
@@ -51,7 +65,7 @@ export function SplashScreen({ onFinished }: SplashScreenProps) {
     return () => {
       cancelled = true;
     };
-  }, [onFinished, opacity, scale, splashOpacity]);
+  }, [opacity, scale, splashOpacity]);
 
   return (
     <Animated.View style={[styles.root, { opacity: splashOpacity }]}>
