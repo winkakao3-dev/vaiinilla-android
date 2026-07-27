@@ -29,43 +29,50 @@ class FixtureOrderRepository(
     private val mutationResultsByKey = linkedMapOf<String, OrderDetail>()
 
     @Synchronized
-    override fun createOrder(request: CreateOrderRequest, idempotencyKey: String): Result<OrderDetail> = runCatching {
-        createOrderInternal(
-            request = request,
-            idempotencyKey = idempotencyKey,
-            validate = ContractRules::validateCreateOrderRequest,
-            initialState = OrderState.PENDING_PAYMENT,
-            space = null,
-        )
-    }
+    override fun createOrder(
+        request: CreateOrderRequest,
+        idempotencyKey: String,
+    ): Result<OrderDetail> =
+        runCatching {
+            createOrderInternal(
+                request = request,
+                idempotencyKey = idempotencyKey,
+                validate = ContractRules::validateCreateOrderRequest,
+                initialState = OrderState.PENDING_PAYMENT,
+                space = null,
+            )
+        }
 
     @Synchronized
     override fun createStudentCheckout(
         request: CreateOrderRequest,
         idempotencyKey: String,
-    ): Result<OrderDetail> = runCatching {
-        val initialState = if (request.paymentMethod.isInstantDemoPayment) {
-            OrderState.PAID
-        } else {
-            OrderState.PENDING_PAYMENT
+    ): Result<OrderDetail> =
+        runCatching {
+            val initialState =
+                if (request.paymentMethod.isInstantDemoPayment) {
+                    OrderState.PAID
+                } else {
+                    OrderState.PENDING_PAYMENT
+                }
+            val space =
+                request.spaceId?.let { spaceId ->
+                    DemoCheckoutFixtures.spaceForId(spaceId)?.let { demoSpace ->
+                        OrderSpace(
+                            id = demoSpace.id,
+                            name = demoSpace.name,
+                            type = DemoCheckoutFixtures.SPACE_TYPE,
+                        )
+                    }
+                }
+            createOrderInternal(
+                request = request,
+                idempotencyKey = idempotencyKey,
+                validate = ContractRules::validateStudentCheckoutRequest,
+                initialState = initialState,
+                space = space,
+            )
         }
-        val space = request.spaceId?.let { spaceId ->
-            DemoCheckoutFixtures.spaceForId(spaceId)?.let { demoSpace ->
-                OrderSpace(
-                    id = demoSpace.id,
-                    name = demoSpace.name,
-                    type = DemoCheckoutFixtures.SPACE_TYPE,
-                )
-            }
-        }
-        createOrderInternal(
-            request = request,
-            idempotencyKey = idempotencyKey,
-            validate = ContractRules::validateStudentCheckoutRequest,
-            initialState = initialState,
-            space = space,
-        )
-    }
 
     private fun createOrderInternal(
         request: CreateOrderRequest,
@@ -97,96 +104,107 @@ class FixtureOrderRepository(
 
         val catalog = parser.parseCatalog(fixtureSource.read(CATALOG_PATH))
         ContractRules.validateCatalog(catalog)
-        val orderItems = request.items.mapIndexed { index, requestedItem ->
-            val product = catalog.products.firstOrNull { it.id == requestedItem.productId }
-                ?: throw OrderRepositoryException("PRODUCT_UNAVAILABLE", "El producto no está disponible.")
-            if (!product.available) {
-                throw OrderRepositoryException("PRODUCT_UNAVAILABLE", "El producto no está disponible.")
-            }
+        val orderItems =
+            request.items.mapIndexed { index, requestedItem ->
+                val product =
+                    catalog.products.firstOrNull { it.id == requestedItem.productId }
+                        ?: throw OrderRepositoryException("PRODUCT_UNAVAILABLE", "El producto no está disponible.")
+                if (!product.available) {
+                    throw OrderRepositoryException("PRODUCT_UNAVAILABLE", "El producto no está disponible.")
+                }
 
-            val selectedIds = requestedItem.optionIds.toSet()
-            try {
-                ContractRules.validateSelections(product, selectedIds)
-            } catch (error: IllegalArgumentException) {
-                throw OrderRepositoryException(
-                    code = "INVALID_PRODUCT_OPTION",
-                    message = error.message ?: "Las opciones no son válidas.",
+                val selectedIds = requestedItem.optionIds.toSet()
+                try {
+                    ContractRules.validateSelections(product, selectedIds)
+                } catch (error: IllegalArgumentException) {
+                    throw OrderRepositoryException(
+                        code = "INVALID_PRODUCT_OPTION",
+                        message = error.message ?: "Las opciones no son válidas.",
+                    )
+                }
+
+                val selectedOptions =
+                    product.optionGroups
+                        .flatMap { it.options }
+                        .filter { it.id in selectedIds }
+                val unitPrice = Money.productUnitPreview(product, selectedIds)
+                val itemSubtotal = Money.format(Money.parse(unitPrice) * requestedItem.quantity.toBigDecimal())
+
+                OrderItem(
+                    id = 501 + index,
+                    productId = product.id,
+                    productName = product.name,
+                    preparationStation = product.preparationStation,
+                    quantity = requestedItem.quantity,
+                    unitDigitalPrice = unitPrice,
+                    subtotal = itemSubtotal,
+                    options =
+                        selectedOptions.map { option ->
+                            OrderItemOption(
+                                optionId = option.id,
+                                name = option.name,
+                                extraPrice = option.extraPrice,
+                            )
+                        },
                 )
             }
 
-            val selectedOptions = product.optionGroups
-                .flatMap { it.options }
-                .filter { it.id in selectedIds }
-            val unitPrice = Money.productUnitPreview(product, selectedIds)
-            val itemSubtotal = Money.format(Money.parse(unitPrice) * requestedItem.quantity.toBigDecimal())
-
-            OrderItem(
-                id = 501 + index,
-                productId = product.id,
-                productName = product.name,
-                preparationStation = product.preparationStation,
-                quantity = requestedItem.quantity,
-                unitDigitalPrice = unitPrice,
-                subtotal = itemSubtotal,
-                options = selectedOptions.map { option ->
-                    OrderItemOption(
-                        optionId = option.id,
-                        name = option.name,
-                        extraPrice = option.extraPrice,
-                    )
+        val total =
+            Money.format(
+                orderItems.fold(BigDecimal.ZERO) { accumulated, item ->
+                    accumulated + Money.parse(item.subtotal)
                 },
             )
-        }
-
-        val total = Money.format(
-            orderItems.fold(BigDecimal.ZERO) { accumulated, item ->
-                accumulated + Money.parse(item.subtotal)
-            },
-        )
         val consultedAt = status.consultedAt
         val sequence = ordersById.size
-        val order = OrderDetail(
-            summary = OrderSummary(
-                id = UUID.nameUUIDFromBytes("vaiinilla:$idempotencyKey".toByteArray()).toString(),
-                folio = 3472 + sequence,
-                operationalDate = consultedAt.substringBefore('T'),
-                state = initialState,
-                paymentMethod = request.paymentMethod,
-                destination = request.destination,
-                space = space,
-                subtotal = total,
-                combinedSavings = "0.00",
-                cashbackAwarded = "0.00",
-                total = total,
-                version = 1,
-                createdAt = consultedAt,
-                updatedAt = consultedAt,
-            ),
-            user = null,
-            kitchenNotes = request.kitchenNotes,
-            items = orderItems,
-            pickupToken = "v1.fixture-${idempotencyKey.replace("-", "").take(32)}",
-        )
+        val order =
+            OrderDetail(
+                summary =
+                    OrderSummary(
+                        id = UUID.nameUUIDFromBytes("vaiinilla:$idempotencyKey".toByteArray()).toString(),
+                        folio = 3472 + sequence,
+                        operationalDate = consultedAt.substringBefore('T'),
+                        state = initialState,
+                        paymentMethod = request.paymentMethod,
+                        destination = request.destination,
+                        space = space,
+                        subtotal = total,
+                        combinedSavings = "0.00",
+                        cashbackAwarded = "0.00",
+                        total = total,
+                        version = 1,
+                        createdAt = consultedAt,
+                        updatedAt = consultedAt,
+                    ),
+                user = null,
+                kitchenNotes = request.kitchenNotes,
+                items = orderItems,
+                pickupToken = "v1.fixture-${idempotencyKey.replace("-", "").take(32)}",
+            )
         persist(order)
         createRequestsByKey[idempotencyKey] = StoredCreateRequest(request, order)
         return order
     }
 
     @Synchronized
-    override fun getOrder(orderId: String): Result<OrderDetail> = runCatching {
-        ordersById[orderId]
-            ?: throw OrderRepositoryException("ORDER_NOT_FOUND", "El pedido no existe.")
-    }
+    override fun getOrder(orderId: String): Result<OrderDetail> =
+        runCatching {
+            ordersById[orderId]
+                ?: throw OrderRepositoryException("ORDER_NOT_FOUND", "El pedido no existe.")
+        }
 
     @Synchronized
-    override fun listOrders(role: OperationalRole, updatedSince: String?): Result<List<OrderDetail>> = runCatching {
-        ordersById.values
-            .filter { order -> matchesRole(role, order) }
-            .filter { order ->
-                updatedSince == null || order.summary.updatedAt > updatedSince
-            }
-            .sortedByDescending { it.summary.updatedAt }
-    }
+    override fun listOrders(
+        role: OperationalRole,
+        updatedSince: String?,
+    ): Result<List<OrderDetail>> =
+        runCatching {
+            ordersById.values
+                .filter { order -> matchesRole(role, order) }
+                .filter { order ->
+                    updatedSince == null || order.summary.updatedAt > updatedSince
+                }.sortedByDescending { it.summary.updatedAt }
+        }
 
     @Synchronized
     override fun collectCash(
@@ -194,33 +212,35 @@ class FixtureOrderRepository(
         amountReceived: String,
         expectedVersion: Int,
         idempotencyKey: String,
-    ): Result<OrderDetail> = runMutation(idempotencyKey) {
-        requireUuid(idempotencyKey)
-        if (!ContractRules.isValidMoney(amountReceived)) {
-            throw OrderRepositoryException("VALIDATION_ERROR", "El monto recibido no es válido.")
-        }
+    ): Result<OrderDetail> =
+        runMutation(idempotencyKey) {
+            requireUuid(idempotencyKey)
+            if (!ContractRules.isValidMoney(amountReceived)) {
+                throw OrderRepositoryException("VALIDATION_ERROR", "El monto recibido no es válido.")
+            }
 
-        val order = requireOrder(orderId)
-        if (order.summary.version != expectedVersion) {
-            throw OrderRepositoryException("VERSION_CONFLICT", "El pedido cambió en otro dispositivo.")
-        }
-        if (order.summary.state != OrderState.PENDING_PAYMENT) {
-            throw OrderRepositoryException("INVALID_ORDER_STATE", "El pedido no está por cobrar.")
-        }
-        if (Money.parse(amountReceived) < Money.parse(order.summary.total)) {
-            throw OrderRepositoryException("INSUFFICIENT_CASH", "El monto recibido es menor al total.")
-        }
+            val order = requireOrder(orderId)
+            if (order.summary.version != expectedVersion) {
+                throw OrderRepositoryException("VERSION_CONFLICT", "El pedido cambió en otro dispositivo.")
+            }
+            if (order.summary.state != OrderState.PENDING_PAYMENT) {
+                throw OrderRepositoryException("INVALID_ORDER_STATE", "El pedido no está por cobrar.")
+            }
+            if (Money.parse(amountReceived) < Money.parse(order.summary.total)) {
+                throw OrderRepositoryException("INSUFFICIENT_CASH", "El monto recibido es menor al total.")
+            }
 
-        val timestamp = bumpTimestamp(order.summary.updatedAt)
-        val paid = order.withState(OrderState.PAID, order.summary.version + 1, timestamp)
-        val next = if (paid.requiresKitchen()) {
-            paid
-        } else {
-            paid.withState(OrderState.READY, paid.summary.version + 1, timestamp)
+            val timestamp = bumpTimestamp(order.summary.updatedAt)
+            val paid = order.withState(OrderState.PAID, order.summary.version + 1, timestamp)
+            val next =
+                if (paid.requiresKitchen()) {
+                    paid
+                } else {
+                    paid.withState(OrderState.READY, paid.summary.version + 1, timestamp)
+                }
+            persist(next)
+            next
         }
-        persist(next)
-        next
-    }
 
     @Synchronized
     override fun transition(
@@ -229,45 +249,48 @@ class FixtureOrderRepository(
         expectedVersion: Int,
         idempotencyKey: String,
         pickupToken: String?,
-    ): Result<OrderDetail> = runMutation(idempotencyKey) {
-        requireUuid(idempotencyKey)
-        val order = requireOrder(orderId)
-        if (order.summary.version != expectedVersion) {
-            throw OrderRepositoryException("VERSION_CONFLICT", "El pedido cambió en otro dispositivo.")
-        }
-
-        val current = order.summary.state
-        val allowed = when (targetState) {
-            OrderState.PREPARING -> current == OrderState.PAID && order.requiresKitchen()
-            OrderState.READY -> current == OrderState.PREPARING
-            OrderState.DELIVERED -> current == OrderState.READY
-            else -> false
-        }
-        if (!allowed) {
-            throw OrderRepositoryException("INVALID_TRANSITION", "La transición solicitada no es válida.")
-        }
-        if (targetState == OrderState.DELIVERED) {
-            val token = pickupToken ?: order.pickupToken
-            if (token.isNullOrBlank()) {
-                throw OrderRepositoryException("INVALID_PICKUP_TOKEN", "Entregar exige qr_token.")
+    ): Result<OrderDetail> =
+        runMutation(idempotencyKey) {
+            requireUuid(idempotencyKey)
+            val order = requireOrder(orderId)
+            if (order.summary.version != expectedVersion) {
+                throw OrderRepositoryException("VERSION_CONFLICT", "El pedido cambió en otro dispositivo.")
             }
-        }
 
-        val timestamp = bumpTimestamp(order.summary.updatedAt)
-        val next = order.withState(targetState, order.summary.version + 1, timestamp)
-        persist(next)
-        next
-    }
+            val current = order.summary.state
+            val allowed =
+                when (targetState) {
+                    OrderState.PREPARING -> current == OrderState.PAID && order.requiresKitchen()
+                    OrderState.READY -> current == OrderState.PREPARING
+                    OrderState.DELIVERED -> current == OrderState.READY
+                    else -> false
+                }
+            if (!allowed) {
+                throw OrderRepositoryException("INVALID_TRANSITION", "La transición solicitada no es válida.")
+            }
+            if (targetState == OrderState.DELIVERED) {
+                val token = pickupToken ?: order.pickupToken
+                if (token.isNullOrBlank()) {
+                    throw OrderRepositoryException("INVALID_PICKUP_TOKEN", "Entregar exige qr_token.")
+                }
+            }
+
+            val timestamp = bumpTimestamp(order.summary.updatedAt)
+            val next = order.withState(targetState, order.summary.version + 1, timestamp)
+            persist(next)
+            next
+        }
 
     private fun runMutation(
         idempotencyKey: String,
         block: () -> OrderDetail,
-    ): Result<OrderDetail> = runCatching {
-        mutationResultsByKey[idempotencyKey]?.let { return@runCatching it }
-        val result = block()
-        mutationResultsByKey[idempotencyKey] = result
-        result
-    }
+    ): Result<OrderDetail> =
+        runCatching {
+            mutationResultsByKey[idempotencyKey]?.let { return@runCatching it }
+            val result = block()
+            mutationResultsByKey[idempotencyKey] = result
+            result
+        }
 
     private fun persist(order: OrderDetail) {
         ordersById[order.summary.id] = order
@@ -281,18 +304,23 @@ class FixtureOrderRepository(
         state: OrderState,
         version: Int,
         updatedAt: String,
-    ): OrderDetail = copy(
-        summary = summary.copy(
-            state = state,
-            version = version,
-            updatedAt = updatedAt,
-        ),
-    )
+    ): OrderDetail =
+        copy(
+            summary =
+                summary.copy(
+                    state = state,
+                    version = version,
+                    updatedAt = updatedAt,
+                ),
+        )
 
     private fun OrderDetail.requiresKitchen(): Boolean =
         items.any { it.preparationStation == PreparationStation.KITCHEN }
 
-    private fun matchesRole(role: OperationalRole, order: OrderDetail): Boolean {
+    private fun matchesRole(
+        role: OperationalRole,
+        order: OrderDetail,
+    ): Boolean {
         val state = order.summary.state
         return when (role) {
             OperationalRole.CLIENT -> true

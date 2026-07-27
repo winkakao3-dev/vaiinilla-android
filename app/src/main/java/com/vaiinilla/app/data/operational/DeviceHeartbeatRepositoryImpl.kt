@@ -12,10 +12,11 @@ import kotlinx.serialization.json.Json
 class RemoteDeviceHeartbeatRepository(
     private val apiClient: VaiinillaApiClient,
 ) : DeviceHeartbeatRepository {
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        }
 
     override fun sendHeartbeat(
         deviceId: String,
@@ -25,27 +26,29 @@ class RemoteDeviceHeartbeatRepository(
         if (role == OperationalRole.CLIENT) {
             return Result.success(Unit)
         }
-        return apiClient.post(
-            path = "latidos",
-            body = json.encodeToString(
-                HeartbeatRequestDto(
-                    device = deviceId,
-                    role = role.wireValue,
-                ),
-            ),
-            headers = mapOf("Idempotency-Key" to idempotencyKey),
-        ).fold(
-            onSuccess = { Result.success(Unit) },
-            onFailure = { error ->
-                Result.failure(
-                    if (error is ApiClientException) {
-                        IllegalStateException("${error.code}: ${error.message}")
-                    } else {
-                        error
-                    },
-                )
-            },
-        )
+        return apiClient
+            .post(
+                path = "latidos",
+                body =
+                    json.encodeToString(
+                        HeartbeatRequestDto(
+                            device = deviceId,
+                            role = role.wireValue,
+                        ),
+                    ),
+                headers = mapOf("Idempotency-Key" to idempotencyKey),
+            ).fold(
+                onSuccess = { Result.success(Unit) },
+                onFailure = { error ->
+                    Result.failure(
+                        if (error is ApiClientException) {
+                            IllegalStateException("${error.code}: ${error.message}")
+                        } else {
+                            error
+                        },
+                    )
+                },
+            )
     }
 }
 

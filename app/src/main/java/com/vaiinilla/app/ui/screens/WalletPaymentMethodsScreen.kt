@@ -1,7 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,17 +41,19 @@ fun WalletPaymentMethodsScreen(
 
     WalletScreenShell(modifier = Modifier.fillMaxSize()) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .navigationBarsPadding(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .navigationBarsPadding(),
         ) {
             WalletSubflowTopBar(title = "Métodos de pago", onBack = onBack)
 
             Column(
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 24.dp),
+                modifier =
+                    Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 24.dp),
             ) {
                 Text(
                     "La tarjeta puede pagar un pedido directamente o añadir dinero. La transferencia sólo recarga el saldo.",
@@ -96,15 +97,21 @@ fun WalletPaymentMethodsScreen(
                     Column(modifier = Modifier.padding(14.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .background(colors.accent, RoundedCornerShape(12.dp)),
+                                modifier =
+                                    Modifier
+                                        .size(42.dp)
+                                        .background(colors.accent, RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text("SPEI", color = colors.accentInk, fontWeight = FontWeight.Black, fontSize = 9.sp)
                             }
                             Column(modifier = Modifier.padding(start = 12.dp)) {
-                                Text("Transferencia bancaria", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                                Text(
+                                    "Transferencia bancaria",
+                                    color = colors.ink,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 14.sp,
+                                )
                                 Text(
                                     "CLABE 646180157034852019 · Ref UTCH241087",
                                     color = colors.muted,
@@ -145,9 +152,10 @@ private fun SavedCardRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .background(colors.ink, RoundedCornerShape(12.dp)),
+                modifier =
+                    Modifier
+                        .size(42.dp)
+                        .background(colors.ink, RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(card.brand.take(4), color = colors.paper, fontWeight = FontWeight.Black, fontSize = 10.sp)
@@ -163,9 +171,10 @@ private fun SavedCardRow(
             }
             if (selected) {
                 Box(
-                    modifier = Modifier
-                        .size(22.dp)
-                        .background(colors.accent, RoundedCornerShape(99.dp)),
+                    modifier =
+                        Modifier
+                            .size(22.dp)
+                            .background(colors.accent, RoundedCornerShape(99.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text("✓", color = colors.accentInk, fontWeight = FontWeight.Black, fontSize = 11.sp)

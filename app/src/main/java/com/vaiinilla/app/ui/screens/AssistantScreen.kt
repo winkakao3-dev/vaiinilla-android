@@ -37,7 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -53,16 +52,17 @@ import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
-import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.OrderFlowUiState
+import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
-private val assistantChips = listOf(
-    "Rápido y llenador",
-    "Menos de \$60",
-    "Algo ligero",
-    "Combo con bebida",
-)
+private val assistantChips =
+    listOf(
+        "Rápido y llenador",
+        "Menos de \$60",
+        "Algo ligero",
+        "Combo con bebida",
+    )
 
 @Composable
 fun AssistantScreen(
@@ -74,14 +74,16 @@ fun AssistantScreen(
     onWallet: () -> Unit,
     onCart: () -> Unit,
     initialChip: String? = null,
+    showDemoTabs: Boolean = false,
 ) {
     val products = state.catalog?.products.orEmpty()
     var selectedChip by remember {
         mutableStateOf(initialChip?.takeIf { it in assistantChips } ?: assistantChips.first())
     }
-    val recommendations = remember(selectedChip, products) {
-        AssistantLocalReplies.filterByChip(selectedChip, products)
-    }
+    val recommendations =
+        remember(selectedChip, products) {
+            AssistantLocalReplies.filterByChip(selectedChip, products)
+        }
     val reduceMotion = rememberReducedMotion()
     var animateHero by remember { mutableStateOf(reduceMotion) }
     LaunchedEffect(Unit) { animateHero = true }
@@ -99,14 +101,16 @@ fun AssistantScreen(
     val colors = LocalVaiinillaColors.current
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.paper),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(colors.paper),
     ) {
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding(),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 132.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
@@ -124,20 +128,22 @@ fun AssistantScreen(
                     )
                     IconButton(
                         onClick = onOpenChat,
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(colors.paper2),
+                        modifier =
+                            Modifier
+                                .size(42.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(colors.paper2),
                     ) {
                         Icon(Icons.Outlined.Chat, contentDescription = "Abrir chat", tint = colors.ink)
                     }
                     Spacer(Modifier.size(8.dp))
                     IconButton(
                         onClick = {},
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(colors.paper2),
+                        modifier =
+                            Modifier
+                                .size(42.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(colors.paper2),
                     ) {
                         Icon(Icons.Outlined.Notifications, contentDescription = "Notificaciones", tint = colors.ink)
                     }
@@ -146,12 +152,13 @@ fun AssistantScreen(
 
             item {
                 Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .graphicsLayer {
-                            alpha = heroAlpha
-                            translationY = if (reduceMotion) 0f else heroOffset
-                        },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer {
+                                alpha = heroAlpha
+                                translationY = if (reduceMotion) 0f else heroOffset
+                            },
                     color = colors.ink,
                     shape = RoundedCornerShape(32.dp),
                 ) {
@@ -211,6 +218,7 @@ fun AssistantScreen(
         }
 
         VaiinillaBottomNav(
+            showDemoTabs = showDemoTabs,
             activeTab = StudentTab.ASSISTANT,
             cartCount = state.cartItemCount,
             onMenu = onMenu,
@@ -229,20 +237,38 @@ private fun AssistantMascot(
     modifier: Modifier = Modifier,
 ) {
     Canvas(modifier = modifier.size(width = 92.dp, height = 82.dp)) {
-        val triangle = Path().apply {
-            moveTo(size.width / 2f, size.height * 0.024f)
-            lineTo(size.width * 0.978f, size.height * 0.915f)
-            lineTo(size.width * 0.022f, size.height * 0.915f)
-            close()
-        }
+        val triangle =
+            Path().apply {
+                moveTo(size.width / 2f, size.height * 0.024f)
+                lineTo(size.width * 0.978f, size.height * 0.915f)
+                lineTo(size.width * 0.022f, size.height * 0.915f)
+                close()
+            }
         drawPath(triangle, colors.accent)
-        drawCircle(colors.accentInk, radius = size.width * 0.043f, center = Offset(size.width * 0.38f, size.height * 0.585f))
-        drawCircle(colors.accentInk, radius = size.width * 0.043f, center = Offset(size.width * 0.62f, size.height * 0.585f))
+        drawCircle(
+            colors.accentInk,
+            radius = size.width * 0.043f,
+            center =
+                Offset(
+                    size.width * 0.38f,
+                    size.height * 0.585f,
+                ),
+        )
+        drawCircle(
+            colors.accentInk,
+            radius = size.width * 0.043f,
+            center =
+                Offset(
+                    size.width * 0.62f,
+                    size.height * 0.585f,
+                ),
+        )
         drawPath(
-            path = Path().apply {
-                moveTo(size.width * 0.359f, size.height * 0.732f)
-                quadraticBezierTo(size.width / 2f, size.height * 0.878f, size.width * 0.641f, size.height * 0.732f)
-            },
+            path =
+                Path().apply {
+                    moveTo(size.width * 0.359f, size.height * 0.732f)
+                    quadraticBezierTo(size.width / 2f, size.height * 0.878f, size.width * 0.641f, size.height * 0.732f)
+                },
             color = colors.accentInk,
             style = Stroke(width = size.width * 0.033f),
         )
@@ -250,14 +276,19 @@ private fun AssistantMascot(
 }
 
 @Composable
-private fun AssistantChip(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun AssistantChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
     val colors = LocalVaiinillaColors.current
     Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(13.dp))
-            .background(if (selected) colors.ink else colors.paper2)
-            .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(13.dp))
+                .background(if (selected) colors.ink else colors.paper2)
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
         Text(
             text = label,
@@ -268,16 +299,21 @@ private fun AssistantChip(label: String, selected: Boolean, onClick: () -> Unit)
     }
 }
 
-private fun chipSectionLabel(@Suppress("UNUSED_PARAMETER") chip: String): String =
-    "Según tu elección"
+private fun chipSectionLabel(
+    @Suppress("UNUSED_PARAMETER") chip: String,
+): String = "Según tu elección"
 
 @Composable
-private fun RecommendationRow(item: AssistantRecommendation, onClick: () -> Unit) {
+private fun RecommendationRow(
+    item: AssistantRecommendation,
+    onClick: () -> Unit,
+) {
     val colors = LocalVaiinillaColors.current
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .physicalPress(onClick = onClick),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .physicalPress(onClick = onClick),
         color = colors.paper2,
         shape = RoundedCornerShape(22.dp),
     ) {
@@ -288,14 +324,16 @@ private fun RecommendationRow(item: AssistantRecommendation, onClick: () -> Unit
             ProductImage(
                 imageUrl = item.imageUrl,
                 contentDescription = item.name,
-                modifier = Modifier
-                    .size(68.dp)
-                    .clip(RoundedCornerShape(17.dp)),
+                modifier =
+                    Modifier
+                        .size(68.dp)
+                        .clip(RoundedCornerShape(17.dp)),
             )
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .padding(horizontal = 12.dp),
             ) {
                 Text(item.name, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 15.sp)
                 Text(item.meta, color = colors.muted, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))

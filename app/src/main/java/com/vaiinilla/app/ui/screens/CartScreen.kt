@@ -32,7 +32,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.domain.model.CartLine
@@ -72,21 +71,25 @@ fun CartScreen(
     onOpenTracking: () -> Unit = {},
     onOpenAssistant: () -> Unit = {},
     onOpenWallet: () -> Unit = {},
+    showDemoTabs: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
-    val insufficientBalance = state.checkoutPayment == PaymentMethod.BALANCE &&
-        !state.hasSufficientBalance(walletBalance)
+    val insufficientBalance =
+        state.checkoutPayment == PaymentMethod.BALANCE &&
+            !state.hasSufficientBalance(walletBalance)
     val canConfirm = state.canCreateOrder && !insufficientBalance
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.paper),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(colors.paper),
     ) {
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding(),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 132.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -128,6 +131,7 @@ fun CartScreen(
                         selected = state.checkoutPayment,
                         walletBalance = walletBalance,
                         onSelect = onPaymentChange,
+                        showDemoPayments = showDemoTabs,
                     )
                 }
                 item {
@@ -165,12 +169,13 @@ fun CartScreen(
                         enabled = canConfirm,
                         modifier = Modifier.fillMaxWidth().height(52.dp),
                         shape = RoundedCornerShape(18.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colors.accent,
-                            contentColor = colors.accentInk,
-                            disabledContainerColor = colors.paper2,
-                            disabledContentColor = colors.muted,
-                        ),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = colors.accent,
+                                contentColor = colors.accentInk,
+                                disabledContainerColor = colors.paper2,
+                                disabledContentColor = colors.muted,
+                            ),
                     ) {
                         if (state.creatingOrder) {
                             CircularProgressIndicator(
@@ -187,6 +192,7 @@ fun CartScreen(
         }
 
         VaiinillaBottomNav(
+            showDemoTabs = showDemoTabs,
             activeTab = StudentTab.CART,
             cartCount = state.cartItemCount,
             onMenu = onMenu,
@@ -199,14 +205,19 @@ fun CartScreen(
     }
 }
 
-private fun confirmLabel(payment: PaymentMethod): String = when (payment) {
-    PaymentMethod.CASH -> "Confirmar pedido"
-    PaymentMethod.BALANCE -> "Pagar con saldo"
-    PaymentMethod.CARD -> "Pagar con tarjeta"
-}
+private fun confirmLabel(payment: PaymentMethod): String =
+    when (payment) {
+        PaymentMethod.CASH -> "Confirmar pedido"
+        PaymentMethod.BALANCE -> "Pagar con saldo"
+        PaymentMethod.CARD -> "Pagar con tarjeta"
+    }
 
 @Composable
-private fun CartLineCard(line: CartLine, onMinus: () -> Unit, onPlus: () -> Unit) {
+private fun CartLineCard(
+    line: CartLine,
+    onMinus: () -> Unit,
+    onPlus: () -> Unit,
+) {
     val colors = LocalVaiinillaColors.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -220,22 +231,31 @@ private fun CartLineCard(line: CartLine, onMinus: () -> Unit, onPlus: () -> Unit
             ProductImage(
                 imageUrl = line.product.imageUrl,
                 contentDescription = line.product.name,
-                modifier = Modifier
-                    .size(74.dp)
-                    .clip(RoundedCornerShape(18.dp)),
+                modifier =
+                    Modifier
+                        .size(74.dp)
+                        .clip(RoundedCornerShape(18.dp)),
             )
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .padding(horizontal = 12.dp),
             ) {
                 Text(line.product.name, color = colors.ink, fontWeight = FontWeight.Black)
-                val variants = line.product.optionGroups
-                    .flatMap { it.options }
-                    .filter { it.id in line.selectedOptionIds }
-                    .joinToString(" · ") { option ->
-                        if (option.extraPrice == "0.00") option.name else "${option.name} +${moneyLabel(option.extraPrice)}"
-                    }
+                val variants =
+                    line.product.optionGroups
+                        .flatMap { it.options }
+                        .filter { it.id in line.selectedOptionIds }
+                        .joinToString(" · ") { option ->
+                            if (option.extraPrice ==
+                                "0.00"
+                            ) {
+                                option.name
+                            } else {
+                                "${option.name} +${moneyLabel(option.extraPrice)}"
+                            }
+                        }
                 if (variants.isNotBlank()) {
                     Text(variants, color = colors.muted, modifier = Modifier.padding(top = 4.dp))
                 }
@@ -269,10 +289,11 @@ private fun QuantityButton(
     val colors = LocalVaiinillaColors.current
     IconButton(
         onClick = onClick,
-        modifier = Modifier
-            .size(30.dp)
-            .clip(RoundedCornerShape(11.dp))
-            .background(colors.ink),
+        modifier =
+            Modifier
+                .size(30.dp)
+                .clip(RoundedCornerShape(11.dp))
+                .background(colors.ink),
     ) {
         Icon(icon, contentDescription = description, tint = colors.paper, modifier = Modifier.size(18.dp))
     }
@@ -292,10 +313,11 @@ private fun SectionTitle(title: String) {
 @Composable
 private fun OrderSummaryCard(state: OrderFlowUiState) {
     val colors = LocalVaiinillaColors.current
-    val destinationLabel = when (state.checkoutDestination) {
-        OrderDestination.TAKE_AWAY -> "Para llevar"
-        OrderDestination.IN_SPACE -> state.selectedSpaceName
-    }
+    val destinationLabel =
+        when (state.checkoutDestination) {
+            OrderDestination.TAKE_AWAY -> "Para llevar"
+            OrderDestination.IN_SPACE -> state.selectedSpaceName
+        }
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = colors.ink,
@@ -323,7 +345,11 @@ private fun OrderSummaryCard(state: OrderFlowUiState) {
 }
 
 @Composable
-private fun SummaryRow(label: String, value: String, colors: com.vaiinilla.app.ui.theme.VaiinillaColors) {
+private fun SummaryRow(
+    label: String,
+    value: String,
+    colors: com.vaiinilla.app.ui.theme.VaiinillaColors,
+) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,

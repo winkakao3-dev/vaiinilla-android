@@ -9,22 +9,23 @@ import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
-import java.util.UUID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.UUID
 
 class OrderRepositorySelectionTest {
     @Test
     fun `remote order repository parses create response from api envelope`() {
-        val repository = RemoteOrderRepository(
-            RecordingApiClient(
-                postResponse = sampleOrderEnvelope(OrderState.PENDING_PAYMENT.wireValue),
-            ),
-            OrderContractJson(),
-            InMemoryPickupTokenStore(),
-        )
+        val repository =
+            RemoteOrderRepository(
+                RecordingApiClient(
+                    postResponse = sampleOrderEnvelope(OrderState.PENDING_PAYMENT.wireValue),
+                ),
+                OrderContractJson(),
+                InMemoryPickupTokenStore(),
+            )
         val result = repository.createOrder(validRequest(), UUID.randomUUID().toString())
         assertTrue(result.isSuccess)
         assertEquals(OrderState.PENDING_PAYMENT, result.getOrThrow().summary.state)
@@ -51,17 +52,19 @@ class OrderRepositorySelectionTest {
 
     @Test
     fun `remote collect cash uses cobros-efectivo path`() {
-        val client = RecordingApiClient(
-            postResponse = sampleCashEnvelope("cobrado", version = 2),
-        )
+        val client =
+            RecordingApiClient(
+                postResponse = sampleCashEnvelope("cobrado", version = 2),
+            )
         val repository = RemoteOrderRepository(client, OrderContractJson(), InMemoryPickupTokenStore())
 
-        val result = repository.collectCash(
-            orderId = "order-1",
-            amountReceived = "26.00",
-            expectedVersion = 1,
-            idempotencyKey = UUID.randomUUID().toString(),
-        )
+        val result =
+            repository.collectCash(
+                orderId = "order-1",
+                amountReceived = "26.00",
+                expectedVersion = 1,
+                idempotencyKey = UUID.randomUUID().toString(),
+            )
 
         assertTrue(result.isSuccess)
         assertEquals("pedidos/order-1/cobros-efectivo", client.lastPath)
@@ -73,32 +76,39 @@ class OrderRepositorySelectionTest {
     fun `remote deliver transition includes cached qr_token`() {
         val store = InMemoryPickupTokenStore()
         store.save("order-1", "v1.cached")
-        val client = RecordingApiClient(
-            postResponse = sampleOrderEnvelope("entregado", version = 5),
-        )
+        val client =
+            RecordingApiClient(
+                postResponse = sampleOrderEnvelope("entregado", version = 5),
+            )
         val repository = RemoteOrderRepository(client, OrderContractJson(), store)
 
-        val result = repository.transition(
-            orderId = "order-1",
-            targetState = OrderState.DELIVERED,
-            expectedVersion = 4,
-            idempotencyKey = UUID.randomUUID().toString(),
-        )
+        val result =
+            repository.transition(
+                orderId = "order-1",
+                targetState = OrderState.DELIVERED,
+                expectedVersion = 4,
+                idempotencyKey = UUID.randomUUID().toString(),
+            )
 
         assertTrue(result.isSuccess)
         assertTrue(client.lastBody.contains("\"qr_token\":\"v1.cached\""))
         assertTrue(client.lastBody.contains("\"estado_objetivo\":\"entregado\""))
     }
 
-    private fun validRequest() = CreateOrderRequest(
-        paymentMethod = PaymentMethod.CASH,
-        destination = OrderDestination.TAKE_AWAY,
-        spaceId = null,
-        kitchenNotes = "",
-        items = listOf(CreateOrderItem(103, 1, listOf(310, 314))),
-    )
+    private fun validRequest() =
+        CreateOrderRequest(
+            paymentMethod = PaymentMethod.CASH,
+            destination = OrderDestination.TAKE_AWAY,
+            spaceId = null,
+            kitchenNotes = "",
+            items = listOf(CreateOrderItem(103, 1, listOf(310, 314))),
+        )
 
-    private fun sampleOrderEnvelope(state: String, version: Int = 1): String = """
+    private fun sampleOrderEnvelope(
+        state: String,
+        version: Int = 1,
+    ): String =
+        """
         {
           "data": {
             "id": "order-1",
@@ -122,9 +132,13 @@ class OrderRepositorySelectionTest {
           "meta": { "page": null, "total_pages": null, "total_items": null, "cursor": null },
           "error": null
         }
-    """.trimIndent()
+        """.trimIndent()
 
-    private fun sampleCashEnvelope(state: String, version: Int): String = """
+    private fun sampleCashEnvelope(
+        state: String,
+        version: Int,
+    ): String =
+        """
         {
           "data": {
             "pedido": {
@@ -151,7 +165,7 @@ class OrderRepositorySelectionTest {
           "meta": { "page": null, "total_pages": null, "total_items": null, "cursor": null },
           "error": null
         }
-    """.trimIndent()
+        """.trimIndent()
 
     private class RecordingApiClient(
         private val getResponses: Map<String, String> = emptyMap(),
@@ -162,13 +176,20 @@ class OrderRepositorySelectionTest {
         var lastBody: String = ""
         var lastHeaders: Map<String, String> = emptyMap()
 
-        override fun get(path: String, query: Map<String, String>): Result<String> {
+        override fun get(
+            path: String,
+            query: Map<String, String>,
+        ): Result<String> {
             lastPath = path
             return getResponses[path]?.let { Result.success(it) }
                 ?: Result.failure(IllegalStateException("GET $path no configurado"))
         }
 
-        override fun post(path: String, body: String, headers: Map<String, String>): Result<String> {
+        override fun post(
+            path: String,
+            body: String,
+            headers: Map<String, String>,
+        ): Result<String> {
             lastPath = path
             lastBody = body
             lastHeaders = headers

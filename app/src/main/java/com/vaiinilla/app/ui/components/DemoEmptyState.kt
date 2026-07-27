@@ -46,9 +46,10 @@ fun DemoEmptyState(
                     imageVector = icon,
                     contentDescription = null,
                     tint = colors.accentInk,
-                    modifier = Modifier
-                        .padding(18.dp)
-                        .size(36.dp),
+                    modifier =
+                        Modifier
+                            .padding(18.dp)
+                            .size(36.dp),
                 )
             }
             Text(
@@ -67,13 +68,15 @@ fun DemoEmptyState(
             if (actionLabel != null && onAction != null) {
                 Button(
                     onClick = onAction,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.accent,
-                        contentColor = colors.ink,
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 18.dp),
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = colors.accent,
+                            contentColor = colors.ink,
+                        ),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 18.dp),
                     shape = RoundedCornerShape(18.dp),
                 ) {
                     Text(actionLabel, fontWeight = FontWeight.Black)

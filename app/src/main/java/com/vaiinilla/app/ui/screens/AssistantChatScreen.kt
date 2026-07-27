@@ -51,11 +51,12 @@ import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
-private val chatSuggestions = listOf(
-    "¿Qué es bueno sin gluten?",
-    "Algo ligero y fresco",
-    "¿Qué recomiendas?",
-)
+private val chatSuggestions =
+    listOf(
+        "¿Qué es bueno sin gluten?",
+        "Algo ligero y fresco",
+        "¿Qué recomiendas?",
+    )
 
 private data class ChatMessage(
     val text: String,
@@ -70,6 +71,7 @@ fun AssistantChatScreen(
     onOrders: () -> Unit,
     onWallet: () -> Unit,
     onCart: () -> Unit,
+    showDemoTabs: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     val products = state.catalog?.products.orEmpty()
@@ -86,27 +88,31 @@ fun AssistantChatScreen(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(colors.accent.copy(alpha = 0.16f), Color.Transparent),
-                    radius = 900f,
-                    center = androidx.compose.ui.geometry.Offset(0.5f, 0f),
-                ),
-            )
-            .background(colors.paper),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(colors.accent.copy(alpha = 0.16f), Color.Transparent),
+                        radius = 900f,
+                        center =
+                            androidx.compose.ui.geometry
+                                .Offset(0.5f, 0f),
+                    ),
+                ).background(colors.paper),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .imePadding(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .imePadding(),
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Surface(
@@ -126,9 +132,10 @@ fun AssistantChatScreen(
                     color = colors.ink,
                     fontWeight = FontWeight.Black,
                     fontSize = 15.sp,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 9.dp),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .padding(start = 9.dp),
                 )
                 IconButton(onClick = { messages.clear() }) {
                     Icon(Icons.Outlined.DeleteOutline, contentDescription = "Limpiar chat", tint = colors.ink)
@@ -140,10 +147,11 @@ fun AssistantChatScreen(
 
             if (messages.isEmpty()) {
                 Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
@@ -156,9 +164,10 @@ fun AssistantChatScreen(
                         modifier = Modifier.padding(top = 14.dp),
                     )
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 14.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 14.dp),
                         verticalArrangement = Arrangement.spacedBy(9.dp),
                     ) {
                         chatSuggestions.forEach { suggestion ->
@@ -171,13 +180,17 @@ fun AssistantChatScreen(
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(messages, key = { "${it.fromUser}-${it.text.hashCode()}-${messages.indexOf(it)}" }) { message ->
+                    items(
+                        messages,
+                        key = { "${it.fromUser}-${it.text.hashCode()}-${messages.indexOf(it)}" },
+                    ) { message ->
                         ChatBubble(message = message, reduceMotion = reduceMotion)
                     }
                     item { Spacer(Modifier.size(88.dp)) }
@@ -193,6 +206,7 @@ fun AssistantChatScreen(
         }
 
         VaiinillaBottomNav(
+            showDemoTabs = showDemoTabs,
             activeTab = StudentTab.ASSISTANT,
             cartCount = state.cartItemCount,
             onMenu = onMenu,
@@ -200,15 +214,19 @@ fun AssistantChatScreen(
             onOrders = onOrders,
             onWallet = onWallet,
             onCart = onCart,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding(),
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding(),
         )
     }
 }
 
 @Composable
-private fun ChatSuggestionChip(label: String, onClick: () -> Unit) {
+private fun ChatSuggestionChip(
+    label: String,
+    onClick: () -> Unit,
+) {
     val colors = LocalVaiinillaColors.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -228,7 +246,10 @@ private fun ChatSuggestionChip(label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ChatBubble(message: ChatMessage, reduceMotion: Boolean) {
+private fun ChatBubble(
+    message: ChatMessage,
+    reduceMotion: Boolean,
+) {
     val colors = LocalVaiinillaColors.current
     var visible by remember(message) { mutableStateOf(false) }
     val scale by animateFloatAsState(
@@ -248,13 +269,14 @@ private fun ChatBubble(message: ChatMessage, reduceMotion: Boolean) {
         horizontalArrangement = if (message.fromUser) Arrangement.End else Arrangement.Start,
     ) {
         Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.88f)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    this.alpha = alpha
-                },
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.88f)
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                        this.alpha = alpha
+                    },
             color = if (message.fromUser) colors.accent2 else colors.paper2,
             shape = RoundedCornerShape(18.dp),
         ) {
@@ -292,7 +314,9 @@ private fun ChatComposer(
                 onValueChange = onValueChange,
                 modifier = Modifier.weight(1f),
                 singleLine = true,
-                textStyle = androidx.compose.ui.text.TextStyle(color = colors.ink, fontSize = 14.sp),
+                textStyle =
+                    androidx.compose.ui.text
+                        .TextStyle(color = colors.ink, fontSize = 14.sp),
                 decorationBox = { inner ->
                     Box {
                         if (value.isBlank()) {
@@ -307,10 +331,11 @@ private fun ChatComposer(
             }
             IconButton(
                 onClick = onSend,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(colors.accent),
+                modifier =
+                    Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(colors.accent),
             ) {
                 Icon(Icons.Outlined.Send, contentDescription = "Enviar", tint = colors.accentInk)
             }

@@ -77,14 +77,20 @@ fun VaiinillaBottomNav(
     onWallet: () -> Unit,
     onCart: () -> Unit,
     modifier: Modifier = Modifier,
+    showDemoTabs: Boolean = false,
 ) {
-    val tabs = listOf(
-        NavTab(StudentTab.MENU, "Menú", Icons.Outlined.Home, onMenu),
-        NavTab(StudentTab.ASSISTANT, "Asistente", Icons.Outlined.AutoAwesome, onAssistant),
-        NavTab(StudentTab.ORDERS, "Pedidos", Icons.Outlined.ReceiptLong, onOrders),
-        NavTab(StudentTab.WALLET, "Cartera", Icons.Outlined.AccountBalanceWallet, onWallet),
-        NavTab(StudentTab.CART, "Carrito", Icons.Outlined.ShoppingCart, onCart),
-    )
+    val tabs =
+        buildList {
+            add(NavTab(StudentTab.MENU, "Menú", Icons.Outlined.Home, onMenu))
+            if (showDemoTabs) {
+                add(NavTab(StudentTab.ASSISTANT, "Asistente", Icons.Outlined.AutoAwesome, onAssistant))
+            }
+            add(NavTab(StudentTab.ORDERS, "Pedidos", Icons.Outlined.ReceiptLong, onOrders))
+            if (showDemoTabs) {
+                add(NavTab(StudentTab.WALLET, "Cartera", Icons.Outlined.AccountBalanceWallet, onWallet))
+            }
+            add(NavTab(StudentTab.CART, "Carrito", Icons.Outlined.ShoppingCart, onCart))
+        }
     val activeIndex = tabs.indexOfFirst { it.tab == activeTab }.coerceAtLeast(0)
     val pillOffset by animateFloatAsState(
         targetValue = activeIndex.toFloat(),
@@ -93,45 +99,48 @@ fun VaiinillaBottomNav(
     )
 
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 12.dp),
         contentAlignment = Alignment.BottomCenter,
     ) {
         BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(88.dp)
-                .shadow(
-                    elevation = 18.dp,
-                    shape = NavShape,
-                    clip = false,
-                    ambientColor = NavShadow,
-                    spotColor = NavShadow,
-                )
-                .clip(NavShape)
-                .background(NavGlass)
-                .border(1.dp, NavBorder, NavShape)
-                .padding(9.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(88.dp)
+                    .shadow(
+                        elevation = 18.dp,
+                        shape = NavShape,
+                        clip = false,
+                        ambientColor = NavShadow,
+                        spotColor = NavShadow,
+                    ).clip(NavShape)
+                    .background(NavGlass)
+                    .border(1.dp, NavBorder, NavShape)
+                    .padding(9.dp),
         ) {
             val tabWidth = maxWidth / tabs.size
             Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(tabWidth)
-                    .offset(x = tabWidth * pillOffset)
-                    .clip(PillShape)
-                    .background(NavPill)
-                    .border(1.dp, NavInsetHighlight, PillShape),
+                modifier =
+                    Modifier
+                        .fillMaxHeight()
+                        .width(tabWidth)
+                        .offset(x = tabWidth * pillOffset)
+                        .clip(PillShape)
+                        .background(NavPill)
+                        .border(1.dp, NavInsetHighlight, PillShape),
             )
 
             Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(NavInsetHighlight),
+                modifier =
+                    Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(NavInsetHighlight),
             )
 
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -176,27 +185,30 @@ private fun NavItem(
         }
     }
 
-    val iconOffsetY = when {
-        iconBounce.value <= 0f -> 0f
-        iconBounce.value < 0.28f -> 2f * (iconBounce.value / 0.28f)
-        iconBounce.value < 0.58f -> 2f - 6f * ((iconBounce.value - 0.28f) / 0.3f)
-        iconBounce.value < 0.78f -> -4f + 5f * ((iconBounce.value - 0.58f) / 0.2f)
-        else -> 0f
-    }
-    val iconScale = when {
-        iconBounce.value <= 0f -> 1f
-        iconBounce.value < 0.28f -> 1f - 0.16f * (iconBounce.value / 0.28f)
-        iconBounce.value < 0.58f -> 0.84f + 0.29f * ((iconBounce.value - 0.28f) / 0.3f)
-        iconBounce.value < 0.78f -> 1.13f - 0.16f * ((iconBounce.value - 0.58f) / 0.2f)
-        else -> 1f
-    }
+    val iconOffsetY =
+        when {
+            iconBounce.value <= 0f -> 0f
+            iconBounce.value < 0.28f -> 2f * (iconBounce.value / 0.28f)
+            iconBounce.value < 0.58f -> 2f - 6f * ((iconBounce.value - 0.28f) / 0.3f)
+            iconBounce.value < 0.78f -> -4f + 5f * ((iconBounce.value - 0.58f) / 0.2f)
+            else -> 0f
+        }
+    val iconScale =
+        when {
+            iconBounce.value <= 0f -> 1f
+            iconBounce.value < 0.28f -> 1f - 0.16f * (iconBounce.value / 0.28f)
+            iconBounce.value < 0.58f -> 0.84f + 0.29f * ((iconBounce.value - 0.28f) / 0.3f)
+            iconBounce.value < 0.78f -> 1.13f - 0.16f * ((iconBounce.value - 0.58f) / 0.2f)
+            else -> 1f
+        }
 
     val foreground = if (active) NavTextActive else NavTextIdle
 
     Box(
-        modifier = modifier
-            .fillMaxHeight()
-            .physicalPress(scale = PhysicalPressScale.Nav, onClick = onClick),
+        modifier =
+            modifier
+                .fillMaxHeight()
+                .physicalPress(scale = PhysicalPressScale.Nav, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -208,25 +220,29 @@ private fun NavItem(
                     imageVector = icon,
                     contentDescription = label,
                     tint = foreground,
-                    modifier = Modifier
-                        .size(27.dp)
-                        .graphicsLayer {
-                            translationY = iconOffsetY
-                            scaleX = iconScale
-                            scaleY = iconScale
-                            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0.72f)
-                        },
+                    modifier =
+                        Modifier
+                            .size(27.dp)
+                            .graphicsLayer {
+                                translationY = iconOffsetY
+                                scaleX = iconScale
+                                scaleY = iconScale
+                                transformOrigin =
+                                    androidx.compose.ui.graphics
+                                        .TransformOrigin(0.5f, 0.72f)
+                            },
                 )
                 if (badge > 0) {
                     Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .offset(x = 4.dp, y = (-2).dp)
-                            .height(15.dp)
-                            .width(if (badge > 9) 20.dp else 15.dp)
-                            .clip(RoundedCornerShape(99.dp))
-                            .background(Coral)
-                            .border(2.dp, colors.ink, RoundedCornerShape(99.dp)),
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 4.dp, y = (-2).dp)
+                                .height(15.dp)
+                                .width(if (badge > 9) 20.dp else 15.dp)
+                                .clip(RoundedCornerShape(99.dp))
+                                .background(Coral)
+                                .border(2.dp, colors.ink, RoundedCornerShape(99.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -246,14 +262,16 @@ private fun NavItem(
                 lineHeight = 15.sp,
                 fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
                 letterSpacing = (-0.35).sp,
-                modifier = Modifier.graphicsLayer {
-                    translationY = when {
-                        labelBounce.value <= 0f -> 0f
-                        labelBounce.value < 0.45f -> 1.5f * (labelBounce.value / 0.45f)
-                        labelBounce.value < 0.72f -> 1.5f - 2.5f * ((labelBounce.value - 0.45f) / 0.27f)
-                        else -> 0f
-                    }
-                },
+                modifier =
+                    Modifier.graphicsLayer {
+                        translationY =
+                            when {
+                                labelBounce.value <= 0f -> 0f
+                                labelBounce.value < 0.45f -> 1.5f * (labelBounce.value / 0.45f)
+                                labelBounce.value < 0.72f -> 1.5f - 2.5f * ((labelBounce.value - 0.45f) / 0.27f)
+                                else -> 0f
+                            }
+                    },
             )
         }
     }

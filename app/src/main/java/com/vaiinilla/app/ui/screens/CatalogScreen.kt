@@ -1,7 +1,7 @@
 package com.vaiinilla.app.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,11 +16,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -53,8 +53,8 @@ import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.QuickActionCards
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
-import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.filteredProducts
@@ -62,10 +62,10 @@ import com.vaiinilla.app.ui.order.isSelectedProductValid
 import com.vaiinilla.app.ui.order.selectedProduct
 import com.vaiinilla.app.ui.order.selectedProductPreviewPrice
 import com.vaiinilla.app.ui.order.selectedProductPreviewTotal
+import com.vaiinilla.app.ui.theme.AmoledLimeWash
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
-import com.vaiinilla.app.ui.theme.AmoledLimeWash
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
 @Composable
@@ -85,30 +85,34 @@ fun CatalogScreen(
     onOpenTracking: () -> Unit = {},
     onOpenAssistant: () -> Unit = {},
     onOpenWallet: () -> Unit = {},
+    showDemoTabs: Boolean = false,
 ) {
     when {
         state.loading -> LoadingCatalog()
         state.errorMessage != null -> CatalogError(state.errorMessage, onRetry)
-        state.catalog != null -> CatalogContent(
-            state = state,
-            activeOrder = activeOrder,
-            onSearchChange = onSearchChange,
-            onCategorySelected = onCategorySelected,
-            onProductSelected = onProductSelected,
-            onDismissProduct = onDismissProduct,
-            onToggleOption = onToggleOption,
-            onClearOptionalGroup = onClearOptionalGroup,
-            onQuantityChange = onQuantityChange,
-            onAddProduct = onAddProduct,
-            onOpenCart = onOpenCart,
-            onOpenTracking = onOpenTracking,
-            onOpenAssistant = onOpenAssistant,
-            onOpenWallet = onOpenWallet,
-        )
-        else -> CatalogError(
-            message = "No pudimos cargar el catálogo.",
-            onRetry = onRetry,
-        )
+        state.catalog != null ->
+            CatalogContent(
+                state = state,
+                activeOrder = activeOrder,
+                onSearchChange = onSearchChange,
+                onCategorySelected = onCategorySelected,
+                onProductSelected = onProductSelected,
+                onDismissProduct = onDismissProduct,
+                onToggleOption = onToggleOption,
+                onClearOptionalGroup = onClearOptionalGroup,
+                onQuantityChange = onQuantityChange,
+                onAddProduct = onAddProduct,
+                onOpenCart = onOpenCart,
+                onOpenTracking = onOpenTracking,
+                onOpenAssistant = onOpenAssistant,
+                onOpenWallet = onOpenWallet,
+                showDemoTabs = showDemoTabs,
+            )
+        else ->
+            CatalogError(
+                message = "No pudimos cargar el catálogo.",
+                onRetry = onRetry,
+            )
     }
 }
 
@@ -129,33 +133,37 @@ private fun CatalogContent(
     onOpenTracking: () -> Unit,
     onOpenAssistant: () -> Unit,
     onOpenWallet: () -> Unit,
+    showDemoTabs: Boolean,
 ) {
     val catalog = requireNotNull(state.catalog)
     val colors = LocalVaiinillaColors.current
     val themeMode = LocalVaiinillaThemeMode.current
     val themeChanger = LocalVaiinillaThemeModeChanger.current
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.paper),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(colors.paper),
     ) {
         if (themeMode == VaiinillaThemeMode.Amoled) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        androidx.compose.ui.graphics.Brush.radialGradient(
-                            colors = listOf(AmoledLimeWash, colors.paper),
-                            radius = 900f,
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            androidx.compose.ui.graphics.Brush.radialGradient(
+                                colors = listOf(AmoledLimeWash, colors.paper),
+                                radius = 900f,
+                            ),
                         ),
-                    ),
             )
         }
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding(),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 132.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -185,19 +193,22 @@ private fun CatalogContent(
             }
 
             item(span = { GridItemSpan(maxLineSpan) }) {
-                QuickActionCards(
-                    modifier = Modifier.padding(top = 18.dp, bottom = 4.dp),
-                    onActionClick = { action ->
-                        if (action.title == "Asistente") {
-                            onOpenAssistant()
-                        }
-                    },
-                )
+                if (showDemoTabs) {
+                    QuickActionCards(
+                        modifier = Modifier.padding(top = 18.dp, bottom = 4.dp),
+                        onActionClick = { action ->
+                            if (action.title == "Asistente") {
+                                onOpenAssistant()
+                            }
+                        },
+                    )
+                }
             }
 
             item(span = { GridItemSpan(maxLineSpan) }) {
                 MenuSectionHead(
                     state = state,
+                    showAssistantShortcut = showDemoTabs,
                     onOpenAssistant = onOpenAssistant,
                 )
             }
@@ -214,6 +225,7 @@ private fun CatalogContent(
         }
 
         VaiinillaBottomNav(
+            showDemoTabs = showDemoTabs,
             activeTab = StudentTab.MENU,
             cartCount = state.cartItemCount,
             onMenu = {},
@@ -226,9 +238,11 @@ private fun CatalogContent(
 
         state.selectedProduct?.let { product ->
             val category = catalog.categories.firstOrNull { it.id == product.categoryId }
-            val defaultOptionIds = product.optionGroups.flatMap { group ->
-                group.options.take(group.minimumSelections).map { it.id }
-            }.toSet()
+            val defaultOptionIds =
+                product.optionGroups
+                    .flatMap { group ->
+                        group.options.take(group.minimumSelections).map { it.id }
+                    }.toSet()
             ProductDetailSheet(
                 product = product,
                 categoryName = category?.name.orEmpty(),
@@ -272,10 +286,11 @@ private fun CatalogHeader(
             Box {
                 IconButton(
                     onClick = onOpenCart,
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(colors.paper2),
+                    modifier =
+                        Modifier
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(colors.paper2),
                 ) {
                     Icon(Icons.Outlined.ShoppingCart, contentDescription = "Abrir carrito", tint = colors.ink)
                 }
@@ -296,14 +311,15 @@ private fun CatalogHeader(
             }
             Spacer(Modifier.size(10.dp))
             Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(15.dp))
-                    .background(colors.ink)
-                    .combinedClickable(
-                        onClick = {},
-                        onLongClick = onCycleTheme,
-                    ),
+                modifier =
+                    Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(15.dp))
+                        .background(colors.ink)
+                        .combinedClickable(
+                            onClick = {},
+                            onLongClick = onCycleTheme,
+                        ),
                 contentAlignment = Alignment.Center,
             ) {
                 Text("DA", color = colors.paper, fontWeight = FontWeight.Black)
@@ -327,7 +343,9 @@ private fun CatalogHeader(
                     onValueChange = onSearchChange,
                     modifier = Modifier.weight(1f),
                     singleLine = true,
-                    textStyle = androidx.compose.ui.text.TextStyle(color = colors.ink),
+                    textStyle =
+                        androidx.compose.ui.text
+                            .TextStyle(color = colors.ink),
                     decorationBox = { input ->
                         Box {
                             if (state.searchQuery.isBlank()) {
@@ -363,20 +381,24 @@ private fun CatalogHeader(
 @Composable
 private fun MenuSectionHead(
     state: OrderFlowUiState,
+    showAssistantShortcut: Boolean,
     onOpenAssistant: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 24.dp, bottom = 2.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 24.dp, bottom = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Bottom,
     ) {
         Text("Menú de hoy", color = colors.ink, fontWeight = FontWeight.Black)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onOpenAssistant) {
-                Text("No sé qué pedir", color = colors.muted, fontWeight = FontWeight.Bold)
+            if (showAssistantShortcut) {
+                TextButton(onClick = onOpenAssistant) {
+                    Text("No sé qué pedir", color = colors.muted, fontWeight = FontWeight.Bold)
+                }
             }
             state.operationalStatus?.let { status ->
                 Surface(
@@ -384,11 +406,12 @@ private fun MenuSectionHead(
                     shape = RoundedCornerShape(12.dp),
                 ) {
                     Text(
-                        text = if (status.acceptingOrders && status.cashSessionOpen) {
-                            "${status.estimatedTimeMinutes} min"
-                        } else {
-                            "No disponible"
-                        },
+                        text =
+                            if (status.acceptingOrders && status.cashSessionOpen) {
+                                "${status.estimatedTimeMinutes} min"
+                            } else {
+                                "No disponible"
+                            },
                         color = colors.accentInk,
                         fontWeight = FontWeight.ExtraBold,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
@@ -400,14 +423,19 @@ private fun MenuSectionHead(
 }
 
 @Composable
-private fun CategoryChip(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun CategoryChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
     val colors = LocalVaiinillaColors.current
     Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(13.dp))
-            .background(if (selected) colors.ink else colors.paper2)
-            .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(13.dp))
+                .background(if (selected) colors.ink else colors.paper2)
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
         Text(
             text = label,
@@ -418,12 +446,16 @@ private fun CategoryChip(label: String, selected: Boolean, onClick: () -> Unit) 
 }
 
 @Composable
-private fun ProductCard(product: Product, onClick: () -> Unit) {
+private fun ProductCard(
+    product: Product,
+    onClick: () -> Unit,
+) {
     val colors = LocalVaiinillaColors.current
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .physicalPress(scale = PhysicalPressScale.ProductCard, onClick = onClick),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .physicalPress(scale = PhysicalPressScale.ProductCard, onClick = onClick),
         color = colors.paper2,
         shape = RoundedCornerShape(28.dp),
     ) {
@@ -431,9 +463,10 @@ private fun ProductCard(product: Product, onClick: () -> Unit) {
             ProductImage(
                 imageUrl = product.imageUrl,
                 contentDescription = product.name,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(170.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(170.dp),
             )
             Column(modifier = Modifier.padding(horizontal = 13.dp, vertical = 14.dp)) {
                 Text(
@@ -477,14 +510,18 @@ private fun LoadingCatalog() {
 }
 
 @Composable
-private fun CatalogError(message: String, onRetry: () -> Unit) {
+private fun CatalogError(
+    message: String,
+    onRetry: () -> Unit,
+) {
     val colors = LocalVaiinillaColors.current
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.paper)
-            .statusBarsPadding()
-            .padding(24.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(colors.paper)
+                .statusBarsPadding()
+                .padding(24.dp),
         verticalArrangement = Arrangement.Center,
     ) {
         Text("No pudimos abrir el menú", color = colors.ink, fontWeight = FontWeight.Black)

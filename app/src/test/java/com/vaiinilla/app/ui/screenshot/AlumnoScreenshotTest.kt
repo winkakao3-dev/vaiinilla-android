@@ -236,10 +236,11 @@ class AlumnoScreenshotTest {
 
     @Test
     fun `11_cart_mesa_saldo`() {
-        val state = ScreenshotFixtures.cartState(
-            paymentMethod = PaymentMethod.BALANCE,
-            destination = OrderDestination.IN_SPACE,
-        )
+        val state =
+            ScreenshotFixtures.cartState(
+                paymentMethod = PaymentMethod.BALANCE,
+                destination = OrderDestination.IN_SPACE,
+            )
         composeTestRule.setContent {
             ScreenshotTheme {
                 CartScreen(
@@ -436,10 +437,11 @@ class AlumnoScreenshotTest {
 
     @Test
     fun `21_tracking_pagado`() {
-        val order = ScreenshotFixtures.sampleOrder(
-            state = OrderState.PAID,
-            paymentMethod = PaymentMethod.BALANCE,
-        )
+        val order =
+            ScreenshotFixtures.sampleOrder(
+                state = OrderState.PAID,
+                paymentMethod = PaymentMethod.BALANCE,
+            )
         val orderState = ScreenshotFixtures.catalogLoadedState()
         val trackingState = ScreenshotFixtures.trackingState(order)
         composeTestRule.setContent {

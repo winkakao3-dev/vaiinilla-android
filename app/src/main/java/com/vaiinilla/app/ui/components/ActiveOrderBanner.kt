@@ -31,9 +31,10 @@ fun ActiveOrderBanner(
     val badgeBackground = if (isPreparing) colors.yolk else Color.White.copy(alpha = 0.33f)
     val badgeText = if (isPreparing) colors.ink else colors.paper
     Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .physicalPress(onClick = onClick),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .physicalPress(onClick = onClick),
         color = colors.ink,
         shape = RoundedCornerShape(24.dp),
     ) {
@@ -73,9 +74,10 @@ fun ActiveOrderBanner(
                 }
             }
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 10.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Text("$itemCount productos", color = colors.muted, fontSize = 12.sp)

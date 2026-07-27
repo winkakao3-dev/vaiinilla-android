@@ -1,7 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,30 +29,31 @@ import com.vaiinilla.app.ui.components.WalletSubflowTopBar
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 @Composable
-fun WalletAccountScreen(
-    onBack: () -> Unit,
-) {
+fun WalletAccountScreen(onBack: () -> Unit) {
     val colors = LocalVaiinillaColors.current
 
     WalletScreenShell(modifier = Modifier.fillMaxSize()) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .navigationBarsPadding(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .navigationBarsPadding(),
         ) {
             WalletSubflowTopBar(title = "Mi cuenta", onBack = onBack)
 
             Column(
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 24.dp),
+                modifier =
+                    Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 24.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .background(colors.ink, RoundedCornerShape(18.dp)),
+                        modifier =
+                            Modifier
+                                .size(56.dp)
+                                .background(colors.ink, RoundedCornerShape(18.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text("DA", color = colors.paper, fontWeight = FontWeight.Black, fontSize = 16.sp)
@@ -72,9 +72,10 @@ fun WalletAccountScreen(
                 AccountField(label = "Plantel", value = "Campus Chihuahua")
 
                 Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp),
                     color = colors.paper2,
                     shape = RoundedCornerShape(20.dp),
                 ) {
@@ -110,11 +111,20 @@ fun WalletAccountScreen(
 }
 
 @Composable
-private fun AccountField(label: String, value: String) {
+private fun AccountField(
+    label: String,
+    value: String,
+) {
     val colors = LocalVaiinillaColors.current
     Column(modifier = Modifier.padding(vertical = 6.dp)) {
         Text(label, color = colors.muted, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-        Text(value, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 15.sp, modifier = Modifier.padding(top = 4.dp))
+        Text(
+            value,
+            color = colors.ink,
+            fontWeight = FontWeight.Black,
+            fontSize = 15.sp,
+            modifier = Modifier.padding(top = 4.dp),
+        )
     }
 }
 
@@ -135,9 +145,10 @@ private fun ActivityRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(colors.accent.copy(alpha = 0.35f), RoundedCornerShape(14.dp)),
+                modifier =
+                    Modifier
+                        .size(40.dp)
+                        .background(colors.accent.copy(alpha = 0.35f), RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(if (positive) "↗" else "↙", color = colors.ink, fontWeight = FontWeight.Black)

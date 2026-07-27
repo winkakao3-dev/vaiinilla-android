@@ -5,11 +5,12 @@ data class CartLine(
     val quantity: Int,
     val selectedOptionIds: Set<Int>,
 ) {
-    val key: String = buildString {
-        append(product.id)
-        append(':')
-        append(selectedOptionIds.sorted().joinToString(","))
-    }
+    val key: String =
+        buildString {
+            append(product.id)
+            append(':')
+            append(selectedOptionIds.sorted().joinToString(","))
+        }
 }
 
 data class CreateOrderRequest(
@@ -79,7 +80,10 @@ data class OrderItemOption(
     val extraPrice: String,
 )
 
-enum class PaymentMethod(val wireValue: String, val label: String) {
+enum class PaymentMethod(
+    val wireValue: String,
+    val label: String,
+) {
     CASH("efectivo", "Efectivo"),
     BALANCE("saldo", "Saldo"),
     CARD("tarjeta", "Tarjeta"),
@@ -89,20 +93,26 @@ enum class PaymentMethod(val wireValue: String, val label: String) {
         get() = this == BALANCE || this == CARD
 
     companion object {
-        fun fromWireValue(value: String): PaymentMethod = entries.firstOrNull {
-            it.wireValue == value
-        } ?: throw IllegalArgumentException("metodo_pago no soportado: $value")
+        fun fromWireValue(value: String): PaymentMethod =
+            entries.firstOrNull {
+                it.wireValue == value
+            } ?: throw IllegalArgumentException("metodo_pago no soportado: $value")
     }
 }
 
 object DemoCheckoutFixtures {
     const val SPACE_TYPE = "mesa"
 
-    data class DemoSpace(val id: Int, val number: Int, val name: String)
+    data class DemoSpace(
+        val id: Int,
+        val number: Int,
+        val name: String,
+    )
 
-    val DEMO_SPACES: List<DemoSpace> = (1..6).map { number ->
-        DemoSpace(id = 700 + number, number = number, name = "Mesa $number")
-    }
+    val DEMO_SPACES: List<DemoSpace> =
+        (1..6).map { number ->
+            DemoSpace(id = 700 + number, number = number, name = "Mesa $number")
+        }
 
     val DEFAULT_SPACE: DemoSpace = DEMO_SPACES.first { it.number == 4 }
 
@@ -114,19 +124,26 @@ object DemoCheckoutFixtures {
     fun spaceForId(id: Int): DemoSpace? = DEMO_SPACES.firstOrNull { it.id == id }
 }
 
-enum class OrderDestination(val wireValue: String, val label: String) {
+enum class OrderDestination(
+    val wireValue: String,
+    val label: String,
+) {
     TAKE_AWAY("para_llevar", "Para llevar"),
     IN_SPACE("en_espacio", "En espacio"),
     ;
 
     companion object {
-        fun fromWireValue(value: String): OrderDestination = entries.firstOrNull {
-            it.wireValue == value
-        } ?: throw IllegalArgumentException("destino no soportado: $value")
+        fun fromWireValue(value: String): OrderDestination =
+            entries.firstOrNull {
+                it.wireValue == value
+            } ?: throw IllegalArgumentException("destino no soportado: $value")
     }
 }
 
-enum class OrderState(val wireValue: String, val label: String) {
+enum class OrderState(
+    val wireValue: String,
+    val label: String,
+) {
     PENDING_PAYMENT("por_cobrar", "Por cobrar"),
     PAID("cobrado", "Cobrado"),
     PREPARING("preparando", "Preparando"),
@@ -135,25 +152,28 @@ enum class OrderState(val wireValue: String, val label: String) {
     ;
 
     val trackingIndex: Int
-        get() = when (this) {
-            PENDING_PAYMENT -> 0
-            PAID -> 1
-            PREPARING -> 2
-            READY -> 3
-            DELIVERED -> 4
-        }
+        get() =
+            when (this) {
+                PENDING_PAYMENT -> 0
+                PAID -> 1
+                PREPARING -> 2
+                READY -> 3
+                DELIVERED -> 4
+            }
 
     companion object {
-        val trackingFlow = listOf(
-            PENDING_PAYMENT,
-            PAID,
-            PREPARING,
-            READY,
-            DELIVERED,
-        )
+        val trackingFlow =
+            listOf(
+                PENDING_PAYMENT,
+                PAID,
+                PREPARING,
+                READY,
+                DELIVERED,
+            )
 
-        fun fromWireValue(value: String): OrderState = entries.firstOrNull {
-            it.wireValue == value
-        } ?: throw IllegalArgumentException("estado no soportado: $value")
+        fun fromWireValue(value: String): OrderState =
+            entries.firstOrNull {
+                it.wireValue == value
+            } ?: throw IllegalArgumentException("estado no soportado: $value")
     }
 }

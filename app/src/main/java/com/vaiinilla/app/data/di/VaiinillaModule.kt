@@ -44,10 +44,11 @@ import javax.inject.Singleton
 object VaiinillaModule {
     @Provides
     @Singleton
-    fun provideEnvironment(): AppEnvironment = AppEnvironment(
-        dataSourceMode = DataSourceMode.from(BuildConfig.DATA_SOURCE_MODE),
-        apiBaseUrl = BuildConfig.API_BASE_URL,
-    )
+    fun provideEnvironment(): AppEnvironment =
+        AppEnvironment(
+            dataSourceMode = DataSourceMode.from(BuildConfig.DATA_SOURCE_MODE),
+            apiBaseUrl = BuildConfig.API_BASE_URL,
+        )
 
     @Provides
     @Singleton
@@ -67,15 +68,11 @@ object VaiinillaModule {
 
     @Provides
     @Singleton
-    fun providePickupTokenStore(
-        store: SharedPreferencesPickupTokenStore,
-    ): PickupTokenStore = store
+    fun providePickupTokenStore(store: SharedPreferencesPickupTokenStore): PickupTokenStore = store
 
     @Provides
     @Singleton
-    fun provideActiveSessionRefresher(
-        coordinator: VaiinillaJwtRefreshCoordinator,
-    ): ActiveSessionRefresher = coordinator
+    fun provideActiveSessionRefresher(coordinator: VaiinillaJwtRefreshCoordinator): ActiveSessionRefresher = coordinator
 
     @Provides
     @Singleton
@@ -131,11 +128,12 @@ object VaiinillaModule {
     fun provideDeviceHeartbeatRepository(
         resolver: EffectiveDataSourceResolver,
         apiClient: VaiinillaApiClient,
-    ): DeviceHeartbeatRepository = SwitchingDeviceHeartbeatRepository(
-        resolver = resolver,
-        noop = NoOpDeviceHeartbeatRepository(),
-        remote = RemoteDeviceHeartbeatRepository(apiClient),
-    )
+    ): DeviceHeartbeatRepository =
+        SwitchingDeviceHeartbeatRepository(
+            resolver = resolver,
+            noop = NoOpDeviceHeartbeatRepository(),
+            remote = RemoteDeviceHeartbeatRepository(apiClient),
+        )
 
     @Provides
     @Singleton
@@ -143,9 +141,10 @@ object VaiinillaModule {
         resolver: EffectiveDataSourceResolver,
         apiClient: VaiinillaApiClient,
         orderContractJson: OrderContractJson,
-    ): CashSessionRepository = SwitchingCashSessionRepository(
-        resolver = resolver,
-        noop = NoOpCashSessionRepository(),
-        remote = RemoteCashSessionRepository(apiClient, orderContractJson),
-    )
+    ): CashSessionRepository =
+        SwitchingCashSessionRepository(
+            resolver = resolver,
+            noop = NoOpCashSessionRepository(),
+            remote = RemoteCashSessionRepository(apiClient, orderContractJson),
+        )
 }

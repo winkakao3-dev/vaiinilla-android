@@ -45,21 +45,23 @@ fun CashierOperationalScreen(
     val ready = state.orders.filter { it.summary.state == OrderState.READY }
 
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Cream)
-            .padding(20.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Cream)
+                .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item { OperationalHeader("Caja", "Ventanas 32–33", onBack) }
         item {
             val open = state.cashSessionOpen
             Text(
-                text = when (open) {
-                    true -> "Sesión de caja abierta"
-                    false -> "Sesión de caja cerrada — ábrela para recibir pedidos"
-                    null -> "Consultando sesión de caja…"
-                },
+                text =
+                    when (open) {
+                        true -> "Sesión de caja abierta"
+                        false -> "Sesión de caja cerrada — ábrela para recibir pedidos"
+                        null -> "Consultando sesión de caja…"
+                    },
                 color = MutedInk,
             )
             if (open == false) {
@@ -117,9 +119,10 @@ private fun CashCollectionCard(
     onCollect: (orderId: String, amount: String, version: Int) -> Unit,
 ) {
     var received by remember(order.summary.id) { mutableStateOf(order.summary.total) }
-    val change = runCatching {
-        BigDecimal(received).subtract(BigDecimal(order.summary.total))
-    }.getOrNull()
+    val change =
+        runCatching {
+            BigDecimal(received).subtract(BigDecimal(order.summary.total))
+        }.getOrNull()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         OutlinedTextField(
             value = received,
@@ -130,11 +133,12 @@ private fun CashCollectionCard(
             singleLine = true,
         )
         Text(
-            text = if (change != null && change >= BigDecimal.ZERO) {
-                "Cambio: ${moneyLabel(change.toPlainString())}"
-            } else {
-                "Monto insuficiente"
-            },
+            text =
+                if (change != null && change >= BigDecimal.ZERO) {
+                    "Cambio: ${moneyLabel(change.toPlainString())}"
+                } else {
+                    "Monto insuficiente"
+                },
             color = MutedInk,
         )
         OrderSummaryCard(
@@ -153,14 +157,16 @@ fun KitchenOperationalScreen(
     onStart: (orderId: String, version: Int) -> Unit,
     onReady: (orderId: String, version: Int) -> Unit,
 ) {
-    val active = state.orders.filter {
-        it.summary.state == OrderState.PAID || it.summary.state == OrderState.PREPARING
-    }
+    val active =
+        state.orders.filter {
+            it.summary.state == OrderState.PAID || it.summary.state == OrderState.PREPARING
+        }
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Cream)
-            .padding(20.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Cream)
+                .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item { OperationalHeader("Cocina", "Ventanas 36–38", onBack) }
@@ -173,11 +179,12 @@ fun KitchenOperationalScreen(
             }
         } else {
             items(active, key = { it.summary.id }) { order ->
-                val action = if (order.summary.state == OrderState.PAID) {
-                    "Empezar preparación" to { onStart(order.summary.id, order.summary.version) }
-                } else {
-                    "Marcar como listo" to { onReady(order.summary.id, order.summary.version) }
-                }
+                val action =
+                    if (order.summary.state == OrderState.PAID) {
+                        "Empezar preparación" to { onStart(order.summary.id, order.summary.version) }
+                    } else {
+                        "Marcar como listo" to { onReady(order.summary.id, order.summary.version) }
+                    }
                 OrderSummaryCard(
                     order = order,
                     actionLabel = action.first,
@@ -197,10 +204,11 @@ fun WaiterOperationalScreen(
 ) {
     val ready = state.orders.filter { it.summary.state == OrderState.READY }
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Cream)
-            .padding(20.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Cream)
+                .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item { OperationalHeader("Mesero", "Ventanas 39–40", onBack) }
@@ -240,9 +248,10 @@ private fun OperationalHeader(
         }
         Text(
             "Roles",
-            modifier = Modifier
-                .padding(top = 8.dp)
-                .clickable(onClick = onBack),
+            modifier =
+                Modifier
+                    .padding(top = 8.dp)
+                    .clickable(onClick = onBack),
             color = MutedInk,
             fontWeight = FontWeight.Bold,
         )

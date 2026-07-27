@@ -40,9 +40,10 @@ val OrderFlowUiState.selectedProduct: Product?
 val OrderFlowUiState.filteredProducts: List<Product>
     get() {
         val products = catalog?.products.orEmpty().filter(Product::available)
-        val categoryFiltered = selectedCategoryId?.let { categoryId ->
-            products.filter { it.categoryId == categoryId }
-        } ?: products
+        val categoryFiltered =
+            selectedCategoryId?.let { categoryId ->
+                products.filter { it.categoryId == categoryId }
+            } ?: products
         val query = searchQuery.trim()
         return if (query.isEmpty()) {
             categoryFiltered
@@ -67,14 +68,16 @@ val OrderFlowUiState.selectedProductPreviewTotal: String
     get() = Money.format(Money.parse(selectedProductPreviewPrice) * selectedQuantity.toBigDecimal())
 
 val OrderFlowUiState.isSelectedProductValid: Boolean
-    get() = selectedProduct?.let { product ->
-        runCatching { ContractRules.validateSelections(product, selectedOptionIds) }.isSuccess
-    } ?: false
+    get() =
+        selectedProduct?.let { product ->
+            runCatching { ContractRules.validateSelections(product, selectedOptionIds) }.isSuccess
+        } ?: false
 
 val OrderFlowUiState.isOperationallyReady: Boolean
-    get() = operationalStatus?.let { status ->
-        status.acceptingOrders && status.cashSessionOpen
-    } == true
+    get() =
+        operationalStatus?.let { status ->
+            status.acceptingOrders && status.cashSessionOpen
+        } == true
 
 val OrderFlowUiState.canSubmitCart: Boolean
     get() = cartLines.isNotEmpty() && !creatingOrder
@@ -86,11 +89,12 @@ val OrderFlowUiState.canCreateOrder: Boolean
     get() = canSubmitCart && (!requiresOperationalReady || isOperationallyReady)
 
 val OrderFlowUiState.checkoutSpaceId: Int?
-    get() = if (checkoutDestination == OrderDestination.IN_SPACE) {
-        selectedSpaceId
-    } else {
-        null
-    }
+    get() =
+        if (checkoutDestination == OrderDestination.IN_SPACE) {
+            selectedSpaceId
+        } else {
+            null
+        }
 
 val OrderFlowUiState.selectedSpaceName: String
     get() = DemoCheckoutFixtures.spaceForId(selectedSpaceId)?.name ?: DemoCheckoutFixtures.SPACE_NAME
@@ -102,8 +106,9 @@ fun OrderFlowUiState.hasSufficientBalance(walletBalance: Int): Boolean {
 }
 
 val OrderFlowUiState.usesStudentCheckout: Boolean
-    get() = checkoutPayment != PaymentMethod.CASH ||
-        checkoutDestination != OrderDestination.TAKE_AWAY
+    get() =
+        checkoutPayment != PaymentMethod.CASH ||
+            checkoutDestination != OrderDestination.TAKE_AWAY
 
 val OrderFlowUiState.operationalBlockerMessage: String?
     get() {
@@ -113,7 +118,8 @@ val OrderFlowUiState.operationalBlockerMessage: String?
             return "Caja no tiene sesión abierta. Entra a Caja y ábrela antes de confirmar."
         }
         if (!status.acceptingOrders) {
-            return "No hay Caja o Cocina disponibles. Si usas un solo teléfono, vuelve a intentar; la app avisará a ambos roles automáticamente."
+            return "No hay Caja o Cocina disponibles. Si usas un solo teléfono, " +
+                "vuelve a intentar; la app avisará a ambos roles automáticamente."
         }
         return "El establecimiento no está recibiendo pedidos en este momento."
     }

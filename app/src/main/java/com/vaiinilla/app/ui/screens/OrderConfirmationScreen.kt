@@ -1,8 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -10,8 +8,9 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -49,8 +48,8 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -59,7 +58,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
-import com.vaiinilla.app.ui.components.paymentMethodLabel
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.theme.Lime
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -118,28 +116,31 @@ fun OrderConfirmationScreen(
 
     val colors = LocalVaiinillaColors.current
     BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.paper)
-            .statusBarsPadding(),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(colors.paper)
+                .statusBarsPadding(),
     ) {
         val compact = maxWidth < 360.dp
         val horizontalPadding = if (compact) 12.dp else 18.dp
         val paperPadding = if (compact) 15.dp else 22.dp
 
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
-                .padding(bottom = 18.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .padding(bottom = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             ReceiptConfirmHeader(
                 paymentMethod = order.summary.paymentMethod,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = horizontalPadding, vertical = 12.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = horizontalPadding, vertical = 12.dp),
             )
 
             ReceiptPrinterMachine(
@@ -153,22 +154,26 @@ fun OrderConfirmationScreen(
                 order = order,
                 contentPadding = paperPadding,
                 progress = { printProgress.value },
-                modifier = Modifier
-                    .padding(horizontal = horizontalPadding)
-                    .fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .padding(horizontal = horizontalPadding)
+                        .fillMaxWidth(),
             )
 
             AnimatedVisibility(
                 visible = printed,
-                enter = fadeIn(tween(300)) + slideInVertically(
-                    animationSpec = tween(360),
-                    initialOffsetY = { it / 3 },
-                ),
+                enter =
+                    fadeIn(tween(300)) +
+                        slideInVertically(
+                            animationSpec = tween(360),
+                            initialOffsetY = { it / 3 },
+                        ),
             ) {
                 Column(
-                    modifier = Modifier
-                        .padding(horizontal = horizontalPadding, vertical = 18.dp)
-                        .fillMaxWidth(),
+                    modifier =
+                        Modifier
+                            .padding(horizontal = horizontalPadding, vertical = 18.dp)
+                            .fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     ReceiptCollectionUnlockStrip(
@@ -177,14 +182,16 @@ fun OrderConfirmationScreen(
                     )
                     Button(
                         onClick = onViewTracking,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
                         shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colors.accent,
-                            contentColor = colors.accentInk,
-                        ),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = colors.accent,
+                                contentColor = colors.accentInk,
+                            ),
                     ) {
                         Text(
                             "Seguir pedido",
@@ -194,14 +201,16 @@ fun OrderConfirmationScreen(
                     }
                     Button(
                         onClick = onViewSticker,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
                         shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colors.paper2,
-                            contentColor = colors.ink,
-                        ),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = colors.paper2,
+                                contentColor = colors.ink,
+                            ),
                     ) {
                         Text(
                             "Ver sticker completo",
@@ -211,14 +220,16 @@ fun OrderConfirmationScreen(
                     }
                     Button(
                         onClick = onReturnToMenu,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
                         shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = PrinterInk,
-                            contentColor = colors.paper,
-                        ),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = PrinterInk,
+                                contentColor = colors.paper,
+                            ),
                     ) {
                         Text(
                             "Volver al menú",
@@ -269,10 +280,11 @@ private fun ReceiptConfirmHeader(
             )
         }
         Box(
-            modifier = Modifier
-                .padding(start = 12.dp)
-                .size(52.dp)
-                .background(colors.accent, CircleShape),
+            modifier =
+                Modifier
+                    .padding(start = 12.dp)
+                    .size(52.dp)
+                    .background(colors.accent, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Text("✓", color = colors.accentInk, fontSize = 24.sp, fontWeight = FontWeight.Black)
@@ -286,23 +298,27 @@ private data class ConfirmationCopy(
     val subtitle: String,
 )
 
-private fun confirmationCopy(paymentMethod: PaymentMethod): ConfirmationCopy = when (paymentMethod) {
-    PaymentMethod.CASH -> ConfirmationCopy(
-        eyebrow = "PEDIDO CREADO",
-        title = "Tu pase de Caja acaba de salir.",
-        subtitle = "Págalo en efectivo y usa este receipt sticker para identificar la orden.",
-    )
-    PaymentMethod.BALANCE -> ConfirmationCopy(
-        eyebrow = "PAGO CONFIRMADO",
-        title = "Tu compra se volvió un sticker.",
-        subtitle = "El saldo fue descontado y Cocina ya recibió la comanda.",
-    )
-    PaymentMethod.CARD -> ConfirmationCopy(
-        eyebrow = "TARJETA AUTORIZADA",
-        title = "Tu comprobante digital está saliendo.",
-        subtitle = "La compra fue autorizada y el pedido ya llegó a Cocina.",
-    )
-}
+private fun confirmationCopy(paymentMethod: PaymentMethod): ConfirmationCopy =
+    when (paymentMethod) {
+        PaymentMethod.CASH ->
+            ConfirmationCopy(
+                eyebrow = "PEDIDO CREADO",
+                title = "Tu pase de Caja acaba de salir.",
+                subtitle = "Págalo en efectivo y usa este receipt sticker para identificar la orden.",
+            )
+        PaymentMethod.BALANCE ->
+            ConfirmationCopy(
+                eyebrow = "PAGO CONFIRMADO",
+                title = "Tu compra se volvió un sticker.",
+                subtitle = "El saldo fue descontado y Cocina ya recibió la comanda.",
+            )
+        PaymentMethod.CARD ->
+            ConfirmationCopy(
+                eyebrow = "TARJETA AUTORIZADA",
+                title = "Tu comprobante digital está saliendo.",
+                subtitle = "La compra fue autorizada y el pedido ya llegó a Cocina.",
+            )
+    }
 
 @Composable
 private fun ReceiptCollectionUnlockStrip(
@@ -310,11 +326,12 @@ private fun ReceiptCollectionUnlockStrip(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
-    val unlockedLabel = when (paymentMethod) {
-        PaymentMethod.CASH -> "Receipt editorial desbloqueado"
-        PaymentMethod.BALANCE -> "Vaiinilla Core añadido a tu colección"
-        PaymentMethod.CARD -> "Live Receipt añadido a tu colección"
-    }
+    val unlockedLabel =
+        when (paymentMethod) {
+            PaymentMethod.CASH -> "Receipt editorial desbloqueado"
+            PaymentMethod.BALANCE -> "Vaiinilla Core añadido a tu colección"
+            PaymentMethod.CARD -> "Live Receipt añadido a tu colección"
+        }
     Surface(
         modifier = modifier,
         color = colors.paper2,
@@ -356,27 +373,31 @@ private fun ReceiptPrinterMachine(
     val ledAlpha by ledTransition.animateFloat(
         initialValue = 1f,
         targetValue = .32f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 420),
-            repeatMode = RepeatMode.Reverse,
-        ),
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(durationMillis = 420),
+                repeatMode = RepeatMode.Reverse,
+            ),
         label = "receipt-printer-led-alpha",
     )
 
     Box(
-        modifier = modifier
-            .height(184.dp)
-            .background(
-                brush = Brush.verticalGradient(
-                    listOf(Color(0xFF1B1C1A), Color(0xFF080908), Color(0xFF141513)),
+        modifier =
+            modifier
+                .height(184.dp)
+                .background(
+                    brush =
+                        Brush.verticalGradient(
+                            listOf(Color(0xFF1B1C1A), Color(0xFF080908), Color(0xFF141513)),
+                        ),
+                    shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp),
                 ),
-                shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp),
-            ),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 24.dp, top = 24.dp, end = 24.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = 24.dp, top = 24.dp, end = 24.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -392,17 +413,19 @@ private fun ReceiptPrinterMachine(
                     maxLines = 1,
                 )
                 Box(
-                    modifier = Modifier
-                        .width(34.dp)
-                        .height(8.dp)
-                        .background(Color(0xFF30312E), CircleShape),
+                    modifier =
+                        Modifier
+                            .width(34.dp)
+                            .height(8.dp)
+                            .background(Color(0xFF30312E), CircleShape),
                 )
             }
 
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 14.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 14.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -424,16 +447,18 @@ private fun ReceiptPrinterMachine(
             }
 
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 13.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 13.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .graphicsLayer { alpha = if (printed) 1f else ledAlpha }
-                        .background(Color(0xFFFFD15B), CircleShape),
+                    modifier =
+                        Modifier
+                            .size(12.dp)
+                            .graphicsLayer { alpha = if (printed) 1f else ledAlpha }
+                            .background(Color(0xFFFFD15B), CircleShape),
                 )
                 Text(
                     statusLabel,
@@ -455,20 +480,22 @@ private fun ReceiptPrinterMachine(
         }
 
         Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(horizontal = 30.dp, vertical = 15.dp)
-                .fillMaxWidth()
-                .height(27.dp)
-                .background(Color(0xFF030403), CircleShape),
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 30.dp, vertical = 15.dp)
+                    .fillMaxWidth()
+                    .height(27.dp)
+                    .background(Color(0xFF030403), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .height(5.dp)
-                    .background(Color(0xFF30312E), CircleShape),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .height(5.dp)
+                        .background(Color(0xFF30312E), CircleShape),
             )
         }
     }
@@ -482,38 +509,39 @@ private fun ReceiptPaperOutput(
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = modifier
-            .graphicsLayer {
-                val current = progress().coerceIn(0f, 1f)
-                translationY = if (current < 1f) sin(current * 110f) * 1.4f else 0f
-                alpha = .55f + (.45f * current)
-                shadowElevation = if (current >= .995f) 18.dp.toPx() else 0f
-                shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
-                clip = false
-            }
-            .drawWithContent {
-                val current = progress().coerceIn(0f, 1f)
-                val contentDrawScope = this
-                clipRect(
-                    left = 0f,
-                    top = 0f,
-                    right = size.width,
-                    bottom = size.height * current,
-                ) {
-                    contentDrawScope.drawContent()
-                }
-            },
+        modifier =
+            modifier
+                .graphicsLayer {
+                    val current = progress().coerceIn(0f, 1f)
+                    translationY = if (current < 1f) sin(current * 110f) * 1.4f else 0f
+                    alpha = .55f + (.45f * current)
+                    shadowElevation = if (current >= .995f) 18.dp.toPx() else 0f
+                    shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
+                    clip = false
+                }.drawWithContent {
+                    val current = progress().coerceIn(0f, 1f)
+                    val contentDrawScope = this
+                    clipRect(
+                        left = 0f,
+                        top = 0f,
+                        right = size.width,
+                        bottom = size.height * current,
+                    ) {
+                        contentDrawScope.drawContent()
+                    }
+                },
         color = PaperInk,
         shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp),
         shadowElevation = 18.dp,
     ) {
         Column(
-            modifier = Modifier.padding(
-                start = contentPadding,
-                top = 18.dp,
-                end = contentPadding,
-                bottom = 24.dp,
-            ),
+            modifier =
+                Modifier.padding(
+                    start = contentPadding,
+                    top = 18.dp,
+                    end = contentPadding,
+                    bottom = 24.dp,
+                ),
         ) {
             Text(
                 "ANTOJO",
@@ -530,9 +558,10 @@ private fun ReceiptPaperOutput(
             ) {
                 listOf("XS", "S", "M", "XL", "XXL").forEach { size ->
                     Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .border(1.dp, PaperText, CircleShape),
+                        modifier =
+                            Modifier
+                                .size(34.dp)
+                                .border(1.dp, PaperText, CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(size, color = PaperText, fontSize = 9.sp)
@@ -550,12 +579,15 @@ private fun ReceiptPaperOutput(
                 Column(modifier = Modifier.weight(1.25f)) {
                     TicketBarcode(
                         seed = order.summary.folio,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(104.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(104.dp),
                     )
                     Text(
-                        order.summary.id.takeLast(14).uppercase(),
+                        order.summary.id
+                            .takeLast(14)
+                            .uppercase(),
                         color = PaperText,
                         fontFamily = FontFamily.Monospace,
                         fontSize = 8.sp,
@@ -567,10 +599,11 @@ private fun ReceiptPaperOutput(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(76.dp)
-                            .border(2.dp, PaperText, RoundedCornerShape(50)),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(76.dp)
+                                .border(2.dp, PaperText, RoundedCornerShape(50)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text("VNNL", color = PaperText, fontSize = 24.sp)
@@ -602,16 +635,18 @@ private fun ReceiptPaperOutput(
             )
 
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 18.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 18.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 listOf("✦", "☼", "◉", "⌁").forEach { glyph ->
                     Box(
-                        modifier = Modifier
-                            .size(45.dp)
-                            .border(1.dp, PaperText, CircleShape),
+                        modifier =
+                            Modifier
+                                .size(45.dp)
+                                .border(1.dp, PaperText, CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(glyph, color = PaperText, fontSize = 16.sp)
@@ -686,11 +721,12 @@ private fun ReceiptPaperOutput(
                     letterSpacing = 1.2.sp,
                 )
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
-                        .border(1.dp, PaperText.copy(alpha = .7f), RoundedCornerShape(2.dp))
-                        .padding(12.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                            .border(1.dp, PaperText.copy(alpha = .7f), RoundedCornerShape(2.dp))
+                            .padding(12.dp),
                 ) {
                     Text(
                         notes,
@@ -707,9 +743,10 @@ private fun ReceiptPaperOutput(
                 color = Rule,
             )
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 15.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 15.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Bottom,
             ) {
@@ -784,10 +821,11 @@ private fun ReceiptMetadataCell(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .height(58.dp)
-            .border(width = .5.dp, color = Rule.copy(alpha = .65f))
-            .padding(horizontal = 5.dp),
+        modifier =
+            modifier
+                .height(58.dp)
+                .border(width = .5.dp, color = Rule.copy(alpha = .65f))
+                .padding(horizontal = 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {

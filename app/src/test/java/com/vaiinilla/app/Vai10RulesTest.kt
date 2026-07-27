@@ -13,9 +13,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class Vai10RulesTest {
-    private val catalog = ContractFixtureParser().parseCatalog(
-        TestFixtureSource().read("fixtures/catalog.json"),
-    )
+    private val catalog =
+        ContractFixtureParser().parseCatalog(
+            TestFixtureSource().read("fixtures/catalog.json"),
+        )
     private val burrito = catalog.products.first { it.id == 103 }
 
     @Test
@@ -33,11 +34,12 @@ class Vai10RulesTest {
 
     @Test
     fun `line preview multiplies configured unit price by quantity`() {
-        val line = CartLine(
-            product = burrito,
-            quantity = 2,
-            selectedOptionIds = setOf(310, 314, 317),
-        )
+        val line =
+            CartLine(
+                product = burrito,
+                quantity = 2,
+                selectedOptionIds = setOf(310, 314, 317),
+            )
         assertEquals("164.00", Money.cartLinePreview(line))
     }
 
@@ -70,17 +72,19 @@ class Vai10RulesTest {
         )
     }
 
-    private fun request(quantity: Int): CreateOrderRequest = CreateOrderRequest(
-        paymentMethod = PaymentMethod.CASH,
-        destination = OrderDestination.TAKE_AWAY,
-        spaceId = null,
-        kitchenNotes = "",
-        items = listOf(
-            CreateOrderItem(
-                productId = 103,
-                quantity = quantity,
-                optionIds = listOf(310, 314),
-            ),
-        ),
-    )
+    private fun request(quantity: Int): CreateOrderRequest =
+        CreateOrderRequest(
+            paymentMethod = PaymentMethod.CASH,
+            destination = OrderDestination.TAKE_AWAY,
+            spaceId = null,
+            kitchenNotes = "",
+            items =
+                listOf(
+                    CreateOrderItem(
+                        productId = 103,
+                        quantity = quantity,
+                        optionIds = listOf(310, 314),
+                    ),
+                ),
+        )
 }

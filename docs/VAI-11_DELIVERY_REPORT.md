@@ -37,4 +37,4 @@ python3 scripts/validate_fixtures.py
 ## Notas
 
 - Los JWT expiran en ~15 min; en REMOTE la app los renueva con seed login automáticamente
-- No commitear `local.properties`, `secrets/` ni passwords (excepto seed demo en código)
+- No commitear `local.properties`, `secrets/` ni passwords seed (van solo en `local.properties` debug)

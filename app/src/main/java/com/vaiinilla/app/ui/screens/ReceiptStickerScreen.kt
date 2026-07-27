@@ -63,20 +63,22 @@ fun ReceiptStickerScreen(
     val colors = LocalVaiinillaColors.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val reducedMotion = remember {
-        runCatching {
-            android.provider.Settings.Global.getFloat(
-                context.contentResolver,
-                android.provider.Settings.Global.TRANSITION_ANIMATION_SCALE,
-            ) == 0f
-        }.getOrDefault(false)
-    }
+    val reducedMotion =
+        remember {
+            runCatching {
+                android.provider.Settings.Global.getFloat(
+                    context.contentResolver,
+                    android.provider.Settings.Global.TRANSITION_ANIMATION_SCALE,
+                ) == 0f
+            }.getOrDefault(false)
+        }
     val stickerOrder = remember(order) { order.toStickerOrderData() }
     val styles = StickerStyle.entries
-    val pagerState = rememberPagerState(
-        initialPage = initialStyleIndex.coerceIn(0, (styles.size - 1).coerceAtLeast(0)),
-        pageCount = { styles.size },
-    )
+    val pagerState =
+        rememberPagerState(
+            initialPage = initialStyleIndex.coerceIn(0, (styles.size - 1).coerceAtLeast(0)),
+            pageCount = { styles.size },
+        )
     var selectedSize by rememberSaveable { mutableStateOf(StickerSize.M) }
     var entered by remember { mutableStateOf(reducedMotion) }
 
@@ -98,17 +100,19 @@ fun ReceiptStickerScreen(
     )
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.paper)
-            .statusBarsPadding()
-            .navigationBarsPadding(),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(colors.paper)
+                .statusBarsPadding()
+                .navigationBarsPadding(),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onBack) {
@@ -139,11 +143,12 @@ fun ReceiptStickerScreen(
                             scope.launch {
                                 pagerState.animateScrollToPage(
                                     index,
-                                    animationSpec = if (reducedMotion) {
-                                        tween(0)
-                                    } else {
-                                        spring(stiffness = Spring.StiffnessMediumLow)
-                                    },
+                                    animationSpec =
+                                        if (reducedMotion) {
+                                            tween(0)
+                                        } else {
+                                            spring(stiffness = Spring.StiffnessMediumLow)
+                                        },
                                 )
                             }
                         },
@@ -153,21 +158,23 @@ fun ReceiptStickerScreen(
 
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
                 pageSpacing = 12.dp,
             ) { page ->
                 val style = styles[page]
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            scaleX = enterScale
-                            scaleY = enterScale
-                            alpha = enterAlpha
-                        },
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = enterScale
+                                scaleY = enterScale
+                                alpha = enterAlpha
+                            },
                     contentAlignment = Alignment.TopCenter,
                 ) {
                     StickerStyleContent(

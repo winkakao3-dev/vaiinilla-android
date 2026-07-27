@@ -10,6 +10,7 @@ navigationCompose = "2.9.8"
 lifecycle = "2.10.0"
 coreKtx = "1.17.0"
 junit = "4.13.2"
+ktlint = "14.2.0"
 roborazzi = "1.70.0"
 robolectric = "4.14.1"
 googleServices = "4.4.2"
@@ -50,5 +51,6 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
 roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }

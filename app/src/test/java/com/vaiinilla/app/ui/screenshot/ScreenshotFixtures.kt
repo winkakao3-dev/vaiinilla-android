@@ -27,16 +27,18 @@ object ScreenshotFixtures {
 
     fun operationalStatus(): OperationalStatus = repository.getOperationalStatus().getOrThrow()
 
-    fun catalogLoadedState(): OrderFlowUiState = OrderFlowUiState(
-        loading = false,
-        catalog = catalog(),
-        operationalStatus = operationalStatus(),
-        testOnlyMode = true,
-    )
+    fun catalogLoadedState(): OrderFlowUiState =
+        OrderFlowUiState(
+            loading = false,
+            catalog = catalog(),
+            operationalStatus = operationalStatus(),
+            testOnlyMode = true,
+        )
 
-    fun emptySearchState(): OrderFlowUiState = catalogLoadedState().copy(
-        searchQuery = "zzzsinresultados",
-    )
+    fun emptySearchState(): OrderFlowUiState =
+        catalogLoadedState().copy(
+            searchQuery = "zzzsinresultados",
+        )
 
     fun emptyCartState(): OrderFlowUiState = catalogLoadedState()
 
@@ -47,21 +49,23 @@ object ScreenshotFixtures {
     ): OrderFlowUiState {
         val loadedCatalog = catalog()
         val firstProduct = loadedCatalog.products.first()
-        val defaultOptionIds = firstProduct.optionGroups
-            .firstOrNull()
-            ?.options
-            ?.firstOrNull()
-            ?.id
-            ?.let { setOf(it) }
-            ?: emptySet()
+        val defaultOptionIds =
+            firstProduct.optionGroups
+                .firstOrNull()
+                ?.options
+                ?.firstOrNull()
+                ?.id
+                ?.let { setOf(it) }
+                ?: emptySet()
         return catalogLoadedState().copy(
-            cartLines = listOf(
-                CartLine(
-                    product = firstProduct,
-                    quantity = 1,
-                    selectedOptionIds = defaultOptionIds,
+            cartLines =
+                listOf(
+                    CartLine(
+                        product = firstProduct,
+                        quantity = 1,
+                        selectedOptionIds = defaultOptionIds,
+                    ),
                 ),
-            ),
             checkoutPayment = paymentMethod,
             checkoutDestination = destination,
             selectedSpaceId = spaceId,
@@ -75,40 +79,44 @@ object ScreenshotFixtures {
         spaceId: Int = DemoCheckoutFixtures.DEFAULT_SPACE.id,
     ): OrderDetail {
         val order = orderJson.parseOrderDetail(fixtureSource.read("fixtures/created_order.json"))
-        val space = if (destination == OrderDestination.IN_SPACE) {
-            DemoCheckoutFixtures.spaceForId(spaceId)?.let { demoSpace ->
-                OrderSpace(
-                    id = demoSpace.id,
-                    name = demoSpace.name,
-                    type = DemoCheckoutFixtures.SPACE_TYPE,
-                )
+        val space =
+            if (destination == OrderDestination.IN_SPACE) {
+                DemoCheckoutFixtures.spaceForId(spaceId)?.let { demoSpace ->
+                    OrderSpace(
+                        id = demoSpace.id,
+                        name = demoSpace.name,
+                        type = DemoCheckoutFixtures.SPACE_TYPE,
+                    )
+                }
+            } else {
+                null
             }
-        } else {
-            null
-        }
         return order.copy(
-            summary = order.summary.copy(
-                state = state,
-                paymentMethod = paymentMethod,
-                destination = destination,
-                space = space,
-            ),
+            summary =
+                order.summary.copy(
+                    state = state,
+                    paymentMethod = paymentMethod,
+                    destination = destination,
+                    space = space,
+                ),
         )
     }
 
     fun trackingState(
         order: OrderDetail,
         selected: Boolean = true,
-    ): OperationalUiState = OperationalUiState(
-        role = OperationalRole.CLIENT,
-        orders = listOf(order),
-        selectedOrderId = if (selected) order.summary.id else null,
-    )
+    ): OperationalUiState =
+        OperationalUiState(
+            role = OperationalRole.CLIENT,
+            orders = listOf(order),
+            selectedOrderId = if (selected) order.summary.id else null,
+        )
 
-    fun emptyTrackingState(): OperationalUiState = OperationalUiState(
-        role = OperationalRole.CLIENT,
-        orders = emptyList(),
-    )
+    fun emptyTrackingState(): OperationalUiState =
+        OperationalUiState(
+            role = OperationalRole.CLIENT,
+            orders = emptyList(),
+        )
 
     fun walletState(): WalletUiState = WalletUiState()
 }

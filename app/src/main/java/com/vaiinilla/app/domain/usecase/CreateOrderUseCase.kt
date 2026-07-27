@@ -6,14 +6,17 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.repository.OrderRepository
 import javax.inject.Inject
 
-class CreateOrderUseCase @Inject constructor(
-    private val repository: OrderRepository,
-) {
-    operator fun invoke(
-        request: CreateOrderRequest,
-        idempotencyKey: String,
-    ): Result<OrderDetail> = runCatching {
-        ContractRules.validateCreateOrderRequest(request)
-        repository.createOrder(request, idempotencyKey).getOrThrow()
+class CreateOrderUseCase
+    @Inject
+    constructor(
+        private val repository: OrderRepository,
+    ) {
+        operator fun invoke(
+            request: CreateOrderRequest,
+            idempotencyKey: String,
+        ): Result<OrderDetail> =
+            runCatching {
+                ContractRules.validateCreateOrderRequest(request)
+                repository.createOrder(request, idempotencyKey).getOrThrow()
+            }
     }
-}

@@ -28,11 +28,12 @@ fun WalletSubflowTopBar(
 ) {
     val colors = LocalVaiinillaColors.current
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .height(52.dp)
-            .padding(horizontal = 8.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .height(52.dp)
+                .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onBack) {
@@ -58,14 +59,16 @@ fun WalletPrimaryButton(
     val colors = LocalVaiinillaColors.current
     androidx.compose.material3.Button(
         onClick = onClick,
-        modifier = modifier
-            .fillMaxWidth()
-            .height(52.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(52.dp),
         shape = RoundedCornerShape(18.dp),
-        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-            containerColor = colors.accent,
-            contentColor = colors.accentInk,
-        ),
+        colors =
+            androidx.compose.material3.ButtonDefaults.buttonColors(
+                containerColor = colors.accent,
+                contentColor = colors.accentInk,
+            ),
     ) {
         Text(text, fontWeight = FontWeight.Black, fontSize = 15.sp)
     }
@@ -80,14 +83,16 @@ fun WalletSecondaryButton(
     val colors = LocalVaiinillaColors.current
     androidx.compose.material3.Button(
         onClick = onClick,
-        modifier = modifier
-            .fillMaxWidth()
-            .height(52.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(52.dp),
         shape = RoundedCornerShape(18.dp),
-        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-            containerColor = colors.paper2,
-            contentColor = colors.ink,
-        ),
+        colors =
+            androidx.compose.material3.ButtonDefaults.buttonColors(
+                containerColor = colors.paper2,
+                contentColor = colors.ink,
+            ),
     ) {
         Text(text, fontWeight = FontWeight.Black, fontSize = 15.sp)
     }
@@ -101,9 +106,10 @@ fun WalletSectionHead(
 ) {
     val colors = LocalVaiinillaColors.current
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -128,9 +134,10 @@ fun WalletScreenShell(
 ) {
     val colors = LocalVaiinillaColors.current
     androidx.compose.foundation.layout.Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(colors.paper),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .background(colors.paper),
     ) {
         content()
     }

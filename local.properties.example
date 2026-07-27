@@ -1,5 +1,5 @@
 # Copia este archivo a local.properties (ya está en .gitignore).
-# No subas tokens ni google-services.json al repositorio.
+# No subas tokens, passwords seed ni google-services.json al repositorio.
 
 sdk.dir=/path/to/Android/sdk
 
@@ -9,9 +9,15 @@ vaiinillaDataSource=MOCK
 # Backend Railway de desarrollo (Saúl)
 vaiinillaApiBaseUrl=https://vaiinillaback-development-3f6c.up.railway.app/api/v1/
 
-# REMOTE: la app inicia sesión con cuentas seed Firebase (@vaiinilla.test) y obtiene
-# JWT vía POST /api/v1/sesiones/contexto al elegir rol. Ver docs/FIREBASE_SEED_AUTH.md.
-# Los campos siguientes son opcionales (MOCK o override manual); no commitear valores.
+# REMOTE debug: passwords seed Firebase (solo local.properties, nunca en git).
+# Tras rotar en Firebase Console / Identity Toolkit, pégalos aquí.
+# Ver docs/FIREBASE_SEED_AUTH.md
+vaiinillaSeedPasswordCliente=
+vaiinillaSeedPasswordCajero=
+vaiinillaSeedPasswordCocina=
+vaiinillaSeedPasswordMesero=
+
+# JWT opcionales (MOCK o override manual); no commitear valores.
 vaiinillaAccessToken=
 vaiinillaAccessTokenCliente=
 vaiinillaAccessTokenCajero=

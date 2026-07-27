@@ -92,6 +92,7 @@ python3 scripts/validate_fixtures.py
 ./scripts/audit_scope_vai11.sh
 ./gradlew testDebugUnitTest
 ./gradlew lintDebug
+./gradlew ktlintCheck
 ./gradlew assembleDebug
 ```
 
@@ -100,6 +101,8 @@ O todo junto:
 ```bash
 ./scripts/verify-on-mac.sh
 ```
+
+Demo tools (selector interno de roles, galería, Wallet, Asistente) solo en **debug + Solo pruebas**. Seed auth REMOTE solo con passwords en `local.properties`. Ver `docs/DEMO_SCOPE.md` y `docs/FIREBASE_SEED_AUTH.md`.
 
 APK esperado:
 

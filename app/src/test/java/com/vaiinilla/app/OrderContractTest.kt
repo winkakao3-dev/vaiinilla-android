@@ -9,11 +9,11 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
-import java.util.UUID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.UUID
 
 class OrderContractTest {
     private val source = TestFixtureSource()
@@ -76,17 +76,19 @@ class OrderContractTest {
         assertEquals("IDEMPOTENCY_KEY_REUSED", (error as OrderRepositoryException).code)
     }
 
-    private fun validRequest(): CreateOrderRequest = CreateOrderRequest(
-        paymentMethod = PaymentMethod.CASH,
-        destination = OrderDestination.TAKE_AWAY,
-        spaceId = null,
-        kitchenNotes = "Salsa aparte",
-        items = listOf(
-            CreateOrderItem(
-                productId = 103,
-                quantity = 1,
-                optionIds = listOf(310, 314, 317),
-            ),
-        ),
-    )
+    private fun validRequest(): CreateOrderRequest =
+        CreateOrderRequest(
+            paymentMethod = PaymentMethod.CASH,
+            destination = OrderDestination.TAKE_AWAY,
+            spaceId = null,
+            kitchenNotes = "Salsa aparte",
+            items =
+                listOf(
+                    CreateOrderItem(
+                        productId = 103,
+                        quantity = 1,
+                        optionIds = listOf(310, 314, 317),
+                    ),
+                ),
+        )
 }

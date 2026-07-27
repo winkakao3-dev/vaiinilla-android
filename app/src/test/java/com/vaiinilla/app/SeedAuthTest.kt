@@ -7,33 +7,39 @@ import com.vaiinilla.app.domain.auth.SeedAccounts
 import com.vaiinilla.app.domain.model.OperationalRole
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SeedAuthTest {
     private val json = Json { ignoreUnknownKeys = true }
 
     @Test
-    fun `seed accounts map all operational roles`() {
-        OperationalRole.entries.forEach { role ->
-            val account = SeedAccounts.forRole(role)
-            assertNotNull("Missing seed account for $role", account)
-            assertEquals(role, account?.role)
-        }
-    }
-
-    @Test
-    fun `seed accounts use vaiinilla test emails`() {
-        SeedAccounts.all().forEach { account ->
-            assert(account.email.endsWith("@vaiinilla.test"))
-            assert(account.membresiaId.isNotBlank())
-            assert(account.password.isNotBlank())
+    fun `seed accounts require local passwords when enabled`() {
+        // Without passwords in BuildConfig (typical CI), forRole returns null.
+        // With local.properties passwords on a developer machine, all roles resolve.
+        val configured = SeedAccounts.isConfigured()
+        if (configured) {
+            OperationalRole.entries.forEach { role ->
+                val account = SeedAccounts.forRole(role)
+                assertEquals(role, account?.role)
+                assertTrue(account!!.email.endsWith("@vaiinilla.test"))
+                assertTrue(account.membresiaId.isNotBlank())
+                assertTrue(account.password.isNotBlank())
+            }
+        } else {
+            OperationalRole.entries.forEach { role ->
+                assertEquals(null, SeedAccounts.forRole(role))
+            }
+            assertTrue(SeedAccounts.all().isEmpty())
+            assertFalse(SeedAccounts.isConfigured())
         }
     }
 
     @Test
     fun `parses sesiones contexto response envelope`() {
-        val raw = """
+        val raw =
+            """
             {
               "data": {
                 "access_token": "jwt-test-token",
@@ -54,7 +60,7 @@ class SeedAuthTest {
               },
               "error": null
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val envelope = json.decodeFromString<SesionesContextoEnvelopeDto>(raw)
         val data: SesionesContextoDataDto = envelope.data

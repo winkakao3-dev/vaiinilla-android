@@ -11,15 +11,17 @@ class FixtureCatalogRepository(
     private val fixtureSource: FixtureSource,
     private val parser: ContractFixtureParser,
 ) : CatalogRepository {
-    override fun getCatalog(): Result<Catalog> = runCatching {
-        parser.parseCatalog(fixtureSource.read(CATALOG_PATH)).also(ContractRules::validateCatalog)
-    }
+    override fun getCatalog(): Result<Catalog> =
+        runCatching {
+            parser.parseCatalog(fixtureSource.read(CATALOG_PATH)).also(ContractRules::validateCatalog)
+        }
 
-    override fun getOperationalStatus(): Result<OperationalStatus> = runCatching {
-        parser.parseOperationalStatus(fixtureSource.read(OPERATIONAL_STATUS_PATH)).also(
-            ContractRules::validateOperationalStatus,
-        )
-    }
+    override fun getOperationalStatus(): Result<OperationalStatus> =
+        runCatching {
+            parser.parseOperationalStatus(fixtureSource.read(OPERATIONAL_STATUS_PATH)).also(
+                ContractRules::validateOperationalStatus,
+            )
+        }
 
     private companion object {
         const val CATALOG_PATH = "fixtures/catalog.json"

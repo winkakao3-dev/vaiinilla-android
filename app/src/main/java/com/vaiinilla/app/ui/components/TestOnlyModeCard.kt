@@ -31,24 +31,25 @@ fun TestOnlyModeCard(
     val colors = LocalVaiinillaColors.current
     val shape = RoundedCornerShape(20.dp)
     Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .then(
-                if (enabled) {
-                    Modifier.border(2.dp, colors.accent, shape)
-                } else {
-                    Modifier
-                },
-            )
-            .clickable { onEnabledChange(!enabled) },
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .then(
+                    if (enabled) {
+                        Modifier.border(2.dp, colors.accent, shape)
+                    } else {
+                        Modifier
+                    },
+                ).clickable { onEnabledChange(!enabled) },
         color = if (enabled) colors.accent.copy(alpha = 0.18f) else colors.paper2,
         shape = shape,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -70,12 +71,13 @@ fun TestOnlyModeCard(
             Switch(
                 checked = enabled,
                 onCheckedChange = onEnabledChange,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = colors.paper,
-                    checkedTrackColor = colors.ink,
-                    uncheckedThumbColor = colors.paper,
-                    uncheckedTrackColor = colors.muted.copy(alpha = 0.35f),
-                ),
+                colors =
+                    SwitchDefaults.colors(
+                        checkedThumbColor = colors.paper,
+                        checkedTrackColor = colors.ink,
+                        uncheckedThumbColor = colors.paper,
+                        uncheckedTrackColor = colors.muted.copy(alpha = 0.35f),
+                    ),
             )
         }
     }
@@ -90,8 +92,9 @@ fun TestOnlyModeBadge(modifier: Modifier = Modifier) {
         fontSize = 10.sp,
         fontWeight = FontWeight.Black,
         letterSpacing = 0.8.sp,
-        modifier = modifier
-            .background(colors.accent, RoundedCornerShape(10.dp))
-            .padding(horizontal = 8.dp, vertical = 5.dp),
+        modifier =
+            modifier
+                .background(colors.accent, RoundedCornerShape(10.dp))
+                .padding(horizontal = 8.dp, vertical = 5.dp),
     )
 }

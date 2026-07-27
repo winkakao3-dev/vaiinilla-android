@@ -20,21 +20,29 @@ class RepositorySelectionTest {
     fun `fixture repository reads canonical JSON assets`() {
         val repository = FixtureCatalogRepository(TestFixtureSource(), ContractFixtureParser())
         assertTrue(repository.getCatalog().isSuccess)
-        assertEquals(3, repository.getCatalog().getOrThrow().products.size)
+        assertEquals(
+            3,
+            repository
+                .getCatalog()
+                .getOrThrow()
+                .products.size,
+        )
     }
 
     @Test
     fun `remote catalog repository parses api envelope`() {
         val source = TestFixtureSource()
         val catalogJson = source.read("fixtures/catalog.json")
-        val repository = RemoteCatalogRepository(
-            RecordingApiClient(
-                responses = mapOf(
-                    "catalogo" to catalogJson,
+        val repository =
+            RemoteCatalogRepository(
+                RecordingApiClient(
+                    responses =
+                        mapOf(
+                            "catalogo" to catalogJson,
+                        ),
                 ),
-            ),
-            ContractFixtureParser(),
-        )
+                ContractFixtureParser(),
+            )
         val result = repository.getCatalog()
         assertTrue(result.isSuccess)
         assertEquals(3, result.getOrThrow().products.size)
@@ -45,11 +53,17 @@ class RepositorySelectionTest {
     ) : VaiinillaApiClient {
         override val baseUrl: String = "https://example.invalid/api/v1/"
 
-        override fun get(path: String, query: Map<String, String>): Result<String> =
+        override fun get(
+            path: String,
+            query: Map<String, String>,
+        ): Result<String> =
             responses[path]?.let { Result.success(it) }
                 ?: Result.failure(IllegalStateException("GET $path no configurado"))
 
-        override fun post(path: String, body: String, headers: Map<String, String>): Result<String> =
-            Result.failure(IllegalStateException("POST no configurado"))
+        override fun post(
+            path: String,
+            body: String,
+            headers: Map<String, String>,
+        ): Result<String> = Result.failure(IllegalStateException("POST no configurado"))
     }
 }

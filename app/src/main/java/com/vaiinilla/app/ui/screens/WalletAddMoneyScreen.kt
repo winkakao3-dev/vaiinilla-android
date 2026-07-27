@@ -6,7 +6,6 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -68,17 +67,19 @@ fun WalletAddMoneyScreen(
         modifier = Modifier.fillMaxSize(),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .navigationBarsPadding(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .navigationBarsPadding(),
         ) {
             WalletSubflowTopBar(title = "Añadir dinero", onBack = onBack)
 
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp),
             ) {
                 Text(
                     "Monto a agregar",
@@ -190,15 +191,16 @@ private fun PaymentChoiceRow(
 ) {
     val colors = LocalVaiinillaColors.current
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(
-                if (selected) {
-                    Modifier.border(2.dp, colors.accent, RoundedCornerShape(18.dp))
-                } else {
-                    Modifier
-                },
-            ),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .then(
+                    if (selected) {
+                        Modifier.border(2.dp, colors.accent, RoundedCornerShape(18.dp))
+                    } else {
+                        Modifier
+                    },
+                ),
         onClick = onClick,
         color = if (selected) colors.paper2 else colors.paper,
         shape = RoundedCornerShape(18.dp),
@@ -208,12 +210,13 @@ private fun PaymentChoiceRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .background(
-                        if (brandUsesAccent) colors.accent else colors.ink,
-                        RoundedCornerShape(12.dp),
-                    ),
+                modifier =
+                    Modifier
+                        .size(42.dp)
+                        .background(
+                            if (brandUsesAccent) colors.accent else colors.ink,
+                            RoundedCornerShape(12.dp),
+                        ),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -238,10 +241,11 @@ private fun PaymentChoiceRow(
 private fun CardPreviewStrip(modifier: Modifier = Modifier) {
     val colors = LocalVaiinillaColors.current
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(colors.ink, RoundedCornerShape(20.dp))
-            .padding(18.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .background(colors.ink, RoundedCornerShape(20.dp))
+                .padding(18.dp),
     ) {
         Column {
             Text("VISA", color = colors.paper, fontWeight = FontWeight.Black, fontSize = 11.sp)
@@ -324,7 +328,11 @@ private fun SpeiField(
     }
 }
 
-private fun copyToClipboard(context: Context, label: String, value: String) {
+private fun copyToClipboard(
+    context: Context,
+    label: String,
+    value: String,
+) {
     runCatching {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
         clipboard?.setPrimaryClip(ClipData.newPlainText(label, value))

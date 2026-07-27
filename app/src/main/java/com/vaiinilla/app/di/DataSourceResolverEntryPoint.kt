@@ -10,5 +10,6 @@ import dagger.hilt.components.SingletonComponent
 @InstallIn(SingletonComponent::class)
 interface DataSourceResolverEntryPoint {
     fun effectiveDataSourceResolver(): EffectiveDataSourceResolver
+
     fun demoGallerySeeder(): DemoGallerySeeder
 }

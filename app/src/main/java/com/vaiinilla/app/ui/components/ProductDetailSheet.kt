@@ -7,8 +7,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -21,9 +21,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Remove
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -65,49 +65,54 @@ fun ProductDetailSheet(
     val isCustomized = selectedOptionIds != defaultOptionIds
     val interactionSource = remember { MutableInteractionSource() }
     Box(
-        modifier = Modifier
-            .fillMaxHeight()
-            .fillMaxWidth()
-            .background(Color.Black.copy(alpha = 0.58f))
-            .clickable(onClick = onDismiss),
+        modifier =
+            Modifier
+                .fillMaxHeight()
+                .fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.58f))
+                .clickable(onClick = onDismiss),
         contentAlignment = Alignment.BottomCenter,
     ) {
         Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.92f)
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = {},
-                ),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.92f)
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = {},
+                    ),
             color = colors.paper,
             shape = RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp),
             shadowElevation = 26.dp,
         ) {
             Column {
                 Box(
-                    modifier = Modifier
-                        .padding(top = 12.dp, bottom = 12.dp)
-                        .width(42.dp)
-                        .height(5.dp)
-                        .clip(RoundedCornerShape(99.dp))
-                        .background(colors.ink.copy(alpha = 0.14f))
-                        .align(Alignment.CenterHorizontally),
+                    modifier =
+                        Modifier
+                            .padding(top = 12.dp, bottom = 12.dp)
+                            .width(42.dp)
+                            .height(5.dp)
+                            .clip(RoundedCornerShape(99.dp))
+                            .background(colors.ink.copy(alpha = 0.14f))
+                            .align(Alignment.CenterHorizontally),
                 )
 
                 Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 20.dp),
                 ) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(240.dp)
-                            .clip(RoundedCornerShape(26.dp))
-                            .background(colors.paper2),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(240.dp)
+                                .clip(RoundedCornerShape(26.dp))
+                                .background(colors.paper2),
                     ) {
                         ProductImage(
                             imageUrl = product.imageUrl,
@@ -116,9 +121,10 @@ fun ProductDetailSheet(
                         )
                         if (isCustomized) {
                             Surface(
-                                modifier = Modifier
-                                    .align(Alignment.TopStart)
-                                    .padding(12.dp),
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.TopStart)
+                                        .padding(12.dp),
                                 color = colors.accent,
                                 shape = RoundedCornerShape(12.dp),
                             ) {
@@ -132,9 +138,10 @@ fun ProductDetailSheet(
                             }
                         }
                         Surface(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(12.dp),
+                            modifier =
+                                Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(12.dp),
                             color = colors.ink,
                             shape = RoundedCornerShape(17.dp),
                         ) {
@@ -168,10 +175,11 @@ fun ProductDetailSheet(
                         }
                         IconButton(
                             onClick = onDismiss,
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(colors.paper2),
+                            modifier =
+                                Modifier
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(colors.paper2),
                         ) {
                             Icon(Icons.Rounded.Close, contentDescription = "Cerrar", tint = colors.ink)
                         }
@@ -192,9 +200,10 @@ fun ProductDetailSheet(
                     }
 
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 20.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 20.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         MetaRow("Ingredientes", product.ingredients)
@@ -206,14 +215,15 @@ fun ProductDetailSheet(
 
                 Surface(color = colors.paper, shadowElevation = 14.dp) {
                     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
-                        val selectionSurfaceModifier = if (isCustomized) {
-                            Modifier
-                                .border(2.dp, colors.accent, RoundedCornerShape(18.dp))
-                                .background(colors.paper2, RoundedCornerShape(18.dp))
-                                .padding(12.dp)
-                        } else {
-                            Modifier
-                        }
+                        val selectionSurfaceModifier =
+                            if (isCustomized) {
+                                Modifier
+                                    .border(2.dp, colors.accent, RoundedCornerShape(18.dp))
+                                    .background(colors.paper2, RoundedCornerShape(18.dp))
+                                    .padding(12.dp)
+                            } else {
+                                Modifier
+                            }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -226,11 +236,12 @@ fun ProductDetailSheet(
                                     fontWeight = FontWeight.Bold,
                                 )
                                 Text(
-                                    text = product.optionGroups
-                                        .flatMap { it.options }
-                                        .filter { it.id in selectedOptionIds }
-                                        .joinToString(" · ") { it.name }
-                                        .ifBlank { "Sin opciones adicionales" },
+                                    text =
+                                        product.optionGroups
+                                            .flatMap { it.options }
+                                            .filter { it.id in selectedOptionIds }
+                                            .joinToString(" · ") { it.name }
+                                            .ifBlank { "Sin opciones adicionales" },
                                     color = colors.ink,
                                     fontWeight = FontWeight.ExtraBold,
                                 )
@@ -247,12 +258,13 @@ fun ProductDetailSheet(
                             enabled = canAdd,
                             modifier = Modifier.fillMaxWidth().height(52.dp),
                             shape = RoundedCornerShape(18.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = colors.accent,
-                                contentColor = colors.accentInk,
-                                disabledContainerColor = colors.paper2,
-                                disabledContentColor = colors.muted,
-                            ),
+                            colors =
+                                ButtonDefaults.buttonColors(
+                                    containerColor = colors.accent,
+                                    contentColor = colors.accentInk,
+                                    disabledContainerColor = colors.paper2,
+                                    disabledContentColor = colors.muted,
+                                ),
                         ) {
                             Text(
                                 text = "Agregar · ${moneyLabel(previewTotal)}",
@@ -274,8 +286,7 @@ fun ProductDetailSheet(
     }
 }
 
-private fun estimatedTimeLabel(minutes: Int): String =
-    if (minutes in 8..10) "8–10 min" else "$minutes min"
+private fun estimatedTimeLabel(minutes: Int): String = if (minutes in 8..10) "8–10 min" else "$minutes min"
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -325,21 +336,29 @@ private fun OptionGroupSection(
 }
 
 @Composable
-private fun OptionChip(text: String, selected: Boolean, onClick: () -> Unit) {
+private fun OptionChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
     val colors = LocalVaiinillaColors.current
     Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(13.dp))
-            .background(if (selected) colors.accent else colors.paper2)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(13.dp))
+                .background(if (selected) colors.accent else colors.paper2)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Text(text = text, color = colors.ink, fontWeight = FontWeight.ExtraBold)
     }
 }
 
 @Composable
-private fun MetaRow(label: String, value: String) {
+private fun MetaRow(
+    label: String,
+    value: String,
+) {
     val colors = LocalVaiinillaColors.current
     Surface(
         color = colors.paper2,
@@ -363,10 +382,11 @@ private fun QuantityControl(
     Row(verticalAlignment = Alignment.CenterVertically) {
         IconButton(
             onClick = onMinus,
-            modifier = Modifier
-                .size(34.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(colors.ink),
+            modifier =
+                Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(colors.ink),
         ) {
             Icon(Icons.Rounded.Remove, contentDescription = "Quitar uno", tint = colors.paper)
         }
@@ -378,10 +398,11 @@ private fun QuantityControl(
         )
         IconButton(
             onClick = onPlus,
-            modifier = Modifier
-                .size(34.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(colors.ink),
+            modifier =
+                Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(colors.ink),
         ) {
             Icon(Icons.Rounded.Add, contentDescription = "Agregar uno", tint = colors.paper)
         }

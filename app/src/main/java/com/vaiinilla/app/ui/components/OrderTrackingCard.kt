@@ -23,8 +23,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderDestination
+import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -38,33 +38,34 @@ private data class TimelineStep(
     val description: (OrderDestination, PaymentMethod) -> String,
 )
 
-private val demoTimelineSteps = listOf(
-    TimelineStep(OrderState.PENDING_PAYMENT, { payment ->
-        if (payment.isInstantDemoPayment) "PAGO CONFIRMADO" else "POR COBRAR"
-    }) { _, payment ->
-        if (payment.isInstantDemoPayment) {
-            "Saldo descontado y pedido enviado."
-        } else {
-            "Caja espera el pago en efectivo."
-        }
-    },
-    TimelineStep(OrderState.PAID, { _ -> "COBRADO" }) { _, _ ->
-        "Cocina recibió la comanda."
-    },
-    TimelineStep(OrderState.PREPARING, { _ -> "PREPARANDO" }) { _, _ ->
-        "Tu comida se está preparando."
-    },
-    TimelineStep(OrderState.READY, { _ -> "LISTO" }) { destination, _ ->
-        if (destination == OrderDestination.IN_SPACE) {
-            "El mesero lo llevará a tu mesa."
-        } else {
-            "Recógelo en la barra."
-        }
-    },
-    TimelineStep(OrderState.DELIVERED, { _ -> "ENTREGADO" }) { _, _ ->
-        "Pedido completado."
-    },
-)
+private val demoTimelineSteps =
+    listOf(
+        TimelineStep(OrderState.PENDING_PAYMENT, { payment ->
+            if (payment.isInstantDemoPayment) "PAGO CONFIRMADO" else "POR COBRAR"
+        }) { _, payment ->
+            if (payment.isInstantDemoPayment) {
+                "Saldo descontado y pedido enviado."
+            } else {
+                "Caja espera el pago en efectivo."
+            }
+        },
+        TimelineStep(OrderState.PAID, { _ -> "COBRADO" }) { _, _ ->
+            "Cocina recibió la comanda."
+        },
+        TimelineStep(OrderState.PREPARING, { _ -> "PREPARANDO" }) { _, _ ->
+            "Tu comida se está preparando."
+        },
+        TimelineStep(OrderState.READY, { _ -> "LISTO" }) { destination, _ ->
+            if (destination == OrderDestination.IN_SPACE) {
+                "El mesero lo llevará a tu mesa."
+            } else {
+                "Recógelo en la barra."
+            }
+        },
+        TimelineStep(OrderState.DELIVERED, { _ -> "ENTREGADO" }) { _, _ ->
+            "Pedido completado."
+        },
+    )
 
 private fun destinationDisplayLabel(order: OrderDetail): String =
     order.summary.space?.name ?: order.summary.destination.label
@@ -81,11 +82,12 @@ fun OrderTrackingCard(
     val cardBg = if (isReady) colors.yolk else TaskCardDark
     val cardText = if (isReady) colors.ink else TaskCardText
     val badgeBg = if (isReady) Color.White.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.45f)
-    val clickableModifier = if (onClick != null) {
-        modifier.physicalPress(onClick = onClick)
-    } else {
-        modifier
-    }
+    val clickableModifier =
+        if (onClick != null) {
+            modifier.physicalPress(onClick = onClick)
+        } else {
+            modifier
+        }
     Surface(
         modifier = clickableModifier.fillMaxWidth(),
         color = cardBg,
@@ -120,7 +122,9 @@ fun OrderTrackingCard(
                     shape = RoundedCornerShape(12.dp),
                 ) {
                     Text(
-                        text = order.summary.state.label.uppercase(),
+                        text =
+                            order.summary.state.label
+                                .uppercase(),
                         color = colors.ink,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Black,
@@ -130,14 +134,19 @@ fun OrderTrackingCard(
                 }
             }
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Text(moneyLabel(order.summary.total), color = cardText.copy(alpha = 0.82f), fontSize = 13.sp)
                 Text(destinationDisplayLabel(order), color = cardText.copy(alpha = 0.82f), fontSize = 13.sp)
-                Text(paymentMethodLabel(order.summary.paymentMethod), color = cardText.copy(alpha = 0.82f), fontSize = 13.sp)
+                Text(
+                    paymentMethodLabel(order.summary.paymentMethod),
+                    color = cardText.copy(alpha = 0.82f),
+                    fontSize = 13.sp,
+                )
             }
         }
     }
@@ -185,23 +194,25 @@ private fun TimelineRow(
             Box(contentAlignment = Alignment.Center) {
                 if (isCurrent) {
                     Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(colors.yolk.copy(alpha = 0.35f)),
+                        modifier =
+                            Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(colors.yolk.copy(alpha = 0.35f)),
                     )
                 }
                 Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .background(
-                            when {
-                                isCurrent -> colors.yolk
-                                isDone -> colors.accent
-                                else -> colors.paper2
-                            },
-                        ),
+                    modifier =
+                        Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(
+                                when {
+                                    isCurrent -> colors.yolk
+                                    isDone -> colors.accent
+                                    else -> colors.paper2
+                                },
+                            ),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (isDone || isCurrent) {
@@ -218,10 +229,11 @@ private fun TimelineRow(
             }
             if (showLine) {
                 Box(
-                    modifier = Modifier
-                        .width(2.dp)
-                        .height(40.dp)
-                        .background(if (isDone) colors.accent else colors.paper2),
+                    modifier =
+                        Modifier
+                            .width(2.dp)
+                            .height(40.dp)
+                            .background(if (isDone) colors.accent else colors.paper2),
                 )
             }
         }
@@ -252,9 +264,10 @@ fun OrderDetailSummary(
         Column(modifier = Modifier.padding(16.dp)) {
             order.items.forEach { item ->
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text("${item.quantity}× ${item.productName}", color = colors.ink, fontWeight = FontWeight.Bold)
@@ -262,14 +275,20 @@ fun OrderDetailSummary(
                 }
             }
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 10.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("Total", color = colors.ink, fontWeight = FontWeight.Black)
-                Text(moneyLabel(order.summary.total), color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                Text(
+                    moneyLabel(order.summary.total),
+                    color = colors.ink,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 18.sp,
+                )
             }
         }
     }

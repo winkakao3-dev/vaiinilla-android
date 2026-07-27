@@ -85,10 +85,11 @@ private fun QuickActionCard(
 ) {
     val colors = LocalVaiinillaColors.current
     Surface(
-        modifier = Modifier
-            .width(156.dp)
-            .height(150.dp)
-            .physicalPress(scale = PhysicalPressScale.Default, onClick = onClick),
+        modifier =
+            Modifier
+                .width(156.dp)
+                .height(150.dp)
+                .physicalPress(scale = PhysicalPressScale.Default, onClick = onClick),
         color = action.background,
         shape = RoundedCornerShape(27.dp),
     ) {
@@ -97,9 +98,10 @@ private fun QuickActionCard(
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Box(
-                modifier = Modifier
-                    .size(45.dp)
-                    .padding(0.dp),
+                modifier =
+                    Modifier
+                        .size(45.dp)
+                        .padding(0.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Surface(

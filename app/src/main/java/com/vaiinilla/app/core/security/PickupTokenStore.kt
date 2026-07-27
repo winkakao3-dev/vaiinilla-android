@@ -3,8 +3,13 @@ package com.vaiinilla.app.core.security
 import com.vaiinilla.app.domain.model.OrderDetail
 
 interface PickupTokenStore {
-    fun save(orderId: String, pickupToken: String)
+    fun save(
+        orderId: String,
+        pickupToken: String,
+    )
+
     fun read(orderId: String): String?
+
     fun attach(order: OrderDetail): OrderDetail {
         if (!order.pickupToken.isNullOrBlank()) {
             save(order.summary.id, order.pickupToken)
@@ -18,7 +23,10 @@ interface PickupTokenStore {
 class InMemoryPickupTokenStore : PickupTokenStore {
     private val tokens = linkedMapOf<String, String>()
 
-    override fun save(orderId: String, pickupToken: String) {
+    override fun save(
+        orderId: String,
+        pickupToken: String,
+    ) {
         if (orderId.isBlank() || pickupToken.isBlank()) return
         tokens[orderId] = pickupToken
     }

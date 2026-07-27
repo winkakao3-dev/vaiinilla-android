@@ -13,19 +13,25 @@ object Money {
 
     fun format(value: BigDecimal): String = value.setScale(SCALE, RoundingMode.HALF_UP).toPlainString()
 
-    fun productUnitPreview(product: Product, selectedOptionIds: Set<Int>): String {
-        val optionPrices = product.optionGroups
-            .flatMap(OptionGroup::options)
-            .filter { it.id in selectedOptionIds }
-            .fold(BigDecimal.ZERO) { total, option -> total + parse(option.extraPrice) }
+    fun productUnitPreview(
+        product: Product,
+        selectedOptionIds: Set<Int>,
+    ): String {
+        val optionPrices =
+            product.optionGroups
+                .flatMap(OptionGroup::options)
+                .filter { it.id in selectedOptionIds }
+                .fold(BigDecimal.ZERO) { total, option -> total + parse(option.extraPrice) }
         return format(parse(product.digitalPrice) + optionPrices)
     }
 
-    fun cartLinePreview(line: CartLine): String = format(
-        parse(productUnitPreview(line.product, line.selectedOptionIds)) * line.quantity.toBigDecimal(),
-    )
+    fun cartLinePreview(line: CartLine): String =
+        format(
+            parse(productUnitPreview(line.product, line.selectedOptionIds)) * line.quantity.toBigDecimal(),
+        )
 
-    fun cartPreview(lines: List<CartLine>): String = format(
-        lines.fold(BigDecimal.ZERO) { total, line -> total + parse(cartLinePreview(line)) },
-    )
+    fun cartPreview(lines: List<CartLine>): String =
+        format(
+            lines.fold(BigDecimal.ZERO) { total, line -> total + parse(cartLinePreview(line)) },
+        )
 }

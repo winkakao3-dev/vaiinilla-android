@@ -1,5 +1,5 @@
-import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -8,36 +8,60 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.ktlint)
     alias(libs.plugins.roborazzi)
     alias(libs.plugins.google.services)
 }
 
-val localProperties = Properties().apply {
-    val file = rootProject.file("local.properties")
-    if (file.exists()) {
-        file.inputStream().use { load(it) }
-    }
+ktlint {
+    android.set(true)
+    ignoreFailures.set(false)
 }
 
-fun readConfig(name: String, defaultValue: String): String =
+val localProperties =
+    Properties().apply {
+        val file = rootProject.file("local.properties")
+        if (file.exists()) {
+            file.inputStream().use { load(it) }
+        }
+    }
+
+fun readConfig(
+    name: String,
+    defaultValue: String,
+): String =
     providers.gradleProperty(name).orNull
         ?: localProperties.getProperty(name)
         ?: defaultValue
 
-val selectedDataSource = readConfig("vaiinillaDataSource", "MOCK")
-    .uppercase()
-    .also { require(it == "MOCK" || it == "REMOTE") { "vaiinillaDataSource debe ser MOCK o REMOTE" } }
+fun escapeBuildConfig(value: String): String =
+    value
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\$", "\\\$")
 
-val selectedApiBaseUrl = readConfig(
-    "vaiinillaApiBaseUrl",
-    "https://localhost.invalid/api/v1/",
-)
+val selectedDataSource =
+    readConfig("vaiinillaDataSource", "MOCK")
+        .uppercase()
+        .also { require(it == "MOCK" || it == "REMOTE") { "vaiinillaDataSource debe ser MOCK o REMOTE" } }
+
+val selectedApiBaseUrl =
+    readConfig(
+        "vaiinillaApiBaseUrl",
+        "https://localhost.invalid/api/v1/",
+    )
 
 val bootstrapAccessToken = readConfig("vaiinillaAccessToken", "")
 val tokenCliente = readConfig("vaiinillaAccessTokenCliente", bootstrapAccessToken)
 val tokenCajero = readConfig("vaiinillaAccessTokenCajero", "")
 val tokenCocina = readConfig("vaiinillaAccessTokenCocina", "")
 val tokenMesero = readConfig("vaiinillaAccessTokenMesero", "")
+
+// Seed passwords: local.properties / -P only. Never commit real values.
+val seedPasswordCliente = readConfig("vaiinillaSeedPasswordCliente", "")
+val seedPasswordCajero = readConfig("vaiinillaSeedPasswordCajero", "")
+val seedPasswordCocina = readConfig("vaiinillaSeedPasswordCocina", "")
+val seedPasswordMesero = readConfig("vaiinillaSeedPasswordMesero", "")
 
 android {
     namespace = "com.vaiinilla.app"
@@ -53,10 +77,52 @@ android {
         buildConfigField("String", "DATA_SOURCE_MODE", "\"$selectedDataSource\"")
         buildConfigField("String", "API_BASE_URL", "\"$selectedApiBaseUrl\"")
         buildConfigField("String", "BOOTSTRAP_ACCESS_TOKEN", "\"$bootstrapAccessToken\"")
-        buildConfigField("String", "ACCESS_TOKEN_CLIENTE", "\"$tokenCliente\"")
-        buildConfigField("String", "ACCESS_TOKEN_CAJERO", "\"$tokenCajero\"")
-        buildConfigField("String", "ACCESS_TOKEN_COCINA", "\"$tokenCocina\"")
-        buildConfigField("String", "ACCESS_TOKEN_MESERO", "\"$tokenMesero\"")
+        buildConfigField("String", "ACCESS_TOKEN_CLIENTE", "\"${escapeBuildConfig(tokenCliente)}\"")
+        buildConfigField("String", "ACCESS_TOKEN_CAJERO", "\"${escapeBuildConfig(tokenCajero)}\"")
+        buildConfigField("String", "ACCESS_TOKEN_COCINA", "\"${escapeBuildConfig(tokenCocina)}\"")
+        buildConfigField("String", "ACCESS_TOKEN_MESERO", "\"${escapeBuildConfig(tokenMesero)}\"")
+        // Defaults: release-safe. Debug buildType overrides below.
+        buildConfigField("boolean", "ALLOW_DEMO_TOOLS", "false")
+        buildConfigField("boolean", "SEED_AUTH_ENABLED", "false")
+        buildConfigField("String", "SEED_PASSWORD_CLIENTE", "\"\"")
+        buildConfigField("String", "SEED_PASSWORD_CAJERO", "\"\"")
+        buildConfigField("String", "SEED_PASSWORD_COCINA", "\"\"")
+        buildConfigField("String", "SEED_PASSWORD_MESERO", "\"\"")
+    }
+
+    buildTypes {
+        getByName("debug") {
+            buildConfigField("boolean", "ALLOW_DEMO_TOOLS", "true")
+            buildConfigField("boolean", "SEED_AUTH_ENABLED", "true")
+            buildConfigField(
+                "String",
+                "SEED_PASSWORD_CLIENTE",
+                "\"${escapeBuildConfig(seedPasswordCliente)}\"",
+            )
+            buildConfigField(
+                "String",
+                "SEED_PASSWORD_CAJERO",
+                "\"${escapeBuildConfig(seedPasswordCajero)}\"",
+            )
+            buildConfigField(
+                "String",
+                "SEED_PASSWORD_COCINA",
+                "\"${escapeBuildConfig(seedPasswordCocina)}\"",
+            )
+            buildConfigField(
+                "String",
+                "SEED_PASSWORD_MESERO",
+                "\"${escapeBuildConfig(seedPasswordMesero)}\"",
+            )
+        }
+        getByName("release") {
+            buildConfigField("boolean", "ALLOW_DEMO_TOOLS", "false")
+            buildConfigField("boolean", "SEED_AUTH_ENABLED", "false")
+            buildConfigField("String", "SEED_PASSWORD_CLIENTE", "\"\"")
+            buildConfigField("String", "SEED_PASSWORD_CAJERO", "\"\"")
+            buildConfigField("String", "SEED_PASSWORD_COCINA", "\"\"")
+            buildConfigField("String", "SEED_PASSWORD_MESERO", "\"\"")
+        }
     }
 
     buildFeatures {

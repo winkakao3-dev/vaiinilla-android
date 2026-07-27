@@ -42,13 +42,17 @@ data class ProductOption(
     val extraPrice: String,
 )
 
-enum class PreparationStation(val wireValue: String) {
+enum class PreparationStation(
+    val wireValue: String,
+) {
     KITCHEN("cocina"),
-    CASHIER("caja");
+    CASHIER("caja"),
+    ;
 
     companion object {
-        fun fromWireValue(value: String): PreparationStation = entries.firstOrNull {
-            it.wireValue == value
-        } ?: throw IllegalArgumentException("estacion_preparacion no soportada: $value")
+        fun fromWireValue(value: String): PreparationStation =
+            entries.firstOrNull {
+                it.wireValue == value
+            } ?: throw IllegalArgumentException("estacion_preparacion no soportada: $value")
     }
 }

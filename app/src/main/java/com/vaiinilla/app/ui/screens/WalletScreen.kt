@@ -52,18 +52,21 @@ fun WalletScreen(
     onAssistant: () -> Unit,
     onOrders: () -> Unit,
     onCart: () -> Unit,
+    showDemoTabs: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.paper),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(colors.paper),
     ) {
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding(),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 132.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -159,6 +162,7 @@ fun WalletScreen(
         }
 
         VaiinillaBottomNav(
+            showDemoTabs = showDemoTabs,
             activeTab = StudentTab.WALLET,
             cartCount = state.cartItemCount,
             onMenu = onMenu,
@@ -178,20 +182,22 @@ private fun BalanceCard(
     onAddMoney: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(32.dp))
-            .background(colors.accent),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(32.dp))
+                .background(colors.accent),
     ) {
         Text(
             text = "$",
             color = colors.accentInk.copy(alpha = 0.08f),
             fontSize = 120.sp,
             fontWeight = FontWeight.Black,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .offset(y = 12.dp)
-                .padding(end = 8.dp),
+            modifier =
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(y = 12.dp)
+                    .padding(end = 8.dp),
         )
         Column(modifier = Modifier.padding(24.dp)) {
             Text(
@@ -218,10 +224,11 @@ private fun BalanceCard(
                 onClick = onAddMoney,
                 colors = ButtonDefaults.buttonColors(containerColor = colors.paper, contentColor = colors.accentInk),
                 shape = RoundedCornerShape(16.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp)
-                    .height(48.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp)
+                        .height(48.dp),
             ) {
                 Text("Añadir dinero", fontWeight = FontWeight.Black)
             }
@@ -246,14 +253,30 @@ private fun WalletActionCard(
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Icon(icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(20.dp))
-            Text(title, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp))
-            Text(subtitle, color = colors.muted, fontSize = 10.sp, lineHeight = 12.sp, modifier = Modifier.padding(top = 4.dp))
+            Text(
+                title,
+                color = colors.ink,
+                fontWeight = FontWeight.Black,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+            Text(
+                subtitle,
+                color = colors.muted,
+                fontSize = 10.sp,
+                lineHeight = 12.sp,
+                modifier = Modifier.padding(top = 4.dp),
+            )
         }
     }
 }
 
 @Composable
-private fun MiniStatCard(value: String, label: String, modifier: Modifier = Modifier) {
+private fun MiniStatCard(
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier,
+) {
     val colors = LocalVaiinillaColors.current
     Surface(
         modifier = modifier,
@@ -268,7 +291,11 @@ private fun MiniStatCard(value: String, label: String, modifier: Modifier = Modi
 }
 
 @Composable
-private fun SectionHead(title: String, action: String?, onAction: (() -> Unit)? = null) {
+private fun SectionHead(
+    title: String,
+    action: String?,
+    onAction: (() -> Unit)? = null,
+) {
     val colors = LocalVaiinillaColors.current
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -303,13 +330,26 @@ private fun PaymentMethodRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(brandColor),
+                modifier =
+                    Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(brandColor),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(brand.take(4), color = if (brandColor == colors.ink) colors.paper else colors.ink, fontWeight = FontWeight.Black, fontSize = 10.sp)
+                Text(
+                    brand.take(4),
+                    color =
+                        if (brandColor ==
+                            colors.ink
+                        ) {
+                            colors.paper
+                        } else {
+                            colors.ink
+                        },
+                    fontWeight = FontWeight.Black,
+                    fontSize = 10.sp,
+                )
             }
             Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Text(title, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 14.sp)
@@ -341,10 +381,11 @@ private fun MovementRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(colors.accent.copy(alpha = 0.35f)),
+                modifier =
+                    Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(colors.accent.copy(alpha = 0.35f)),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(icon, color = colors.ink, fontWeight = FontWeight.Black)

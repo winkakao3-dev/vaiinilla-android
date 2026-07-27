@@ -18,26 +18,26 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
 @Composable
-fun ThemeCycleButton(
-    modifier: Modifier = Modifier,
-) {
+fun ThemeCycleButton(modifier: Modifier = Modifier) {
     val colors = LocalVaiinillaColors.current
     val mode = LocalVaiinillaThemeMode.current
     val onChange = LocalVaiinillaThemeModeChanger.current ?: return
 
     IconButton(
         onClick = { onChange(mode.next()) },
-        modifier = modifier
-            .size(42.dp)
-            .background(colors.paper2, RoundedCornerShape(16.dp)),
+        modifier =
+            modifier
+                .size(42.dp)
+                .background(colors.paper2, RoundedCornerShape(16.dp)),
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
-                text = when (mode) {
-                    VaiinillaThemeMode.Light -> "☀"
-                    VaiinillaThemeMode.Dark -> "◑"
-                    VaiinillaThemeMode.Amoled -> "●"
-                },
+                text =
+                    when (mode) {
+                        VaiinillaThemeMode.Light -> "☀"
+                        VaiinillaThemeMode.Dark -> "◑"
+                        VaiinillaThemeMode.Amoled -> "●"
+                    },
                 color = colors.ink,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Black,

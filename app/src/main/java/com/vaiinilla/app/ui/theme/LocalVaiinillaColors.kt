@@ -27,9 +27,10 @@ data class VaiinillaColors(
     val navTextActive: Color,
 )
 
-val LocalVaiinillaColors = staticCompositionLocalOf {
-    VaiinillaThemeMode.Light.resolveColors()
-}
+val LocalVaiinillaColors =
+    staticCompositionLocalOf {
+        VaiinillaThemeMode.Light.resolveColors()
+    }
 
 val LocalVaiinillaThemeMode = staticCompositionLocalOf { VaiinillaThemeMode.Light }
 

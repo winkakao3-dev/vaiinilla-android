@@ -34,13 +34,14 @@ import com.vaiinilla.app.ui.theme.MutedInk
 
 @Composable
 fun OrderStatusBadge(state: OrderState) {
-    val (background, foreground) = when (state) {
-        OrderState.PENDING_PAYMENT -> CreamDeep to Ink
-        OrderState.PAID -> Lime to Ink
-        OrderState.PREPARING -> Coral to Ink
-        OrderState.READY -> Lime to Ink
-        OrderState.DELIVERED -> CreamDeep to MutedInk
-    }
+    val (background, foreground) =
+        when (state) {
+            OrderState.PENDING_PAYMENT -> CreamDeep to Ink
+            OrderState.PAID -> Lime to Ink
+            OrderState.PREPARING -> Coral to Ink
+            OrderState.READY -> Lime to Ink
+            OrderState.DELIVERED -> CreamDeep to MutedInk
+        }
     Surface(
         color = background,
         shape = RoundedCornerShape(999.dp),
@@ -63,10 +64,11 @@ fun OrderTimeline(current: OrderState) {
             Row(modifier = Modifier.fillMaxWidth()) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(if (completed) Lime else CreamDeep),
+                        modifier =
+                            Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(if (completed) Lime else CreamDeep),
                         contentAlignment = Alignment.Center,
                     ) {
                         if (completed) {
@@ -75,10 +77,11 @@ fun OrderTimeline(current: OrderState) {
                     }
                     if (index < OrderState.trackingFlow.lastIndex) {
                         Box(
-                            modifier = Modifier
-                                .width(2.dp)
-                                .height(36.dp)
-                                .background(if (completed) Lime else CreamDeep),
+                            modifier =
+                                Modifier
+                                    .width(2.dp)
+                                    .height(36.dp)
+                                    .background(if (completed) Lime else CreamDeep),
                         )
                     }
                 }
@@ -101,13 +104,14 @@ fun OrderTimeline(current: OrderState) {
     }
 }
 
-private fun timelineCopy(step: OrderState): String = when (step) {
-    OrderState.PENDING_PAYMENT -> "Esperando pago en Caja."
-    OrderState.PAID -> "Cobro confirmado."
-    OrderState.PREPARING -> "Cocina preparando tu pedido."
-    OrderState.READY -> "Listo para entregar."
-    OrderState.DELIVERED -> "Entrega completada."
-}
+private fun timelineCopy(step: OrderState): String =
+    when (step) {
+        OrderState.PENDING_PAYMENT -> "Esperando pago en Caja."
+        OrderState.PAID -> "Cobro confirmado."
+        OrderState.PREPARING -> "Cocina preparando tu pedido."
+        OrderState.READY -> "Listo para entregar."
+        OrderState.DELIVERED -> "Entrega completada."
+    }
 
 @Composable
 fun OrderSummaryCard(
@@ -162,10 +166,11 @@ fun OrderSummaryCard(
                     onClick = onAction,
                     enabled = enabled,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                        containerColor = Lime,
-                        contentColor = Ink,
-                    ),
+                    colors =
+                        androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = Lime,
+                            contentColor = Ink,
+                        ),
                 ) {
                     Text(actionLabel, fontWeight = FontWeight.Black)
                 }
@@ -181,9 +186,10 @@ fun OperationalEmptyState(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 32.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(vertical = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {

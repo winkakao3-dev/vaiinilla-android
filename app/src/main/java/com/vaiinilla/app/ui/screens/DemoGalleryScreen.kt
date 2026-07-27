@@ -37,89 +37,99 @@ data class DemoGallerySection(
     val items: List<DemoGalleryItem>,
 )
 
-val demoGallerySections = listOf(
-    DemoGallerySection(
-        title = "Arranque",
-        items = listOf(
-            DemoGalleryItem("splash", "Splash"),
-            DemoGalleryItem("01", "Selector de roles"),
+val demoGallerySections =
+    listOf(
+        DemoGallerySection(
+            title = "Arranque",
+            items =
+                listOf(
+                    DemoGalleryItem("splash", "Splash"),
+                    DemoGalleryItem("01", "Selector de roles"),
+                ),
         ),
-    ),
-    DemoGallerySection(
-        title = "Menú",
-        items = listOf(
-            DemoGalleryItem("02", "Catálogo"),
-            DemoGalleryItem("05", "Banner pedido activo"),
-            DemoGalleryItem("06", "Búsqueda vacía"),
-            DemoGalleryItem("07", "Producto (sheet)"),
+        DemoGallerySection(
+            title = "Menú",
+            items =
+                listOf(
+                    DemoGalleryItem("02", "Catálogo"),
+                    DemoGalleryItem("05", "Banner pedido activo"),
+                    DemoGalleryItem("06", "Búsqueda vacía"),
+                    DemoGalleryItem("07", "Producto (sheet)"),
+                ),
         ),
-    ),
-    DemoGallerySection(
-        title = "Asistente",
-        items = listOf(
-            DemoGalleryItem("09", "Hub asistente"),
-            DemoGalleryItem("57", "Chat"),
+        DemoGallerySection(
+            title = "Asistente",
+            items =
+                listOf(
+                    DemoGalleryItem("09", "Hub asistente"),
+                    DemoGalleryItem("57", "Chat"),
+                ),
         ),
-    ),
-    DemoGallerySection(
-        title = "Carrito / checkout",
-        items = listOf(
-            DemoGalleryItem("12", "Carrito vacío"),
-            DemoGalleryItem("13", "Llevar + efectivo"),
-            DemoGalleryItem("14", "Mesa + saldo"),
-            DemoGalleryItem("15", "Llevar + tarjeta"),
+        DemoGallerySection(
+            title = "Carrito / checkout",
+            items =
+                listOf(
+                    DemoGalleryItem("12", "Carrito vacío"),
+                    DemoGalleryItem("13", "Llevar + efectivo"),
+                    DemoGalleryItem("14", "Mesa + saldo"),
+                    DemoGalleryItem("15", "Llevar + tarjeta"),
+                ),
         ),
-    ),
-    DemoGallerySection(
-        title = "Confirmación",
-        items = listOf(
-            DemoGalleryItem("16", "Confirm efectivo"),
-            DemoGalleryItem("17", "Confirm saldo"),
-            DemoGalleryItem("18", "Confirm tarjeta"),
+        DemoGallerySection(
+            title = "Confirmación",
+            items =
+                listOf(
+                    DemoGalleryItem("16", "Confirm efectivo"),
+                    DemoGalleryItem("17", "Confirm saldo"),
+                    DemoGalleryItem("18", "Confirm tarjeta"),
+                ),
         ),
-    ),
-    DemoGallerySection(
-        title = "Pedidos",
-        items = listOf(
-            DemoGalleryItem("19", "Sin pedidos"),
-            DemoGalleryItem("20", "Por cobrar"),
-            DemoGalleryItem("21", "Cobrado"),
-            DemoGalleryItem("22", "Preparando"),
-            DemoGalleryItem("23", "Listo"),
-            DemoGalleryItem("24", "Entregado"),
+        DemoGallerySection(
+            title = "Pedidos",
+            items =
+                listOf(
+                    DemoGalleryItem("19", "Sin pedidos"),
+                    DemoGalleryItem("20", "Por cobrar"),
+                    DemoGalleryItem("21", "Cobrado"),
+                    DemoGalleryItem("22", "Preparando"),
+                    DemoGalleryItem("23", "Listo"),
+                    DemoGalleryItem("24", "Entregado"),
+                ),
         ),
-    ),
-    DemoGallerySection(
-        title = "Cartera",
-        items = listOf(
-            DemoGalleryItem("25", "Hub"),
-            DemoGalleryItem("26", "Añadir dinero"),
-            DemoGalleryItem("27", "SPEI"),
-            DemoGalleryItem("28", "Métodos"),
-            DemoGalleryItem("29", "Agregar tarjeta"),
-            DemoGalleryItem("30", "Mi cuenta"),
+        DemoGallerySection(
+            title = "Cartera",
+            items =
+                listOf(
+                    DemoGalleryItem("25", "Hub"),
+                    DemoGalleryItem("26", "Añadir dinero"),
+                    DemoGalleryItem("27", "SPEI"),
+                    DemoGalleryItem("28", "Métodos"),
+                    DemoGalleryItem("29", "Agregar tarjeta"),
+                    DemoGalleryItem("30", "Mi cuenta"),
+                ),
         ),
-    ),
-    DemoGallerySection(
-        title = "Stickers",
-        items = listOf(
-            DemoGalleryItem("51", "Editorial"),
-            DemoGalleryItem("52", "Core"),
-            DemoGalleryItem("53", "Limited"),
-            DemoGalleryItem("54", "Breakfast"),
-            DemoGalleryItem("55", "QR Live"),
-            DemoGalleryItem("56", "Térmico"),
+        DemoGallerySection(
+            title = "Stickers",
+            items =
+                listOf(
+                    DemoGalleryItem("51", "Editorial"),
+                    DemoGalleryItem("52", "Core"),
+                    DemoGalleryItem("53", "Limited"),
+                    DemoGalleryItem("54", "Breakfast"),
+                    DemoGalleryItem("55", "QR Live"),
+                    DemoGalleryItem("56", "Térmico"),
+                ),
         ),
-    ),
-    DemoGallerySection(
-        title = "Ops",
-        items = listOf(
-            DemoGalleryItem("caja", "Caja"),
-            DemoGalleryItem("cocina", "Cocina"),
-            DemoGalleryItem("mesero", "Mesero"),
+        DemoGallerySection(
+            title = "Ops",
+            items =
+                listOf(
+                    DemoGalleryItem("caja", "Caja"),
+                    DemoGalleryItem("cocina", "Cocina"),
+                    DemoGalleryItem("mesero", "Mesero"),
+                ),
         ),
-    ),
-)
+    )
 
 @Composable
 fun DemoGalleryScreen(
@@ -128,15 +138,17 @@ fun DemoGalleryScreen(
 ) {
     val colors = LocalVaiinillaColors.current
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.paper)
-            .statusBarsPadding(),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(colors.paper)
+                .statusBarsPadding(),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
@@ -195,18 +207,20 @@ private fun DemoGalleryRow(
 ) {
     val colors = LocalVaiinillaColors.current
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 2.dp)
-            .physicalPress(onClick = onClick),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 2.dp)
+                .physicalPress(onClick = onClick),
         color = colors.paper2,
         shape = RoundedCornerShape(14.dp),
     ) {
         Column {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(

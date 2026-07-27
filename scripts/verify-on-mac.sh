@@ -8,6 +8,7 @@ python3 scripts/validate_fixtures.py
 ./scripts/audit_scope_vai11.sh
 ./gradlew --no-daemon testDebugUnitTest
 ./gradlew --no-daemon lintDebug
+./gradlew --no-daemon ktlintCheck
 ./gradlew --no-daemon assembleDebug
 
 echo

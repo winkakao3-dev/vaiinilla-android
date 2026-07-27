@@ -4,14 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -103,40 +100,47 @@ private data class TrackingHeroContent(
     val text: Color,
 )
 
-private fun trackingHeroContent(state: OrderState, destination: OrderDestination): TrackingHeroContent {
+private fun trackingHeroContent(
+    state: OrderState,
+    destination: OrderDestination,
+): TrackingHeroContent {
     val darkBg = Color(0xFF1C1D1B)
     val darkText = Color(0xFFF5F2E8)
     return when (state) {
-        OrderState.PENDING_PAYMENT -> TrackingHeroContent(
-            eyebrow = "POR COBRAR",
-            title = "Pasa a Caja",
-            message = "Tu pedido está listo para pagarse en efectivo. Muéstrale el folio al cajero.",
-            badge = "EFECTIVO",
-            background = darkBg,
-            text = darkText,
-        )
-        OrderState.PAID -> TrackingHeroContent(
-            eyebrow = "COBRADO",
-            title = "Cocina recibió tu comanda",
-            message = "El pago quedó confirmado. En un momento empezarán a preparar tu pedido.",
-            badge = "21 · COBRADO",
-            background = darkBg,
-            text = darkText,
-        )
-        OrderState.PREPARING -> TrackingHeroContent(
-            eyebrow = "PREPARANDO",
-            title = "Tu comida se está cocinando",
-            message = "La cocina ya está trabajando en tu pedido. Te avisamos cuando esté listo.",
-            badge = "22 · PREPARANDO",
-            background = Color(0xFF2A2418),
-            text = Yolk,
-        )
+        OrderState.PENDING_PAYMENT ->
+            TrackingHeroContent(
+                eyebrow = "POR COBRAR",
+                title = "Pasa a Caja",
+                message = "Tu pedido está listo para pagarse en efectivo. Muéstrale el folio al cajero.",
+                badge = "EFECTIVO",
+                background = darkBg,
+                text = darkText,
+            )
+        OrderState.PAID ->
+            TrackingHeroContent(
+                eyebrow = "COBRADO",
+                title = "Cocina recibió tu comanda",
+                message = "El pago quedó confirmado. En un momento empezarán a preparar tu pedido.",
+                badge = "21 · COBRADO",
+                background = darkBg,
+                text = darkText,
+            )
+        OrderState.PREPARING ->
+            TrackingHeroContent(
+                eyebrow = "PREPARANDO",
+                title = "Tu comida se está cocinando",
+                message = "La cocina ya está trabajando en tu pedido. Te avisamos cuando esté listo.",
+                badge = "22 · PREPARANDO",
+                background = Color(0xFF2A2418),
+                text = Yolk,
+            )
         OrderState.READY -> {
-            val pickup = if (destination == OrderDestination.IN_SPACE) {
-                "Tu pedido va en camino a ${DemoCheckoutFixtures.SPACE_NAME}."
-            } else {
-                "Recógelo en la barra cuando veas este estado."
-            }
+            val pickup =
+                if (destination == OrderDestination.IN_SPACE) {
+                    "Tu pedido va en camino a ${DemoCheckoutFixtures.SPACE_NAME}."
+                } else {
+                    "Recógelo en la barra cuando veas este estado."
+                }
             TrackingHeroContent(
                 eyebrow = "LISTO",
                 title = if (destination == OrderDestination.IN_SPACE) "En camino a tu mesa" else "Listo para recoger",
@@ -146,14 +150,15 @@ private fun trackingHeroContent(state: OrderState, destination: OrderDestination
                 text = Color(0xFFD7EF8B),
             )
         }
-        OrderState.DELIVERED -> TrackingHeroContent(
-            eyebrow = "ENTREGADO",
-            title = "¡Buen provecho!",
-            message = "Tu pedido fue entregado. Gracias por usar Vaiinilla.",
-            badge = "24 · ENTREGADO",
-            background = darkBg,
-            text = darkText,
-        )
+        OrderState.DELIVERED ->
+            TrackingHeroContent(
+                eyebrow = "ENTREGADO",
+                title = "¡Buen provecho!",
+                message = "Tu pedido fue entregado. Gracias por usar Vaiinilla.",
+                badge = "24 · ENTREGADO",
+                background = darkBg,
+                text = darkText,
+            )
     }
 }
 
@@ -210,9 +215,10 @@ fun CheckoutSpacePicker(
             DemoCheckoutFixtures.DEMO_SPACES.forEach { space ->
                 val selected = space.id == selectedSpaceId
                 Surface(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(14.dp))
-                        .clickable { onSelect(space.id) },
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .clickable { onSelect(space.id) },
                     color = if (selected) colors.ink else colors.paper2,
                     shape = RoundedCornerShape(14.dp),
                 ) {
@@ -243,9 +249,10 @@ private fun DestinationOption(
     val fg = if (selected) colors.paper else colors.ink
     val muted = if (selected) colors.paper.copy(alpha = 0.72f) else colors.muted
     Surface(
-        modifier = modifier
-            .clip(RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick),
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(20.dp))
+                .clickable(onClick = onClick),
         color = bg,
         shape = RoundedCornerShape(20.dp),
     ) {
@@ -273,6 +280,7 @@ fun CheckoutPaymentPicker(
     walletBalance: Int,
     onSelect: (PaymentMethod) -> Unit,
     modifier: Modifier = Modifier,
+    showDemoPayments: Boolean = false,
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         PaymentOption(
@@ -282,28 +290,30 @@ fun CheckoutPaymentPicker(
             selected = selected == PaymentMethod.CASH,
             onClick = { onSelect(PaymentMethod.CASH) },
         )
-        PaymentOption(
-            brand = "SALDO",
-            title = "Saldo Vaiinilla · $$walletBalance",
-            subtitle = "Pago inmediato y cashback",
-            brandIsTransfer = true,
-            selected = selected == PaymentMethod.BALANCE,
-            onClick = { onSelect(PaymentMethod.BALANCE) },
-        )
-        PaymentOption(
-            brand = "VISA",
-            title = "Tarjeta •••• 4242",
-            subtitle = "Pago directo, sin usar saldo",
-            selected = selected == PaymentMethod.CARD,
-            onClick = { onSelect(PaymentMethod.CARD) },
-        )
-        Text(
-            "Transferencia: sólo para añadir dinero al saldo desde Cartera.",
-            color = LocalVaiinillaColors.current.muted,
-            fontSize = 12.sp,
-            lineHeight = 17.sp,
-            modifier = Modifier.padding(top = 4.dp),
-        )
+        if (showDemoPayments) {
+            PaymentOption(
+                brand = "SALDO",
+                title = "Saldo Vaiinilla · $$walletBalance",
+                subtitle = "Pago inmediato y cashback · Solo pruebas",
+                brandIsTransfer = true,
+                selected = selected == PaymentMethod.BALANCE,
+                onClick = { onSelect(PaymentMethod.BALANCE) },
+            )
+            PaymentOption(
+                brand = "VISA",
+                title = "Tarjeta •••• 4242",
+                subtitle = "Pago directo, sin usar saldo · Solo pruebas",
+                selected = selected == PaymentMethod.CARD,
+                onClick = { onSelect(PaymentMethod.CARD) },
+            )
+            Text(
+                "Transferencia: sólo para añadir dinero al saldo desde Cartera (demo).",
+                color = LocalVaiinillaColors.current.muted,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
     }
 }
 
@@ -318,17 +328,18 @@ private fun PaymentOption(
 ) {
     val colors = LocalVaiinillaColors.current
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick)
-            .then(
-                if (selected) {
-                    Modifier.border(2.dp, colors.accent, RoundedCornerShape(20.dp))
-                } else {
-                    Modifier
-                },
-            ),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .clickable(onClick = onClick)
+                .then(
+                    if (selected) {
+                        Modifier.border(2.dp, colors.accent, RoundedCornerShape(20.dp))
+                    } else {
+                        Modifier
+                    },
+                ),
         color = colors.paper2,
         shape = RoundedCornerShape(20.dp),
     ) {

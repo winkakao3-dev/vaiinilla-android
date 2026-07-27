@@ -12,24 +12,29 @@ class RemoteCatalogRepository(
     private val apiClient: VaiinillaApiClient,
     private val parser: ContractFixtureParser,
 ) : CatalogRepository {
-    override fun getCatalog(): Result<Catalog> = apiClient.get("catalogo")
-        .mapCatching { parser.parseCatalog(it) }
-        .mapApiErrors()
+    override fun getCatalog(): Result<Catalog> =
+        apiClient
+            .get("catalogo")
+            .mapCatching { parser.parseCatalog(it) }
+            .mapApiErrors()
 
-    override fun getOperationalStatus(): Result<OperationalStatus> = apiClient.get("estado-operativo")
-        .mapCatching { parser.parseOperationalStatus(it) }
-        .mapApiErrors()
+    override fun getOperationalStatus(): Result<OperationalStatus> =
+        apiClient
+            .get("estado-operativo")
+            .mapCatching { parser.parseOperationalStatus(it) }
+            .mapApiErrors()
 
-    private fun <T> Result<T>.mapApiErrors(): Result<T> = fold(
-        onSuccess = { Result.success(it) },
-        onFailure = { error ->
-            Result.failure(
-                when (error) {
-                    is ApiClientException -> CatalogRepositoryException(error.code, error.message ?: error.code)
-                    is CatalogRepositoryException -> error
-                    else -> error
-                },
-            )
-        },
-    )
+    private fun <T> Result<T>.mapApiErrors(): Result<T> =
+        fold(
+            onSuccess = { Result.success(it) },
+            onFailure = { error ->
+                Result.failure(
+                    when (error) {
+                        is ApiClientException -> CatalogRepositoryException(error.code, error.message ?: error.code)
+                        is CatalogRepositoryException -> error
+                        else -> error
+                    },
+                )
+            },
+        )
 }

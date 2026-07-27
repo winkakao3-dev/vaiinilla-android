@@ -48,23 +48,26 @@ fun WalletAddCardScreen(
 
     WalletScreenShell(modifier = Modifier.fillMaxSize()) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .navigationBarsPadding(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .navigationBarsPadding(),
         ) {
             WalletSubflowTopBar(title = "Agregar tarjeta", onBack = onBack)
 
             Column(
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 24.dp),
+                modifier =
+                    Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 24.dp),
             ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(colors.ink, RoundedCornerShape(24.dp))
-                        .padding(22.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .background(colors.ink, RoundedCornerShape(24.dp))
+                            .padding(22.dp),
                 ) {
                     Column {
                         Text("VAIINILLA · VISA", color = colors.paper, fontWeight = FontWeight.Black, fontSize = 11.sp)
@@ -77,9 +80,10 @@ fun WalletAddCardScreen(
                             modifier = Modifier.padding(top = 18.dp),
                         )
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 16.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             Text(holder.uppercase(), color = colors.paper.copy(alpha = 0.8f), fontSize = 12.sp)
@@ -121,12 +125,13 @@ fun WalletAddCardScreen(
                     text = "Guardar tarjeta",
                     onClick = {
                         val lastFour = number.filter { it.isDigit() }.takeLast(4).ifBlank { "4242" }
-                        val newCard = SavedCard(
-                            brand = "VISA",
-                            lastFour = lastFour,
-                            holder = holder.uppercase(),
-                            expiry = expiry,
-                        )
+                        val newCard =
+                            SavedCard(
+                                brand = "VISA",
+                                lastFour = lastFour,
+                                holder = holder.uppercase(),
+                                expiry = expiry,
+                            )
                         if (walletState.cards.none { it.lastFour == newCard.lastFour }) {
                             walletState.cards = walletState.cards + newCard
                         }
@@ -152,19 +157,21 @@ private fun WalletField(
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 6.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp),
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = colors.paper2,
-                unfocusedContainerColor = colors.paper2,
-                focusedTextColor = colors.ink,
-                unfocusedTextColor = colors.ink,
-                focusedBorderColor = colors.line,
-                unfocusedBorderColor = colors.line,
-            ),
+            colors =
+                OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = colors.paper2,
+                    unfocusedContainerColor = colors.paper2,
+                    focusedTextColor = colors.ink,
+                    unfocusedTextColor = colors.ink,
+                    focusedBorderColor = colors.line,
+                    unfocusedBorderColor = colors.line,
+                ),
         )
     }
 }

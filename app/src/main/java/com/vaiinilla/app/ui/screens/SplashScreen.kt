@@ -26,15 +26,14 @@ private val BootEaseIn = CubicBezierEasing(0.22f, 0.8f, 0.25f, 1f)
 private val BootEaseExpand = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)
 
 @Composable
-fun SplashScreen(
-    onFinished: () -> Unit,
-) {
+fun SplashScreen(onFinished: () -> Unit) {
     val colors = LocalVaiinillaColors.current
     val themeMode = LocalVaiinillaThemeMode.current
-    val splashBackground = when (themeMode) {
-        VaiinillaThemeMode.Dark, VaiinillaThemeMode.Amoled -> DarkSplash
-        VaiinillaThemeMode.Light -> colors.paper
-    }
+    val splashBackground =
+        when (themeMode) {
+            VaiinillaThemeMode.Dark, VaiinillaThemeMode.Amoled -> DarkSplash
+            VaiinillaThemeMode.Light -> colors.paper
+        }
     val iconIn = remember { Animatable(0f) }
     val iconScale = remember { Animatable(0.7f) }
     val splashAlpha = remember { Animatable(1f) }
@@ -50,20 +49,22 @@ fun SplashScreen(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .alpha(splashAlpha.value)
-            .background(splashBackground),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .alpha(splashAlpha.value)
+                .background(splashBackground),
         contentAlignment = Alignment.Center,
     ) {
         Box(
-            modifier = Modifier
-                .size(96.dp)
-                .graphicsLayer {
-                    alpha = iconIn.value
-                    scaleX = iconScale.value
-                    scaleY = iconScale.value
-                },
+            modifier =
+                Modifier
+                    .size(96.dp)
+                    .graphicsLayer {
+                        alpha = iconIn.value
+                        scaleX = iconScale.value
+                        scaleY = iconScale.value
+                    },
             contentAlignment = Alignment.Center,
         ) {
             VaiinillaMark(modifier = Modifier.fillMaxSize())

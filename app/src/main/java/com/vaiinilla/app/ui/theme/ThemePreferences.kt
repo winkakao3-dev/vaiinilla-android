@@ -11,7 +11,10 @@ object ThemePreferences {
         return VaiinillaThemeMode.fromStorageKey(prefs.getString(KEY_THEME, VaiinillaThemeMode.Light.storageKey))
     }
 
-    fun save(context: Context, mode: VaiinillaThemeMode) {
+    fun save(
+        context: Context,
+        mode: VaiinillaThemeMode,
+    ) {
         context.applicationContext
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()

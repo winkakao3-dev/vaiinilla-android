@@ -6,25 +6,27 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class EffectiveDataSourceResolver @Inject constructor(
-    private val environment: AppEnvironment,
-    @ApplicationContext private val context: Context,
-) {
-    var isTestOnlyMode: Boolean
-        get() = TestOnlyPreferences.isEnabled(context)
-        set(value) {
-            TestOnlyPreferences.setEnabled(context, value)
-        }
+class EffectiveDataSourceResolver
+    @Inject
+    constructor(
+        private val environment: AppEnvironment,
+        @ApplicationContext private val context: Context,
+    ) {
+        var isTestOnlyMode: Boolean
+            get() = TestOnlyPreferences.isEnabled(context)
+            set(value) {
+                TestOnlyPreferences.setEnabled(context, value)
+            }
 
-    val configuredMode: DataSourceMode
-        get() = environment.dataSourceMode
+        val configuredMode: DataSourceMode
+            get() = environment.dataSourceMode
 
-    fun effectiveMode(): DataSourceMode =
-        if (isTestOnlyMode || configuredMode == DataSourceMode.MOCK) {
-            DataSourceMode.MOCK
-        } else {
-            DataSourceMode.REMOTE
-        }
+        fun effectiveMode(): DataSourceMode =
+            if (isTestOnlyMode || configuredMode == DataSourceMode.MOCK) {
+                DataSourceMode.MOCK
+            } else {
+                DataSourceMode.REMOTE
+            }
 
-    fun usesNetwork(): Boolean = effectiveMode() == DataSourceMode.REMOTE
-}
+        fun usesNetwork(): Boolean = effectiveMode() == DataSourceMode.REMOTE
+    }

@@ -15,4 +15,6 @@ interface VaiinillaApiClient {
     ): Result<String>
 }
 
-class RemoteClientNotConfiguredException(message: String) : IllegalStateException(message)
+class RemoteClientNotConfiguredException(
+    message: String,
+) : IllegalStateException(message)
