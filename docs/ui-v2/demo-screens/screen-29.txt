@@ -1,0 +1,1 @@
+Agregar tarjeta VAIINILLA · VISA •••• •••• •••• 4242 DANI ÁLVAREZ 08/29 Nombre del titular Número de tarjeta Vencimiento CVV Interfaz demostrativa. Los datos no se procesan ni se envían a una pasarela bancaria. Guardar tarjeta

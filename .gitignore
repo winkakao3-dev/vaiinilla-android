@@ -1,0 +1,24 @@
+*.iml
+.gradle/
+.gradle-bootstrap/
+local.properties
+.idea/
+.DS_Store
+build/
+**/build/
+captures/
+
+# Roborazzi compare/diff artifacts (reference PNGs live under app/src/test/roborazzi/)
+app/build/outputs/roborazzi/
+.externalNativeBuild/
+.cxx/
+
+__pycache__/
+*.pyc
+
+# Firebase / secretos locales (no commitear)
+secrets/
+# google-services.json se versiona en app/ (config cliente pública del proyecto Firebase)
+GoogleService-Info.plist
+# .firebaserc se versiona para fijar project id del equipo
+# firebase.json se versiona (vacío/mínimo OK)

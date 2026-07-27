@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Navbar estilo Uber</title>
+  <style>
+    :root {
+      --page-bg: #0c0c0c;
+      --nav-bg: rgba(17, 17, 17, 0.97);
+      --nav-border: rgba(255, 255, 255, 0.10);
+      --active-bg: #292929;
+      --text-active: #f2f2f2;
+      --text-idle: #b7b7b7;
+      --nav-width: min(568px, calc(100vw - 32px));
+      --nav-height: 116px;
+      --nav-radius: 58px;
+      --item-radius: 999px;
+      --ease: cubic-bezier(.22, .8, .25, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      color: white;
+      background: var(--page-bg);
+      font-family: "Uber Move", "SF Pro Display", "SF Pro Text", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: geometricPrecision;
+      overflow-x: hidden;
+    }
+
+    button { font: inherit; }
+
+    /* Fondo de demostración. Puedes borrar todo .demo-screen sin afectar la navbar. */
+    .demo-screen {
+      min-height: 100%;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 12% 18%, rgba(255, 108, 56, .35), transparent 25%),
+        radial-gradient(circle at 88% 12%, rgba(255, 196, 94, .20), transparent 22%),
+        linear-gradient(180deg, #212121 0%, #111 44%, #090909 100%);
+    }
+
+    .demo-screen::before {
+      content: "";
+      position: absolute;
+      inset: 36px 24px auto;
+      height: 150px;
+      border-radius: 28px;
+      background:
+        linear-gradient(90deg, rgba(0,0,0,.15), rgba(0,0,0,.5)),
+        repeating-linear-gradient(115deg, #6d3020 0 34px, #b95a30 34px 66px, #dfa93f 66px 98px, #2f5a35 98px 130px);
+      filter: saturate(.8) brightness(.75);
+      opacity: .82;
+    }
+
+    .ghost-title {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(640px, 94vw);
+      margin: 0;
+      font-size: clamp(30px, 5vw, 46px);
+      line-height: 1;
+      text-align: center;
+      letter-spacing: -.04em;
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+
+    /* Contenedor de la navbar */
+    .nav-dock {
+      position: fixed;
+      z-index: 20;
+      left: 50%;
+      bottom: max(22px, env(safe-area-inset-bottom));
+      width: var(--nav-width);
+      height: var(--nav-height);
+      transform: translateX(-50%);
+      isolation: isolate;
+    }
+
+    .bottom-nav {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      align-items: stretch;
+      padding: 14px;
+      border: 1px solid var(--nav-border);
+      border-radius: var(--nav-radius);
+      background: var(--nav-bg);
+      box-shadow:
+        0 18px 50px rgba(0, 0, 0, .50),
+        inset 0 1px 0 rgba(255,255,255,.025);
+      -webkit-backdrop-filter: blur(22px) saturate(135%);
+      backdrop-filter: blur(22px) saturate(135%);
+      overflow: hidden;
+    }
+
+    .active-pill {
+      position: absolute;
+      z-index: 0;
+      top: 14px;
+      bottom: 14px;
+      left: 14px;
+      width: calc((100% - 28px) / 4);
+      border-radius: var(--item-radius);
+      background: var(--active-bg);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+      transform: translateX(calc(var(--active-index, 0) * 100%));
+      transition: transform 340ms var(--ease), width 340ms var(--ease);
+      pointer-events: none;
+    }
+
+    .nav-item {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      border: 0;
+      border-radius: var(--item-radius);
+      background: transparent;
+      color: var(--text-idle);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 8px 4px 7px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 220ms ease, transform 180ms ease;
+    }
+
+    .nav-item:hover { color: #d5d5d5; }
+    .nav-item:active { transform: scale(.97); }
+    .nav-item.is-active { color: var(--text-active); }
+
+    .nav-item:focus-visible {
+      outline: 2px solid white;
+      outline-offset: -5px;
+    }
+
+    .nav-icon {
+      width: 33px;
+      height: 33px;
+      display: block;
+      flex: 0 0 auto;
+      overflow: visible;
+    }
+
+    .nav-label {
+      display: block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 19px;
+      line-height: 1.1;
+      font-weight: 500;
+      letter-spacing: -.025em;
+    }
+
+    .nav-item.is-active .nav-label { font-weight: 700; }
+
+    @media (max-width: 520px) {
+      :root {
+        --nav-width: calc(100vw - 24px);
+        --nav-height: 88px;
+        --nav-radius: 44px;
+      }
+
+      .bottom-nav { padding: 9px; }
+      .active-pill {
+        top: 9px;
+        bottom: 9px;
+        left: 9px;
+        width: calc((100% - 18px) / 4);
+      }
+      .nav-icon { width: 27px; height: 27px; }
+      .nav-label { font-size: 14px; }
+      .nav-item { gap: 3px; padding-inline: 2px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .active-pill, .nav-item { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="demo-screen">
+    <h1 class="ghost-title">Opciones que podrían gustarte</h1>
+  </main>
+
+  <div class="nav-dock">
+    <nav class="bottom-nav" aria-label="Navegación principal">
+      <span class="active-pill" aria-hidden="true"></span>
+
+      <button class="nav-item is-active" type="button" data-index="0" aria-current="page" aria-label="Inicio">
+        <svg class="nav-icon" viewBox="0 0 32 32" aria-hidden="true">
+          <path fill="currentColor" d="M4.8 14.1 16 4.7l11.2 9.4v13.1h-8.1v-8.3h-6.2v8.3H4.8V14.1Z"/>
+        </svg>
+        <span class="nav-label">Inicio</span>
+      </button>
+
+      <button class="nav-item" type="button" data-index="1" aria-label="Opciones">
+        <svg class="nav-icon" viewBox="0 0 32 32" aria-hidden="true">
+          <g fill="currentColor">
+            <rect x="5" y="5" width="4" height="4" rx=".6"/>
+            <rect x="14" y="5" width="4" height="4" rx=".6"/>
+            <rect x="23" y="5" width="4" height="4" rx=".6"/>
+            <rect x="5" y="14" width="4" height="4" rx=".6"/>
+            <rect x="14" y="14" width="4" height="4" rx=".6"/>
+            <rect x="23" y="14" width="4" height="4" rx=".6"/>
+            <rect x="5" y="23" width="4" height="4" rx=".6"/>
+            <rect x="14" y="23" width="4" height="4" rx=".6"/>
+            <rect x="23" y="23" width="4" height="4" rx=".6"/>
+          </g>
+        </svg>
+        <span class="nav-label">Opciones</span>
+      </button>
+
+      <button class="nav-item" type="button" data-index="2" aria-label="Actividad">
+        <svg class="nav-icon" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M7 4.5h18v23l-4.6-2.7L16 27.5l-4.4-2.7L7 27.5v-23Z" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linejoin="miter"/>
+          <path d="M11.8 11h8.4M11.8 16h6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square"/>
+        </svg>
+        <span class="nav-label">Actividad</span>
+      </button>
+
+      <button class="nav-item" type="button" data-index="3" aria-label="Cuenta">
+        <svg class="nav-icon" viewBox="0 0 32 32" aria-hidden="true">
+          <circle cx="14" cy="9.5" r="4" fill="none" stroke="currentColor" stroke-width="2.4"/>
+          <path d="M6.4 25.5c0-5 3.2-8.1 7.6-8.1 2.2 0 4 .7 5.3 2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+          <circle cx="23" cy="21" r="5.3" fill="none" stroke="currentColor" stroke-width="2.2"/>
+          <path d="M23 17.7v6.6M19.7 21h6.6" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
+        </svg>
+        <span class="nav-label">Cuenta</span>
+      </button>
+    </nav>
+  </div>
+
+  <script>
+    const nav = document.querySelector('.bottom-nav');
+    const items = [...nav.querySelectorAll('.nav-item')];
+
+    function selectItem(item) {
+      const index = Number(item.dataset.index);
+      nav.style.setProperty('--active-index', index);
+
+      items.forEach((button) => {
+        const active = button === item;
+        button.classList.toggle('is-active', active);
+        if (active) button.setAttribute('aria-current', 'page');
+        else button.removeAttribute('aria-current');
+      });
+
+      // Aquí puedes conectar tu router:
+      // const routes = ['/', '/options', '/activity', '/account'];
+      // window.location.href = routes[index];
+    }
+
+    items.forEach((item) => item.addEventListener('click', () => selectItem(item)));
+  </script>
+</body>
+</html>
