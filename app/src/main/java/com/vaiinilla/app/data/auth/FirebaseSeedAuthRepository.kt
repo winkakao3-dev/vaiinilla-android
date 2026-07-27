@@ -1,0 +1,129 @@
+package com.vaiinilla.app.data.auth
+
+import com.google.firebase.auth.FirebaseAuth
+import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
+import com.vaiinilla.app.core.config.AppEnvironment
+import com.vaiinilla.app.core.config.DataSourceMode
+import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
+import com.vaiinilla.app.core.security.SecureSessionStore
+import com.vaiinilla.app.core.security.SeedJwtCache
+import com.vaiinilla.app.domain.auth.SeedAccounts
+import com.vaiinilla.app.domain.model.OperationalRole
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+
+@Singleton
+class FirebaseSeedAuthRepository @Inject constructor(
+    private val environment: AppEnvironment,
+    private val apiClient: HttpVaiinillaApiClient,
+    private val sessionStore: SecureSessionStore,
+    private val seedJwtCache: SeedJwtCache,
+    private val refreshCoordinator: VaiinillaJwtRefreshCoordinator,
+) {
+    private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
+
+    suspend fun authenticateRole(role: OperationalRole): Result<Unit> = withContext(Dispatchers.IO) {
+        if (environment.dataSourceMode != DataSourceMode.REMOTE) {
+            return@withContext Result.success(Unit)
+        }
+        runCatching {
+            signInAndExchange(role, forceRefresh = false)
+            Unit
+        }
+    }
+
+    suspend fun ensureRoleJwt(role: OperationalRole, forceRefresh: Boolean = false): Result<String> =
+        withContext(Dispatchers.IO) {
+            if (environment.dataSourceMode != DataSourceMode.REMOTE) {
+                return@withContext Result.failure(IllegalStateException("Seed auth solo aplica en REMOTE."))
+            }
+            if (!forceRefresh) {
+                seedJwtCache.get(role)?.let { return@withContext Result.success(it) }
+            }
+            runCatching {
+                signInAndExchange(role, forceRefresh).accessToken
+            }
+        }
+
+    suspend fun restoreActiveRole(role: OperationalRole): Result<Unit> = withContext(Dispatchers.IO) {
+        if (environment.dataSourceMode != DataSourceMode.REMOTE) {
+            return@withContext Result.success(Unit)
+        }
+        runCatching {
+            val cached = seedJwtCache.get(role)
+            if (cached != null) {
+                signInSeedAccount(role)
+                sessionStore.saveAccessToken(cached)
+                refreshCoordinator.startSession(role, DEFAULT_EXPIRES_IN_SECONDS)
+            } else {
+                signInAndExchange(role, forceRefresh = false)
+            }
+            Unit
+        }
+    }
+
+    fun refreshRoleSession(role: OperationalRole): Result<Unit> = runBlocking {
+        runCatching {
+            signInAndExchange(role, forceRefresh = true)
+        }.map { }
+    }
+
+    private suspend fun signInAndExchange(
+        role: OperationalRole,
+        forceRefresh: Boolean,
+    ): SesionesContextoDataDto {
+        val account = SeedAccounts.forRole(role)
+            ?: throw IllegalStateException("No hay cuenta seed para el rol ${role.name}.")
+
+        signInSeedAccount(role)
+
+        val firebaseToken = auth.currentUser?.getIdToken(forceRefresh)?.await()?.token
+            ?.takeIf { it.isNotBlank() }
+            ?: throw IllegalStateException("No se pudo obtener el ID token de Firebase.")
+
+        val session = exchangeContexto(firebaseToken, account.membresiaId)
+        seedJwtCache.put(role, session.accessToken, session.expiresIn)
+        sessionStore.saveAccessToken(session.accessToken)
+        refreshCoordinator.startSession(role, session.expiresIn)
+        return session
+    }
+
+    private suspend fun signInSeedAccount(role: OperationalRole) {
+        val account = SeedAccounts.forRole(role)
+            ?: throw IllegalStateException("No hay cuenta seed para el rol ${role.name}.")
+        auth.signInWithEmailAndPassword(account.email, account.password).await()
+    }
+
+    private fun exchangeContexto(
+        firebaseIdToken: String,
+        membresiaId: String,
+    ): SesionesContextoDataDto {
+        val body = json.encodeToString(SesionesContextoRequestDto(membresiaId = membresiaId))
+        val raw = apiClient.postWithBearer(
+            bearer = firebaseIdToken,
+            path = "sesiones/contexto",
+            body = body,
+        ).getOrElse { throw it }
+
+        return json.decodeFromString<SesionesContextoEnvelopeDto>(raw).data
+    }
+
+    private companion object {
+        const val DEFAULT_EXPIRES_IN_SECONDS = 900
+    }
+}
+
+@kotlinx.serialization.Serializable
+private data class SesionesContextoRequestDto(
+    @kotlinx.serialization.SerialName("membresia_id") val membresiaId: String,
+)

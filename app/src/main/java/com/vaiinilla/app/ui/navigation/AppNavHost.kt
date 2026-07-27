@@ -20,6 +20,7 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import dagger.hilt.android.EntryPointAccessors
+import com.vaiinilla.app.ui.auth.RoleAuthViewModel
 import com.vaiinilla.app.ui.demo.DemoGallerySeeder
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
@@ -47,8 +48,10 @@ import com.vaiinilla.app.ui.wallet.rememberWalletUiState
 fun AppNavHost(navController: NavHostController) {
     val orderFlowViewModel: OrderFlowViewModel = viewModel()
     val operationalViewModel: OperationalViewModel = viewModel()
+    val roleAuthViewModel: RoleAuthViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
+    val roleAuthState by roleAuthViewModel.state
     val walletState = rememberWalletUiState()
     val context = LocalContext.current
     val dataSourceResolver = remember {
@@ -230,6 +233,9 @@ fun AppNavHost(navController: NavHostController) {
             RoleSelectorScreen(
                 testOnlyMode = testOnlyMode,
                 onTestOnlyModeChange = { enabled -> testOnlyMode = enabled },
+                loadingRole = roleAuthState.authenticatingRole.takeIf { roleAuthState.loading },
+                errorMessage = roleAuthState.errorMessage,
+                onDismissError = roleAuthViewModel::clearError,
                 onOpenDemoGallery = {
                     testOnlyMode = true
                     navController.navigate(Routes.DEMO_GALLERY) {
@@ -237,22 +243,24 @@ fun AppNavHost(navController: NavHostController) {
                     }
                 },
                 onRoleSelected = { role ->
-                    operationalViewModel.setRole(role)
-                    when (role) {
-                        OperationalRole.CLIENT -> {
-                            orderFlowViewModel.refresh()
-                            navController.navigate(Routes.CATALOG) {
+                    roleAuthViewModel.authenticate(role) {
+                        operationalViewModel.setRole(role)
+                        when (role) {
+                            OperationalRole.CLIENT -> {
+                                orderFlowViewModel.refresh()
+                                navController.navigate(Routes.CATALOG) {
+                                    launchSingleTop = true
+                                }
+                            }
+                            OperationalRole.CASHIER -> navController.navigate(Routes.CASHIER) {
                                 launchSingleTop = true
                             }
-                        }
-                        OperationalRole.CASHIER -> navController.navigate(Routes.CASHIER) {
-                            launchSingleTop = true
-                        }
-                        OperationalRole.KITCHEN -> navController.navigate(Routes.KITCHEN) {
-                            launchSingleTop = true
-                        }
-                        OperationalRole.WAITER -> navController.navigate(Routes.WAITER) {
-                            launchSingleTop = true
+                            OperationalRole.KITCHEN -> navController.navigate(Routes.KITCHEN) {
+                                launchSingleTop = true
+                            }
+                            OperationalRole.WAITER -> navController.navigate(Routes.WAITER) {
+                                launchSingleTop = true
+                            }
                         }
                     }
                 },

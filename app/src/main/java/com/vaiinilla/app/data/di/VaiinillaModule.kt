@@ -2,6 +2,8 @@ package com.vaiinilla.app.data.di
 
 import android.content.Context
 import com.vaiinilla.app.BuildConfig
+import com.vaiinilla.app.core.auth.ActiveSessionRefresher
+import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.config.DataSourceMode
 import com.vaiinilla.app.core.config.EffectiveDataSourceResolver
@@ -68,6 +70,12 @@ object VaiinillaModule {
     fun providePickupTokenStore(
         store: SharedPreferencesPickupTokenStore,
     ): PickupTokenStore = store
+
+    @Provides
+    @Singleton
+    fun provideActiveSessionRefresher(
+        coordinator: VaiinillaJwtRefreshCoordinator,
+    ): ActiveSessionRefresher = coordinator
 
     @Provides
     @Singleton

@@ -8,6 +8,7 @@ import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.config.DataSourceMode
 import com.vaiinilla.app.core.config.EffectiveDataSourceResolver
 import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
+import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
@@ -270,7 +271,9 @@ class OrderFlowViewModel @Inject constructor(
             }
 
             if (dataSourceResolver.usesNetwork()) {
-                withContext(Dispatchers.IO) { staffPresenceCoordinator.primeStaffPresence() }
+                withContext(Dispatchers.IO) {
+                    staffPresenceCoordinator.primeStaffPresence(activeRole = OperationalRole.CLIENT)
+                }
                 val status = withContext(Dispatchers.IO) { getOperationalStatus() }.getOrNull()
                 if (status != null) {
                     current = current.copy(operationalStatus = status)

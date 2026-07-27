@@ -8,6 +8,7 @@ import javax.inject.Singleton
 @Singleton
 class RoleAccessTokenStore @Inject constructor(
     private val sessionStore: SecureSessionStore,
+    private val seedJwtCache: SeedJwtCache,
 ) {
     fun applyRole(role: OperationalRole) {
         val token = tokenFor(role)?.trim().orEmpty()
@@ -16,7 +17,10 @@ class RoleAccessTokenStore @Inject constructor(
         }
     }
 
-    fun tokenFor(role: OperationalRole): String? = when (role) {
+    fun tokenFor(role: OperationalRole): String? =
+        seedJwtCache.get(role) ?: buildConfigTokenFor(role)
+
+    private fun buildConfigTokenFor(role: OperationalRole): String? = when (role) {
         OperationalRole.CLIENT -> BuildConfig.ACCESS_TOKEN_CLIENTE.ifBlank { BuildConfig.BOOTSTRAP_ACCESS_TOKEN }
         OperationalRole.CASHIER -> BuildConfig.ACCESS_TOKEN_CAJERO.ifBlank { BuildConfig.BOOTSTRAP_ACCESS_TOKEN }
         OperationalRole.KITCHEN -> BuildConfig.ACCESS_TOKEN_COCINA.ifBlank { BuildConfig.BOOTSTRAP_ACCESS_TOKEN }

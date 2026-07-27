@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,8 +43,12 @@ fun RoleSelectorScreen(
     onTestOnlyModeChange: (Boolean) -> Unit,
     onRoleSelected: (OperationalRole) -> Unit,
     onOpenDemoGallery: () -> Unit,
+    loadingRole: OperationalRole? = null,
+    errorMessage: String? = null,
+    onDismissError: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
+    val isLoading = loadingRole != null
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -84,6 +89,28 @@ fun RoleSelectorScreen(
                 onEnabledChange = onTestOnlyModeChange,
                 modifier = Modifier.padding(top = 4.dp),
             )
+        }
+
+        if (errorMessage != null) {
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = colors.coral.copy(alpha = 0.15f),
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Text(
+                            errorMessage,
+                            color = colors.ink,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp,
+                        )
+                        TextButton(onClick = onDismissError) {
+                            Text("Cerrar", color = colors.ink, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
         }
 
         item {
@@ -151,16 +178,31 @@ fun RoleSelectorScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 18.dp)
-                            .physicalPress(onClick = { onRoleSelected(OperationalRole.CLIENT) }),
+                            .physicalPress(
+                                enabled = !isLoading,
+                                onClick = { onRoleSelected(OperationalRole.CLIENT) },
+                            ),
                         color = colors.ink,
                         shape = RoundedCornerShape(20.dp),
                     ) {
-                        Text(
-                            "Entrar como alumno",
-                        color = colors.paper,
-                            fontWeight = FontWeight.Black,
+                        Row(
                             modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-                        )
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            if (loadingRole == OperationalRole.CLIENT) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = colors.paper,
+                                )
+                            }
+                            Text(
+                                "Entrar como alumno",
+                                color = colors.paper,
+                                fontWeight = FontWeight.Black,
+                            )
+                        }
                     }
                 }
             }
@@ -187,6 +229,8 @@ fun RoleSelectorScreen(
                         RoleCard(
                             option = option,
                             modifier = Modifier.weight(1f),
+                            enabled = !isLoading,
+                            loading = option.role == loadingRole,
                             onClick = { option.role?.let(onRoleSelected) },
                         )
                     }
@@ -196,6 +240,8 @@ fun RoleSelectorScreen(
                         RoleCard(
                             option = option,
                             modifier = Modifier.weight(1f),
+                            enabled = !isLoading,
+                            loading = option.role == loadingRole,
                             onClick = { option.role?.let(onRoleSelected) },
                         )
                     }
@@ -203,6 +249,8 @@ fun RoleSelectorScreen(
                 RoleCard(
                     option = options[4],
                     modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading,
+                    loading = options[4].role == loadingRole,
                     onClick = { options[4].role?.let(onRoleSelected) },
                 )
             }
@@ -267,19 +315,33 @@ private fun RoleCard(
     option: RoleOption,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    loading: Boolean = false,
 ) {
     Surface(
         modifier = modifier
             .height(148.dp)
-            .physicalPress(scale = PhysicalPressScale.Default, onClick = onClick),
+            .physicalPress(
+                scale = PhysicalPressScale.Default,
+                enabled = enabled,
+                onClick = onClick,
+            ),
         shape = RoundedCornerShape(28.dp),
-        color = option.background,
+        color = option.background.copy(alpha = if (enabled) 1f else 0.55f),
     ) {
         Column(
             modifier = Modifier.padding(17.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(option.icon, fontSize = 29.sp, color = option.contentColor)
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp,
+                    color = option.contentColor,
+                )
+            } else {
+                Text(option.icon, fontSize = 29.sp, color = option.contentColor)
+            }
             Column {
                 Text(
                     option.title,

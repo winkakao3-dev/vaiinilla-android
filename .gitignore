@@ -18,7 +18,7 @@ __pycache__/
 
 # Firebase / secretos locales (no commitear)
 secrets/
-google-services.json
+# google-services.json se versiona en app/ (config cliente pública del proyecto Firebase)
 GoogleService-Info.plist
-.firebaserc
-firebase.json
+# .firebaserc se versiona para fijar project id del equipo
+# firebase.json se versiona (vacío/mínimo OK)

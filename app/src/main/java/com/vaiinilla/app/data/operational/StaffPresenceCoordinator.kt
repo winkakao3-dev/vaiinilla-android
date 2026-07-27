@@ -3,10 +3,12 @@ package com.vaiinilla.app.data.operational
 import com.vaiinilla.app.core.config.EffectiveDataSourceResolver
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
 import com.vaiinilla.app.core.security.RoleAccessTokenStore
+import com.vaiinilla.app.data.auth.FirebaseSeedAuthRepository
 import com.vaiinilla.app.domain.model.OperationalRole
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -17,13 +19,14 @@ class StaffPresenceCoordinator @Inject constructor(
     private val dataSourceResolver: EffectiveDataSourceResolver,
     private val roleAccessTokenStore: RoleAccessTokenStore,
     private val apiClient: HttpVaiinillaApiClient,
+    private val seedAuthRepository: FirebaseSeedAuthRepository,
 ) {
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
     }
 
-    fun primeStaffPresence(): Result<Unit> {
+    fun primeStaffPresence(activeRole: OperationalRole? = null): Result<Unit> {
         if (!dataSourceResolver.usesNetwork()) {
             return Result.success(Unit)
         }
@@ -32,6 +35,26 @@ class StaffPresenceCoordinator @Inject constructor(
             OperationalRole.CASHIER to "android-cajero",
             OperationalRole.KITCHEN to "android-cocina",
         )
+
+        for ((role, _) in staffRoles) {
+            val ensured = runBlocking { seedAuthRepository.ensureRoleJwt(role) }
+            if (ensured.isFailure) {
+                return Result.failure(
+                    ensured.exceptionOrNull()
+                        ?: IllegalStateException("No se pudo obtener JWT para ${role.name}."),
+                )
+            }
+        }
+
+        activeRole?.let { role ->
+            val restored = runBlocking { seedAuthRepository.restoreActiveRole(role) }
+            if (restored.isFailure) {
+                return Result.failure(
+                    restored.exceptionOrNull()
+                        ?: IllegalStateException("No se pudo restaurar la sesión de ${role.name}."),
+                )
+            }
+        }
 
         var sent = 0
         var failed = 0
