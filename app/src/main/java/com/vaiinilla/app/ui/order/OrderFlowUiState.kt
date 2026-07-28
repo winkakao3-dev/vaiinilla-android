@@ -5,6 +5,7 @@ import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
+import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -32,6 +33,7 @@ data class OrderFlowUiState(
     val creatingOrder: Boolean = false,
     val createOrderError: String? = null,
     val createdOrder: OrderDetail? = null,
+    val guestVenue: GuestVenueContext? = null,
 )
 
 val OrderFlowUiState.selectedProduct: Product?

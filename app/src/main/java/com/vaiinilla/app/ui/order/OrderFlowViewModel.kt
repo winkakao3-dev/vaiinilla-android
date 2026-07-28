@@ -6,15 +6,18 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.config.EffectiveDataSourceResolver
+import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
+import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
 import com.vaiinilla.app.domain.usecase.CreateOrderUseCase
 import com.vaiinilla.app.domain.usecase.CreateStudentCheckoutUseCase
@@ -39,23 +42,96 @@ class OrderFlowViewModel
         private val staffPresenceCoordinator: StaffPresenceCoordinator,
         private val dataSourceResolver: EffectiveDataSourceResolver,
         private val environment: AppEnvironment,
+        private val discoveryRepository: DiscoveryRepository,
+        private val guestSessionStore: GuestSessionStore,
     ) : ViewModel() {
         private val _uiState =
             mutableStateOf(
                 OrderFlowUiState(
                     dataSourceMode = environment.dataSourceMode,
                     testOnlyMode = dataSourceResolver.isTestOnlyMode,
+                    guestVenue = guestSessionStore.readVenue(),
                 ),
             )
         val uiState: State<OrderFlowUiState> = _uiState
 
         private var pendingIdempotencyKey: String? = null
+        private var activeCartStorageKey: String? = null
 
         init {
-            refresh()
+            val venue = guestSessionStore.readVenue()
+            if (venue != null) {
+                enterGuestVenue(venue)
+            } else {
+                refresh()
+            }
+        }
+
+        fun enterGuestVenue(venue: GuestVenueContext) {
+            persistCurrentCartIfNeeded()
+            val storageKey =
+                guestSessionStore.cartStorageKey(
+                    venue.establishment.id,
+                    venue.space?.id,
+                )
+            activeCartStorageKey = storageKey
+            val previous = _uiState.value
+            _uiState.value =
+                previous.copy(
+                    loading = true,
+                    errorMessage = null,
+                    guestVenue = venue,
+                    cartLines = emptyList(),
+                    selectedProductId = null,
+                    selectedOptionIds = emptySet(),
+                    selectedQuantity = 1,
+                    createOrderError = null,
+                    checkoutDestination =
+                        if (venue.space != null) {
+                            OrderDestination.IN_SPACE
+                        } else {
+                            OrderDestination.TAKE_AWAY
+                        },
+                    selectedSpaceId = venue.space?.id ?: DemoCheckoutFixtures.DEFAULT_SPACE.id,
+                )
+            guestSessionStore.saveVenue(venue)
+            viewModelScope.launch {
+                val catalogResult =
+                    withContext(Dispatchers.IO) {
+                        discoveryRepository.getGuestCatalog(venue.establishment.slug)
+                    }
+                val statusResult = withContext(Dispatchers.IO) { getOperationalStatus() }
+                val catalog = catalogResult.getOrNull()
+                val restored =
+                    if (catalog != null) {
+                        guestSessionStore.restoreCartLines(
+                            guestSessionStore.readCartSnapshot(storageKey),
+                            catalog.products,
+                        )
+                    } else {
+                        emptyList()
+                    }
+                val failure = catalogResult.exceptionOrNull() ?: statusResult.exceptionOrNull()
+                _uiState.value =
+                    _uiState.value.copy(
+                        loading = false,
+                        catalog = catalog,
+                        operationalStatus = statusResult.getOrNull(),
+                        cartLines = restored,
+                        errorMessage = failure?.message,
+                        testOnlyMode = dataSourceResolver.isTestOnlyMode,
+                        dataSourceMode = dataSourceResolver.effectiveMode(),
+                        guestVenue = venue,
+                    )
+            }
         }
 
         fun refresh() {
+            val venue = _uiState.value.guestVenue
+            if (venue != null) {
+                enterGuestVenue(venue)
+                return
+            }
             val previous = _uiState.value
             _uiState.value =
                 previous.copy(
@@ -80,6 +156,18 @@ class OrderFlowViewModel
                         errorMessage = errorMessage,
                     )
             }
+        }
+
+        /** Leaves guest venue for Solo pruebas / staff roles. Cart snapshots stay keyed by tenant. */
+        fun clearGuestVenueForDemo() {
+            persistCurrentCartIfNeeded()
+            activeCartStorageKey = null
+            guestSessionStore.clearVenue()
+            _uiState.value =
+                _uiState.value.copy(
+                    guestVenue = null,
+                    cartLines = emptyList(),
+                )
         }
 
         fun updateSearch(query: String) {
@@ -203,6 +291,7 @@ class OrderFlowViewModel
                     selectedQuantity = 1,
                     createOrderError = null,
                 )
+            persistCurrentCartIfNeeded()
         }
 
         fun changeCartLineQuantity(
@@ -223,6 +312,12 @@ class OrderFlowViewModel
                 }
             pendingIdempotencyKey = null
             _uiState.value = state.copy(cartLines = updated, createOrderError = null)
+            persistCurrentCartIfNeeded()
+        }
+
+        private fun persistCurrentCartIfNeeded() {
+            val key = activeCartStorageKey ?: return
+            guestSessionStore.saveCartSnapshot(key, _uiState.value.cartLines)
         }
 
         fun updateKitchenNotes(notes: String) {

@@ -2,6 +2,7 @@ package com.vaiinilla.app.ui.navigation
 
 object Routes {
     const val SPLASH = "splash"
+    const val DISCOVERY = "discovery"
     const val ROLE_SELECTOR = "roles"
     const val DEMO_GALLERY = "demo/gallery"
 

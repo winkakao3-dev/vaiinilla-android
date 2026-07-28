@@ -1,0 +1,23 @@
+{
+  "data": {
+    "establecimiento": {
+      "id": "8246ff44-aad0-4e49-9268-b71c997893fe",
+      "nombre": "Cafetería Centro",
+      "slug": "cafeteria-centro",
+      "identificador_cliente_etiqueta": "Matrícula",
+      "identificador_cliente_obligatorio": true
+    },
+    "espacio": {
+      "id": 12,
+      "nombre": "Mesa 4",
+      "tipo": "mesa"
+    }
+  },
+  "meta": {
+    "page": null,
+    "total_pages": null,
+    "total_items": null,
+    "cursor": null
+  },
+  "error": null
+}

@@ -19,6 +19,9 @@ import com.vaiinilla.app.data.SwitchingDeviceHeartbeatRepository
 import com.vaiinilla.app.data.SwitchingOrderRepository
 import com.vaiinilla.app.data.catalog.FixtureCatalogRepository
 import com.vaiinilla.app.data.catalog.RemoteCatalogRepository
+import com.vaiinilla.app.data.discovery.FixtureDiscoveryRepository
+import com.vaiinilla.app.data.discovery.RemoteDiscoveryRepository
+import com.vaiinilla.app.data.discovery.SwitchingDiscoveryRepository
 import com.vaiinilla.app.data.fixture.ContractFixtureParser
 import com.vaiinilla.app.data.fixture.FixtureSource
 import com.vaiinilla.app.data.operational.NoOpCashSessionRepository
@@ -31,6 +34,7 @@ import com.vaiinilla.app.data.order.RemoteOrderRepository
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
+import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.repository.OrderRepository
 import dagger.Module
 import dagger.Provides
@@ -147,4 +151,26 @@ object VaiinillaModule {
             noop = NoOpCashSessionRepository(),
             remote = RemoteCashSessionRepository(apiClient, orderContractJson),
         )
+
+    @Provides
+    @Singleton
+    fun provideFixtureDiscoveryRepository(
+        fixtureSource: FixtureSource,
+        parser: ContractFixtureParser,
+    ): FixtureDiscoveryRepository = FixtureDiscoveryRepository(fixtureSource, parser)
+
+    @Provides
+    @Singleton
+    fun provideRemoteDiscoveryRepository(
+        apiClient: HttpVaiinillaApiClient,
+        parser: ContractFixtureParser,
+    ): RemoteDiscoveryRepository = RemoteDiscoveryRepository(apiClient, parser)
+
+    @Provides
+    @Singleton
+    fun provideDiscoveryRepository(
+        resolver: EffectiveDataSourceResolver,
+        fixture: FixtureDiscoveryRepository,
+        remote: RemoteDiscoveryRepository,
+    ): DiscoveryRepository = SwitchingDiscoveryRepository(resolver, fixture, remote)
 }

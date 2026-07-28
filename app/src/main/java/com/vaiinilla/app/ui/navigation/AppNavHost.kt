@@ -16,11 +16,13 @@ import androidx.navigation.navArgument
 import com.vaiinilla.app.core.config.DemoFeatures
 import com.vaiinilla.app.di.DataSourceResolverEntryPoint
 import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
+import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.auth.RoleAuthViewModel
+import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
@@ -29,6 +31,7 @@ import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CashierOperationalScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.DemoGalleryScreen
+import com.vaiinilla.app.ui.screens.DiscoveryScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
@@ -45,15 +48,40 @@ import com.vaiinilla.app.ui.wallet.rememberWalletUiState
 import dagger.hilt.android.EntryPointAccessors
 
 @Composable
-fun AppNavHost(navController: NavHostController) {
+fun AppNavHost(
+    navController: NavHostController,
+    pendingEstablishmentSlug: String? = null,
+    onDeepLinkConsumed: () -> Unit = {},
+) {
     val orderFlowViewModel: OrderFlowViewModel = viewModel()
     val operationalViewModel: OperationalViewModel = viewModel()
     val roleAuthViewModel: RoleAuthViewModel = viewModel()
+    val discoveryViewModel: GuestDiscoveryViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
     val roleAuthState by roleAuthViewModel.state
+    val discoveryState by discoveryViewModel.state
     val walletState = rememberWalletUiState()
     val context = LocalContext.current
+
+    fun enterVenueAndOpenCatalog(venue: GuestVenueContext) {
+        orderFlowViewModel.enterGuestVenue(venue)
+        navController.navigate(Routes.CATALOG) {
+            launchSingleTop = true
+        }
+    }
+
+    LaunchedEffect(pendingEstablishmentSlug) {
+        val slug = pendingEstablishmentSlug?.trim().orEmpty()
+        if (slug.isEmpty()) return@LaunchedEffect
+        discoveryViewModel.openSlug(
+            slug = slug,
+            onEntered = { venue ->
+                enterVenueAndOpenCatalog(venue)
+                onDeepLinkConsumed()
+            },
+        )
+    }
     val dataSourceResolver =
         remember {
             EntryPointAccessors
@@ -233,9 +261,43 @@ fun AppNavHost(navController: NavHostController) {
         composable(Routes.SPLASH) {
             SplashScreen(
                 onFinished = {
-                    navController.navigate(Routes.ROLE_SELECTOR) {
+                    navController.navigate(Routes.DISCOVERY) {
                         popUpTo(Routes.SPLASH) { inclusive = true }
                         launchSingleTop = true
+                    }
+                },
+            )
+        }
+
+        composable(Routes.DISCOVERY) {
+            DiscoveryScreen(
+                state = discoveryState,
+                onQueryChange = discoveryViewModel::updateQuery,
+                onSpaceTokenChange = discoveryViewModel::updateSpaceToken,
+                onSelectEstablishment = { establishment ->
+                    discoveryViewModel.selectEstablishment(
+                        establishment = establishment,
+                        onEntered = ::enterVenueAndOpenCatalog,
+                    )
+                },
+                onResolveSpace = {
+                    discoveryViewModel.resolveSpaceToken(onEntered = ::enterVenueAndOpenCatalog)
+                },
+                onConfirmSwitch = {
+                    discoveryViewModel.confirmPendingSwitch(::enterVenueAndOpenCatalog)
+                },
+                onDismissSwitch = discoveryViewModel::dismissPendingSwitch,
+                onContinueSelected = {
+                    val selected = discoveryState.selected ?: return@DiscoveryScreen
+                    enterVenueAndOpenCatalog(selected)
+                },
+                onOpenDemoRoles = {
+                    if (DemoFeatures.toolsAvailable) {
+                        testOnlyMode = true
+                        orderFlowViewModel.clearGuestVenueForDemo()
+                        navController.navigate(Routes.ROLE_SELECTOR) {
+                            launchSingleTop = true
+                        }
                     }
                 },
             )
@@ -263,6 +325,7 @@ fun AppNavHost(navController: NavHostController) {
                             operationalViewModel.setRole(role)
                             when (role) {
                                 OperationalRole.CLIENT -> {
+                                    orderFlowViewModel.clearGuestVenueForDemo()
                                     orderFlowViewModel.refresh()
                                     navController.navigate(Routes.CATALOG) {
                                         launchSingleTop = true
@@ -321,7 +384,12 @@ fun AppNavHost(navController: NavHostController) {
                 onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
                 onOpenAssistant = { navigateDemo(Routes.ASSISTANT) },
                 onOpenWallet = { navigateDemo(Routes.WALLET) },
-                showDemoTabs = demoUnlocked,
+                onChangeVenue = {
+                    navController.navigate(Routes.DISCOVERY) {
+                        launchSingleTop = true
+                    }
+                },
+                showDemoTabs = demoUnlocked && orderState.guestVenue == null,
             )
         }
 

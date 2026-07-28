@@ -1,5 +1,7 @@
 package com.vaiinilla.app
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -18,8 +20,11 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    private var pendingEstablishmentSlug by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pendingEstablishmentSlug = establishmentSlugFrom(intent)
         enableEdgeToEdge(
             statusBarStyle =
                 SystemBarStyle.light(
@@ -44,8 +49,34 @@ class MainActivity : ComponentActivity() {
                     ThemePreferences.save(context, mode)
                 },
             ) {
-                AppNavHost(navController = rememberNavController())
+                AppNavHost(
+                    navController = rememberNavController(),
+                    pendingEstablishmentSlug = pendingEstablishmentSlug,
+                    onDeepLinkConsumed = { pendingEstablishmentSlug = null },
+                )
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingEstablishmentSlug = establishmentSlugFrom(intent)
+    }
+
+    companion object {
+        fun establishmentSlugFrom(intent: Intent?): String? {
+            val data = intent?.data ?: return null
+            return establishmentSlugFrom(data)
+        }
+
+        fun establishmentSlugFrom(uri: Uri): String? {
+            if (uri.host != "vaiinilla.app") return null
+            val segments = uri.pathSegments
+            if (segments.size >= 2 && segments[0] == "e") {
+                return segments[1].takeIf { it.isNotBlank() }
+            }
+            return null
         }
     }
 }

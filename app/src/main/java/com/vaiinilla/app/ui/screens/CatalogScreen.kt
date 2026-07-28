@@ -85,6 +85,7 @@ fun CatalogScreen(
     onOpenTracking: () -> Unit = {},
     onOpenAssistant: () -> Unit = {},
     onOpenWallet: () -> Unit = {},
+    onChangeVenue: () -> Unit = {},
     showDemoTabs: Boolean = false,
 ) {
     when {
@@ -106,6 +107,7 @@ fun CatalogScreen(
                 onOpenTracking = onOpenTracking,
                 onOpenAssistant = onOpenAssistant,
                 onOpenWallet = onOpenWallet,
+                onChangeVenue = onChangeVenue,
                 showDemoTabs = showDemoTabs,
             )
         else ->
@@ -133,6 +135,7 @@ private fun CatalogContent(
     onOpenTracking: () -> Unit,
     onOpenAssistant: () -> Unit,
     onOpenWallet: () -> Unit,
+    onChangeVenue: () -> Unit,
     showDemoTabs: Boolean,
 ) {
     val catalog = requireNotNull(state.catalog)
@@ -175,6 +178,7 @@ private fun CatalogContent(
                     onSearchChange = onSearchChange,
                     onCategorySelected = onCategorySelected,
                     onOpenCart = onOpenCart,
+                    onChangeVenue = onChangeVenue,
                     onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
                 )
             }
@@ -270,19 +274,43 @@ private fun CatalogHeader(
     onSearchChange: (String) -> Unit,
     onCategorySelected: (Int?) -> Unit,
     onOpenCart: () -> Unit,
+    onChangeVenue: () -> Unit,
     onCycleTheme: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    val venue = state.guestVenue
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column {
-                Text("Hola, Dani", color = colors.muted, fontWeight = FontWeight.ExtraBold)
-                Text("¿Qué se te antoja?", color = colors.ink, fontWeight = FontWeight.Black)
+            Column(modifier = Modifier.weight(1f)) {
+                if (venue != null) {
+                    Text(
+                        venue.establishment.name,
+                        color = colors.ink,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    val spaceLabel = venue.space?.let { "${it.name} · ${it.type}" }
+                    Text(
+                        spaceLabel ?: "Pedido sin mesa asignada",
+                        color = colors.muted,
+                        fontWeight = FontWeight.ExtraBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                } else {
+                    Text("Hola, Dani", color = colors.muted, fontWeight = FontWeight.ExtraBold)
+                    Text("¿Qué se te antoja?", color = colors.ink, fontWeight = FontWeight.Black)
+                }
             }
-            Spacer(Modifier.weight(1f))
+            if (venue != null) {
+                TextButton(onClick = onChangeVenue) {
+                    Text("Cambiar", color = colors.muted, fontWeight = FontWeight.Bold)
+                }
+            }
             Box {
                 IconButton(
                     onClick = onOpenCart,
