@@ -2,13 +2,11 @@ package com.vaiinilla.app.ui.components
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -21,10 +19,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -45,18 +43,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.theme.Coral
+import com.vaiinilla.app.ui.theme.Ink
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import com.vaiinilla.app.ui.theme.NavBorder
-import com.vaiinilla.app.ui.theme.NavGlass
-import com.vaiinilla.app.ui.theme.NavInsetHighlight
-import com.vaiinilla.app.ui.theme.NavPill
-import com.vaiinilla.app.ui.theme.NavShadow
-import com.vaiinilla.app.ui.theme.NavTextActive
-import com.vaiinilla.app.ui.theme.NavTextIdle
 
-private val NavShape = RoundedCornerShape(44.dp)
-private val PillShape = RoundedCornerShape(999.dp)
-private val NavEase = CubicBezierEasing(0.22f, 0.8f, 0.25f, 1f)
+private val NavOuterShape = RoundedCornerShape(24.dp)
+private val NavTabShape = RoundedCornerShape(18.dp)
+private val NavIdle = Color(0xFFA8AAA3)
+private val NavShadow = Color(0x42000000)
 private val BounceEase = CubicBezierEasing(0.2f, 0.9f, 0.25f, 1f)
 
 enum class StudentTab {
@@ -80,82 +73,37 @@ fun VaiinillaBottomNav(
     showDemoTabs: Boolean = false,
 ) {
     val tabs =
-        buildList {
-            add(NavTab(StudentTab.MENU, "Menú", Icons.Outlined.Home, onMenu))
-            if (showDemoTabs) {
-                add(NavTab(StudentTab.ASSISTANT, "Asistente", Icons.Outlined.AutoAwesome, onAssistant))
-            }
-            add(NavTab(StudentTab.ORDERS, "Pedidos", Icons.Outlined.ReceiptLong, onOrders))
-            if (showDemoTabs) {
-                add(NavTab(StudentTab.WALLET, "Cartera", Icons.Outlined.AccountBalanceWallet, onWallet))
-            }
-            add(NavTab(StudentTab.CART, "Carrito", Icons.Outlined.ShoppingCart, onCart))
-        }
-    val activeIndex = tabs.indexOfFirst { it.tab == activeTab }.coerceAtLeast(0)
-    val pillOffset by animateFloatAsState(
-        targetValue = activeIndex.toFloat(),
-        animationSpec = tween(durationMillis = 340, easing = NavEase),
-        label = "nav-pill-offset",
-    )
+        listOf(
+            NavTab(StudentTab.MENU, "Menú", Icons.Outlined.Home, onMenu),
+            NavTab(StudentTab.ASSISTANT, "Asistente", Icons.Outlined.AutoAwesome, onAssistant),
+            NavTab(StudentTab.ORDERS, "Pedidos", Icons.AutoMirrored.Outlined.ReceiptLong, onOrders),
+            NavTab(StudentTab.WALLET, "Cartera", Icons.Outlined.AccountBalanceWallet, onWallet),
+            NavTab(StudentTab.CART, "Carrito", Icons.Outlined.ShoppingCart, onCart),
+        )
 
-    Box(
+    Row(
         modifier =
             modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 12.dp, vertical = 12.dp),
-        contentAlignment = Alignment.BottomCenter,
+                .padding(start = 18.dp, end = 18.dp, bottom = 15.dp)
+                .height(68.dp)
+                .shadow(elevation = 15.dp, shape = NavOuterShape, ambientColor = NavShadow, spotColor = NavShadow)
+                .clip(NavOuterShape)
+                .background(Ink)
+                .padding(7.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        BoxWithConstraints(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(88.dp)
-                    .shadow(
-                        elevation = 18.dp,
-                        shape = NavShape,
-                        clip = false,
-                        ambientColor = NavShadow,
-                        spotColor = NavShadow,
-                    ).clip(NavShape)
-                    .background(NavGlass)
-                    .border(1.dp, NavBorder, NavShape)
-                    .padding(9.dp),
-        ) {
-            val tabWidth = maxWidth / tabs.size
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxHeight()
-                        .width(tabWidth)
-                        .offset(x = tabWidth * pillOffset)
-                        .clip(PillShape)
-                        .background(NavPill)
-                        .border(1.dp, NavInsetHighlight, PillShape),
+        tabs.forEach { entry ->
+            NavItem(
+                modifier = Modifier.weight(1f),
+                label = entry.label,
+                icon = entry.icon,
+                active = entry.tab == activeTab,
+                badge = if (entry.tab == StudentTab.CART) cartCount else 0,
+                bounceKey = if (entry.tab == activeTab) entry.tab.ordinal else -1,
+                onClick = entry.onClick,
             )
-
-            Box(
-                modifier =
-                    Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(NavInsetHighlight),
-            )
-
-            Row(modifier = Modifier.fillMaxWidth()) {
-                tabs.forEach { entry ->
-                    NavItem(
-                        modifier = Modifier.weight(1f),
-                        label = entry.label,
-                        icon = entry.icon,
-                        active = entry.tab == activeTab,
-                        badge = if (entry.tab == StudentTab.CART) cartCount else 0,
-                        bounceKey = if (entry.tab == activeTab) activeIndex else -1,
-                        onClick = entry.onClick,
-                    )
-                }
-            }
         }
     }
 }
@@ -172,27 +120,16 @@ private fun NavItem(
 ) {
     val colors = LocalVaiinillaColors.current
     val iconBounce = remember { Animatable(0f) }
-    val labelBounce = remember { Animatable(0f) }
     var lastBounceKey by remember { mutableIntStateOf(bounceKey) }
 
     LaunchedEffect(bounceKey) {
         if (bounceKey >= 0 && bounceKey != lastBounceKey) {
             lastBounceKey = bounceKey
             iconBounce.snapTo(0f)
-            labelBounce.snapTo(0f)
             iconBounce.animateTo(1f, tween(430, easing = BounceEase))
-            labelBounce.animateTo(1f, tween(390, easing = BounceEase))
         }
     }
 
-    val iconOffsetY =
-        when {
-            iconBounce.value <= 0f -> 0f
-            iconBounce.value < 0.28f -> 2f * (iconBounce.value / 0.28f)
-            iconBounce.value < 0.58f -> 2f - 6f * ((iconBounce.value - 0.28f) / 0.3f)
-            iconBounce.value < 0.78f -> -4f + 5f * ((iconBounce.value - 0.58f) / 0.2f)
-            else -> 0f
-        }
     val iconScale =
         when {
             iconBounce.value <= 0f -> 1f
@@ -202,12 +139,15 @@ private fun NavItem(
             else -> 1f
         }
 
-    val foreground = if (active) NavTextActive else NavTextIdle
+    val foreground = if (active) colors.accentInk else NavIdle
+    val tabBackground = if (active) colors.accent else Color.Transparent
 
     Box(
         modifier =
             modifier
                 .fillMaxHeight()
+                .clip(NavTabShape)
+                .background(tabBackground)
                 .physicalPress(scale = PhysicalPressScale.Nav, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -222,14 +162,10 @@ private fun NavItem(
                     tint = foreground,
                     modifier =
                         Modifier
-                            .size(27.dp)
+                            .size(20.dp)
                             .graphicsLayer {
-                                translationY = iconOffsetY
                                 scaleX = iconScale
                                 scaleY = iconScale
-                                transformOrigin =
-                                    androidx.compose.ui.graphics
-                                        .TransformOrigin(0.5f, 0.72f)
                             },
                 )
                 if (badge > 0) {
@@ -237,19 +173,19 @@ private fun NavItem(
                         modifier =
                             Modifier
                                 .align(Alignment.TopEnd)
-                                .offset(x = 4.dp, y = (-2).dp)
-                                .height(15.dp)
-                                .width(if (badge > 9) 20.dp else 15.dp)
+                                .offset(x = 6.dp, y = (-8).dp)
+                                .height(17.dp)
+                                .width(if (badge > 9) 22.dp else 17.dp)
                                 .clip(RoundedCornerShape(99.dp))
                                 .background(Coral)
-                                .border(2.dp, colors.ink, RoundedCornerShape(99.dp)),
+                                .border(2.dp, Ink, RoundedCornerShape(99.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = badge.coerceAtMost(99).toString(),
-                            color = Color(0xFF21100D),
-                            fontSize = 8.sp,
-                            lineHeight = 8.sp,
+                            color = Color(0xFF28100D),
+                            fontSize = 9.sp,
+                            lineHeight = 9.sp,
                             fontWeight = FontWeight.Black,
                         )
                     }
@@ -258,20 +194,9 @@ private fun NavItem(
             Text(
                 text = label,
                 color = foreground,
-                fontSize = 14.sp,
-                lineHeight = 15.sp,
-                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                letterSpacing = (-0.35).sp,
-                modifier =
-                    Modifier.graphicsLayer {
-                        translationY =
-                            when {
-                                labelBounce.value <= 0f -> 0f
-                                labelBounce.value < 0.45f -> 1.5f * (labelBounce.value / 0.45f)
-                                labelBounce.value < 0.72f -> 1.5f - 2.5f * ((labelBounce.value - 0.45f) / 0.27f)
-                                else -> 0f
-                            }
-                    },
+                fontSize = 9.sp,
+                lineHeight = 10.sp,
+                fontWeight = FontWeight.ExtraBold,
             )
         }
     }

@@ -389,7 +389,7 @@ fun AppNavHost(
                         launchSingleTop = true
                     }
                 },
-                showDemoTabs = demoUnlocked && orderState.guestVenue == null,
+                showDemoTabs = demoUnlocked,
             )
         }
 

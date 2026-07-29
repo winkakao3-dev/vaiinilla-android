@@ -18,22 +18,27 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.QrCodeScanner
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Storefront
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.PublicEstablishment
+import com.vaiinilla.app.ui.components.EditorialAccentButton
+import com.vaiinilla.app.ui.components.EditorialConfirmSheet
+import com.vaiinilla.app.ui.components.EditorialHero
+import com.vaiinilla.app.ui.components.EditorialPrimaryButton
+import com.vaiinilla.app.ui.components.EditorialSearchField
+import com.vaiinilla.app.ui.components.EditorialSectionHead
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.discovery.DiscoveryUiState
@@ -53,29 +58,6 @@ fun DiscoveryScreen(
 ) {
     val colors = LocalVaiinillaColors.current
 
-    if (state.pendingSwitch != null) {
-        AlertDialog(
-            onDismissRequest = onDismissSwitch,
-            title = { Text("¿Cambiar de cafetería?", fontWeight = FontWeight.Black) },
-            text = {
-                Text(
-                    "Tu carrito pertenece a otra cafetería. Si continúas, no se mezclará con este pedido — " +
-                        "quedará guardado por separado en la cafetería anterior.",
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = onConfirmSwitch) {
-                    Text("Cambiar", fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = onDismissSwitch) {
-                    Text("Cancelar")
-                }
-            },
-        )
-    }
-
     Box(
         modifier =
             Modifier
@@ -91,21 +73,11 @@ fun DiscoveryScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
-                Text(
-                    "¿Dónde comes hoy?",
-                    color = colors.ink,
-                    fontSize = 28.sp,
-                    lineHeight = 32.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = (-0.8).sp,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "Escanea el QR del comedor, busca por nombre o elige de la lista. " +
-                        "No necesitas cuenta para ver el menú.",
-                    color = colors.muted,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
+                EditorialHero(
+                    eyebrow = "Comedor conectado",
+                    title = "¿Dónde comes hoy?",
+                    body = "Escanea el QR del comedor, busca por nombre o elige de la lista. No necesitas cuenta para ver el menú.",
+                    watermark = "V",
                 )
             }
 
@@ -119,30 +91,39 @@ fun DiscoveryScreen(
                                     scale = PhysicalPressScale.Default,
                                     onClick = onContinueSelected,
                                 ),
-                        shape = RoundedCornerShape(20.dp),
-                        color = colors.accent.copy(alpha = 0.16f),
+                        shape = RoundedCornerShape(28.dp),
+                        color = colors.accent,
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Activo", color = colors.muted, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+                        Column(modifier = Modifier.padding(18.dp)) {
+                            Text(
+                                "ACTIVO",
+                                color = colors.accentInk.copy(alpha = 0.65f),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.sp,
+                            )
                             Text(
                                 selected.establishment.name,
-                                color = colors.ink,
+                                color = colors.accentInk,
                                 fontWeight = FontWeight.Black,
-                                fontSize = 18.sp,
+                                fontSize = 22.sp,
+                                lineHeight = 24.sp,
+                                modifier = Modifier.padding(top = 4.dp),
                             )
                             selected.space?.let { space ->
                                 Text(
                                     "${space.name} · ${space.type}",
-                                    color = colors.muted,
+                                    color = colors.accentInk.copy(alpha = 0.72f),
                                     fontSize = 13.sp,
+                                    modifier = Modifier.padding(top = 4.dp),
                                 )
                             }
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                "Seguir al menú",
-                                color = colors.ink,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
+                            Spacer(modifier = Modifier.height(14.dp))
+                            EditorialPrimaryButton(
+                                text = "Seguir al menú",
+                                onClick = onContinueSelected,
+                                background = colors.ink,
+                                contentColor = colors.paper,
                             )
                         }
                     }
@@ -150,26 +131,22 @@ fun DiscoveryScreen(
             }
 
             item {
-                OutlinedTextField(
+                EditorialSearchField(
                     value = state.query,
                     onValueChange = onQueryChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                    placeholder = { Text("Buscar cafetería") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(18.dp),
+                    placeholder = "Buscar cafetería",
                 )
             }
 
             item {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(28.dp),
                     color = colors.paper2,
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Outlined.QrCodeScanner, contentDescription = null, tint = colors.ink)
@@ -178,52 +155,54 @@ fun DiscoveryScreen(
                                 modifier = Modifier.padding(start = 8.dp),
                                 fontWeight = FontWeight.Black,
                                 color = colors.ink,
+                                fontSize = 16.sp,
                             )
                         }
                         Text(
-                            "Si el cartel es de mesa o cancha, pega el token del QR. " +
-                                "En MOCK usa `mesa4`.",
+                            "Si el cartel es de mesa o cancha, pega el token del QR. En MOCK usa mesa4.",
                             color = colors.muted,
                             fontSize = 12.sp,
                             lineHeight = 16.sp,
                         )
-                        OutlinedTextField(
-                            value = state.spaceTokenInput,
-                            onValueChange = onSpaceTokenChange,
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("token opaco") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(16.dp),
-                        )
                         Surface(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .physicalPress(
-                                        scale = PhysicalPressScale.Default,
-                                        enabled = !state.resolving,
-                                        onClick = onResolveSpace,
-                                    ),
-                            color = colors.ink,
-                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            color = colors.paper,
+                            shape = RoundedCornerShape(19.dp),
                         ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 15.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                BasicTextField(
+                                    value = state.spaceTokenInput,
+                                    onValueChange = onSpaceTokenChange,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    textStyle = TextStyle(color = colors.ink, fontSize = 14.sp),
+                                    decorationBox = { input ->
+                                        Box {
+                                            if (state.spaceTokenInput.isBlank()) {
+                                                Text("token opaco", color = colors.muted, fontSize = 14.sp)
+                                            }
+                                            input()
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                        if (state.resolving) {
                             Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 14.dp),
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                if (state.resolving) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(18.dp),
-                                        strokeWidth = 2.dp,
-                                        color = colors.paper,
-                                    )
-                                } else {
-                                    Text("Resolver espacio", color = colors.paper, fontWeight = FontWeight.Bold)
-                                }
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(22.dp),
+                                    strokeWidth = 2.dp,
+                                    color = colors.ink,
+                                )
                             }
+                        } else {
+                            EditorialAccentButton(text = "Resolver espacio", onClick = onResolveSpace)
                         }
                     }
                 }
@@ -233,15 +212,16 @@ fun DiscoveryScreen(
                 item {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        color = colors.coral.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(28.dp),
+                        color = colors.coral.copy(alpha = 0.14f),
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Cafetería suspendida", color = colors.ink, fontWeight = FontWeight.Black)
+                        Column(modifier = Modifier.padding(18.dp)) {
+                            Text("Cafetería suspendida", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
                             Text(
                                 state.suspendedMessage,
                                 color = colors.muted,
                                 fontSize = 13.sp,
+                                lineHeight = 18.sp,
                                 modifier = Modifier.padding(top = 6.dp),
                             )
                         }
@@ -251,21 +231,17 @@ fun DiscoveryScreen(
 
             if (state.errorMessage != null) {
                 item {
-                    Text(state.errorMessage, color = colors.coral, fontSize = 13.sp)
+                    Text(state.errorMessage, color = colors.coral, fontSize = 13.sp, lineHeight = 18.sp)
                 }
             }
 
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom,
-                ) {
-                    Text("Cafeterías", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
-                    TextButton(onClick = onOpenDemoRoles) {
-                        Text("Solo pruebas", color = colors.muted, fontWeight = FontWeight.Bold)
-                    }
-                }
+                EditorialSectionHead(
+                    title = "Cafeterías",
+                    trailing = "Solo pruebas",
+                    onTrailingClick = onOpenDemoRoles,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
 
             if (state.loading && state.establishments.isEmpty()) {
@@ -283,6 +259,27 @@ fun DiscoveryScreen(
                 )
             }
         }
+
+        if (state.pendingSwitch != null) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(colors.paper.copy(alpha = 0.35f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                EditorialConfirmSheet(
+                    title = "¿Cambiar de cafetería?",
+                    message =
+                        "Tu carrito pertenece a otra cafetería. Si continúas, no se mezclará con este pedido — " +
+                            "quedará guardado por separado en la cafetería anterior.",
+                    confirmLabel = "Cambiar",
+                    dismissLabel = "Cancelar",
+                    onConfirm = onConfirmSwitch,
+                    onDismiss = onDismissSwitch,
+                )
+            }
+        }
     }
 }
 
@@ -297,24 +294,24 @@ private fun EstablishmentCard(
             Modifier
                 .fillMaxWidth()
                 .physicalPress(scale = PhysicalPressScale.Default, onClick = onClick),
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(28.dp),
         color = colors.paper2,
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(17.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
                 modifier =
                     Modifier
-                        .size(48.dp)
+                        .size(45.dp)
                         .background(colors.ink, RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(Icons.Outlined.Storefront, contentDescription = null, tint = colors.paper)
             }
             Column(modifier = Modifier.padding(start = 14.dp).weight(1f)) {
-                Text(establishment.name, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 17.sp)
+                Text(establishment.name, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 19.sp)
                 Text(
                     if (establishment.clientIdRequired) {
                         "${establishment.clientIdLabel} requerida al pedir"
@@ -323,6 +320,8 @@ private fun EstablishmentCard(
                     },
                     color = colors.muted,
                     fontSize = 12.sp,
+                    lineHeight = 15.sp,
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
         }

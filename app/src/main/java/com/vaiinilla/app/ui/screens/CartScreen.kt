@@ -25,7 +25,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
+import com.vaiinilla.app.ui.components.EditorialNotesField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -135,14 +135,11 @@ fun CartScreen(
                     )
                 }
                 item {
-                    OutlinedTextField(
+                    EditorialNotesField(
                         value = state.kitchenNotes,
                         onValueChange = onNotesChange,
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Notas para cocina") },
-                        placeholder = { Text("Ej. sin cebolla, salsa aparte") },
-                        minLines = 3,
-                        shape = RoundedCornerShape(17.dp),
+                        label = "Notas para cocina",
+                        placeholder = "Ej. sin cebolla, salsa aparte",
                     )
                 }
                 item { OrderSummaryCard(state = state) }
