@@ -45,6 +45,7 @@ import com.vaiinilla.app.ui.components.DemoEmptyState
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
+import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.paymentMethodLabel
 import com.vaiinilla.app.ui.order.OrderFlowUiState
@@ -90,7 +91,13 @@ fun CartScreen(
                 Modifier
                     .fillMaxSize()
                     .statusBarsPadding(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 132.dp),
+            contentPadding =
+                PaddingValues(
+                    start = 20.dp,
+                    end = 20.dp,
+                    top = 18.dp,
+                    bottom = VaiinillaBottomNavClearance + 48.dp,
+                ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {

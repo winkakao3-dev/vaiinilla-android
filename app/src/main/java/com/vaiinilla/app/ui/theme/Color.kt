@@ -19,19 +19,19 @@ val Line = Color(0x1F171817)
 // Uber frosted bottom nav (references/examples/uber-navbar-replica.html)
 val NavGlass = Color(0xF7111111) // rgba(17, 17, 17, 0.97) — dark / amoled base
 val NavBorder = Color(0x1AFFFFFF) // rgba(255, 255, 255, 0.10)
-val NavPill = Color(0xFF292929) // --active-bg
+val NavPill = Color(0xFF333333) // active oval on dark glass
 val NavTextActive = Color(0xFFF2F2F2) // --text-active
 val NavTextIdle = Color(0xFFB7B7B7) // --text-idle
 val NavInsetHighlight = Color(0x06FFFFFF) // inset hairline ~2.5%
-val NavShadow = Color(0xA6000000) // layered float shadow on dark paper
+val NavShadow = Color(0xB3000000)
 
-val NavGlassLight = Color(0xFFFFFFFF) // solid white floating dock
-val NavBorderLight = Color(0x24000000) // rgba(0, 0, 0, 0.14)
-val NavPillLight = Color(0xFFE3E3E3) // active bubble — visible on white
+val NavGlassLight = Color(0xF2FFFFFF) // frosted white — content peeks under float
+val NavBorderLight = Color(0x2E000000) // rgba(0, 0, 0, 0.18)
+val NavPillLight = Color(0xFFD4D4D4) // active oval — readable on white glass
 val NavTextActiveLight = Ink
 val NavTextIdleLight = Color(0xFF8A8A8A)
 val NavInsetHighlightLight = Color(0x80FFFFFF)
-val NavShadowLight = Color(0x73000000) // floating depth on cream paper
+val NavShadowLight = Color(0x8A000000)
 
 val NavGlassAmoled = Color(0xF7000000)
 val NavPillAmoled = Color(0xFF1A1A1A)
