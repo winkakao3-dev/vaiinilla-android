@@ -78,8 +78,8 @@ fun AppNavHost(
             slug = slug,
             onEntered = { venue ->
                 enterVenueAndOpenCatalog(venue)
-                onDeepLinkConsumed()
             },
+            onFinished = onDeepLinkConsumed,
         )
     }
     val dataSourceResolver =

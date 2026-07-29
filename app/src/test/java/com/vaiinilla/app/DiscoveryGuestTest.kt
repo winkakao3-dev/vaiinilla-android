@@ -52,6 +52,7 @@ class GuestSessionAndDeepLinkTest {
     fun `parses general QR slug from app link`() {
         val uri = Uri.parse("https://vaiinilla.app/e/cafeteria-centro")
         assertEquals("cafeteria-centro", MainActivity.establishmentSlugFrom(uri))
+        assertEquals("cafeteria-centro", MainActivity.establishmentSlugFrom(Uri.parse("https://www.vaiinilla.app/e/cafeteria-centro")))
         assertNull(MainActivity.establishmentSlugFrom(Uri.parse("https://vaiinilla.app/other")))
     }
 

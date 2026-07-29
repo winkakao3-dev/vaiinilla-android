@@ -71,7 +71,8 @@ class MainActivity : ComponentActivity() {
         }
 
         fun establishmentSlugFrom(uri: Uri): String? {
-            if (uri.host != "vaiinilla.app") return null
+            val host = uri.host ?: return null
+            if (host != "vaiinilla.app" && host != "www.vaiinilla.app") return null
             val segments = uri.pathSegments
             if (segments.size >= 2 && segments[0] == "e") {
                 return segments[1].takeIf { it.isNotBlank() }

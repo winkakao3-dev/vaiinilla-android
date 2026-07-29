@@ -139,6 +139,7 @@ class GuestDiscoveryViewModel
         fun openSlug(
             slug: String,
             onEntered: (GuestVenueContext) -> Unit,
+            onFinished: () -> Unit = {},
         ) {
             _state.value = _state.value.copy(resolving = true, errorMessage = null)
             viewModelScope.launch {
@@ -153,6 +154,7 @@ class GuestDiscoveryViewModel
                             GuestVenueContext(establishment = establishment, space = null),
                             onEntered,
                         )
+                        onFinished()
                     },
                     onFailure = { error ->
                         _state.value =
@@ -160,6 +162,7 @@ class GuestDiscoveryViewModel
                                 resolving = false,
                                 errorMessage = error.message ?: "QR de establecimiento inválido.",
                             )
+                        onFinished()
                     },
                 )
             }
