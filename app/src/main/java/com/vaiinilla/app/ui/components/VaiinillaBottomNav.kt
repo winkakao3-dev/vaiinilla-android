@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
@@ -48,14 +49,14 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 /** Uber navbar replica easing — references/examples/uber-navbar-replica.html */
 private val UberNavEase = CubicBezierEasing(0.22f, 0.8f, 0.25f, 1f)
 
-private val NavOuterRadius = 44.dp
-private val NavHeight = 88.dp
+private val NavHeight = 76.dp
+private val NavMaxWidth = 568.dp
 private val NavDockBottom = 22.dp
 private val NavDockHorizontal = 12.dp
-private val NavInnerPadding = 9.dp
-private val NavPillShape = RoundedCornerShape(percent = 50)
-private val NavIconSize = 27.dp
-private val NavLabelSize = 14.sp
+private val NavInnerPadding = 10.dp
+private val NavPillMaxWidth = 72.dp
+private val NavIconSize = 24.dp
+private val NavLabelSize = 12.sp
 
 enum class StudentTab {
     MENU,
@@ -100,6 +101,7 @@ fun VaiinillaBottomNav(
 
     val activeIndex = tabs.indexOfFirst { it.tab == activeTab }.coerceAtLeast(0)
     val pillOffsetAnim = remember { Animatable(activeIndex.toFloat()) }
+    val outerRadius = NavHeight / 2
 
     LaunchedEffect(activeIndex, reducedMotion) {
         if (reducedMotion) {
@@ -112,7 +114,7 @@ fun VaiinillaBottomNav(
         }
     }
 
-    BoxWithConstraints(
+    Box(
         modifier =
             modifier
                 .fillMaxWidth()
@@ -122,21 +124,19 @@ fun VaiinillaBottomNav(
                     end = NavDockHorizontal,
                     bottom = NavDockBottom,
                 ),
+        contentAlignment = Alignment.BottomCenter,
     ) {
+        val outerShape = RoundedCornerShape(outerRadius)
         Box(
             modifier =
                 Modifier
+                    .widthIn(max = NavMaxWidth)
                     .fillMaxWidth()
                     .height(NavHeight)
-                    .shadow(
-                        elevation = 18.dp,
-                        shape = RoundedCornerShape(NavOuterRadius),
-                        ambientColor = colors.navShadow,
-                        spotColor = colors.navShadow,
-                    )
-                    .clip(RoundedCornerShape(NavOuterRadius))
+                    .floatingNavShadow(outerShape, colors.navShadow)
+                    .clip(outerShape)
                     .background(colors.navGlass)
-                    .border(1.dp, colors.navBorder, RoundedCornerShape(NavOuterRadius)),
+                    .border(1.dp, colors.navBorder, outerShape),
         ) {
             Box(
                 modifier =
@@ -154,15 +154,24 @@ fun VaiinillaBottomNav(
             ) {
                 BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                     val tabWidth = maxWidth / tabs.size
-                    val pillOffset = tabWidth * pillOffsetAnim.value
+                    val pillWidth =
+                        if (tabWidth - 4.dp < NavPillMaxWidth) {
+                            tabWidth - 4.dp
+                        } else {
+                            NavPillMaxWidth
+                        }
+                    val pillCorner = minOf(pillWidth / 2, maxHeight / 2)
+                    val pillShape = RoundedCornerShape(pillCorner)
+                    val tabCenter = tabWidth * (pillOffsetAnim.value + 0.5f)
+                    val pillOffset = tabCenter - pillWidth / 2
 
                     Box(
                         modifier =
                             Modifier
                                 .offset(x = pillOffset)
-                                .width(tabWidth)
+                                .width(pillWidth)
                                 .fillMaxHeight()
-                                .clip(NavPillShape)
+                                .clip(pillShape)
                                 .background(colors.navPill),
                     ) {
                         Box(
@@ -196,6 +205,26 @@ fun VaiinillaBottomNav(
     }
 }
 
+private fun Modifier.floatingNavShadow(
+    shape: RoundedCornerShape,
+    shadowColor: Color,
+): Modifier =
+    this
+        .shadow(
+            elevation = 24.dp,
+            shape = shape,
+            clip = false,
+            ambientColor = shadowColor.copy(alpha = shadowColor.alpha * 0.55f),
+            spotColor = shadowColor.copy(alpha = shadowColor.alpha * 0.85f),
+        )
+        .shadow(
+            elevation = 8.dp,
+            shape = shape,
+            clip = false,
+            ambientColor = shadowColor.copy(alpha = shadowColor.alpha * 0.2f),
+            spotColor = shadowColor.copy(alpha = shadowColor.alpha * 0.35f),
+        )
+
 @Composable
 private fun NavItem(
     label: String,
@@ -217,8 +246,8 @@ private fun NavItem(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically),
-            modifier = Modifier.padding(horizontal = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
+            modifier = Modifier.padding(horizontal = 1.dp),
         ) {
             Box {
                 Icon(
@@ -232,9 +261,9 @@ private fun NavItem(
                         modifier =
                             Modifier
                                 .align(Alignment.TopEnd)
-                                .offset(x = 6.dp, y = (-8).dp)
-                                .height(17.dp)
-                                .width(if (badge > 9) 22.dp else 17.dp)
+                                .offset(x = 5.dp, y = (-7).dp)
+                                .height(16.dp)
+                                .width(if (badge > 9) 20.dp else 16.dp)
                                 .clip(RoundedCornerShape(99.dp))
                                 .background(Coral)
                                 .border(2.dp, badgeBorder, RoundedCornerShape(99.dp)),
@@ -243,8 +272,8 @@ private fun NavItem(
                         Text(
                             text = badge.coerceAtMost(99).toString(),
                             color = Color(0xFF28100D),
-                            fontSize = 9.sp,
-                            lineHeight = 9.sp,
+                            fontSize = 8.sp,
+                            lineHeight = 8.sp,
                             fontWeight = FontWeight.Black,
                         )
                     }
@@ -254,7 +283,7 @@ private fun NavItem(
                 text = label,
                 color = foreground,
                 fontSize = NavLabelSize,
-                lineHeight = 15.sp,
+                lineHeight = 13.sp,
                 fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

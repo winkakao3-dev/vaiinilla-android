@@ -23,15 +23,15 @@ val NavPill = Color(0xFF292929) // --active-bg
 val NavTextActive = Color(0xFFF2F2F2) // --text-active
 val NavTextIdle = Color(0xFFB7B7B7) // --text-idle
 val NavInsetHighlight = Color(0x06FFFFFF) // inset hairline ~2.5%
-val NavShadow = Color(0x80000000) // 0 18dp 50dp @ 50%
+val NavShadow = Color(0xA6000000) // layered float shadow on dark paper
 
-val NavGlassLight = Color(0xF7F7F7F7) // rgba(247, 247, 247, 0.97)
-val NavBorderLight = Color(0x1A000000) // rgba(0, 0, 0, 0.10)
-val NavPillLight = Color(0xFFEBEBEB)
+val NavGlassLight = Color(0xFAFFFFFF) // frosted white dock
+val NavBorderLight = Color(0x24000000) // rgba(0, 0, 0, 0.14)
+val NavPillLight = Color(0xFFE3E3E3) // active bubble — visible on white
 val NavTextActiveLight = Ink
-val NavTextIdleLight = Color(0xFF6B6B6B)
-val NavInsetHighlightLight = Color(0x40FFFFFF)
-val NavShadowLight = Color(0x33000000)
+val NavTextIdleLight = Color(0xFF8A8A8A)
+val NavInsetHighlightLight = Color(0x80FFFFFF)
+val NavShadowLight = Color(0x73000000) // floating depth on cream paper
 
 val NavGlassAmoled = Color(0xF7000000)
 val NavPillAmoled = Color(0xFF1A1A1A)
