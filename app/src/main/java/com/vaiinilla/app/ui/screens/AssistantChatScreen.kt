@@ -55,6 +55,7 @@ import com.vaiinilla.app.ui.assistant.AssistantChatMessage
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
+import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaMark
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.cartItemCount
@@ -68,7 +69,7 @@ private val chatSuggestions =
         "¿Qué recomiendas?",
     )
 
-private val bottomNavClearance = 108.dp
+private val bottomNavClearance = VaiinillaBottomNavClearance
 
 @Composable
 fun AssistantChatScreen(

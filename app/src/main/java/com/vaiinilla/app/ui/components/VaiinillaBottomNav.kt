@@ -5,21 +5,21 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.theme.Coral
@@ -51,15 +52,20 @@ private val UberNavEase = CubicBezierEasing(0.22f, 0.8f, 0.25f, 1f)
 
 private val NavDockHeight = 84.dp
 private val NavMaxWidth = 568.dp
-private val NavDockBottom = 22.dp
-private val NavDockHorizontal = 16.dp
+private val NavDockGapAboveSafeArea = 12.dp
+private val NavDockHorizontalMargin = 20.dp
 private val NavInnerPaddingVertical = 10.dp
 private val NavInnerPaddingHorizontal = 14.dp
 private val NavIconBandHeight = 44.dp
-private val NavIconBubbleSize = 44.dp
+private val NavIconCapsuleWidth = 54.dp
+private val NavIconCapsuleHeight = 38.dp
+private val NavIconCapsuleShape = RoundedCornerShape(percent = 50)
 private val NavIconSize = 26.dp
 private val NavIconLabelGap = 5.dp
 private val NavLabelSize = 13.sp
+
+/** Approximate dock height for scroll/content clearance (excludes system nav inset). */
+val VaiinillaBottomNavClearance: Dp = NavDockHeight + NavDockGapAboveSafeArea + 8.dp
 
 enum class StudentTab {
     MENU,
@@ -69,6 +75,9 @@ enum class StudentTab {
     CART,
 }
 
+/**
+ * Floating capsule dock — never edge-to-edge. Colors come from [LocalVaiinillaColors].
+ */
 @Composable
 fun VaiinillaBottomNav(
     activeTab: StudentTab,
@@ -103,43 +112,44 @@ fun VaiinillaBottomNav(
         )
 
     val activeIndex = tabs.indexOfFirst { it.tab == activeTab }.coerceAtLeast(0)
-    val bubbleIndexAnim = remember { Animatable(activeIndex.toFloat()) }
-    val outerRadius = NavDockHeight / 2
+    val activeIndexAnim = remember { Animatable(activeIndex.toFloat()) }
+    val capsuleRadius = NavDockHeight / 2
+    val capsuleShape = RoundedCornerShape(capsuleRadius)
 
     LaunchedEffect(activeIndex, reducedMotion) {
         if (reducedMotion) {
-            bubbleIndexAnim.snapTo(activeIndex.toFloat())
+            activeIndexAnim.snapTo(activeIndex.toFloat())
         } else {
-            bubbleIndexAnim.animateTo(
+            activeIndexAnim.animateTo(
                 activeIndex.toFloat(),
                 animationSpec = tween(durationMillis = 340, easing = UberNavEase),
             )
         }
     }
 
+  // Positioning layer only — no background; the capsule is the visual dock.
     Box(
         modifier =
             modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
+                .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(
-                    start = NavDockHorizontal,
-                    end = NavDockHorizontal,
-                    bottom = NavDockBottom,
+                    start = NavDockHorizontalMargin,
+                    end = NavDockHorizontalMargin,
+                    bottom = NavDockGapAboveSafeArea,
                 ),
         contentAlignment = Alignment.BottomCenter,
     ) {
-        val outerShape = RoundedCornerShape(outerRadius)
         Column(
             modifier =
                 Modifier
                     .widthIn(max = NavMaxWidth)
                     .fillMaxWidth()
                     .height(NavDockHeight)
-                    .floatingNavShadow(outerShape, colors.navShadow)
-                    .clip(outerShape)
+                    .floatingDockShadow(capsuleShape, colors.navShadow)
+                    .clip(capsuleShape)
                     .background(colors.navGlass)
-                    .border(1.dp, colors.navBorder, outerShape)
+                    .border(1.dp, colors.navBorder, capsuleShape)
                     .padding(
                         horizontal = NavInnerPaddingHorizontal,
                         vertical = NavInnerPaddingVertical,
@@ -152,15 +162,16 @@ fun VaiinillaBottomNav(
                         .height(NavIconBandHeight),
             ) {
                 val tabWidth = maxWidth / tabs.size
-                val bubbleCenter = tabWidth * (bubbleIndexAnim.value + 0.5f)
-                val bubbleOffset = bubbleCenter - NavIconBubbleSize / 2
+                val capsuleCenter = tabWidth * (activeIndexAnim.value + 0.5f)
+                val capsuleOffsetX = capsuleCenter - NavIconCapsuleWidth / 2
+                val capsuleOffsetY = (NavIconBandHeight - NavIconCapsuleHeight) / 2
 
                 Box(
                     modifier =
                         Modifier
-                            .offset(x = bubbleOffset)
-                            .size(NavIconBubbleSize)
-                            .clip(CircleShape)
+                            .offset(x = capsuleOffsetX, y = capsuleOffsetY)
+                            .size(width = NavIconCapsuleWidth, height = NavIconCapsuleHeight)
+                            .clip(NavIconCapsuleShape)
                             .background(colors.navPill),
                     contentAlignment = Alignment.TopCenter,
                 ) {
@@ -175,7 +186,7 @@ fun VaiinillaBottomNav(
 
                 Row(modifier = Modifier.fillMaxSize()) {
                     tabs.forEach { entry ->
-                        NavIconSlot(
+                        NavTabIcon(
                             modifier = Modifier.weight(1f),
                             label = entry.label,
                             icon = entry.icon,
@@ -195,7 +206,7 @@ fun VaiinillaBottomNav(
                         .padding(top = NavIconLabelGap),
             ) {
                 tabs.forEach { entry ->
-                    NavLabelSlot(
+                    NavTabLabel(
                         modifier = Modifier.weight(1f),
                         label = entry.label,
                         active = entry.tab == activeTab,
@@ -207,28 +218,28 @@ fun VaiinillaBottomNav(
     }
 }
 
-private fun Modifier.floatingNavShadow(
+private fun Modifier.floatingDockShadow(
     shape: RoundedCornerShape,
     shadowColor: Color,
 ): Modifier =
     this
         .shadow(
-            elevation = 24.dp,
+            elevation = 16.dp,
             shape = shape,
             clip = false,
-            ambientColor = shadowColor.copy(alpha = shadowColor.alpha * 0.55f),
-            spotColor = shadowColor.copy(alpha = shadowColor.alpha * 0.85f),
+            ambientColor = shadowColor.copy(alpha = shadowColor.alpha * 0.45f),
+            spotColor = shadowColor.copy(alpha = shadowColor.alpha * 0.65f),
         )
         .shadow(
-            elevation = 8.dp,
+            elevation = 6.dp,
             shape = shape,
             clip = false,
-            ambientColor = shadowColor.copy(alpha = shadowColor.alpha * 0.2f),
-            spotColor = shadowColor.copy(alpha = shadowColor.alpha * 0.35f),
+            ambientColor = shadowColor.copy(alpha = shadowColor.alpha * 0.15f),
+            spotColor = shadowColor.copy(alpha = shadowColor.alpha * 0.25f),
         )
 
 @Composable
-private fun NavIconSlot(
+private fun NavTabIcon(
     label: String,
     icon: ImageVector,
     active: Boolean,
@@ -281,7 +292,7 @@ private fun NavIconSlot(
 }
 
 @Composable
-private fun NavLabelSlot(
+private fun NavTabLabel(
     label: String,
     active: Boolean,
     onClick: () -> Unit,
