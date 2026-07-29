@@ -68,7 +68,7 @@ private val chatSuggestions =
         "¿Qué recomiendas?",
     )
 
-private val bottomNavClearance = 112.dp
+private val bottomNavClearance = 108.dp
 
 @Composable
 fun AssistantChatScreen(

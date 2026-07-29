@@ -25,7 +25,7 @@ val NavTextIdle = Color(0xFFB7B7B7) // --text-idle
 val NavInsetHighlight = Color(0x06FFFFFF) // inset hairline ~2.5%
 val NavShadow = Color(0xA6000000) // layered float shadow on dark paper
 
-val NavGlassLight = Color(0xFAFFFFFF) // frosted white dock
+val NavGlassLight = Color(0xFFFFFFFF) // solid white floating dock
 val NavBorderLight = Color(0x24000000) // rgba(0, 0, 0, 0.14)
 val NavPillLight = Color(0xFFE3E3E3) // active bubble — visible on white
 val NavTextActiveLight = Ink

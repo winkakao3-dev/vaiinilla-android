@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
@@ -49,14 +49,17 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 /** Uber navbar replica easing — references/examples/uber-navbar-replica.html */
 private val UberNavEase = CubicBezierEasing(0.22f, 0.8f, 0.25f, 1f)
 
-private val NavHeight = 76.dp
+private val NavDockHeight = 84.dp
 private val NavMaxWidth = 568.dp
 private val NavDockBottom = 22.dp
-private val NavDockHorizontal = 12.dp
-private val NavInnerPadding = 10.dp
-private val NavPillMaxWidth = 72.dp
-private val NavIconSize = 24.dp
-private val NavLabelSize = 12.sp
+private val NavDockHorizontal = 16.dp
+private val NavInnerPaddingVertical = 10.dp
+private val NavInnerPaddingHorizontal = 14.dp
+private val NavIconBandHeight = 44.dp
+private val NavIconBubbleSize = 44.dp
+private val NavIconSize = 26.dp
+private val NavIconLabelGap = 5.dp
+private val NavLabelSize = 13.sp
 
 enum class StudentTab {
     MENU,
@@ -100,14 +103,14 @@ fun VaiinillaBottomNav(
         )
 
     val activeIndex = tabs.indexOfFirst { it.tab == activeTab }.coerceAtLeast(0)
-    val pillOffsetAnim = remember { Animatable(activeIndex.toFloat()) }
-    val outerRadius = NavHeight / 2
+    val bubbleIndexAnim = remember { Animatable(activeIndex.toFloat()) }
+    val outerRadius = NavDockHeight / 2
 
     LaunchedEffect(activeIndex, reducedMotion) {
         if (reducedMotion) {
-            pillOffsetAnim.snapTo(activeIndex.toFloat())
+            bubbleIndexAnim.snapTo(activeIndex.toFloat())
         } else {
-            pillOffsetAnim.animateTo(
+            bubbleIndexAnim.animateTo(
                 activeIndex.toFloat(),
                 animationSpec = tween(durationMillis = 340, easing = UberNavEase),
             )
@@ -127,70 +130,53 @@ fun VaiinillaBottomNav(
         contentAlignment = Alignment.BottomCenter,
     ) {
         val outerShape = RoundedCornerShape(outerRadius)
-        Box(
+        Column(
             modifier =
                 Modifier
                     .widthIn(max = NavMaxWidth)
                     .fillMaxWidth()
-                    .height(NavHeight)
+                    .height(NavDockHeight)
                     .floatingNavShadow(outerShape, colors.navShadow)
                     .clip(outerShape)
                     .background(colors.navGlass)
-                    .border(1.dp, colors.navBorder, outerShape),
+                    .border(1.dp, colors.navBorder, outerShape)
+                    .padding(
+                        horizontal = NavInnerPaddingHorizontal,
+                        vertical = NavInnerPaddingVertical,
+                    ),
         ) {
-            Box(
+            BoxWithConstraints(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(1.dp)
-                        .background(colors.navInsetHighlight),
-            )
-
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(NavInnerPadding),
+                        .height(NavIconBandHeight),
             ) {
-                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                    val tabWidth = maxWidth / tabs.size
-                    val pillWidth =
-                        if (tabWidth - 4.dp < NavPillMaxWidth) {
-                            tabWidth - 4.dp
-                        } else {
-                            NavPillMaxWidth
-                        }
-                    val pillCorner = minOf(pillWidth / 2, maxHeight / 2)
-                    val pillShape = RoundedCornerShape(pillCorner)
-                    val tabCenter = tabWidth * (pillOffsetAnim.value + 0.5f)
-                    val pillOffset = tabCenter - pillWidth / 2
+                val tabWidth = maxWidth / tabs.size
+                val bubbleCenter = tabWidth * (bubbleIndexAnim.value + 0.5f)
+                val bubbleOffset = bubbleCenter - NavIconBubbleSize / 2
 
+                Box(
+                    modifier =
+                        Modifier
+                            .offset(x = bubbleOffset)
+                            .size(NavIconBubbleSize)
+                            .clip(CircleShape)
+                            .background(colors.navPill),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
                     Box(
                         modifier =
                             Modifier
-                                .offset(x = pillOffset)
-                                .width(pillWidth)
-                                .fillMaxHeight()
-                                .clip(pillShape)
-                                .background(colors.navPill),
-                    ) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(1.dp)
-                                    .background(colors.navInsetHighlight),
-                        )
-                    }
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(colors.navInsetHighlight),
+                    )
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.spacedBy(0.dp),
-                ) {
+                Row(modifier = Modifier.fillMaxSize()) {
                     tabs.forEach { entry ->
-                        NavItem(
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                        NavIconSlot(
+                            modifier = Modifier.weight(1f),
                             label = entry.label,
                             icon = entry.icon,
                             active = entry.tab == activeTab,
@@ -199,6 +185,22 @@ fun VaiinillaBottomNav(
                             onClick = entry.onClick,
                         )
                     }
+                }
+            }
+
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = NavIconLabelGap),
+            ) {
+                tabs.forEach { entry ->
+                    NavLabelSlot(
+                        modifier = Modifier.weight(1f),
+                        label = entry.label,
+                        active = entry.tab == activeTab,
+                        onClick = entry.onClick,
+                    )
                 }
             }
         }
@@ -226,7 +228,7 @@ private fun Modifier.floatingNavShadow(
         )
 
 @Composable
-private fun NavItem(
+private fun NavIconSlot(
     label: String,
     icon: ImageVector,
     active: Boolean,
@@ -241,54 +243,68 @@ private fun NavItem(
     Box(
         modifier =
             modifier
+                .height(NavIconBandHeight)
                 .physicalPress(scale = PhysicalPressScale.Nav, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
-            modifier = Modifier.padding(horizontal = 1.dp),
-        ) {
-            Box {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = label,
-                    tint = foreground,
-                    modifier = Modifier.size(NavIconSize),
-                )
-                if (badge > 0) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .align(Alignment.TopEnd)
-                                .offset(x = 5.dp, y = (-7).dp)
-                                .height(16.dp)
-                                .width(if (badge > 9) 20.dp else 16.dp)
-                                .clip(RoundedCornerShape(99.dp))
-                                .background(Coral)
-                                .border(2.dp, badgeBorder, RoundedCornerShape(99.dp)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = badge.coerceAtMost(99).toString(),
-                            color = Color(0xFF28100D),
-                            fontSize = 8.sp,
-                            lineHeight = 8.sp,
-                            fontWeight = FontWeight.Black,
-                        )
-                    }
+        Box {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = foreground,
+                modifier = Modifier.size(NavIconSize),
+            )
+            if (badge > 0) {
+                Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 6.dp, y = (-8).dp)
+                            .height(16.dp)
+                            .width(if (badge > 9) 20.dp else 16.dp)
+                            .clip(RoundedCornerShape(99.dp))
+                            .background(Coral)
+                            .border(2.dp, badgeBorder, RoundedCornerShape(99.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = badge.coerceAtMost(99).toString(),
+                        color = Color(0xFF28100D),
+                        fontSize = 8.sp,
+                        lineHeight = 8.sp,
+                        fontWeight = FontWeight.Black,
+                    )
                 }
             }
-            Text(
-                text = label,
-                color = foreground,
-                fontSize = NavLabelSize,
-                lineHeight = 13.sp,
-                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
         }
+    }
+}
+
+@Composable
+private fun NavLabelSlot(
+    label: String,
+    active: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    val foreground = if (active) colors.navTextActive else colors.navTextIdle
+
+    Box(
+        modifier =
+            modifier
+                .physicalPress(scale = PhysicalPressScale.Nav, onClick = onClick),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        Text(
+            text = label,
+            color = foreground,
+            fontSize = NavLabelSize,
+            lineHeight = 14.sp,
+            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
