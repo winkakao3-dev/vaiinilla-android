@@ -24,6 +24,8 @@ import com.vaiinilla.app.domain.usecase.CreateOrderUseCase
 import com.vaiinilla.app.domain.usecase.CreateStudentCheckoutUseCase
 import com.vaiinilla.app.domain.usecase.GetCatalogUseCase
 import com.vaiinilla.app.domain.usecase.GetOperationalStatusUseCase
+import com.vaiinilla.app.ui.assistant.AssistantChatMessage
+import com.vaiinilla.app.ui.assistant.AssistantLocalReplies
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -569,5 +571,24 @@ class OrderFlowViewModel
                     createdOrder = order,
                     createOrderError = null,
                 )
+        }
+
+        fun sendAssistantMessage(text: String) {
+            val trimmed = text.trim()
+            if (trimmed.isEmpty()) return
+            val products = _uiState.value.catalog?.products.orEmpty()
+            val reply = AssistantLocalReplies.reply(trimmed, products)
+            val current = _uiState.value.assistantChatMessages
+            _uiState.value =
+                _uiState.value.copy(
+                    assistantChatMessages =
+                        current +
+                            AssistantChatMessage(trimmed, fromUser = true) +
+                            AssistantChatMessage(reply, fromUser = false),
+                )
+        }
+
+        fun clearAssistantChat() {
+            _uiState.value = _uiState.value.copy(assistantChatMessages = emptyList())
         }
     }

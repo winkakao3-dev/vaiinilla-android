@@ -12,6 +12,8 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.ui.assistant.AssistantChatMessage
+import com.vaiinilla.app.ui.assistant.AssistantLocalReplies
 
 data class OrderFlowUiState(
     val loading: Boolean = true,
@@ -35,6 +37,7 @@ data class OrderFlowUiState(
     val createdOrder: OrderDetail? = null,
     val guestVenue: GuestVenueContext? = null,
     val guestVenueSuspended: Boolean = false,
+    val assistantChatMessages: List<AssistantChatMessage> = emptyList(),
 )
 
 val OrderFlowUiState.selectedProduct: Product?

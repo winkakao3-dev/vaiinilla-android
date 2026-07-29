@@ -6,10 +6,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -17,27 +19,31 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -45,13 +51,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.ui.assistant.AssistantLocalReplies
+import com.vaiinilla.app.ui.assistant.AssistantChatMessage
+import com.vaiinilla.app.ui.components.EditorialConfirmSheet
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.VaiinillaMark
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import kotlinx.coroutines.launch
 
 private val chatSuggestions =
     listOf(
@@ -60,33 +68,40 @@ private val chatSuggestions =
         "¿Qué recomiendas?",
     )
 
-private data class ChatMessage(
-    val text: String,
-    val fromUser: Boolean,
-)
+private val bottomNavClearance = 100.dp
 
 @Composable
 fun AssistantChatScreen(
     state: OrderFlowUiState,
+    onSendMessage: (String) -> Unit,
+    onClearChat: () -> Unit,
     onClose: () -> Unit,
     onMenu: () -> Unit,
     onOrders: () -> Unit,
     onWallet: () -> Unit,
     onCart: () -> Unit,
-    onBack: () -> Unit = onMenu,
+    embeddedInBottomNav: Boolean = true,
     showDemoTabs: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
-    val products = state.catalog?.products.orEmpty()
-    val messages = remember { mutableStateListOf<ChatMessage>() }
+    val messages = state.assistantChatMessages
     var input by remember { mutableStateOf("") }
+    var showClearConfirm by remember { mutableStateOf(false) }
     val reduceMotion = rememberReducedMotion()
+    val listState = rememberLazyListState()
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.lastIndex)
+        }
+    }
 
     fun sendMessage(text: String) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
-        messages.add(ChatMessage(trimmed, fromUser = true))
-        messages.add(ChatMessage(AssistantLocalReplies.reply(trimmed, products), fromUser = false))
+        onSendMessage(trimmed)
         input = ""
     }
 
@@ -94,16 +109,21 @@ fun AssistantChatScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(colors.accent.copy(alpha = 0.16f), Color.Transparent),
-                        radius = 900f,
-                        center =
-                            androidx.compose.ui.geometry
-                                .Offset(0.5f, 0f),
-                    ),
-                ).background(colors.paper),
+                .background(colors.paper),
     ) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(colors.accent.copy(alpha = 0.14f), Color.Transparent),
+                            radius = 900f,
+                            center = androidx.compose.ui.geometry.Offset(0.5f, 0f),
+                        ),
+                    ),
+        )
+
         Column(
             modifier =
                 Modifier
@@ -111,96 +131,45 @@ fun AssistantChatScreen(
                     .statusBarsPadding()
                     .imePadding(),
         ) {
-            Row(
+            AssistantChatHeader(
+                embeddedInBottomNav = embeddedInBottomNav,
+                hasMessages = messages.isNotEmpty(),
+                onClear = {
+                    if (messages.isEmpty()) {
+                        onClearChat()
+                    } else {
+                        showClearConfirm = true
+                    }
+                },
+                onClose = onClose,
+            )
+
+            LazyColumn(
+                state = listState,
                 modifier =
                     Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                        .weight(1f)
+                        .fillMaxWidth(),
+                contentPadding =
+                    PaddingValues(
+                        start = 20.dp,
+                        end = 20.dp,
+                        top = 4.dp,
+                        bottom = 8.dp,
+                    ),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                IconButton(
-                    onClick = onBack,
-                    modifier =
-                        Modifier
-                            .size(42.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(colors.ink),
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Volver",
-                        tint = colors.paper,
-                    )
+                if (messages.isEmpty()) {
+                    item(key = "welcome") {
+                        AssistantWelcomeContent(
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
+                            onSuggestionClick = ::sendMessage,
+                        )
+                    }
                 }
-                Text(
-                    "Asistente Vaiinilla",
-                    color = colors.ink,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 17.sp,
-                    textAlign = TextAlign.Center,
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .padding(horizontal = 8.dp),
-                )
-                IconButton(onClick = { messages.clear() }) {
-                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "Limpiar chat", tint = colors.ink)
-                }
-                IconButton(onClick = onClose) {
-                    Icon(Icons.Outlined.Close, contentDescription = "Cerrar", tint = colors.ink)
-                }
-            }
 
-            if (messages.isEmpty()) {
-                Column(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    VaiinillaMark(modifier = Modifier.size(width = 132.dp, height = 110.dp))
-                    Text(
-                        "¡Hola! Soy tu Asistente Vaiinilla. Pregúntame sobre el menú: dietas, recomendaciones, ingredientes y más.",
-                        color = colors.muted,
-                        fontSize = 15.sp,
-                        lineHeight = 22.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(top = 14.dp),
-                    )
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(top = 14.dp),
-                        verticalArrangement = Arrangement.spacedBy(9.dp),
-                    ) {
-                        chatSuggestions.forEach { suggestion ->
-                            ChatSuggestionChip(
-                                label = suggestion,
-                                onClick = { sendMessage(suggestion) },
-                            )
-                        }
-                    }
-                }
-            } else {
-                LazyColumn(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    items(
-                        messages,
-                        key = { "${it.fromUser}-${it.text.hashCode()}-${messages.indexOf(it)}" },
-                    ) { message ->
-                        ChatBubble(message = message, reduceMotion = reduceMotion)
-                    }
-                    item { Spacer(Modifier.size(88.dp)) }
+                items(messages, key = { "${it.fromUser}-${it.text.hashCode()}" }) { message ->
+                    ChatBubble(message = message, reduceMotion = reduceMotion)
                 }
             }
 
@@ -208,8 +177,16 @@ fun AssistantChatScreen(
                 value = input,
                 onValueChange = { input = it },
                 onSend = { sendMessage(input) },
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 96.dp, top = 8.dp),
+                bringIntoViewRequester = bringIntoViewRequester,
+                onFocus = {
+                    scope.launch {
+                        bringIntoViewRequester.bringIntoView()
+                    }
+                },
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp),
             )
+
+            Spacer(Modifier.height(bottomNavClearance))
         }
 
         VaiinillaBottomNav(
@@ -226,6 +203,113 @@ fun AssistantChatScreen(
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding(),
         )
+
+        if (showClearConfirm) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(colors.paper.copy(alpha = 0.35f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                EditorialConfirmSheet(
+                    title = "¿Limpiar conversación?",
+                    message = "Se borrará el historial del asistente en esta sesión.",
+                    confirmLabel = "Limpiar",
+                    dismissLabel = "Cancelar",
+                    onConfirm = {
+                        onClearChat()
+                        showClearConfirm = false
+                    },
+                    onDismiss = { showClearConfirm = false },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AssistantChatHeader(
+    embeddedInBottomNav: Boolean,
+    hasMessages: Boolean,
+    onClear: () -> Unit,
+    onClose: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (!embeddedInBottomNav) {
+            Spacer(Modifier.size(48.dp))
+        } else {
+            Spacer(Modifier.size(48.dp))
+        }
+        Text(
+            "Asistente Vaiinilla",
+            color = colors.ink,
+            fontWeight = FontWeight.Black,
+            fontSize = 17.sp,
+            textAlign = TextAlign.Center,
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .padding(horizontal = 8.dp),
+        )
+        when {
+            hasMessages ->
+                IconButton(onClick = onClear) {
+                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "Limpiar chat", tint = colors.ink)
+                }
+            embeddedInBottomNav ->
+                Spacer(Modifier.size(48.dp))
+            else ->
+                Spacer(Modifier.size(48.dp))
+        }
+        if (!embeddedInBottomNav) {
+            IconButton(onClick = onClose) {
+                Icon(Icons.Outlined.Close, contentDescription = "Cerrar", tint = colors.ink)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AssistantWelcomeContent(
+    onSuggestionClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        VaiinillaMark(modifier = Modifier.size(width = 96.dp, height = 76.dp))
+        Text(
+            "¡Hola! Soy tu Asistente Vaiinilla. Pregúntame sobre el menú: dietas, recomendaciones, ingredientes y más.",
+            color = colors.muted,
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp),
+        ) {
+            chatSuggestions.forEach { suggestion ->
+                ChatSuggestionChip(
+                    label = suggestion,
+                    onClick = { onSuggestionClick(suggestion) },
+                )
+            }
+        }
     }
 }
 
@@ -254,7 +338,7 @@ private fun ChatSuggestionChip(
 
 @Composable
 private fun ChatBubble(
-    message: ChatMessage,
+    message: AssistantChatMessage,
     reduceMotion: Boolean,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -269,7 +353,7 @@ private fun ChatBubble(
         animationSpec = tween(durationMillis = if (reduceMotion) 0 else 180),
         label = "chat-bubble-alpha",
     )
-    androidx.compose.runtime.LaunchedEffect(message) { visible = true }
+    LaunchedEffect(message) { visible = true }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -303,11 +387,13 @@ private fun ChatComposer(
     value: String,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
+    bringIntoViewRequester: BringIntoViewRequester,
+    onFocus: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().bringIntoViewRequester(bringIntoViewRequester),
         color = colors.paper2,
         shape = RoundedCornerShape(22.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, colors.ink.copy(alpha = 0.12f)),
@@ -319,7 +405,12 @@ private fun ChatComposer(
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.weight(1f),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .onFocusChanged { state ->
+                            if (state.isFocused) onFocus()
+                        },
                 singleLine = true,
                 textStyle =
                     androidx.compose.ui.text

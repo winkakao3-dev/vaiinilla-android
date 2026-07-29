@@ -399,7 +399,9 @@ fun AppNavHost(
             }
             AssistantChatScreen(
                 state = orderState,
-                onBack = { navController.navigateStudent(Routes.CATALOG) },
+                embeddedInBottomNav = true,
+                onSendMessage = orderFlowViewModel::sendAssistantMessage,
+                onClearChat = orderFlowViewModel::clearAssistantChat,
                 onClose = { navController.navigateStudent(Routes.CATALOG) },
                 onMenu = { navController.navigateStudent(Routes.CATALOG) },
                 onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
@@ -434,7 +436,9 @@ fun AppNavHost(
             }
             AssistantChatScreen(
                 state = orderState,
-                onBack = { navController.popBackStack() },
+                embeddedInBottomNav = false,
+                onSendMessage = orderFlowViewModel::sendAssistantMessage,
+                onClearChat = orderFlowViewModel::clearAssistantChat,
                 onClose = { navController.popBackStack() },
                 onMenu = { navController.navigateStudent(Routes.CATALOG) },
                 onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
@@ -647,7 +651,13 @@ fun AppNavHost(
 }
 
 private fun NavHostController.navigateStudent(route: String) {
-    navigate(route) { launchSingleTop = true }
+    navigate(route) {
+        popUpTo(Routes.CATALOG) {
+            saveState = true
+        }
+        launchSingleTop = true
+        restoreState = true
+    }
 }
 
 private fun returnToRoles(
