@@ -28,6 +28,10 @@
                     android:scheme="https"
                     android:host="vaiinilla.app"
                     android:pathPrefix="/e/" />
+                <data
+                    android:scheme="https"
+                    android:host="www.vaiinilla.app"
+                    android:pathPrefix="/e/" />
             </intent-filter>
         </activity>
     </application>
