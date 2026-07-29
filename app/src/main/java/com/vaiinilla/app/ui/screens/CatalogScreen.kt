@@ -51,7 +51,6 @@ import com.vaiinilla.app.ui.components.DemoEmptyState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductDetailSheet
 import com.vaiinilla.app.ui.components.ProductImage
-import com.vaiinilla.app.ui.components.QuickActionCards
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.moneyLabel
@@ -200,23 +199,6 @@ private fun CatalogContent(
                         modifier = Modifier.padding(bottom = 4.dp),
                     )
                 }
-            }
-
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                QuickActionCards(
-                    modifier = Modifier.padding(top = 18.dp, bottom = 4.dp),
-                    onActionClick = { action ->
-                        when (action.title) {
-                            "Llenador" -> onOpenAssistant()
-                            "Para gratinar" -> onSearchChange("gratinado")
-                            "Sin picante" -> onSearchChange("sin picante")
-                            else ->
-                                if (action.title == "Asistente") {
-                                    onOpenAssistant()
-                                }
-                        }
-                    },
-                )
             }
 
             item(span = { GridItemSpan(maxLineSpan) }) {

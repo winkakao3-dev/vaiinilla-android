@@ -21,7 +21,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -36,18 +36,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.assistant.AssistantLocalReplies
 import com.vaiinilla.app.ui.assistant.AssistantRecommendation
-import com.vaiinilla.app.ui.components.EditorialPrimaryButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.StudentTab
@@ -69,13 +66,12 @@ private val assistantChips =
 @Composable
 fun AssistantScreen(
     state: OrderFlowUiState,
-    onOpenChat: () -> Unit,
+    @Suppress("UNUSED_PARAMETER") onOpenChat: () -> Unit,
     onOpenProduct: (Int) -> Unit,
     onMenu: () -> Unit,
     onOrders: () -> Unit,
     onWallet: () -> Unit,
     onCart: () -> Unit,
-    onBack: () -> Unit = onMenu,
     initialChip: String? = null,
     showDemoTabs: Boolean = false,
 ) {
@@ -114,7 +110,7 @@ fun AssistantScreen(
                 Modifier
                     .fillMaxSize()
                     .statusBarsPadding(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 132.dp),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 132.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
@@ -122,19 +118,23 @@ fun AssistantScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver",
-                            tint = colors.ink,
-                        )
-                    }
                     Text(
-                        "Asistente",
+                        "Asistente Vaiinilla",
                         color = colors.ink,
                         fontWeight = FontWeight.Black,
-                        fontSize = 17.sp,
+                        fontSize = 22.sp,
+                        modifier = Modifier.weight(1f),
                     )
+                    IconButton(
+                        onClick = {},
+                        modifier =
+                            Modifier
+                                .size(42.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(colors.paper2),
+                    ) {
+                        Icon(Icons.Outlined.Notifications, contentDescription = "Notificaciones", tint = colors.ink)
+                    }
                 }
             }
 
@@ -147,7 +147,7 @@ fun AssistantScreen(
                                 alpha = heroAlpha
                                 translationY = if (reduceMotion) 0f else heroOffset
                             },
-                    color = colors.accent,
+                    color = colors.ink,
                     shape = RoundedCornerShape(32.dp),
                 ) {
                     Column(
@@ -156,23 +156,19 @@ fun AssistantScreen(
                     ) {
                         Text(
                             "Pide sin pensarlo tanto",
-                            color = colors.accentInk.copy(alpha = 0.72f),
+                            color = colors.muted.copy(alpha = 0.85f),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = 0.8.sp,
                         )
-                        AssistantMascot(
-                            bodyColor = colors.ink,
-                            faceColor = colors.accent,
-                            modifier = Modifier.padding(vertical = 16.dp),
-                        )
+                        AssistantMascot(colors = colors, modifier = Modifier.padding(vertical = 16.dp))
                         Text(
-                            "¿Qué te gustaría hoy?",
-                            color = colors.accentInk,
+                            "¿Qué necesitas hoy?",
+                            color = colors.paper,
                             fontWeight = FontWeight.Black,
                             fontSize = 30.sp,
                             lineHeight = 32.sp,
-                            textAlign = TextAlign.Center,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         )
                     }
                 }
@@ -207,16 +203,6 @@ fun AssistantScreen(
                     onClick = { item.productId?.let(onOpenProduct) },
                 )
             }
-
-            item {
-                Spacer(Modifier.height(4.dp))
-                EditorialPrimaryButton(
-                    text = "Ver todo el menú",
-                    onClick = onMenu,
-                    background = colors.paper2,
-                    contentColor = colors.ink,
-                )
-            }
         }
 
         VaiinillaBottomNav(
@@ -235,8 +221,7 @@ fun AssistantScreen(
 
 @Composable
 private fun AssistantMascot(
-    bodyColor: Color,
-    faceColor: Color,
+    colors: com.vaiinilla.app.ui.theme.VaiinillaColors,
     modifier: Modifier = Modifier,
 ) {
     Canvas(modifier = modifier.size(width = 92.dp, height = 82.dp)) {
@@ -247,9 +232,9 @@ private fun AssistantMascot(
                 lineTo(size.width * 0.022f, size.height * 0.915f)
                 close()
             }
-        drawPath(triangle, bodyColor)
+        drawPath(triangle, colors.accent)
         drawCircle(
-            faceColor,
+            colors.accentInk,
             radius = size.width * 0.043f,
             center =
                 Offset(
@@ -258,7 +243,7 @@ private fun AssistantMascot(
                 ),
         )
         drawCircle(
-            faceColor,
+            colors.accentInk,
             radius = size.width * 0.043f,
             center =
                 Offset(
@@ -272,7 +257,7 @@ private fun AssistantMascot(
                     moveTo(size.width * 0.359f, size.height * 0.732f)
                     quadraticBezierTo(size.width / 2f, size.height * 0.878f, size.width * 0.641f, size.height * 0.732f)
                 },
-            color = faceColor,
+            color = colors.accentInk,
             style = Stroke(width = size.width * 0.033f),
         )
     }
