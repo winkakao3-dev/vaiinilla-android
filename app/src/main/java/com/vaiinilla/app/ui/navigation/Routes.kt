@@ -11,6 +11,7 @@ object Routes {
     const val CONFIRMATION = "order-confirmation"
     const val STUDENT_TRACKING = "student/tracking"
     const val ASSISTANT = "assistant"
+    const val ASSISTANT_HUB = "assistant/hub"
     const val ASSISTANT_CHAT = "assistant/chat"
     const val WALLET = "wallet"
     const val WALLET_ADD_MONEY = "wallet/add-money?method={method}"

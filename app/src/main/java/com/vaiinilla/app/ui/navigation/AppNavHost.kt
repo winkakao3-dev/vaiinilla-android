@@ -130,7 +130,7 @@ fun AppNavHost(
                 demoGallerySeeder.seedCatalogProductSheet(orderFlowViewModel)
                 navController.navigate(Routes.CATALOG) { launchSingleTop = true }
             }
-            "09" -> navController.navigate(Routes.ASSISTANT) { launchSingleTop = true }
+            "09" -> navController.navigate(Routes.ASSISTANT_HUB) { launchSingleTop = true }
             "57" -> navController.navigate(Routes.ASSISTANT_CHAT) { launchSingleTop = true }
             "12" -> {
                 demoGallerySeeder.seedCartEmpty(orderFlowViewModel)
@@ -397,9 +397,25 @@ fun AppNavHost(
             LaunchedEffect(demoUnlocked) {
                 if (!demoUnlocked) navController.popBackStack()
             }
+            AssistantChatScreen(
+                state = orderState,
+                onBack = { navController.navigateStudent(Routes.CATALOG) },
+                onClose = { navController.navigateStudent(Routes.CATALOG) },
+                onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
+                onWallet = { navigateDemo(Routes.WALLET) },
+                onCart = { navController.navigateStudent(Routes.CART) },
+                showDemoTabs = demoUnlocked,
+            )
+        }
+
+        composable(Routes.ASSISTANT_HUB) {
+            LaunchedEffect(demoUnlocked) {
+                if (!demoUnlocked) navController.popBackStack()
+            }
             AssistantScreen(
                 state = orderState,
-                onOpenChat = { navController.navigate(Routes.ASSISTANT_CHAT) { launchSingleTop = true } },
+                onOpenChat = { navController.navigate(Routes.ASSISTANT) { launchSingleTop = true } },
                 onOpenProduct = { productId ->
                     orderFlowViewModel.openProduct(productId)
                     navController.navigateStudent(Routes.CATALOG)
@@ -418,6 +434,7 @@ fun AppNavHost(
             }
             AssistantChatScreen(
                 state = orderState,
+                onBack = { navController.popBackStack() },
                 onClose = { navController.popBackStack() },
                 onMenu = { navController.navigateStudent(Routes.CATALOG) },
                 onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },

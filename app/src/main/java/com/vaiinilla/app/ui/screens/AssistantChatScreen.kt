@@ -20,10 +20,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -41,6 +42,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.assistant.AssistantLocalReplies
@@ -71,6 +73,7 @@ fun AssistantChatScreen(
     onOrders: () -> Unit,
     onWallet: () -> Unit,
     onCart: () -> Unit,
+    onBack: () -> Unit = onMenu,
     showDemoTabs: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -112,30 +115,33 @@ fun AssistantChatScreen(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Surface(
-                    color = colors.accent2.copy(alpha = 0.28f),
-                    shape = RoundedCornerShape(13.dp),
+                IconButton(
+                    onClick = onBack,
+                    modifier =
+                        Modifier
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(colors.ink),
                 ) {
-                    Text(
-                        "✦",
-                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
-                        color = colors.accentInk,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 16.sp,
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Volver",
+                        tint = colors.paper,
                     )
                 }
                 Text(
                     "Asistente Vaiinilla",
                     color = colors.ink,
                     fontWeight = FontWeight.Black,
-                    fontSize = 15.sp,
+                    fontSize = 17.sp,
+                    textAlign = TextAlign.Center,
                     modifier =
                         Modifier
                             .weight(1f)
-                            .padding(start = 9.dp),
+                            .padding(horizontal = 8.dp),
                 )
                 IconButton(onClick = { messages.clear() }) {
                     Icon(Icons.Outlined.DeleteOutline, contentDescription = "Limpiar chat", tint = colors.ink)
@@ -161,6 +167,7 @@ fun AssistantChatScreen(
                         color = colors.muted,
                         fontSize = 15.sp,
                         lineHeight = 22.sp,
+                        textAlign = TextAlign.Center,
                         modifier = Modifier.padding(top = 14.dp),
                     )
                     Column(
@@ -337,7 +344,11 @@ private fun ChatComposer(
                         .clip(RoundedCornerShape(14.dp))
                         .background(colors.accent),
             ) {
-                Icon(Icons.Outlined.Send, contentDescription = "Enviar", tint = colors.accentInk)
+                Icon(
+                    Icons.AutoMirrored.Outlined.Send,
+                    contentDescription = "Enviar",
+                    tint = colors.accentInk,
+                )
             }
         }
     }
