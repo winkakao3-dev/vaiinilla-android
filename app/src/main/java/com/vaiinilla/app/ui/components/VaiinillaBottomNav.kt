@@ -171,8 +171,7 @@ fun VaiinillaBottomNav(
                             size = Size(size.width + 8.dp.toPx(), size.height),
                             cornerRadius = CornerRadius(radius, radius),
                         )
-                    }
-                    .clip(capsuleShape)
+                    }.clip(capsuleShape)
                     .background(colors.navGlass)
                     .border(1.dp, colors.navBorder, capsuleShape)
                     .padding(NavInnerPadding),

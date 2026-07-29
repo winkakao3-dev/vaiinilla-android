@@ -71,8 +71,8 @@ android {
         applicationId = "com.vaiinilla.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 11
-        versionName = "0.3.6-float-dock-v2"
+        versionCode = 12
+        versionName = "0.3.7-vai25-mock"
 
         buildConfigField("String", "DATA_SOURCE_MODE", "\"$selectedDataSource\"")
         buildConfigField("String", "API_BASE_URL", "\"$selectedApiBaseUrl\"")

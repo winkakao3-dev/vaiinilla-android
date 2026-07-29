@@ -473,6 +473,7 @@ class OrderFlowViewModel
                                 createdOrder = order,
                                 createOrderError = null,
                             )
+                        activeCartStorageKey?.let { guestSessionStore.clearCart(it) }
                     },
                     onFailure = { error ->
                         _uiState.value =
@@ -576,7 +577,10 @@ class OrderFlowViewModel
         fun sendAssistantMessage(text: String) {
             val trimmed = text.trim()
             if (trimmed.isEmpty()) return
-            val products = _uiState.value.catalog?.products.orEmpty()
+            val products =
+                _uiState.value.catalog
+                    ?.products
+                    .orEmpty()
             val reply = AssistantLocalReplies.reply(trimmed, products)
             val current = _uiState.value.assistantChatMessages
             _uiState.value =

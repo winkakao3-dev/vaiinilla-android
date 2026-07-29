@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Storefront
@@ -23,15 +24,14 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.config.DemoFeatures
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
@@ -76,7 +76,9 @@ fun DiscoveryScreen(
                 EditorialHero(
                     eyebrow = "Comedor conectado",
                     title = "¿Dónde comes hoy?",
-                    body = "Escanea el QR del comedor, busca por nombre o elige de la lista. No necesitas cuenta para ver el menú.",
+                    body =
+                        "Escanea el QR del comedor, busca por nombre o elige de la lista. " +
+                            "No necesitas cuenta para ver el menú.",
                     watermark = "V",
                 )
             }
@@ -216,7 +218,12 @@ fun DiscoveryScreen(
                         color = colors.coral.copy(alpha = 0.14f),
                     ) {
                         Column(modifier = Modifier.padding(18.dp)) {
-                            Text("Cafetería suspendida", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                            Text(
+                                "Cafetería suspendida",
+                                color = colors.ink,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 18.sp,
+                            )
                             Text(
                                 state.suspendedMessage,
                                 color = colors.muted,
@@ -238,8 +245,8 @@ fun DiscoveryScreen(
             item {
                 EditorialSectionHead(
                     title = "Cafeterías",
-                    trailing = "Solo pruebas",
-                    onTrailingClick = onOpenDemoRoles,
+                    trailing = if (DemoFeatures.toolsAvailable) "Solo pruebas" else null,
+                    onTrailingClick = if (DemoFeatures.toolsAvailable) onOpenDemoRoles else null,
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
