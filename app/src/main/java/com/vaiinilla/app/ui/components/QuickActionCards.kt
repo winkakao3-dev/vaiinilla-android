@@ -32,33 +32,37 @@ data class QuickAction(
     val contentColor: Color,
 )
 
+/** Demo screen 02 — horizontal HOT shortcuts (Para gratinar / Sin picante / Llenador). */
 @Composable
-private fun defaultQuickActions(): List<QuickAction> {
+fun menuHotQuickActions(): List<QuickAction> {
     val colors = LocalVaiinillaColors.current
     return listOf(
         QuickAction(
-            icon = "↻",
-            title = "Pedir de nuevo",
-            subtitle = "Burrito norteño + jamaica",
+            icon = "◉",
+            title = "Para gratinar",
+            subtitle = "Con queso gratinado",
             background = colors.paper2,
             contentColor = colors.ink,
         ),
         QuickAction(
-            icon = "☀",
-            title = "Antojo del día",
-            subtitle = "Waffle de la casa",
+            icon = "✦",
+            title = "Sin picante",
+            subtitle = "Sin chiles",
             background = Yolk,
             contentColor = Color(0xFF29200B),
         ),
         QuickAction(
-            icon = "✦",
-            title = "Asistente",
-            subtitle = "No sé qué pedir",
+            icon = "⌁",
+            title = "Llenador",
+            subtitle = "Combo burrito + bebida",
             background = Coral,
             contentColor = Color(0xFF2D1210),
         ),
     )
 }
+
+@Composable
+private fun defaultQuickActions(): List<QuickAction> = menuHotQuickActions()
 
 @Composable
 fun QuickActionCards(
@@ -69,7 +73,7 @@ fun QuickActionCards(
     val resolvedActions = actions ?: defaultQuickActions()
     LazyRow(
         modifier = modifier,
-        contentPadding = PaddingValues(horizontal = 20.dp),
+        contentPadding = PaddingValues(horizontal = 0.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(resolvedActions, key = QuickAction::title) { action ->
@@ -98,10 +102,7 @@ private fun QuickActionCard(
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Box(
-                modifier =
-                    Modifier
-                        .size(45.dp)
-                        .padding(0.dp),
+                modifier = Modifier.size(45.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Surface(
@@ -112,8 +113,9 @@ private fun QuickActionCard(
                     Box(contentAlignment = Alignment.Center) {
                         Text(
                             text = action.icon,
-                            color = action.background,
+                            color = colors.paper,
                             fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
                         )
                     }
                 }

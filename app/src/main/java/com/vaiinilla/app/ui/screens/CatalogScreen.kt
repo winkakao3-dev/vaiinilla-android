@@ -42,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.Product
@@ -202,22 +203,25 @@ private fun CatalogContent(
             }
 
             item(span = { GridItemSpan(maxLineSpan) }) {
-                if (showDemoTabs) {
-                    QuickActionCards(
-                        modifier = Modifier.padding(top = 18.dp, bottom = 4.dp),
-                        onActionClick = { action ->
-                            if (action.title == "Asistente") {
-                                onOpenAssistant()
-                            }
-                        },
-                    )
-                }
+                QuickActionCards(
+                    modifier = Modifier.padding(top = 18.dp, bottom = 4.dp),
+                    onActionClick = { action ->
+                        when (action.title) {
+                            "Llenador" -> onOpenAssistant()
+                            "Para gratinar" -> onSearchChange("gratinado")
+                            "Sin picante" -> onSearchChange("sin picante")
+                            else ->
+                                if (action.title == "Asistente") {
+                                    onOpenAssistant()
+                                }
+                        }
+                    },
+                )
             }
 
             item(span = { GridItemSpan(maxLineSpan) }) {
                 MenuSectionHead(
                     state = state,
-                    showAssistantShortcut = showDemoTabs,
                     onOpenAssistant = onOpenAssistant,
                 )
             }
@@ -290,25 +294,30 @@ private fun CatalogHeader(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Hola, Dani",
+                    color = colors.muted,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 11.sp,
+                    letterSpacing = 1.2.sp,
+                )
+                Text(
+                    "¿Qué se te antoja?",
+                    color = colors.ink,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 16.sp,
+                )
                 if (venue != null) {
-                    Text(
-                        venue.establishment.name,
-                        color = colors.ink,
-                        fontWeight = FontWeight.Black,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
                     val spaceLabel = venue.space?.let { "${it.name} · ${it.type}" }
                     Text(
-                        spaceLabel ?: "Pedido sin mesa asignada",
+                        text = spaceLabel ?: venue.establishment.name,
                         color = colors.muted,
                         fontWeight = FontWeight.ExtraBold,
+                        fontSize = 11.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
                     )
-                } else {
-                    Text("Hola, Dani", color = colors.muted, fontWeight = FontWeight.ExtraBold)
-                    Text("¿Qué se te antoja?", color = colors.ink, fontWeight = FontWeight.Black)
                 }
             }
             if (venue != null) {
@@ -414,7 +423,6 @@ private fun CatalogHeader(
 @Composable
 private fun MenuSectionHead(
     state: OrderFlowUiState,
-    showAssistantShortcut: Boolean,
     onOpenAssistant: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -426,12 +434,10 @@ private fun MenuSectionHead(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Bottom,
     ) {
-        Text("Menú de hoy", color = colors.ink, fontWeight = FontWeight.Black)
+        Text("Menú de hoy", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 19.sp)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (showAssistantShortcut) {
-                TextButton(onClick = onOpenAssistant) {
-                    Text("No sé qué pedir", color = colors.muted, fontWeight = FontWeight.Bold)
-                }
+            TextButton(onClick = onOpenAssistant) {
+                Text("No sé qué pedir", color = colors.muted, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
             }
             state.operationalStatus?.let { status ->
                 Surface(
