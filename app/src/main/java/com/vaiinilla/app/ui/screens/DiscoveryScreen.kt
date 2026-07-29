@@ -229,6 +229,26 @@ fun DiscoveryScreen(
                 }
             }
 
+            if (state.suspendedMessage != null) {
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        color = colors.coral.copy(alpha = 0.12f),
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("Cafetería suspendida", color = colors.ink, fontWeight = FontWeight.Black)
+                            Text(
+                                state.suspendedMessage,
+                                color = colors.muted,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
+                        }
+                    }
+                }
+            }
+
             if (state.errorMessage != null) {
                 item {
                     Text(state.errorMessage, color = colors.coral, fontSize = 13.sp)

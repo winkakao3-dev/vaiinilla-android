@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.data.guest.GuestSessionStore
+import com.vaiinilla.app.domain.discovery.DiscoveryFailures
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
@@ -22,6 +23,7 @@ data class DiscoveryUiState(
     val resolving: Boolean = false,
     val establishments: List<PublicEstablishment> = emptyList(),
     val errorMessage: String? = null,
+    val suspendedMessage: String? = null,
     val spaceTokenInput: String = "",
     val pendingSwitch: GuestVenueContext? = null,
     val selected: GuestVenueContext? = null,
@@ -62,7 +64,7 @@ class GuestDiscoveryViewModel
         }
 
         fun search(query: String = _state.value.query) {
-            _state.value = _state.value.copy(loading = true, errorMessage = null)
+            _state.value = _state.value.copy(loading = true, errorMessage = null, suspendedMessage = null)
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
@@ -108,7 +110,7 @@ class GuestDiscoveryViewModel
                 _state.value = _state.value.copy(errorMessage = "Pega el token del QR de espacio.")
                 return
             }
-            _state.value = _state.value.copy(resolving = true, errorMessage = null)
+            _state.value = _state.value.copy(resolving = true, errorMessage = null, suspendedMessage = null)
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
@@ -141,7 +143,7 @@ class GuestDiscoveryViewModel
             onEntered: (GuestVenueContext) -> Unit,
             onFinished: () -> Unit = {},
         ) {
-            _state.value = _state.value.copy(resolving = true, errorMessage = null)
+            _state.value = _state.value.copy(resolving = true, errorMessage = null, suspendedMessage = null)
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
@@ -160,7 +162,18 @@ class GuestDiscoveryViewModel
                         _state.value =
                             _state.value.copy(
                                 resolving = false,
-                                errorMessage = error.message ?: "QR de establecimiento inválido.",
+                                errorMessage =
+                                    if (DiscoveryFailures.isEstablishmentSuspended(error)) {
+                                        null
+                                    } else {
+                                        error.message ?: "QR de establecimiento inválido."
+                                    },
+                                suspendedMessage =
+                                    if (DiscoveryFailures.isEstablishmentSuspended(error)) {
+                                        error.message
+                                    } else {
+                                        null
+                                    },
                             )
                         onFinished()
                     },

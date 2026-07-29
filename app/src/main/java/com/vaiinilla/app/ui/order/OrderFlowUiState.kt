@@ -34,6 +34,7 @@ data class OrderFlowUiState(
     val createOrderError: String? = null,
     val createdOrder: OrderDetail? = null,
     val guestVenue: GuestVenueContext? = null,
+    val guestVenueSuspended: Boolean = false,
 )
 
 val OrderFlowUiState.selectedProduct: Product?

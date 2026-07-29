@@ -8,6 +8,7 @@ import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.config.EffectiveDataSourceResolver
 import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
+import com.vaiinilla.app.domain.discovery.DiscoveryFailures
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
@@ -112,6 +113,7 @@ class OrderFlowViewModel
                         emptyList()
                     }
                 val failure = catalogResult.exceptionOrNull() ?: statusResult.exceptionOrNull()
+                val suspended = DiscoveryFailures.isEstablishmentSuspended(failure)
                 _uiState.value =
                     _uiState.value.copy(
                         loading = false,
@@ -119,6 +121,7 @@ class OrderFlowViewModel
                         operationalStatus = statusResult.getOrNull(),
                         cartLines = restored,
                         errorMessage = failure?.message,
+                        guestVenueSuspended = suspended,
                         testOnlyMode = dataSourceResolver.isTestOnlyMode,
                         dataSourceMode = dataSourceResolver.effectiveMode(),
                         guestVenue = venue,
@@ -156,6 +159,17 @@ class OrderFlowViewModel
                         errorMessage = errorMessage,
                     )
             }
+        }
+
+        /** Persists guest cart before leaving for auth. Venue/cart keys stay in GuestSessionStore. */
+        fun prepareForGuestAuth() {
+            persistCurrentCartIfNeeded()
+        }
+
+        /** Reloads guest venue + cart after returning from auth without clearing tenant state. */
+        fun restoreGuestSessionAfterAuth() {
+            val venue = guestSessionStore.readVenue() ?: return
+            enterGuestVenue(venue)
         }
 
         /** Leaves guest venue for Solo pruebas / staff roles. Cart snapshots stay keyed by tenant. */

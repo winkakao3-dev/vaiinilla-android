@@ -90,6 +90,11 @@ fun CatalogScreen(
 ) {
     when {
         state.loading -> LoadingCatalog()
+        state.guestVenueSuspended && state.errorMessage != null ->
+            CatalogSuspendedError(
+                message = state.errorMessage,
+                onChangeVenue = onChangeVenue,
+            )
         state.errorMessage != null -> CatalogError(state.errorMessage, onRetry)
         state.catalog != null ->
             CatalogContent(
@@ -534,6 +539,33 @@ private fun LoadingCatalog() {
         contentAlignment = Alignment.Center,
     ) {
         CircularProgressIndicator(color = colors.accent)
+    }
+}
+
+@Composable
+private fun CatalogSuspendedError(
+    message: String,
+    onChangeVenue: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(colors.paper)
+                .statusBarsPadding()
+                .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text("Cafetería suspendida", color = colors.ink, fontWeight = FontWeight.Black)
+        Text(message, color = colors.muted, modifier = Modifier.padding(top = 8.dp))
+        Button(
+            onClick = onChangeVenue,
+            modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = colors.accent, contentColor = colors.accentInk),
+        ) {
+            Text("Elegir otra cafetería", fontWeight = FontWeight.Black)
+        }
     }
 }
 

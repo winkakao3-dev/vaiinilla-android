@@ -2,6 +2,7 @@ package com.vaiinilla.app.data.discovery
 
 import com.vaiinilla.app.data.fixture.ContractFixtureParser
 import com.vaiinilla.app.data.fixture.FixtureSource
+import com.vaiinilla.app.domain.discovery.DiscoveryFailures
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.SpaceResolveResult
@@ -40,12 +41,22 @@ class FixtureDiscoveryRepository(
 
     override fun getEstablishment(slug: String): Result<PublicEstablishment> =
         runCatching {
+            if (slug == SUSPENDED_SLUG) {
+                throw DiscoveryFailures.establishmentSuspended(
+                    "Esta cafetería está suspendida temporalmente y no acepta pedidos nuevos.",
+                )
+            }
             loadEstablishments().firstOrNull { it.slug == slug }
                 ?: error("Establecimiento no encontrado: $slug")
         }
 
     override fun getGuestCatalog(slug: String): Result<Catalog> =
         runCatching {
+            if (slug == SUSPENDED_SLUG) {
+                throw DiscoveryFailures.establishmentSuspended(
+                    "Esta cafetería está suspendida temporalmente y no acepta pedidos nuevos.",
+                )
+            }
             getEstablishment(slug).getOrThrow()
             // MOCK reuses Entrega 01 catalog fixture for any known slug.
             parser.parseCatalog(fixtureSource.read("fixtures/catalog.json"))
@@ -79,5 +90,9 @@ class FixtureDiscoveryRepository(
                 fixtureSource.read("fixtures/publico_establecimientos.json"),
             )
         return envelope.data.map { it.toDomain() }
+    }
+
+    private companion object {
+        const val SUSPENDED_SLUG = "cafeteria-suspendida"
     }
 }

@@ -5,7 +5,11 @@ import com.vaiinilla.app.data.discovery.FixtureDiscoveryRepository
 import com.vaiinilla.app.data.fixture.ContractFixtureParser
 import com.vaiinilla.app.data.guest.GuestCartLineSnapshot
 import com.vaiinilla.app.data.guest.GuestSessionStore
+import com.vaiinilla.app.domain.discovery.DiscoveryFailures
 import com.vaiinilla.app.domain.model.CartLine
+import com.vaiinilla.app.domain.model.GuestVenueContext
+import com.vaiinilla.app.domain.model.PublicEstablishment
+import com.vaiinilla.app.domain.model.PublicSpace
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -43,11 +47,26 @@ class FixtureDiscoveryRepositoryTest {
         val catalog = repository.getGuestCatalog("cafeteria-centro").getOrThrow()
         assertEquals(3, catalog.products.size)
     }
+
+    @Test
+    fun `suspended slug returns establishment suspended error`() {
+        val failure = repository.getEstablishment("cafeteria-suspendida").exceptionOrNull()
+        assertTrue(DiscoveryFailures.isEstablishmentSuspended(failure))
+    }
 }
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class GuestSessionAndDeepLinkTest {
+    private val centro =
+        PublicEstablishment(
+            id = "8246ff44-aad0-4e49-9268-b71c997893fe",
+            name = "Cafetería Centro",
+            slug = "cafeteria-centro",
+            clientIdLabel = "Matrícula",
+            clientIdRequired = true,
+        )
+
     @Test
     fun `parses general QR slug from app link`() {
         val uri = Uri.parse("https://vaiinilla.app/e/cafeteria-centro")
@@ -94,5 +113,30 @@ class GuestSessionAndDeepLinkTest {
         assertEquals(1, restored.size)
         assertEquals(product.id, restored.single().product.id)
         assertEquals(2, restored.single().quantity)
+    }
+
+    @Test
+    fun `guest venue and cart survive auth handoff without clearing session`() {
+        val store = GuestSessionStore(RuntimeEnvironment.getApplication())
+        val venue =
+            GuestVenueContext(
+                establishment = centro,
+                space = PublicSpace(id = 12, name = "Mesa 4", type = "mesa"),
+            )
+        val catalog =
+            FixtureDiscoveryRepository(TestFixtureSource(), ContractFixtureParser())
+                .getGuestCatalog("cafeteria-centro")
+                .getOrThrow()
+        val product = catalog.products.first()
+        store.saveVenue(venue)
+        val key = store.cartStorageKey(venue.establishment.id, venue.space?.id)
+        store.saveCartSnapshot(
+            key,
+            listOf(CartLine(product = product, quantity = 1, selectedOptionIds = emptySet())),
+        )
+
+        // VAI-26 iniciará auth sin llamar clearVenue(); aquí verificamos que el store lo conserve.
+        assertEquals(venue, store.readVenue())
+        assertEquals(1, store.readCartSnapshot(key).size)
     }
 }
