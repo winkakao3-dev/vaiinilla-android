@@ -71,8 +71,8 @@ android {
         applicationId = "com.vaiinilla.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.3.1-vai11"
+        versionCode = 3
+        versionName = "0.3.1-ui-4701ac87"
 
         buildConfigField("String", "DATA_SOURCE_MODE", "\"$selectedDataSource\"")
         buildConfigField("String", "API_BASE_URL", "\"$selectedApiBaseUrl\"")
@@ -122,6 +122,33 @@ android {
             buildConfigField("String", "SEED_PASSWORD_CAJERO", "\"\"")
             buildConfigField("String", "SEED_PASSWORD_COCINA", "\"\"")
             buildConfigField("String", "SEED_PASSWORD_MESERO", "\"\"")
+        }
+        create("preview") {
+            initWith(getByName("release"))
+            matchingFallbacks += listOf("release", "debug")
+            signingConfig = signingConfigs.getByName("debug")
+            buildConfigField("boolean", "ALLOW_DEMO_TOOLS", "true")
+            buildConfigField("boolean", "SEED_AUTH_ENABLED", "true")
+            buildConfigField(
+                "String",
+                "SEED_PASSWORD_CLIENTE",
+                "\"${escapeBuildConfig(seedPasswordCliente)}\"",
+            )
+            buildConfigField(
+                "String",
+                "SEED_PASSWORD_CAJERO",
+                "\"${escapeBuildConfig(seedPasswordCajero)}\"",
+            )
+            buildConfigField(
+                "String",
+                "SEED_PASSWORD_COCINA",
+                "\"${escapeBuildConfig(seedPasswordCocina)}\"",
+            )
+            buildConfigField(
+                "String",
+                "SEED_PASSWORD_MESERO",
+                "\"${escapeBuildConfig(seedPasswordMesero)}\"",
+            )
         }
     }
 
