@@ -25,9 +25,9 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -120,7 +120,9 @@ fun AssistantChatScreen(
                         Brush.radialGradient(
                             colors = listOf(colors.accent.copy(alpha = 0.14f), Color.Transparent),
                             radius = 900f,
-                            center = androidx.compose.ui.geometry.Offset(0.5f, 0f),
+                            center =
+                                androidx.compose.ui.geometry
+                                    .Offset(0.5f, 0f),
                         ),
                     ),
         )

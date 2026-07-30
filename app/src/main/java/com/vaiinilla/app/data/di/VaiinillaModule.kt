@@ -17,6 +17,12 @@ import com.vaiinilla.app.data.SwitchingCashSessionRepository
 import com.vaiinilla.app.data.SwitchingCatalogRepository
 import com.vaiinilla.app.data.SwitchingDeviceHeartbeatRepository
 import com.vaiinilla.app.data.SwitchingOrderRepository
+import com.vaiinilla.app.data.auth.ContextoExchanger
+import com.vaiinilla.app.data.auth.SesionesContextoExchange
+import com.vaiinilla.app.data.auth.student.RemoteStudentEnrollmentApi
+import com.vaiinilla.app.data.auth.student.StudentEnrollmentApi
+import com.vaiinilla.app.data.auth.student.SwitchingStudentAuthRepository
+import com.vaiinilla.app.data.auth.student.SwitchingStudentEnrollmentRepository
 import com.vaiinilla.app.data.catalog.FixtureCatalogRepository
 import com.vaiinilla.app.data.catalog.RemoteCatalogRepository
 import com.vaiinilla.app.data.discovery.FixtureDiscoveryRepository
@@ -31,6 +37,8 @@ import com.vaiinilla.app.data.operational.RemoteDeviceHeartbeatRepository
 import com.vaiinilla.app.data.order.FixtureOrderRepository
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.data.order.RemoteOrderRepository
+import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
+import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
@@ -173,4 +181,22 @@ object VaiinillaModule {
         fixture: FixtureDiscoveryRepository,
         remote: RemoteDiscoveryRepository,
     ): DiscoveryRepository = SwitchingDiscoveryRepository(resolver, fixture, remote)
+
+    @Provides
+    @Singleton
+    fun provideContextoExchanger(exchange: SesionesContextoExchange): ContextoExchanger = exchange
+
+    @Provides
+    @Singleton
+    fun provideStudentAuthRepository(switching: SwitchingStudentAuthRepository): StudentAuthRepository = switching
+
+    @Provides
+    @Singleton
+    fun provideStudentEnrollmentRepository(
+        switching: SwitchingStudentEnrollmentRepository,
+    ): StudentEnrollmentRepository = switching
+
+    @Provides
+    @Singleton
+    fun provideStudentEnrollmentApi(api: RemoteStudentEnrollmentApi): StudentEnrollmentApi = api
 }

@@ -22,6 +22,7 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.auth.RoleAuthViewModel
+import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
@@ -37,7 +38,12 @@ import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
 import com.vaiinilla.app.ui.screens.RoleSelectorScreen
 import com.vaiinilla.app.ui.screens.SplashScreen
+import com.vaiinilla.app.ui.screens.StudentAuthLandingScreen
+import com.vaiinilla.app.ui.screens.StudentForgotPasswordScreen
+import com.vaiinilla.app.ui.screens.StudentLoginScreen
+import com.vaiinilla.app.ui.screens.StudentRegisterScreen
 import com.vaiinilla.app.ui.screens.StudentTrackingScreen
+import com.vaiinilla.app.ui.screens.StudentVerifyEmailScreen
 import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
 import com.vaiinilla.app.ui.screens.WalletAccountScreen
 import com.vaiinilla.app.ui.screens.WalletAddCardScreen
@@ -56,10 +62,12 @@ fun AppNavHost(
     val orderFlowViewModel: OrderFlowViewModel = viewModel()
     val operationalViewModel: OperationalViewModel = viewModel()
     val roleAuthViewModel: RoleAuthViewModel = viewModel()
+    val studentAuthViewModel: StudentAuthViewModel = viewModel()
     val discoveryViewModel: GuestDiscoveryViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
     val roleAuthState by roleAuthViewModel.state
+    val studentAuthState by studentAuthViewModel.state
     val discoveryState by discoveryViewModel.state
     val walletState = rememberWalletUiState()
     val context = LocalContext.current
@@ -256,6 +264,26 @@ fun AppNavHost(
         orderState.createdOrder
             ?: operationalState.selectedOrder
             ?: operationalState.orders.firstOrNull()
+
+    fun finishStudentAuth(returnRoute: String) {
+        orderFlowViewModel.restoreGuestSessionAfterAuth()
+        studentAuthViewModel.refreshGuestVenue()
+        navController.popBackStack(returnRoute, inclusive = false)
+    }
+
+    fun navigateStudentAuth(returnRoute: String = Routes.CART) {
+        orderFlowViewModel.prepareForGuestAuth()
+        studentAuthViewModel.refreshGuestVenue()
+        navController.navigate(Routes.authLandingRoute(returnRoute)) {
+            launchSingleTop = true
+        }
+    }
+
+    val authReturnArg =
+        navArgument("returnRoute") {
+            type = NavType.StringType
+            defaultValue = Routes.CART
+        }
 
     NavHost(navController = navController, startDestination = Routes.SPLASH) {
         composable(Routes.SPLASH) {
@@ -520,6 +548,7 @@ fun AppNavHost(
             LaunchedEffect(Unit) {
                 orderFlowViewModel.refresh()
             }
+            val guestAuthRequired = orderFlowViewModel.requiresStudentAuth()
             CartScreen(
                 state = orderState,
                 walletBalance = walletState.balance,
@@ -530,15 +559,137 @@ fun AppNavHost(
                 onSpaceChange = orderFlowViewModel::updateCheckoutSpace,
                 onPaymentChange = orderFlowViewModel::updateCheckoutPayment,
                 onConfirm = {
-                    orderFlowViewModel.submitOrder(
-                        walletBalance = walletState.balance,
-                        onWalletDebit = { amount -> walletState.balance -= amount },
-                    )
+                    if (guestAuthRequired) {
+                        navigateStudentAuth(Routes.CART)
+                    } else {
+                        orderFlowViewModel.submitOrder(
+                            walletBalance = walletState.balance,
+                            onWalletDebit = { amount -> walletState.balance -= amount },
+                        )
+                    }
                 },
                 onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
                 onOpenAssistant = { navigateDemo(Routes.ASSISTANT) },
                 onOpenWallet = { navigateDemo(Routes.WALLET) },
                 showDemoTabs = demoUnlocked,
+                guestAuthRequired = guestAuthRequired,
+            )
+        }
+
+        composable(
+            route = Routes.AUTH_LANDING,
+            arguments = listOf(authReturnArg),
+        ) { entry ->
+            val returnRoute = entry.arguments?.getString("returnRoute") ?: Routes.CART
+            StudentAuthLandingScreen(
+                state = studentAuthState,
+                onBack = { navController.popBackStack() },
+                onRegister = {
+                    navController.navigate(Routes.authRegisterRoute(returnRoute)) {
+                        launchSingleTop = true
+                    }
+                },
+                onLogin = {
+                    navController.navigate(Routes.authLoginRoute(returnRoute)) {
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+
+        composable(
+            route = Routes.AUTH_REGISTER,
+            arguments = listOf(authReturnArg),
+        ) { entry ->
+            val returnRoute = entry.arguments?.getString("returnRoute") ?: Routes.CART
+            StudentRegisterScreen(
+                state = studentAuthState,
+                onBack = { navController.popBackStack() },
+                onNameChange = studentAuthViewModel::updateName,
+                onEmailChange = studentAuthViewModel::updateEmail,
+                onPasswordChange = studentAuthViewModel::updatePassword,
+                onContextualIdChange = studentAuthViewModel::updateContextualId,
+                onTermsChange = studentAuthViewModel::updateTermsAccepted,
+                onRegister = {
+                    studentAuthViewModel.register {
+                        navController.navigate(Routes.authVerifyRoute(returnRoute)) {
+                            launchSingleTop = true
+                        }
+                    }
+                },
+                onLogin = {
+                    navController.navigate(Routes.authLoginRoute(returnRoute)) {
+                        launchSingleTop = true
+                    }
+                },
+                onForgotPassword = {
+                    navController.navigate(Routes.authForgotRoute(returnRoute)) {
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+
+        composable(
+            route = Routes.AUTH_LOGIN,
+            arguments = listOf(authReturnArg),
+        ) { entry ->
+            val returnRoute = entry.arguments?.getString("returnRoute") ?: Routes.CART
+            StudentLoginScreen(
+                state = studentAuthState,
+                onBack = { navController.popBackStack() },
+                onEmailChange = studentAuthViewModel::updateEmail,
+                onPasswordChange = studentAuthViewModel::updatePassword,
+                onLogin = {
+                    studentAuthViewModel.login { enrolled ->
+                        if (enrolled) {
+                            finishStudentAuth(returnRoute)
+                        } else {
+                            navController.navigate(Routes.authVerifyRoute(returnRoute)) {
+                                launchSingleTop = true
+                            }
+                        }
+                    }
+                },
+                onForgotPassword = {
+                    navController.navigate(Routes.authForgotRoute(returnRoute)) {
+                        launchSingleTop = true
+                    }
+                },
+                onRegister = {
+                    navController.navigate(Routes.authRegisterRoute(returnRoute)) {
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+
+        composable(
+            route = Routes.AUTH_VERIFY,
+            arguments = listOf(authReturnArg),
+        ) { entry ->
+            val returnRoute = entry.arguments?.getString("returnRoute") ?: Routes.CART
+            StudentVerifyEmailScreen(
+                state = studentAuthState,
+                onBack = { navController.popBackStack() },
+                onResend = studentAuthViewModel::resendVerification,
+                onCheckVerified = {
+                    studentAuthViewModel.checkVerification {
+                        finishStudentAuth(returnRoute)
+                    }
+                },
+            )
+        }
+
+        composable(
+            route = Routes.AUTH_FORGOT,
+            arguments = listOf(authReturnArg),
+        ) {
+            StudentForgotPasswordScreen(
+                state = studentAuthState,
+                onBack = { navController.popBackStack() },
+                onEmailChange = studentAuthViewModel::updateEmail,
+                onSendReset = studentAuthViewModel::sendPasswordReset,
             )
         }
 

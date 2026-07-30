@@ -13,7 +13,6 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.assistant.AssistantChatMessage
-import com.vaiinilla.app.ui.assistant.AssistantLocalReplies
 
 data class OrderFlowUiState(
     val loading: Boolean = true,
