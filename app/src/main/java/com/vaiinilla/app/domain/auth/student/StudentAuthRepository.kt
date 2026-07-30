@@ -3,7 +3,8 @@ package com.vaiinilla.app.domain.auth.student
 interface StudentAuthRepository {
     fun peekSession(): StudentAuthSession?
 
-    fun isReadyForCheckout(): Boolean
+    /** Ready when verified + enrolled for [establishmentId] (or any venue if null). */
+    fun isReadyForCheckout(establishmentId: String? = null): Boolean
 
     suspend fun signUp(
         email: String,

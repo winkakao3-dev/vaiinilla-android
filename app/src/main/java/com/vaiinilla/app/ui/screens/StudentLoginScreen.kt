@@ -30,6 +30,7 @@ fun StudentLoginScreen(
     onBack: () -> Unit,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
+    onContextualIdChange: (String) -> Unit = {},
     onLogin: () -> Unit,
     onForgotPassword: () -> Unit,
     onRegister: () -> Unit,
@@ -69,7 +70,18 @@ fun StudentLoginScreen(
                     onValueChange = onPasswordChange,
                     label = "Contraseña",
                     placeholder = "Tu contraseña",
+                    isPassword = true,
                 )
+            }
+            if (state.clientIdRequired) {
+                item {
+                    EditorialTextField(
+                        value = state.contextualId,
+                        onValueChange = onContextualIdChange,
+                        label = state.clientIdLabel,
+                        placeholder = "Tu ${state.clientIdLabel.lowercase()}",
+                    )
+                }
             }
             item {
                 TextButton(onClick = onForgotPassword) {

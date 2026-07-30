@@ -198,8 +198,82 @@ class StudentAuthViewModelTest {
         runTest {
             authRepository.signUp("ana@test.com", "secret1", "Ana")
             authRepository.markCurrentEmailVerified()
-            authRepository.completeMockEnrollment("jwt-test")
+            authRepository.completeMockEnrollment("jwt-test", "est-1")
 
             assertTrue(viewModel.isReadyForCheckout())
+        }
+
+    @Test
+    fun `enrollment for another establishment still requires auth`() =
+        runTest {
+            authRepository.signUp("ana@test.com", "secret1", "Ana")
+            authRepository.markCurrentEmailVerified()
+            authRepository.completeMockEnrollment("jwt-test", "other-est")
+
+            assertFalse(viewModel.isReadyForCheckout())
+        }
+
+    @Test
+    fun `login requires contextual id when establishment demands it`() =
+        runTest {
+            val context = RuntimeEnvironment.getApplication()
+            val guestStore = GuestSessionStore(context)
+            guestStore.saveVenue(
+                GuestVenueContext(
+                    establishment =
+                        PublicEstablishment(
+                            id = "est-required",
+                            name = "Centro",
+                            slug = "centro",
+                            clientIdLabel = "Matrícula",
+                            clientIdRequired = true,
+                        ),
+                    space = null,
+                ),
+            )
+            val preferences = StudentAuthPreferences(context)
+            val auth = FixtureStudentAuthRepository(sessionStore, preferences)
+            auth.signUp("ana@test.com", "secret1", "Ana")
+            auth.markCurrentEmailVerified()
+            val enrollmentRepository =
+                object : StudentEnrollmentRepository {
+                    override suspend fun enroll(
+                        request: StudentEnrollmentRequest,
+                        firebaseIdToken: String,
+                    ) = Result.success(StudentEnrollmentResult(membresiaId = "mock-membresia"))
+                }
+            val vm =
+                StudentAuthViewModel(
+                    authRepository = auth,
+                    enrollmentRepository = enrollmentRepository,
+                    guestSessionStore = guestStore,
+                    sessionStore = sessionStore,
+                    contextoExchange =
+                        ContextoExchanger { _, _ ->
+                            SesionesContextoDataDto(
+                                accessToken = "jwt-test",
+                                tokenType = "Bearer",
+                                expiresIn = 900,
+                            )
+                        },
+                    refreshCoordinator =
+                        VaiinillaJwtRefreshCoordinator(
+                            authRepositoryProvider = Provider { throw UnsupportedOperationException() },
+                        ),
+                    preferences = preferences,
+                    environment = AppEnvironment(DataSourceMode.MOCK, "https://localhost/"),
+                    fixtureAuthRepository = auth,
+                )
+            vm.refreshGuestVenue()
+            vm.updateEmail("ana@test.com")
+            vm.updatePassword("secret1")
+            var enrolled = false
+            vm.login { enrolled = it }
+            advanceUntilIdle()
+            assertFalse(enrolled)
+            assertTrue(
+                vm.state.value.errorMessage
+                    ?.contains("matrícula", ignoreCase = true) == true,
+            )
         }
 }

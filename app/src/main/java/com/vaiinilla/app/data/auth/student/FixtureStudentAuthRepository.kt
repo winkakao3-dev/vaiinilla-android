@@ -23,10 +23,10 @@ class FixtureStudentAuthRepository
             return accounts[uid]?.toSession()
         }
 
-        override fun isReadyForCheckout(): Boolean {
+        override fun isReadyForCheckout(establishmentId: String?): Boolean {
             val session = peekSession() ?: return false
             return session.emailVerified &&
-                preferences.enrollmentComplete &&
+                preferences.isEnrolledFor(establishmentId) &&
                 !sessionStore.readAccessToken().isNullOrBlank()
         }
 
@@ -51,7 +51,7 @@ class FixtureStudentAuthRepository
                     )
                 accounts[uid] = account
                 currentUid = uid
-                preferences.enrollmentComplete = false
+                preferences.clear()
                 account.toSession()
             }
 
@@ -104,13 +104,16 @@ class FixtureStudentAuthRepository
 
         override suspend fun signOut() {
             currentUid = null
-            preferences.enrollmentComplete = false
+            preferences.clear()
             sessionStore.clear()
         }
 
-        fun completeMockEnrollment(accessToken: String) {
+        fun completeMockEnrollment(
+            accessToken: String,
+            establishmentId: String,
+        ) {
             sessionStore.saveAccessToken(accessToken)
-            preferences.enrollmentComplete = true
+            preferences.markEnrolled(establishmentId)
         }
 
         private data class FixtureAccount(

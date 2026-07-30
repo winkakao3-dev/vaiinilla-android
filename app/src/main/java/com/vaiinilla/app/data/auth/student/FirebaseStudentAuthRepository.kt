@@ -24,10 +24,10 @@ class FirebaseStudentAuthRepository
 
         override fun peekSession(): StudentAuthSession? = auth.currentUser?.toSession()
 
-        override fun isReadyForCheckout(): Boolean {
+        override fun isReadyForCheckout(establishmentId: String?): Boolean {
             val session = peekSession() ?: return false
             return session.emailVerified &&
-                preferences.enrollmentComplete &&
+                preferences.isEnrolledFor(establishmentId) &&
                 !sessionStore.readAccessToken().isNullOrBlank()
         }
 
@@ -38,7 +38,7 @@ class FirebaseStudentAuthRepository
         ): Result<StudentAuthSession> =
             withContext(Dispatchers.IO) {
                 runCatching {
-                    preferences.enrollmentComplete = false
+                    preferences.clear()
                     val result = auth.createUserWithEmailAndPassword(email.trim(), password).await()
                     val user =
                         result.user
@@ -117,7 +117,7 @@ class FirebaseStudentAuthRepository
         override suspend fun signOut() {
             withContext(Dispatchers.IO) {
                 auth.signOut()
-                preferences.enrollmentComplete = false
+                preferences.clear()
                 sessionStore.clear()
             }
         }

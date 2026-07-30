@@ -14,11 +14,33 @@ class StudentAuthPreferences
     ) {
         private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-        var enrollmentComplete: Boolean
-            get() = prefs.getBoolean(KEY_ENROLLMENT_COMPLETE, false)
+        var enrolledEstablishmentId: String?
+            get() = prefs.getString(KEY_ENROLLED_ESTABLISHMENT_ID, null)
             set(value) {
-                prefs.edit().putBoolean(KEY_ENROLLMENT_COMPLETE, value).apply()
+                prefs
+                    .edit()
+                    .apply {
+                        if (value.isNullOrBlank()) {
+                            remove(KEY_ENROLLED_ESTABLISHMENT_ID)
+                        } else {
+                            putString(KEY_ENROLLED_ESTABLISHMENT_ID, value)
+                        }
+                    }.apply()
             }
+
+        val enrollmentComplete: Boolean
+            get() = !enrolledEstablishmentId.isNullOrBlank()
+
+        fun markEnrolled(establishmentId: String) {
+            require(establishmentId.isNotBlank()) { "establishmentId requerido para enrollment." }
+            enrolledEstablishmentId = establishmentId
+        }
+
+        fun isEnrolledFor(establishmentId: String?): Boolean {
+            val enrolled = enrolledEstablishmentId ?: return false
+            if (establishmentId.isNullOrBlank()) return true
+            return enrolled == establishmentId
+        }
 
         fun clear() {
             prefs.edit().clear().apply()
@@ -26,6 +48,6 @@ class StudentAuthPreferences
 
         private companion object {
             const val PREFS = "vaiinilla_student_auth_ux"
-            const val KEY_ENROLLMENT_COMPLETE = "enrollment_complete"
+            const val KEY_ENROLLED_ESTABLISHMENT_ID = "enrolled_establishment_id"
         }
     }

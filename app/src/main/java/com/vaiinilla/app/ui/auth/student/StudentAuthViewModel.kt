@@ -44,11 +44,6 @@ class StudentAuthViewModel
 
         init {
             refreshGuestVenue()
-            _state.value =
-                _state.value.copy(
-                    session = authRepository.peekSession(),
-                    enrollmentComplete = authRepository.isReadyForCheckout(),
-                )
         }
 
         fun refreshGuestVenue() {
@@ -58,6 +53,9 @@ class StudentAuthViewModel
                     guestVenue = venue,
                     clientIdLabel = venue?.establishment?.clientIdLabel ?: "Identificador",
                     clientIdRequired = venue?.establishment?.clientIdRequired == true,
+                    enrollmentComplete =
+                        authRepository.isReadyForCheckout(venue?.establishment?.id),
+                    session = authRepository.peekSession(),
                 )
         }
 
@@ -83,7 +81,12 @@ class StudentAuthViewModel
         }
 
         fun updateTermsAccepted(accepted: Boolean) {
-            _state.value = _state.value.copy(termsAccepted = accepted, errorMessage = null)
+            _state.value =
+                _state.value.copy(
+                    termsAccepted = accepted,
+                    termsAcceptedAt = if (accepted) Instant.now() else null,
+                    errorMessage = null,
+                )
         }
 
         fun clearError() {
@@ -127,6 +130,13 @@ class StudentAuthViewModel
             val current = _state.value
             if (current.email.isBlank() || current.password.isBlank()) {
                 _state.value = current.copy(errorMessage = "Ingresa correo y contraseña.")
+                return
+            }
+            if (current.clientIdRequired && current.contextualId.isBlank()) {
+                _state.value =
+                    current.copy(
+                        errorMessage = "Ingresa tu ${current.clientIdLabel.lowercase()}.",
+                    )
                 return
             }
             _state.value = current.copy(loading = true, errorMessage = null)
@@ -259,6 +269,14 @@ class StudentAuthViewModel
                 _state.value = current.copy(errorMessage = "No encontramos el establecimiento del pedido.")
                 return
             }
+            if (venue.establishment.clientIdRequired && current.contextualId.isBlank()) {
+                _state.value =
+                    current.copy(
+                        errorMessage = "Ingresa tu ${venue.establishment.clientIdLabel.lowercase()}.",
+                    )
+                return
+            }
+            val termsAcceptedAt = current.termsAcceptedAt ?: Instant.now()
             _state.value = current.copy(loading = true, errorMessage = null)
             viewModelScope.launch {
                 val result =
@@ -274,7 +292,7 @@ class StudentAuthViewModel
                                             nombre = session.displayName.ifBlank { current.name },
                                             identificadorContextual =
                                                 current.contextualId.trim().ifBlank { null },
-                                            aceptacionTerminosEn = Instant.now(),
+                                            aceptacionTerminosEn = termsAcceptedAt,
                                         ),
                                         firebaseIdToken = firebaseToken,
                                     ).getOrThrow()
@@ -289,9 +307,12 @@ class StudentAuthViewModel
                                 contexto.expiresIn,
                             )
                             if (environment.dataSourceMode == DataSourceMode.MOCK) {
-                                fixtureAuthRepository.completeMockEnrollment(contexto.accessToken)
+                                fixtureAuthRepository.completeMockEnrollment(
+                                    accessToken = contexto.accessToken,
+                                    establishmentId = venue.establishment.id,
+                                )
                             } else {
-                                preferences.enrollmentComplete = true
+                                preferences.markEnrolled(venue.establishment.id)
                             }
                             contexto
                         }
@@ -316,7 +337,10 @@ class StudentAuthViewModel
             }
         }
 
-        fun isReadyForCheckout(): Boolean = authRepository.isReadyForCheckout()
+        fun isReadyForCheckout(): Boolean {
+            val venue = _state.value.guestVenue ?: guestSessionStore.readVenue()
+            return authRepository.isReadyForCheckout(venue?.establishment?.id)
+        }
 
         private fun validateRegistration(state: StudentAuthUiState): String? {
             if (state.name.isBlank()) return "Ingresa tu nombre."

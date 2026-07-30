@@ -26,7 +26,8 @@ class SwitchingStudentAuthRepository
 
         override fun peekSession(): StudentAuthSession? = active().peekSession()
 
-        override fun isReadyForCheckout(): Boolean = active().isReadyForCheckout()
+        override fun isReadyForCheckout(establishmentId: String?): Boolean =
+            active().isReadyForCheckout(establishmentId)
 
         override suspend fun signUp(
             email: String,

@@ -28,6 +28,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -78,6 +80,7 @@ fun EditorialTextField(
     placeholder: String,
     modifier: Modifier = Modifier,
     singleLine: Boolean = true,
+    isPassword: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     Column(modifier = modifier.fillMaxWidth()) {
@@ -97,6 +100,8 @@ fun EditorialTextField(
                 onValueChange = onValueChange,
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = singleLine,
+                visualTransformation =
+                    if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
                 textStyle = TextStyle(color = colors.ink, fontSize = 14.sp, lineHeight = 20.sp),
                 decorationBox = { input ->
                     Box {

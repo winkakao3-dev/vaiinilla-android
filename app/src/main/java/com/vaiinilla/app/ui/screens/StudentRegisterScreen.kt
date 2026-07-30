@@ -87,6 +87,7 @@ fun StudentRegisterScreen(
                     onValueChange = onPasswordChange,
                     label = "Contraseña",
                     placeholder = "Mínimo 6 caracteres",
+                    isPassword = true,
                 )
             }
             if (state.clientIdRequired) {

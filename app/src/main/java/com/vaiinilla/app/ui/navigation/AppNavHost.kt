@@ -640,6 +640,7 @@ fun AppNavHost(
                 onBack = { navController.popBackStack() },
                 onEmailChange = studentAuthViewModel::updateEmail,
                 onPasswordChange = studentAuthViewModel::updatePassword,
+                onContextualIdChange = studentAuthViewModel::updateContextualId,
                 onLogin = {
                     studentAuthViewModel.login { enrolled ->
                         if (enrolled) {

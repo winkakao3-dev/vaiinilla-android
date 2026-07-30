@@ -173,7 +173,8 @@ class OrderFlowViewModel
         /** Guest discovery checkout requires student auth until email is verified and enrolled. */
         fun requiresStudentAuth(): Boolean {
             val state = _uiState.value
-            return state.guestVenue != null && !studentAuthRepository.isReadyForCheckout()
+            val venue = state.guestVenue ?: return false
+            return !studentAuthRepository.isReadyForCheckout(venue.establishment.id)
         }
 
         /** Reloads guest venue + cart after returning from auth without clearing tenant state. */
@@ -400,6 +401,14 @@ class OrderFlowViewModel
                 return
             }
             if (state.creatingOrder) return
+
+            if (requiresStudentAuth()) {
+                _uiState.value =
+                    state.copy(
+                        createOrderError = "Inicia sesión y verifica tu correo antes de confirmar el pedido.",
+                    )
+                return
+            }
 
             if (state.checkoutPayment == PaymentMethod.BALANCE && !state.hasSufficientBalance(walletBalance)) {
                 _uiState.value =
