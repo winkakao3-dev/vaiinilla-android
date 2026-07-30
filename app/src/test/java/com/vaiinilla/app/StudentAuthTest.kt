@@ -5,6 +5,7 @@ import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.config.DataSourceMode
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.auth.ContextoExchanger
+import com.vaiinilla.app.data.auth.FixtureContextoExchanger
 import com.vaiinilla.app.data.auth.SesionesContextoDataDto
 import com.vaiinilla.app.data.auth.student.FixtureStudentAuthRepository
 import com.vaiinilla.app.data.auth.student.StudentAuthPreferences
@@ -37,6 +38,17 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import javax.inject.Provider
+
+class FixtureContextoExchangerTest {
+    @Test
+    fun `returns synthetic jwt without network`() {
+        val result = FixtureContextoExchanger().exchange("fb-token", "memb-1")
+        assertEquals("mock-vaiinilla-jwt-memb-1", result.accessToken)
+        assertEquals("Bearer", result.tokenType)
+        assertEquals(900, result.expiresIn)
+        assertEquals("memb-1", result.contexto?.membresiaId)
+    }
+}
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])

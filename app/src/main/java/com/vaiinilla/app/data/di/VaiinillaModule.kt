@@ -18,7 +18,7 @@ import com.vaiinilla.app.data.SwitchingCatalogRepository
 import com.vaiinilla.app.data.SwitchingDeviceHeartbeatRepository
 import com.vaiinilla.app.data.SwitchingOrderRepository
 import com.vaiinilla.app.data.auth.ContextoExchanger
-import com.vaiinilla.app.data.auth.SesionesContextoExchange
+import com.vaiinilla.app.data.auth.SwitchingContextoExchanger
 import com.vaiinilla.app.data.auth.student.RemoteStudentEnrollmentApi
 import com.vaiinilla.app.data.auth.student.StudentEnrollmentApi
 import com.vaiinilla.app.data.auth.student.SwitchingStudentAuthRepository
@@ -184,7 +184,7 @@ object VaiinillaModule {
 
     @Provides
     @Singleton
-    fun provideContextoExchanger(exchange: SesionesContextoExchange): ContextoExchanger = exchange
+    fun provideContextoExchanger(switching: SwitchingContextoExchanger): ContextoExchanger = switching
 
     @Provides
     @Singleton
