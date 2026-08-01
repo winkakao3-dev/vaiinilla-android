@@ -1,17 +1,19 @@
 package com.vaiinilla.app.ui.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,7 +28,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Home
@@ -37,40 +44,76 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.theme.Coral
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
-/** Uber navbar replica easing — references/examples/uber-navbar-replica.html */
-private val UberNavEase = CubicBezierEasing(0.22f, 0.8f, 0.25f, 1f)
+/**
+ * Process-local seed so a rare remount can spring from the previous index
+ * (same role as Flutter's unbounded AnimationController value).
+ */
+internal object StudentNavPillMotion {
+    var index: Float = 0f
+    var lastTab: StudentTab = StudentTab.MENU
+}
 
-private val NavDockHeight = 78.dp
-private val NavMaxWidth = 420.dp
-private val NavDockGapAboveSafeArea = 20.dp
-private val NavDockHorizontalMargin = 28.dp
-private val NavInnerPadding = 8.dp
-private val NavIconCapsuleWidth = 56.dp
-private val NavIconCapsuleHeight = 36.dp
-private val NavIconCapsuleShape = RoundedCornerShape(percent = 50)
-private val NavIconSize = 24.dp
+/**
+ * Port of [SpringFloatingNavBar](https://github.com/Damantha126/Floating-Navbar-M3-Flutter)
+ * (lib/Navigation/navbar.dart) to Compose — adapted for Vaiinilla's 5 student tabs + Uber dark glass.
+ *
+ * Flutter SoT:
+ * - SpringDescription(mass:1, stiffness:450, damping:28)
+ * - Pill: left = index * itemWidth + inset, inset top/bottom 6
+ * - Dock: height 68, radius 28, BackdropFilter blur 20 + translucent fill
+ * - Selected icon scale 1.15, filled vs outlined
+ *
+ * Chrome (dock/pill/text) comes from the active theme: near-white in Light, Uber dark in
+ * Dark/Amoled. See [com.vaiinilla.app.ui.theme.VaiinillaThemeMode.resolveColors].
+ */
+private val NavDockHeight = 68.dp
+private val NavMaxWidth = 568.dp
+private val NavDockGapAboveSafeArea = 16.dp
+private val NavDockHorizontalMargin = 16.dp
+private val NavDockShape = RoundedCornerShape(32.dp)
+private val NavBubbleShape = RoundedCornerShape(24.dp)
+private val NavPillInsetX = 6.dp
+private val NavPillInsetY = 6.dp
+private val NavDockElevation = 8.dp
+private val NavIconSize = 22.dp
 private val NavLabelSize = 11.sp
-private val NavIconLabelGap = 3.dp
+private val NavIconLabelGap = 4.dp
+private val NavColorMotionMs = 200
+
+/**
+ * Flutter: damping / (2 * sqrt(stiffness * mass)) = 28 / (2 * sqrt(450)) ≈ 0.66
+ */
+private val NavPillSpring =
+    spring<Float>(
+        dampingRatio = 0.66f,
+        stiffness = 450f,
+    )
 
 /** Content clearance: dock + float gap + breathing room (excludes system inset). */
 val VaiinillaBottomNavClearance: Dp = NavDockHeight + NavDockGapAboveSafeArea + 16.dp
@@ -83,25 +126,19 @@ enum class StudentTab {
     CART,
 }
 
-/**
- * Floating capsule dock — inset from all screen edges, content peeks around it.
- * Colors from [LocalVaiinillaColors] only (theme-independent structure).
- */
 @Composable
 fun VaiinillaBottomNav(
     activeTab: StudentTab,
     cartCount: Int,
-    onMenu: () -> Unit,
-    onAssistant: () -> Unit,
-    onOrders: () -> Unit,
-    onWallet: () -> Unit,
-    onCart: () -> Unit,
+    onTabSelected: (StudentTab) -> Unit,
     modifier: Modifier = Modifier,
-    showDemoTabs: Boolean = false,
+    enableDrag: Boolean = true,
 ) {
-    val colors = LocalVaiinillaColors.current
     val context = LocalContext.current
     val density = LocalDensity.current
+    val haptics = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    val colors = LocalVaiinillaColors.current
     val reducedMotion =
         remember {
             runCatching {
@@ -114,29 +151,56 @@ fun VaiinillaBottomNav(
 
     val tabs =
         listOf(
-            NavTab(StudentTab.MENU, "Menú", Icons.Outlined.Home, onMenu),
-            NavTab(StudentTab.ASSISTANT, "Asistente", Icons.Outlined.AutoAwesome, onAssistant),
-            NavTab(StudentTab.ORDERS, "Pedidos", Icons.AutoMirrored.Outlined.ReceiptLong, onOrders),
-            NavTab(StudentTab.WALLET, "Cartera", Icons.Outlined.AccountBalanceWallet, onWallet),
-            NavTab(StudentTab.CART, "Carrito", Icons.Outlined.ShoppingCart, onCart),
+            NavTab(
+                StudentTab.MENU,
+                "Menú",
+                Icons.Outlined.Home,
+                Icons.Filled.Home,
+            ),
+            NavTab(
+                StudentTab.ASSISTANT,
+                "Asistente",
+                Icons.Outlined.AutoAwesome,
+                Icons.Filled.AutoAwesome,
+            ),
+            NavTab(
+                StudentTab.ORDERS,
+                "Pedidos",
+                Icons.AutoMirrored.Outlined.ReceiptLong,
+                Icons.AutoMirrored.Filled.ReceiptLong,
+            ),
+            NavTab(
+                StudentTab.WALLET,
+                "Cartera",
+                Icons.Outlined.AccountBalanceWallet,
+                Icons.Filled.AccountBalanceWallet,
+            ),
+            NavTab(
+                StudentTab.CART,
+                "Carrito",
+                Icons.Outlined.ShoppingCart,
+                Icons.Filled.ShoppingCart,
+            ),
         )
 
     val activeIndex = tabs.indexOfFirst { it.tab == activeTab }.coerceAtLeast(0)
-    val activeIndexAnim = remember { Animatable(activeIndex.toFloat()) }
-    val capsuleShape = RoundedCornerShape(percent = 50)
+    val indexAnim = remember { Animatable(StudentNavPillMotion.index) }
+    val onTabSelectedLatest by rememberUpdatedState(onTabSelected)
 
+    // Flutter didUpdateWidget → SpringSimulation to new index.
     LaunchedEffect(activeIndex, reducedMotion) {
         if (reducedMotion) {
-            activeIndexAnim.snapTo(activeIndex.toFloat())
+            indexAnim.snapTo(activeIndex.toFloat())
         } else {
-            activeIndexAnim.animateTo(
-                activeIndex.toFloat(),
-                animationSpec = tween(durationMillis = 380, easing = UberNavEase),
+            indexAnim.animateTo(
+                targetValue = activeIndex.toFloat(),
+                animationSpec = NavPillSpring,
             )
         }
+        StudentNavPillMotion.index = indexAnim.value
+        StudentNavPillMotion.lastTab = activeTab
     }
 
-    // Transparent positioning shell — never paints edge-to-edge chrome.
     Box(
         modifier =
             modifier
@@ -149,64 +213,106 @@ fun VaiinillaBottomNav(
                 ),
         contentAlignment = Alignment.BottomCenter,
     ) {
-        val shadowLift = with(density) { 10.dp.toPx() }
         Box(
             modifier =
                 Modifier
                     .widthIn(max = NavMaxWidth)
                     .fillMaxWidth()
                     .height(NavDockHeight)
-                    .drawBehind {
-                        // Soft float shadow — visible on cream/light paper where elevation is weak.
-                        val radius = size.height / 2f
-                        drawRoundRect(
-                            color = Color.Black.copy(alpha = 0.22f),
-                            topLeft = Offset(0f, shadowLift * 0.35f),
-                            size = Size(size.width, size.height),
-                            cornerRadius = CornerRadius(radius, radius),
-                        )
-                        drawRoundRect(
-                            color = Color.Black.copy(alpha = 0.10f),
-                            topLeft = Offset(-4.dp.toPx(), shadowLift * 0.9f),
-                            size = Size(size.width + 8.dp.toPx(), size.height),
-                            cornerRadius = CornerRadius(radius, radius),
-                        )
-                    }.clip(capsuleShape)
+                    .shadow(NavDockElevation, NavDockShape)
+                    .clip(NavDockShape)
                     .background(colors.navGlass)
-                    .border(1.dp, colors.navBorder, capsuleShape)
-                    .padding(NavInnerPadding),
+                    .border(1.dp, colors.navBorder, NavDockShape),
         ) {
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                val tabWidth = maxWidth / tabs.size
-                val bandTop = 2.dp
-                val capsuleCenterX = tabWidth * (activeIndexAnim.value + 0.5f)
-                val capsuleOffsetX = capsuleCenterX - NavIconCapsuleWidth / 2
+                val tabCount = tabs.size.coerceAtLeast(1)
+                val itemWidth = maxWidth / tabCount
+                val itemWidthPx = with(density) { itemWidth.toPx() }
+                val pillInsetXPx = with(density) { NavPillInsetX.toPx() }
+                val pillInsetYPx = with(density) { NavPillInsetY.toPx() }
+                val lastIndex = (tabCount - 1).toFloat()
 
-                // Soft oval active highlight — icon only, slides between tabs.
-                Box(
-                    modifier =
+                val dragModifier =
+                    if (enableDrag && !reducedMotion) {
+                        Modifier.pointerInput(itemWidthPx, lastIndex) {
+                            detectHorizontalDragGestures(
+                                onHorizontalDrag = { _, dragAmount ->
+                                    val next =
+                                        (indexAnim.value + dragAmount / itemWidthPx)
+                                            .coerceIn(0f, lastIndex)
+                                    scope.launch { indexAnim.snapTo(next) }
+                                },
+                                onDragEnd = {
+                                    val nearest =
+                                        indexAnim.value
+                                            .roundToInt()
+                                            .coerceIn(0, tabCount - 1)
+                                    val tab = tabs[nearest].tab
+                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    if (tab != activeTab) {
+                                        onTabSelectedLatest(tab)
+                                    } else {
+                                        scope.launch {
+                                            indexAnim.animateTo(
+                                                nearest.toFloat(),
+                                                NavPillSpring,
+                                            )
+                                        }
+                                    }
+                                },
+                                onDragCancel = {
+                                    scope.launch {
+                                        indexAnim.animateTo(
+                                            activeIndex.toFloat(),
+                                            NavPillSpring,
+                                        )
+                                    }
+                                },
+                            )
+                        }
+                    } else {
                         Modifier
-                            .offset(x = capsuleOffsetX, y = bandTop)
-                            .size(width = NavIconCapsuleWidth, height = NavIconCapsuleHeight)
-                            .clip(NavIconCapsuleShape)
-                            .background(colors.navPill),
-                )
+                    }
 
-                Row(modifier = Modifier.fillMaxSize()) {
-                    tabs.forEach { entry ->
-                        FloatingNavTab(
-                            modifier =
-                                Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight(),
-                            label = entry.label,
-                            icon = entry.icon,
-                            active = entry.tab == activeTab,
-                            badge = if (entry.tab == StudentTab.CART) cartCount else 0,
-                            badgeBorder = colors.navGlass,
-                            reduceMotion = reducedMotion,
-                            onClick = entry.onClick,
-                        )
+                Box(modifier = Modifier.fillMaxSize().then(dragModifier)) {
+                    // Active pill — Flutter Positioned(left: value * itemWidth + inset, …)
+                    val pillLeftPx = indexAnim.value * itemWidthPx + pillInsetXPx
+                    Box(
+                        modifier =
+                            Modifier
+                                .offset {
+                                    IntOffset(
+                                        x = pillLeftPx.roundToInt(),
+                                        y = pillInsetYPx.roundToInt(),
+                                    )
+                                }.width(itemWidth - NavPillInsetX * 2)
+                                .height(NavDockHeight - NavPillInsetY * 2)
+                                .clip(NavBubbleShape)
+                                .background(colors.navPill),
+                    )
+
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        tabs.forEachIndexed { index, entry ->
+                            val selected = entry.tab == activeTab
+                            // Soft highlight while dragging near this slot.
+                            val near =
+                                abs(indexAnim.value - index) < 0.5f
+                            FloatingNavTab(
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                                label = entry.label,
+                                icon = if (selected || near) entry.iconSelected else entry.iconIdle,
+                                active = selected || near,
+                                badge = if (entry.tab == StudentTab.CART) cartCount else 0,
+                                reduceMotion = reducedMotion,
+                                onClick = {
+                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onTabSelected(entry.tab)
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -223,77 +329,97 @@ private fun FloatingNavTab(
     reduceMotion: Boolean,
     modifier: Modifier = Modifier,
     badge: Int = 0,
-    badgeBorder: Color,
 ) {
     val colors = LocalVaiinillaColors.current
-    val foreground = if (active) colors.navTextActive else colors.navTextIdle
+    val foreground by animateColorAsState(
+        targetValue = if (active) colors.navTextActive else colors.navTextIdle,
+        animationSpec =
+            if (reduceMotion) {
+                tween(0)
+            } else {
+                tween(NavColorMotionMs)
+            },
+        label = "nav-fg",
+    )
+    // Flutter AnimatedScale(scale: selected ? 1.15 : 1)
     val iconScale by animateFloatAsState(
-        targetValue = if (active) 1.06f else 1f,
-        animationSpec = if (reduceMotion) tween(0) else tween(220, easing = UberNavEase),
+        targetValue = if (active) 1.15f else 1f,
+        animationSpec =
+            if (reduceMotion) {
+                tween(0)
+            } else {
+                spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMedium,
+                )
+            },
         label = "nav-icon-scale",
+    )
+    val labelAlpha by animateFloatAsState(
+        targetValue = if (active) 1f else 0.6f,
+        animationSpec =
+            if (reduceMotion) {
+                tween(0)
+            } else {
+                tween(NavColorMotionMs)
+            },
+        label = "nav-label-alpha",
     )
 
     Column(
         modifier =
             modifier
                 .physicalPress(scale = PhysicalPressScale.Nav, onClick = onClick)
-                .padding(top = 2.dp, bottom = 4.dp),
+                .padding(horizontal = 2.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top,
+        verticalArrangement = Arrangement.Center,
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .height(NavIconCapsuleHeight)
-                    .fillMaxWidth(),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = label,
-                    tint = foreground,
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = foreground,
+                modifier =
+                    Modifier
+                        .size(NavIconSize)
+                        .graphicsLayer {
+                            scaleX = iconScale
+                            scaleY = iconScale
+                        },
+            )
+            if (badge > 0) {
+                Box(
                     modifier =
                         Modifier
-                            .size(NavIconSize)
-                            .graphicsLayer {
-                                scaleX = iconScale
-                                scaleY = iconScale
-                            },
-                )
-                if (badge > 0) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .align(Alignment.TopEnd)
-                                .offset(x = 7.dp, y = (-7).dp)
-                                .height(16.dp)
-                                .width(if (badge > 9) 20.dp else 16.dp)
-                                .clip(RoundedCornerShape(99.dp))
-                                .background(Coral)
-                                .border(2.dp, badgeBorder, RoundedCornerShape(99.dp)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = badge.coerceAtMost(99).toString(),
-                            color = Color(0xFF28100D),
-                            fontSize = 8.sp,
-                            lineHeight = 8.sp,
-                            fontWeight = FontWeight.Black,
-                        )
-                    }
+                            .align(Alignment.TopEnd)
+                            .offset(x = 8.dp, y = (-6).dp)
+                            .height(16.dp)
+                            .width(if (badge > 9) 20.dp else 16.dp)
+                            .clip(RoundedCornerShape(99.dp))
+                            .background(Coral)
+                            .border(2.dp, colors.navPill, RoundedCornerShape(99.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = badge.coerceAtMost(99).toString(),
+                        color = Color(0xFF28100D),
+                        fontSize = 8.sp,
+                        lineHeight = 8.sp,
+                        fontWeight = FontWeight.Black,
+                    )
                 }
             }
         }
-        Spacer(Modifier.height(NavIconLabelGap))
         Text(
             text = label,
-            color = foreground,
+            color = foreground.copy(alpha = labelAlpha),
             fontSize = NavLabelSize,
-            lineHeight = 12.sp,
-            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+            lineHeight = 13.sp,
+            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+            letterSpacing = (-0.04).sp,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            overflow = TextOverflow.Clip,
+            modifier = Modifier.padding(top = NavIconLabelGap),
         )
     }
 }
@@ -301,6 +427,6 @@ private fun FloatingNavTab(
 private data class NavTab(
     val tab: StudentTab,
     val label: String,
-    val icon: ImageVector,
-    val onClick: () -> Unit,
+    val iconIdle: ImageVector,
+    val iconSelected: ImageVector,
 )

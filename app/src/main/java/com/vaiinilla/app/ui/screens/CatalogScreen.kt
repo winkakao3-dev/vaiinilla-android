@@ -51,8 +51,6 @@ import com.vaiinilla.app.ui.components.DemoEmptyState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductDetailSheet
 import com.vaiinilla.app.ui.components.ProductImage
-import com.vaiinilla.app.ui.components.StudentTab
-import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
@@ -87,7 +85,6 @@ fun CatalogScreen(
     onOpenAssistant: () -> Unit = {},
     onOpenWallet: () -> Unit = {},
     onChangeVenue: () -> Unit = {},
-    showDemoTabs: Boolean = false,
 ) {
     when {
         state.loading -> LoadingCatalog()
@@ -114,7 +111,6 @@ fun CatalogScreen(
                 onOpenAssistant = onOpenAssistant,
                 onOpenWallet = onOpenWallet,
                 onChangeVenue = onChangeVenue,
-                showDemoTabs = showDemoTabs,
             )
         else ->
             CatalogError(
@@ -142,7 +138,6 @@ private fun CatalogContent(
     onOpenAssistant: () -> Unit,
     onOpenWallet: () -> Unit,
     onChangeVenue: () -> Unit,
-    showDemoTabs: Boolean,
 ) {
     val catalog = requireNotNull(state.catalog)
     val colors = LocalVaiinillaColors.current
@@ -225,18 +220,6 @@ private fun CatalogContent(
                 }
             }
         }
-
-        VaiinillaBottomNav(
-            showDemoTabs = showDemoTabs,
-            activeTab = StudentTab.MENU,
-            cartCount = state.cartItemCount,
-            onMenu = {},
-            onAssistant = onOpenAssistant,
-            onOrders = onOpenTracking,
-            onWallet = onOpenWallet,
-            onCart = onOpenCart,
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
 
         state.selectedProduct?.let { product ->
             val category = catalog.categories.firstOrNull { it.id == product.categoryId }

@@ -1,0 +1,35 @@
+package com.vaiinilla.app.ui.navigation
+
+import com.vaiinilla.app.ui.components.StudentTab
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
+
+class StudentShellTest {
+    @Test
+    fun `student nav hides for catalog detail but stays for primary cart`() {
+        assertEquals(false, shouldShowStudentNav(Routes.CATALOG, catalogDetailOpen = true))
+        assertEquals(true, shouldShowStudentNav(Routes.CATALOG, catalogDetailOpen = false))
+        assertEquals(true, shouldShowStudentNav(Routes.CART, catalogDetailOpen = true))
+        assertEquals(false, shouldShowStudentNav(Routes.WALLET_METHODS, catalogDetailOpen = false))
+    }
+
+    @Test
+    fun `studentTabForRoute maps student destinations`() {
+        assertEquals(StudentTab.MENU, studentTabForRoute(Routes.CATALOG))
+        assertEquals(StudentTab.ASSISTANT, studentTabForRoute(Routes.ASSISTANT))
+        assertEquals(StudentTab.ASSISTANT, studentTabForRoute(Routes.ASSISTANT_HUB))
+        assertEquals(StudentTab.ORDERS, studentTabForRoute(Routes.STUDENT_TRACKING))
+        assertEquals(StudentTab.WALLET, studentTabForRoute(Routes.WALLET))
+        assertEquals(StudentTab.CART, studentTabForRoute(Routes.CART))
+        assertNull(studentTabForRoute(Routes.SPLASH))
+        assertNull(studentTabForRoute(Routes.WALLET_METHODS))
+    }
+
+    @Test
+    fun `routeForStudentTab is inverse of primary tabs`() {
+        StudentTab.entries.forEach { tab ->
+            assertEquals(tab, studentTabForRoute(routeForStudentTab(tab)))
+        }
+    }
+}

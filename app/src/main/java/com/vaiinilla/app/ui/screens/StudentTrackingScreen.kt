@@ -27,12 +27,9 @@ import com.vaiinilla.app.ui.components.DemoEmptyState
 import com.vaiinilla.app.ui.components.OrderDetailSummary
 import com.vaiinilla.app.ui.components.OrderTrackingCard
 import com.vaiinilla.app.ui.components.OrderTrackingTimeline
-import com.vaiinilla.app.ui.components.StudentTab
-import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.order.OrderFlowUiState
-import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 @Composable
@@ -46,7 +43,6 @@ fun StudentTrackingScreen(
     onOpenCatalog: () -> Unit,
     onSelectOrder: (String) -> Unit,
     onViewSticker: () -> Unit = {},
-    showDemoTabs: Boolean = false,
 ) {
     LaunchedEffect(Unit) {
         if (state.role != OperationalRole.CLIENT) {
@@ -140,18 +136,6 @@ fun StudentTrackingScreen(
                 }
             }
         }
-
-        VaiinillaBottomNav(
-            showDemoTabs = showDemoTabs,
-            activeTab = StudentTab.ORDERS,
-            cartCount = orderState.cartItemCount,
-            onMenu = onMenu,
-            onAssistant = onAssistant,
-            onOrders = {},
-            onWallet = onWallet,
-            onCart = onCart,
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
     }
 }
 

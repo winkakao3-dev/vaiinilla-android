@@ -124,7 +124,6 @@ class DiscoveryScreenshotTest {
                     onAddProduct = {},
                     onOpenCart = {},
                     onChangeVenue = {},
-                    showDemoTabs = false,
                 )
             }
         }

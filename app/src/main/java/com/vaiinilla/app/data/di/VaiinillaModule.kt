@@ -39,6 +39,7 @@ import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.data.order.RemoteOrderRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
+import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
@@ -181,6 +182,12 @@ object VaiinillaModule {
         fixture: FixtureDiscoveryRepository,
         remote: RemoteDiscoveryRepository,
     ): DiscoveryRepository = SwitchingDiscoveryRepository(resolver, fixture, remote)
+
+    @Provides
+    @Singleton
+    fun provideAuthorizedAccessRepository(
+        fixture: com.vaiinilla.app.data.mode.FixtureAuthorizedAccessRepository,
+    ): AuthorizedAccessRepository = fixture
 
     @Provides
     @Singleton

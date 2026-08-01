@@ -116,6 +116,24 @@ class FixtureStudentAuthRepository
             preferences.markEnrolled(establishmentId)
         }
 
+        fun ensureMockVerifiedAccount(
+            email: String = "ana@vaiinilla.test",
+            displayName: String = "Ana",
+        ): StudentAuthSession {
+            val normalized = email.trim().lowercase()
+            val account =
+                accounts.values.firstOrNull { it.email == normalized }
+                    ?: FixtureAccount(
+                        uid = "mock-student-ana",
+                        email = normalized,
+                        password = "secret1",
+                        displayName = displayName,
+                        emailVerified = true,
+                    ).also { accounts[it.uid] = it }
+            currentUid = account.uid
+            return account.copy(emailVerified = true).toSession()
+        }
+
         private data class FixtureAccount(
             val uid: String,
             val email: String,

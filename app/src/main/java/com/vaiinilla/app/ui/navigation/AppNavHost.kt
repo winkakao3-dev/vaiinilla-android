@@ -13,6 +13,8 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.vaiinilla.app.BuildConfig
+import com.vaiinilla.app.core.config.DataSourceMode
 import com.vaiinilla.app.core.config.DemoFeatures
 import com.vaiinilla.app.di.DataSourceResolverEntryPoint
 import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
@@ -24,15 +26,19 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.auth.RoleAuthViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
+import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
+import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
 import com.vaiinilla.app.ui.screens.AssistantScreen
+import com.vaiinilla.app.ui.screens.AuthorizedModeScreen
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CashierOperationalScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.DemoGalleryScreen
 import com.vaiinilla.app.ui.screens.DiscoveryScreen
+import com.vaiinilla.app.ui.screens.InvitationAcceptanceScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
@@ -57,17 +63,21 @@ import dagger.hilt.android.EntryPointAccessors
 fun AppNavHost(
     navController: NavHostController,
     pendingEstablishmentSlug: String? = null,
+    pendingMockInvitationToken: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
+    onMockInvitationConsumed: () -> Unit = {},
 ) {
     val orderFlowViewModel: OrderFlowViewModel = viewModel()
     val operationalViewModel: OperationalViewModel = viewModel()
     val roleAuthViewModel: RoleAuthViewModel = viewModel()
     val studentAuthViewModel: StudentAuthViewModel = viewModel()
+    val authorizedAccessViewModel: AuthorizedAccessViewModel = viewModel()
     val discoveryViewModel: GuestDiscoveryViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
     val roleAuthState by roleAuthViewModel.state
     val studentAuthState by studentAuthViewModel.state
+    val authorizedAccessState by authorizedAccessViewModel.state
     val discoveryState by discoveryViewModel.state
     val walletState = rememberWalletUiState()
     val context = LocalContext.current
@@ -109,6 +119,55 @@ fun AppNavHost(
     var testOnlyMode by remember { mutableStateOf(dataSourceResolver.isTestOnlyMode) }
     val demoUnlocked = DemoFeatures.isUnlocked(testOnlyMode)
 
+    fun openMockInvitation(token: String) {
+        if (!BuildConfig.DEBUG || dataSourceResolver.effectiveMode() != DataSourceMode.MOCK) return
+        // La carga vive en el LaunchedEffect de la ruta para evitar doble fetch.
+        navController.navigate(Routes.vai27InvitationRoute(token)) {
+            launchSingleTop = true
+        }
+    }
+
+    LaunchedEffect(pendingMockInvitationToken, dataSourceResolver.effectiveMode()) {
+        val token = pendingMockInvitationToken?.trim().orEmpty()
+        if (token.isEmpty()) return@LaunchedEffect
+        if (BuildConfig.DEBUG && dataSourceResolver.effectiveMode() == DataSourceMode.MOCK) {
+            openMockInvitation(token)
+        }
+        onMockInvitationConsumed()
+    }
+
+    fun navigateAuthorizedMode(modeRole: OperationalRole) {
+        when (modeRole) {
+            OperationalRole.CASHIER -> navController.navigate(Routes.CASHIER) { launchSingleTop = true }
+            OperationalRole.KITCHEN -> navController.navigate(Routes.KITCHEN) { launchSingleTop = true }
+            OperationalRole.WAITER -> navController.navigate(Routes.WAITER) { launchSingleTop = true }
+            OperationalRole.CLIENT -> navController.navigateStudent(Routes.CATALOG)
+        }
+    }
+
+    fun returnToClientFromAuthorizedMode() {
+        authorizedAccessViewModel.returnToClient {
+            operationalViewModel.setRole(OperationalRole.CLIENT)
+            navController.navigateStudent(Routes.CATALOG)
+        }
+    }
+
+    LaunchedEffect(
+        authorizedAccessState.activeContext,
+        authorizedAccessState.modes,
+        authorizedAccessState.loading,
+    ) {
+        val active = authorizedAccessState.activeContext ?: return@LaunchedEffect
+        if (authorizedAccessState.loading) return@LaunchedEffect
+        val stillAuthorized =
+            authorizedAccessState.modes.any {
+                it.role == active.role && it.establishmentId == active.establishmentId
+            }
+        if (!stillAuthorized) {
+            returnToClientFromAuthorizedMode()
+        }
+    }
+
     fun navigateDemo(route: String) {
         if (!demoUnlocked) return
         navController.navigateStudent(route)
@@ -121,6 +180,25 @@ fun AppNavHost(
         when (itemId) {
             "splash" -> navController.navigate(Routes.SPLASH) { launchSingleTop = true }
             "01" -> navController.navigate(Routes.ROLE_SELECTOR) { launchSingleTop = true }
+            "vai27-invitation" -> {
+                authorizedAccessViewModel.resetFixtures()
+                authorizedAccessViewModel.prepareMockGallerySession()
+                openMockInvitation("vai27-valid-cashier")
+            }
+            "vai27-modes" -> {
+                authorizedAccessViewModel.resetFixtures()
+                authorizedAccessViewModel.prepareMockGallerySession()
+                authorizedAccessViewModel.prepareMockGalleryModes()
+                navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true }
+            }
+            "vai27-external-revoke" -> {
+                authorizedAccessViewModel.resetFixtures()
+                authorizedAccessViewModel.prepareMockGallerySession()
+                authorizedAccessViewModel.prepareMockExternalRevocationScenario {
+                    operationalViewModel.setRole(OperationalRole.CLIENT)
+                    navController.navigateStudent(Routes.CATALOG)
+                }
+            }
             "02" -> {
                 demoGallerySeeder.seedCatalogCleared(orderFlowViewModel)
                 operationalViewModel.applyGalleryClientOrders(emptyList(), selectedOrderId = null)
@@ -268,7 +346,10 @@ fun AppNavHost(
     fun finishStudentAuth(returnRoute: String) {
         orderFlowViewModel.restoreGuestSessionAfterAuth()
         studentAuthViewModel.refreshGuestVenue()
-        navController.popBackStack(returnRoute, inclusive = false)
+        authorizedAccessViewModel.refreshCurrentSession()
+        if (!navController.popBackStack(returnRoute, inclusive = false)) {
+            navController.navigate(returnRoute) { launchSingleTop = true }
+        }
     }
 
     fun navigateStudentAuth(returnRoute: String = Routes.CART) {
@@ -285,519 +366,620 @@ fun AppNavHost(
             defaultValue = Routes.CART
         }
 
-    NavHost(navController = navController, startDestination = Routes.SPLASH) {
-        composable(Routes.SPLASH) {
-            SplashScreen(
-                onFinished = {
-                    navController.navigate(Routes.DISCOVERY) {
-                        popUpTo(Routes.SPLASH) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                },
-            )
-        }
-
-        composable(Routes.DISCOVERY) {
-            DiscoveryScreen(
-                state = discoveryState,
-                onQueryChange = discoveryViewModel::updateQuery,
-                onSpaceTokenChange = discoveryViewModel::updateSpaceToken,
-                onSelectEstablishment = { establishment ->
-                    discoveryViewModel.selectEstablishment(
-                        establishment = establishment,
-                        onEntered = ::enterVenueAndOpenCatalog,
-                    )
-                },
-                onResolveSpace = {
-                    discoveryViewModel.resolveSpaceToken(onEntered = ::enterVenueAndOpenCatalog)
-                },
-                onConfirmSwitch = {
-                    discoveryViewModel.confirmPendingSwitch(::enterVenueAndOpenCatalog)
-                },
-                onDismissSwitch = discoveryViewModel::dismissPendingSwitch,
-                onContinueSelected = {
-                    val selected = discoveryState.selected ?: return@DiscoveryScreen
-                    enterVenueAndOpenCatalog(selected)
-                },
-                onOpenDemoRoles = {
-                    if (DemoFeatures.toolsAvailable) {
-                        testOnlyMode = true
-                        orderFlowViewModel.clearGuestVenueForDemo()
-                        navController.navigate(Routes.ROLE_SELECTOR) {
+    StudentShellHost(
+        navController = navController,
+        cartCount = orderState.cartItemCount,
+        onNavigateStudent = { route -> navController.navigateStudent(route) },
+        onNavigateDemo = { route -> navigateDemo(route) },
+        catalogDetailOpen = orderState.selectedProductId != null,
+    ) {
+        NavHost(navController = navController, startDestination = Routes.SPLASH) {
+            composable(Routes.SPLASH) {
+                SplashScreen(
+                    onFinished = {
+                        navController.navigate(Routes.DISCOVERY) {
+                            popUpTo(Routes.SPLASH) { inclusive = true }
                             launchSingleTop = true
                         }
-                    }
-                },
-            )
-        }
+                    },
+                )
+            }
 
-        composable(Routes.ROLE_SELECTOR) {
-            RoleSelectorScreen(
-                testOnlyMode = testOnlyMode,
-                onTestOnlyModeChange = { enabled -> testOnlyMode = enabled },
-                loadingRole = roleAuthState.authenticatingRole.takeIf { roleAuthState.loading },
-                errorMessage = roleAuthState.errorMessage,
-                onDismissError = roleAuthViewModel::clearError,
-                onOpenDemoGallery = {
-                    if (DemoFeatures.toolsAvailable) {
-                        testOnlyMode = true
-                        navController.navigate(Routes.DEMO_GALLERY) {
-                            launchSingleTop = true
-                        }
-                    }
-                },
-                onRoleSelected = { role ->
-                    val staffRole = role != OperationalRole.CLIENT
-                    if (!staffRole || demoUnlocked) {
-                        roleAuthViewModel.authenticate(role) {
-                            operationalViewModel.setRole(role)
-                            when (role) {
-                                OperationalRole.CLIENT -> {
-                                    orderFlowViewModel.clearGuestVenueForDemo()
-                                    orderFlowViewModel.refresh()
-                                    navController.navigate(Routes.CATALOG) {
-                                        launchSingleTop = true
-                                    }
-                                }
-                                OperationalRole.CASHIER ->
-                                    navController.navigate(Routes.CASHIER) {
-                                        launchSingleTop = true
-                                    }
-                                OperationalRole.KITCHEN ->
-                                    navController.navigate(Routes.KITCHEN) {
-                                        launchSingleTop = true
-                                    }
-                                OperationalRole.WAITER ->
-                                    navController.navigate(Routes.WAITER) {
-                                        launchSingleTop = true
-                                    }
+            composable(Routes.DISCOVERY) {
+                DiscoveryScreen(
+                    state = discoveryState,
+                    onQueryChange = discoveryViewModel::updateQuery,
+                    onSpaceTokenChange = discoveryViewModel::updateSpaceToken,
+                    onSelectEstablishment = { establishment ->
+                        discoveryViewModel.selectEstablishment(
+                            establishment = establishment,
+                            onEntered = ::enterVenueAndOpenCatalog,
+                        )
+                    },
+                    onResolveSpace = {
+                        discoveryViewModel.resolveSpaceToken(onEntered = ::enterVenueAndOpenCatalog)
+                    },
+                    onConfirmSwitch = {
+                        discoveryViewModel.confirmPendingSwitch(::enterVenueAndOpenCatalog)
+                    },
+                    onDismissSwitch = discoveryViewModel::dismissPendingSwitch,
+                    onContinueSelected = {
+                        val selected = discoveryState.selected ?: return@DiscoveryScreen
+                        enterVenueAndOpenCatalog(selected)
+                    },
+                    onOpenDemoRoles = {
+                        if (DemoFeatures.toolsAvailable) {
+                            testOnlyMode = true
+                            orderFlowViewModel.clearGuestVenueForDemo()
+                            navController.navigate(Routes.ROLE_SELECTOR) {
+                                launchSingleTop = true
                             }
                         }
-                    }
-                },
-            )
-        }
-
-        composable(Routes.DEMO_GALLERY) {
-            LaunchedEffect(Unit) {
-                if (!DemoFeatures.toolsAvailable) {
-                    navController.popBackStack()
-                    return@LaunchedEffect
-                }
-                testOnlyMode = true
-                orderFlowViewModel.refresh()
-            }
-            DemoGalleryScreen(
-                onBack = {
-                    navController.popBackStack()
-                },
-                onItemSelected = { itemId -> navigateGalleryItem(itemId) },
-            )
-        }
-
-        composable(Routes.CATALOG) {
-            CatalogScreen(
-                state = orderState,
-                activeOrder = activeOrder,
-                onRetry = orderFlowViewModel::refresh,
-                onSearchChange = orderFlowViewModel::updateSearch,
-                onCategorySelected = orderFlowViewModel::selectCategory,
-                onProductSelected = orderFlowViewModel::openProduct,
-                onDismissProduct = orderFlowViewModel::closeProduct,
-                onToggleOption = orderFlowViewModel::toggleOption,
-                onClearOptionalGroup = orderFlowViewModel::clearOptionalGroup,
-                onQuantityChange = orderFlowViewModel::changeSelectedQuantity,
-                onAddProduct = orderFlowViewModel::addSelectedProductToCart,
-                onOpenCart = { navController.navigateStudent(Routes.CART) },
-                onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                onOpenAssistant = { navigateDemo(Routes.ASSISTANT) },
-                onOpenWallet = { navigateDemo(Routes.WALLET) },
-                onChangeVenue = {
-                    navController.navigate(Routes.DISCOVERY) {
-                        launchSingleTop = true
-                    }
-                },
-                showDemoTabs = demoUnlocked,
-            )
-        }
-
-        composable(Routes.ASSISTANT) {
-            LaunchedEffect(demoUnlocked) {
-                if (!demoUnlocked) navController.popBackStack()
-            }
-            AssistantChatScreen(
-                state = orderState,
-                embeddedInBottomNav = true,
-                onSendMessage = orderFlowViewModel::sendAssistantMessage,
-                onClearChat = orderFlowViewModel::clearAssistantChat,
-                onClose = { navController.navigateStudent(Routes.CATALOG) },
-                onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                onWallet = { navigateDemo(Routes.WALLET) },
-                onCart = { navController.navigateStudent(Routes.CART) },
-                showDemoTabs = demoUnlocked,
-            )
-        }
-
-        composable(Routes.ASSISTANT_HUB) {
-            LaunchedEffect(demoUnlocked) {
-                if (!demoUnlocked) navController.popBackStack()
-            }
-            AssistantScreen(
-                state = orderState,
-                onOpenChat = { navController.navigate(Routes.ASSISTANT) { launchSingleTop = true } },
-                onOpenProduct = { productId ->
-                    orderFlowViewModel.openProduct(productId)
-                    navController.navigateStudent(Routes.CATALOG)
-                },
-                onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                onWallet = { navigateDemo(Routes.WALLET) },
-                onCart = { navController.navigateStudent(Routes.CART) },
-                showDemoTabs = demoUnlocked,
-            )
-        }
-
-        composable(Routes.ASSISTANT_CHAT) {
-            LaunchedEffect(demoUnlocked) {
-                if (!demoUnlocked) navController.popBackStack()
-            }
-            AssistantChatScreen(
-                state = orderState,
-                embeddedInBottomNav = false,
-                onSendMessage = orderFlowViewModel::sendAssistantMessage,
-                onClearChat = orderFlowViewModel::clearAssistantChat,
-                onClose = { navController.popBackStack() },
-                onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                onWallet = { navigateDemo(Routes.WALLET) },
-                onCart = { navController.navigateStudent(Routes.CART) },
-                showDemoTabs = demoUnlocked,
-            )
-        }
-
-        composable(Routes.WALLET) {
-            LaunchedEffect(demoUnlocked) {
-                if (!demoUnlocked) navController.popBackStack()
-            }
-            WalletScreen(
-                state = orderState,
-                balance = walletState.balance,
-                onAddMoney = { navController.navigate("wallet/add-money?method=card") },
-                onPaymentMethods = { navController.navigate(Routes.WALLET_METHODS) },
-                onAccount = { navController.navigate(Routes.WALLET_ACCOUNT) },
-                onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                onAssistant = { navigateDemo(Routes.ASSISTANT) },
-                onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                onCart = { navController.navigateStudent(Routes.CART) },
-                showDemoTabs = demoUnlocked,
-            )
-        }
-
-        composable(
-            route = Routes.WALLET_ADD_MONEY,
-            arguments =
-                listOf(
-                    navArgument("method") {
-                        type = NavType.StringType
-                        defaultValue = "card"
                     },
-                ),
-        ) { entry ->
-            LaunchedEffect(demoUnlocked) {
-                if (!demoUnlocked) navController.popBackStack()
+                )
             }
-            WalletAddMoneyScreen(
-                walletState = walletState,
-                initialMethod = entry.arguments?.getString("method") ?: "card",
-                onBack = { navController.popBackStack() },
-                onCreditBalance = { amount -> walletState.balance += amount },
-            )
-        }
 
-        composable(Routes.WALLET_METHODS) {
-            LaunchedEffect(demoUnlocked) {
-                if (!demoUnlocked) navController.popBackStack()
+            composable(Routes.ROLE_SELECTOR) {
+                RoleSelectorScreen(
+                    testOnlyMode = testOnlyMode,
+                    onTestOnlyModeChange = { enabled -> testOnlyMode = enabled },
+                    loadingRole = roleAuthState.authenticatingRole.takeIf { roleAuthState.loading },
+                    errorMessage = roleAuthState.errorMessage,
+                    onDismissError = roleAuthViewModel::clearError,
+                    onOpenDemoGallery = {
+                        if (DemoFeatures.toolsAvailable) {
+                            testOnlyMode = true
+                            navController.navigate(Routes.DEMO_GALLERY) {
+                                launchSingleTop = true
+                            }
+                        }
+                    },
+                    onRoleSelected = { role ->
+                        val staffRole = role != OperationalRole.CLIENT
+                        if (!staffRole || demoUnlocked) {
+                            roleAuthViewModel.authenticate(role) {
+                                operationalViewModel.setRole(role)
+                                when (role) {
+                                    OperationalRole.CLIENT -> {
+                                        orderFlowViewModel.clearGuestVenueForDemo()
+                                        orderFlowViewModel.refresh()
+                                        navController.navigate(Routes.CATALOG) {
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                    OperationalRole.CASHIER ->
+                                        navController.navigate(Routes.CASHIER) {
+                                            launchSingleTop = true
+                                        }
+                                    OperationalRole.KITCHEN ->
+                                        navController.navigate(Routes.KITCHEN) {
+                                            launchSingleTop = true
+                                        }
+                                    OperationalRole.WAITER ->
+                                        navController.navigate(Routes.WAITER) {
+                                            launchSingleTop = true
+                                        }
+                                }
+                            }
+                        }
+                    },
+                )
             }
-            WalletPaymentMethodsScreen(
-                walletState = walletState,
-                onBack = { navController.popBackStack() },
-                onAddCard = { navController.navigate(Routes.WALLET_ADD_CARD) },
-            )
-        }
 
-        composable(Routes.WALLET_ADD_CARD) {
-            LaunchedEffect(demoUnlocked) {
-                if (!demoUnlocked) navController.popBackStack()
-            }
-            WalletAddCardScreen(
-                walletState = walletState,
-                onBack = { navController.popBackStack() },
-                onSaved = { navController.popBackStack() },
-            )
-        }
-
-        composable(Routes.WALLET_ACCOUNT) {
-            LaunchedEffect(demoUnlocked) {
-                if (!demoUnlocked) navController.popBackStack()
-            }
-            WalletAccountScreen(onBack = { navController.popBackStack() })
-        }
-
-        composable(Routes.CART) {
-            LaunchedEffect(Unit) {
-                orderFlowViewModel.refresh()
-            }
-            val guestAuthRequired = orderFlowViewModel.requiresStudentAuth()
-            CartScreen(
-                state = orderState,
-                walletBalance = walletState.balance,
-                onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                onQuantityChange = orderFlowViewModel::changeCartLineQuantity,
-                onNotesChange = orderFlowViewModel::updateKitchenNotes,
-                onDestinationChange = orderFlowViewModel::updateCheckoutDestination,
-                onSpaceChange = orderFlowViewModel::updateCheckoutSpace,
-                onPaymentChange = orderFlowViewModel::updateCheckoutPayment,
-                onConfirm = {
-                    if (guestAuthRequired) {
-                        navigateStudentAuth(Routes.CART)
-                    } else {
-                        orderFlowViewModel.submitOrder(
-                            walletBalance = walletState.balance,
-                            onWalletDebit = { amount -> walletState.balance -= amount },
-                        )
+            composable(
+                route = Routes.VAI27_INVITATION,
+                arguments = listOf(navArgument("token") { type = NavType.StringType }),
+            ) { entry ->
+                val token = entry.arguments?.getString("token").orEmpty()
+                LaunchedEffect(token, studentAuthState.session?.uid) {
+                    if (token.isNotBlank()) {
+                        authorizedAccessViewModel.openInvitation(token)
+                        authorizedAccessViewModel.refreshCurrentSession()
                     }
-                },
-                onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                onOpenAssistant = { navigateDemo(Routes.ASSISTANT) },
-                onOpenWallet = { navigateDemo(Routes.WALLET) },
-                showDemoTabs = demoUnlocked,
-                guestAuthRequired = guestAuthRequired,
-            )
-        }
+                }
+                InvitationAcceptanceScreen(
+                    state = authorizedAccessState,
+                    onBack = { navController.popBackStack() },
+                    onAccept = {
+                        authorizedAccessViewModel.acceptInvitation {
+                            navController.navigate(Routes.VAI27_MODES) {
+                                popUpTo(Routes.VAI27_INVITATION) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
+                    onAuthenticate = {
+                        navigateStudentAuth(Routes.vai27InvitationRoute(token))
+                    },
+                )
+            }
 
-        composable(
-            route = Routes.AUTH_LANDING,
-            arguments = listOf(authReturnArg),
-        ) { entry ->
-            val returnRoute = entry.arguments?.getString("returnRoute") ?: Routes.CART
-            StudentAuthLandingScreen(
-                state = studentAuthState,
-                onBack = { navController.popBackStack() },
-                onRegister = {
-                    navController.navigate(Routes.authRegisterRoute(returnRoute)) {
-                        launchSingleTop = true
-                    }
-                },
-                onLogin = {
-                    navController.navigate(Routes.authLoginRoute(returnRoute)) {
-                        launchSingleTop = true
-                    }
-                },
-            )
-        }
+            composable(Routes.VAI27_MODES) {
+                LaunchedEffect(authorizedAccessState.session?.uid) {
+                    authorizedAccessViewModel.refreshModes()
+                }
+                AuthorizedModeScreen(
+                    state = authorizedAccessState,
+                    onBack = { navController.popBackStack() },
+                    onSelectMode = { mode ->
+                        authorizedAccessViewModel.activateMode(mode) {
+                            operationalViewModel.setRole(mode.role)
+                            navigateAuthorizedMode(mode.role)
+                        }
+                    },
+                    onReturnToClient = ::returnToClientFromAuthorizedMode,
+                )
+            }
 
-        composable(
-            route = Routes.AUTH_REGISTER,
-            arguments = listOf(authReturnArg),
-        ) { entry ->
-            val returnRoute = entry.arguments?.getString("returnRoute") ?: Routes.CART
-            StudentRegisterScreen(
-                state = studentAuthState,
-                onBack = { navController.popBackStack() },
-                onNameChange = studentAuthViewModel::updateName,
-                onEmailChange = studentAuthViewModel::updateEmail,
-                onPasswordChange = studentAuthViewModel::updatePassword,
-                onContextualIdChange = studentAuthViewModel::updateContextualId,
-                onTermsChange = studentAuthViewModel::updateTermsAccepted,
-                onRegister = {
-                    studentAuthViewModel.register {
-                        navController.navigate(Routes.authVerifyRoute(returnRoute)) {
+            composable(Routes.DEMO_GALLERY) {
+                LaunchedEffect(Unit) {
+                    if (!DemoFeatures.toolsAvailable) {
+                        navController.popBackStack()
+                        return@LaunchedEffect
+                    }
+                    testOnlyMode = true
+                    orderFlowViewModel.refresh()
+                }
+                DemoGalleryScreen(
+                    onBack = {
+                        navController.popBackStack()
+                    },
+                    onItemSelected = { itemId -> navigateGalleryItem(itemId) },
+                )
+            }
+
+            composable(Routes.CATALOG) {
+                CatalogScreen(
+                    state = orderState,
+                    activeOrder = activeOrder,
+                    onRetry = orderFlowViewModel::refresh,
+                    onSearchChange = orderFlowViewModel::updateSearch,
+                    onCategorySelected = orderFlowViewModel::selectCategory,
+                    onProductSelected = orderFlowViewModel::openProduct,
+                    onDismissProduct = orderFlowViewModel::closeProduct,
+                    onToggleOption = orderFlowViewModel::toggleOption,
+                    onClearOptionalGroup = orderFlowViewModel::clearOptionalGroup,
+                    onQuantityChange = orderFlowViewModel::changeSelectedQuantity,
+                    onAddProduct = orderFlowViewModel::addSelectedProductToCart,
+                    onOpenCart = { navController.navigateStudent(Routes.CART) },
+                    onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
+                    onOpenAssistant = { navigateDemo(Routes.ASSISTANT) },
+                    onOpenWallet = { navigateDemo(Routes.WALLET) },
+                    onChangeVenue = {
+                        navController.navigate(Routes.DISCOVERY) {
                             launchSingleTop = true
                         }
-                    }
-                },
-                onLogin = {
-                    navController.navigate(Routes.authLoginRoute(returnRoute)) {
-                        launchSingleTop = true
-                    }
-                },
-                onForgotPassword = {
-                    navController.navigate(Routes.authForgotRoute(returnRoute)) {
-                        launchSingleTop = true
-                    }
-                },
-            )
-        }
+                    },
+                )
+            }
 
-        composable(
-            route = Routes.AUTH_LOGIN,
-            arguments = listOf(authReturnArg),
-        ) { entry ->
-            val returnRoute = entry.arguments?.getString("returnRoute") ?: Routes.CART
-            StudentLoginScreen(
-                state = studentAuthState,
-                onBack = { navController.popBackStack() },
-                onEmailChange = studentAuthViewModel::updateEmail,
-                onPasswordChange = studentAuthViewModel::updatePassword,
-                onContextualIdChange = studentAuthViewModel::updateContextualId,
-                onLogin = {
-                    studentAuthViewModel.login { enrolled ->
-                        if (enrolled) {
-                            finishStudentAuth(returnRoute)
+            composable(Routes.ASSISTANT) {
+                LaunchedEffect(demoUnlocked) {
+                    if (!demoUnlocked) navController.popBackStack()
+                }
+                AssistantChatScreen(
+                    state = orderState,
+                    embeddedInBottomNav = true,
+                    onSendMessage = orderFlowViewModel::sendAssistantMessage,
+                    onClearChat = orderFlowViewModel::clearAssistantChat,
+                    onClose = { navController.navigateStudent(Routes.CATALOG) },
+                    onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                    onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
+                    onWallet = { navigateDemo(Routes.WALLET) },
+                    onCart = { navController.navigateStudent(Routes.CART) },
+                )
+            }
+
+            composable(Routes.ASSISTANT_HUB) {
+                LaunchedEffect(demoUnlocked) {
+                    if (!demoUnlocked) navController.popBackStack()
+                }
+                AssistantScreen(
+                    state = orderState,
+                    onOpenChat = { navController.navigate(Routes.ASSISTANT) { launchSingleTop = true } },
+                    onOpenProduct = { productId ->
+                        orderFlowViewModel.openProduct(productId)
+                        navController.navigateStudent(Routes.CATALOG)
+                    },
+                    onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                    onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
+                    onWallet = { navigateDemo(Routes.WALLET) },
+                    onCart = { navController.navigateStudent(Routes.CART) },
+                )
+            }
+
+            composable(Routes.ASSISTANT_CHAT) {
+                LaunchedEffect(demoUnlocked) {
+                    if (!demoUnlocked) navController.popBackStack()
+                }
+                AssistantChatScreen(
+                    state = orderState,
+                    embeddedInBottomNav = false,
+                    onSendMessage = orderFlowViewModel::sendAssistantMessage,
+                    onClearChat = orderFlowViewModel::clearAssistantChat,
+                    onClose = { navController.popBackStack() },
+                    onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                    onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
+                    onWallet = { navigateDemo(Routes.WALLET) },
+                    onCart = { navController.navigateStudent(Routes.CART) },
+                )
+            }
+
+            composable(Routes.WALLET) {
+                LaunchedEffect(demoUnlocked) {
+                    if (!demoUnlocked) navController.popBackStack()
+                }
+                WalletScreen(
+                    state = orderState,
+                    balance = walletState.balance,
+                    onAddMoney = { navController.navigate("wallet/add-money?method=card") },
+                    onPaymentMethods = { navController.navigate(Routes.WALLET_METHODS) },
+                    onAccount = { navController.navigate(Routes.WALLET_ACCOUNT) },
+                    onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                    onAssistant = { navigateDemo(Routes.ASSISTANT) },
+                    onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
+                    onCart = { navController.navigateStudent(Routes.CART) },
+                )
+            }
+
+            composable(
+                route = Routes.WALLET_ADD_MONEY,
+                arguments =
+                    listOf(
+                        navArgument("method") {
+                            type = NavType.StringType
+                            defaultValue = "card"
+                        },
+                    ),
+            ) { entry ->
+                LaunchedEffect(demoUnlocked) {
+                    if (!demoUnlocked) navController.popBackStack()
+                }
+                WalletAddMoneyScreen(
+                    walletState = walletState,
+                    initialMethod = entry.arguments?.getString("method") ?: "card",
+                    onBack = { navController.popBackStack() },
+                    onCreditBalance = { amount -> walletState.balance += amount },
+                )
+            }
+
+            composable(Routes.WALLET_METHODS) {
+                LaunchedEffect(demoUnlocked) {
+                    if (!demoUnlocked) navController.popBackStack()
+                }
+                WalletPaymentMethodsScreen(
+                    walletState = walletState,
+                    onBack = { navController.popBackStack() },
+                    onAddCard = { navController.navigate(Routes.WALLET_ADD_CARD) },
+                )
+            }
+
+            composable(Routes.WALLET_ADD_CARD) {
+                LaunchedEffect(demoUnlocked) {
+                    if (!demoUnlocked) navController.popBackStack()
+                }
+                WalletAddCardScreen(
+                    walletState = walletState,
+                    onBack = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() },
+                )
+            }
+
+            composable(Routes.WALLET_ACCOUNT) {
+                LaunchedEffect(demoUnlocked) {
+                    if (!demoUnlocked) navController.popBackStack()
+                }
+                WalletAccountScreen(onBack = { navController.popBackStack() })
+            }
+
+            composable(Routes.CART) {
+                LaunchedEffect(Unit) {
+                    orderFlowViewModel.refresh()
+                }
+                val guestAuthRequired = orderFlowViewModel.requiresStudentAuth()
+                CartScreen(
+                    state = orderState,
+                    walletBalance = walletState.balance,
+                    onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                    onQuantityChange = orderFlowViewModel::changeCartLineQuantity,
+                    onNotesChange = orderFlowViewModel::updateKitchenNotes,
+                    onDestinationChange = orderFlowViewModel::updateCheckoutDestination,
+                    onSpaceChange = orderFlowViewModel::updateCheckoutSpace,
+                    onPaymentChange = orderFlowViewModel::updateCheckoutPayment,
+                    onConfirm = {
+                        if (guestAuthRequired) {
+                            navigateStudentAuth(Routes.CART)
                         } else {
+                            orderFlowViewModel.submitOrder(
+                                walletBalance = walletState.balance,
+                                onWalletDebit = { amount -> walletState.balance -= amount },
+                            )
+                        }
+                    },
+                    onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
+                    onOpenAssistant = { navigateDemo(Routes.ASSISTANT) },
+                    onOpenWallet = { navigateDemo(Routes.WALLET) },
+                    showDemoTabs = demoUnlocked,
+                    guestAuthRequired = guestAuthRequired,
+                )
+            }
+
+            composable(
+                route = Routes.AUTH_LANDING,
+                arguments = listOf(authReturnArg),
+            ) { entry ->
+                val returnRoute = entry.arguments?.getString("returnRoute") ?: Routes.CART
+                StudentAuthLandingScreen(
+                    state = studentAuthState,
+                    onBack = { navController.popBackStack() },
+                    onRegister = {
+                        navController.navigate(Routes.authRegisterRoute(returnRoute)) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onLogin = {
+                        navController.navigate(Routes.authLoginRoute(returnRoute)) {
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
+
+            composable(
+                route = Routes.AUTH_REGISTER,
+                arguments = listOf(authReturnArg),
+            ) { entry ->
+                val returnRoute = entry.arguments?.getString("returnRoute") ?: Routes.CART
+                StudentRegisterScreen(
+                    state = studentAuthState,
+                    onBack = { navController.popBackStack() },
+                    onNameChange = studentAuthViewModel::updateName,
+                    onEmailChange = studentAuthViewModel::updateEmail,
+                    onPasswordChange = studentAuthViewModel::updatePassword,
+                    onContextualIdChange = studentAuthViewModel::updateContextualId,
+                    onTermsChange = studentAuthViewModel::updateTermsAccepted,
+                    onRegister = {
+                        studentAuthViewModel.register {
                             navController.navigate(Routes.authVerifyRoute(returnRoute)) {
                                 launchSingleTop = true
                             }
                         }
-                    }
-                },
-                onForgotPassword = {
-                    navController.navigate(Routes.authForgotRoute(returnRoute)) {
-                        launchSingleTop = true
-                    }
-                },
-                onRegister = {
-                    navController.navigate(Routes.authRegisterRoute(returnRoute)) {
-                        launchSingleTop = true
-                    }
-                },
-            )
-        }
-
-        composable(
-            route = Routes.AUTH_VERIFY,
-            arguments = listOf(authReturnArg),
-        ) { entry ->
-            val returnRoute = entry.arguments?.getString("returnRoute") ?: Routes.CART
-            StudentVerifyEmailScreen(
-                state = studentAuthState,
-                onBack = { navController.popBackStack() },
-                onResend = studentAuthViewModel::resendVerification,
-                onCheckVerified = {
-                    studentAuthViewModel.checkVerification {
-                        finishStudentAuth(returnRoute)
-                    }
-                },
-            )
-        }
-
-        composable(
-            route = Routes.AUTH_FORGOT,
-            arguments = listOf(authReturnArg),
-        ) {
-            StudentForgotPasswordScreen(
-                state = studentAuthState,
-                onBack = { navController.popBackStack() },
-                onEmailChange = studentAuthViewModel::updateEmail,
-                onSendReset = studentAuthViewModel::sendPasswordReset,
-            )
-        }
-
-        composable(Routes.CONFIRMATION) {
-            OrderConfirmationScreen(
-                order = orderState.createdOrder,
-                onReturnToMenu = {
-                    orderFlowViewModel.clearCreatedOrder()
-                    navController.navigate(Routes.CATALOG) {
-                        popUpTo(Routes.CATALOG) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                },
-                onViewTracking = {
-                    operationalViewModel.setRole(OperationalRole.CLIENT)
-                    orderState.createdOrder
-                        ?.summary
-                        ?.id
-                        ?.let(operationalViewModel::selectOrder)
-                    navController.navigateStudent(Routes.STUDENT_TRACKING)
-                },
-                onViewSticker = { navController.navigate(Routes.receiptStickerRoute()) },
-            )
-        }
-
-        composable(
-            route = Routes.RECEIPT_STICKER,
-            arguments =
-                listOf(
-                    navArgument("style") {
-                        type = NavType.IntType
-                        defaultValue = 0
                     },
-                ),
-        ) { entry ->
-            val styleIndex = entry.arguments?.getInt("style") ?: 0
-            ReceiptStickerScreen(
-                order = orderState.createdOrder ?: operationalState.selectedOrder,
-                onBack = { navController.popBackStack() },
-                initialStyleIndex = styleIndex,
-            )
-        }
-
-        composable(Routes.STUDENT_TRACKING) {
-            LaunchedEffect(Unit) {
-                operationalViewModel.setRole(OperationalRole.CLIENT)
+                    onLogin = {
+                        navController.navigate(Routes.authLoginRoute(returnRoute)) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onForgotPassword = {
+                        navController.navigate(Routes.authForgotRoute(returnRoute)) {
+                            launchSingleTop = true
+                        }
+                    },
+                )
             }
-            StudentTrackingScreen(
-                state = operationalState,
-                orderState = orderState,
-                onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                onAssistant = { navigateDemo(Routes.ASSISTANT) },
-                onWallet = { navigateDemo(Routes.WALLET) },
-                showDemoTabs = demoUnlocked,
-                onCart = { navController.navigateStudent(Routes.CART) },
-                onOpenCatalog = { navController.navigateStudent(Routes.CATALOG) },
-                onSelectOrder = operationalViewModel::selectOrder,
-                onViewSticker = { navController.navigate(Routes.receiptStickerRoute()) },
-            )
-        }
 
-        composable(Routes.CASHIER) {
-            LaunchedEffect(demoUnlocked) {
-                if (!demoUnlocked) {
-                    navController.navigate(Routes.ROLE_SELECTOR) {
-                        launchSingleTop = true
+            composable(
+                route = Routes.AUTH_LOGIN,
+                arguments = listOf(authReturnArg),
+            ) { entry ->
+                val returnRoute = entry.arguments?.getString("returnRoute") ?: Routes.CART
+                StudentLoginScreen(
+                    state = studentAuthState,
+                    onBack = { navController.popBackStack() },
+                    onEmailChange = studentAuthViewModel::updateEmail,
+                    onPasswordChange = studentAuthViewModel::updatePassword,
+                    onContextualIdChange = studentAuthViewModel::updateContextualId,
+                    onLogin = {
+                        studentAuthViewModel.login { enrolled ->
+                            if (enrolled) {
+                                finishStudentAuth(returnRoute)
+                            } else {
+                                navController.navigate(Routes.authVerifyRoute(returnRoute)) {
+                                    launchSingleTop = true
+                                }
+                            }
+                        }
+                    },
+                    onForgotPassword = {
+                        navController.navigate(Routes.authForgotRoute(returnRoute)) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onRegister = {
+                        navController.navigate(Routes.authRegisterRoute(returnRoute)) {
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
+
+            composable(
+                route = Routes.AUTH_VERIFY,
+                arguments = listOf(authReturnArg),
+            ) { entry ->
+                val returnRoute = entry.arguments?.getString("returnRoute") ?: Routes.CART
+                StudentVerifyEmailScreen(
+                    state = studentAuthState,
+                    onBack = { navController.popBackStack() },
+                    onResend = studentAuthViewModel::resendVerification,
+                    onCheckVerified = {
+                        studentAuthViewModel.checkVerification {
+                            finishStudentAuth(returnRoute)
+                        }
+                    },
+                )
+            }
+
+            composable(
+                route = Routes.AUTH_FORGOT,
+                arguments = listOf(authReturnArg),
+            ) {
+                StudentForgotPasswordScreen(
+                    state = studentAuthState,
+                    onBack = { navController.popBackStack() },
+                    onEmailChange = studentAuthViewModel::updateEmail,
+                    onSendReset = studentAuthViewModel::sendPasswordReset,
+                )
+            }
+
+            composable(Routes.CONFIRMATION) {
+                OrderConfirmationScreen(
+                    order = orderState.createdOrder,
+                    onReturnToMenu = {
+                        orderFlowViewModel.clearCreatedOrder()
+                        navController.navigate(Routes.CATALOG) {
+                            popUpTo(Routes.CATALOG) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                    onViewTracking = {
+                        operationalViewModel.setRole(OperationalRole.CLIENT)
+                        orderState.createdOrder
+                            ?.summary
+                            ?.id
+                            ?.let(operationalViewModel::selectOrder)
+                        navController.navigateStudent(Routes.STUDENT_TRACKING)
+                    },
+                    onViewSticker = { navController.navigate(Routes.receiptStickerRoute()) },
+                )
+            }
+
+            composable(
+                route = Routes.RECEIPT_STICKER,
+                arguments =
+                    listOf(
+                        navArgument("style") {
+                            type = NavType.IntType
+                            defaultValue = 0
+                        },
+                    ),
+            ) { entry ->
+                val styleIndex = entry.arguments?.getInt("style") ?: 0
+                ReceiptStickerScreen(
+                    order = orderState.createdOrder ?: operationalState.selectedOrder,
+                    onBack = { navController.popBackStack() },
+                    initialStyleIndex = styleIndex,
+                )
+            }
+
+            composable(Routes.STUDENT_TRACKING) {
+                LaunchedEffect(Unit) {
+                    operationalViewModel.setRole(OperationalRole.CLIENT)
+                }
+                StudentTrackingScreen(
+                    state = operationalState,
+                    orderState = orderState,
+                    onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                    onAssistant = { navigateDemo(Routes.ASSISTANT) },
+                    onWallet = { navigateDemo(Routes.WALLET) },
+                    onCart = { navController.navigateStudent(Routes.CART) },
+                    onOpenCatalog = { navController.navigateStudent(Routes.CATALOG) },
+                    onSelectOrder = operationalViewModel::selectOrder,
+                    onViewSticker = { navController.navigate(Routes.receiptStickerRoute()) },
+                )
+            }
+
+            composable(Routes.CASHIER) {
+                val authorizedCashier = authorizedAccessState.activeContext?.role == OperationalRole.CASHIER
+                LaunchedEffect(demoUnlocked, authorizedCashier) {
+                    if (!demoUnlocked && !authorizedCashier) {
+                        navController.navigate(Routes.ROLE_SELECTOR) {
+                            launchSingleTop = true
+                        }
                     }
                 }
+                CashierOperationalScreen(
+                    state = operationalState,
+                    onBack =
+                        if (authorizedCashier) {
+                            {
+                                operationalViewModel.clearRole()
+                                navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true }
+                            }
+                        } else {
+                            returnToRoles(navController, operationalViewModel)
+                        },
+                    onOpenCashSession = operationalViewModel::openCashRegister,
+                    onCollect = operationalViewModel::collectCash,
+                    onDeliver = operationalViewModel::deliver,
+                    onChangeMode =
+                        if (authorizedCashier && authorizedAccessState.hasMultipleModes) {
+                            {
+                                operationalViewModel.clearRole()
+                                navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true }
+                            }
+                        } else {
+                            null
+                        },
+                )
             }
-            CashierOperationalScreen(
-                state = operationalState,
-                onBack = returnToRoles(navController, operationalViewModel),
-                onOpenCashSession = operationalViewModel::openCashRegister,
-                onCollect = operationalViewModel::collectCash,
-                onDeliver = operationalViewModel::deliver,
-            )
-        }
 
-        composable(Routes.KITCHEN) {
-            LaunchedEffect(demoUnlocked) {
-                if (!demoUnlocked) {
-                    navController.navigate(Routes.ROLE_SELECTOR) {
-                        launchSingleTop = true
+            composable(Routes.KITCHEN) {
+                val authorizedKitchen = authorizedAccessState.activeContext?.role == OperationalRole.KITCHEN
+                LaunchedEffect(demoUnlocked, authorizedKitchen) {
+                    if (!demoUnlocked && !authorizedKitchen) {
+                        navController.navigate(Routes.ROLE_SELECTOR) {
+                            launchSingleTop = true
+                        }
                     }
                 }
+                KitchenOperationalScreen(
+                    state = operationalState,
+                    onBack =
+                        if (authorizedKitchen) {
+                            {
+                                operationalViewModel.clearRole()
+                                navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true }
+                            }
+                        } else {
+                            returnToRoles(navController, operationalViewModel)
+                        },
+                    onStart = operationalViewModel::startKitchen,
+                    onReady = operationalViewModel::markReady,
+                    onChangeMode =
+                        if (authorizedKitchen && authorizedAccessState.hasMultipleModes) {
+                            {
+                                operationalViewModel.clearRole()
+                                navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true }
+                            }
+                        } else {
+                            null
+                        },
+                )
             }
-            KitchenOperationalScreen(
-                state = operationalState,
-                onBack = returnToRoles(navController, operationalViewModel),
-                onStart = operationalViewModel::startKitchen,
-                onReady = operationalViewModel::markReady,
-            )
-        }
 
-        composable(Routes.WAITER) {
-            LaunchedEffect(demoUnlocked) {
-                if (!demoUnlocked) {
-                    navController.navigate(Routes.ROLE_SELECTOR) {
-                        launchSingleTop = true
+            composable(Routes.WAITER) {
+                val authorizedWaiter = authorizedAccessState.activeContext?.role == OperationalRole.WAITER
+                LaunchedEffect(demoUnlocked, authorizedWaiter) {
+                    if (!demoUnlocked && !authorizedWaiter) {
+                        navController.navigate(Routes.ROLE_SELECTOR) {
+                            launchSingleTop = true
+                        }
                     }
                 }
+                WaiterOperationalScreen(
+                    state = operationalState,
+                    onBack =
+                        if (authorizedWaiter) {
+                            {
+                                operationalViewModel.clearRole()
+                                navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true }
+                            }
+                        } else {
+                            returnToRoles(navController, operationalViewModel)
+                        },
+                    onDeliver = operationalViewModel::deliver,
+                    onChangeMode =
+                        if (authorizedWaiter && authorizedAccessState.hasMultipleModes) {
+                            {
+                                operationalViewModel.clearRole()
+                                navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true }
+                            }
+                        } else {
+                            null
+                        },
+                )
             }
-            WaiterOperationalScreen(
-                state = operationalState,
-                onBack = returnToRoles(navController, operationalViewModel),
-                onDeliver = operationalViewModel::deliver,
-            )
         }
     }
 }
