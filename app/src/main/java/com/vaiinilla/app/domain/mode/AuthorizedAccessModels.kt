@@ -4,14 +4,16 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import java.time.Instant
 
 data class AuthorizedInvitation(
-    val id: String,
+    val id: String = "",
     val token: String,
-    val establishmentId: String,
-    val establishmentName: String,
-    val invitedEmail: String,
-    val role: OperationalRole,
-    val expiresAt: Instant,
+    val establishmentId: String = "",
+    val establishmentName: String = "",
+    val invitedEmail: String = "",
+    val role: OperationalRole? = null,
+    val expiresAt: Instant? = null,
     val revoked: Boolean = false,
+    /** True when the backend intentionally withholds preview metadata until acceptance. */
+    val requiresRemoteAcceptance: Boolean = false,
 )
 
 data class AuthorizedMode(
@@ -27,4 +29,5 @@ data class AuthorizedModeContext(
     val establishmentName: String,
     val membershipId: String,
     val accessToken: String,
+    val expiresIn: Int = 900,
 )

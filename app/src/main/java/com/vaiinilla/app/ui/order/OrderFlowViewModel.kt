@@ -116,7 +116,9 @@ class OrderFlowViewModel
                     } else {
                         emptyList()
                     }
-                val failure = catalogResult.exceptionOrNull() ?: statusResult.exceptionOrNull()
+                // Public guest discovery is valid without identity. Operational status is
+                // authenticated, so its failure must not hide a catalog that loaded correctly.
+                val failure = firstGuestVenueFailure(catalogResult, statusResult)
                 val suspended = DiscoveryFailures.isEstablishmentSuspended(failure)
                 _uiState.value =
                     _uiState.value.copy(
@@ -613,3 +615,8 @@ class OrderFlowViewModel
             _uiState.value = _uiState.value.copy(assistantChatMessages = emptyList())
         }
     }
+
+internal fun firstGuestVenueFailure(
+    catalogResult: Result<*>,
+    statusResult: Result<*>,
+): Throwable? = catalogResult.exceptionOrNull() ?: statusResult.exceptionOrNull()

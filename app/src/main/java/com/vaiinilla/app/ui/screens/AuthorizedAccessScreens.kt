@@ -111,13 +111,23 @@ fun InvitationAcceptanceScreen(
                     ) {
                         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                invitation.establishmentName,
+                                invitation.establishmentName.ifBlank { "Invitación de Vaiinilla" },
                                 color = colors.ink,
                                 fontWeight = FontWeight.Black,
                                 fontSize = 20.sp,
                             )
-                            Text("Modo: ${invitation.role.label}", color = colors.ink, fontWeight = FontWeight.Bold)
-                            Text("Invitada para: ${invitation.invitedEmail}", color = colors.muted)
+                            if (invitation.role != null) {
+                                Text("Modo: ${invitation.role.label}", color = colors.ink, fontWeight = FontWeight.Bold)
+                            }
+                            if (invitation.invitedEmail.isNotBlank()) {
+                                Text("Invitada para: ${invitation.invitedEmail}", color = colors.muted)
+                            }
+                            if (invitation.requiresRemoteAcceptance) {
+                                Text(
+                                    "El servidor validará el token, tu correo y su vigencia al aceptar.",
+                                    color = colors.muted,
+                                )
+                            }
                             if (expiresLabel != null) {
                                 Text("Válida hasta: $expiresLabel", color = colors.muted, fontSize = 13.sp)
                             }

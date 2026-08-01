@@ -118,7 +118,7 @@ class FixtureAuthorizedAccessRepository
 
         private fun AuthorizedInvitation.toMode(): AuthorizedMode =
             AuthorizedMode(
-                role = role,
+                role = requireNotNull(role) { "La invitación no tiene un rol autorizado." },
                 establishmentId = establishmentId,
                 establishmentName = establishmentName,
                 membershipId = "mock-membership-$id",

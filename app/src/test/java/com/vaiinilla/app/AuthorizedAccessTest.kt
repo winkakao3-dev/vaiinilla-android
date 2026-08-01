@@ -180,6 +180,18 @@ class AuthorizedAccessDeepLinkTest {
                 Uri.parse("vaiinilla://other/invitation/vai27-valid-cashier"),
             ),
         )
+        assertEquals(
+            "real-token",
+            MainActivity.invitationTokenFrom(
+                Uri.parse("https://vaiinilla.app/invitaciones/aceptar?token=real-token"),
+            ),
+        )
+        assertEquals(
+            null,
+            MainActivity.invitationTokenFrom(
+                Uri.parse("https://vaiinilla.app/invitaciones/aceptar"),
+            ),
+        )
     }
 }
 

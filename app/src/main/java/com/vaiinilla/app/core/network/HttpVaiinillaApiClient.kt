@@ -33,9 +33,9 @@ class HttpVaiinillaApiClient
             headers: Map<String, String>,
         ): Result<String> = execute(method = "POST", path = path, body = body, headers = headers)
 
-        fun getPublic(
+        override fun getPublic(
             path: String,
-            query: Map<String, String> = emptyMap(),
+            query: Map<String, String>,
         ): Result<String> =
             execute(
                 method = "GET",
@@ -45,10 +45,10 @@ class HttpVaiinillaApiClient
                 allowSessionRefresh = false,
             )
 
-        fun postPublic(
+        override fun postPublic(
             path: String,
             body: String,
-            headers: Map<String, String> = emptyMap(),
+            headers: Map<String, String>,
         ): Result<String> =
             execute(
                 method = "POST",
@@ -84,6 +84,19 @@ class HttpVaiinillaApiClient
                 path = path,
                 body = body,
                 headers = headers,
+                accessToken = bearer,
+                allowSessionRefresh = false,
+            )
+
+        fun getWithBearer(
+            bearer: String,
+            path: String,
+            query: Map<String, String> = emptyMap(),
+        ): Result<String> =
+            execute(
+                method = "GET",
+                path = path,
+                query = query,
                 accessToken = bearer,
                 allowSessionRefresh = false,
             )

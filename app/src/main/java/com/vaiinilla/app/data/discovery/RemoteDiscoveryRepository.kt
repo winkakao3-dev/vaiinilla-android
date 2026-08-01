@@ -1,6 +1,6 @@
 package com.vaiinilla.app.data.discovery
 
-import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
+import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.data.fixture.ContractFixtureParser
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.PublicEstablishment
@@ -10,7 +10,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class RemoteDiscoveryRepository(
-    private val apiClient: HttpVaiinillaApiClient,
+    private val apiClient: VaiinillaApiClient,
     private val parser: ContractFixtureParser,
 ) : DiscoveryRepository {
     private val json =
@@ -59,7 +59,9 @@ class RemoteDiscoveryRepository(
 
     override fun resolveSpaceToken(token: String): Result<SpaceResolveResult> =
         runCatching {
-            val body = json.encodeToString(SpaceResolveRequestDto(token = token.trim()))
+            val normalizedToken = token.trim()
+            require(normalizedToken.isNotEmpty()) { "Token de espacio vacío." }
+            val body = json.encodeToString(SpaceResolveRequestDto(token = normalizedToken))
             val raw =
                 apiClient
                     .postPublic("publico/espacios/resolver", body)

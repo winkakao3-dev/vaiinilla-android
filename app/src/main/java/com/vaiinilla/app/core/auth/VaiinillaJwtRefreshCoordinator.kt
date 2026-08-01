@@ -19,24 +19,31 @@ class VaiinillaJwtRefreshCoordinator
         private val authRepositoryProvider: Provider<com.vaiinilla.app.data.auth.FirebaseSeedAuthRepository>,
     ) : ActiveSessionRefresher {
         private val activeRole = AtomicReference<OperationalRole?>(null)
+        private val activeRefresh = AtomicReference<(() -> Result<Unit>)?>(null)
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         private var refreshJob: Job? = null
 
         fun startSession(
             role: OperationalRole,
             expiresInSeconds: Int,
+            refresh: (() -> Result<Unit>)? = null,
         ) {
             activeRole.set(role)
+            activeRefresh.set(refresh)
             scheduleRefresh(expiresInSeconds)
         }
 
         fun clearSession() {
             activeRole.set(null)
+            activeRefresh.set(null)
             refreshJob?.cancel()
             refreshJob = null
         }
 
         override fun refreshActiveSession(): Result<Unit> {
+            activeRefresh.get()?.let { refresh ->
+                return refresh()
+            }
             val role =
                 activeRole.get()
                     ?: return Result.failure(IllegalStateException("No hay sesión activa para refrescar."))

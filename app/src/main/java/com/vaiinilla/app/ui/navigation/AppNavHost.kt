@@ -63,8 +63,10 @@ import dagger.hilt.android.EntryPointAccessors
 fun AppNavHost(
     navController: NavHostController,
     pendingEstablishmentSlug: String? = null,
+    pendingInvitationToken: String? = null,
     pendingMockInvitationToken: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
+    onInvitationConsumed: () -> Unit = {},
     onMockInvitationConsumed: () -> Unit = {},
 ) {
     val orderFlowViewModel: OrderFlowViewModel = viewModel()
@@ -127,6 +129,22 @@ fun AppNavHost(
         }
     }
 
+    fun openInvitation(token: String) {
+        if (dataSourceResolver.effectiveMode() != DataSourceMode.REMOTE) return
+        navController.navigate(Routes.vai27InvitationRoute(token)) {
+            launchSingleTop = true
+        }
+    }
+
+    LaunchedEffect(pendingInvitationToken, dataSourceResolver.effectiveMode()) {
+        val token = pendingInvitationToken?.trim().orEmpty()
+        if (token.isEmpty()) return@LaunchedEffect
+        if (dataSourceResolver.effectiveMode() == DataSourceMode.REMOTE) {
+            openInvitation(token)
+        }
+        onInvitationConsumed()
+    }
+
     LaunchedEffect(pendingMockInvitationToken, dataSourceResolver.effectiveMode()) {
         val token = pendingMockInvitationToken?.trim().orEmpty()
         if (token.isEmpty()) return@LaunchedEffect
@@ -161,7 +179,9 @@ fun AppNavHost(
         if (authorizedAccessState.loading) return@LaunchedEffect
         val stillAuthorized =
             authorizedAccessState.modes.any {
-                it.role == active.role && it.establishmentId == active.establishmentId
+                it.role == active.role &&
+                    it.establishmentId == active.establishmentId &&
+                    it.membershipId == active.membershipId
             }
         if (!stillAuthorized) {
             returnToClientFromAuthorizedMode()
@@ -496,7 +516,7 @@ fun AppNavHost(
 
             composable(Routes.VAI27_MODES) {
                 LaunchedEffect(authorizedAccessState.session?.uid) {
-                    authorizedAccessViewModel.refreshModes()
+                    authorizedAccessViewModel.refreshModes(force = true)
                 }
                 AuthorizedModeScreen(
                     state = authorizedAccessState,

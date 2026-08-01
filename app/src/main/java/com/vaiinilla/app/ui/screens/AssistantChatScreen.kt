@@ -43,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -115,9 +116,7 @@ fun AssistantChatScreen(
                         Brush.radialGradient(
                             colors = listOf(colors.accent.copy(alpha = 0.14f), Color.Transparent),
                             radius = 900f,
-                            center =
-                                androidx.compose.ui.geometry
-                                    .Offset(0.5f, 0f),
+                            center = Offset(0.5f, 0f),
                         ),
                     ),
         )

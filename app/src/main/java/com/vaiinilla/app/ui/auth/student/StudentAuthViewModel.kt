@@ -266,7 +266,7 @@ class StudentAuthViewModel
             }
             val venue = current.guestVenue ?: guestSessionStore.readVenue()
             if (venue == null) {
-                _state.value = current.copy(errorMessage = "No encontramos el establecimiento del pedido.")
+                enrollIdentityOnly(current, session, onSuccess)
                 return
             }
             if (venue.establishment.clientIdRequired && current.contextualId.isBlank()) {
@@ -303,6 +303,22 @@ class StudentAuthViewModel
                             refreshCoordinator.startSession(
                                 OperationalRole.CLIENT,
                                 contexto.expiresIn,
+                                refresh = {
+                                    kotlinx.coroutines.runBlocking {
+                                        runCatching {
+                                            val refreshedFirebaseToken =
+                                                authRepository.getIdToken(forceRefresh = true).getOrThrow()
+                                            val refreshedContext =
+                                                contextoExchange.exchange(
+                                                    firebaseIdToken = refreshedFirebaseToken,
+                                                    establecimientoSlug = venue.establishment.slug,
+                                                    establecimientoId = venue.establishment.id,
+                                                    identificadorCliente = current.contextualId.trim().ifBlank { null },
+                                                )
+                                            sessionStore.saveAccessToken(refreshedContext.accessToken)
+                                        }
+                                    }
+                                },
                             )
                             if (environment.dataSourceMode == DataSourceMode.MOCK) {
                                 fixtureAuthRepository.completeMockEnrollment(
@@ -338,6 +354,49 @@ class StudentAuthViewModel
         fun isReadyForCheckout(): Boolean {
             val venue = _state.value.guestVenue ?: guestSessionStore.readVenue()
             return authRepository.isReadyForCheckout(venue?.establishment?.id)
+        }
+
+        private fun enrollIdentityOnly(
+            state: StudentAuthUiState,
+            session: com.vaiinilla.app.domain.auth.student.StudentAuthSession,
+            onSuccess: () -> Unit,
+        ) {
+            _state.value = state.copy(loading = true, errorMessage = null)
+            viewModelScope.launch {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        runCatching {
+                            val firebaseToken = authRepository.getIdToken(forceRefresh = true).getOrThrow()
+                            enrollmentRepository
+                                .enroll(
+                                    StudentEnrollmentRequest(
+                                        nombre = session.displayName.ifBlank { state.name },
+                                        terminosVersion = "2026-07",
+                                        privacidadVersion = "2026-07",
+                                    ),
+                                    firebaseIdToken = firebaseToken,
+                                ).getOrThrow()
+                        }
+                    }
+                result.fold(
+                    onSuccess = {
+                        _state.value =
+                            _state.value.copy(
+                                loading = false,
+                                session = session,
+                                identityEnrollmentComplete = true,
+                            )
+                        onSuccess()
+                    },
+                    onFailure = { error ->
+                        _state.value =
+                            _state.value.copy(
+                                loading = false,
+                                errorMessage = error.message,
+                            )
+                    },
+                )
+            }
         }
 
         private fun validateRegistration(state: StudentAuthUiState): String? {

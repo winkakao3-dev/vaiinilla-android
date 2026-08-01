@@ -4,14 +4,18 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.vaiinilla.app.core.config.AppEnvironment
+import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.core.config.DataSourceMode
+import com.vaiinilla.app.core.config.EffectiveDataSourceResolver
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.auth.student.FixtureStudentAuthRepository
 import com.vaiinilla.app.data.mode.FixtureAuthorizedAccessRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
+import com.vaiinilla.app.domain.auth.student.StudentAuthSession
 import com.vaiinilla.app.domain.mode.AuthorizedMode
+import com.vaiinilla.app.domain.mode.AuthorizedModeContext
 import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -21,11 +25,13 @@ import javax.inject.Inject
 class AuthorizedAccessViewModel
     @Inject
     constructor(
-        private val repository: FixtureAuthorizedAccessRepository,
+        private val repository: AuthorizedAccessRepository,
+        private val fixtureRepository: FixtureAuthorizedAccessRepository,
         private val authRepository: StudentAuthRepository,
         private val fixtureAuthRepository: FixtureStudentAuthRepository,
-        private val environment: AppEnvironment,
+        private val dataSourceResolver: EffectiveDataSourceResolver,
         private val sessionStore: SecureSessionStore,
+        private val refreshCoordinator: VaiinillaJwtRefreshCoordinator,
     ) : ViewModel() {
         private val _state = mutableStateOf(AuthorizedAccessUiState())
         val state: State<AuthorizedAccessUiState> = _state
@@ -63,14 +69,6 @@ class AuthorizedAccessViewModel
                     errorMessage = null,
                     message = null,
                 )
-            if (environment.dataSourceMode != DataSourceMode.MOCK) {
-                _state.value =
-                    _state.value.copy(
-                        loading = false,
-                        errorMessage = "Las invitaciones estarán disponibles cuando el backend esté listo.",
-                    )
-                return
-            }
             invitationJob =
                 viewModelScope.launch {
                     repository.invitation(normalized).fold(
@@ -97,10 +95,6 @@ class AuthorizedAccessViewModel
             force: Boolean = false,
             onRefreshed: () -> Unit = {},
         ) {
-            if (!isMockEnabled()) {
-                onRefreshed()
-                return
-            }
             val session = authRepository.peekSession()
             if (session == null) {
                 lastModesUid = null
@@ -155,7 +149,6 @@ class AuthorizedAccessViewModel
         }
 
         fun acceptInvitation(onAccepted: () -> Unit = {}) {
-            if (!isMockEnabled()) return
             val token = _state.value.invitationToken
             val session = authRepository.peekSession()
             if (token.isNullOrBlank()) {
@@ -197,7 +190,6 @@ class AuthorizedAccessViewModel
             mode: AuthorizedMode,
             onActivated: () -> Unit = {},
         ) {
-            if (!isMockEnabled()) return
             val session = authRepository.peekSession()
             if (session == null) {
                 _state.value = _state.value.copy(errorMessage = "Inicia sesión para cambiar de modo.")
@@ -209,7 +201,7 @@ class AuthorizedAccessViewModel
                 viewModelScope.launch {
                     repository.activateMode(mode, session).fold(
                         onSuccess = { context ->
-                            sessionStore.saveAccessToken(context.accessToken)
+                            activateContext(mode, session, context)
                             _state.value =
                                 _state.value.copy(
                                     loading = false,
@@ -232,9 +224,50 @@ class AuthorizedAccessViewModel
 
         fun returnToClient(onReturned: () -> Unit = {}) {
             val session = authRepository.peekSession()
-            if (session != null) {
-                sessionStore.saveAccessToken("mock-vaiinilla-${session.uid}-cliente")
+            if (session == null) {
+                _state.value = _state.value.copy(errorMessage = "Inicia sesión para volver al modo Alumno.")
+                return
             }
+            val clientMode = _state.value.modes.firstOrNull { it.role == OperationalRole.CLIENT }
+            if (!isMockMode()) {
+                if (clientMode == null) {
+                    sessionStore.clear()
+                    _state.value =
+                        _state.value.copy(
+                            loading = false,
+                            activeContext = null,
+                            errorMessage = "No hay un acceso Alumno disponible para esta cuenta.",
+                        )
+                    return
+                }
+                actionJob?.cancel()
+                _state.value = _state.value.copy(loading = true, errorMessage = null, message = null)
+                actionJob =
+                    viewModelScope.launch {
+                        repository.activateMode(clientMode, session).fold(
+                            onSuccess = { context ->
+                                activateContext(clientMode, session, context)
+                                _state.value =
+                                    _state.value.copy(
+                                        loading = false,
+                                        activeContext = null,
+                                        message = "Regresaste al modo Alumno.",
+                                        errorMessage = null,
+                                    )
+                                onReturned()
+                            },
+                            onFailure = { error ->
+                                _state.value =
+                                    _state.value.copy(
+                                        loading = false,
+                                        errorMessage = error.message ?: "No se pudo volver al modo Alumno.",
+                                    )
+                            },
+                        )
+                    }
+                return
+            }
+            sessionStore.saveAccessToken("mock-vaiinilla-${session.uid}-cliente")
             _state.value =
                 _state.value.copy(
                     activeContext = null,
@@ -249,7 +282,7 @@ class AuthorizedAccessViewModel
          * El invitado no puede disparar esto desde la UI de modos.
          */
         fun simulateExternalRevocation(onForcedToClient: () -> Unit = {}) {
-            if (!isMockEnabled()) return
+            if (!isMockMode()) return
             val session = authRepository.peekSession()
             val active = _state.value.activeContext
             if (session == null || active == null) {
@@ -291,16 +324,16 @@ class AuthorizedAccessViewModel
         }
 
         fun prepareMockGallerySession() {
-            if (environment.dataSourceMode == DataSourceMode.MOCK) {
+            if (isMockMode()) {
                 fixtureAuthRepository.ensureMockVerifiedAccount()
                 refreshModes()
             }
         }
 
         fun prepareMockGalleryModes() {
-            if (environment.dataSourceMode != DataSourceMode.MOCK) return
+            if (!isMockMode()) return
             val session = fixtureAuthRepository.ensureMockVerifiedAccount()
-            repository.seedGalleryModes(session)
+            fixtureRepository.seedGalleryModes(session)
             refreshModes()
         }
 
@@ -308,9 +341,9 @@ class AuthorizedAccessViewModel
          * Demo MOCK: activa Caja y luego aplica una revocación externa → Alumno.
          */
         fun prepareMockExternalRevocationScenario(onForcedToClient: () -> Unit = {}) {
-            if (environment.dataSourceMode != DataSourceMode.MOCK) return
+            if (!isMockMode()) return
             val session = fixtureAuthRepository.ensureMockVerifiedAccount()
-            repository.seedGalleryModes(session)
+            fixtureRepository.seedGalleryModes(session)
             actionJob?.cancel()
             _state.value =
                 _state.value.copy(
@@ -321,7 +354,7 @@ class AuthorizedAccessViewModel
                 )
             actionJob =
                 viewModelScope.launch {
-                    val modes = repository.authorizedModes(session).getOrElse { emptyList() }
+                    val modes = fixtureRepository.authorizedModes(session).getOrElse { emptyList() }
                     val cashier = modes.firstOrNull { it.role == OperationalRole.CASHIER }
                     if (cashier == null) {
                         _state.value =
@@ -332,16 +365,16 @@ class AuthorizedAccessViewModel
                             )
                         return@launch
                     }
-                    repository.activateMode(cashier, session).fold(
+                    fixtureRepository.activateMode(cashier, session).fold(
                         onSuccess = { context ->
-                            sessionStore.saveAccessToken(context.accessToken)
+                            activateContext(cashier, session, context)
                             _state.value =
                                 _state.value.copy(
                                     modes = modes,
                                     activeContext = context,
                                     session = session,
                                 )
-                            repository.revokeMode(cashier, session)
+                            fixtureRepository.revokeMode(cashier, session)
                             refreshModes(force = true) {
                                 enforceActiveModeStillAuthorized(
                                     message = "Tu acceso operativo fue revocado. Regresaste al modo Alumno.",
@@ -361,24 +394,22 @@ class AuthorizedAccessViewModel
         }
 
         fun syncAuthorizedAccessOrReturnToClient(onForcedToClient: () -> Unit = {}) {
-            if (!isMockEnabled()) return
             refreshModes(force = true) {
                 enforceActiveModeStillAuthorized(onForcedToClient = onForcedToClient)
             }
         }
 
         fun refreshCurrentSession() {
-            if (!isMockEnabled()) return
             _state.value = _state.value.copy(session = authRepository.peekSession())
         }
 
         fun resetFixtures() {
-            if (!isMockEnabled()) return
+            if (!isMockMode()) return
             invitationJob?.cancel()
             modesJob?.cancel()
             actionJob?.cancel()
             lastModesUid = null
-            repository.reset()
+            fixtureRepository.reset()
             _state.value = AuthorizedAccessUiState(session = authRepository.peekSession())
         }
 
@@ -404,9 +435,24 @@ class AuthorizedAccessViewModel
                 return
             }
             val session = authRepository.peekSession()
-            if (session != null) {
-                sessionStore.saveAccessToken("mock-vaiinilla-${session.uid}-cliente")
+            if (!isMockMode()) {
+                if (session == null || _state.value.modes.none { it.role == OperationalRole.CLIENT }) {
+                    sessionStore.clear()
+                    _state.value =
+                        _state.value.copy(
+                            loading = false,
+                            activeContext = null,
+                            errorMessage = "Tu acceso operativo cambió, pero no hay un contexto Alumno disponible.",
+                        )
+                    return
+                }
+                returnToClient {
+                    _state.value = _state.value.copy(message = message)
+                    onForcedToClient()
+                }
+                return
             }
+            if (session != null) sessionStore.saveAccessToken("mock-vaiinilla-${session.uid}-cliente")
             _state.value =
                 _state.value.copy(
                     loading = false,
@@ -417,12 +463,24 @@ class AuthorizedAccessViewModel
             onForcedToClient()
         }
 
-        private fun isMockEnabled(): Boolean {
-            if (environment.dataSourceMode == DataSourceMode.MOCK) return true
-            _state.value =
-                _state.value.copy(
-                    errorMessage = "Los accesos autorizados estarán disponibles cuando el backend esté listo.",
-                )
-            return false
+        private fun isMockMode(): Boolean = dataSourceResolver.effectiveMode() == DataSourceMode.MOCK
+
+        private fun activateContext(
+            mode: AuthorizedMode,
+            session: StudentAuthSession,
+            context: AuthorizedModeContext,
+        ) {
+            sessionStore.saveAccessToken(context.accessToken)
+            refreshCoordinator.startSession(context.role, context.expiresIn) {
+                kotlinx.coroutines.runBlocking {
+                    repository.activateMode(mode, session).fold(
+                        onSuccess = { refreshed ->
+                            sessionStore.saveAccessToken(refreshed.accessToken)
+                            Result.success(Unit)
+                        },
+                        onFailure = { Result.failure(it) },
+                    )
+                }
+            }
         }
     }

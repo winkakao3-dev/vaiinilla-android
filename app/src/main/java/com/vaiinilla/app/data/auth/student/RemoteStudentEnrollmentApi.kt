@@ -8,6 +8,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import java.nio.charset.StandardCharsets
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -50,7 +51,15 @@ class RemoteStudentEnrollmentApi
                             bearer = firebaseIdToken,
                             path = "identidad/alta",
                             body = body,
-                            headers = mapOf("Idempotency-Key" to UUID.randomUUID().toString()),
+                            headers =
+                                mapOf(
+                                    "Idempotency-Key" to
+                                        UUID
+                                            .nameUUIDFromBytes(
+                                                "vaiinilla:vai26:identidad:${request.nombre}:${request.terminosVersion}:${request.privacidadVersion}"
+                                                    .toByteArray(StandardCharsets.UTF_8),
+                                            ).toString(),
+                                ),
                         ).getOrElse { error ->
                             if (error is com.vaiinilla.app.core.network.ApiClientException &&
                                 error.httpStatus in listOf(404, 501)
