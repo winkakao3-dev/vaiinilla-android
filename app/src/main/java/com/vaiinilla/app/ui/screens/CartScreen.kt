@@ -25,7 +25,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,9 +41,11 @@ import com.vaiinilla.app.ui.components.CheckoutDestinationPicker
 import com.vaiinilla.app.ui.components.CheckoutPaymentPicker
 import com.vaiinilla.app.ui.components.CheckoutSpacePicker
 import com.vaiinilla.app.ui.components.DemoEmptyState
+import com.vaiinilla.app.ui.components.EditorialNotesField
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
+import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.paymentMethodLabel
 import com.vaiinilla.app.ui.order.OrderFlowUiState
@@ -90,7 +91,13 @@ fun CartScreen(
                 Modifier
                     .fillMaxSize()
                     .statusBarsPadding(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 132.dp),
+            contentPadding =
+                PaddingValues(
+                    start = 20.dp,
+                    end = 20.dp,
+                    top = 18.dp,
+                    bottom = VaiinillaBottomNavClearance + 48.dp,
+                ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
@@ -135,14 +142,11 @@ fun CartScreen(
                     )
                 }
                 item {
-                    OutlinedTextField(
+                    EditorialNotesField(
                         value = state.kitchenNotes,
                         onValueChange = onNotesChange,
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Notas para cocina") },
-                        placeholder = { Text("Ej. sin cebolla, salsa aparte") },
-                        minLines = 3,
-                        shape = RoundedCornerShape(17.dp),
+                        label = "Notas para cocina",
+                        placeholder = "Ej. sin cebolla, salsa aparte",
                     )
                 }
                 item { OrderSummaryCard(state = state) }

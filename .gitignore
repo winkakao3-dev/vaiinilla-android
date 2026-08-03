@@ -22,3 +22,6 @@ secrets/
 GoogleService-Info.plist
 # .firebaserc se versiona para fijar project id del equipo
 # firebase.json se versiona (vacío/mínimo OK)
+
+# pera-design reference assets (~144MB); install via tools/install-pera-design-skill.sh
+references/

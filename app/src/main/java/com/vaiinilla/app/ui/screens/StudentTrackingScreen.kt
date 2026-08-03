@@ -29,6 +29,7 @@ import com.vaiinilla.app.ui.components.OrderTrackingCard
 import com.vaiinilla.app.ui.components.OrderTrackingTimeline
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
+import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.cartItemCount
@@ -66,7 +67,13 @@ fun StudentTrackingScreen(
                 Modifier
                     .fillMaxSize()
                     .statusBarsPadding(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 132.dp),
+            contentPadding =
+                PaddingValues(
+                    start = 20.dp,
+                    end = 20.dp,
+                    top = 18.dp,
+                    bottom = VaiinillaBottomNavClearance + 48.dp,
+                ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {

@@ -42,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.Product
@@ -50,9 +51,9 @@ import com.vaiinilla.app.ui.components.DemoEmptyState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductDetailSheet
 import com.vaiinilla.app.ui.components.ProductImage
-import com.vaiinilla.app.ui.components.QuickActionCards
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
+import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.order.OrderFlowUiState
@@ -85,10 +86,16 @@ fun CatalogScreen(
     onOpenTracking: () -> Unit = {},
     onOpenAssistant: () -> Unit = {},
     onOpenWallet: () -> Unit = {},
+    onChangeVenue: () -> Unit = {},
     showDemoTabs: Boolean = false,
 ) {
     when {
         state.loading -> LoadingCatalog()
+        state.guestVenueSuspended && state.errorMessage != null ->
+            CatalogSuspendedError(
+                message = state.errorMessage,
+                onChangeVenue = onChangeVenue,
+            )
         state.errorMessage != null -> CatalogError(state.errorMessage, onRetry)
         state.catalog != null ->
             CatalogContent(
@@ -106,6 +113,7 @@ fun CatalogScreen(
                 onOpenTracking = onOpenTracking,
                 onOpenAssistant = onOpenAssistant,
                 onOpenWallet = onOpenWallet,
+                onChangeVenue = onChangeVenue,
                 showDemoTabs = showDemoTabs,
             )
         else ->
@@ -133,6 +141,7 @@ private fun CatalogContent(
     onOpenTracking: () -> Unit,
     onOpenAssistant: () -> Unit,
     onOpenWallet: () -> Unit,
+    onChangeVenue: () -> Unit,
     showDemoTabs: Boolean,
 ) {
     val catalog = requireNotNull(state.catalog)
@@ -164,7 +173,13 @@ private fun CatalogContent(
                 Modifier
                     .fillMaxSize()
                     .statusBarsPadding(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 132.dp),
+            contentPadding =
+                PaddingValues(
+                    start = 20.dp,
+                    end = 20.dp,
+                    top = 16.dp,
+                    bottom = VaiinillaBottomNavClearance + 48.dp,
+                ),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -175,6 +190,7 @@ private fun CatalogContent(
                     onSearchChange = onSearchChange,
                     onCategorySelected = onCategorySelected,
                     onOpenCart = onOpenCart,
+                    onChangeVenue = onChangeVenue,
                     onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
                 )
             }
@@ -193,22 +209,8 @@ private fun CatalogContent(
             }
 
             item(span = { GridItemSpan(maxLineSpan) }) {
-                if (showDemoTabs) {
-                    QuickActionCards(
-                        modifier = Modifier.padding(top = 18.dp, bottom = 4.dp),
-                        onActionClick = { action ->
-                            if (action.title == "Asistente") {
-                                onOpenAssistant()
-                            }
-                        },
-                    )
-                }
-            }
-
-            item(span = { GridItemSpan(maxLineSpan) }) {
                 MenuSectionHead(
                     state = state,
-                    showAssistantShortcut = showDemoTabs,
                     onOpenAssistant = onOpenAssistant,
                 )
             }
@@ -270,19 +272,48 @@ private fun CatalogHeader(
     onSearchChange: (String) -> Unit,
     onCategorySelected: (Int?) -> Unit,
     onOpenCart: () -> Unit,
+    onChangeVenue: () -> Unit,
     onCycleTheme: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    val venue = state.guestVenue
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column {
-                Text("Hola, Dani", color = colors.muted, fontWeight = FontWeight.ExtraBold)
-                Text("¿Qué se te antoja?", color = colors.ink, fontWeight = FontWeight.Black)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Hola, Dani",
+                    color = colors.muted,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 11.sp,
+                    letterSpacing = 1.2.sp,
+                )
+                Text(
+                    "¿Qué se te antoja?",
+                    color = colors.ink,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 16.sp,
+                )
+                if (venue != null) {
+                    val spaceLabel = venue.space?.let { "${it.name} · ${it.type}" }
+                    Text(
+                        text = spaceLabel ?: venue.establishment.name,
+                        color = colors.muted,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
             }
-            Spacer(Modifier.weight(1f))
+            if (venue != null) {
+                TextButton(onClick = onChangeVenue) {
+                    Text("Cambiar", color = colors.muted, fontWeight = FontWeight.Bold)
+                }
+            }
             Box {
                 IconButton(
                     onClick = onOpenCart,
@@ -381,7 +412,6 @@ private fun CatalogHeader(
 @Composable
 private fun MenuSectionHead(
     state: OrderFlowUiState,
-    showAssistantShortcut: Boolean,
     onOpenAssistant: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -393,12 +423,10 @@ private fun MenuSectionHead(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Bottom,
     ) {
-        Text("Menú de hoy", color = colors.ink, fontWeight = FontWeight.Black)
+        Text("Menú de hoy", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 19.sp)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (showAssistantShortcut) {
-                TextButton(onClick = onOpenAssistant) {
-                    Text("No sé qué pedir", color = colors.muted, fontWeight = FontWeight.Bold)
-                }
+            TextButton(onClick = onOpenAssistant) {
+                Text("No sé qué pedir", color = colors.muted, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
             }
             state.operationalStatus?.let { status ->
                 Surface(
@@ -506,6 +534,33 @@ private fun LoadingCatalog() {
         contentAlignment = Alignment.Center,
     ) {
         CircularProgressIndicator(color = colors.accent)
+    }
+}
+
+@Composable
+private fun CatalogSuspendedError(
+    message: String,
+    onChangeVenue: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(colors.paper)
+                .statusBarsPadding()
+                .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text("Cafetería suspendida", color = colors.ink, fontWeight = FontWeight.Black)
+        Text(message, color = colors.muted, modifier = Modifier.padding(top = 8.dp))
+        Button(
+            onClick = onChangeVenue,
+            modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = colors.accent, contentColor = colors.accentInk),
+        ) {
+            Text("Elegir otra cafetería", fontWeight = FontWeight.Black)
+        }
     }
 }
 

@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,7 +20,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Chat
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,6 +48,7 @@ import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
+import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.order.OrderFlowUiState
@@ -67,7 +66,7 @@ private val assistantChips =
 @Composable
 fun AssistantScreen(
     state: OrderFlowUiState,
-    onOpenChat: () -> Unit,
+    @Suppress("UNUSED_PARAMETER") onOpenChat: () -> Unit,
     onOpenProduct: (Int) -> Unit,
     onMenu: () -> Unit,
     onOrders: () -> Unit,
@@ -111,7 +110,13 @@ fun AssistantScreen(
                 Modifier
                     .fillMaxSize()
                     .statusBarsPadding(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 132.dp),
+            contentPadding =
+                PaddingValues(
+                    start = 20.dp,
+                    end = 20.dp,
+                    top = 16.dp,
+                    bottom = VaiinillaBottomNavClearance + 48.dp,
+                ),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
@@ -126,17 +131,6 @@ fun AssistantScreen(
                         fontSize = 22.sp,
                         modifier = Modifier.weight(1f),
                     )
-                    IconButton(
-                        onClick = onOpenChat,
-                        modifier =
-                            Modifier
-                                .size(42.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(colors.paper2),
-                    ) {
-                        Icon(Icons.Outlined.Chat, contentDescription = "Abrir chat", tint = colors.ink)
-                    }
-                    Spacer(Modifier.size(8.dp))
                     IconButton(
                         onClick = {},
                         modifier =

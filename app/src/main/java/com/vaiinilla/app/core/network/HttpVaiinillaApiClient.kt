@@ -33,6 +33,32 @@ class HttpVaiinillaApiClient
             headers: Map<String, String>,
         ): Result<String> = execute(method = "POST", path = path, body = body, headers = headers)
 
+        fun getPublic(
+            path: String,
+            query: Map<String, String> = emptyMap(),
+        ): Result<String> =
+            execute(
+                method = "GET",
+                path = path,
+                query = query,
+                requireAuth = false,
+                allowSessionRefresh = false,
+            )
+
+        fun postPublic(
+            path: String,
+            body: String,
+            headers: Map<String, String> = emptyMap(),
+        ): Result<String> =
+            execute(
+                method = "POST",
+                path = path,
+                body = body,
+                headers = headers,
+                requireAuth = false,
+                allowSessionRefresh = false,
+            )
+
         fun postWithAccessToken(
             accessToken: String,
             path: String,
@@ -69,6 +95,7 @@ class HttpVaiinillaApiClient
             body: String? = null,
             headers: Map<String, String> = emptyMap(),
             accessToken: String? = null,
+            requireAuth: Boolean = true,
             allowSessionRefresh: Boolean = true,
         ): Result<String> =
             runCatching {
@@ -79,6 +106,7 @@ class HttpVaiinillaApiClient
                     body = body,
                     headers = headers,
                     accessToken = accessToken,
+                    requireAuth = requireAuth,
                     allowSessionRefresh = allowSessionRefresh,
                 )
             }
@@ -90,16 +118,21 @@ class HttpVaiinillaApiClient
             body: String?,
             headers: Map<String, String>,
             accessToken: String?,
+            requireAuth: Boolean,
             allowSessionRefresh: Boolean,
         ): String {
             val token =
                 accessToken?.takeIf { it.isNotBlank() }
                     ?: sessionStore.readAccessToken()?.takeIf { it.isNotBlank() }
-                    ?: throw MissingAccessTokenException()
+            if (requireAuth && token.isNullOrBlank()) {
+                throw MissingAccessTokenException()
+            }
 
             val connection = openConnection(method, path, query)
             connection.setRequestProperty("Accept", "application/json")
-            connection.setRequestProperty("Authorization", "Bearer $token")
+            if (!token.isNullOrBlank()) {
+                connection.setRequestProperty("Authorization", "Bearer $token")
+            }
             headers.forEach { (name, value) ->
                 connection.setRequestProperty(name, value)
             }
@@ -132,6 +165,7 @@ class HttpVaiinillaApiClient
                     body = body,
                     headers = headers,
                     accessToken = null,
+                    requireAuth = true,
                     allowSessionRefresh = false,
                 )
             }

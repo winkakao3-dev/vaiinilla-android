@@ -25,6 +25,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.core.config.DemoFeatures
 import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.ui.components.EditorialHero
+import com.vaiinilla.app.ui.components.EditorialPrimaryButton
+import com.vaiinilla.app.ui.components.EditorialSectionHead
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.TestOnlyModeBadge
 import com.vaiinilla.app.ui.components.TestOnlyModeCard
@@ -147,91 +150,44 @@ fun RoleSelectorScreen(
         }
 
         item {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-            ) {
-                Text(
-                    "V",
-                    modifier = Modifier.align(Alignment.TopEnd),
-                    color = colors.accent.copy(alpha = 0.18f),
-                    fontSize = 120.sp,
-                    fontWeight = FontWeight.Black,
-                )
-                Column(modifier = Modifier.padding(top = 8.dp, end = 12.dp)) {
-                    Text(
-                        "COMEDOR CONECTADO",
-                        color = colors.muted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.2.sp,
-                    )
-                    Text(
-                        "Come mejor.\nEspera menos.",
-                        color = colors.ink,
-                        fontSize = 34.sp,
-                        lineHeight = 33.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = (-1.5).sp,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                    Text(
-                        "Una sola demo para pedir, cobrar, preparar, entregar y administrar.",
-                        color = colors.muted,
-                        fontSize = 15.sp,
-                        lineHeight = 22.sp,
-                        modifier = Modifier.padding(top = 12.dp),
-                    )
-                    Surface(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(top = 18.dp)
-                                .physicalPress(
-                                    enabled = !isLoading,
-                                    onClick = { onRoleSelected(OperationalRole.CLIENT) },
-                                ),
-                        color = colors.ink,
-                        shape = RoundedCornerShape(20.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            EditorialHero(
+                modifier = Modifier.padding(top = 8.dp),
+                eyebrow = "Comedor conectado",
+                title = "Come mejor. Espera menos.",
+                body = "Una sola demo para pedir, cobrar, preparar, entregar y administrar.",
+                watermark = "V",
+                actions = {
+                    if (loadingRole == OperationalRole.CLIENT) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                            contentAlignment = Alignment.Center,
                         ) {
-                            if (loadingRole == OperationalRole.CLIENT) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp,
-                                    color = colors.paper,
-                                )
-                            }
-                            Text(
-                                "Entrar como alumno",
-                                color = colors.paper,
-                                fontWeight = FontWeight.Black,
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                strokeWidth = 2.dp,
+                                color = colors.accentInk,
                             )
                         }
+                    } else {
+                        EditorialPrimaryButton(
+                            text = "Entrar como alumno",
+                            onClick = { onRoleSelected(OperationalRole.CLIENT) },
+                            enabled = !isLoading,
+                            background = colors.ink,
+                            contentColor = colors.paper,
+                        )
                     }
-                }
-            }
+                },
+            )
         }
 
         if (demoUnlocked) {
             item {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(top = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom,
-                ) {
-                    Text("Elige una vista", color = colors.ink, fontSize = 19.sp, fontWeight = FontWeight.Black)
-                    Text("5 roles", color = colors.muted, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
-                }
+                EditorialSectionHead(
+                    title = "Elige una vista",
+                    trailing = "5 roles",
+                    modifier = Modifier.padding(top = 10.dp),
+                )
             }
 
             item {

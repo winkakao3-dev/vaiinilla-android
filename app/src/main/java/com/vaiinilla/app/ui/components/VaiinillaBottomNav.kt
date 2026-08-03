@@ -11,53 +11,69 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.theme.Coral
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import com.vaiinilla.app.ui.theme.NavBorder
-import com.vaiinilla.app.ui.theme.NavGlass
-import com.vaiinilla.app.ui.theme.NavInsetHighlight
-import com.vaiinilla.app.ui.theme.NavPill
-import com.vaiinilla.app.ui.theme.NavShadow
-import com.vaiinilla.app.ui.theme.NavTextActive
-import com.vaiinilla.app.ui.theme.NavTextIdle
 
-private val NavShape = RoundedCornerShape(44.dp)
-private val PillShape = RoundedCornerShape(999.dp)
-private val NavEase = CubicBezierEasing(0.22f, 0.8f, 0.25f, 1f)
-private val BounceEase = CubicBezierEasing(0.2f, 0.9f, 0.25f, 1f)
+/** Uber navbar replica easing — references/examples/uber-navbar-replica.html */
+private val UberNavEase = CubicBezierEasing(0.22f, 0.8f, 0.25f, 1f)
+
+private val NavDockHeight = 78.dp
+private val NavMaxWidth = 420.dp
+private val NavDockGapAboveSafeArea = 20.dp
+private val NavDockHorizontalMargin = 28.dp
+private val NavInnerPadding = 8.dp
+private val NavIconCapsuleWidth = 56.dp
+private val NavIconCapsuleHeight = 36.dp
+private val NavIconCapsuleShape = RoundedCornerShape(percent = 50)
+private val NavIconSize = 24.dp
+private val NavLabelSize = 11.sp
+private val NavIconLabelGap = 3.dp
+
+/** Content clearance: dock + float gap + breathing room (excludes system inset). */
+val VaiinillaBottomNavClearance: Dp = NavDockHeight + NavDockGapAboveSafeArea + 16.dp
 
 enum class StudentTab {
     MENU,
@@ -67,6 +83,10 @@ enum class StudentTab {
     CART,
 }
 
+/**
+ * Floating capsule dock — inset from all screen edges, content peeks around it.
+ * Colors from [LocalVaiinillaColors] only (theme-independent structure).
+ */
 @Composable
 fun VaiinillaBottomNav(
     activeTab: StudentTab,
@@ -79,81 +99,115 @@ fun VaiinillaBottomNav(
     modifier: Modifier = Modifier,
     showDemoTabs: Boolean = false,
 ) {
-    val tabs =
-        buildList {
-            add(NavTab(StudentTab.MENU, "Menú", Icons.Outlined.Home, onMenu))
-            if (showDemoTabs) {
-                add(NavTab(StudentTab.ASSISTANT, "Asistente", Icons.Outlined.AutoAwesome, onAssistant))
-            }
-            add(NavTab(StudentTab.ORDERS, "Pedidos", Icons.Outlined.ReceiptLong, onOrders))
-            if (showDemoTabs) {
-                add(NavTab(StudentTab.WALLET, "Cartera", Icons.Outlined.AccountBalanceWallet, onWallet))
-            }
-            add(NavTab(StudentTab.CART, "Carrito", Icons.Outlined.ShoppingCart, onCart))
+    val colors = LocalVaiinillaColors.current
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val reducedMotion =
+        remember {
+            runCatching {
+                android.provider.Settings.Global.getFloat(
+                    context.contentResolver,
+                    android.provider.Settings.Global.TRANSITION_ANIMATION_SCALE,
+                ) == 0f
+            }.getOrDefault(false)
         }
-    val activeIndex = tabs.indexOfFirst { it.tab == activeTab }.coerceAtLeast(0)
-    val pillOffset by animateFloatAsState(
-        targetValue = activeIndex.toFloat(),
-        animationSpec = tween(durationMillis = 340, easing = NavEase),
-        label = "nav-pill-offset",
-    )
 
+    val tabs =
+        listOf(
+            NavTab(StudentTab.MENU, "Menú", Icons.Outlined.Home, onMenu),
+            NavTab(StudentTab.ASSISTANT, "Asistente", Icons.Outlined.AutoAwesome, onAssistant),
+            NavTab(StudentTab.ORDERS, "Pedidos", Icons.AutoMirrored.Outlined.ReceiptLong, onOrders),
+            NavTab(StudentTab.WALLET, "Cartera", Icons.Outlined.AccountBalanceWallet, onWallet),
+            NavTab(StudentTab.CART, "Carrito", Icons.Outlined.ShoppingCart, onCart),
+        )
+
+    val activeIndex = tabs.indexOfFirst { it.tab == activeTab }.coerceAtLeast(0)
+    val activeIndexAnim = remember { Animatable(activeIndex.toFloat()) }
+    val capsuleShape = RoundedCornerShape(percent = 50)
+
+    LaunchedEffect(activeIndex, reducedMotion) {
+        if (reducedMotion) {
+            activeIndexAnim.snapTo(activeIndex.toFloat())
+        } else {
+            activeIndexAnim.animateTo(
+                activeIndex.toFloat(),
+                animationSpec = tween(durationMillis = 380, easing = UberNavEase),
+            )
+        }
+    }
+
+    // Transparent positioning shell — never paints edge-to-edge chrome.
     Box(
         modifier =
             modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .windowInsetsPadding(WindowInsets.navigationBars)
+                .padding(
+                    start = NavDockHorizontalMargin,
+                    end = NavDockHorizontalMargin,
+                    bottom = NavDockGapAboveSafeArea,
+                ),
         contentAlignment = Alignment.BottomCenter,
     ) {
-        BoxWithConstraints(
+        val shadowLift = with(density) { 10.dp.toPx() }
+        Box(
             modifier =
                 Modifier
+                    .widthIn(max = NavMaxWidth)
                     .fillMaxWidth()
-                    .height(88.dp)
-                    .shadow(
-                        elevation = 18.dp,
-                        shape = NavShape,
-                        clip = false,
-                        ambientColor = NavShadow,
-                        spotColor = NavShadow,
-                    ).clip(NavShape)
-                    .background(NavGlass)
-                    .border(1.dp, NavBorder, NavShape)
-                    .padding(9.dp),
+                    .height(NavDockHeight)
+                    .drawBehind {
+                        // Soft float shadow — visible on cream/light paper where elevation is weak.
+                        val radius = size.height / 2f
+                        drawRoundRect(
+                            color = Color.Black.copy(alpha = 0.22f),
+                            topLeft = Offset(0f, shadowLift * 0.35f),
+                            size = Size(size.width, size.height),
+                            cornerRadius = CornerRadius(radius, radius),
+                        )
+                        drawRoundRect(
+                            color = Color.Black.copy(alpha = 0.10f),
+                            topLeft = Offset(-4.dp.toPx(), shadowLift * 0.9f),
+                            size = Size(size.width + 8.dp.toPx(), size.height),
+                            cornerRadius = CornerRadius(radius, radius),
+                        )
+                    }.clip(capsuleShape)
+                    .background(colors.navGlass)
+                    .border(1.dp, colors.navBorder, capsuleShape)
+                    .padding(NavInnerPadding),
         ) {
-            val tabWidth = maxWidth / tabs.size
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxHeight()
-                        .width(tabWidth)
-                        .offset(x = tabWidth * pillOffset)
-                        .clip(PillShape)
-                        .background(NavPill)
-                        .border(1.dp, NavInsetHighlight, PillShape),
-            )
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val tabWidth = maxWidth / tabs.size
+                val bandTop = 2.dp
+                val capsuleCenterX = tabWidth * (activeIndexAnim.value + 0.5f)
+                val capsuleOffsetX = capsuleCenterX - NavIconCapsuleWidth / 2
 
-            Box(
-                modifier =
-                    Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(NavInsetHighlight),
-            )
+                // Soft oval active highlight — icon only, slides between tabs.
+                Box(
+                    modifier =
+                        Modifier
+                            .offset(x = capsuleOffsetX, y = bandTop)
+                            .size(width = NavIconCapsuleWidth, height = NavIconCapsuleHeight)
+                            .clip(NavIconCapsuleShape)
+                            .background(colors.navPill),
+                )
 
-            Row(modifier = Modifier.fillMaxWidth()) {
-                tabs.forEach { entry ->
-                    NavItem(
-                        modifier = Modifier.weight(1f),
-                        label = entry.label,
-                        icon = entry.icon,
-                        active = entry.tab == activeTab,
-                        badge = if (entry.tab == StudentTab.CART) cartCount else 0,
-                        bounceKey = if (entry.tab == activeTab) activeIndex else -1,
-                        onClick = entry.onClick,
-                    )
+                Row(modifier = Modifier.fillMaxSize()) {
+                    tabs.forEach { entry ->
+                        FloatingNavTab(
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                            label = entry.label,
+                            icon = entry.icon,
+                            active = entry.tab == activeTab,
+                            badge = if (entry.tab == StudentTab.CART) cartCount else 0,
+                            badgeBorder = colors.navGlass,
+                            reduceMotion = reducedMotion,
+                            onClick = entry.onClick,
+                        )
+                    }
                 }
             }
         }
@@ -161,59 +215,38 @@ fun VaiinillaBottomNav(
 }
 
 @Composable
-private fun NavItem(
+private fun FloatingNavTab(
     label: String,
     icon: ImageVector,
     active: Boolean,
     onClick: () -> Unit,
+    reduceMotion: Boolean,
     modifier: Modifier = Modifier,
     badge: Int = 0,
-    bounceKey: Int = -1,
+    badgeBorder: Color,
 ) {
     val colors = LocalVaiinillaColors.current
-    val iconBounce = remember { Animatable(0f) }
-    val labelBounce = remember { Animatable(0f) }
-    var lastBounceKey by remember { mutableIntStateOf(bounceKey) }
+    val foreground = if (active) colors.navTextActive else colors.navTextIdle
+    val iconScale by animateFloatAsState(
+        targetValue = if (active) 1.06f else 1f,
+        animationSpec = if (reduceMotion) tween(0) else tween(220, easing = UberNavEase),
+        label = "nav-icon-scale",
+    )
 
-    LaunchedEffect(bounceKey) {
-        if (bounceKey >= 0 && bounceKey != lastBounceKey) {
-            lastBounceKey = bounceKey
-            iconBounce.snapTo(0f)
-            labelBounce.snapTo(0f)
-            iconBounce.animateTo(1f, tween(430, easing = BounceEase))
-            labelBounce.animateTo(1f, tween(390, easing = BounceEase))
-        }
-    }
-
-    val iconOffsetY =
-        when {
-            iconBounce.value <= 0f -> 0f
-            iconBounce.value < 0.28f -> 2f * (iconBounce.value / 0.28f)
-            iconBounce.value < 0.58f -> 2f - 6f * ((iconBounce.value - 0.28f) / 0.3f)
-            iconBounce.value < 0.78f -> -4f + 5f * ((iconBounce.value - 0.58f) / 0.2f)
-            else -> 0f
-        }
-    val iconScale =
-        when {
-            iconBounce.value <= 0f -> 1f
-            iconBounce.value < 0.28f -> 1f - 0.16f * (iconBounce.value / 0.28f)
-            iconBounce.value < 0.58f -> 0.84f + 0.29f * ((iconBounce.value - 0.28f) / 0.3f)
-            iconBounce.value < 0.78f -> 1.13f - 0.16f * ((iconBounce.value - 0.58f) / 0.2f)
-            else -> 1f
-        }
-
-    val foreground = if (active) NavTextActive else NavTextIdle
-
-    Box(
+    Column(
         modifier =
             modifier
-                .fillMaxHeight()
-                .physicalPress(scale = PhysicalPressScale.Nav, onClick = onClick),
-        contentAlignment = Alignment.Center,
+                .physicalPress(scale = PhysicalPressScale.Nav, onClick = onClick)
+                .padding(top = 2.dp, bottom = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top,
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically),
+        Box(
+            modifier =
+                Modifier
+                    .height(NavIconCapsuleHeight)
+                    .fillMaxWidth(),
+            contentAlignment = Alignment.Center,
         ) {
             Box {
                 Icon(
@@ -222,14 +255,10 @@ private fun NavItem(
                     tint = foreground,
                     modifier =
                         Modifier
-                            .size(27.dp)
+                            .size(NavIconSize)
                             .graphicsLayer {
-                                translationY = iconOffsetY
                                 scaleX = iconScale
                                 scaleY = iconScale
-                                transformOrigin =
-                                    androidx.compose.ui.graphics
-                                        .TransformOrigin(0.5f, 0.72f)
                             },
                 )
                 if (badge > 0) {
@@ -237,17 +266,17 @@ private fun NavItem(
                         modifier =
                             Modifier
                                 .align(Alignment.TopEnd)
-                                .offset(x = 4.dp, y = (-2).dp)
-                                .height(15.dp)
-                                .width(if (badge > 9) 20.dp else 15.dp)
+                                .offset(x = 7.dp, y = (-7).dp)
+                                .height(16.dp)
+                                .width(if (badge > 9) 20.dp else 16.dp)
                                 .clip(RoundedCornerShape(99.dp))
                                 .background(Coral)
-                                .border(2.dp, colors.ink, RoundedCornerShape(99.dp)),
+                                .border(2.dp, badgeBorder, RoundedCornerShape(99.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = badge.coerceAtMost(99).toString(),
-                            color = Color(0xFF21100D),
+                            color = Color(0xFF28100D),
                             fontSize = 8.sp,
                             lineHeight = 8.sp,
                             fontWeight = FontWeight.Black,
@@ -255,25 +284,17 @@ private fun NavItem(
                     }
                 }
             }
-            Text(
-                text = label,
-                color = foreground,
-                fontSize = 14.sp,
-                lineHeight = 15.sp,
-                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                letterSpacing = (-0.35).sp,
-                modifier =
-                    Modifier.graphicsLayer {
-                        translationY =
-                            when {
-                                labelBounce.value <= 0f -> 0f
-                                labelBounce.value < 0.45f -> 1.5f * (labelBounce.value / 0.45f)
-                                labelBounce.value < 0.72f -> 1.5f - 2.5f * ((labelBounce.value - 0.45f) / 0.27f)
-                                else -> 0f
-                            }
-                    },
-            )
         }
+        Spacer(Modifier.height(NavIconLabelGap))
+        Text(
+            text = label,
+            color = foreground,
+            fontSize = NavLabelSize,
+            lineHeight = 12.sp,
+            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

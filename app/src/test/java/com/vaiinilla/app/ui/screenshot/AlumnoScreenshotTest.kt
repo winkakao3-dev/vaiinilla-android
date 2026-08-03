@@ -384,6 +384,8 @@ class AlumnoScreenshotTest {
             ScreenshotTheme {
                 AssistantChatScreen(
                     state = state,
+                    onSendMessage = {},
+                    onClearChat = {},
                     onClose = {},
                     onMenu = {},
                     onOrders = {},
