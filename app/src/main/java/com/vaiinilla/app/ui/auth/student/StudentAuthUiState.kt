@@ -18,6 +18,7 @@ data class StudentAuthUiState(
     val verificationSent: Boolean = false,
     val passwordResetSent: Boolean = false,
     val enrollmentComplete: Boolean = false,
+    val identityEnrollmentComplete: Boolean = false,
     val guestVenue: GuestVenueContext? = null,
     val clientIdLabel: String = "Identificador",
     val clientIdRequired: Boolean = false,

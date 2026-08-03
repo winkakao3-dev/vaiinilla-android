@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -44,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -53,12 +53,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.assistant.AssistantChatMessage
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
-import com.vaiinilla.app.ui.components.StudentTab
-import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaMark
 import com.vaiinilla.app.ui.order.OrderFlowUiState
-import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import kotlinx.coroutines.launch
 
@@ -82,7 +79,6 @@ fun AssistantChatScreen(
     onWallet: () -> Unit,
     onCart: () -> Unit,
     embeddedInBottomNav: Boolean = true,
-    showDemoTabs: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     val messages = state.assistantChatMessages
@@ -120,9 +116,7 @@ fun AssistantChatScreen(
                         Brush.radialGradient(
                             colors = listOf(colors.accent.copy(alpha = 0.14f), Color.Transparent),
                             radius = 900f,
-                            center =
-                                androidx.compose.ui.geometry
-                                    .Offset(0.5f, 0f),
+                            center = Offset(0.5f, 0f),
                         ),
                     ),
         )
@@ -191,21 +185,6 @@ fun AssistantChatScreen(
 
             Spacer(Modifier.height(bottomNavClearance))
         }
-
-        VaiinillaBottomNav(
-            showDemoTabs = showDemoTabs,
-            activeTab = StudentTab.ASSISTANT,
-            cartCount = state.cartItemCount,
-            onMenu = onMenu,
-            onAssistant = {},
-            onOrders = onOrders,
-            onWallet = onWallet,
-            onCart = onCart,
-            modifier =
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding(),
-        )
 
         if (showClearConfirm) {
             Box(

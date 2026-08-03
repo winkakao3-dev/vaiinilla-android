@@ -33,6 +33,19 @@
                     android:host="www.vaiinilla.app"
                     android:pathPrefix="/e/" />
             </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="vaiinilla.app"
+                    android:pathPrefix="/invitaciones/aceptar" />
+                <data
+                    android:scheme="https"
+                    android:host="www.vaiinilla.app"
+                    android:pathPrefix="/invitaciones/aceptar" />
+            </intent-filter>
         </activity>
     </application>
 </manifest>

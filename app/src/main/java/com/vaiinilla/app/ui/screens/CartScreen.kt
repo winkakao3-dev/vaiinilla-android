@@ -43,14 +43,11 @@ import com.vaiinilla.app.ui.components.CheckoutSpacePicker
 import com.vaiinilla.app.ui.components.DemoEmptyState
 import com.vaiinilla.app.ui.components.EditorialNotesField
 import com.vaiinilla.app.ui.components.ProductImage
-import com.vaiinilla.app.ui.components.StudentTab
-import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.paymentMethodLabel
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.canCreateOrder
-import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.cartPreviewTotal
 import com.vaiinilla.app.ui.order.hasSufficientBalance
 import com.vaiinilla.app.ui.order.operationalBlockerMessage
@@ -198,18 +195,6 @@ fun CartScreen(
                 }
             }
         }
-
-        VaiinillaBottomNav(
-            showDemoTabs = showDemoTabs,
-            activeTab = StudentTab.CART,
-            cartCount = state.cartItemCount,
-            onMenu = onMenu,
-            onAssistant = onOpenAssistant,
-            onOrders = onOpenTracking,
-            onWallet = onOpenWallet,
-            onCart = {},
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
     }
 }
 

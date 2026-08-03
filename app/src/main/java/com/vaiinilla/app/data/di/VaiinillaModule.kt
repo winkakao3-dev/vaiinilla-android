@@ -30,6 +30,9 @@ import com.vaiinilla.app.data.discovery.RemoteDiscoveryRepository
 import com.vaiinilla.app.data.discovery.SwitchingDiscoveryRepository
 import com.vaiinilla.app.data.fixture.ContractFixtureParser
 import com.vaiinilla.app.data.fixture.FixtureSource
+import com.vaiinilla.app.data.mode.AuthorizedAccessApi
+import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessApi
+import com.vaiinilla.app.data.mode.SwitchingAuthorizedAccessRepository
 import com.vaiinilla.app.data.operational.NoOpCashSessionRepository
 import com.vaiinilla.app.data.operational.NoOpDeviceHeartbeatRepository
 import com.vaiinilla.app.data.operational.RemoteCashSessionRepository
@@ -39,6 +42,7 @@ import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.data.order.RemoteOrderRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
+import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
@@ -170,7 +174,7 @@ object VaiinillaModule {
     @Provides
     @Singleton
     fun provideRemoteDiscoveryRepository(
-        apiClient: HttpVaiinillaApiClient,
+        apiClient: VaiinillaApiClient,
         parser: ContractFixtureParser,
     ): RemoteDiscoveryRepository = RemoteDiscoveryRepository(apiClient, parser)
 
@@ -181,6 +185,14 @@ object VaiinillaModule {
         fixture: FixtureDiscoveryRepository,
         remote: RemoteDiscoveryRepository,
     ): DiscoveryRepository = SwitchingDiscoveryRepository(resolver, fixture, remote)
+
+    @Provides
+    @Singleton
+    fun provideAuthorizedAccess(switching: SwitchingAuthorizedAccessRepository): AuthorizedAccessRepository = switching
+
+    @Provides
+    @Singleton
+    fun provideAuthorizedAccessApi(api: RemoteAuthorizedAccessApi): AuthorizedAccessApi = api
 
     @Provides
     @Singleton

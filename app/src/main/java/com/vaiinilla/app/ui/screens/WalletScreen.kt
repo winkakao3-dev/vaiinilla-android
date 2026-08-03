@@ -35,11 +35,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.ui.components.StudentTab
-import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.order.OrderFlowUiState
-import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 @Composable
@@ -53,7 +50,6 @@ fun WalletScreen(
     onAssistant: () -> Unit,
     onOrders: () -> Unit,
     onCart: () -> Unit,
-    showDemoTabs: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
 
@@ -167,18 +163,6 @@ fun WalletScreen(
                 )
             }
         }
-
-        VaiinillaBottomNav(
-            showDemoTabs = showDemoTabs,
-            activeTab = StudentTab.WALLET,
-            cartCount = state.cartItemCount,
-            onMenu = onMenu,
-            onAssistant = onAssistant,
-            onOrders = onOrders,
-            onWallet = {},
-            onCart = onCart,
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
     }
 }
 

@@ -3,6 +3,7 @@ package com.vaiinilla.app.data.auth
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.nio.charset.StandardCharsets
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -39,7 +40,15 @@ class SesionesContextoExchange
                         bearer = firebaseIdToken,
                         path = "sesiones/contexto-cliente",
                         body = body,
-                        headers = mapOf("Idempotency-Key" to UUID.randomUUID().toString()),
+                        headers =
+                            mapOf(
+                                "Idempotency-Key" to
+                                    UUID
+                                        .nameUUIDFromBytes(
+                                            "vaiinilla:vai26:contexto-cliente:$establecimientoSlug:${identificadorCliente.orEmpty()}"
+                                                .toByteArray(StandardCharsets.UTF_8),
+                                        ).toString(),
+                            ),
                     ).getOrElse { throw it }
             return json.decodeFromString<SesionesContextoEnvelopeDto>(raw).data
         }

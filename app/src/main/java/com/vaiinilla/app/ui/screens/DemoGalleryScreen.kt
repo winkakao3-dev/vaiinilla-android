@@ -129,6 +129,15 @@ val demoGallerySections =
                     DemoGalleryItem("mesero", "Mesero"),
                 ),
         ),
+        DemoGallerySection(
+            title = "VAI-27 · Accesos autorizados",
+            items =
+                listOf(
+                    DemoGalleryItem("vai27-invitation", "Invitación válida"),
+                    DemoGalleryItem("vai27-modes", "Tres modos autorizados"),
+                    DemoGalleryItem("vai27-external-revoke", "Revocación externa → Alumno"),
+                ),
+        ),
     )
 
 @Composable

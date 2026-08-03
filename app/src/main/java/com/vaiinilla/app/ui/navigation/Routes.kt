@@ -1,5 +1,7 @@
 package com.vaiinilla.app.ui.navigation
 
+import android.net.Uri
+
 object Routes {
     const val SPLASH = "splash"
     const val DISCOVERY = "discovery"
@@ -14,6 +16,8 @@ object Routes {
     const val AUTH_LOGIN = "auth/login?returnRoute={returnRoute}"
     const val AUTH_VERIFY = "auth/verify?returnRoute={returnRoute}"
     const val AUTH_FORGOT = "auth/forgot?returnRoute={returnRoute}"
+    const val VAI27_INVITATION = "vai27/invitation?token={token}"
+    const val VAI27_MODES = "vai27/modes"
     const val STUDENT_TRACKING = "student/tracking"
     const val ASSISTANT = "assistant"
     const val ASSISTANT_HUB = "assistant/hub"
@@ -27,15 +31,17 @@ object Routes {
 
     fun receiptStickerRoute(styleIndex: Int = 0): String = "receipt-sticker?style=$styleIndex"
 
-    fun authLandingRoute(returnRoute: String = CART): String = "auth/landing?returnRoute=$returnRoute"
+    fun authLandingRoute(returnRoute: String = CART): String = "auth/landing?returnRoute=${Uri.encode(returnRoute)}"
 
-    fun authRegisterRoute(returnRoute: String = CART): String = "auth/register?returnRoute=$returnRoute"
+    fun authRegisterRoute(returnRoute: String = CART): String = "auth/register?returnRoute=${Uri.encode(returnRoute)}"
 
-    fun authLoginRoute(returnRoute: String = CART): String = "auth/login?returnRoute=$returnRoute"
+    fun authLoginRoute(returnRoute: String = CART): String = "auth/login?returnRoute=${Uri.encode(returnRoute)}"
 
-    fun authVerifyRoute(returnRoute: String = CART): String = "auth/verify?returnRoute=$returnRoute"
+    fun authVerifyRoute(returnRoute: String = CART): String = "auth/verify?returnRoute=${Uri.encode(returnRoute)}"
 
-    fun authForgotRoute(returnRoute: String = CART): String = "auth/forgot?returnRoute=$returnRoute"
+    fun authForgotRoute(returnRoute: String = CART): String = "auth/forgot?returnRoute=${Uri.encode(returnRoute)}"
+
+    fun vai27InvitationRoute(token: String): String = "vai27/invitation?token=${Uri.encode(token)}"
 
     const val CASHIER = "cashier"
     const val KITCHEN = "kitchen"

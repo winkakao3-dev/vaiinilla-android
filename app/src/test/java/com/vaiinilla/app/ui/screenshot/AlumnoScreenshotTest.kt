@@ -6,6 +6,7 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
 import com.vaiinilla.app.ui.screens.AssistantScreen
 import com.vaiinilla.app.ui.screens.CartScreen
@@ -68,19 +69,21 @@ class AlumnoScreenshotTest {
         val state = ScreenshotFixtures.catalogLoadedState()
         composeTestRule.setContent {
             ScreenshotTheme {
-                CatalogScreen(
-                    state = state,
-                    onRetry = {},
-                    onSearchChange = {},
-                    onCategorySelected = {},
-                    onProductSelected = {},
-                    onDismissProduct = {},
-                    onToggleOption = { _, _ -> },
-                    onClearOptionalGroup = {},
-                    onQuantityChange = {},
-                    onAddProduct = {},
-                    onOpenCart = {},
-                )
+                ScreenshotWithStudentNav(activeTab = StudentTab.MENU, cartCount = 0) {
+                    CatalogScreen(
+                        state = state,
+                        onRetry = {},
+                        onSearchChange = {},
+                        onCategorySelected = {},
+                        onProductSelected = {},
+                        onDismissProduct = {},
+                        onToggleOption = { _, _ -> },
+                        onClearOptionalGroup = {},
+                        onQuantityChange = {},
+                        onAddProduct = {},
+                        onOpenCart = {},
+                    )
+                }
             }
         }
         composeTestRule.waitForIdle()
@@ -92,15 +95,17 @@ class AlumnoScreenshotTest {
         val state = ScreenshotFixtures.cartState()
         composeTestRule.setContent {
             ScreenshotTheme {
-                CartScreen(
-                    state = state,
-                    onMenu = {},
-                    onQuantityChange = { _, _ -> },
-                    onNotesChange = {},
-                    onDestinationChange = {},
-                    onPaymentChange = {},
-                    onConfirm = {},
-                )
+                ScreenshotWithStudentNav(activeTab = StudentTab.CART, cartCount = 3) {
+                    CartScreen(
+                        state = state,
+                        onMenu = {},
+                        onQuantityChange = { _, _ -> },
+                        onNotesChange = {},
+                        onDestinationChange = {},
+                        onPaymentChange = {},
+                        onConfirm = {},
+                    )
+                }
             }
         }
         composeTestRule.waitForIdle()
@@ -112,15 +117,17 @@ class AlumnoScreenshotTest {
         val state = ScreenshotFixtures.catalogLoadedState()
         composeTestRule.setContent {
             ScreenshotTheme {
-                AssistantScreen(
-                    state = state,
-                    onOpenChat = {},
-                    onOpenProduct = {},
-                    onMenu = {},
-                    onOrders = {},
-                    onWallet = {},
-                    onCart = {},
-                )
+                ScreenshotWithStudentNav(activeTab = StudentTab.ASSISTANT, cartCount = 0) {
+                    AssistantScreen(
+                        state = state,
+                        onOpenChat = {},
+                        onOpenProduct = {},
+                        onMenu = {},
+                        onOrders = {},
+                        onWallet = {},
+                        onCart = {},
+                    )
+                }
             }
         }
         composeTestRule.waitForIdle()
@@ -132,17 +139,19 @@ class AlumnoScreenshotTest {
         val state = ScreenshotFixtures.catalogLoadedState()
         composeTestRule.setContent {
             ScreenshotTheme {
-                WalletScreen(
-                    state = state,
-                    balance = 200,
-                    onAddMoney = {},
-                    onPaymentMethods = {},
-                    onAccount = {},
-                    onMenu = {},
-                    onAssistant = {},
-                    onOrders = {},
-                    onCart = {},
-                )
+                ScreenshotWithStudentNav(activeTab = StudentTab.WALLET, cartCount = 0) {
+                    WalletScreen(
+                        state = state,
+                        balance = 200,
+                        onAddMoney = {},
+                        onPaymentMethods = {},
+                        onAccount = {},
+                        onMenu = {},
+                        onAssistant = {},
+                        onOrders = {},
+                        onCart = {},
+                    )
+                }
             }
         }
         composeTestRule.waitForIdle()
@@ -154,19 +163,21 @@ class AlumnoScreenshotTest {
         val state = ScreenshotFixtures.emptySearchState()
         composeTestRule.setContent {
             ScreenshotTheme {
-                CatalogScreen(
-                    state = state,
-                    onRetry = {},
-                    onSearchChange = {},
-                    onCategorySelected = {},
-                    onProductSelected = {},
-                    onDismissProduct = {},
-                    onToggleOption = { _, _ -> },
-                    onClearOptionalGroup = {},
-                    onQuantityChange = {},
-                    onAddProduct = {},
-                    onOpenCart = {},
-                )
+                ScreenshotWithStudentNav(activeTab = StudentTab.MENU, cartCount = 0) {
+                    CatalogScreen(
+                        state = state,
+                        onRetry = {},
+                        onSearchChange = {},
+                        onCategorySelected = {},
+                        onProductSelected = {},
+                        onDismissProduct = {},
+                        onToggleOption = { _, _ -> },
+                        onClearOptionalGroup = {},
+                        onQuantityChange = {},
+                        onAddProduct = {},
+                        onOpenCart = {},
+                    )
+                }
             }
         }
         composeTestRule.waitForIdle()
@@ -178,15 +189,17 @@ class AlumnoScreenshotTest {
         val state = ScreenshotFixtures.catalogLoadedState()
         composeTestRule.setContent {
             ScreenshotTheme {
-                AssistantScreen(
-                    state = state,
-                    onOpenChat = {},
-                    onOpenProduct = {},
-                    onMenu = {},
-                    onOrders = {},
-                    onWallet = {},
-                    onCart = {},
-                )
+                ScreenshotWithStudentNav(activeTab = StudentTab.ASSISTANT, cartCount = 0) {
+                    AssistantScreen(
+                        state = state,
+                        onOpenChat = {},
+                        onOpenProduct = {},
+                        onMenu = {},
+                        onOrders = {},
+                        onWallet = {},
+                        onCart = {},
+                    )
+                }
             }
         }
         composeTestRule.waitForIdle()
@@ -198,16 +211,18 @@ class AlumnoScreenshotTest {
         val state = ScreenshotFixtures.catalogLoadedState()
         composeTestRule.setContent {
             ScreenshotTheme {
-                AssistantScreen(
-                    state = state,
-                    onOpenChat = {},
-                    onOpenProduct = {},
-                    onMenu = {},
-                    onOrders = {},
-                    onWallet = {},
-                    onCart = {},
-                    initialChip = "Menos de \$60",
-                )
+                ScreenshotWithStudentNav(activeTab = StudentTab.ASSISTANT, cartCount = 0) {
+                    AssistantScreen(
+                        state = state,
+                        onOpenChat = {},
+                        onOpenProduct = {},
+                        onMenu = {},
+                        onOrders = {},
+                        onWallet = {},
+                        onCart = {},
+                        initialChip = "Menos de \$60",
+                    )
+                }
             }
         }
         composeTestRule.waitForIdle()
@@ -219,15 +234,17 @@ class AlumnoScreenshotTest {
         val state = ScreenshotFixtures.emptyCartState()
         composeTestRule.setContent {
             ScreenshotTheme {
-                CartScreen(
-                    state = state,
-                    onMenu = {},
-                    onQuantityChange = { _, _ -> },
-                    onNotesChange = {},
-                    onDestinationChange = {},
-                    onPaymentChange = {},
-                    onConfirm = {},
-                )
+                ScreenshotWithStudentNav(activeTab = StudentTab.CART, cartCount = 0) {
+                    CartScreen(
+                        state = state,
+                        onMenu = {},
+                        onQuantityChange = { _, _ -> },
+                        onNotesChange = {},
+                        onDestinationChange = {},
+                        onPaymentChange = {},
+                        onConfirm = {},
+                    )
+                }
             }
         }
         composeTestRule.waitForIdle()
@@ -243,15 +260,17 @@ class AlumnoScreenshotTest {
             )
         composeTestRule.setContent {
             ScreenshotTheme {
-                CartScreen(
-                    state = state,
-                    onMenu = {},
-                    onQuantityChange = { _, _ -> },
-                    onNotesChange = {},
-                    onDestinationChange = {},
-                    onPaymentChange = {},
-                    onConfirm = {},
-                )
+                ScreenshotWithStudentNav(activeTab = StudentTab.CART, cartCount = 3) {
+                    CartScreen(
+                        state = state,
+                        onMenu = {},
+                        onQuantityChange = { _, _ -> },
+                        onNotesChange = {},
+                        onDestinationChange = {},
+                        onPaymentChange = {},
+                        onConfirm = {},
+                    )
+                }
             }
         }
         composeTestRule.waitForIdle()
@@ -263,15 +282,17 @@ class AlumnoScreenshotTest {
         val state = ScreenshotFixtures.cartState(paymentMethod = PaymentMethod.CARD)
         composeTestRule.setContent {
             ScreenshotTheme {
-                CartScreen(
-                    state = state,
-                    onMenu = {},
-                    onQuantityChange = { _, _ -> },
-                    onNotesChange = {},
-                    onDestinationChange = {},
-                    onPaymentChange = {},
-                    onConfirm = {},
-                )
+                ScreenshotWithStudentNav(activeTab = StudentTab.CART, cartCount = 3) {
+                    CartScreen(
+                        state = state,
+                        onMenu = {},
+                        onQuantityChange = { _, _ -> },
+                        onNotesChange = {},
+                        onDestinationChange = {},
+                        onPaymentChange = {},
+                        onConfirm = {},
+                    )
+                }
             }
         }
         composeTestRule.waitForIdle()
@@ -300,16 +321,18 @@ class AlumnoScreenshotTest {
         val trackingState = ScreenshotFixtures.emptyTrackingState()
         composeTestRule.setContent {
             ScreenshotTheme {
-                StudentTrackingScreen(
-                    state = trackingState,
-                    orderState = orderState,
-                    onMenu = {},
-                    onAssistant = {},
-                    onWallet = {},
-                    onCart = {},
-                    onOpenCatalog = {},
-                    onSelectOrder = {},
-                )
+                ScreenshotWithStudentNav(activeTab = StudentTab.ORDERS, cartCount = 0) {
+                    StudentTrackingScreen(
+                        state = trackingState,
+                        orderState = orderState,
+                        onMenu = {},
+                        onAssistant = {},
+                        onWallet = {},
+                        onCart = {},
+                        onOpenCatalog = {},
+                        onSelectOrder = {},
+                    )
+                }
             }
         }
         composeTestRule.waitForIdle()
@@ -323,16 +346,18 @@ class AlumnoScreenshotTest {
         val trackingState = ScreenshotFixtures.trackingState(order)
         composeTestRule.setContent {
             ScreenshotTheme {
-                StudentTrackingScreen(
-                    state = trackingState,
-                    orderState = orderState,
-                    onMenu = {},
-                    onAssistant = {},
-                    onWallet = {},
-                    onCart = {},
-                    onOpenCatalog = {},
-                    onSelectOrder = {},
-                )
+                ScreenshotWithStudentNav(activeTab = StudentTab.ORDERS, cartCount = 0) {
+                    StudentTrackingScreen(
+                        state = trackingState,
+                        orderState = orderState,
+                        onMenu = {},
+                        onAssistant = {},
+                        onWallet = {},
+                        onCart = {},
+                        onOpenCatalog = {},
+                        onSelectOrder = {},
+                    )
+                }
             }
         }
         composeTestRule.waitForIdle()
@@ -346,16 +371,18 @@ class AlumnoScreenshotTest {
         val trackingState = ScreenshotFixtures.trackingState(order)
         composeTestRule.setContent {
             ScreenshotTheme {
-                StudentTrackingScreen(
-                    state = trackingState,
-                    orderState = orderState,
-                    onMenu = {},
-                    onAssistant = {},
-                    onWallet = {},
-                    onCart = {},
-                    onOpenCatalog = {},
-                    onSelectOrder = {},
-                )
+                ScreenshotWithStudentNav(activeTab = StudentTab.ORDERS, cartCount = 0) {
+                    StudentTrackingScreen(
+                        state = trackingState,
+                        orderState = orderState,
+                        onMenu = {},
+                        onAssistant = {},
+                        onWallet = {},
+                        onCart = {},
+                        onOpenCatalog = {},
+                        onSelectOrder = {},
+                    )
+                }
             }
         }
         composeTestRule.waitForIdle()
@@ -382,16 +409,18 @@ class AlumnoScreenshotTest {
         val state = ScreenshotFixtures.catalogLoadedState()
         composeTestRule.setContent {
             ScreenshotTheme {
-                AssistantChatScreen(
-                    state = state,
-                    onSendMessage = {},
-                    onClearChat = {},
-                    onClose = {},
-                    onMenu = {},
-                    onOrders = {},
-                    onWallet = {},
-                    onCart = {},
-                )
+                ScreenshotWithStudentNav(activeTab = StudentTab.ASSISTANT, cartCount = 0) {
+                    AssistantChatScreen(
+                        state = state,
+                        onSendMessage = {},
+                        onClearChat = {},
+                        onClose = {},
+                        onMenu = {},
+                        onOrders = {},
+                        onWallet = {},
+                        onCart = {},
+                    )
+                }
             }
         }
         composeTestRule.waitForIdle()
@@ -403,19 +432,21 @@ class AlumnoScreenshotTest {
         val state = ScreenshotFixtures.catalogLoadedState()
         composeTestRule.setContent {
             ScreenshotTheme(mode = VaiinillaThemeMode.Dark) {
-                CatalogScreen(
-                    state = state,
-                    onRetry = {},
-                    onSearchChange = {},
-                    onCategorySelected = {},
-                    onProductSelected = {},
-                    onDismissProduct = {},
-                    onToggleOption = { _, _ -> },
-                    onClearOptionalGroup = {},
-                    onQuantityChange = {},
-                    onAddProduct = {},
-                    onOpenCart = {},
-                )
+                ScreenshotWithStudentNav(activeTab = StudentTab.MENU, cartCount = 0) {
+                    CatalogScreen(
+                        state = state,
+                        onRetry = {},
+                        onSearchChange = {},
+                        onCategorySelected = {},
+                        onProductSelected = {},
+                        onDismissProduct = {},
+                        onToggleOption = { _, _ -> },
+                        onClearOptionalGroup = {},
+                        onQuantityChange = {},
+                        onAddProduct = {},
+                        onOpenCart = {},
+                    )
+                }
             }
         }
         composeTestRule.waitForIdle()
@@ -448,16 +479,18 @@ class AlumnoScreenshotTest {
         val trackingState = ScreenshotFixtures.trackingState(order)
         composeTestRule.setContent {
             ScreenshotTheme {
-                StudentTrackingScreen(
-                    state = trackingState,
-                    orderState = orderState,
-                    onMenu = {},
-                    onAssistant = {},
-                    onWallet = {},
-                    onCart = {},
-                    onOpenCatalog = {},
-                    onSelectOrder = {},
-                )
+                ScreenshotWithStudentNav(activeTab = StudentTab.ORDERS, cartCount = 0) {
+                    StudentTrackingScreen(
+                        state = trackingState,
+                        orderState = orderState,
+                        onMenu = {},
+                        onAssistant = {},
+                        onWallet = {},
+                        onCart = {},
+                        onOpenCatalog = {},
+                        onSelectOrder = {},
+                    )
+                }
             }
         }
         composeTestRule.waitForIdle()

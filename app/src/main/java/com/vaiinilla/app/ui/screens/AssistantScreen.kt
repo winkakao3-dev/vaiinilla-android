@@ -46,13 +46,10 @@ import com.vaiinilla.app.ui.assistant.AssistantLocalReplies
 import com.vaiinilla.app.ui.assistant.AssistantRecommendation
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
-import com.vaiinilla.app.ui.components.StudentTab
-import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.order.OrderFlowUiState
-import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 private val assistantChips =
@@ -73,7 +70,6 @@ fun AssistantScreen(
     onWallet: () -> Unit,
     onCart: () -> Unit,
     initialChip: String? = null,
-    showDemoTabs: Boolean = false,
 ) {
     val products = state.catalog?.products.orEmpty()
     var selectedChip by remember {
@@ -210,18 +206,6 @@ fun AssistantScreen(
                 )
             }
         }
-
-        VaiinillaBottomNav(
-            showDemoTabs = showDemoTabs,
-            activeTab = StudentTab.ASSISTANT,
-            cartCount = state.cartItemCount,
-            onMenu = onMenu,
-            onAssistant = {},
-            onOrders = onOrders,
-            onWallet = onWallet,
-            onCart = onCart,
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
     }
 }
 

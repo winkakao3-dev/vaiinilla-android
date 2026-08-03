@@ -21,10 +21,14 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private var pendingEstablishmentSlug by mutableStateOf<String?>(null)
+    private var pendingInvitationToken by mutableStateOf<String?>(null)
+    private var pendingMockInvitationToken by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         pendingEstablishmentSlug = establishmentSlugFrom(intent)
+        pendingInvitationToken = invitationTokenFrom(intent)
+        pendingMockInvitationToken = mockInvitationTokenFrom(intent)
         enableEdgeToEdge(
             statusBarStyle =
                 SystemBarStyle.light(
@@ -52,7 +56,11 @@ class MainActivity : ComponentActivity() {
                 AppNavHost(
                     navController = rememberNavController(),
                     pendingEstablishmentSlug = pendingEstablishmentSlug,
+                    pendingInvitationToken = pendingInvitationToken,
+                    pendingMockInvitationToken = pendingMockInvitationToken,
                     onDeepLinkConsumed = { pendingEstablishmentSlug = null },
+                    onInvitationConsumed = { pendingInvitationToken = null },
+                    onMockInvitationConsumed = { pendingMockInvitationToken = null },
                 )
             }
         }
@@ -62,6 +70,8 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         pendingEstablishmentSlug = establishmentSlugFrom(intent)
+        pendingInvitationToken = invitationTokenFrom(intent)
+        pendingMockInvitationToken = mockInvitationTokenFrom(intent)
     }
 
     companion object {
@@ -78,6 +88,32 @@ class MainActivity : ComponentActivity() {
                 return segments[1].takeIf { it.isNotBlank() }
             }
             return null
+        }
+
+        fun mockInvitationTokenFrom(intent: Intent?): String? {
+            val data = intent?.data ?: return null
+            return mockInvitationTokenFrom(data)
+        }
+
+        fun mockInvitationTokenFrom(uri: Uri): String? {
+            if (uri.scheme != "vaiinilla" || uri.host != "mock") return null
+            val segments = uri.pathSegments
+            if (segments.size >= 2 && segments[0] == "invitation") {
+                return segments[1].takeIf { it.isNotBlank() }
+            }
+            return null
+        }
+
+        fun invitationTokenFrom(intent: Intent?): String? {
+            val data = intent?.data ?: return null
+            return invitationTokenFrom(data)
+        }
+
+        fun invitationTokenFrom(uri: Uri): String? {
+            val host = uri.host ?: return null
+            if (host != "vaiinilla.app" && host != "www.vaiinilla.app") return null
+            if (uri.pathSegments != listOf("invitaciones", "aceptar")) return null
+            return uri.getQueryParameter("token")?.trim()?.takeIf { it.isNotEmpty() }
         }
     }
 }

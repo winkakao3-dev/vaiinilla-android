@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -40,6 +42,7 @@ fun CashierOperationalScreen(
     onOpenCashSession: () -> Unit,
     onCollect: (orderId: String, amount: String, version: Int) -> Unit,
     onDeliver: (orderId: String, version: Int) -> Unit,
+    onChangeMode: (() -> Unit)? = null,
 ) {
     val pending = state.orders.filter { it.summary.state == OrderState.PENDING_PAYMENT }
     val ready = state.orders.filter { it.summary.state == OrderState.READY }
@@ -52,7 +55,7 @@ fun CashierOperationalScreen(
                 .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { OperationalHeader("Caja", "Ventanas 32–33", onBack) }
+        item { OperationalHeader("Caja", "Ventanas 32–33", onBack, onChangeMode) }
         item {
             val open = state.cashSessionOpen
             Text(
@@ -156,6 +159,7 @@ fun KitchenOperationalScreen(
     onBack: () -> Unit,
     onStart: (orderId: String, version: Int) -> Unit,
     onReady: (orderId: String, version: Int) -> Unit,
+    onChangeMode: (() -> Unit)? = null,
 ) {
     val active =
         state.orders.filter {
@@ -169,7 +173,7 @@ fun KitchenOperationalScreen(
                 .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { OperationalHeader("Cocina", "Ventanas 36–38", onBack) }
+        item { OperationalHeader("Cocina", "Ventanas 36–38", onBack, onChangeMode) }
         if (active.isEmpty()) {
             item {
                 OperationalEmptyState(
@@ -201,6 +205,7 @@ fun WaiterOperationalScreen(
     state: OperationalUiState,
     onBack: () -> Unit,
     onDeliver: (orderId: String, version: Int) -> Unit,
+    onChangeMode: (() -> Unit)? = null,
 ) {
     val ready = state.orders.filter { it.summary.state == OrderState.READY }
     LazyColumn(
@@ -211,7 +216,7 @@ fun WaiterOperationalScreen(
                 .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { OperationalHeader("Mesero", "Ventanas 39–40", onBack) }
+        item { OperationalHeader("Mesero", "Ventanas 39–40", onBack, onChangeMode) }
         if (ready.isEmpty()) {
             item {
                 OperationalEmptyState(
@@ -237,6 +242,7 @@ private fun OperationalHeader(
     title: String,
     subtitle: String,
     onBack: () -> Unit,
+    onChangeMode: (() -> Unit)?,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -247,11 +253,12 @@ private fun OperationalHeader(
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MutedInk)
         }
         Text(
-            "Roles",
+            if (onChangeMode == null) "Roles" else "Cambiar modo",
             modifier =
                 Modifier
-                    .padding(top = 8.dp)
-                    .clickable(onClick = onBack),
+                    .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                    .padding(horizontal = 8.dp, vertical = 12.dp)
+                    .clickable(role = Role.Button, onClick = onChangeMode ?: onBack),
             color = MutedInk,
             fontWeight = FontWeight.Bold,
         )
