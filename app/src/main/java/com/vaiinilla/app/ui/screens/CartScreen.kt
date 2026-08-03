@@ -73,6 +73,7 @@ fun CartScreen(
     onOpenAssistant: () -> Unit = {},
     onOpenWallet: () -> Unit = {},
     showDemoTabs: Boolean = false,
+    guestAuthRequired: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     val insufficientBalance =
@@ -188,7 +189,10 @@ fun CartScreen(
                                 modifier = Modifier.size(22.dp),
                             )
                         } else {
-                            Text(confirmLabel(state.checkoutPayment), fontWeight = FontWeight.Black)
+                            Text(
+                                confirmLabel(state.checkoutPayment, guestAuthRequired),
+                                fontWeight = FontWeight.Black,
+                            )
                         }
                     }
                 }
@@ -209,11 +213,15 @@ fun CartScreen(
     }
 }
 
-private fun confirmLabel(payment: PaymentMethod): String =
-    when (payment) {
-        PaymentMethod.CASH -> "Confirmar pedido"
-        PaymentMethod.BALANCE -> "Pagar con saldo"
-        PaymentMethod.CARD -> "Pagar con tarjeta"
+private fun confirmLabel(
+    payment: PaymentMethod,
+    guestAuthRequired: Boolean,
+): String =
+    when {
+        guestAuthRequired -> "Continuar para confirmar"
+        payment == PaymentMethod.CASH -> "Confirmar pedido"
+        payment == PaymentMethod.BALANCE -> "Pagar con saldo"
+        else -> "Pagar con tarjeta"
     }
 
 @Composable

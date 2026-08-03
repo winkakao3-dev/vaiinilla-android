@@ -28,6 +28,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -57,6 +59,50 @@ fun EditorialSearchField(
                 modifier = Modifier.weight(1f),
                 singleLine = true,
                 textStyle = TextStyle(color = colors.ink, fontSize = 14.sp),
+                decorationBox = { input ->
+                    Box {
+                        if (value.isBlank()) {
+                            Text(placeholder, color = colors.muted, fontSize = 14.sp)
+                        }
+                        input()
+                    }
+                },
+            )
+        }
+    }
+}
+
+@Composable
+fun EditorialTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+    singleLine: Boolean = true,
+    isPassword: Boolean = false,
+) {
+    val colors = LocalVaiinillaColors.current
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(label, color = colors.muted, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+        Spacer(Modifier.height(7.dp))
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = if (singleLine) 48.dp else 86.dp)
+                    .clip(RoundedCornerShape(17.dp))
+                    .border(1.dp, colors.line, RoundedCornerShape(17.dp))
+                    .padding(horizontal = 14.dp, vertical = 13.dp),
+        ) {
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = singleLine,
+                visualTransformation =
+                    if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+                textStyle = TextStyle(color = colors.ink, fontSize = 14.sp, lineHeight = 20.sp),
                 decorationBox = { input ->
                     Box {
                         if (value.isBlank()) {

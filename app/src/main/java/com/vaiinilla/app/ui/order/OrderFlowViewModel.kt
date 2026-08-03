@@ -8,6 +8,7 @@ import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.config.EffectiveDataSourceResolver
 import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
+import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.discovery.DiscoveryFailures
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.ContractRules
@@ -47,6 +48,7 @@ class OrderFlowViewModel
         private val environment: AppEnvironment,
         private val discoveryRepository: DiscoveryRepository,
         private val guestSessionStore: GuestSessionStore,
+        private val studentAuthRepository: StudentAuthRepository,
     ) : ViewModel() {
         private val _uiState =
             mutableStateOf(
@@ -166,6 +168,13 @@ class OrderFlowViewModel
         /** Persists guest cart before leaving for auth. Venue/cart keys stay in GuestSessionStore. */
         fun prepareForGuestAuth() {
             persistCurrentCartIfNeeded()
+        }
+
+        /** Guest discovery checkout requires student auth until email is verified and enrolled. */
+        fun requiresStudentAuth(): Boolean {
+            val state = _uiState.value
+            val venue = state.guestVenue ?: return false
+            return !studentAuthRepository.isReadyForCheckout(venue.establishment.id)
         }
 
         /** Reloads guest venue + cart after returning from auth without clearing tenant state. */
@@ -392,6 +401,14 @@ class OrderFlowViewModel
                 return
             }
             if (state.creatingOrder) return
+
+            if (requiresStudentAuth()) {
+                _uiState.value =
+                    state.copy(
+                        createOrderError = "Inicia sesión y verifica tu correo antes de confirmar el pedido.",
+                    )
+                return
+            }
 
             if (state.checkoutPayment == PaymentMethod.BALANCE && !state.hasSufficientBalance(walletBalance)) {
                 _uiState.value =

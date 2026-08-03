@@ -5,7 +5,6 @@ import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.config.DataSourceMode
-import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.core.security.SeedJwtCache
 import com.vaiinilla.app.domain.auth.SeedAccounts
@@ -14,8 +13,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,17 +21,12 @@ class FirebaseSeedAuthRepository
     @Inject
     constructor(
         private val environment: AppEnvironment,
-        private val apiClient: HttpVaiinillaApiClient,
+        private val contextoExchange: SesionesContextoExchange,
         private val sessionStore: SecureSessionStore,
         private val seedJwtCache: SeedJwtCache,
         private val refreshCoordinator: VaiinillaJwtRefreshCoordinator,
     ) {
         private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
-        private val json =
-            Json {
-                ignoreUnknownKeys = true
-                encodeDefaults = true
-            }
 
         suspend fun authenticateRole(role: OperationalRole): Result<Unit> =
             withContext(Dispatchers.IO) {
@@ -122,7 +114,7 @@ class FirebaseSeedAuthRepository
                     ?.takeIf { it.isNotBlank() }
                     ?: throw IllegalStateException("No se pudo obtener el ID token de Firebase.")
 
-            val session = exchangeContexto(firebaseToken, account.membresiaId)
+            val session = contextoExchange.exchange(firebaseToken, account.membresiaId)
             seedJwtCache.put(role, session.accessToken, session.expiresIn)
             sessionStore.saveAccessToken(session.accessToken)
             refreshCoordinator.startSession(role, session.expiresIn)
@@ -136,28 +128,7 @@ class FirebaseSeedAuthRepository
             auth.signInWithEmailAndPassword(account.email, account.password).await()
         }
 
-        private fun exchangeContexto(
-            firebaseIdToken: String,
-            membresiaId: String,
-        ): SesionesContextoDataDto {
-            val body = json.encodeToString(SesionesContextoRequestDto(membresiaId = membresiaId))
-            val raw =
-                apiClient
-                    .postWithBearer(
-                        bearer = firebaseIdToken,
-                        path = "sesiones/contexto",
-                        body = body,
-                    ).getOrElse { throw it }
-
-            return json.decodeFromString<SesionesContextoEnvelopeDto>(raw).data
-        }
-
         private companion object {
             const val DEFAULT_EXPIRES_IN_SECONDS = 900
         }
     }
-
-@kotlinx.serialization.Serializable
-private data class SesionesContextoRequestDto(
-    @kotlinx.serialization.SerialName("membresia_id") val membresiaId: String,
-)
