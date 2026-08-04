@@ -4,8 +4,8 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.config.DataSourceMode
+import com.vaiinilla.app.core.config.EffectiveDataSourceResolver
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.usecase.AuthenticateSeedRoleUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,7 +23,7 @@ class RoleAuthViewModel
     @Inject
     constructor(
         private val authenticateSeedRole: AuthenticateSeedRoleUseCase,
-        private val environment: AppEnvironment,
+        private val dataSourceResolver: EffectiveDataSourceResolver,
     ) : ViewModel() {
         private val _state = mutableStateOf(RoleAuthUiState())
         val state: State<RoleAuthUiState> = _state
@@ -32,7 +32,7 @@ class RoleAuthViewModel
             role: OperationalRole,
             onSuccess: () -> Unit,
         ) {
-            if (environment.dataSourceMode == DataSourceMode.MOCK) {
+            if (dataSourceResolver.effectiveMode() == DataSourceMode.MOCK) {
                 onSuccess()
                 return
             }

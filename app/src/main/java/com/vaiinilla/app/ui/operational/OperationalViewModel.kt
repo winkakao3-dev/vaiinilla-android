@@ -4,7 +4,6 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.vaiinilla.app.core.security.RoleAccessTokenStore
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -37,7 +36,6 @@ class OperationalViewModel
         private val openCashSession: OpenCashSessionUseCase,
         private val cashSessionRepository: CashSessionRepository,
         private val heartbeatRepository: DeviceHeartbeatRepository,
-        private val roleAccessTokenStore: RoleAccessTokenStore,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(OperationalUiState())
         val uiState: State<OperationalUiState> = _uiState
@@ -46,7 +44,6 @@ class OperationalViewModel
         private var lastUpdatedSince: String? = null
 
         fun setRole(role: OperationalRole) {
-            roleAccessTokenStore.applyRole(role)
             _uiState.value =
                 _uiState.value.copy(
                     role = role,
@@ -181,11 +178,15 @@ class OperationalViewModel
         fun deliver(
             orderId: String,
             expectedVersion: Int,
+            scannedPickupToken: String? = null,
         ) {
             val pickupToken =
-                _uiState.value.orders
-                    .firstOrNull { it.summary.id == orderId }
-                    ?.pickupToken
+                scannedPickupToken
+                    ?.trim()
+                    ?.takeIf(String::isNotEmpty)
+                    ?: _uiState.value.orders
+                        .firstOrNull { it.summary.id == orderId }
+                        ?.pickupToken
             performMutation {
                 transitionOrder(
                     orderId = orderId,
@@ -295,7 +296,6 @@ class OperationalViewModel
         ) {
             pollingJob?.cancel()
             pollingJob = null
-            roleAccessTokenStore.applyRole(OperationalRole.CLIENT)
             _uiState.value =
                 _uiState.value.copy(
                     role = OperationalRole.CLIENT,

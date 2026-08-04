@@ -99,6 +99,28 @@ object ContractRules {
         validateOrderItems(request)
     }
 
+    /**
+     * Entrega 01 REMOTE: el backend acepta efectivo para recoger o para un espacio
+     * resuelto por QR. El tenant valida que el espacio exista y esté activo; el
+     * cliente no puede limitar ese identificador a las mesas de una fixture local.
+     */
+    fun validateRemoteOrderRequest(request: CreateOrderRequest) {
+        require(request.paymentMethod == PaymentMethod.CASH) {
+            "La Entrega 01 REMOTE solo acepta efectivo."
+        }
+        when (request.destination) {
+            OrderDestination.TAKE_AWAY ->
+                require(request.spaceId == null) {
+                    "para_llevar exige espacio_id null."
+                }
+            OrderDestination.IN_SPACE ->
+                require(request.spaceId != null) {
+                    "en_espacio requiere un espacio resuelto por QR."
+                }
+        }
+        validateOrderItems(request)
+    }
+
     fun validateStudentCheckoutRequest(request: CreateOrderRequest) {
         require(request.paymentMethod in PaymentMethod.entries) {
             "metodo_pago no soportado en checkout alumno."

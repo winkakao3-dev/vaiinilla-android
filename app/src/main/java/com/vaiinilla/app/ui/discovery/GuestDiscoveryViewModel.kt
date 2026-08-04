@@ -63,6 +63,33 @@ class GuestDiscoveryViewModel
             _state.value = _state.value.copy(spaceTokenInput = token)
         }
 
+        fun resolveQrPayload(
+            rawValue: String,
+            onEntered: (GuestVenueContext) -> Unit,
+        ) {
+            QrPayloadParser.parse(rawValue).fold(
+                onSuccess = { payload ->
+                    when (payload) {
+                        is QrPayload.Establishment ->
+                            openSlug(
+                                slug = payload.slug,
+                                onEntered = onEntered,
+                            )
+                        is QrPayload.SpaceToken -> {
+                            updateSpaceToken(payload.token)
+                            resolveSpaceToken(onEntered)
+                        }
+                    }
+                },
+                onFailure = { error ->
+                    _state.value =
+                        _state.value.copy(
+                            errorMessage = error.message ?: "No se pudo leer el QR.",
+                        )
+                },
+            )
+        }
+
         fun search(query: String = _state.value.query) {
             _state.value = _state.value.copy(loading = true, errorMessage = null, suspendedMessage = null)
             viewModelScope.launch {

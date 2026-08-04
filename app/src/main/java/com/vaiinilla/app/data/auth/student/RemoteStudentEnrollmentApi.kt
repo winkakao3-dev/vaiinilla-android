@@ -37,12 +37,13 @@ class RemoteStudentEnrollmentApi
             firebaseIdToken: String,
         ): Result<StudentEnrollmentResult> =
             runCatching {
+                val legalVersions = fetchCurrentLegalVersions().getOrThrow()
                 val body =
                     json.encodeToString(
                         AltaIdentidadRequestDto(
                             nombre = request.nombre,
-                            terminosVersion = request.terminosVersion,
-                            privacidadVersion = request.privacidadVersion,
+                            terminosVersion = legalVersions.terminosVersion,
+                            privacidadVersion = legalVersions.privacidadVersion,
                         ),
                     )
                 val raw =
@@ -56,7 +57,7 @@ class RemoteStudentEnrollmentApi
                                     "Idempotency-Key" to
                                         UUID
                                             .nameUUIDFromBytes(
-                                                "vaiinilla:vai26:identidad:${request.nombre}:${request.terminosVersion}:${request.privacidadVersion}"
+                                                "vaiinilla:vai26:identidad:${request.nombre}:${legalVersions.terminosVersion}:${legalVersions.privacidadVersion}"
                                                     .toByteArray(StandardCharsets.UTF_8),
                                             ).toString(),
                                 ),
@@ -68,10 +69,28 @@ class RemoteStudentEnrollmentApi
                             }
                             throw error
                         }
-                json.decodeFromString<AltaIdentidadResponseDto>(raw)
+                json.decodeFromString<AltaIdentidadEnvelopeDto>(raw).data
                 StudentEnrollmentResult()
             }
+
+        private fun fetchCurrentLegalVersions(): Result<LegalVersionsDto> =
+            runCatching {
+                val raw = apiClient.getPublic("publico/legal/vigente").getOrThrow()
+                json.decodeFromString<LegalVersionsEnvelopeDto>(raw).data.also { versions ->
+                    require(versions.terminosVersion.isNotBlank()) {
+                        "El backend no devolvió la versión vigente de términos."
+                    }
+                    require(versions.privacidadVersion.isNotBlank()) {
+                        "El backend no devolvió la versión vigente de privacidad."
+                    }
+                }
+            }
     }
+
+@Serializable
+private data class AltaIdentidadEnvelopeDto(
+    val data: AltaIdentidadResponseDto,
+)
 
 @Serializable
 private data class AltaIdentidadRequestDto(
@@ -84,4 +103,15 @@ private data class AltaIdentidadRequestDto(
 private data class AltaIdentidadResponseDto(
     val usuario: JsonObject,
     val consentimiento: JsonObject,
+)
+
+@Serializable
+private data class LegalVersionsEnvelopeDto(
+    val data: LegalVersionsDto,
+)
+
+@Serializable
+private data class LegalVersionsDto(
+    @SerialName("terminos_version") val terminosVersion: String,
+    @SerialName("privacidad_version") val privacidadVersion: String,
 )

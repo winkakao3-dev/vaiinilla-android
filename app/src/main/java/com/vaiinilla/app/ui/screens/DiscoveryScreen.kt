@@ -49,12 +49,14 @@ fun DiscoveryScreen(
     state: DiscoveryUiState,
     onQueryChange: (String) -> Unit,
     onSpaceTokenChange: (String) -> Unit,
+    onOpenQrScanner: () -> Unit = {},
     onSelectEstablishment: (PublicEstablishment) -> Unit,
     onResolveSpace: () -> Unit,
     onConfirmSwitch: () -> Unit,
     onDismissSwitch: () -> Unit,
     onContinueSelected: () -> Unit,
     onOpenDemoRoles: () -> Unit,
+    showMockHint: Boolean = true,
 ) {
     val colors = LocalVaiinillaColors.current
 
@@ -161,10 +163,18 @@ fun DiscoveryScreen(
                             )
                         }
                         Text(
-                            "Si el cartel es de mesa o cancha, pega el token del QR. En MOCK usa mesa4.",
+                            if (showMockHint) {
+                                "Si el cartel es de mesa o cancha, pega el token del QR. En MOCK usa mesa4."
+                            } else {
+                                "Si el cartel es de mesa o cancha, pega el token opaco que contiene su QR."
+                            },
                             color = colors.muted,
                             fontSize = 12.sp,
                             lineHeight = 16.sp,
+                        )
+                        EditorialAccentButton(
+                            text = "Escanear QR",
+                            onClick = onOpenQrScanner,
                         )
                         Surface(
                             modifier = Modifier.fillMaxWidth(),

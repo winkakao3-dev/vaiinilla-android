@@ -35,13 +35,13 @@ Rotate them in Firebase Auth whenever they leak; never paste them into git, docs
 
 ## Staff presence (single device)
 
-When the alumno submits an order, `StaffPresenceCoordinator.primeStaffPresence(activeRole = CLIENT)`:
+When the alumno submits an order in **debug REMOTE**, `StaffPresenceCoordinator.primeStaffPresence(activeRole = CLIENT)` may:
 
 1. Signs into cajero and cocina seed accounts sequentially and caches their JWTs
 2. Restores the alumno Firebase session + session token
 3. Sends `latidos` for Caja and Cocina using the cached JWTs
 
-Requires the same debug seed passwords in `local.properties`.
+If the debug seed passwords are present in `local.properties`, the single-device convenience path signs in the seed Caja/Cocina accounts and sends their heartbeats. If they are absent, the coordinator does not invent permissions or credentials: the backend remains the authority and the normal multi-device staff presence flow must provide the required heartbeats. This helper is never enabled as a release dependency.
 
 ## Verify REMOTE (debug)
 

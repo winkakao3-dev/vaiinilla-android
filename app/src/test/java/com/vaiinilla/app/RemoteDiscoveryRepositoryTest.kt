@@ -90,7 +90,7 @@ class RemoteDiscoveryRepositoryTest {
     }
 
     @Test
-    fun `catalog failure remains primary over authenticated status failure`() {
+    fun `guest venue ignores authenticated status failure when catalog succeeds`() {
         val catalogFailure = IllegalStateException("catalog down")
         val statusFailure = IllegalStateException("status requires auth")
 
@@ -102,7 +102,7 @@ class RemoteDiscoveryRepositoryTest {
             ),
         )
         assertEquals(
-            statusFailure,
+            null,
             com.vaiinilla.app.ui.order.firstGuestVenueFailure(
                 Result.success(Unit),
                 Result.failure<Unit>(statusFailure),

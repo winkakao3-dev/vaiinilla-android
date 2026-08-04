@@ -1,5 +1,7 @@
 package com.vaiinilla.app.data.auth
 
+import android.content.Context
+import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
@@ -9,6 +11,7 @@ import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.core.security.SeedJwtCache
 import com.vaiinilla.app.domain.auth.SeedAccounts
 import com.vaiinilla.app.domain.model.OperationalRole
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
@@ -20,13 +23,20 @@ import javax.inject.Singleton
 class FirebaseSeedAuthRepository
     @Inject
     constructor(
+        @ApplicationContext private val applicationContext: Context,
         private val environment: AppEnvironment,
         private val contextoExchange: SesionesContextoExchange,
         private val sessionStore: SecureSessionStore,
         private val seedJwtCache: SeedJwtCache,
         private val refreshCoordinator: VaiinillaJwtRefreshCoordinator,
     ) {
-        private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+        /**
+         * Seed accounts are a debug-only convenience. They must never replace the
+         * student's FirebaseAuth.currentUser in the primary app instance.
+         */
+        private val auth: FirebaseAuth by lazy {
+            FirebaseAuth.getInstance(seedFirebaseApp())
+        }
 
         suspend fun authenticateRole(role: OperationalRole): Result<Unit> =
             withContext(Dispatchers.IO) {
@@ -54,6 +64,31 @@ class FirebaseSeedAuthRepository
                 runCatching {
                     requireSeedAuthAllowed()
                     signInAndExchange(role, forceRefresh).accessToken
+                }
+            }
+
+        /**
+         * Returns a seed JWT for a debug-only heartbeat without touching the
+         * student's active Vaiinilla session or refresh coordinator.
+         */
+        suspend fun ensureRoleJwtForHeartbeat(
+            role: OperationalRole,
+            forceRefresh: Boolean = false,
+        ): Result<String> =
+            withContext(Dispatchers.IO) {
+                if (environment.dataSourceMode != DataSourceMode.REMOTE) {
+                    return@withContext Result.failure(IllegalStateException("Seed auth solo aplica en REMOTE."))
+                }
+                if (!forceRefresh) {
+                    seedJwtCache.get(role)?.let { return@withContext Result.success(it) }
+                }
+                runCatching {
+                    requireSeedAuthAllowed()
+                    signInAndExchange(
+                        role = role,
+                        forceRefresh = forceRefresh,
+                        persistActiveSession = false,
+                    ).accessToken
                 }
             }
 
@@ -99,6 +134,7 @@ class FirebaseSeedAuthRepository
         private suspend fun signInAndExchange(
             role: OperationalRole,
             forceRefresh: Boolean,
+            persistActiveSession: Boolean = true,
         ): SesionesContextoDataDto {
             val account =
                 SeedAccounts.forRole(role)
@@ -116,8 +152,10 @@ class FirebaseSeedAuthRepository
 
             val session = contextoExchange.exchange(firebaseToken, account.membresiaId)
             seedJwtCache.put(role, session.accessToken, session.expiresIn)
-            sessionStore.saveAccessToken(session.accessToken)
-            refreshCoordinator.startSession(role, session.expiresIn)
+            if (persistActiveSession) {
+                sessionStore.saveAccessToken(session.accessToken)
+                refreshCoordinator.startSession(role, session.expiresIn)
+            }
             return session
         }
 
@@ -128,7 +166,19 @@ class FirebaseSeedAuthRepository
             auth.signInWithEmailAndPassword(account.email, account.password).await()
         }
 
+        private fun seedFirebaseApp(): FirebaseApp {
+            val existing =
+                runCatching { FirebaseApp.getInstance(SEED_APP_NAME) }
+                    .getOrNull()
+            if (existing != null) return existing
+
+            val defaultApp = FirebaseApp.getInstance()
+            return FirebaseApp.initializeApp(applicationContext, defaultApp.options, SEED_APP_NAME)
+                ?: FirebaseApp.getInstance(SEED_APP_NAME)
+        }
+
         private companion object {
             const val DEFAULT_EXPIRES_IN_SECONDS = 900
+            const val SEED_APP_NAME = "vaiinilla-seed-auth"
         }
     }

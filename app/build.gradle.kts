@@ -208,6 +208,11 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.mlkit.barcode.scanning)
+    implementation(libs.zxing.core)
     ksp(libs.hilt.compiler)
 
     testImplementation(libs.junit)

@@ -26,6 +26,7 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.auth.RoleAuthViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
+import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
@@ -58,6 +59,13 @@ import com.vaiinilla.app.ui.screens.WalletPaymentMethodsScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
 import com.vaiinilla.app.ui.wallet.rememberWalletUiState
 import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+
+private data class PendingPickupDelivery(
+    val orderId: String,
+    val expectedVersion: Int,
+)
 
 @Composable
 fun AppNavHost(
@@ -119,6 +127,8 @@ fun AppNavHost(
                 ).demoGallerySeeder()
         }
     var testOnlyMode by remember { mutableStateOf(dataSourceResolver.isTestOnlyMode) }
+    var qrScannerOpen by remember { mutableStateOf(false) }
+    var pendingPickupDelivery by remember { mutableStateOf<PendingPickupDelivery?>(null) }
     val demoUnlocked = DemoFeatures.isUnlocked(testOnlyMode)
 
     fun openMockInvitation(token: String) {
@@ -155,17 +165,25 @@ fun AppNavHost(
     }
 
     fun navigateAuthorizedMode(modeRole: OperationalRole) {
+        // Keep a guest cart in its tenant-scoped snapshot, but do not carry the
+        // guest venue/catalog state into an authenticated operational context.
+        orderFlowViewModel.clearGuestVenueForDemo()
         when (modeRole) {
             OperationalRole.CASHIER -> navController.navigate(Routes.CASHIER) { launchSingleTop = true }
             OperationalRole.KITCHEN -> navController.navigate(Routes.KITCHEN) { launchSingleTop = true }
             OperationalRole.WAITER -> navController.navigate(Routes.WAITER) { launchSingleTop = true }
-            OperationalRole.CLIENT -> navController.navigateStudent(Routes.CATALOG)
+            OperationalRole.CLIENT -> {
+                orderFlowViewModel.refresh()
+                navController.navigateStudent(Routes.CATALOG)
+            }
         }
     }
 
     fun returnToClientFromAuthorizedMode() {
         authorizedAccessViewModel.returnToClient {
             operationalViewModel.setRole(OperationalRole.CLIENT)
+            orderFlowViewModel.clearGuestVenueForDemo()
+            orderFlowViewModel.refresh()
             navController.navigateStudent(Routes.CATALOG)
         }
     }
@@ -185,6 +203,38 @@ fun AppNavHost(
             }
         if (!stillAuthorized) {
             returnToClientFromAuthorizedMode()
+        }
+    }
+
+    LaunchedEffect(
+        authorizedAccessState.activeContext?.membershipId,
+        dataSourceResolver.effectiveMode(),
+    ) {
+        if (
+            dataSourceResolver.effectiveMode() != DataSourceMode.REMOTE ||
+            authorizedAccessState.activeContext == null
+        ) {
+            return@LaunchedEffect
+        }
+        while (isActive) {
+            delay(AUTHORIZED_ACCESS_SYNC_INTERVAL_MS)
+            if (!isActive) break
+            authorizedAccessViewModel.syncAuthorizedAccessOrReturnToClient(
+                onForcedToClient = ::returnToClientFromAuthorizedMode,
+            )
+        }
+    }
+
+    LaunchedEffect(
+        studentAuthState.session?.uid,
+        studentAuthState.session?.emailVerified,
+        dataSourceResolver.effectiveMode(),
+    ) {
+        if (
+            dataSourceResolver.effectiveMode() == DataSourceMode.REMOTE &&
+            studentAuthState.session?.emailVerified == true
+        ) {
+            authorizedAccessViewModel.refreshModes(force = true)
         }
     }
 
@@ -410,6 +460,7 @@ fun AppNavHost(
                     state = discoveryState,
                     onQueryChange = discoveryViewModel::updateQuery,
                     onSpaceTokenChange = discoveryViewModel::updateSpaceToken,
+                    onOpenQrScanner = { qrScannerOpen = true },
                     onSelectEstablishment = { establishment ->
                         discoveryViewModel.selectEstablishment(
                             establishment = establishment,
@@ -427,6 +478,7 @@ fun AppNavHost(
                         val selected = discoveryState.selected ?: return@DiscoveryScreen
                         enterVenueAndOpenCatalog(selected)
                     },
+                    showMockHint = dataSourceResolver.effectiveMode() == DataSourceMode.MOCK,
                     onOpenDemoRoles = {
                         if (DemoFeatures.toolsAvailable) {
                             testOnlyMode = true
@@ -437,6 +489,19 @@ fun AppNavHost(
                         }
                     },
                 )
+
+                if (qrScannerOpen) {
+                    QrScannerDialog(
+                        onClose = { qrScannerOpen = false },
+                        onPayload = { rawValue ->
+                            qrScannerOpen = false
+                            discoveryViewModel.resolveQrPayload(
+                                rawValue = rawValue,
+                                onEntered = ::enterVenueAndOpenCatalog,
+                            )
+                        },
+                    )
+                }
             }
 
             composable(Routes.ROLE_SELECTOR) {
@@ -570,6 +635,15 @@ fun AppNavHost(
                             launchSingleTop = true
                         }
                     },
+                    onOpenModes =
+                        if (
+                            authorizedAccessState.activeContext == null &&
+                            authorizedAccessState.hasMultipleModes
+                        ) {
+                            { navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true } }
+                        } else {
+                            null
+                        },
                 )
             }
 
@@ -719,7 +793,7 @@ fun AppNavHost(
                     onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
                     onOpenAssistant = { navigateDemo(Routes.ASSISTANT) },
                     onOpenWallet = { navigateDemo(Routes.WALLET) },
-                    showDemoTabs = demoUnlocked,
+                    showDemoTabs = demoUnlocked && dataSourceResolver.effectiveMode() == DataSourceMode.MOCK,
                     guestAuthRequired = guestAuthRequired,
                 )
             }
@@ -921,7 +995,10 @@ fun AppNavHost(
                         },
                     onOpenCashSession = operationalViewModel::openCashRegister,
                     onCollect = operationalViewModel::collectCash,
-                    onDeliver = operationalViewModel::deliver,
+                    onDeliver = { orderId, version -> operationalViewModel.deliver(orderId, version) },
+                    onScanDeliver = { orderId, version ->
+                        pendingPickupDelivery = PendingPickupDelivery(orderId, version)
+                    },
                     onChangeMode =
                         if (authorizedCashier && authorizedAccessState.hasMultipleModes) {
                             {
@@ -931,6 +1008,10 @@ fun AppNavHost(
                         } else {
                             null
                         },
+                    restrictedMode =
+                        authorizedAccessState.activeContext
+                            ?.takeIf { it.role == OperationalRole.CASHIER }
+                            ?.restrictedMode,
                 )
             }
 
@@ -965,6 +1046,10 @@ fun AppNavHost(
                         } else {
                             null
                         },
+                    restrictedMode =
+                        authorizedAccessState.activeContext
+                            ?.takeIf { it.role == OperationalRole.KITCHEN }
+                            ?.restrictedMode,
                 )
             }
 
@@ -988,7 +1073,10 @@ fun AppNavHost(
                         } else {
                             returnToRoles(navController, operationalViewModel)
                         },
-                    onDeliver = operationalViewModel::deliver,
+                    onDeliver = { orderId, version -> operationalViewModel.deliver(orderId, version) },
+                    onScanDeliver = { orderId, version ->
+                        pendingPickupDelivery = PendingPickupDelivery(orderId, version)
+                    },
                     onChangeMode =
                         if (authorizedWaiter && authorizedAccessState.hasMultipleModes) {
                             {
@@ -998,11 +1086,35 @@ fun AppNavHost(
                         } else {
                             null
                         },
+                    restrictedMode =
+                        authorizedAccessState.activeContext
+                            ?.takeIf { it.role == OperationalRole.WAITER }
+                            ?.restrictedMode,
                 )
             }
         }
     }
+
+    if (pendingPickupDelivery != null) {
+        QrScannerDialog(
+            onClose = { pendingPickupDelivery = null },
+            helperText = "Apunta al QR de recogida que muestra el alumno",
+            onPayload = { rawValue ->
+                val target = pendingPickupDelivery
+                pendingPickupDelivery = null
+                if (target != null) {
+                    operationalViewModel.deliver(
+                        orderId = target.orderId,
+                        expectedVersion = target.expectedVersion,
+                        scannedPickupToken = rawValue,
+                    )
+                }
+            },
+        )
+    }
 }
+
+private const val AUTHORIZED_ACCESS_SYNC_INTERVAL_MS = 30_000L
 
 private fun NavHostController.navigateStudent(route: String) {
     navigate(route) {

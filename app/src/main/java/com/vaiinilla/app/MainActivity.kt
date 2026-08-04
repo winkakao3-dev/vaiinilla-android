@@ -26,9 +26,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        pendingEstablishmentSlug = establishmentSlugFrom(intent)
-        pendingInvitationToken = invitationTokenFrom(intent)
-        pendingMockInvitationToken = mockInvitationTokenFrom(intent)
+        captureDeepLink(intent)
         enableEdgeToEdge(
             statusBarStyle =
                 SystemBarStyle.light(
@@ -69,9 +67,15 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        pendingEstablishmentSlug = establishmentSlugFrom(intent)
-        pendingInvitationToken = invitationTokenFrom(intent)
-        pendingMockInvitationToken = mockInvitationTokenFrom(intent)
+        captureDeepLink(intent)
+    }
+
+    private fun captureDeepLink(source: Intent?) {
+        pendingEstablishmentSlug = establishmentSlugFrom(source)
+        pendingInvitationToken = invitationTokenFrom(source)
+        pendingMockInvitationToken = mockInvitationTokenFrom(source)
+        // Do not retain invitation tokens in the Activity intent after capture.
+        source?.data = null
     }
 
     companion object {

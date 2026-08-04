@@ -25,12 +25,14 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.ui.components.OperationalEmptyState
 import com.vaiinilla.app.ui.components.OrderSummaryCard
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.operational.OperationalUiState
+import com.vaiinilla.app.ui.theme.Coral
 import com.vaiinilla.app.ui.theme.Cream
 import com.vaiinilla.app.ui.theme.MutedInk
 import java.math.BigDecimal
@@ -42,7 +44,9 @@ fun CashierOperationalScreen(
     onOpenCashSession: () -> Unit,
     onCollect: (orderId: String, amount: String, version: Int) -> Unit,
     onDeliver: (orderId: String, version: Int) -> Unit,
+    onScanDeliver: (orderId: String, version: Int) -> Unit = { _, _ -> },
     onChangeMode: (() -> Unit)? = null,
+    restrictedMode: RestrictedMode? = null,
 ) {
     val pending = state.orders.filter { it.summary.state == OrderState.PENDING_PAYMENT }
     val ready = state.orders.filter { it.summary.state == OrderState.READY }
@@ -56,6 +60,8 @@ fun CashierOperationalScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item { OperationalHeader("Caja", "Ventanas 32–33", onBack, onChangeMode) }
+        restrictedMode?.let { mode -> item { RestrictedModeNotice(mode) } }
+        state.errorMessage?.let { message -> item { OperationalError(message) } }
         item {
             val open = state.cashSessionOpen
             Text(
@@ -70,7 +76,7 @@ fun CashierOperationalScreen(
             if (open == false) {
                 androidx.compose.material3.Button(
                     onClick = onOpenCashSession,
-                    enabled = !state.acting,
+                    enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("Abrir caja (500.00)", fontWeight = FontWeight.Black)
@@ -91,6 +97,7 @@ fun CashierOperationalScreen(
                     order = order,
                     acting = state.acting,
                     onCollect = onCollect,
+                    restrictedMode = restrictedMode,
                 )
             }
         }
@@ -104,11 +111,18 @@ fun CashierOperationalScreen(
             }
         } else {
             items(ready, key = { it.summary.id }) { order ->
+                val hasLocalPickupToken = !order.pickupToken.isNullOrBlank()
                 OrderSummaryCard(
                     order = order,
-                    actionLabel = "Confirmar entrega",
-                    enabled = !state.acting,
-                    onAction = { onDeliver(order.summary.id, order.summary.version) },
+                    actionLabel = if (hasLocalPickupToken) "Confirmar entrega" else "Escanear QR y entregar",
+                    enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
+                    onAction = {
+                        if (hasLocalPickupToken) {
+                            onDeliver(order.summary.id, order.summary.version)
+                        } else {
+                            onScanDeliver(order.summary.id, order.summary.version)
+                        }
+                    },
                 )
             }
         }
@@ -120,6 +134,7 @@ private fun CashCollectionCard(
     order: OrderDetail,
     acting: Boolean,
     onCollect: (orderId: String, amount: String, version: Int) -> Unit,
+    restrictedMode: RestrictedMode?,
 ) {
     var received by remember(order.summary.id) { mutableStateOf(order.summary.total) }
     val change =
@@ -131,6 +146,7 @@ private fun CashCollectionCard(
             value = received,
             onValueChange = { received = it },
             modifier = Modifier.fillMaxWidth(),
+            enabled = restrictedMode != RestrictedMode.READ_ONLY,
             label = { Text("Efectivo recibido") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             singleLine = true,
@@ -147,7 +163,11 @@ private fun CashCollectionCard(
         OrderSummaryCard(
             order = order,
             actionLabel = "Confirmar cobro",
-            enabled = !acting && change != null && change >= BigDecimal.ZERO,
+            enabled =
+                !acting &&
+                    restrictedMode != RestrictedMode.READ_ONLY &&
+                    change != null &&
+                    change >= BigDecimal.ZERO,
             onAction = { onCollect(order.summary.id, received, order.summary.version) },
         )
     }
@@ -160,6 +180,7 @@ fun KitchenOperationalScreen(
     onStart: (orderId: String, version: Int) -> Unit,
     onReady: (orderId: String, version: Int) -> Unit,
     onChangeMode: (() -> Unit)? = null,
+    restrictedMode: RestrictedMode? = null,
 ) {
     val active =
         state.orders.filter {
@@ -174,6 +195,8 @@ fun KitchenOperationalScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item { OperationalHeader("Cocina", "Ventanas 36–38", onBack, onChangeMode) }
+        restrictedMode?.let { mode -> item { RestrictedModeNotice(mode) } }
+        state.errorMessage?.let { message -> item { OperationalError(message) } }
         if (active.isEmpty()) {
             item {
                 OperationalEmptyState(
@@ -192,7 +215,7 @@ fun KitchenOperationalScreen(
                 OrderSummaryCard(
                     order = order,
                     actionLabel = action.first,
-                    enabled = !state.acting,
+                    enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
                     onAction = action.second,
                 )
             }
@@ -205,7 +228,9 @@ fun WaiterOperationalScreen(
     state: OperationalUiState,
     onBack: () -> Unit,
     onDeliver: (orderId: String, version: Int) -> Unit,
+    onScanDeliver: (orderId: String, version: Int) -> Unit = { _, _ -> },
     onChangeMode: (() -> Unit)? = null,
+    restrictedMode: RestrictedMode? = null,
 ) {
     val ready = state.orders.filter { it.summary.state == OrderState.READY }
     LazyColumn(
@@ -217,6 +242,8 @@ fun WaiterOperationalScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item { OperationalHeader("Mesero", "Ventanas 39–40", onBack, onChangeMode) }
+        restrictedMode?.let { mode -> item { RestrictedModeNotice(mode) } }
+        state.errorMessage?.let { message -> item { OperationalError(message) } }
         if (ready.isEmpty()) {
             item {
                 OperationalEmptyState(
@@ -226,15 +253,42 @@ fun WaiterOperationalScreen(
             }
         } else {
             items(ready, key = { it.summary.id }) { order ->
+                val hasLocalPickupToken = !order.pickupToken.isNullOrBlank()
                 OrderSummaryCard(
                     order = order,
-                    actionLabel = "Confirmar entrega en espacio",
-                    enabled = !state.acting,
-                    onAction = { onDeliver(order.summary.id, order.summary.version) },
+                    actionLabel =
+                        if (hasLocalPickupToken) {
+                            "Confirmar entrega en espacio"
+                        } else {
+                            "Escanear QR y entregar en espacio"
+                        },
+                    enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
+                    onAction = {
+                        if (hasLocalPickupToken) {
+                            onDeliver(order.summary.id, order.summary.version)
+                        } else {
+                            onScanDeliver(order.summary.id, order.summary.version)
+                        }
+                    },
                 )
             }
         }
     }
+}
+
+@Composable
+private fun RestrictedModeNotice(mode: RestrictedMode) {
+    Text(
+        text =
+            when (mode) {
+                RestrictedMode.READ_ONLY ->
+                    "Este establecimiento está en solo lectura. Las acciones operativas están deshabilitadas."
+                RestrictedMode.OPERATIONAL_CLOSE ->
+                    "Este establecimiento está en cierre operativo. El servidor limita las acciones disponibles."
+            },
+        color = MutedInk,
+        style = MaterialTheme.typography.bodySmall,
+    )
 }
 
 @Composable
@@ -268,4 +322,9 @@ private fun OperationalHeader(
 @Composable
 private fun SectionLabel(text: String) {
     Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+}
+
+@Composable
+private fun OperationalError(message: String) {
+    Text(message, color = Coral, fontWeight = FontWeight.Bold)
 }
