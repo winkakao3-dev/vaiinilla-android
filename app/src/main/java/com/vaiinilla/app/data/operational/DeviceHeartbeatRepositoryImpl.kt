@@ -36,7 +36,6 @@ class RemoteDeviceHeartbeatRepository(
                             role = role.wireValue,
                         ),
                     ),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
             ).fold(
                 onSuccess = { Result.success(Unit) },
                 onFailure = { error ->

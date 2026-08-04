@@ -167,6 +167,7 @@ fun CheckoutDestinationPicker(
     selected: OrderDestination,
     selectedSpaceName: String,
     onSelect: (OrderDestination) -> Unit,
+    showInSpace: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -181,21 +182,29 @@ fun CheckoutDestinationPicker(
             onClick = { onSelect(OrderDestination.TAKE_AWAY) },
             modifier = Modifier.weight(1f),
         )
-        DestinationOption(
-            title = "En mesa",
-            subtitle = selectedSpaceName,
-            icon = Icons.Outlined.Restaurant,
-            selected = selected == OrderDestination.IN_SPACE,
-            onClick = { onSelect(OrderDestination.IN_SPACE) },
-            modifier = Modifier.weight(1f),
-        )
+        if (showInSpace) {
+            DestinationOption(
+                title = "En mesa",
+                subtitle = selectedSpaceName,
+                icon = Icons.Outlined.Restaurant,
+                selected = selected == OrderDestination.IN_SPACE,
+                onClick = { onSelect(OrderDestination.IN_SPACE) },
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
+
+data class CheckoutSpaceOption(
+    val id: Int,
+    val name: String,
+)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CheckoutSpacePicker(
     selectedSpaceId: Int,
+    spaces: List<CheckoutSpaceOption>,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -212,7 +221,7 @@ fun CheckoutSpacePicker(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            DemoCheckoutFixtures.DEMO_SPACES.forEach { space ->
+            spaces.forEach { space ->
                 val selected = space.id == selectedSpaceId
                 Surface(
                     modifier =

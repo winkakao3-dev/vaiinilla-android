@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.config.AppEnvironment
+import com.vaiinilla.app.core.config.DataSourceMode
 import com.vaiinilla.app.core.config.EffectiveDataSourceResolver
 import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
@@ -15,13 +16,13 @@ import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.Money
-import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
 import com.vaiinilla.app.domain.usecase.CreateOrderUseCase
+import com.vaiinilla.app.domain.usecase.CreateRemoteOrderUseCase
 import com.vaiinilla.app.domain.usecase.CreateStudentCheckoutUseCase
 import com.vaiinilla.app.domain.usecase.GetCatalogUseCase
 import com.vaiinilla.app.domain.usecase.GetOperationalStatusUseCase
@@ -42,6 +43,7 @@ class OrderFlowViewModel
         private val getOperationalStatus: GetOperationalStatusUseCase,
         private val buildCreateOrderRequest: BuildCreateOrderRequestUseCase,
         private val createOrder: CreateOrderUseCase,
+        private val createRemoteOrder: CreateRemoteOrderUseCase,
         private val createStudentCheckout: CreateStudentCheckoutUseCase,
         private val staffPresenceCoordinator: StaffPresenceCoordinator,
         private val dataSourceResolver: EffectiveDataSourceResolver,
@@ -73,12 +75,18 @@ class OrderFlowViewModel
         }
 
         fun enterGuestVenue(venue: GuestVenueContext) {
-            persistCurrentCartIfNeeded()
             val storageKey =
                 guestSessionStore.cartStorageKey(
                     venue.establishment.id,
                     venue.space?.id,
                 )
+            // A cart reload can be triggered twice while returning from auth: once by
+            // finishStudentAuth and once by the Cart destination. Do not persist the
+            // already-reset in-memory state over the durable snapshot when both loads
+            // target the same venue. Only save when changing tenant/space.
+            if (activeCartStorageKey != null && activeCartStorageKey != storageKey) {
+                persistCurrentCartIfNeeded()
+            }
             activeCartStorageKey = storageKey
             val previous = _uiState.value
             _uiState.value =
@@ -105,7 +113,15 @@ class OrderFlowViewModel
                     withContext(Dispatchers.IO) {
                         discoveryRepository.getGuestCatalog(venue.establishment.slug)
                     }
-                val statusResult = withContext(Dispatchers.IO) { getOperationalStatus() }
+                // Public discovery must not require a Vaiinilla session. REMOTE exposes
+                // operational status through an authenticated route, so defer that check
+                // until checkout after Firebase enrollment/context exchange.
+                val statusResult =
+                    if (dataSourceResolver.effectiveMode() == DataSourceMode.MOCK) {
+                        withContext(Dispatchers.IO) { getOperationalStatus() }
+                    } else {
+                        null
+                    }
                 val catalog = catalogResult.getOrNull()
                 val restored =
                     if (catalog != null) {
@@ -118,13 +134,13 @@ class OrderFlowViewModel
                     }
                 // Public guest discovery is valid without identity. Operational status is
                 // authenticated, so its failure must not hide a catalog that loaded correctly.
-                val failure = firstGuestVenueFailure(catalogResult, statusResult)
+                val failure = catalogResult.exceptionOrNull()
                 val suspended = DiscoveryFailures.isEstablishmentSuspended(failure)
                 _uiState.value =
                     _uiState.value.copy(
                         loading = false,
                         catalog = catalog,
-                        operationalStatus = statusResult.getOrNull(),
+                        operationalStatus = statusResult?.getOrNull(),
                         cartLines = restored,
                         errorMessage = failure?.message,
                         guestVenueSuspended = suspended,
@@ -353,6 +369,17 @@ class OrderFlowViewModel
         }
 
         fun updateCheckoutDestination(destination: OrderDestination) {
+            if (
+                destination == OrderDestination.IN_SPACE &&
+                dataSourceResolver.effectiveMode() == DataSourceMode.REMOTE &&
+                _uiState.value.guestVenue?.space == null
+            ) {
+                _uiState.value =
+                    _uiState.value.copy(
+                        createOrderError = "Escanea el QR de un espacio para pedir en mesa.",
+                    )
+                return
+            }
             pendingIdempotencyKey = null
             _uiState.value =
                 _uiState.value.copy(
@@ -371,6 +398,13 @@ class OrderFlowViewModel
         }
 
         fun updateCheckoutPayment(payment: PaymentMethod) {
+            if (dataSourceResolver.effectiveMode() == DataSourceMode.REMOTE && payment != PaymentMethod.CASH) {
+                _uiState.value =
+                    _uiState.value.copy(
+                        createOrderError = "Este backend sólo tiene pago en efectivo habilitado.",
+                    )
+                return
+            }
             pendingIdempotencyKey = null
             _uiState.value =
                 _uiState.value.copy(
@@ -423,18 +457,21 @@ class OrderFlowViewModel
             _uiState.value = state.copy(creatingOrder = true, createOrderError = null)
             viewModelScope.launch {
                 var current = _uiState.value
-                if (dataSourceResolver.usesNetwork() && current.usesStudentCheckout) {
-                    _uiState.value =
-                        current.copy(
-                            creatingOrder = false,
-                            createOrderError = "Saldo, tarjeta y mesa están disponibles en modo demo local.",
-                        )
-                    return@launch
-                }
-
                 if (dataSourceResolver.usesNetwork()) {
-                    withContext(Dispatchers.IO) {
-                        staffPresenceCoordinator.primeStaffPresence(activeRole = OperationalRole.CLIENT)
+                    val staffPresenceResult =
+                        withContext(Dispatchers.IO) {
+                            staffPresenceCoordinator.primeStaffPresence()
+                        }
+                    if (staffPresenceResult.isFailure) {
+                        val reason =
+                            staffPresenceResult.exceptionOrNull()?.message
+                                ?: "No se pudo avisar a Caja y Cocina."
+                        _uiState.value =
+                            current.copy(
+                                creatingOrder = false,
+                                createOrderError = "No pudimos validar la disponibilidad operativa. $reason",
+                            )
+                        return@launch
                     }
                     val status = withContext(Dispatchers.IO) { getOperationalStatus() }.getOrNull()
                     if (status != null) {
@@ -469,7 +506,9 @@ class OrderFlowViewModel
                     }
                 val result =
                     withContext(Dispatchers.IO) {
-                        if (current.usesStudentCheckout) {
+                        if (current.dataSourceMode == DataSourceMode.REMOTE) {
+                            createRemoteOrder(request, idempotencyKey)
+                        } else if (current.usesStudentCheckout) {
                             createStudentCheckout(request, idempotencyKey)
                         } else {
                             createOrder(request, idempotencyKey)
@@ -618,5 +657,5 @@ class OrderFlowViewModel
 
 internal fun firstGuestVenueFailure(
     catalogResult: Result<*>,
-    statusResult: Result<*>,
-): Throwable? = catalogResult.exceptionOrNull() ?: statusResult.exceptionOrNull()
+    _statusResult: Result<*>,
+): Throwable? = catalogResult.exceptionOrNull()

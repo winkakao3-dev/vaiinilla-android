@@ -33,12 +33,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.vaiinilla.app.core.config.DataSourceMode
 import com.vaiinilla.app.domain.model.CartLine
+import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.components.CheckoutDestinationPicker
 import com.vaiinilla.app.ui.components.CheckoutPaymentPicker
+import com.vaiinilla.app.ui.components.CheckoutSpaceOption
 import com.vaiinilla.app.ui.components.CheckoutSpacePicker
 import com.vaiinilla.app.ui.components.DemoEmptyState
 import com.vaiinilla.app.ui.components.EditorialNotesField
@@ -73,10 +76,30 @@ fun CartScreen(
     guestAuthRequired: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
+    val checkoutSpaces =
+        if (state.dataSourceMode == DataSourceMode.MOCK) {
+            DemoCheckoutFixtures.DEMO_SPACES.map { space -> CheckoutSpaceOption(space.id, space.name) }
+        } else {
+            state.guestVenue
+                ?.space
+                ?.let { space -> listOf(CheckoutSpaceOption(space.id, space.name)) }
+                .orEmpty()
+        }
+    val canChooseInSpace = checkoutSpaces.isNotEmpty()
     val insufficientBalance =
         state.checkoutPayment == PaymentMethod.BALANCE &&
             !state.hasSufficientBalance(walletBalance)
-    val canConfirm = state.canCreateOrder && !insufficientBalance
+    // A guest must be able to continue into Firebase auth before the protected
+    // operational-status check runs. submitOrder performs that check after auth.
+    val canConfirm =
+        if (guestAuthRequired) {
+            state.cartLines.isNotEmpty() && !state.creatingOrder && !insufficientBalance
+        } else {
+            state.cartLines.isNotEmpty() &&
+                !state.creatingOrder &&
+                (state.canCreateOrder || state.operationalStatus == null) &&
+                !insufficientBalance
+        }
 
     Box(
         modifier =
@@ -120,12 +143,14 @@ fun CartScreen(
                         selected = state.checkoutDestination,
                         selectedSpaceName = state.selectedSpaceName,
                         onSelect = onDestinationChange,
+                        showInSpace = canChooseInSpace,
                     )
                 }
-                if (state.checkoutDestination == OrderDestination.IN_SPACE) {
+                if (state.checkoutDestination == OrderDestination.IN_SPACE && canChooseInSpace) {
                     item {
                         CheckoutSpacePicker(
                             selectedSpaceId = state.selectedSpaceId,
+                            spaces = checkoutSpaces,
                             onSelect = onSpaceChange,
                         )
                     }
@@ -148,7 +173,7 @@ fun CartScreen(
                     )
                 }
                 item { OrderSummaryCard(state = state) }
-                if (state.requiresOperationalReady) {
+                if (state.requiresOperationalReady && !guestAuthRequired && state.operationalStatus != null) {
                     state.operationalBlockerMessage?.let { blocker ->
                         item {
                             WarningBanner(message = blocker)

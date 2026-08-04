@@ -85,6 +85,7 @@ fun CatalogScreen(
     onOpenAssistant: () -> Unit = {},
     onOpenWallet: () -> Unit = {},
     onChangeVenue: () -> Unit = {},
+    onOpenModes: (() -> Unit)? = null,
 ) {
     when {
         state.loading -> LoadingCatalog()
@@ -111,6 +112,7 @@ fun CatalogScreen(
                 onOpenAssistant = onOpenAssistant,
                 onOpenWallet = onOpenWallet,
                 onChangeVenue = onChangeVenue,
+                onOpenModes = onOpenModes,
             )
         else ->
             CatalogError(
@@ -138,6 +140,7 @@ private fun CatalogContent(
     onOpenAssistant: () -> Unit,
     onOpenWallet: () -> Unit,
     onChangeVenue: () -> Unit,
+    onOpenModes: (() -> Unit)?,
 ) {
     val catalog = requireNotNull(state.catalog)
     val colors = LocalVaiinillaColors.current
@@ -186,6 +189,7 @@ private fun CatalogContent(
                     onCategorySelected = onCategorySelected,
                     onOpenCart = onOpenCart,
                     onChangeVenue = onChangeVenue,
+                    onOpenModes = onOpenModes,
                     onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
                 )
             }
@@ -256,6 +260,7 @@ private fun CatalogHeader(
     onCategorySelected: (Int?) -> Unit,
     onOpenCart: () -> Unit,
     onChangeVenue: () -> Unit,
+    onOpenModes: (() -> Unit)?,
     onCycleTheme: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -369,6 +374,20 @@ private fun CatalogHeader(
                         }
                     },
                 )
+            }
+        }
+
+        if (onOpenModes != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(
+                    onClick = onOpenModes,
+                    modifier = Modifier.padding(top = 2.dp),
+                ) {
+                    Text("Cambiar modo", color = colors.accentInk, fontWeight = FontWeight.Black)
+                }
             }
         }
 

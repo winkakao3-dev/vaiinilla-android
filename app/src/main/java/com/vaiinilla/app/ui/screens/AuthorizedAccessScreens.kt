@@ -265,10 +265,11 @@ fun AuthorizedModeScreen(
                     )
                 }
             }
-            items(state.modes, key = { "${it.establishmentId}-${it.role.wireValue}" }) { mode ->
+            items(state.modes, key = { "${it.establishmentId}-${it.membershipId}-${it.role.wireValue}" }) { mode ->
                 val isActive =
                     activeContext?.role == mode.role &&
-                        activeContext.establishmentId == mode.establishmentId
+                        activeContext.establishmentId == mode.establishmentId &&
+                        activeContext.membershipId == mode.membershipId
                 Surface(
                     color = colors.paper2,
                     shape = RoundedCornerShape(22.dp),

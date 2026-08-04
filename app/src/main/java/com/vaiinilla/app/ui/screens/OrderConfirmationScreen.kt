@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.theme.Lime
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -508,6 +509,7 @@ private fun ReceiptPaperOutput(
     progress: () -> Float,
     modifier: Modifier = Modifier,
 ) {
+    val pickupToken = order.pickupToken
     Surface(
         modifier =
             modifier
@@ -577,13 +579,29 @@ private fun ReceiptPaperOutput(
                 verticalAlignment = Alignment.Bottom,
             ) {
                 Column(modifier = Modifier.weight(1.25f)) {
-                    TicketBarcode(
-                        seed = order.summary.folio,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(104.dp),
-                    )
+                    if (!pickupToken.isNullOrBlank()) {
+                        VaiinillaQrCode(
+                            value = pickupToken,
+                            qrSize = 128.dp,
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                        )
+                        Text(
+                            "QR DE RECOGIDA",
+                            color = PaperText,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 8.sp,
+                            letterSpacing = 1.2.sp,
+                            modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 6.dp),
+                        )
+                    } else {
+                        TicketBarcode(
+                            seed = order.summary.folio,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(104.dp),
+                        )
+                    }
                     Text(
                         order.summary.id
                             .takeLast(14)

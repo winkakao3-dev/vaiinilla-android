@@ -10,6 +10,7 @@ import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.config.DataSourceMode
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.auth.ContextoExchanger
+import com.vaiinilla.app.data.auth.student.AccessEmailApi
 import com.vaiinilla.app.data.auth.student.FixtureStudentAuthRepository
 import com.vaiinilla.app.data.auth.student.StudentAuthEmailExistsException
 import com.vaiinilla.app.data.auth.student.StudentAuthPreferences
@@ -38,6 +39,7 @@ class StudentAuthViewModel
         private val preferences: StudentAuthPreferences,
         private val environment: AppEnvironment,
         private val fixtureAuthRepository: FixtureStudentAuthRepository,
+        private val remoteAccessEmailApi: AccessEmailApi,
     ) : ViewModel() {
         private val _state = mutableStateOf(StudentAuthUiState())
         val state: State<StudentAuthUiState> = _state
@@ -104,12 +106,13 @@ class StudentAuthViewModel
                 authRepository.signUp(current.email, current.password, current.name).fold(
                     onSuccess = { session ->
                         logTermsAcceptance(current)
-                        authRepository.sendEmailVerification()
+                        val verificationResult = sendVerificationEmail()
                         _state.value =
                             _state.value.copy(
                                 loading = false,
                                 session = session,
-                                verificationSent = true,
+                                verificationSent = verificationResult.isSuccess,
+                                errorMessage = verificationResult.exceptionOrNull()?.message,
                             )
                         onSuccess()
                     },
@@ -171,7 +174,7 @@ class StudentAuthViewModel
         fun resendVerification() {
             _state.value = _state.value.copy(loading = true, errorMessage = null)
             viewModelScope.launch {
-                authRepository.sendEmailVerification().fold(
+                sendVerificationEmail().fold(
                     onSuccess = {
                         _state.value =
                             _state.value.copy(
@@ -230,7 +233,7 @@ class StudentAuthViewModel
             }
             _state.value = _state.value.copy(loading = true, errorMessage = null)
             viewModelScope.launch {
-                authRepository.sendPasswordReset(email).fold(
+                sendPasswordResetEmail(email).fold(
                     onSuccess = {
                         _state.value =
                             _state.value.copy(
@@ -349,6 +352,23 @@ class StudentAuthViewModel
                     },
                 )
             }
+        }
+
+        private suspend fun sendVerificationEmail(): Result<Unit> {
+            if (environment.dataSourceMode != DataSourceMode.REMOTE) {
+                return authRepository.sendEmailVerification()
+            }
+            return authRepository.getIdToken(forceRefresh = true).fold(
+                onSuccess = remoteAccessEmailApi::sendVerification,
+                onFailure = { Result.failure(it) },
+            )
+        }
+
+        private suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
+            if (environment.dataSourceMode != DataSourceMode.REMOTE) {
+                return authRepository.sendPasswordReset(email)
+            }
+            return remoteAccessEmailApi.sendRecovery(email)
         }
 
         fun isReadyForCheckout(): Boolean {

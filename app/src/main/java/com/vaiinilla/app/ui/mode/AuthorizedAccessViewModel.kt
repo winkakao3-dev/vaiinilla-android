@@ -428,7 +428,9 @@ class AuthorizedAccessViewModel
             }
             val stillAuthorized =
                 _state.value.modes.any {
-                    it.role == active.role && it.establishmentId == active.establishmentId
+                    it.role == active.role &&
+                        it.establishmentId == active.establishmentId &&
+                        it.membershipId == active.membershipId
                 }
             if (stillAuthorized) {
                 _state.value = _state.value.copy(loading = false)
@@ -471,16 +473,20 @@ class AuthorizedAccessViewModel
             context: AuthorizedModeContext,
         ) {
             sessionStore.saveAccessToken(context.accessToken)
-            refreshCoordinator.startSession(context.role, context.expiresIn) {
-                kotlinx.coroutines.runBlocking {
-                    repository.activateMode(mode, session).fold(
-                        onSuccess = { refreshed ->
-                            sessionStore.saveAccessToken(refreshed.accessToken)
-                            Result.success(Unit)
-                        },
-                        onFailure = { Result.failure(it) },
-                    )
-                }
-            }
+            refreshCoordinator.startSession(
+                role = context.role,
+                expiresInSeconds = context.expiresIn,
+                refresh = {
+                    kotlinx.coroutines.runBlocking {
+                        repository.activateMode(mode, session).fold(
+                            onSuccess = { refreshed ->
+                                sessionStore.saveAccessToken(refreshed.accessToken)
+                                Result.success(Unit)
+                            },
+                            onFailure = { Result.failure(it) },
+                        )
+                    }
+                },
+            )
         }
     }

@@ -4,7 +4,11 @@ import com.vaiinilla.app.data.mode.AuthorizedAccessApi
 import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthSession
+import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
+import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRequest
+import com.vaiinilla.app.domain.auth.student.StudentEnrollmentResult
 import com.vaiinilla.app.domain.mode.AuthorizedMode
+import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.OperationalRole
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -26,7 +30,7 @@ class RemoteAuthorizedAccessRepositoryTest {
         runTest {
             val api = RecordingAuthorizedAccessApi()
             api.accessResponse = accessResponse()
-            val repository = RemoteAuthorizedAccessRepository(api, FakeStudentAuthRepository(session))
+            val repository = remoteRepository(api)
 
             val modes = repository.authorizedModes(session).getOrThrow()
 
@@ -43,7 +47,7 @@ class RemoteAuthorizedAccessRepositoryTest {
             val api = RecordingAuthorizedAccessApi()
             api.accessResponse = accessResponse()
             api.contextResponse = contextResponse("membership-cashier", "cajero")
-            val repository = RemoteAuthorizedAccessRepository(api, FakeStudentAuthRepository(session))
+            val repository = remoteRepository(api)
             val mode = repository.authorizedModes(session).getOrThrow().first { it.role == OperationalRole.CASHIER }
 
             val context = repository.activateMode(mode, session).getOrThrow()
@@ -51,6 +55,7 @@ class RemoteAuthorizedAccessRepositoryTest {
             assertEquals("membership-cashier", context.membershipId)
             assertEquals("server-jwt", context.accessToken)
             assertEquals(900, context.expiresIn)
+            assertEquals(RestrictedMode.READ_ONLY, context.restrictedMode)
             assertEquals("membership-cashier", api.activatedMembership)
             assertEquals("firebase-id-token", api.activationToken)
         }
@@ -60,7 +65,7 @@ class RemoteAuthorizedAccessRepositoryTest {
         runTest {
             val api = RecordingAuthorizedAccessApi()
             api.accessResponse = accessResponse()
-            val repository = RemoteAuthorizedAccessRepository(api, FakeStudentAuthRepository(session))
+            val repository = remoteRepository(api)
             val forged =
                 AuthorizedMode(
                     role = OperationalRole.WAITER,
@@ -76,11 +81,31 @@ class RemoteAuthorizedAccessRepositoryTest {
         }
 
     @Test
+    fun `remote activation rejects a context from another establishment`() =
+        runTest {
+            val api = RecordingAuthorizedAccessApi()
+            api.accessResponse = accessResponse()
+            api.contextResponse =
+                contextResponse("membership-cashier", "cajero").replace(
+                    "establishment-a",
+                    "establishment-other",
+                )
+            val repository = remoteRepository(api)
+            val mode = repository.authorizedModes(session).getOrThrow().first { it.role == OperationalRole.CASHIER }
+
+            val result = repository.activateMode(mode, session)
+
+            assertTrue(result.isFailure)
+            assertTrue(result.exceptionOrNull()?.message?.contains("otro establecimiento") == true)
+        }
+
+    @Test
     fun `acceptance uses stable idempotency key and does not preview fake metadata`() =
         runTest {
             val api = RecordingAuthorizedAccessApi()
             api.acceptResponse = invitationAcceptedResponse()
-            val repository = RemoteAuthorizedAccessRepository(api, FakeStudentAuthRepository(session))
+            val enrollment = RecordingStudentEnrollmentRepository()
+            val repository = remoteRepository(api, enrollment)
 
             val preview = repository.invitation("opaque-token").getOrThrow()
             val first = repository.acceptInvitation("opaque-token", session).getOrThrow()
@@ -91,7 +116,30 @@ class RemoteAuthorizedAccessRepositoryTest {
             assertEquals(OperationalRole.KITCHEN, first.role)
             assertEquals(first, second)
             assertEquals(api.acceptIdempotencyKeys.first(), api.acceptIdempotencyKeys.last())
+            assertEquals(2, enrollment.requests.size)
+            assertEquals(listOf("firebase-id-token", "firebase-id-token"), enrollment.tokens)
         }
+
+    @Test
+    fun `remote invitation does not call acceptance when identity enrollment fails`() =
+        runTest {
+            val api = RecordingAuthorizedAccessApi()
+            api.acceptResponse = invitationAcceptedResponse()
+            val enrollment = RecordingStudentEnrollmentRepository()
+            enrollment.failure = IllegalStateException("identity unavailable")
+            val repository = remoteRepository(api, enrollment)
+
+            val result = repository.acceptInvitation("opaque-token", session)
+
+            assertTrue(result.isFailure)
+            assertTrue(api.acceptIdempotencyKeys.isEmpty())
+        }
+
+    private fun remoteRepository(
+        api: RecordingAuthorizedAccessApi,
+        enrollment: RecordingStudentEnrollmentRepository = RecordingStudentEnrollmentRepository(),
+    ): RemoteAuthorizedAccessRepository =
+        RemoteAuthorizedAccessRepository(api, FakeStudentAuthRepository(session), enrollment)
 
     private fun accessResponse(): String =
         """
@@ -138,6 +186,7 @@ class RemoteAuthorizedAccessRepositoryTest {
     private fun contextResponse(
         membershipId: String,
         role: String,
+        restrictedMode: String = "solo_lectura",
     ): String =
         """
         {
@@ -150,7 +199,7 @@ class RemoteAuthorizedAccessRepositoryTest {
               "membresia_id": "$membershipId",
               "establecimiento_id": "establishment-a",
               "rol": "$role",
-              "modo_restringido": null
+              "modo_restringido": "$restrictedMode"
             }
           },
           "meta": {},
@@ -203,12 +252,26 @@ class RemoteAuthorizedAccessRepositoryTest {
         override fun activateContext(
             firebaseIdToken: String,
             membershipId: String,
-            idempotencyKey: String,
         ): Result<String> {
             contextWasCalled = true
             activationToken = firebaseIdToken
             activatedMembership = membershipId
             return Result.success(contextResponse)
+        }
+    }
+
+    private class RecordingStudentEnrollmentRepository : StudentEnrollmentRepository {
+        val requests = mutableListOf<StudentEnrollmentRequest>()
+        val tokens = mutableListOf<String>()
+        var failure: Throwable? = null
+
+        override suspend fun enroll(
+            request: StudentEnrollmentRequest,
+            firebaseIdToken: String,
+        ): Result<StudentEnrollmentResult> {
+            requests += request
+            tokens += firebaseIdToken
+            return failure?.let { Result.failure(it) } ?: Result.success(StudentEnrollmentResult())
         }
     }
 

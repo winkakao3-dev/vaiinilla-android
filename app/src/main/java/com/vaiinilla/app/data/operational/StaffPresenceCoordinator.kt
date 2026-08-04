@@ -1,16 +1,16 @@
 package com.vaiinilla.app.data.operational
 
+import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.core.config.EffectiveDataSourceResolver
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
-import com.vaiinilla.app.core.security.RoleAccessTokenStore
 import com.vaiinilla.app.data.auth.FirebaseSeedAuthRepository
+import com.vaiinilla.app.domain.auth.SeedAccounts
 import com.vaiinilla.app.domain.model.OperationalRole
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,7 +19,6 @@ class StaffPresenceCoordinator
     @Inject
     constructor(
         private val dataSourceResolver: EffectiveDataSourceResolver,
-        private val roleAccessTokenStore: RoleAccessTokenStore,
         private val apiClient: HttpVaiinillaApiClient,
         private val seedAuthRepository: FirebaseSeedAuthRepository,
     ) {
@@ -29,8 +28,15 @@ class StaffPresenceCoordinator
                 encodeDefaults = true
             }
 
-        fun primeStaffPresence(activeRole: OperationalRole? = null): Result<Unit> {
-            if (!dataSourceResolver.usesNetwork()) {
+        fun primeStaffPresence(): Result<Unit> {
+            // This is a debug-only single-device convenience. In normal builds the
+            // backend remains the sole authority for staff availability; the student
+            // flow must not depend on embedded or missing seed credentials.
+            if (
+                !dataSourceResolver.usesNetwork() ||
+                !BuildConfig.SEED_AUTH_ENABLED ||
+                !SeedAccounts.isConfigured()
+            ) {
                 return Result.success(Unit)
             }
 
@@ -40,35 +46,16 @@ class StaffPresenceCoordinator
                     OperationalRole.KITCHEN to "android-cocina",
                 )
 
-            for ((role, _) in staffRoles) {
-                val ensured = runBlocking { seedAuthRepository.ensureRoleJwt(role) }
-                if (ensured.isFailure) {
-                    return Result.failure(
-                        ensured.exceptionOrNull()
-                            ?: IllegalStateException("No se pudo obtener JWT para ${role.name}."),
-                    )
-                }
-            }
-
-            activeRole?.let { role ->
-                val restored = runBlocking { seedAuthRepository.restoreActiveRole(role) }
-                if (restored.isFailure) {
-                    return Result.failure(
-                        restored.exceptionOrNull()
-                            ?: IllegalStateException("No se pudo restaurar la sesión de ${role.name}."),
-                    )
-                }
-            }
-
             var sent = 0
             var failed = 0
             var lastError: String? = null
 
             for ((role, deviceId) in staffRoles) {
-                val token = roleAccessTokenStore.tokenFor(role)?.trim().orEmpty()
+                val tokenResult = runBlocking { seedAuthRepository.ensureRoleJwtForHeartbeat(role) }
+                val token = tokenResult.getOrNull()?.trim().orEmpty()
                 if (token.isEmpty()) {
                     failed++
-                    lastError = "missing_token_${role.name}"
+                    lastError = tokenResult.exceptionOrNull()?.message ?: "missing_token_${role.name}"
                     continue
                 }
 
@@ -83,7 +70,6 @@ class StaffPresenceCoordinator
                                     role = role.wireValue,
                                 ),
                             ),
-                        headers = mapOf("Idempotency-Key" to UUID.randomUUID().toString()),
                     ).fold(
                         onSuccess = { sent++ },
                         onFailure = { error ->

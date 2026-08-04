@@ -27,7 +27,7 @@ relacionado:
 3. UUID como string; cantidades monetarias como string decimal con dos posiciones, por ejemplo `"26.00"`.
 4. Todas las respuestas usan el envelope de `[[05-Estandares-API]]`.
 5. `establecimiento_id`, `usuario_id`, rol, precios, totales, folio y estado nunca son aceptados como autoridad desde el cliente.
-6. Todo `POST` de este flujo exige `Idempotency-Key` UUID.
+6. Todo `POST` de este flujo exige `Idempotency-Key` UUID, excepto `POST /api/v1/latidos`, que es un `upsert` naturalmente repetible.
 7. Las transiciones son atómicas y validan versión/estado actual.
 8. El cliente nunca decide si la caja está operando ni si un rol tiene permiso.
 
@@ -269,7 +269,7 @@ Errores: `401 UNAUTHENTICATED`, `403 MEMBERSHIP_INACTIVE`.
 
 ### `POST /api/v1/latidos`
 
-Roles: `cajero`, `cocina`, `mesero`. Requiere `Idempotency-Key`.
+Roles: `cajero`, `cocina`, `mesero`. No recibe `Idempotency-Key`.
 
 Request:
 

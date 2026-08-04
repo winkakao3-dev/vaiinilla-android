@@ -25,4 +25,5 @@ data class SesionesContextoContextDto(
     @SerialName("membresia_id") val membresiaId: String,
     @SerialName("establecimiento_id") val establecimientoId: String,
     val rol: String,
+    @SerialName("modo_restringido") val modoRestringido: String? = null,
 )

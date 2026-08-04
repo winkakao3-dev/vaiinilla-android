@@ -96,7 +96,7 @@ Estado del paquete: aprobado. Contrato: versión 1.0, aprobado por Jesús Leos e
 - Dinero como string decimal con dos posiciones, por ejemplo `"26.00"`.
 - Todas las respuestas usan envelope `{data, meta, error}`.
 - El cliente no es autoridad para tenant, usuario, rol, precios, totales, folio o estado.
-- Todo `POST` exige `Idempotency-Key` UUID.
+- Todo `POST` exige `Idempotency-Key` UUID, excepto `POST /api/v1/latidos`, que es un `upsert` naturalmente repetible.
 - El servidor es la fuente de verdad.
 
 ### Modelos relevantes
@@ -165,4 +165,3 @@ Si existen comandos adicionales definidos por la implementación, reportarlos. N
 - Devolver un ZIP limpio, reporte detallado y comandos de validación.
 - No incluir `.git`, cachés, builds, `local.properties` ni secretos.
 - No afirmar build/lint/tests verdes sin evidencia real.
-

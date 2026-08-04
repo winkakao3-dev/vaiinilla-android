@@ -95,6 +95,28 @@ class OrderRepositorySelectionTest {
         assertTrue(client.lastBody.contains("\"estado_objetivo\":\"entregado\""))
     }
 
+    @Test
+    fun `remote deliver transition prefers the scanned qr_token over local cache`() {
+        val store = InMemoryPickupTokenStore()
+        store.save("order-1", "v1.cached")
+        val client =
+            RecordingApiClient(
+                postResponse = sampleOrderEnvelope("entregado", version = 5),
+            )
+        val repository = RemoteOrderRepository(client, OrderContractJson(), store)
+
+        repository.transition(
+            orderId = "order-1",
+            targetState = OrderState.DELIVERED,
+            expectedVersion = 4,
+            idempotencyKey = UUID.randomUUID().toString(),
+            pickupToken = "v1.scanned",
+        )
+
+        assertTrue(client.lastBody.contains("\"qr_token\":\"v1.scanned\""))
+        assertFalse(client.lastBody.contains("v1.cached"))
+    }
+
     private fun validRequest() =
         CreateOrderRequest(
             paymentMethod = PaymentMethod.CASH,

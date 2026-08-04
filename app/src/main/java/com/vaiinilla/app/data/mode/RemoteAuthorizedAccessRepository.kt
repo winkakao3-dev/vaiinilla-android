@@ -4,9 +4,12 @@ import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
 import com.vaiinilla.app.data.auth.SesionesContextoDataDto
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthSession
+import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
+import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRequest
 import com.vaiinilla.app.domain.mode.AuthorizedInvitation
 import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.mode.AuthorizedModeContext
+import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import kotlinx.serialization.SerialName
@@ -32,7 +35,6 @@ interface AuthorizedAccessApi {
     fun activateContext(
         firebaseIdToken: String,
         membershipId: String,
-        idempotencyKey: String,
     ): Result<String>
 }
 
@@ -63,13 +65,11 @@ class RemoteAuthorizedAccessApi
         override fun activateContext(
             firebaseIdToken: String,
             membershipId: String,
-            idempotencyKey: String,
         ): Result<String> =
             apiClient.postWithBearer(
                 bearer = firebaseIdToken,
                 path = "sesiones/contexto",
                 body = json.encodeToString(ContextRequest(membershipId)),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
             )
 
         private companion object {
@@ -88,6 +88,7 @@ class RemoteAuthorizedAccessRepository
     constructor(
         private val api: AuthorizedAccessApi,
         private val authRepository: StudentAuthRepository,
+        private val enrollmentRepository: StudentEnrollmentRepository,
     ) : AuthorizedAccessRepository {
         private val json =
             Json {
@@ -121,6 +122,21 @@ class RemoteAuthorizedAccessRepository
                     "Verifica tu correo antes de aceptar la invitación."
                 }
                 val firebaseIdToken = authRepository.getIdToken(forceRefresh = true).getOrThrow()
+                enrollmentRepository
+                    .enroll(
+                        StudentEnrollmentRequest(
+                            nombre =
+                                session.displayName.trim().ifBlank {
+                                    session.email
+                                        .substringBefore('@')
+                                        .trim()
+                                        .ifBlank { "Usuario" }
+                                },
+                            terminosVersion = "2026-07",
+                            privacidadVersion = "2026-07",
+                        ),
+                        firebaseIdToken = firebaseIdToken,
+                    ).getOrThrow()
                 val data =
                     json
                         .decodeFromString<Envelope<InvitationAcceptanceDto>>(
@@ -131,6 +147,12 @@ class RemoteAuthorizedAccessRepository
                                     idempotencyKey = stableIdempotencyKey("invitation", token),
                                 ).getOrThrow(),
                         ).data
+                require(data.membresia.activo) {
+                    "El servidor no activó la membresía de la invitación."
+                }
+                require(data.membresia.id.isNotBlank() && data.membresia.establishmentId.isNotBlank()) {
+                    "La respuesta de la invitación no contiene una membresía válida."
+                }
                 val role = roleFromWire(data.membresia.rol)
                 AuthorizedMode(
                     role = role,
@@ -174,14 +196,22 @@ class RemoteAuthorizedAccessRepository
                                 .activateContext(
                                     firebaseIdToken = firebaseIdToken,
                                     membershipId = mode.membershipId,
-                                    idempotencyKey = stableIdempotencyKey("context", mode.membershipId),
                                 ).getOrThrow(),
                         ).data
                 val context =
                     data.contexto
                         ?: throw IllegalStateException("El servidor no devolvió el contexto activo.")
+                require(data.tokenType.equals("Bearer", ignoreCase = true)) {
+                    "El servidor devolvió un tipo de token no soportado."
+                }
+                require(data.accessToken.isNotBlank() && data.expiresIn > 0) {
+                    "El servidor devolvió una sesión operativa inválida."
+                }
                 require(context.membresiaId == mode.membershipId) {
                     "El contexto recibido no corresponde al acceso seleccionado."
+                }
+                require(context.establecimientoId == mode.establishmentId) {
+                    "El contexto recibido pertenece a otro establecimiento."
                 }
                 val role = roleFromWire(context.rol)
                 require(role == mode.role) {
@@ -194,6 +224,7 @@ class RemoteAuthorizedAccessRepository
                     membershipId = context.membresiaId,
                     accessToken = data.accessToken,
                     expiresIn = data.expiresIn,
+                    restrictedMode = RestrictedMode.fromWireValue(context.modoRestringido),
                 )
             }
 

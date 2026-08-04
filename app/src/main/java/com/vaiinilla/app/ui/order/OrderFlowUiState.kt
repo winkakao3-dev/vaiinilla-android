@@ -96,13 +96,22 @@ val OrderFlowUiState.canCreateOrder: Boolean
 val OrderFlowUiState.checkoutSpaceId: Int?
     get() =
         if (checkoutDestination == OrderDestination.IN_SPACE) {
-            selectedSpaceId
+            if (dataSourceMode == DataSourceMode.REMOTE) {
+                guestVenue?.space?.id
+            } else {
+                selectedSpaceId
+            }
         } else {
             null
         }
 
 val OrderFlowUiState.selectedSpaceName: String
-    get() = DemoCheckoutFixtures.spaceForId(selectedSpaceId)?.name ?: DemoCheckoutFixtures.SPACE_NAME
+    get() =
+        if (dataSourceMode == DataSourceMode.REMOTE) {
+            guestVenue?.space?.name ?: "Escanea el QR de tu mesa"
+        } else {
+            DemoCheckoutFixtures.spaceForId(selectedSpaceId)?.name ?: DemoCheckoutFixtures.SPACE_NAME
+        }
 
 fun OrderFlowUiState.hasSufficientBalance(walletBalance: Int): Boolean {
     if (checkoutPayment != PaymentMethod.BALANCE) return true
@@ -112,8 +121,8 @@ fun OrderFlowUiState.hasSufficientBalance(walletBalance: Int): Boolean {
 
 val OrderFlowUiState.usesStudentCheckout: Boolean
     get() =
-        checkoutPayment != PaymentMethod.CASH ||
-            checkoutDestination != OrderDestination.TAKE_AWAY
+        dataSourceMode == DataSourceMode.MOCK &&
+            (checkoutPayment != PaymentMethod.CASH || checkoutDestination != OrderDestination.TAKE_AWAY)
 
 val OrderFlowUiState.operationalBlockerMessage: String?
     get() {

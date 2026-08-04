@@ -7,6 +7,7 @@ import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.auth.ContextoExchanger
 import com.vaiinilla.app.data.auth.FixtureContextoExchanger
 import com.vaiinilla.app.data.auth.SesionesContextoDataDto
+import com.vaiinilla.app.data.auth.student.AccessEmailApi
 import com.vaiinilla.app.data.auth.student.FixtureStudentAuthRepository
 import com.vaiinilla.app.data.auth.student.StudentAuthPreferences
 import com.vaiinilla.app.data.discovery.FixtureDiscoveryRepository
@@ -171,6 +172,7 @@ class StudentAuthViewModelTest {
                 preferences = preferences,
                 environment = AppEnvironment(DataSourceMode.MOCK, "https://localhost/"),
                 fixtureAuthRepository = authRepository,
+                remoteAccessEmailApi = fakeAccessEmailApi(),
             )
     }
 
@@ -281,6 +283,7 @@ class StudentAuthViewModelTest {
                     preferences = preferences,
                     environment = AppEnvironment(DataSourceMode.MOCK, "https://localhost/"),
                     fixtureAuthRepository = auth,
+                    remoteAccessEmailApi = fakeAccessEmailApi(),
                 )
             vm.refreshGuestVenue()
             vm.updateEmail("ana@test.com")
@@ -295,3 +298,10 @@ class StudentAuthViewModelTest {
             )
         }
 }
+
+private fun fakeAccessEmailApi(): AccessEmailApi =
+    object : AccessEmailApi {
+        override fun sendVerification(firebaseIdToken: String): Result<Unit> = Result.success(Unit)
+
+        override fun sendRecovery(email: String): Result<Unit> = Result.success(Unit)
+    }
