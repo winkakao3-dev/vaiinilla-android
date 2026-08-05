@@ -1,6 +1,8 @@
 package com.vaiinilla.app.data.auth.student
 
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -10,9 +12,9 @@ import javax.inject.Singleton
 
 /** Email delivery routes approved by Entrega 02; Firebase remains the identity provider. */
 interface AccessEmailApi {
-    fun sendVerification(firebaseIdToken: String): Result<Unit>
+    suspend fun sendVerification(firebaseIdToken: String): Result<Unit>
 
-    fun sendRecovery(email: String): Result<Unit>
+    suspend fun sendRecovery(email: String): Result<Unit>
 }
 
 @Singleton
@@ -27,26 +29,30 @@ class RemoteAccessEmailApi
                 explicitNulls = false
             }
 
-        override fun sendVerification(firebaseIdToken: String): Result<Unit> =
-            apiClient
-                .postWithBearer(
-                    bearer = firebaseIdToken,
-                    path = "publico/correos/verificacion",
-                    body = "{}",
-                ).mapCatching { raw ->
-                    requireAccepted(raw)
-                    Unit
-                }
+        override suspend fun sendVerification(firebaseIdToken: String): Result<Unit> =
+            withContext(Dispatchers.IO) {
+                apiClient
+                    .postWithBearer(
+                        bearer = firebaseIdToken,
+                        path = "publico/correos/verificacion",
+                        body = "{}",
+                    ).mapCatching { raw ->
+                        requireAccepted(raw)
+                        Unit
+                    }
+            }
 
-        override fun sendRecovery(email: String): Result<Unit> =
-            apiClient
-                .postPublic(
-                    path = "publico/correos/recuperacion",
-                    body = json.encodeToString(RecoveryRequestDto(email.trim())),
-                ).mapCatching { raw ->
-                    requireAccepted(raw)
-                    Unit
-                }
+        override suspend fun sendRecovery(email: String): Result<Unit> =
+            withContext(Dispatchers.IO) {
+                apiClient
+                    .postPublic(
+                        path = "publico/correos/recuperacion",
+                        body = json.encodeToString(RecoveryRequestDto(email.trim())),
+                    ).mapCatching { raw ->
+                        requireAccepted(raw)
+                        Unit
+                    }
+            }
 
         private fun requireAccepted(raw: String) {
             val response = json.decodeFromString<EmailDispatchEnvelopeDto>(raw)

@@ -3,6 +3,8 @@ package com.vaiinilla.app.data.auth.student
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRequest
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -14,7 +16,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 interface StudentEnrollmentApi {
-    fun enroll(
+    suspend fun enroll(
         request: StudentEnrollmentRequest,
         firebaseIdToken: String,
     ): Result<StudentEnrollmentResult>
@@ -32,45 +34,47 @@ class RemoteStudentEnrollmentApi
                 encodeDefaults = true
             }
 
-        override fun enroll(
+        override suspend fun enroll(
             request: StudentEnrollmentRequest,
             firebaseIdToken: String,
         ): Result<StudentEnrollmentResult> =
-            runCatching {
-                val legalVersions = fetchCurrentLegalVersions().getOrThrow()
-                val body =
-                    json.encodeToString(
-                        AltaIdentidadRequestDto(
-                            nombre = request.nombre,
-                            terminosVersion = legalVersions.terminosVersion,
-                            privacidadVersion = legalVersions.privacidadVersion,
-                        ),
-                    )
-                val raw =
-                    apiClient
-                        .postWithBearer(
-                            bearer = firebaseIdToken,
-                            path = "identidad/alta",
-                            body = body,
-                            headers =
-                                mapOf(
-                                    "Idempotency-Key" to
-                                        UUID
-                                            .nameUUIDFromBytes(
-                                                "vaiinilla:vai26:identidad:${request.nombre}:${legalVersions.terminosVersion}:${legalVersions.privacidadVersion}"
-                                                    .toByteArray(StandardCharsets.UTF_8),
-                                            ).toString(),
-                                ),
-                        ).getOrElse { error ->
-                            if (error is com.vaiinilla.app.core.network.ApiClientException &&
-                                error.httpStatus in listOf(404, 501)
-                            ) {
-                                throw StudentEnrollmentUnavailableException()
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    val legalVersions = fetchCurrentLegalVersions().getOrThrow()
+                    val body =
+                        json.encodeToString(
+                            AltaIdentidadRequestDto(
+                                nombre = request.nombre,
+                                terminosVersion = legalVersions.terminosVersion,
+                                privacidadVersion = legalVersions.privacidadVersion,
+                            ),
+                        )
+                    val raw =
+                        apiClient
+                            .postWithBearer(
+                                bearer = firebaseIdToken,
+                                path = "identidad/alta",
+                                body = body,
+                                headers =
+                                    mapOf(
+                                        "Idempotency-Key" to
+                                            UUID
+                                                .nameUUIDFromBytes(
+                                                    "vaiinilla:vai26:identidad:${request.nombre}:${legalVersions.terminosVersion}:${legalVersions.privacidadVersion}"
+                                                        .toByteArray(StandardCharsets.UTF_8),
+                                                ).toString(),
+                                    ),
+                            ).getOrElse { error ->
+                                if (error is com.vaiinilla.app.core.network.ApiClientException &&
+                                    error.httpStatus in listOf(404, 501)
+                                ) {
+                                    throw StudentEnrollmentUnavailableException()
+                                }
+                                throw error
                             }
-                            throw error
-                        }
-                json.decodeFromString<AltaIdentidadEnvelopeDto>(raw).data
-                StudentEnrollmentResult()
+                    json.decodeFromString<AltaIdentidadEnvelopeDto>(raw).data
+                    StudentEnrollmentResult()
+                }
             }
 
         private fun fetchCurrentLegalVersions(): Result<LegalVersionsDto> =

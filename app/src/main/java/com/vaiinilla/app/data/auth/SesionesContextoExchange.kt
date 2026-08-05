@@ -1,9 +1,10 @@
 package com.vaiinilla.app.data.auth
 
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.nio.charset.StandardCharsets
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -21,53 +22,48 @@ class SesionesContextoExchange
                 explicitNulls = false
             }
 
-        override fun exchange(
+        override suspend fun exchange(
             firebaseIdToken: String,
             establecimientoSlug: String,
             establecimientoId: String,
             identificadorCliente: String?,
-        ): SesionesContextoDataDto {
-            val body =
-                json.encodeToString(
-                    SesionesContextoClienteRequestDto(
-                        establecimientoSlug = establecimientoSlug,
-                        identificadorCliente = identificadorCliente,
-                    ),
-                )
-            val raw =
-                apiClient
-                    .postWithBearer(
-                        bearer = firebaseIdToken,
-                        path = "sesiones/contexto-cliente",
-                        body = body,
-                        headers =
-                            mapOf(
-                                "Idempotency-Key" to
-                                    UUID
-                                        .nameUUIDFromBytes(
-                                            "vaiinilla:vai26:contexto-cliente:$establecimientoSlug:${identificadorCliente.orEmpty()}"
-                                                .toByteArray(StandardCharsets.UTF_8),
-                                        ).toString(),
-                            ),
-                    ).getOrElse { throw it }
-            return json.decodeFromString<SesionesContextoEnvelopeDto>(raw).data
-        }
+        ): SesionesContextoDataDto =
+            withContext(Dispatchers.IO) {
+                val body =
+                    json.encodeToString(
+                        SesionesContextoClienteRequestDto(
+                            establecimientoSlug = establecimientoSlug,
+                            identificadorCliente = identificadorCliente,
+                        ),
+                    )
+                val raw =
+                    apiClient
+                        .postWithBearer(
+                            bearer = firebaseIdToken,
+                            path = "sesiones/contexto-cliente",
+                            body = body,
+                            headers = mapOf("Idempotency-Key" to UUID.randomUUID().toString()),
+                        ).getOrElse { throw it }
+                json.decodeFromString<SesionesContextoEnvelopeDto>(raw).data
+            }
 
         /** Existing seed-role exchange; VAI-26 uses the client-context overload above. */
-        fun exchange(
+        suspend fun exchange(
             firebaseIdToken: String,
             membresiaId: String,
-        ): SesionesContextoDataDto {
-            val body = json.encodeToString(SesionesContextoRequestDto(membresiaId = membresiaId))
-            val raw =
-                apiClient
-                    .postWithBearer(
-                        bearer = firebaseIdToken,
-                        path = "sesiones/contexto",
-                        body = body,
-                    ).getOrElse { throw it }
-            return json.decodeFromString<SesionesContextoEnvelopeDto>(raw).data
-        }
+        ): SesionesContextoDataDto =
+            withContext(Dispatchers.IO) {
+                val body = json.encodeToString(SesionesContextoRequestDto(membresiaId = membresiaId))
+                val raw =
+                    apiClient
+                        .postWithBearer(
+                            bearer = firebaseIdToken,
+                            path = "sesiones/contexto",
+                            body = body,
+                            headers = mapOf("Idempotency-Key" to UUID.randomUUID().toString()),
+                        ).getOrElse { throw it }
+                json.decodeFromString<SesionesContextoEnvelopeDto>(raw).data
+            }
     }
 
 @kotlinx.serialization.Serializable

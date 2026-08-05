@@ -277,7 +277,7 @@ class StudentAuthViewModelTest {
 
 private fun fakeAccessEmailApi(): AccessEmailApi =
     object : AccessEmailApi {
-        override fun sendVerification(firebaseIdToken: String): Result<Unit> = Result.success(Unit)
+        override suspend fun sendVerification(firebaseIdToken: String): Result<Unit> = Result.success(Unit)
 
-        override fun sendRecovery(email: String): Result<Unit> = Result.success(Unit)
+        override suspend fun sendRecovery(email: String): Result<Unit> = Result.success(Unit)
     }
