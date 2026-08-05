@@ -12,6 +12,8 @@ import com.vaiinilla.app.domain.mode.AuthorizedModeContext
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -24,17 +26,18 @@ import javax.inject.Singleton
 
 /** Only the routes that the backend contract exposes for a real Firebase identity. */
 interface AuthorizedAccessApi {
-    fun listAccess(firebaseIdToken: String): Result<String>
+    suspend fun listAccess(firebaseIdToken: String): Result<String>
 
-    fun acceptInvitation(
+    suspend fun acceptInvitation(
         firebaseIdToken: String,
         token: String,
         idempotencyKey: String,
     ): Result<String>
 
-    fun activateContext(
+    suspend fun activateContext(
         firebaseIdToken: String,
         membershipId: String,
+        idempotencyKey: String,
     ): Result<String>
 }
 
@@ -44,33 +47,41 @@ class RemoteAuthorizedAccessApi
     constructor(
         private val apiClient: HttpVaiinillaApiClient,
     ) : AuthorizedAccessApi {
-        override fun listAccess(firebaseIdToken: String): Result<String> =
-            apiClient.getWithBearer(
-                bearer = firebaseIdToken,
-                path = "sesiones/accesos",
-            )
+        override suspend fun listAccess(firebaseIdToken: String): Result<String> =
+            withContext(Dispatchers.IO) {
+                apiClient.getWithBearer(
+                    bearer = firebaseIdToken,
+                    path = "sesiones/accesos",
+                )
+            }
 
-        override fun acceptInvitation(
+        override suspend fun acceptInvitation(
             firebaseIdToken: String,
             token: String,
             idempotencyKey: String,
         ): Result<String> =
-            apiClient.postWithBearer(
-                bearer = firebaseIdToken,
-                path = "invitaciones/aceptar",
-                body = json.encodeToString(InvitationAcceptanceRequest(token)),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
-            )
+            withContext(Dispatchers.IO) {
+                apiClient.postWithBearer(
+                    bearer = firebaseIdToken,
+                    path = "invitaciones/aceptar",
+                    body = json.encodeToString(InvitationAcceptanceRequest(token)),
+                    headers = mapOf("Idempotency-Key" to idempotencyKey),
+                )
+            }
 
-        override fun activateContext(
+        override suspend fun activateContext(
             firebaseIdToken: String,
             membershipId: String,
+            idempotencyKey: String,
         ): Result<String> =
-            apiClient.postWithBearer(
-                bearer = firebaseIdToken,
-                path = "sesiones/contexto",
-                body = json.encodeToString(ContextRequest(membershipId)),
-            )
+            withContext(Dispatchers.IO) {
+                apiClient.postWithBearer(
+                    bearer = firebaseIdToken,
+                    path = "sesiones/contexto",
+                    body = json.encodeToString(ContextRequest(membershipId)),
+                    headers = mapOf("Idempotency-Key" to idempotencyKey),
+                )
+            }
 
         private companion object {
             val json =
@@ -196,6 +207,7 @@ class RemoteAuthorizedAccessRepository
                                 .activateContext(
                                     firebaseIdToken = firebaseIdToken,
                                     membershipId = mode.membershipId,
+                                    idempotencyKey = UUID.randomUUID().toString(),
                                 ).getOrThrow(),
                         ).data
                 val context =

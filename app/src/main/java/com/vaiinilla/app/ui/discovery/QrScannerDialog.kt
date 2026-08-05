@@ -60,9 +60,11 @@ fun QrScannerDialog(
                 PackageManager.PERMISSION_GRANTED,
         )
     }
+    var cameraError by remember { mutableStateOf<String?>(null) }
     val permissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
             permissionGranted = it
+            if (it) cameraError = null
         }
 
     LaunchedEffect(Unit) {
@@ -74,8 +76,38 @@ fun QrScannerDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
-            if (permissionGranted) {
-                CameraQrPreview(onClose = onClose, onPayload = onPayload, helperText = helperText)
+            if (permissionGranted && cameraError == null) {
+                CameraQrPreview(
+                    onClose = onClose,
+                    onPayload = onPayload,
+                    onCameraError = { cameraError = it },
+                    helperText = helperText,
+                )
+            } else if (permissionGranted && cameraError != null) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text("No se pudo abrir el escáner.", color = Color.White)
+                    Text(
+                        cameraError.orEmpty(),
+                        color = Color.White.copy(alpha = 0.72f),
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    EditorialPrimaryButton(
+                        text = "Intentar de nuevo",
+                        onClick = { cameraError = null },
+                        background = Color.White,
+                        contentColor = Color.Black,
+                        modifier = Modifier.padding(top = 20.dp),
+                    )
+                    EditorialAccentButton(
+                        text = "Cerrar",
+                        onClick = onClose,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
             } else {
                 Column(
                     modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -111,11 +143,13 @@ fun QrScannerDialog(
 private fun CameraQrPreview(
     onClose: () -> Unit,
     onPayload: (String) -> Unit,
+    onCameraError: (String) -> Unit,
     helperText: String,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentOnPayload by rememberUpdatedState(onPayload)
+    val currentOnCameraError by rememberUpdatedState(onCameraError)
     val previewView =
         remember {
             PreviewView(context).apply {
@@ -127,7 +161,9 @@ private fun CameraQrPreview(
 
     DisposableEffect(lifecycleOwner, previewView) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+        val disposed = AtomicBoolean(false)
         var cameraProvider: ProcessCameraProvider? = null
+        var analysis: ImageAnalysis? = null
         val scanner =
             BarcodeScanning.getClient(
                 BarcodeScannerOptions
@@ -136,21 +172,47 @@ private fun CameraQrPreview(
                     .build(),
             )
 
+        fun reportCameraError(message: String) {
+            if (!disposed.get()) currentOnCameraError(message)
+        }
+
         cameraProviderFuture.addListener(
             {
-                cameraProvider = cameraProviderFuture.get()
+                if (disposed.get()) return@addListener
+                val provider =
+                    runCatching { cameraProviderFuture.get() }
+                        .getOrElse {
+                            reportCameraError("No se pudo preparar la cámara del dispositivo.")
+                            return@addListener
+                        }
+                if (disposed.get()) {
+                    runCatching { provider.unbindAll() }
+                    return@addListener
+                }
+                cameraProvider = provider
+                val hasRearCamera =
+                    runCatching { provider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA) }
+                        .getOrElse {
+                            reportCameraError("No se pudo comprobar la cámara trasera.")
+                            return@addListener
+                        }
+                if (!hasRearCamera) {
+                    reportCameraError("No encontramos una cámara trasera disponible en este dispositivo.")
+                    return@addListener
+                }
                 val preview =
                     Preview.Builder().build().also {
                         it.surfaceProvider = previewView.surfaceProvider
                     }
-                val analysis =
+                analysis =
                     ImageAnalysis
                         .Builder()
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build()
-                analysis.setAnalyzer(executor) { imageProxy ->
+                val currentAnalysis = analysis ?: return@addListener
+                currentAnalysis.setAnalyzer(executor) { imageProxy ->
                     val mediaImage = imageProxy.image
-                    if (mediaImage == null || delivered.get()) {
+                    if (disposed.get() || mediaImage == null || delivered.get()) {
                         imageProxy.close()
                         return@setAnalyzer
                     }
@@ -169,28 +231,37 @@ private fun CameraQrPreview(
                                     ?.trim()
                             if (!value.isNullOrBlank() && delivered.compareAndSet(false, true)) {
                                 ContextCompat.getMainExecutor(context).execute {
-                                    currentOnPayload(value)
+                                    if (!disposed.get()) currentOnPayload(value)
                                 }
                             }
                         }.addOnCompleteListener {
                             imageProxy.close()
                         }
                 }
-                cameraProvider?.unbindAll()
-                cameraProvider?.bindToLifecycle(
-                    lifecycleOwner,
-                    CameraSelector.DEFAULT_BACK_CAMERA,
-                    preview,
-                    analysis,
-                )
+                if (disposed.get()) return@addListener
+                runCatching {
+                    provider.unbindAll()
+                    provider.bindToLifecycle(
+                        lifecycleOwner,
+                        CameraSelector.DEFAULT_BACK_CAMERA,
+                        preview,
+                        currentAnalysis,
+                    )
+                }.onFailure {
+                    currentAnalysis.clearAnalyzer()
+                    runCatching { provider.unbindAll() }
+                    reportCameraError("No se pudo iniciar la cámara trasera.")
+                }
             },
             ContextCompat.getMainExecutor(context),
         )
 
         onDispose {
-            cameraProvider?.unbindAll()
+            disposed.set(true)
+            analysis?.clearAnalyzer()
+            runCatching { cameraProvider?.unbindAll() }
             scanner.close()
-            executor.shutdown()
+            executor.shutdownNow()
         }
     }
 

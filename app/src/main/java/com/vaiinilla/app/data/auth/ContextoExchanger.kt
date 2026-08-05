@@ -1,7 +1,7 @@
 package com.vaiinilla.app.data.auth
 
 fun interface ContextoExchanger {
-    fun exchange(
+    suspend fun exchange(
         firebaseIdToken: String,
         establecimientoSlug: String,
         establecimientoId: String,

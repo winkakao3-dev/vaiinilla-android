@@ -56,6 +56,7 @@ La UI depende de `CatalogRepository` y `OrderRepository`; la implementación de 
 ## Fuente de datos
 
 La aplicación usa una única fuente de datos en runtime: Firebase para identidad y Railway para catálogo, contexto, accesos y operación.
+MOCK fue retirado del runtime y del APK; los fixtures que permanecen en tests o previews no son una fuente de datos de producción.
 
 ```bash
 ./gradlew assembleDebug \
@@ -92,3 +93,4 @@ app/build/outputs/apk/debug/app-debug.apk
 ```
 
 Consulta `docs/VAI-11_DELIVERY_REPORT.md` (y `docs/VAI-10_DELIVERY_REPORT.md` para el tramo alumno cash).
+Para el hardening de acceso REMOTE de VAI-27, el APK, SHA-256 y la matriz de pruebas, consulta `docs/VAI-27_HARDENING.md`.

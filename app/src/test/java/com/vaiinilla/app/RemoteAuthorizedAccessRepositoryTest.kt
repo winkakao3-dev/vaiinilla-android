@@ -13,6 +13,7 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -97,6 +98,23 @@ class RemoteAuthorizedAccessRepositoryTest {
 
             assertTrue(result.isFailure)
             assertTrue(result.exceptionOrNull()?.message?.contains("otro establecimiento") == true)
+        }
+
+    @Test
+    fun `each remote context activation gets a fresh idempotency key`() =
+        runTest {
+            val api = RecordingAuthorizedAccessApi()
+            api.accessResponse = accessResponse()
+            api.contextResponse = contextResponse("membership-cashier", "cajero")
+            val repository = remoteRepository(api)
+            val mode = repository.authorizedModes(session).getOrThrow().first { it.role == OperationalRole.CASHIER }
+
+            repository.activateMode(mode, session).getOrThrow()
+            repository.activateMode(mode, session).getOrThrow()
+
+            assertEquals(2, api.contextIdempotencyKeys.size)
+            assertNotEquals(api.contextIdempotencyKeys[0], api.contextIdempotencyKeys[1])
+            assertTrue(api.contextIdempotencyKeys.all { it.isNotBlank() })
         }
 
     @Test
@@ -234,13 +252,14 @@ class RemoteAuthorizedAccessRepositoryTest {
         var activatedMembership: String? = null
         var contextWasCalled = false
         val acceptIdempotencyKeys = mutableListOf<String>()
+        val contextIdempotencyKeys = mutableListOf<String>()
 
-        override fun listAccess(firebaseIdToken: String): Result<String> {
+        override suspend fun listAccess(firebaseIdToken: String): Result<String> {
             listToken = firebaseIdToken
             return Result.success(accessResponse)
         }
 
-        override fun acceptInvitation(
+        override suspend fun acceptInvitation(
             firebaseIdToken: String,
             token: String,
             idempotencyKey: String,
@@ -249,13 +268,15 @@ class RemoteAuthorizedAccessRepositoryTest {
             return Result.success(acceptResponse)
         }
 
-        override fun activateContext(
+        override suspend fun activateContext(
             firebaseIdToken: String,
             membershipId: String,
+            idempotencyKey: String,
         ): Result<String> {
             contextWasCalled = true
             activationToken = firebaseIdToken
             activatedMembership = membershipId
+            contextIdempotencyKeys += idempotencyKey
             return Result.success(contextResponse)
         }
     }

@@ -339,7 +339,7 @@ class StudentAuthViewModel
 
         private suspend fun sendVerificationEmail(): Result<Unit> =
             authRepository.getIdToken(forceRefresh = true).fold(
-                onSuccess = remoteAccessEmailApi::sendVerification,
+                onSuccess = { firebaseIdToken -> remoteAccessEmailApi.sendVerification(firebaseIdToken) },
                 onFailure = { Result.failure(it) },
             )
 
