@@ -1,25 +1,22 @@
-# Firebase seed login (REMOTE · debug only)
+# Firebase seed login (debug only)
 
-Demo-only Email/Password auth for Vaiinilla Android against project `vaiinilla-b3a70`.
+Convenience Email/Password auth for local debugging against project `vaiinilla-b3a70`. It still uses Firebase and Railway; it is not a data-source replacement.
 
 ## Security rules
 
 - Seed **passwords are never committed** and never embedded in release APKs.
 - They live only in **`local.properties`** (gitignored) and are injected into **debug** `BuildConfig`.
-- `SEED_AUTH_ENABLED` / `ALLOW_DEMO_TOOLS` are `true` only on the `debug` build type.
-- Release builds cannot authenticate with seed accounts even if someone sets REMOTE.
+- `SEED_AUTH_ENABLED` is `true` only on debug/preview builds.
+- Release builds cannot authenticate with seed accounts.
 
 ## Flow
 
-1. User selects a role on `RoleSelectorScreen` (staff roles require **Solo pruebas** on debug).
-2. In **REMOTE** debug, `RoleAuthViewModel` calls `AuthenticateSeedRoleUseCase`:
+1. The local debug flow calls `AuthenticateSeedRoleUseCase` when a role needs to be exercised:
    - Firebase `signInWithEmailAndPassword` with the seed account for that role
    - `getIdToken()` → `POST /api/v1/sesiones/contexto` with `Authorization: Bearer <firebase-id-token>` and `{"membresia_id":"..."}`
    - Vaiinilla JWT stored in `SecureSessionStore` and cached per role in `SeedJwtCache`
 3. Navigation proceeds into the role screen with a valid session.
 4. JWT refresh runs ~3 min before expiry (15 min) and on `401 UNAUTHENTICATED` for business API calls.
-
-**MOCK** skips Firebase and keeps fixture behavior (`BuildConfig` tokens optional).
 
 ## Seed identities (emails / membresía · no passwords)
 
@@ -43,11 +40,10 @@ When the alumno submits an order in **debug REMOTE**, `StaffPresenceCoordinator.
 
 If the debug seed passwords are present in `local.properties`, the single-device convenience path signs in the seed Caja/Cocina accounts and sends their heartbeats. If they are absent, the coordinator does not invent permissions or credentials: the backend remains the authority and the normal multi-device staff presence flow must provide the required heartbeats. This helper is never enabled as a release dependency.
 
-## Verify REMOTE (debug)
+## Verify the debug helper
 
 ```bash
 # local.properties (do not commit)
-vaiinillaDataSource=REMOTE
 vaiinillaApiBaseUrl=https://vaiinillaback-development-3f6c.up.railway.app/api/v1/
 vaiinillaSeedPasswordCliente=<rotated>
 vaiinillaSeedPasswordCajero=<rotated>
@@ -57,13 +53,12 @@ vaiinillaSeedPasswordMesero=<rotated>
 ./gradlew testDebugUnitTest assembleDebug
 ```
 
-Install on device/emulator with network. Select a role; the app signs in via Firebase and exchanges context before opening the role screen.
+Install on device/emulator with network. The app signs in via Firebase and exchanges context before opening the role screen.
 
 ## Files
 
 - `domain/auth/SeedAccounts.kt` — emails/membresía; passwords from BuildConfig
 - `data/auth/FirebaseSeedAuthRepository.kt` — Firebase + contexto exchange (debug-gated)
-- `ui/auth/RoleAuthViewModel.kt` — loading/error on role selector
+- `ui/mode/AuthorizedAccessViewModel.kt` — authorized mode state
 - `core/security/SeedJwtCache.kt` — per-role JWT cache
 - `core/auth/VaiinillaJwtRefreshCoordinator.kt` — refresh timer + 401 hook
-- `core/config/DemoFeatures.kt` — demo tool gating

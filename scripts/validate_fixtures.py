@@ -9,7 +9,7 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-FIXTURES = ROOT / "app" / "src" / "main" / "assets" / "fixtures"
+FIXTURES = ROOT / "app" / "src" / "test" / "fixtures"
 MONEY = re.compile(r"^(0|[1-9]\d*)\.\d{2}$")
 UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$")
 

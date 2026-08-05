@@ -98,8 +98,8 @@ object AssistantLocalReplies {
     }
 
     private fun defaultRecommendations(products: List<Product>): List<AssistantRecommendation> {
-        val demoKeywords = listOf("torta", "burrito", "quesadilla")
-        return demoKeywords
+        val productKeywords = listOf("torta", "burrito", "quesadilla")
+        return productKeywords
             .mapNotNull { keyword ->
                 products.firstOrNull { it.name.contains(keyword, ignoreCase = true) }
             }.map { it.toRecommendation() }

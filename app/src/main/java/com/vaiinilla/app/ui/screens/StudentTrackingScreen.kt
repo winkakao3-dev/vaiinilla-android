@@ -31,7 +31,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
-import com.vaiinilla.app.ui.components.DemoEmptyState
+import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.OrderDetailSummary
 import com.vaiinilla.app.ui.components.OrderTrackingCard
 import com.vaiinilla.app.ui.components.OrderTrackingTimeline
@@ -91,7 +91,7 @@ fun StudentTrackingScreen(
             when {
                 state.orders.isEmpty() -> {
                     item {
-                        DemoEmptyState(
+                        EmptyState(
                             icon = Icons.Outlined.ReceiptLong,
                             title = "Sin pedidos activos",
                             message = "Cuando confirmes uno aparecerá aquí.",

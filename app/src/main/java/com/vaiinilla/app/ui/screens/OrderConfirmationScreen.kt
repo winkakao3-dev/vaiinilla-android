@@ -458,7 +458,7 @@ private fun ReceiptPrinterMachine(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    if (paymentMethod.isInstantDemoPayment) "COMANDA ENVIADA" else "PASE DE CAJA",
+                    if (paymentMethod != PaymentMethod.CASH) "COMANDA ENVIADA" else "PASE DE CAJA",
                     color = PaperText,
                     fontSize = 23.sp,
                     lineHeight = 24.sp,

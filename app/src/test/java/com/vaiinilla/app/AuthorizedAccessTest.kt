@@ -1,6 +1,5 @@
 package com.vaiinilla.app
 
-import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.data.mode.FixtureAuthorizedAccessRepository
@@ -156,42 +155,6 @@ class AuthorizedAccessRepositoryTest {
     ) {
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull()?.message?.contains(expected, ignoreCase = true) == true)
-    }
-}
-
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
-class AuthorizedAccessDeepLinkTest {
-    @Test
-    fun `only local mock invitation URI is parsed`() {
-        assertEquals(
-            "vai27-valid-cashier",
-            MainActivity.mockInvitationTokenFrom(Uri.parse("vaiinilla://mock/invitation/vai27-valid-cashier")),
-        )
-        assertEquals(
-            null,
-            MainActivity.mockInvitationTokenFrom(
-                Uri.parse("https://vaiinilla.app/invitation/vai27-valid-cashier"),
-            ),
-        )
-        assertEquals(
-            null,
-            MainActivity.mockInvitationTokenFrom(
-                Uri.parse("vaiinilla://other/invitation/vai27-valid-cashier"),
-            ),
-        )
-        assertEquals(
-            "real-token",
-            MainActivity.invitationTokenFrom(
-                Uri.parse("https://vaiinilla.app/invitaciones/aceptar?token=real-token"),
-            ),
-        )
-        assertEquals(
-            null,
-            MainActivity.invitationTokenFrom(
-                Uri.parse("https://vaiinilla.app/invitaciones/aceptar"),
-            ),
-        )
     }
 }
 

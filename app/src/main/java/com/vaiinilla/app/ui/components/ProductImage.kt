@@ -25,7 +25,9 @@ fun ProductImage(
 
 @DrawableRes
 fun productImageResource(imageUrl: String): Int {
-    val key = imageUrl.removePrefix("fixture://")
+    // Backend responses may contain an absolute URL, a path, or a local asset
+    // identifier. The final segment keeps all three forms compatible.
+    val key = imageUrl.substringAfterLast('/').substringAfterLast(':').substringBefore('?')
     return when (key) {
         "jamaica" -> R.drawable.jamaica
         "burrito_norteno" -> R.drawable.burrito_norteno

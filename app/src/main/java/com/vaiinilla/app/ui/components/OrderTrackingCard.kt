@@ -39,12 +39,12 @@ private data class TimelineStep(
     val description: (OrderDestination, PaymentMethod) -> String,
 )
 
-private val demoTimelineSteps =
+private val timelineSteps =
     listOf(
         TimelineStep(OrderState.PENDING_PAYMENT, { payment ->
-            if (payment.isInstantDemoPayment) "PAGO CONFIRMADO" else "POR COBRAR"
+            if (payment != PaymentMethod.CASH) "PAGO CONFIRMADO" else "POR COBRAR"
         }) { _, payment ->
-            if (payment.isInstantDemoPayment) {
+            if (payment != PaymentMethod.CASH) {
                 "Saldo descontado y pedido enviado."
             } else {
                 "Caja espera el pago en efectivo."
@@ -162,7 +162,7 @@ fun OrderTrackingTimeline(
 ) {
     val colors = LocalVaiinillaColors.current
     Column(modifier = modifier) {
-        demoTimelineSteps.forEachIndexed { index, step ->
+        timelineSteps.forEachIndexed { index, step ->
             val stepIndex = step.state.trackingIndex
             val currentIndex = current.trackingIndex
             val isDone = stepIndex < currentIndex
@@ -173,7 +173,7 @@ fun OrderTrackingTimeline(
                 description = step.description(destination, paymentMethod),
                 isDone = isDone,
                 isCurrent = isCurrent,
-                showLine = index < demoTimelineSteps.lastIndex,
+                showLine = index < timelineSteps.lastIndex,
                 colors = colors,
             )
         }

@@ -19,7 +19,7 @@ Fuentes de verdad:
 5. Agrega configuraciones al carrito; una línea idéntica se consolida sin superar 20 unidades.
 6. Revisa el carrito para `para_llevar`, añade notas y usa exclusivamente `efectivo`.
 7. La app envía un request contractual sin precios, total, folio, tenant, usuario ni estado.
-8. En MOCK el fixture valida y devuelve `OrderDetail` en `por_cobrar`; en REMOTE lo hace Railway.
+8. Railway valida y devuelve `OrderDetail` en `por_cobrar`.
 9. La confirmación muestra folio, total confirmado y siguiente paso en Caja.
 10. Caja cobra, Cocina prepara/lista, entrega y el alumno ve el seguimiento por polling.
 
@@ -31,7 +31,6 @@ No se implementan:
 - tarjeta, saldo, wallet, recargas o cashback funcional;
 - stickers, receipts coleccionables o reimpresión;
 - cancelaciones, reembolsos, administración o analíticas;
-- Firebase Auth dentro de la app (JWT por rol vía `local.properties`).
 
 El campo contractual `cashback_otorgado` se conserva en `OrderSummary`, pero no hay lógica de cashback.
 
@@ -40,49 +39,31 @@ El campo contractual `cashback_otorgado` se conserva en `OrderSummary`, pero no 
 ```text
 app/src/main/java/com/vaiinilla/app/
 ├── core/       # ambiente, cliente HTTP vacío y seguridad
-├── data/       # DTO, JSON contractual, fixtures, repositorios y Hilt
+├── data/       # DTO, JSON contractual, repositorios remotos y Hilt
 ├── domain/     # modelos, dinero BigDecimal, reglas, repositorios y casos de uso
 └── ui/         # estado compartido, navegación, componentes y pantallas Compose
 ```
 
-La UI depende de `CatalogRepository` y `OrderRepository`; cambiar `MOCK` por `REMOTE` no requiere rehacer pantallas.
+La UI depende de `CatalogRepository` y `OrderRepository`; la implementación de producción usa Firebase + Railway.
 
 ## Dinero
 
 - Los modelos mantienen importes como `String` decimal con dos posiciones.
-- Los cálculos visuales y del backend fixture usan `BigDecimal`.
+- Los cálculos visuales y la validación contractual usan `BigDecimal`.
 - No se usa `Double` ni `Float` en el dominio monetario.
 - Los totales del carrito son una previsualización; el `OrderDetail` devuelto por repositorio es la autoridad para la confirmación.
 
-## Fixtures
-
-```text
-app/src/main/assets/fixtures/
-├── catalog.json
-├── operational_status.json
-└── created_order.json
-```
-
-`catalog.json` incluye los grupos contractuales necesarios para demostrar configuración del burrito. `created_order.json` valida la forma de `OrderDetail` que nace en `por_cobrar`.
-
 ## Fuente de datos
 
-Por defecto:
-
-```bash
-./gradlew assembleDebug -PvaiinillaDataSource=MOCK
-```
-
-Frontera remota (Railway development):
+La aplicación usa una única fuente de datos en runtime: Firebase para identidad y Railway para catálogo, contexto, accesos y operación.
 
 ```bash
 ./gradlew assembleDebug \
-  -PvaiinillaDataSource=REMOTE \
   -PvaiinillaApiBaseUrl=https://vaiinillaback-development-3f6c.up.railway.app/api/v1/
 ```
 
 Paths remotos: `catalogo`, `estado-operativo`, `pedidos`, cobros, transiciones, `latidos`, `sesiones-caja`.  
-Requiere JWT frescos por rol en `local.properties` (caducan ~15 min). Ver `local.properties.example` y `docs/VAI-11_DELIVERY_REPORT.md`.
+El contexto operativo se obtiene después de Firebase; no se aceptan JWT manuales ni una fuente local alternativa. Ver `local.properties.example` y `docs/VAI-11_DELIVERY_REPORT.md`.
 
 ## Validación
 
@@ -102,7 +83,7 @@ O todo junto:
 ./scripts/verify-on-mac.sh
 ```
 
-Demo tools (selector interno de roles, galería, Wallet, Asistente) solo en **debug + Solo pruebas**. Seed auth REMOTE solo con passwords en `local.properties`. Ver `docs/DEMO_SCOPE.md` y `docs/FIREBASE_SEED_AUTH.md`.
+La autenticación auxiliar de cuentas seed existe sólo para depuración local y siempre pasa por Firebase + Railway; nunca cambia la fuente de datos de la app. Ver `docs/FIREBASE_SEED_AUTH.md`.
 
 APK esperado:
 

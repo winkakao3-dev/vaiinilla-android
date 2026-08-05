@@ -66,7 +66,7 @@ import com.vaiinilla.app.ui.components.sticker.StickerOrderData
 import com.vaiinilla.app.ui.components.sticker.StickerSize
 import com.vaiinilla.app.ui.components.sticker.StickerStyle
 import com.vaiinilla.app.ui.components.sticker.StickerStyleContent
-import com.vaiinilla.app.ui.components.sticker.demoStickerOrderData
+import com.vaiinilla.app.ui.components.sticker.emptyStickerOrderData
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
@@ -361,8 +361,8 @@ private fun shareReceiptSticker(
 }
 
 private fun OrderDetail?.toStickerOrderData(): StickerOrderData {
-    if (this == null) return demoStickerOrderData()
-    val productName = items.firstOrNull()?.productName ?: "Burrito norteño"
+    if (this == null) return emptyStickerOrderData()
+    val productName = items.firstOrNull()?.productName ?: "Pedido"
     val paymentLabel = paymentMethodLabel(summary.paymentMethod)
     return StickerOrderData(
         folio = summary.folio,
@@ -371,5 +371,10 @@ private fun OrderDetail?.toStickerOrderData(): StickerOrderData {
         paymentLabel = paymentLabel,
         destinationLabel = summary.destination.label,
         date = summary.operationalDate,
+        time =
+            summary.createdAt
+                .substringAfter('T', "")
+                .take(5)
+                .ifBlank { "—" },
     )
 }

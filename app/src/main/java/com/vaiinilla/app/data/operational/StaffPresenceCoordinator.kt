@@ -1,7 +1,6 @@
 package com.vaiinilla.app.data.operational
 
 import com.vaiinilla.app.BuildConfig
-import com.vaiinilla.app.core.config.EffectiveDataSourceResolver
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
 import com.vaiinilla.app.data.auth.FirebaseSeedAuthRepository
 import com.vaiinilla.app.domain.auth.SeedAccounts
@@ -18,7 +17,6 @@ import javax.inject.Singleton
 class StaffPresenceCoordinator
     @Inject
     constructor(
-        private val dataSourceResolver: EffectiveDataSourceResolver,
         private val apiClient: HttpVaiinillaApiClient,
         private val seedAuthRepository: FirebaseSeedAuthRepository,
     ) {
@@ -33,7 +31,6 @@ class StaffPresenceCoordinator
             // backend remains the sole authority for staff availability; the student
             // flow must not depend on embedded or missing seed credentials.
             if (
-                !dataSourceResolver.usesNetwork() ||
                 !BuildConfig.SEED_AUTH_ENABLED ||
                 !SeedAccounts.isConfigured()
             ) {

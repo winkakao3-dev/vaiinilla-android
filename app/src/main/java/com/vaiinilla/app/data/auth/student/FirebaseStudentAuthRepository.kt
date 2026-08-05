@@ -43,6 +43,7 @@ class FirebaseStudentAuthRepository
                     val user =
                         result.user
                             ?: throw IllegalStateException("No se pudo crear la cuenta.")
+                    sessionStore.clear()
                     user
                         .updateProfile(
                             UserProfileChangeRequest
@@ -66,6 +67,7 @@ class FirebaseStudentAuthRepository
             withContext(Dispatchers.IO) {
                 runCatching {
                     auth.signInWithEmailAndPassword(email.trim(), password).await()
+                    sessionStore.clear()
                     auth.currentUser?.toSession()
                         ?: throw IllegalStateException("No se pudo iniciar sesión.")
                 }.recoverCatching { error ->

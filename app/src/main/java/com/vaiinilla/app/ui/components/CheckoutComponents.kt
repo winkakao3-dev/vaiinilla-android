@@ -37,22 +37,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.Yolk
-import com.vaiinilla.app.ui.wallet.SavedCard
 
 @Composable
 fun OrderStateTrackingHero(
     state: OrderState,
     destination: OrderDestination,
+    spaceName: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
-    val content = trackingHeroContent(state, destination)
+    val content = trackingHeroContent(state, destination, spaceName)
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = content.background,
@@ -113,6 +112,7 @@ private data class TrackingHeroContent(
 private fun trackingHeroContent(
     state: OrderState,
     destination: OrderDestination,
+    spaceName: String?,
 ): TrackingHeroContent {
     val darkBg = Color(0xFF1C1D1B)
     val darkText = Color(0xFFF5F2E8)
@@ -147,7 +147,7 @@ private fun trackingHeroContent(
         OrderState.READY -> {
             val pickup =
                 if (destination == OrderDestination.IN_SPACE) {
-                    "Tu pedido va en camino a ${DemoCheckoutFixtures.SPACE_NAME}."
+                    "Tu pedido va en camino a ${spaceName ?: "tu mesa"}."
                 } else {
                     "Recógelo en la barra cuando veas este estado."
                 }
@@ -316,32 +316,10 @@ private fun DestinationOption(
 @Composable
 fun CheckoutPaymentPicker(
     selected: PaymentMethod,
-    walletBalance: Int,
-    savedCard: SavedCard? = null,
     onSelect: (PaymentMethod) -> Unit,
     modifier: Modifier = Modifier,
-    showDemoPayments: Boolean = false,
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        if (showDemoPayments) {
-            PaymentOption(
-                brand = "SALDO",
-                title = "Saldo Vaiinilla · $$walletBalance",
-                subtitle = "Pago inmediato y cashback",
-                brandIsTransfer = true,
-                selected = selected == PaymentMethod.BALANCE,
-                onClick = { onSelect(PaymentMethod.BALANCE) },
-            )
-            savedCard?.let { card ->
-                PaymentOption(
-                    brand = card.brand.ifBlank { "CARD" }.uppercase(),
-                    title = "Tarjeta •••• ${card.lastFour}",
-                    subtitle = "Pago directo, sin usar saldo",
-                    selected = selected == PaymentMethod.CARD,
-                    onClick = { onSelect(PaymentMethod.CARD) },
-                )
-            }
-        }
         PaymentOption(
             brand = "CASH",
             title = "Efectivo en Caja",

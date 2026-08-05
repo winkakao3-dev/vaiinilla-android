@@ -1,7 +1,7 @@
 package com.vaiinilla.app.data.discovery
 
 import com.vaiinilla.app.core.network.VaiinillaApiClient
-import com.vaiinilla.app.data.fixture.ContractFixtureParser
+import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.SpaceResolveResult
@@ -11,7 +11,7 @@ import kotlinx.serialization.json.Json
 
 class RemoteDiscoveryRepository(
     private val apiClient: VaiinillaApiClient,
-    private val parser: ContractFixtureParser,
+    private val parser: ContractResponseParser,
 ) : DiscoveryRepository {
     private val json =
         Json {

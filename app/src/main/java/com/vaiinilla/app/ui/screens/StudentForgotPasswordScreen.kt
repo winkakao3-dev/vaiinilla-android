@@ -21,10 +21,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.ui.auth.student.StudentAuthUiState
-import com.vaiinilla.app.ui.components.DemoEmptyState
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialSectionHead
 import com.vaiinilla.app.ui.components.EditorialTextField
+import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
@@ -59,7 +59,7 @@ fun StudentForgotPasswordScreen(
             }
             if (state.passwordResetSent) {
                 item {
-                    DemoEmptyState(
+                    EmptyState(
                         icon = Icons.Outlined.LockReset,
                         title = "Correo enviado",
                         message =

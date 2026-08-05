@@ -1,10 +1,8 @@
 package com.vaiinilla.app.ui.order
 
-import com.vaiinilla.app.core.config.DataSourceMode
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.ContractRules
-import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OperationalStatus
@@ -18,8 +16,6 @@ data class OrderFlowUiState(
     val loading: Boolean = true,
     val catalog: Catalog? = null,
     val operationalStatus: OperationalStatus? = null,
-    val dataSourceMode: DataSourceMode = DataSourceMode.MOCK,
-    val testOnlyMode: Boolean = false,
     val errorMessage: String? = null,
     val searchQuery: String = "",
     val selectedCategoryId: Int? = null,
@@ -29,7 +25,7 @@ data class OrderFlowUiState(
     val cartLines: List<CartLine> = emptyList(),
     val kitchenNotes: String = "",
     val checkoutDestination: OrderDestination = OrderDestination.TAKE_AWAY,
-    val selectedSpaceId: Int = DemoCheckoutFixtures.DEFAULT_SPACE.id,
+    val selectedSpaceId: Int = 0,
     val checkoutPayment: PaymentMethod = PaymentMethod.CASH,
     val creatingOrder: Boolean = false,
     val createOrderError: String? = null,
@@ -96,33 +92,19 @@ val OrderFlowUiState.canCreateOrder: Boolean
 val OrderFlowUiState.checkoutSpaceId: Int?
     get() =
         if (checkoutDestination == OrderDestination.IN_SPACE) {
-            if (dataSourceMode == DataSourceMode.REMOTE) {
-                guestVenue?.space?.id
-            } else {
-                selectedSpaceId
-            }
+            guestVenue?.space?.id
         } else {
             null
         }
 
 val OrderFlowUiState.selectedSpaceName: String
-    get() =
-        if (dataSourceMode == DataSourceMode.REMOTE) {
-            guestVenue?.space?.name ?: "Escanea el QR de tu mesa"
-        } else {
-            DemoCheckoutFixtures.spaceForId(selectedSpaceId)?.name ?: DemoCheckoutFixtures.SPACE_NAME
-        }
+    get() = guestVenue?.space?.name ?: "Escanea el QR de tu mesa"
 
 fun OrderFlowUiState.hasSufficientBalance(walletBalance: Int): Boolean {
     if (checkoutPayment != PaymentMethod.BALANCE) return true
     val total = Money.parse(cartPreviewTotal).toInt()
     return walletBalance >= total
 }
-
-val OrderFlowUiState.usesStudentCheckout: Boolean
-    get() =
-        dataSourceMode == DataSourceMode.MOCK &&
-            (checkoutPayment != PaymentMethod.CASH || checkoutDestination != OrderDestination.TAKE_AWAY)
 
 val OrderFlowUiState.operationalBlockerMessage: String?
     get() {

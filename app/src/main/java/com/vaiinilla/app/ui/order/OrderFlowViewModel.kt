@@ -4,26 +4,17 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.vaiinilla.app.core.config.AppEnvironment
-import com.vaiinilla.app.core.config.DataSourceMode
-import com.vaiinilla.app.core.config.EffectiveDataSourceResolver
 import com.vaiinilla.app.data.guest.GuestSessionStore
-import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.discovery.DiscoveryFailures
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.ContractRules
-import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
 import com.vaiinilla.app.domain.model.GuestVenueContext
-import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OrderDestination
-import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
-import com.vaiinilla.app.domain.usecase.CreateOrderUseCase
 import com.vaiinilla.app.domain.usecase.CreateRemoteOrderUseCase
-import com.vaiinilla.app.domain.usecase.CreateStudentCheckoutUseCase
 import com.vaiinilla.app.domain.usecase.GetCatalogUseCase
 import com.vaiinilla.app.domain.usecase.GetOperationalStatusUseCase
 import com.vaiinilla.app.ui.assistant.AssistantChatMessage
@@ -42,12 +33,7 @@ class OrderFlowViewModel
         private val getCatalog: GetCatalogUseCase,
         private val getOperationalStatus: GetOperationalStatusUseCase,
         private val buildCreateOrderRequest: BuildCreateOrderRequestUseCase,
-        private val createOrder: CreateOrderUseCase,
         private val createRemoteOrder: CreateRemoteOrderUseCase,
-        private val createStudentCheckout: CreateStudentCheckoutUseCase,
-        private val staffPresenceCoordinator: StaffPresenceCoordinator,
-        private val dataSourceResolver: EffectiveDataSourceResolver,
-        private val environment: AppEnvironment,
         private val discoveryRepository: DiscoveryRepository,
         private val guestSessionStore: GuestSessionStore,
         private val studentAuthRepository: StudentAuthRepository,
@@ -55,8 +41,6 @@ class OrderFlowViewModel
         private val _uiState =
             mutableStateOf(
                 OrderFlowUiState(
-                    dataSourceMode = environment.dataSourceMode,
-                    testOnlyMode = dataSourceResolver.isTestOnlyMode,
                     guestVenue = guestSessionStore.readVenue(),
                 ),
             )
@@ -105,22 +89,13 @@ class OrderFlowViewModel
                         } else {
                             OrderDestination.TAKE_AWAY
                         },
-                    selectedSpaceId = venue.space?.id ?: DemoCheckoutFixtures.DEFAULT_SPACE.id,
+                    selectedSpaceId = venue.space?.id ?: 0,
                 )
             guestSessionStore.saveVenue(venue)
             viewModelScope.launch {
                 val catalogResult =
                     withContext(Dispatchers.IO) {
                         discoveryRepository.getGuestCatalog(venue.establishment.slug)
-                    }
-                // Public discovery must not require a Vaiinilla session. REMOTE exposes
-                // operational status through an authenticated route, so defer that check
-                // until checkout after Firebase enrollment/context exchange.
-                val statusResult =
-                    if (dataSourceResolver.effectiveMode() == DataSourceMode.MOCK) {
-                        withContext(Dispatchers.IO) { getOperationalStatus() }
-                    } else {
-                        null
                     }
                 val catalog = catalogResult.getOrNull()
                 val restored =
@@ -140,12 +115,10 @@ class OrderFlowViewModel
                     _uiState.value.copy(
                         loading = false,
                         catalog = catalog,
-                        operationalStatus = statusResult?.getOrNull(),
+                        operationalStatus = null,
                         cartLines = restored,
                         errorMessage = failure?.message,
                         guestVenueSuspended = suspended,
-                        testOnlyMode = dataSourceResolver.isTestOnlyMode,
-                        dataSourceMode = dataSourceResolver.effectiveMode(),
                         guestVenue = venue,
                     )
             }
@@ -162,8 +135,6 @@ class OrderFlowViewModel
                 previous.copy(
                     loading = true,
                     errorMessage = null,
-                    testOnlyMode = dataSourceResolver.isTestOnlyMode,
-                    dataSourceMode = dataSourceResolver.effectiveMode(),
                 )
             viewModelScope.launch {
                 val catalogResult = withContext(Dispatchers.IO) { getCatalog() }
@@ -201,8 +172,8 @@ class OrderFlowViewModel
             enterGuestVenue(venue)
         }
 
-        /** Leaves guest venue for Solo pruebas / staff roles. Cart snapshots stay keyed by tenant. */
-        fun clearGuestVenueForDemo() {
+        /** Leaves the guest venue before entering an authenticated operational mode. */
+        fun clearGuestVenue() {
             persistCurrentCartIfNeeded()
             activeCartStorageKey = null
             guestSessionStore.clearVenue()
@@ -371,7 +342,6 @@ class OrderFlowViewModel
         fun updateCheckoutDestination(destination: OrderDestination) {
             if (
                 destination == OrderDestination.IN_SPACE &&
-                dataSourceResolver.effectiveMode() == DataSourceMode.REMOTE &&
                 _uiState.value.guestVenue?.space == null
             ) {
                 _uiState.value =
@@ -398,7 +368,7 @@ class OrderFlowViewModel
         }
 
         fun updateCheckoutPayment(payment: PaymentMethod) {
-            if (dataSourceResolver.effectiveMode() == DataSourceMode.REMOTE && payment != PaymentMethod.CASH) {
+            if (payment != PaymentMethod.CASH) {
                 _uiState.value =
                     _uiState.value.copy(
                         createOrderError = "Este backend sólo tiene pago en efectivo habilitado.",
@@ -413,21 +383,7 @@ class OrderFlowViewModel
                 )
         }
 
-        fun applyTestOnlyMode(enabled: Boolean) {
-            _uiState.value =
-                _uiState.value.copy(
-                    testOnlyMode = enabled,
-                    dataSourceMode = dataSourceResolver.effectiveMode(),
-                    createOrderError = null,
-                    errorMessage = null,
-                )
-            refresh()
-        }
-
-        fun submitOrder(
-            walletBalance: Int = 0,
-            onWalletDebit: (Int) -> Unit = {},
-        ) {
+        fun submitOrder() {
             val state = _uiState.value
             if (state.cartLines.isEmpty()) {
                 _uiState.value =
@@ -446,38 +402,13 @@ class OrderFlowViewModel
                 return
             }
 
-            if (state.checkoutPayment == PaymentMethod.BALANCE && !state.hasSufficientBalance(walletBalance)) {
-                _uiState.value =
-                    state.copy(
-                        createOrderError = "Saldo insuficiente. Añade dinero en Cartera o elige otro método.",
-                    )
-                return
-            }
-
             _uiState.value = state.copy(creatingOrder = true, createOrderError = null)
             viewModelScope.launch {
                 var current = _uiState.value
-                if (dataSourceResolver.usesNetwork()) {
-                    val staffPresenceResult =
-                        withContext(Dispatchers.IO) {
-                            staffPresenceCoordinator.primeStaffPresence()
-                        }
-                    if (staffPresenceResult.isFailure) {
-                        val reason =
-                            staffPresenceResult.exceptionOrNull()?.message
-                                ?: "No se pudo avisar a Caja y Cocina."
-                        _uiState.value =
-                            current.copy(
-                                creatingOrder = false,
-                                createOrderError = "No pudimos validar la disponibilidad operativa. $reason",
-                            )
-                        return@launch
-                    }
-                    val status = withContext(Dispatchers.IO) { getOperationalStatus() }.getOrNull()
-                    if (status != null) {
-                        current = current.copy(operationalStatus = status)
-                        _uiState.value = current.copy(creatingOrder = true, createOrderError = null)
-                    }
+                val status = withContext(Dispatchers.IO) { getOperationalStatus() }.getOrNull()
+                if (status != null) {
+                    current = current.copy(operationalStatus = status)
+                    _uiState.value = current.copy(creatingOrder = true, createOrderError = null)
                 }
 
                 if (current.requiresOperationalReady && !current.isOperationallyReady) {
@@ -506,21 +437,11 @@ class OrderFlowViewModel
                     }
                 val result =
                     withContext(Dispatchers.IO) {
-                        if (current.dataSourceMode == DataSourceMode.REMOTE) {
-                            createRemoteOrder(request, idempotencyKey)
-                        } else if (current.usesStudentCheckout) {
-                            createStudentCheckout(request, idempotencyKey)
-                        } else {
-                            createOrder(request, idempotencyKey)
-                        }
+                        createRemoteOrder(request, idempotencyKey)
                     }
                 result.fold(
                     onSuccess = { order ->
                         pendingIdempotencyKey = null
-                        if (current.checkoutPayment == PaymentMethod.BALANCE) {
-                            val total = Money.parse(order.summary.total).toInt()
-                            onWalletDebit(total)
-                        }
                         _uiState.value =
                             _uiState.value.copy(
                                 creatingOrder = false,
@@ -546,90 +467,6 @@ class OrderFlowViewModel
 
         fun clearCreatedOrder() {
             _uiState.value = _uiState.value.copy(createdOrder = null)
-        }
-
-        fun applyGalleryCatalog(
-            searchQuery: String = "",
-            openFirstProduct: Boolean = false,
-        ) {
-            val catalog = _uiState.value.catalog
-            val firstProduct = catalog?.products?.firstOrNull()
-            val productId = if (openFirstProduct) firstProduct?.id else null
-            val defaults =
-                if (openFirstProduct && firstProduct != null) {
-                    firstProduct.optionGroups.flatMapTo(linkedSetOf()) { group ->
-                        group.options.take(group.minimumSelections).map { it.id }
-                    }
-                } else {
-                    emptySet()
-                }
-            _uiState.value =
-                _uiState.value.copy(
-                    searchQuery = searchQuery,
-                    selectedCategoryId = null,
-                    selectedProductId = productId,
-                    selectedOptionIds = defaults,
-                    selectedQuantity = 1,
-                    cartLines = emptyList(),
-                    kitchenNotes = "",
-                    checkoutDestination = OrderDestination.TAKE_AWAY,
-                    checkoutPayment = PaymentMethod.CASH,
-                    selectedSpaceId = DemoCheckoutFixtures.DEFAULT_SPACE.id,
-                    createdOrder = null,
-                    createOrderError = null,
-                )
-        }
-
-        fun seedCartWithFirstProduct() {
-            val catalog = _uiState.value.catalog ?: return
-            val firstProduct = catalog.products.firstOrNull() ?: return
-            val defaultOptionIds =
-                firstProduct.optionGroups
-                    .firstOrNull()
-                    ?.options
-                    ?.firstOrNull()
-                    ?.id
-                    ?.let { setOf(it) }
-                    ?: emptySet()
-            _uiState.value =
-                _uiState.value.copy(
-                    cartLines =
-                        listOf(
-                            CartLine(
-                                product = firstProduct,
-                                quantity = 1,
-                                selectedOptionIds = defaultOptionIds,
-                            ),
-                        ),
-                    createdOrder = null,
-                    createOrderError = null,
-                )
-        }
-
-        fun seedCheckout(
-            destination: OrderDestination,
-            payment: PaymentMethod,
-            spaceId: Int = DemoCheckoutFixtures.DEFAULT_SPACE.id,
-        ) {
-            seedCartWithFirstProduct()
-            _uiState.value =
-                _uiState.value.copy(
-                    checkoutDestination = destination,
-                    checkoutPayment = payment,
-                    selectedSpaceId = spaceId,
-                    createdOrder = null,
-                    createOrderError = null,
-                )
-        }
-
-        fun seedCreatedOrder(order: OrderDetail) {
-            _uiState.value =
-                _uiState.value.copy(
-                    cartLines = emptyList(),
-                    kitchenNotes = "",
-                    createdOrder = order,
-                    createOrderError = null,
-                )
         }
 
         fun sendAssistantMessage(text: String) {

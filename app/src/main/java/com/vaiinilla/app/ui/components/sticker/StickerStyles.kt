@@ -70,17 +70,18 @@ data class StickerOrderData(
     val paymentLabel: String,
     val destinationLabel: String,
     val date: String,
-    val time: String = "11:42",
+    val time: String = "",
 )
 
-fun demoStickerOrderData() =
+fun emptyStickerOrderData() =
     StickerOrderData(
-        folio = 3472,
-        total = "101",
-        productName = "Burrito norteño",
-        paymentLabel = "Efectivo",
-        destinationLabel = "Para llevar",
-        date = "23/07/26",
+        folio = 0,
+        total = "0.00",
+        productName = "Sin pedido seleccionado",
+        paymentLabel = "—",
+        destinationLabel = "—",
+        date = "—",
+        time = "—",
     )
 
 @Composable

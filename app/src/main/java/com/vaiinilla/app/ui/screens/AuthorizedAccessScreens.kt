@@ -39,9 +39,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.mode.AuthorizedMode
-import com.vaiinilla.app.ui.components.DemoEmptyState
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialPrimaryButton
+import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.mode.AuthorizedAccessUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
@@ -261,7 +261,7 @@ fun AuthorizedModeScreen(
             }
             if (!state.loading && state.modes.isEmpty() && state.errorMessage == null) {
                 item {
-                    DemoEmptyState(
+                    EmptyState(
                         icon = Icons.Outlined.VpnKey,
                         title = "Sin modos operativos",
                         message = "Cuando aceptes una invitación vigente, aquí aparecerán tus accesos autorizados.",

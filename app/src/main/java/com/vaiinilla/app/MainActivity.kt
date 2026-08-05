@@ -22,7 +22,6 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private var pendingEstablishmentSlug by mutableStateOf<String?>(null)
     private var pendingInvitationToken by mutableStateOf<String?>(null)
-    private var pendingMockInvitationToken by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,10 +54,8 @@ class MainActivity : ComponentActivity() {
                     navController = rememberNavController(),
                     pendingEstablishmentSlug = pendingEstablishmentSlug,
                     pendingInvitationToken = pendingInvitationToken,
-                    pendingMockInvitationToken = pendingMockInvitationToken,
                     onDeepLinkConsumed = { pendingEstablishmentSlug = null },
                     onInvitationConsumed = { pendingInvitationToken = null },
-                    onMockInvitationConsumed = { pendingMockInvitationToken = null },
                 )
             }
         }
@@ -73,7 +70,6 @@ class MainActivity : ComponentActivity() {
     private fun captureDeepLink(source: Intent?) {
         pendingEstablishmentSlug = establishmentSlugFrom(source)
         pendingInvitationToken = invitationTokenFrom(source)
-        pendingMockInvitationToken = mockInvitationTokenFrom(source)
         // Do not retain invitation tokens in the Activity intent after capture.
         source?.data = null
     }
@@ -89,20 +85,6 @@ class MainActivity : ComponentActivity() {
             if (host != "vaiinilla.app" && host != "www.vaiinilla.app") return null
             val segments = uri.pathSegments
             if (segments.size >= 2 && segments[0] == "e") {
-                return segments[1].takeIf { it.isNotBlank() }
-            }
-            return null
-        }
-
-        fun mockInvitationTokenFrom(intent: Intent?): String? {
-            val data = intent?.data ?: return null
-            return mockInvitationTokenFrom(data)
-        }
-
-        fun mockInvitationTokenFrom(uri: Uri): String? {
-            if (uri.scheme != "vaiinilla" || uri.host != "mock") return null
-            val segments = uri.pathSegments
-            if (segments.size >= 2 && segments[0] == "invitation") {
                 return segments[1].takeIf { it.isNotBlank() }
             }
             return null

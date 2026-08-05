@@ -54,7 +54,6 @@ fun StudentShellHost(
     navController: NavHostController,
     cartCount: Int,
     onNavigateStudent: (String) -> Unit,
-    onNavigateDemo: (String) -> Unit,
     catalogDetailOpen: Boolean = false,
     content: @Composable () -> Unit,
 ) {
@@ -71,15 +70,7 @@ fun StudentShellHost(
                 cartCount = cartCount,
                 onTabSelected = { tab ->
                     val target = routeForStudentTab(tab)
-                    when (tab) {
-                        StudentTab.ASSISTANT,
-                        StudentTab.WALLET,
-                        -> onNavigateDemo(target)
-                        StudentTab.MENU,
-                        StudentTab.ORDERS,
-                        StudentTab.CART,
-                        -> onNavigateStudent(target)
-                    }
+                    onNavigateStudent(target)
                 },
                 modifier = Modifier.align(Alignment.BottomCenter),
             )

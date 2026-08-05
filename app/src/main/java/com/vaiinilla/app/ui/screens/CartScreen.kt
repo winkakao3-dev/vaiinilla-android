@@ -36,11 +36,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.vaiinilla.app.core.config.DataSourceMode
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.Category
-import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -51,8 +49,8 @@ import com.vaiinilla.app.ui.components.CheckoutDestinationPicker
 import com.vaiinilla.app.ui.components.CheckoutPaymentPicker
 import com.vaiinilla.app.ui.components.CheckoutSpaceOption
 import com.vaiinilla.app.ui.components.CheckoutSpacePicker
-import com.vaiinilla.app.ui.components.DemoEmptyState
 import com.vaiinilla.app.ui.components.EditorialNotesField
+import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.moneyLabel
@@ -60,20 +58,16 @@ import com.vaiinilla.app.ui.components.paymentMethodLabel
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.canCreateOrder
 import com.vaiinilla.app.ui.order.cartPreviewTotal
-import com.vaiinilla.app.ui.order.hasSufficientBalance
 import com.vaiinilla.app.ui.order.operationalBlockerMessage
 import com.vaiinilla.app.ui.order.requiresOperationalReady
 import com.vaiinilla.app.ui.order.selectedSpaceName
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
-import com.vaiinilla.app.ui.wallet.SavedCard
 
 @Composable
 fun CartScreen(
     state: OrderFlowUiState,
-    walletBalance: Int = 200,
-    savedCard: SavedCard? = null,
     onMenu: () -> Unit,
     onQuantityChange: (lineKey: String, delta: Int) -> Unit,
     onNotesChange: (String) -> Unit,
@@ -84,33 +78,24 @@ fun CartScreen(
     onOpenTracking: () -> Unit = {},
     onOpenAssistant: () -> Unit = {},
     onOpenWallet: () -> Unit = {},
-    showDemoTabs: Boolean = false,
     guestAuthRequired: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     val checkoutSpaces =
-        if (state.dataSourceMode == DataSourceMode.MOCK) {
-            DemoCheckoutFixtures.DEMO_SPACES.map { space -> CheckoutSpaceOption(space.id, space.name) }
-        } else {
-            state.guestVenue
-                ?.space
-                ?.let { space -> listOf(CheckoutSpaceOption(space.id, space.name)) }
-                .orEmpty()
-        }
+        state.guestVenue
+            ?.space
+            ?.let { space -> listOf(CheckoutSpaceOption(space.id, space.name)) }
+            .orEmpty()
     val canChooseInSpace = checkoutSpaces.isNotEmpty()
-    val insufficientBalance =
-        state.checkoutPayment == PaymentMethod.BALANCE &&
-            !state.hasSufficientBalance(walletBalance)
     // A guest must be able to continue into Firebase auth before the protected
     // operational-status check runs. submitOrder performs that check after auth.
     val canConfirm =
         if (guestAuthRequired) {
-            state.cartLines.isNotEmpty() && !state.creatingOrder && !insufficientBalance
+            state.cartLines.isNotEmpty() && !state.creatingOrder
         } else {
             state.cartLines.isNotEmpty() &&
                 !state.creatingOrder &&
-                (state.canCreateOrder || state.operationalStatus == null) &&
-                !insufficientBalance
+                (state.canCreateOrder || state.operationalStatus == null)
         }
 
     Box(
@@ -171,10 +156,7 @@ fun CartScreen(
                 item {
                     CheckoutPaymentPicker(
                         selected = state.checkoutPayment,
-                        walletBalance = walletBalance,
-                        savedCard = savedCard,
                         onSelect = onPaymentChange,
-                        showDemoPayments = showDemoTabs,
                     )
                 }
                 item {
@@ -191,11 +173,6 @@ fun CartScreen(
                         item {
                             WarningBanner(message = blocker)
                         }
-                    }
-                }
-                if (insufficientBalance) {
-                    item {
-                        WarningBanner(message = "Saldo insuficiente. Tienes $$walletBalance disponible.")
                     }
                 }
                 state.createOrderError?.let { error ->
@@ -268,7 +245,7 @@ private fun CartTakeAwayCashPreview() {
             counterPrice = "64.00",
             digitalPrice = "64.00",
             available = true,
-            imageUrl = "fixture://burrito_norteno",
+            imageUrl = "burrito_norteno",
             optionGroups = emptyList(),
         )
     val previewState =
@@ -289,7 +266,6 @@ private fun CartTakeAwayCashPreview() {
                     estimatedTimeMinutes = 15,
                     consultedAt = "preview",
                 ),
-            testOnlyMode = true,
             cartLines = listOf(CartLine(product = burrito, quantity = 1, selectedOptionIds = emptySet())),
             checkoutDestination = OrderDestination.TAKE_AWAY,
             checkoutPayment = PaymentMethod.CASH,
@@ -298,15 +274,12 @@ private fun CartTakeAwayCashPreview() {
     VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
         CartScreen(
             state = previewState,
-            walletBalance = 200,
-            savedCard = SavedCard(brand = "VISA", lastFour = "4242", holder = "DANI ÁLVAREZ", expiry = "08/29"),
             onMenu = {},
             onQuantityChange = { _, _ -> },
             onNotesChange = {},
             onDestinationChange = {},
             onPaymentChange = {},
             onConfirm = {},
-            showDemoTabs = true,
         )
     }
 }
@@ -318,9 +291,7 @@ private fun confirmLabel(
 ): String =
     when {
         guestAuthRequired -> "Continuar para confirmar"
-        payment == PaymentMethod.CASH -> "Confirmar pedido"
-        payment == PaymentMethod.BALANCE -> "Pagar con saldo"
-        else -> "Pagar con tarjeta"
+        else -> "Confirmar pedido"
     }
 
 @Composable
@@ -524,7 +495,7 @@ private fun ErrorBanner(message: String) {
 
 @Composable
 private fun EmptyCart(onMenu: () -> Unit) {
-    DemoEmptyState(
+    EmptyState(
         icon = Icons.Outlined.ShoppingCart,
         title = "Tu pedido está vacío",
         message = "Agrega algo del menú para empezar.",

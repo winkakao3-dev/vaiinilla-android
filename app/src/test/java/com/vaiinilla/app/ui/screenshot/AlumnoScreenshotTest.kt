@@ -10,10 +10,8 @@ import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
-import com.vaiinilla.app.ui.screens.DemoGalleryScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
-import com.vaiinilla.app.ui.screens.RoleSelectorScreen
 import com.vaiinilla.app.ui.screens.SplashScreen
 import com.vaiinilla.app.ui.screens.StudentTrackingScreen
 import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
@@ -45,22 +43,6 @@ class AlumnoScreenshotTest {
         }
         composeTestRule.waitForIdle()
         composeTestRule.onRoot().captureRoboImage("01_splash.png")
-    }
-
-    @Test
-    fun `02_role_selector`() {
-        composeTestRule.setContent {
-            ScreenshotTheme {
-                RoleSelectorScreen(
-                    testOnlyMode = true,
-                    onTestOnlyModeChange = {},
-                    onRoleSelected = {},
-                    onOpenDemoGallery = {},
-                )
-            }
-        }
-        composeTestRule.waitForIdle()
-        composeTestRule.onRoot().captureRoboImage("02_role_selector.png")
     }
 
     @Test
@@ -113,16 +95,10 @@ class AlumnoScreenshotTest {
 
     @Test
     fun `06_wallet`() {
-        val state = ScreenshotFixtures.catalogLoadedState()
         composeTestRule.setContent {
             ScreenshotTheme {
                 ScreenshotWithStudentNav(activeTab = StudentTab.WALLET, cartCount = 0) {
                     WalletScreen(
-                        state = state,
-                        balance = 200,
-                        onAddMoney = {},
-                        onPaymentMethods = {},
-                        onAccount = {},
                         onMenu = {},
                         onAssistant = {},
                         onOrders = {},
@@ -442,19 +418,5 @@ class AlumnoScreenshotTest {
         }
         composeTestRule.waitForIdle()
         composeTestRule.onRoot().captureRoboImage("22_confirm_saldo.png")
-    }
-
-    @Test
-    fun `23_demo_gallery`() {
-        composeTestRule.setContent {
-            ScreenshotTheme {
-                DemoGalleryScreen(
-                    onBack = {},
-                    onItemSelected = {},
-                )
-            }
-        }
-        composeTestRule.waitForIdle()
-        composeTestRule.onRoot().captureRoboImage("23_demo_gallery.png")
     }
 }

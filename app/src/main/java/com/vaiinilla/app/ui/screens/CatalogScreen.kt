@@ -52,7 +52,7 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.components.ActiveOrderBanner
-import com.vaiinilla.app.ui.components.DemoEmptyState
+import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductDetailSheet
 import com.vaiinilla.app.ui.components.ProductImage
@@ -169,7 +169,7 @@ private fun CatalogScreenPreviewContent() {
             counterPrice = "55.00",
             digitalPrice = "55.00",
             available = true,
-            imageUrl = "fixture://waffle",
+            imageUrl = "waffle",
             optionGroups = emptyList(),
         )
     val burrito =
@@ -182,7 +182,7 @@ private fun CatalogScreenPreviewContent() {
             allergens = "Gluten, lácteos",
             counterPrice = "64.00",
             digitalPrice = "64.00",
-            imageUrl = "fixture://burrito_norteno",
+            imageUrl = "burrito_norteno",
         )
     val jamaica =
         waffle.copy(
@@ -195,7 +195,7 @@ private fun CatalogScreenPreviewContent() {
             estimatedTimeMinutes = 2,
             counterPrice = "18.00",
             digitalPrice = "18.00",
-            imageUrl = "fixture://jamaica",
+            imageUrl = "jamaica",
         )
     val products = listOf(waffle, burrito, jamaica)
     val previewState =
@@ -393,7 +393,7 @@ private fun CatalogHeader(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "Hola, Dani",
+                    "Menú de Vaiinilla",
                     color = colors.muted,
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 11.sp,
@@ -640,7 +640,7 @@ private fun ProductCard(
 
 @Composable
 private fun EmptySearchState(onClearSearch: () -> Unit) {
-    DemoEmptyState(
+    EmptyState(
         icon = Icons.Outlined.Search,
         title = "No encontramos eso",
         message = "Prueba otra palabra o categoría.",

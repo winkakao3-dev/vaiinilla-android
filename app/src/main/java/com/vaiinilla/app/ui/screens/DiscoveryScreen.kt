@@ -32,7 +32,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.core.config.DemoFeatures
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
@@ -58,8 +57,6 @@ fun DiscoveryScreen(
     onConfirmSwitch: () -> Unit,
     onDismissSwitch: () -> Unit,
     onContinueSelected: () -> Unit,
-    onOpenDemoRoles: () -> Unit,
-    showMockHint: Boolean = true,
 ) {
     val colors = LocalVaiinillaColors.current
 
@@ -166,11 +163,7 @@ fun DiscoveryScreen(
                             )
                         }
                         Text(
-                            if (showMockHint) {
-                                "Si el cartel es de mesa o cancha, pega el token del QR. En MOCK usa mesa4."
-                            } else {
-                                "Si el cartel es de mesa o cancha, pega el token opaco que contiene su QR."
-                            },
+                            "Si el cartel es de mesa o cancha, pega el token opaco que contiene su QR.",
                             color = colors.muted,
                             fontSize = 12.sp,
                             lineHeight = 16.sp,
@@ -258,8 +251,6 @@ fun DiscoveryScreen(
             item {
                 EditorialSectionHead(
                     title = "Cafeterías",
-                    trailing = if (DemoFeatures.toolsAvailable) "Solo pruebas" else null,
-                    onTrailingClick = if (DemoFeatures.toolsAvailable) onOpenDemoRoles else null,
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
@@ -316,7 +307,6 @@ private fun DiscoveryScreenPreview() {
             onConfirmSwitch = {},
             onDismissSwitch = {},
             onContinueSelected = {},
-            onOpenDemoRoles = {},
         )
     }
 }

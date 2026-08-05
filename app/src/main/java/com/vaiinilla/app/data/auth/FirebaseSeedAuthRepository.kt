@@ -5,8 +5,6 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
-import com.vaiinilla.app.core.config.AppEnvironment
-import com.vaiinilla.app.core.config.DataSourceMode
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.core.security.SeedJwtCache
 import com.vaiinilla.app.domain.auth.SeedAccounts
@@ -24,7 +22,6 @@ class FirebaseSeedAuthRepository
     @Inject
     constructor(
         @ApplicationContext private val applicationContext: Context,
-        private val environment: AppEnvironment,
         private val contextoExchange: SesionesContextoExchange,
         private val sessionStore: SecureSessionStore,
         private val seedJwtCache: SeedJwtCache,
@@ -40,9 +37,6 @@ class FirebaseSeedAuthRepository
 
         suspend fun authenticateRole(role: OperationalRole): Result<Unit> =
             withContext(Dispatchers.IO) {
-                if (environment.dataSourceMode != DataSourceMode.REMOTE) {
-                    return@withContext Result.success(Unit)
-                }
                 runCatching {
                     requireSeedAuthAllowed()
                     signInAndExchange(role, forceRefresh = false)
@@ -55,9 +49,6 @@ class FirebaseSeedAuthRepository
             forceRefresh: Boolean = false,
         ): Result<String> =
             withContext(Dispatchers.IO) {
-                if (environment.dataSourceMode != DataSourceMode.REMOTE) {
-                    return@withContext Result.failure(IllegalStateException("Seed auth solo aplica en REMOTE."))
-                }
                 if (!forceRefresh) {
                     seedJwtCache.get(role)?.let { return@withContext Result.success(it) }
                 }
@@ -76,9 +67,6 @@ class FirebaseSeedAuthRepository
             forceRefresh: Boolean = false,
         ): Result<String> =
             withContext(Dispatchers.IO) {
-                if (environment.dataSourceMode != DataSourceMode.REMOTE) {
-                    return@withContext Result.failure(IllegalStateException("Seed auth solo aplica en REMOTE."))
-                }
                 if (!forceRefresh) {
                     seedJwtCache.get(role)?.let { return@withContext Result.success(it) }
                 }
@@ -94,9 +82,6 @@ class FirebaseSeedAuthRepository
 
         suspend fun restoreActiveRole(role: OperationalRole): Result<Unit> =
             withContext(Dispatchers.IO) {
-                if (environment.dataSourceMode != DataSourceMode.REMOTE) {
-                    return@withContext Result.success(Unit)
-                }
                 runCatching {
                     requireSeedAuthAllowed()
                     val cached = seedJwtCache.get(role)

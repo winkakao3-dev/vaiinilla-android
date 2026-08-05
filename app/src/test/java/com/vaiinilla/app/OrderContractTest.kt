@@ -1,6 +1,6 @@
 package com.vaiinilla.app
 
-import com.vaiinilla.app.data.fixture.ContractFixtureParser
+import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.order.FixtureOrderRepository
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.model.CreateOrderItem
@@ -17,7 +17,7 @@ import java.util.UUID
 
 class OrderContractTest {
     private val source = TestFixtureSource()
-    private val parser = ContractFixtureParser()
+    private val parser = ContractResponseParser()
 
     @Test
     fun `created order fixture matches the approved contract`() {

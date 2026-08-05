@@ -1,17 +1,14 @@
 package com.vaiinilla.app
 
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
-import com.vaiinilla.app.core.config.AppEnvironment
-import com.vaiinilla.app.core.config.DataSourceMode
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.auth.ContextoExchanger
-import com.vaiinilla.app.data.auth.FixtureContextoExchanger
 import com.vaiinilla.app.data.auth.SesionesContextoDataDto
 import com.vaiinilla.app.data.auth.student.AccessEmailApi
 import com.vaiinilla.app.data.auth.student.FixtureStudentAuthRepository
 import com.vaiinilla.app.data.auth.student.StudentAuthPreferences
+import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.discovery.FixtureDiscoveryRepository
-import com.vaiinilla.app.data.fixture.ContractFixtureParser
 import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRequest
@@ -40,23 +37,6 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import javax.inject.Provider
 
-class FixtureContextoExchangerTest {
-    @Test
-    fun `returns synthetic jwt without network`() {
-        val result =
-            FixtureContextoExchanger().exchange(
-                firebaseIdToken = "fb-token",
-                establecimientoSlug = "cafeteria-centro",
-                establecimientoId = "est-1",
-                identificadorCliente = "A012",
-            )
-        assertEquals("mock-vaiinilla-jwt-est-1", result.accessToken)
-        assertEquals("Bearer", result.tokenType)
-        assertEquals(900, result.expiresIn)
-        assertEquals("mock-membresia-est-1", result.contexto?.membresiaId)
-    }
-}
-
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class StudentAuthHandoffTest {
@@ -78,7 +58,7 @@ class StudentAuthHandoffTest {
                 space = PublicSpace(id = 12, name = "Mesa 4", type = "mesa"),
             )
         val catalog =
-            FixtureDiscoveryRepository(TestFixtureSource(), ContractFixtureParser())
+            FixtureDiscoveryRepository(TestFixtureSource(), ContractResponseParser())
                 .getGuestCatalog("cafeteria-centro")
                 .getOrThrow()
         val product = catalog.products.first()
@@ -170,8 +150,6 @@ class StudentAuthViewModelTest {
                         authRepositoryProvider = Provider { throw UnsupportedOperationException() },
                     ),
                 preferences = preferences,
-                environment = AppEnvironment(DataSourceMode.MOCK, "https://localhost/"),
-                fixtureAuthRepository = authRepository,
                 remoteAccessEmailApi = fakeAccessEmailApi(),
             )
     }
@@ -218,7 +196,7 @@ class StudentAuthViewModelTest {
         runTest {
             authRepository.signUp("ana@test.com", "secret1", "Ana")
             authRepository.markCurrentEmailVerified()
-            authRepository.completeMockEnrollment("jwt-test", "est-1")
+            authRepository.completeTestEnrollment("jwt-test", "est-1")
 
             assertTrue(viewModel.isReadyForCheckout())
         }
@@ -228,7 +206,7 @@ class StudentAuthViewModelTest {
         runTest {
             authRepository.signUp("ana@test.com", "secret1", "Ana")
             authRepository.markCurrentEmailVerified()
-            authRepository.completeMockEnrollment("jwt-test", "other-est")
+            authRepository.completeTestEnrollment("jwt-test", "other-est")
 
             assertFalse(viewModel.isReadyForCheckout())
         }
@@ -281,8 +259,6 @@ class StudentAuthViewModelTest {
                             authRepositoryProvider = Provider { throw UnsupportedOperationException() },
                         ),
                     preferences = preferences,
-                    environment = AppEnvironment(DataSourceMode.MOCK, "https://localhost/"),
-                    fixtureAuthRepository = auth,
                     remoteAccessEmailApi = fakeAccessEmailApi(),
                 )
             vm.refreshGuestVenue()
