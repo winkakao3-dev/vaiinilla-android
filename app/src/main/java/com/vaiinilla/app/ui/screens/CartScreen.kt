@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,13 +33,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.core.config.DataSourceMode
 import com.vaiinilla.app.domain.model.CartLine
+import com.vaiinilla.app.domain.model.Catalog
+import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
 import com.vaiinilla.app.domain.model.Money
+import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.PreparationStation
+import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.components.CheckoutDestinationPicker
 import com.vaiinilla.app.ui.components.CheckoutPaymentPicker
 import com.vaiinilla.app.ui.components.CheckoutSpaceOption
@@ -57,11 +65,15 @@ import com.vaiinilla.app.ui.order.operationalBlockerMessage
 import com.vaiinilla.app.ui.order.requiresOperationalReady
 import com.vaiinilla.app.ui.order.selectedSpaceName
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
+import com.vaiinilla.app.ui.wallet.SavedCard
 
 @Composable
 fun CartScreen(
     state: OrderFlowUiState,
     walletBalance: Int = 200,
+    savedCard: SavedCard? = null,
     onMenu: () -> Unit,
     onQuantityChange: (lineKey: String, delta: Int) -> Unit,
     onNotesChange: (String) -> Unit,
@@ -160,6 +172,7 @@ fun CartScreen(
                     CheckoutPaymentPicker(
                         selected = state.checkoutPayment,
                         walletBalance = walletBalance,
+                        savedCard = savedCard,
                         onSelect = onPaymentChange,
                         showDemoPayments = showDemoTabs,
                     )
@@ -223,6 +236,82 @@ fun CartScreen(
     }
 }
 
+@Preview(name = "Carrito", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun CartScreenPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        CartScreen(
+            state = OrderFlowUiState(loading = false),
+            onMenu = {},
+            onQuantityChange = { _, _ -> },
+            onNotesChange = {},
+            onDestinationChange = {},
+            onPaymentChange = {},
+            onConfirm = {},
+        )
+    }
+}
+
+@Preview(name = "Carrito · para llevar + efectivo", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun CartTakeAwayCashPreview() {
+    val burrito =
+        Product(
+            id = 2,
+            categoryId = 2,
+            preparationStation = PreparationStation.KITCHEN,
+            name = "Burrito norteño",
+            description = "Burrito de asada con queso y salsa verde.",
+            ingredients = "Tortilla, asada, queso, salsa",
+            allergens = "Gluten, lácteos",
+            estimatedTimeMinutes = 12,
+            counterPrice = "64.00",
+            digitalPrice = "64.00",
+            available = true,
+            imageUrl = "fixture://burrito_norteno",
+            optionGroups = emptyList(),
+        )
+    val previewState =
+        OrderFlowUiState(
+            loading = false,
+            catalog =
+                Catalog(
+                    categories = listOf(Category(id = 2, name = "Comida", order = 1)),
+                    products = listOf(burrito),
+                    cursor = null,
+                ),
+            operationalStatus =
+                OperationalStatus(
+                    acceptingOrders = true,
+                    cashSessionOpen = true,
+                    cashierOnline = true,
+                    kitchenOnline = true,
+                    estimatedTimeMinutes = 15,
+                    consultedAt = "preview",
+                ),
+            testOnlyMode = true,
+            cartLines = listOf(CartLine(product = burrito, quantity = 1, selectedOptionIds = emptySet())),
+            checkoutDestination = OrderDestination.TAKE_AWAY,
+            checkoutPayment = PaymentMethod.CASH,
+        )
+
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        CartScreen(
+            state = previewState,
+            walletBalance = 200,
+            savedCard = SavedCard(brand = "VISA", lastFour = "4242", holder = "DANI ÁLVAREZ", expiry = "08/29"),
+            onMenu = {},
+            onQuantityChange = { _, _ -> },
+            onNotesChange = {},
+            onDestinationChange = {},
+            onPaymentChange = {},
+            onConfirm = {},
+            showDemoTabs = true,
+        )
+    }
+}
+
+@Composable
 private fun confirmLabel(
     payment: PaymentMethod,
     guestAuthRequired: Boolean,
@@ -288,16 +377,43 @@ private fun CartLineCard(
                     modifier = Modifier.padding(top = 7.dp),
                 )
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                QuantityButton(icon = Icons.Rounded.Remove, description = "Quitar uno", onClick = onMinus)
-                Text(
-                    line.quantity.toString(),
-                    color = colors.ink,
-                    fontWeight = FontWeight.Black,
-                    modifier = Modifier.padding(horizontal = 7.dp),
-                )
-                QuantityButton(icon = Icons.Rounded.Add, description = "Agregar uno", onClick = onPlus)
-            }
+            QuantityStepper(
+                quantity = line.quantity,
+                onMinus = onMinus,
+                onPlus = onPlus,
+                modifier = Modifier.padding(start = 8.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuantityStepper(
+    quantity: Int,
+    onMinus: () -> Unit,
+    onPlus: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    Surface(
+        modifier = modifier,
+        color = colors.paper,
+        shape = RoundedCornerShape(16.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            QuantityButton(icon = Icons.Rounded.Remove, description = "Quitar uno", onClick = onMinus)
+            Text(
+                quantity.toString(),
+                color = colors.ink,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.width(20.dp),
+            )
+            QuantityButton(icon = Icons.Rounded.Add, description = "Agregar uno", onClick = onPlus)
         }
     }
 }
@@ -313,7 +429,8 @@ private fun QuantityButton(
         onClick = onClick,
         modifier =
             Modifier
-                .size(30.dp)
+                .size(48.dp)
+                .padding(7.dp)
                 .clip(RoundedCornerShape(11.dp))
                 .background(colors.ink),
     ) {

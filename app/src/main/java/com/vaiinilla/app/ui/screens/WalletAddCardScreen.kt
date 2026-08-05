@@ -25,12 +25,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.components.WalletPrimaryButton
 import com.vaiinilla.app.ui.components.WalletScreenShell
 import com.vaiinilla.app.ui.components.WalletSubflowTopBar
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import com.vaiinilla.app.ui.wallet.SavedCard
 import com.vaiinilla.app.ui.wallet.WalletUiState
 
@@ -45,6 +48,7 @@ fun WalletAddCardScreen(
     var number by rememberSaveable { mutableStateOf("4242 4242 4242 4242") }
     var expiry by rememberSaveable { mutableStateOf("08/29") }
     var cvv by rememberSaveable { mutableStateOf("123") }
+    val brand = cardBrand(number)
 
     WalletScreenShell(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -70,7 +74,12 @@ fun WalletAddCardScreen(
                             .padding(22.dp),
                 ) {
                     Column {
-                        Text("VAIINILLA · VISA", color = colors.paper, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                        Text(
+                            "VAIINILLA · $brand",
+                            color = colors.paper,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 11.sp,
+                        )
                         Text(
                             "•••• •••• •••• ${number.filter { it.isDigit() }.takeLast(4).ifBlank { "4242" }}",
                             color = colors.paper,
@@ -127,20 +136,53 @@ fun WalletAddCardScreen(
                         val lastFour = number.filter { it.isDigit() }.takeLast(4).ifBlank { "4242" }
                         val newCard =
                             SavedCard(
-                                brand = "VISA",
+                                brand = brand,
                                 lastFour = lastFour,
                                 holder = holder.uppercase(),
                                 expiry = expiry,
                             )
-                        if (walletState.cards.none { it.lastFour == newCard.lastFour }) {
-                            walletState.cards = walletState.cards + newCard
-                        }
+                        walletState.cards =
+                            listOf(newCard) + walletState.cards.filterNot { it.lastFour == newCard.lastFour }
                         onSaved()
                     },
                     modifier = Modifier.padding(top = 20.dp),
                 )
             }
         }
+    }
+}
+
+@Preview(
+    name = "Agregar tarjeta · claro",
+    showBackground = true,
+    widthDp = 411,
+    heightDp = 891,
+)
+@Composable
+private fun WalletAddCardScreenLightPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        WalletAddCardScreen(
+            walletState = WalletUiState(),
+            onBack = {},
+            onSaved = {},
+        )
+    }
+}
+
+@Preview(
+    name = "Agregar tarjeta · oscuro",
+    showBackground = true,
+    widthDp = 411,
+    heightDp = 891,
+)
+@Composable
+private fun WalletAddCardScreenDarkPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Dark) {
+        WalletAddCardScreen(
+            walletState = WalletUiState(),
+            onBack = {},
+            onSaved = {},
+        )
     }
 }
 
@@ -173,5 +215,18 @@ private fun WalletField(
                     unfocusedBorderColor = colors.line,
                 ),
         )
+    }
+}
+
+private fun cardBrand(number: String): String {
+    val digits = number.filter(Char::isDigit)
+    val prefixTwo = digits.take(2).toIntOrNull()
+    val prefixFour = digits.take(4).toIntOrNull()
+    return when {
+        digits.startsWith("4") -> "VISA"
+        prefixTwo != null && prefixTwo in 51..55 -> "MASTERCARD"
+        prefixFour != null && prefixFour in 2221..2720 -> "MASTERCARD"
+        digits.startsWith("34") || digits.startsWith("37") -> "AMEX"
+        else -> "CARD"
     }
 }

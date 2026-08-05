@@ -17,7 +17,6 @@ fun studentTabForRoute(route: String?): StudentTab? =
         route == null -> null
         route == Routes.CATALOG -> StudentTab.MENU
         route == Routes.ASSISTANT ||
-            route == Routes.ASSISTANT_HUB ||
             route == Routes.ASSISTANT_CHAT -> StudentTab.ASSISTANT
         route == Routes.STUDENT_TRACKING -> StudentTab.ORDERS
         route == Routes.WALLET -> StudentTab.WALLET
@@ -39,6 +38,8 @@ fun shouldShowStudentNav(
     catalogDetailOpen: Boolean,
 ): Boolean =
     studentTabForRoute(route) != null &&
+        route != Routes.ASSISTANT &&
+        route != Routes.ASSISTANT_CHAT &&
         !(route == Routes.CATALOG && catalogDetailOpen)
 
 /**

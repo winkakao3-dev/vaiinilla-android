@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.ui.auth.student.StudentAuthUiState
 import com.vaiinilla.app.ui.components.DemoEmptyState
@@ -25,6 +26,8 @@ import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialSectionHead
 import com.vaiinilla.app.ui.components.EditorialTextField
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
 @Composable
 fun StudentForgotPasswordScreen(
@@ -99,5 +102,18 @@ fun StudentForgotPasswordScreen(
                 CircularProgressIndicator(color = colors.accent)
             }
         }
+    }
+}
+
+@Preview(name = "Auth · recuperar contraseña", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun StudentForgotPasswordScreenPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        StudentForgotPasswordScreen(
+            state = StudentAuthUiState(email = "dani@utch.mx"),
+            onBack = {},
+            onEmailChange = {},
+            onSendReset = {},
+        )
     }
 }

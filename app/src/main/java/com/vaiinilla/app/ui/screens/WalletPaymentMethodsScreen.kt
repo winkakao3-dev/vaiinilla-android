@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.components.WalletPrimaryButton
@@ -28,6 +30,8 @@ import com.vaiinilla.app.ui.components.WalletScreenShell
 import com.vaiinilla.app.ui.components.WalletSectionHead
 import com.vaiinilla.app.ui.components.WalletSubflowTopBar
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import com.vaiinilla.app.ui.wallet.SavedCard
 import com.vaiinilla.app.ui.wallet.WalletUiState
 
@@ -54,13 +58,21 @@ fun WalletPaymentMethodsScreen(
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 20.dp)
                         .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Text(
-                    "La tarjeta puede pagar un pedido directamente o añadir dinero. La transferencia sólo recarga el saldo.",
-                    color = colors.muted,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                )
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = colors.paper2,
+                    shape = RoundedCornerShape(18.dp),
+                ) {
+                    Text(
+                        "La tarjeta puede pagar un pedido directamente o añadir dinero. La transferencia sólo recarga el saldo.",
+                        color = colors.muted,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
 
                 WalletSectionHead(
                     title = "Tarjetas",
@@ -73,7 +85,7 @@ fun WalletPaymentMethodsScreen(
                     color = colors.paper2,
                     shape = RoundedCornerShape(18.dp),
                 ) {
-                    Column(modifier = Modifier.padding(8.dp)) {
+                    Column(modifier = Modifier.padding(10.dp)) {
                         walletState.cards.forEachIndexed { index, card ->
                             if (index > 0) Spacer(Modifier.height(7.dp))
                             SavedCardRow(card = card, selected = index == 0)
@@ -84,7 +96,7 @@ fun WalletPaymentMethodsScreen(
                 WalletPrimaryButton(
                     text = "Agregar método de pago",
                     onClick = onAddCard,
-                    modifier = Modifier.padding(top = 12.dp),
+                    modifier = Modifier.padding(top = 2.dp),
                 )
 
                 WalletSectionHead(title = "Transferencia")
@@ -94,12 +106,12 @@ fun WalletPaymentMethodsScreen(
                     color = colors.paper2,
                     shape = RoundedCornerShape(18.dp),
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
+                    Column(modifier = Modifier.padding(18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier =
                                     Modifier
-                                        .size(42.dp)
+                                        .size(48.dp)
                                         .background(colors.accent, RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center,
                             ) {
@@ -110,29 +122,69 @@ fun WalletPaymentMethodsScreen(
                                     "Transferencia bancaria",
                                     color = colors.ink,
                                     fontWeight = FontWeight.Black,
-                                    fontSize = 14.sp,
+                                    fontSize = 16.sp,
                                 )
                                 Text(
                                     "CLABE 646180157034852019 · Ref UTCH241087",
                                     color = colors.muted,
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     fontFamily = FontFamily.Monospace,
                                     modifier = Modifier.padding(top = 3.dp),
                                 )
                             }
                         }
+                        Text(
+                            "Sólo recarga tu saldo de Vaiinilla.",
+                            color = colors.muted,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 14.dp),
+                        )
                     }
                 }
 
                 Text(
-                    "La tarjeta puede pagar un pedido directamente o añadir dinero. La transferencia sólo recarga el saldo.",
+                    "Tus métodos quedan listos para pagar pedidos o añadir saldo cuando lo necesites.",
                     color = colors.muted,
-                    fontSize = 11.sp,
-                    lineHeight = 16.sp,
-                    modifier = Modifier.padding(top = 18.dp),
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                    modifier = Modifier.padding(top = 2.dp, bottom = 12.dp),
                 )
             }
         }
+    }
+}
+
+@Preview(
+    name = "Métodos de pago · claro",
+    showBackground = true,
+    widthDp = 411,
+    heightDp = 891,
+)
+@Composable
+private fun WalletPaymentMethodsScreenLightPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        WalletPaymentMethodsScreen(
+            walletState = WalletUiState(),
+            onBack = {},
+            onAddCard = {},
+        )
+    }
+}
+
+@Preview(
+    name = "Métodos de pago · oscuro",
+    showBackground = true,
+    widthDp = 411,
+    heightDp = 891,
+)
+@Composable
+private fun WalletPaymentMethodsScreenDarkPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Dark) {
+        WalletPaymentMethodsScreen(
+            walletState = WalletUiState(),
+            onBack = {},
+            onAddCard = {},
+        )
     }
 }
 

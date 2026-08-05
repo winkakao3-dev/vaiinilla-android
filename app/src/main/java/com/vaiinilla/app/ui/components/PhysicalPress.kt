@@ -11,6 +11,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 
 enum class PhysicalPressScale {
     Default,
@@ -37,7 +42,9 @@ fun Modifier.physicalPress(
         val animatedScale by animateFloatAsState(
             targetValue = targetScale,
             animationSpec =
-                if (pressed) {
+                if (reducedMotion()) {
+                    tween(durationMillis = 0)
+                } else if (pressed) {
                     tween(durationMillis = 90)
                 } else {
                     tween(durationMillis = 240)
@@ -45,7 +52,15 @@ fun Modifier.physicalPress(
             label = "physical-press-scale",
         )
         this
-            .graphicsLayer {
+            .semantics {
+                if (enabled) {
+                    role = Role.Button
+                    onClick {
+                        onClick()
+                        true
+                    }
+                }
+            }.graphicsLayer {
                 scaleX = animatedScale
                 scaleY = animatedScale
             }.pointerInput(enabled, onClick) {
@@ -60,3 +75,16 @@ fun Modifier.physicalPress(
                 )
             }
     }
+
+@androidx.compose.runtime.Composable
+internal fun reducedMotion(): Boolean {
+    val context = LocalContext.current
+    return remember(context) {
+        runCatching {
+            android.provider.Settings.Global.getFloat(
+                context.contentResolver,
+                android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+            ) == 0f
+        }.getOrDefault(false)
+    }
+}

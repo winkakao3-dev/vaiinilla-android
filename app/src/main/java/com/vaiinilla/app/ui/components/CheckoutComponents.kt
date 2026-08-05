@@ -1,19 +1,21 @@
 package com.vaiinilla.app.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Icon
@@ -25,7 +27,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
@@ -34,6 +43,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.Yolk
+import com.vaiinilla.app.ui.wallet.SavedCard
 
 @Composable
 fun OrderStateTrackingHero(
@@ -223,11 +233,18 @@ fun CheckoutSpacePicker(
         ) {
             spaces.forEach { space ->
                 val selected = space.id == selectedSpaceId
+                val haptics = LocalHapticFeedback.current
                 Surface(
                     modifier =
                         Modifier
                             .clip(RoundedCornerShape(14.dp))
-                            .clickable { onSelect(space.id) },
+                            .clickable {
+                                if (!selected) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onSelect(space.id)
+                            }.semantics {
+                                role = Role.RadioButton
+                                this.selected = selected
+                            },
                     color = if (selected) colors.ink else colors.paper2,
                     shape = RoundedCornerShape(14.dp),
                 ) {
@@ -236,7 +253,10 @@ fun CheckoutSpacePicker(
                         color = if (selected) colors.paper else colors.ink,
                         fontWeight = FontWeight.Black,
                         fontSize = 13.sp,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        modifier =
+                            Modifier
+                                .heightIn(min = 48.dp)
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
                     )
                 }
             }
@@ -254,6 +274,7 @@ private fun DestinationOption(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
+    val haptics = LocalHapticFeedback.current
     val bg = if (selected) colors.ink else colors.paper2
     val fg = if (selected) colors.paper else colors.ink
     val muted = if (selected) colors.paper.copy(alpha = 0.72f) else colors.muted
@@ -261,7 +282,16 @@ private fun DestinationOption(
         modifier =
             modifier
                 .clip(RoundedCornerShape(20.dp))
-                .clickable(onClick = onClick),
+                .clickable(
+                    onClick = {
+                        if (!selected) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onClick()
+                    },
+                ).heightIn(min = 72.dp)
+                .semantics {
+                    role = Role.RadioButton
+                    this.selected = selected
+                },
         color = bg,
         shape = RoundedCornerShape(20.dp),
     ) {
@@ -287,11 +317,31 @@ private fun DestinationOption(
 fun CheckoutPaymentPicker(
     selected: PaymentMethod,
     walletBalance: Int,
+    savedCard: SavedCard? = null,
     onSelect: (PaymentMethod) -> Unit,
     modifier: Modifier = Modifier,
     showDemoPayments: Boolean = false,
 ) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (showDemoPayments) {
+            PaymentOption(
+                brand = "SALDO",
+                title = "Saldo Vaiinilla · $$walletBalance",
+                subtitle = "Pago inmediato y cashback",
+                brandIsTransfer = true,
+                selected = selected == PaymentMethod.BALANCE,
+                onClick = { onSelect(PaymentMethod.BALANCE) },
+            )
+            savedCard?.let { card ->
+                PaymentOption(
+                    brand = card.brand.ifBlank { "CARD" }.uppercase(),
+                    title = "Tarjeta •••• ${card.lastFour}",
+                    subtitle = "Pago directo, sin usar saldo",
+                    selected = selected == PaymentMethod.CARD,
+                    onClick = { onSelect(PaymentMethod.CARD) },
+                )
+            }
+        }
         PaymentOption(
             brand = "CASH",
             title = "Efectivo en Caja",
@@ -299,30 +349,6 @@ fun CheckoutPaymentPicker(
             selected = selected == PaymentMethod.CASH,
             onClick = { onSelect(PaymentMethod.CASH) },
         )
-        if (showDemoPayments) {
-            PaymentOption(
-                brand = "SALDO",
-                title = "Saldo Vaiinilla · $$walletBalance",
-                subtitle = "Pago inmediato y cashback · Solo pruebas",
-                brandIsTransfer = true,
-                selected = selected == PaymentMethod.BALANCE,
-                onClick = { onSelect(PaymentMethod.BALANCE) },
-            )
-            PaymentOption(
-                brand = "VISA",
-                title = "Tarjeta •••• 4242",
-                subtitle = "Pago directo, sin usar saldo · Solo pruebas",
-                selected = selected == PaymentMethod.CARD,
-                onClick = { onSelect(PaymentMethod.CARD) },
-            )
-            Text(
-                "Transferencia: sólo para añadir dinero al saldo desde Cartera (demo).",
-                color = LocalVaiinillaColors.current.muted,
-                fontSize = 12.sp,
-                lineHeight = 17.sp,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        }
     }
 }
 
@@ -336,38 +362,58 @@ private fun PaymentOption(
     brandIsTransfer: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
+    val haptics = LocalHapticFeedback.current
+    val background = if (selected) colors.accent else colors.paper2
+    val foreground = if (selected) colors.accentInk else colors.ink
+    val secondaryForeground =
+        if (selected) {
+            colors.accentInk.copy(alpha = 0.72f)
+        } else {
+            colors.muted
+        }
     Surface(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .clickable(onClick = onClick)
-                .then(
-                    if (selected) {
-                        Modifier.border(2.dp, colors.accent, RoundedCornerShape(20.dp))
-                    } else {
-                        Modifier
+                .heightIn(min = 52.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .clickable(
+                    onClick = {
+                        if (!selected) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onClick()
                     },
-                ),
-        color = colors.paper2,
-        shape = RoundedCornerShape(20.dp),
+                ).semantics {
+                    role = Role.RadioButton
+                    this.selected = selected
+                },
+        color = background,
+        shape = RoundedCornerShape(14.dp),
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             PaymentBrandBadge(label = brand, isTransfer = brandIsTransfer)
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = colors.ink, fontWeight = FontWeight.Black)
-                Text(subtitle, color = colors.muted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
-            }
-            if (selected) {
-                Icon(
-                    Icons.Outlined.CheckCircle,
-                    contentDescription = null,
-                    tint = colors.accent,
-                    modifier = Modifier.size(24.dp),
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    title,
+                    color = foreground,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    subtitle,
+                    color = secondaryForeground,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
                 )
             }
         }
@@ -380,9 +426,13 @@ private fun PaymentBrandBadge(
     isTransfer: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
-    Surface(
-        color = if (isTransfer) colors.accent.copy(alpha = 0.22f) else colors.ink,
-        shape = RoundedCornerShape(10.dp),
+    Box(
+        modifier =
+            Modifier
+                .size(width = 42.dp, height = 30.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(if (isTransfer) colors.accent.copy(alpha = 0.22f) else colors.ink),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             label,

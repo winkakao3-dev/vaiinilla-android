@@ -20,17 +20,29 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.domain.model.OrderDestination
+import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderItem
+import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.OrderSummary
+import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.ui.components.DemoEmptyState
 import com.vaiinilla.app.ui.components.OrderDetailSummary
 import com.vaiinilla.app.ui.components.OrderTrackingCard
 import com.vaiinilla.app.ui.components.OrderTrackingTimeline
+import com.vaiinilla.app.ui.components.StudentTab
+import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
 @Composable
 fun StudentTrackingScreen(
@@ -138,6 +150,100 @@ fun StudentTrackingScreen(
         }
     }
 }
+
+@Preview(name = "Pedidos y tracking", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun StudentTrackingScreenPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        StudentTrackingScreen(
+            state = OperationalUiState(role = OperationalRole.CLIENT),
+            orderState = OrderFlowUiState(),
+            onMenu = {},
+            onAssistant = {},
+            onWallet = {},
+            onCart = {},
+            onOpenCatalog = {},
+            onSelectOrder = {},
+        )
+    }
+}
+
+@Preview(name = "Pedidos · por cobrar", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun StudentTrackingPendingPaymentPreview() {
+    val pendingOrder = pendingPaymentPreviewOrder()
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            StudentTrackingScreen(
+                state =
+                    OperationalUiState(
+                        role = OperationalRole.CLIENT,
+                        orders = listOf(pendingOrder),
+                        selectedOrderId = pendingOrder.summary.id,
+                    ),
+                orderState = OrderFlowUiState(loading = false),
+                onMenu = {},
+                onAssistant = {},
+                onWallet = {},
+                onCart = {},
+                onOpenCatalog = {},
+                onSelectOrder = {},
+            )
+            VaiinillaBottomNav(
+                activeTab = StudentTab.ORDERS,
+                cartCount = 2,
+                onTabSelected = {},
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
+    }
+}
+
+private fun pendingPaymentPreviewOrder(): OrderDetail =
+    OrderDetail(
+        summary =
+            OrderSummary(
+                id = "preview-pending-payment",
+                folio = 3472,
+                operationalDate = "2026-07-20",
+                state = OrderState.PENDING_PAYMENT,
+                paymentMethod = PaymentMethod.CASH,
+                destination = OrderDestination.TAKE_AWAY,
+                space = null,
+                subtotal = "101.00",
+                combinedSavings = "0.00",
+                cashbackAwarded = "0.00",
+                total = "101.00",
+                version = 1,
+                createdAt = "2026-07-20T15:05:00.000Z",
+                updatedAt = "2026-07-20T15:05:00.000Z",
+            ),
+        user = null,
+        kitchenNotes = "Salsa aparte",
+        items =
+            listOf(
+                OrderItem(
+                    id = 501,
+                    productId = 2,
+                    productName = "Burrito norteño",
+                    preparationStation = PreparationStation.KITCHEN,
+                    quantity = 1,
+                    unitDigitalPrice = "76.00",
+                    subtotal = "76.00",
+                    options = emptyList(),
+                ),
+                OrderItem(
+                    id = 502,
+                    productId = 3,
+                    productName = "Agua de jamaica",
+                    preparationStation = PreparationStation.KITCHEN,
+                    quantity = 1,
+                    unitDigitalPrice = "25.00",
+                    subtotal = "25.00",
+                    options = emptyList(),
+                ),
+            ),
+    )
 
 @Composable
 private fun TrackingSectionHead() {

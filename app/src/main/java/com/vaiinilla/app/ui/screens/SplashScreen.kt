@@ -14,11 +14,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.ui.components.VaiinillaMark
 import com.vaiinilla.app.ui.theme.DarkSplash
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.delay
 
@@ -69,5 +71,13 @@ fun SplashScreen(onFinished: () -> Unit) {
         ) {
             VaiinillaMark(modifier = Modifier.fillMaxSize())
         }
+    }
+}
+
+@Preview(name = "Splash", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun SplashScreenPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        SplashScreen(onFinished = {})
     }
 }

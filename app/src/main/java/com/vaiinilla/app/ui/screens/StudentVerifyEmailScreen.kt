@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.ui.auth.student.StudentAuthUiState
 import com.vaiinilla.app.ui.components.DemoEmptyState
@@ -27,6 +28,8 @@ import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialPrimaryButton
 import com.vaiinilla.app.ui.components.EditorialSectionHead
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
 @Composable
 fun StudentVerifyEmailScreen(
@@ -106,5 +109,18 @@ fun StudentVerifyEmailScreen(
                 CircularProgressIndicator(color = colors.accent)
             }
         }
+    }
+}
+
+@Preview(name = "Auth · verificar correo", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun StudentVerifyEmailScreenPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        StudentVerifyEmailScreen(
+            state = StudentAuthUiState(email = "dani@utch.mx", verificationSent = true),
+            onBack = {},
+            onResend = {},
+            onCheckVerified = {},
+        )
     }
 }

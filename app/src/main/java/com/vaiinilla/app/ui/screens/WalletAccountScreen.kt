@@ -14,6 +14,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,12 +25,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.components.WalletScreenShell
 import com.vaiinilla.app.ui.components.WalletSectionHead
 import com.vaiinilla.app.ui.components.WalletSubflowTopBar
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
 @Composable
 fun WalletAccountScreen(onBack: () -> Unit) {
@@ -110,6 +117,32 @@ fun WalletAccountScreen(onBack: () -> Unit) {
     }
 }
 
+@Preview(
+    name = "Mi cuenta · claro",
+    showBackground = true,
+    widthDp = 411,
+    heightDp = 891,
+)
+@Composable
+private fun WalletAccountScreenLightPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        WalletAccountScreen(onBack = {})
+    }
+}
+
+@Preview(
+    name = "Mi cuenta · oscuro",
+    showBackground = true,
+    widthDp = 411,
+    heightDp = 891,
+)
+@Composable
+private fun WalletAccountScreenDarkPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Dark) {
+        WalletAccountScreen(onBack = {})
+    }
+}
+
 @Composable
 private fun AccountField(
     label: String,
@@ -151,7 +184,12 @@ private fun ActivityRow(
                         .background(colors.accent.copy(alpha = 0.35f), RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(if (positive) "↗" else "↙", color = colors.ink, fontWeight = FontWeight.Black)
+                Icon(
+                    imageVector = if (positive) Icons.Outlined.ArrowUpward else Icons.Outlined.ArrowDownward,
+                    contentDescription = null,
+                    tint = colors.ink,
+                    modifier = Modifier.size(21.dp),
+                )
             }
             Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Text(title, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 14.sp)

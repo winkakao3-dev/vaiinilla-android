@@ -11,6 +11,8 @@ class StudentShellTest {
         assertEquals(false, shouldShowStudentNav(Routes.CATALOG, catalogDetailOpen = true))
         assertEquals(true, shouldShowStudentNav(Routes.CATALOG, catalogDetailOpen = false))
         assertEquals(true, shouldShowStudentNav(Routes.CART, catalogDetailOpen = true))
+        assertEquals(false, shouldShowStudentNav(Routes.ASSISTANT, catalogDetailOpen = false))
+        assertEquals(false, shouldShowStudentNav(Routes.ASSISTANT_CHAT, catalogDetailOpen = false))
         assertEquals(false, shouldShowStudentNav(Routes.WALLET_METHODS, catalogDetailOpen = false))
     }
 
@@ -18,7 +20,7 @@ class StudentShellTest {
     fun `studentTabForRoute maps student destinations`() {
         assertEquals(StudentTab.MENU, studentTabForRoute(Routes.CATALOG))
         assertEquals(StudentTab.ASSISTANT, studentTabForRoute(Routes.ASSISTANT))
-        assertEquals(StudentTab.ASSISTANT, studentTabForRoute(Routes.ASSISTANT_HUB))
+        assertEquals(StudentTab.ASSISTANT, studentTabForRoute(Routes.ASSISTANT_CHAT))
         assertEquals(StudentTab.ORDERS, studentTabForRoute(Routes.STUDENT_TRACKING))
         assertEquals(StudentTab.WALLET, studentTabForRoute(Routes.WALLET))
         assertEquals(StudentTab.CART, studentTabForRoute(Routes.CART))

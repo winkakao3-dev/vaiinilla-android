@@ -17,12 +17,15 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.ui.auth.student.StudentAuthUiState
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialSectionHead
 import com.vaiinilla.app.ui.components.EditorialTextField
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
 @Composable
 fun StudentLoginScreen(
@@ -109,5 +112,21 @@ fun StudentLoginScreen(
                 CircularProgressIndicator(color = colors.accent)
             }
         }
+    }
+}
+
+@Preview(name = "Auth · login", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun StudentLoginScreenPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        StudentLoginScreen(
+            state = StudentAuthUiState(email = "dani@utch.mx"),
+            onBack = {},
+            onEmailChange = {},
+            onPasswordChange = {},
+            onLogin = {},
+            onForgotPassword = {},
+            onRegister = {},
+        )
     }
 }

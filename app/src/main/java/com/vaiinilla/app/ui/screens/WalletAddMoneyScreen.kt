@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,9 +24,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -34,9 +37,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.components.WalletPrimaryButton
@@ -44,6 +54,8 @@ import com.vaiinilla.app.ui.components.WalletScreenShell
 import com.vaiinilla.app.ui.components.WalletSectionHead
 import com.vaiinilla.app.ui.components.WalletSubflowTopBar
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import com.vaiinilla.app.ui.wallet.WalletUiState
 
 private enum class AddMoneyMethod { Card, Spei }
@@ -81,32 +93,12 @@ fun WalletAddMoneyScreen(
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 20.dp),
             ) {
-                Text(
-                    "Monto a agregar",
-                    color = colors.muted,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 12.sp,
+                AmountPanel(
+                    amount = amount,
+                    chipAmounts = chipAmounts,
+                    onAmountChange = { amount = it },
+                    modifier = Modifier.padding(top = 10.dp, bottom = 10.dp),
                 )
-                Text(
-                    "$$amount",
-                    color = colors.ink,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 48.sp,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.padding(top = 6.dp),
-                )
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(vertical = 14.dp),
-                ) {
-                    items(chipAmounts) { chip ->
-                        AmountChip(
-                            label = "$$chip",
-                            selected = amount == chip,
-                            onClick = { amount = chip },
-                        )
-                    }
-                }
 
                 WalletSectionHead(title = "¿Cómo quieres agregarlo?")
 
@@ -145,12 +137,131 @@ fun WalletAddMoneyScreen(
                         modifier = Modifier.padding(top = 16.dp),
                     )
                     WalletPrimaryButton(
-                        text = "Simular transferencia recibida",
+                        text = "Agregar al saldo",
                         onClick = {
                             onCreditBalance(amount)
                             onBack()
                         },
                         modifier = Modifier.padding(top = 20.dp, bottom = 24.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Preview(
+    name = "Añadir dinero · claro",
+    showBackground = true,
+    widthDp = 411,
+    heightDp = 891,
+)
+@Composable
+private fun WalletAddMoneyScreenLightPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        WalletAddMoneyScreen(
+            walletState = WalletUiState(),
+            initialMethod = "card",
+            onBack = {},
+            onCreditBalance = {},
+        )
+    }
+}
+
+@Preview(
+    name = "Añadir dinero · oscuro",
+    showBackground = true,
+    widthDp = 411,
+    heightDp = 891,
+)
+@Composable
+private fun WalletAddMoneyScreenDarkPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Dark) {
+        WalletAddMoneyScreen(
+            walletState = WalletUiState(),
+            initialMethod = "card",
+            onBack = {},
+            onCreditBalance = {},
+        )
+    }
+}
+
+@Preview(
+    name = "Añadir dinero · transferencia · claro",
+    showBackground = true,
+    widthDp = 411,
+    heightDp = 891,
+)
+@Composable
+private fun WalletAddMoneySpeiLightPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        WalletAddMoneyScreen(
+            walletState = WalletUiState(),
+            initialMethod = "spei",
+            onBack = {},
+            onCreditBalance = {},
+        )
+    }
+}
+
+@Preview(
+    name = "Añadir dinero · transferencia · oscuro",
+    showBackground = true,
+    widthDp = 411,
+    heightDp = 891,
+)
+@Composable
+private fun WalletAddMoneySpeiDarkPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Dark) {
+        WalletAddMoneyScreen(
+            walletState = WalletUiState(),
+            initialMethod = "spei",
+            onBack = {},
+            onCreditBalance = {},
+        )
+    }
+}
+
+@Composable
+private fun AmountPanel(
+    amount: Int,
+    chipAmounts: List<Int>,
+    onAmountChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = colors.accent,
+        shape = RoundedCornerShape(24.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                "Monto a agregar",
+                color = colors.accentInk.copy(alpha = 0.7f),
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 11.sp,
+            )
+            Text(
+                "$$amount",
+                color = colors.accentInk,
+                fontWeight = FontWeight.Black,
+                fontSize = 46.sp,
+                lineHeight = 48.sp,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(top = 10.dp),
+            ) {
+                items(chipAmounts) { chip ->
+                    AmountChip(
+                        label = "$$chip",
+                        selected = amount == chip,
+                        onClick = { onAmountChange(chip) },
                     )
                 }
             }
@@ -165,15 +276,26 @@ private fun AmountChip(
     onClick: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    val haptics = LocalHapticFeedback.current
     Surface(
-        onClick = onClick,
-        color = if (selected) colors.accent else colors.paper2,
+        modifier =
+            Modifier
+                .heightIn(min = 48.dp)
+                .semantics {
+                    role = Role.RadioButton
+                    this.selected = selected
+                },
+        onClick = {
+            if (!selected) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onClick()
+        },
+        color = if (selected) colors.accentInk else colors.paper,
         shape = RoundedCornerShape(14.dp),
     ) {
         Text(
             label,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-            color = if (selected) colors.accentInk else colors.ink,
+            color = if (selected) colors.accent else colors.ink,
             fontWeight = FontWeight.Black,
             fontSize = 13.sp,
         )
@@ -190,10 +312,12 @@ private fun PaymentChoiceRow(
     onClick: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    val haptics = LocalHapticFeedback.current
     Surface(
         modifier =
             Modifier
                 .fillMaxWidth()
+                .heightIn(min = 64.dp)
                 .then(
                     if (selected) {
                         Modifier.border(2.dp, colors.accent, RoundedCornerShape(18.dp))
@@ -201,7 +325,10 @@ private fun PaymentChoiceRow(
                         Modifier
                     },
                 ),
-        onClick = onClick,
+        onClick = {
+            if (!selected) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onClick()
+        },
         color = if (selected) colors.paper2 else colors.paper,
         shape = RoundedCornerShape(18.dp),
     ) {
@@ -231,7 +358,12 @@ private fun PaymentChoiceRow(
                 Text(subtitle, color = colors.muted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp))
             }
             if (selected) {
-                Text("✓", color = colors.accent, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                Icon(
+                    imageVector = Icons.Outlined.CheckCircle,
+                    contentDescription = "Método seleccionado",
+                    tint = colors.ink,
+                    modifier = Modifier.size(22.dp),
+                )
             }
         }
     }
@@ -320,8 +452,18 @@ private fun SpeiField(
                 )
             }
             if (onCopy != null) {
-                TextButton(onClick = onCopy) {
-                    Text("Copiar", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                Surface(
+                    onClick = onCopy,
+                    color = colors.accent,
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text(
+                        "Copiar",
+                        color = colors.accentInk,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    )
                 }
             }
         }

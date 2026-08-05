@@ -26,6 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -56,7 +58,10 @@ fun EditorialSearchField(
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.weight(1f),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .semantics { contentDescription = placeholder },
                 singleLine = true,
                 textStyle = TextStyle(color = colors.ink, fontSize = 14.sp),
                 decorationBox = { input ->
@@ -98,7 +103,10 @@ fun EditorialTextField(
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .semantics { contentDescription = label },
                 singleLine = singleLine,
                 visualTransformation =
                     if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
@@ -171,6 +179,7 @@ fun EditorialPrimaryButton(
         modifier =
             modifier
                 .fillMaxWidth()
+                .heightIn(min = 52.dp)
                 .physicalPress(
                     scale = PhysicalPressScale.Default,
                     enabled = enabled,

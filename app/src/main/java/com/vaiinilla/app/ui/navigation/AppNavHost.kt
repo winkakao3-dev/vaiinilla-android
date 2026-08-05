@@ -32,7 +32,6 @@ import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
-import com.vaiinilla.app.ui.screens.AssistantScreen
 import com.vaiinilla.app.ui.screens.AuthorizedModeScreen
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CashierOperationalScreen
@@ -286,7 +285,7 @@ fun AppNavHost(
                 demoGallerySeeder.seedCatalogProductSheet(orderFlowViewModel)
                 navController.navigate(Routes.CATALOG) { launchSingleTop = true }
             }
-            "09" -> navController.navigate(Routes.ASSISTANT_HUB) { launchSingleTop = true }
+            "09" -> navController.navigate(Routes.ASSISTANT_CHAT) { launchSingleTop = true }
             "57" -> navController.navigate(Routes.ASSISTANT_CHAT) { launchSingleTop = true }
             "12" -> {
                 demoGallerySeeder.seedCartEmpty(orderFlowViewModel)
@@ -653,29 +652,10 @@ fun AppNavHost(
                 }
                 AssistantChatScreen(
                     state = orderState,
-                    embeddedInBottomNav = true,
+                    embeddedInBottomNav = false,
                     onSendMessage = orderFlowViewModel::sendAssistantMessage,
                     onClearChat = orderFlowViewModel::clearAssistantChat,
                     onClose = { navController.navigateStudent(Routes.CATALOG) },
-                    onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                    onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                    onWallet = { navigateDemo(Routes.WALLET) },
-                    onCart = { navController.navigateStudent(Routes.CART) },
-                )
-            }
-
-            composable(Routes.ASSISTANT_HUB) {
-                LaunchedEffect(demoUnlocked) {
-                    if (!demoUnlocked) navController.popBackStack()
-                }
-                AssistantScreen(
-                    state = orderState,
-                    onOpenChat = { navController.navigate(Routes.ASSISTANT) { launchSingleTop = true } },
-                    onOpenProduct = { productId ->
-                        orderFlowViewModel.openProduct(productId)
-                        navController.navigateStudent(Routes.CATALOG)
-                    },
-                    onMenu = { navController.navigateStudent(Routes.CATALOG) },
                     onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
                     onWallet = { navigateDemo(Routes.WALLET) },
                     onCart = { navController.navigateStudent(Routes.CART) },
@@ -692,7 +672,6 @@ fun AppNavHost(
                     onSendMessage = orderFlowViewModel::sendAssistantMessage,
                     onClearChat = orderFlowViewModel::clearAssistantChat,
                     onClose = { navController.popBackStack() },
-                    onMenu = { navController.navigateStudent(Routes.CATALOG) },
                     onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
                     onWallet = { navigateDemo(Routes.WALLET) },
                     onCart = { navController.navigateStudent(Routes.CART) },
@@ -774,6 +753,7 @@ fun AppNavHost(
                 CartScreen(
                     state = orderState,
                     walletBalance = walletState.balance,
+                    savedCard = walletState.cards.firstOrNull(),
                     onMenu = { navController.navigateStudent(Routes.CATALOG) },
                     onQuantityChange = orderFlowViewModel::changeCartLineQuantity,
                     onNotesChange = orderFlowViewModel::updateKitchenNotes,

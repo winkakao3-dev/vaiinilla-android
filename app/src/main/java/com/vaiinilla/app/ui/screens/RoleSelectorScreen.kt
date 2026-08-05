@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.core.config.DemoFeatures
@@ -38,6 +39,8 @@ import com.vaiinilla.app.ui.theme.Coral
 import com.vaiinilla.app.ui.theme.Ink2
 import com.vaiinilla.app.ui.theme.Lime
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.Yolk
 
 @Composable
@@ -236,6 +239,20 @@ private data class RoleOption(
     val background: Color,
     val contentColor: Color,
 )
+
+@Preview(name = "Selector de roles", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun RoleSelectorScreenPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        RoleSelectorScreen(
+            testOnlyMode = true,
+            onTestOnlyModeChange = {},
+            onRoleSelected = {},
+            onOpenDemoGallery = {},
+            demoToolsAvailable = true,
+        )
+    }
+}
 
 private fun roleOptions(colors: com.vaiinilla.app.ui.theme.VaiinillaColors) =
     listOf(

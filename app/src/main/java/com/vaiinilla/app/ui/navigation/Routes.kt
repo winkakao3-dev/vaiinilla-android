@@ -20,7 +20,6 @@ object Routes {
     const val VAI27_MODES = "vai27/modes"
     const val STUDENT_TRACKING = "student/tracking"
     const val ASSISTANT = "assistant"
-    const val ASSISTANT_HUB = "assistant/hub"
     const val ASSISTANT_CHAT = "assistant/chat"
     const val WALLET = "wallet"
     const val WALLET_ADD_MONEY = "wallet/add-money?method={method}"

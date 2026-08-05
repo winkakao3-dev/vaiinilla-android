@@ -4,9 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,6 +20,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Button
@@ -33,11 +38,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
 @Composable
 fun WalletScreen(
@@ -83,28 +91,40 @@ fun WalletScreen(
 
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     WalletActionCard(
                         icon = Icons.Outlined.Add,
                         title = "Añadir dinero",
                         subtitle = "Tarjeta o transferencia",
-                        modifier = Modifier.weight(1f),
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
                         onClick = onAddMoney,
                     )
                     WalletActionCard(
                         icon = Icons.Outlined.CreditCard,
                         title = "Métodos de pago",
                         subtitle = "Tarjetas y SPEI",
-                        modifier = Modifier.weight(1f),
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
                         onClick = onPaymentMethods,
                     )
                     WalletActionCard(
                         icon = Icons.Outlined.Person,
                         title = "Mi cuenta",
                         subtitle = "Perfil y matrícula",
-                        modifier = Modifier.weight(1f),
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
                         onClick = onAccount,
                     )
                 }
@@ -147,7 +167,7 @@ fun WalletScreen(
 
             item {
                 MovementRow(
-                    icon = "↗",
+                    icon = Icons.Outlined.ArrowUpward,
                     title = "Recarga",
                     subtitle = "Hoy, 09:20",
                     amount = "+$200",
@@ -155,7 +175,7 @@ fun WalletScreen(
                 )
                 Spacer(Modifier.height(8.dp))
                 MovementRow(
-                    icon = "↙",
+                    icon = Icons.Outlined.ArrowDownward,
                     title = "Pedido #3472",
                     subtitle = "Hoy, 11:42",
                     amount = "-$101",
@@ -164,6 +184,47 @@ fun WalletScreen(
             }
         }
     }
+}
+
+@Preview(
+    name = "Cartera · claro",
+    showBackground = true,
+    widthDp = 411,
+    heightDp = 891,
+)
+@Composable
+private fun WalletScreenLightPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        WalletScreenPreviewContent()
+    }
+}
+
+@Preview(
+    name = "Cartera · oscuro",
+    showBackground = true,
+    widthDp = 411,
+    heightDp = 891,
+)
+@Composable
+private fun WalletScreenDarkPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Dark) {
+        WalletScreenPreviewContent()
+    }
+}
+
+@Composable
+private fun WalletScreenPreviewContent() {
+    WalletScreen(
+        state = OrderFlowUiState(),
+        balance = 200,
+        onAddMoney = {},
+        onPaymentMethods = {},
+        onAccount = {},
+        onMenu = {},
+        onAssistant = {},
+        onOrders = {},
+        onCart = {},
+    )
 }
 
 @Composable
@@ -213,7 +274,7 @@ private fun BalanceCard(
             )
             Button(
                 onClick = onAddMoney,
-                colors = ButtonDefaults.buttonColors(containerColor = colors.paper, contentColor = colors.accentInk),
+                colors = ButtonDefaults.buttonColors(containerColor = colors.paper, contentColor = colors.ink),
                 shape = RoundedCornerShape(16.dp),
                 modifier =
                     Modifier
@@ -221,7 +282,7 @@ private fun BalanceCard(
                         .padding(top = 16.dp)
                         .height(48.dp),
             ) {
-                Text("Añadir dinero", fontWeight = FontWeight.Black)
+                Text("Añadir dinero", fontWeight = FontWeight.Black, fontSize = 14.sp)
             }
         }
     }
@@ -248,7 +309,8 @@ private fun WalletActionCard(
                 title,
                 color = colors.ink,
                 fontWeight = FontWeight.Black,
-                fontSize = 12.sp,
+                fontSize = 14.sp,
+                lineHeight = 17.sp,
                 modifier = Modifier.padding(top = 10.dp),
             )
             Text(
@@ -347,7 +409,12 @@ private fun PaymentMethodRow(
                 Text(subtitle, color = colors.muted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp))
             }
             if (selected) {
-                Text("✓", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                Icon(
+                    imageVector = Icons.Outlined.CheckCircle,
+                    contentDescription = "Método seleccionado",
+                    tint = colors.ink,
+                    modifier = Modifier.size(22.dp),
+                )
             }
         }
     }
@@ -355,7 +422,7 @@ private fun PaymentMethodRow(
 
 @Composable
 private fun MovementRow(
-    icon: String,
+    icon: ImageVector,
     title: String,
     subtitle: String,
     amount: String,
@@ -379,7 +446,12 @@ private fun MovementRow(
                         .background(colors.accent.copy(alpha = 0.35f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(icon, color = colors.ink, fontWeight = FontWeight.Black)
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = colors.ink,
+                    modifier = Modifier.size(21.dp),
+                )
             }
             Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Text(title, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 14.sp)

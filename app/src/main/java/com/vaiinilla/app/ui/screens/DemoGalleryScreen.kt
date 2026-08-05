@@ -22,10 +22,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
 data class DemoGalleryItem(
     val id: String,
@@ -61,7 +64,7 @@ val demoGallerySections =
             title = "Asistente",
             items =
                 listOf(
-                    DemoGalleryItem("09", "Hub asistente"),
+                    DemoGalleryItem("09", "Asistente"),
                     DemoGalleryItem("57", "Chat"),
                 ),
         ),
@@ -206,6 +209,14 @@ fun DemoGalleryScreen(
                 }
             }
         }
+    }
+}
+
+@Preview(name = "Galería demo", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun DemoGalleryScreenPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        DemoGalleryScreen(onBack = {}, onItemSelected = {})
     }
 }
 

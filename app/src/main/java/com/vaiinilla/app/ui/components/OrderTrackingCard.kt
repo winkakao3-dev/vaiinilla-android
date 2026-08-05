@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -255,39 +256,80 @@ fun OrderDetailSummary(
     order: OrderDetail,
     modifier: Modifier = Modifier,
 ) {
-    val colors = LocalVaiinillaColors.current
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = colors.paper2,
-        shape = RoundedCornerShape(22.dp),
+        color = TaskCardDark,
+        shape = RoundedCornerShape(24.dp),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            order.items.forEach { item ->
+        Column(
+            modifier =
+                Modifier.padding(
+                    horizontal = 16.dp,
+                    vertical = 12.dp,
+                ),
+        ) {
+            order.items.forEachIndexed { index, item ->
                 Row(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 6.dp),
+                            .padding(vertical = 7.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("${item.quantity}× ${item.productName}", color = colors.ink, fontWeight = FontWeight.Bold)
-                    Text(moneyLabel(item.subtotal), color = colors.ink, fontWeight = FontWeight.Black)
+                    Text(
+                        text = "${item.quantity} × ${item.productName}",
+                        color = TaskCardText.copy(alpha = 0.86f),
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = moneyLabel(item.subtotal),
+                        color = TaskCardText,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(start = 12.dp),
+                    )
+                }
+                if (index < order.items.lastIndex) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(TaskCardText.copy(alpha = 0.12f)),
+                    )
                 }
             }
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(TaskCardText.copy(alpha = 0.16f)),
+            )
             Row(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(top = 10.dp),
+                        .padding(top = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Total", color = colors.ink, fontWeight = FontWeight.Black)
+                Text(
+                    "Total",
+                    color = TaskCardText,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 20.sp,
+                )
                 Text(
                     moneyLabel(order.summary.total),
-                    color = colors.ink,
+                    color = TaskCardText,
                     fontWeight = FontWeight.Black,
-                    fontSize = 18.sp,
+                    fontSize = 20.sp,
                 )
             }
         }
