@@ -1,17 +1,13 @@
 package com.vaiinilla.app.ui.auth.student
 
-import android.util.Log
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
-import com.vaiinilla.app.core.config.AppEnvironment
-import com.vaiinilla.app.core.config.DataSourceMode
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.auth.ContextoExchanger
 import com.vaiinilla.app.data.auth.student.AccessEmailApi
-import com.vaiinilla.app.data.auth.student.FixtureStudentAuthRepository
 import com.vaiinilla.app.data.auth.student.StudentAuthEmailExistsException
 import com.vaiinilla.app.data.auth.student.StudentAuthPreferences
 import com.vaiinilla.app.data.guest.GuestSessionStore
@@ -37,8 +33,6 @@ class StudentAuthViewModel
         private val contextoExchange: ContextoExchanger,
         private val refreshCoordinator: VaiinillaJwtRefreshCoordinator,
         private val preferences: StudentAuthPreferences,
-        private val environment: AppEnvironment,
-        private val fixtureAuthRepository: FixtureStudentAuthRepository,
         private val remoteAccessEmailApi: AccessEmailApi,
     ) : ViewModel() {
         private val _state = mutableStateOf(StudentAuthUiState())
@@ -105,7 +99,6 @@ class StudentAuthViewModel
             viewModelScope.launch {
                 authRepository.signUp(current.email, current.password, current.name).fold(
                     onSuccess = { session ->
-                        logTermsAcceptance(current)
                         val verificationResult = sendVerificationEmail()
                         _state.value =
                             _state.value.copy(
@@ -196,9 +189,6 @@ class StudentAuthViewModel
         fun checkVerification(onVerified: () -> Unit) {
             _state.value = _state.value.copy(loading = true, errorMessage = null)
             viewModelScope.launch {
-                if (environment.dataSourceMode == DataSourceMode.MOCK) {
-                    fixtureAuthRepository.markCurrentEmailVerified()
-                }
                 authRepository.reloadSession().fold(
                     onSuccess = { session ->
                         _state.value = _state.value.copy(loading = false, session = session)
@@ -323,14 +313,7 @@ class StudentAuthViewModel
                                     }
                                 },
                             )
-                            if (environment.dataSourceMode == DataSourceMode.MOCK) {
-                                fixtureAuthRepository.completeMockEnrollment(
-                                    accessToken = contexto.accessToken,
-                                    establishmentId = venue.establishment.id,
-                                )
-                            } else {
-                                preferences.markEnrolled(venue.establishment.id)
-                            }
+                            preferences.markEnrolled(venue.establishment.id)
                             contexto
                         }
                     }
@@ -354,22 +337,14 @@ class StudentAuthViewModel
             }
         }
 
-        private suspend fun sendVerificationEmail(): Result<Unit> {
-            if (environment.dataSourceMode != DataSourceMode.REMOTE) {
-                return authRepository.sendEmailVerification()
-            }
-            return authRepository.getIdToken(forceRefresh = true).fold(
+        private suspend fun sendVerificationEmail(): Result<Unit> =
+            authRepository.getIdToken(forceRefresh = true).fold(
                 onSuccess = remoteAccessEmailApi::sendVerification,
                 onFailure = { Result.failure(it) },
             )
-        }
 
-        private suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
-            if (environment.dataSourceMode != DataSourceMode.REMOTE) {
-                return authRepository.sendPasswordReset(email)
-            }
-            return remoteAccessEmailApi.sendRecovery(email)
-        }
+        private suspend fun sendPasswordResetEmail(email: String): Result<Unit> =
+            remoteAccessEmailApi.sendRecovery(email)
 
         fun isReadyForCheckout(): Boolean {
             val venue = _state.value.guestVenue ?: guestSessionStore.readVenue()
@@ -428,15 +403,5 @@ class StudentAuthViewModel
                 return "Ingresa tu ${state.clientIdLabel.lowercase()}."
             }
             return null
-        }
-
-        private fun logTermsAcceptance(state: StudentAuthUiState) {
-            if (environment.dataSourceMode == DataSourceMode.MOCK) {
-                Log.i(TAG, "MOCK terms accepted at ${Instant.now()} for ${state.email}")
-            }
-        }
-
-        private companion object {
-            const val TAG = "StudentAuth"
         }
     }

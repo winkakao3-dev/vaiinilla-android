@@ -1,8 +1,8 @@
 package com.vaiinilla.app
 
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.discovery.RemoteDiscoveryRepository
-import com.vaiinilla.app.data.fixture.ContractFixtureParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -37,7 +37,7 @@ class RemoteDiscoveryRepositoryTest {
             source.read("fixtures/catalog.json")
         client.postResponses["publico/espacios/resolver"] = source.read("fixtures/publico_espacio_mesa4.json")
 
-        val repository = RemoteDiscoveryRepository(client, ContractFixtureParser())
+        val repository = RemoteDiscoveryRepository(client, ContractResponseParser())
 
         val establishments = repository.searchEstablishments("centro", limit = 20, cursor = "opaque").getOrThrow()
         assertEquals("cafeteria-centro", establishments.first.first().slug)
@@ -81,7 +81,7 @@ class RemoteDiscoveryRepositoryTest {
     @Test
     fun `blank space token is rejected before a remote request`() {
         val client = RecordingPublicApiClient()
-        val repository = RemoteDiscoveryRepository(client, ContractFixtureParser())
+        val repository = RemoteDiscoveryRepository(client, ContractResponseParser())
 
         val result = repository.resolveSpaceToken("  ")
 

@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,6 +63,8 @@ import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.theme.Lime
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.delay
 import kotlin.math.sin
 
@@ -98,9 +101,10 @@ fun OrderConfirmationScreen(
 
     val printProgress = remember(order.summary.id) { Animatable(if (screenshotPrinted) 1f else 0f) }
     var printed by remember(order.summary.id) { mutableStateOf(screenshotPrinted) }
+    val reduceMotion = rememberReducedMotion()
 
     LaunchedEffect(order.summary.id, screenshotPrinted) {
-        if (screenshotPrinted) {
+        if (screenshotPrinted || reduceMotion) {
             printed = true
             printProgress.snapTo(1f)
             return@LaunchedEffect
@@ -148,6 +152,7 @@ fun OrderConfirmationScreen(
                 folio = order.summary.folio,
                 printed = printed,
                 paymentMethod = order.summary.paymentMethod,
+                reduceMotion = reduceMotion,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -164,11 +169,15 @@ fun OrderConfirmationScreen(
             AnimatedVisibility(
                 visible = printed,
                 enter =
-                    fadeIn(tween(300)) +
-                        slideInVertically(
-                            animationSpec = tween(360),
-                            initialOffsetY = { it / 3 },
-                        ),
+                    if (reduceMotion) {
+                        fadeIn(tween(0))
+                    } else {
+                        fadeIn(tween(300)) +
+                            slideInVertically(
+                                animationSpec = tween(360),
+                                initialOffsetY = { it / 3 },
+                            )
+                    },
             ) {
                 Column(
                     modifier =
@@ -241,6 +250,17 @@ fun OrderConfirmationScreen(
                 }
             }
         }
+    }
+}
+
+@Preview(name = "Confirmación de pedido", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun OrderConfirmationScreenPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        OrderConfirmationScreen(
+            order = null,
+            onReturnToMenu = {},
+        )
     }
 }
 
@@ -367,20 +387,27 @@ private fun ReceiptPrinterMachine(
     folio: Int,
     printed: Boolean,
     paymentMethod: PaymentMethod,
+    reduceMotion: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val statusLabel = if (printed) "STICKER LISTO" else "IMPRIMIENDO STICKER…"
     val ledTransition = rememberInfiniteTransition(label = "receipt-printer-led")
-    val ledAlpha by ledTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = .32f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(durationMillis = 420),
-                repeatMode = RepeatMode.Reverse,
-            ),
-        label = "receipt-printer-led-alpha",
-    )
+    val ledAlpha =
+        if (reduceMotion || printed) {
+            1f
+        } else {
+            ledTransition
+                .animateFloat(
+                    initialValue = 1f,
+                    targetValue = .32f,
+                    animationSpec =
+                        infiniteRepeatable(
+                            animation = tween(durationMillis = 420),
+                            repeatMode = RepeatMode.Reverse,
+                        ),
+                    label = "receipt-printer-led-alpha",
+                ).value
+        }
 
     Box(
         modifier =
@@ -431,7 +458,7 @@ private fun ReceiptPrinterMachine(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    if (paymentMethod.isInstantDemoPayment) "COMANDA ENVIADA" else "PASE DE CAJA",
+                    if (paymentMethod != PaymentMethod.CASH) "COMANDA ENVIADA" else "PASE DE CAJA",
                     color = PaperText,
                     fontSize = 23.sp,
                     lineHeight = 24.sp,

@@ -2,7 +2,7 @@ package com.vaiinilla.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Demo tokens (verbatim from Vaiinilla_Demo_Web_IA_CHAT.html)
+// Product tokens shared with the original Vaiinilla web demo.
 val Ink = Color(0xFF171817)
 val Ink2 = Color(0xFF2A2B29)
 val Cream = Color(0xFFF4F1E7)
@@ -35,7 +35,7 @@ val NavShadow = Color(0xB3000000)
 val NavGlassAmoled = Color(0xFF000000)
 val NavPillAmoled = Color(0xFF292929)
 
-// Dark theme tokens (demo screen 03)
+// Dark theme tokens.
 val DarkPaper = Color(0xFF1D1E1C)
 val DarkPaper2 = Color(0xFF292A27)
 val DarkInk = Color(0xFFF5F1E5)
@@ -45,7 +45,7 @@ val DarkLine = Color(0x1FFFFFFF)
 val DarkAccentInk = Color(0xFF182008)
 val DarkSplash = Color(0xFF08090B)
 
-// AMOLED theme tokens (demo screen 04)
+// AMOLED theme tokens.
 val AmoledPaper = Color(0xFF000000)
 val AmoledPaper2 = Color(0xFF111111)
 val AmoledInk = Color(0xFFF8F5EC)

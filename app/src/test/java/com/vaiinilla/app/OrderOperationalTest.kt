@@ -1,6 +1,6 @@
 package com.vaiinilla.app
 
-import com.vaiinilla.app.data.fixture.ContractFixtureParser
+import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.order.FixtureOrderRepository
 import com.vaiinilla.app.domain.model.CreateOrderItem
 import com.vaiinilla.app.domain.model.CreateOrderRequest
@@ -16,7 +16,7 @@ import java.util.UUID
 
 class OrderOperationalTest {
     private val source = TestFixtureSource()
-    private val parser = ContractFixtureParser()
+    private val parser = ContractResponseParser()
 
     @Test
     fun `cash collection advances kitchen order to cobrado`() {

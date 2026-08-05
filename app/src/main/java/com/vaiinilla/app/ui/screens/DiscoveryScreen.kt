@@ -29,9 +29,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.core.config.DemoFeatures
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
@@ -43,6 +43,8 @@ import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.discovery.DiscoveryUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
 @Composable
 fun DiscoveryScreen(
@@ -55,8 +57,6 @@ fun DiscoveryScreen(
     onConfirmSwitch: () -> Unit,
     onDismissSwitch: () -> Unit,
     onContinueSelected: () -> Unit,
-    onOpenDemoRoles: () -> Unit,
-    showMockHint: Boolean = true,
 ) {
     val colors = LocalVaiinillaColors.current
 
@@ -163,11 +163,7 @@ fun DiscoveryScreen(
                             )
                         }
                         Text(
-                            if (showMockHint) {
-                                "Si el cartel es de mesa o cancha, pega el token del QR. En MOCK usa mesa4."
-                            } else {
-                                "Si el cartel es de mesa o cancha, pega el token opaco que contiene su QR."
-                            },
+                            "Si el cartel es de mesa o cancha, pega el token opaco que contiene su QR.",
                             color = colors.muted,
                             fontSize = 12.sp,
                             lineHeight = 16.sp,
@@ -255,8 +251,6 @@ fun DiscoveryScreen(
             item {
                 EditorialSectionHead(
                     title = "Cafeterías",
-                    trailing = if (DemoFeatures.toolsAvailable) "Solo pruebas" else null,
-                    onTrailingClick = if (DemoFeatures.toolsAvailable) onOpenDemoRoles else null,
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
@@ -297,6 +291,23 @@ fun DiscoveryScreen(
                 )
             }
         }
+    }
+}
+
+@Preview(name = "Descubrir cafetería", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun DiscoveryScreenPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        DiscoveryScreen(
+            state = DiscoveryUiState(),
+            onQueryChange = {},
+            onSpaceTokenChange = {},
+            onSelectEstablishment = {},
+            onResolveSpace = {},
+            onConfirmSwitch = {},
+            onDismissSwitch = {},
+            onContinueSelected = {},
+        )
     }
 }
 

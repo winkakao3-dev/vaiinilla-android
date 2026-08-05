@@ -40,22 +40,11 @@ fun escapeBuildConfig(value: String): String =
         .replace("\"", "\\\"")
         .replace("\$", "\\\$")
 
-val selectedDataSource =
-    readConfig("vaiinillaDataSource", "MOCK")
-        .uppercase()
-        .also { require(it == "MOCK" || it == "REMOTE") { "vaiinillaDataSource debe ser MOCK o REMOTE" } }
-
 val selectedApiBaseUrl =
     readConfig(
         "vaiinillaApiBaseUrl",
         "https://localhost.invalid/api/v1/",
     )
-
-val bootstrapAccessToken = readConfig("vaiinillaAccessToken", "")
-val tokenCliente = readConfig("vaiinillaAccessTokenCliente", bootstrapAccessToken)
-val tokenCajero = readConfig("vaiinillaAccessTokenCajero", "")
-val tokenCocina = readConfig("vaiinillaAccessTokenCocina", "")
-val tokenMesero = readConfig("vaiinillaAccessTokenMesero", "")
 
 // Seed passwords: local.properties / -P only. Never commit real values.
 val seedPasswordCliente = readConfig("vaiinillaSeedPasswordCliente", "")
@@ -72,17 +61,10 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 13
-        versionName = "0.4.1-vai27-${selectedDataSource.lowercase()}"
+        versionName = "0.4.1-vai27-remote"
 
-        buildConfigField("String", "DATA_SOURCE_MODE", "\"$selectedDataSource\"")
         buildConfigField("String", "API_BASE_URL", "\"$selectedApiBaseUrl\"")
-        buildConfigField("String", "BOOTSTRAP_ACCESS_TOKEN", "\"$bootstrapAccessToken\"")
-        buildConfigField("String", "ACCESS_TOKEN_CLIENTE", "\"${escapeBuildConfig(tokenCliente)}\"")
-        buildConfigField("String", "ACCESS_TOKEN_CAJERO", "\"${escapeBuildConfig(tokenCajero)}\"")
-        buildConfigField("String", "ACCESS_TOKEN_COCINA", "\"${escapeBuildConfig(tokenCocina)}\"")
-        buildConfigField("String", "ACCESS_TOKEN_MESERO", "\"${escapeBuildConfig(tokenMesero)}\"")
         // Defaults: release-safe. Debug buildType overrides below.
-        buildConfigField("boolean", "ALLOW_DEMO_TOOLS", "false")
         buildConfigField("boolean", "SEED_AUTH_ENABLED", "false")
         buildConfigField("String", "SEED_PASSWORD_CLIENTE", "\"\"")
         buildConfigField("String", "SEED_PASSWORD_CAJERO", "\"\"")
@@ -92,7 +74,6 @@ android {
 
     buildTypes {
         getByName("debug") {
-            buildConfigField("boolean", "ALLOW_DEMO_TOOLS", "true")
             buildConfigField("boolean", "SEED_AUTH_ENABLED", "true")
             buildConfigField(
                 "String",
@@ -116,7 +97,6 @@ android {
             )
         }
         getByName("release") {
-            buildConfigField("boolean", "ALLOW_DEMO_TOOLS", "false")
             buildConfigField("boolean", "SEED_AUTH_ENABLED", "false")
             buildConfigField("String", "SEED_PASSWORD_CLIENTE", "\"\"")
             buildConfigField("String", "SEED_PASSWORD_CAJERO", "\"\"")
@@ -127,7 +107,6 @@ android {
             initWith(getByName("release"))
             matchingFallbacks += listOf("release", "debug")
             signingConfig = signingConfigs.getByName("debug")
-            buildConfigField("boolean", "ALLOW_DEMO_TOOLS", "true")
             buildConfigField("boolean", "SEED_AUTH_ENABLED", "true")
             buildConfigField(
                 "String",
@@ -173,7 +152,7 @@ android {
                 it.useJUnit()
                 it.systemProperty(
                     "vaiinilla.fixtureDir",
-                    file("src/main/assets/fixtures").absolutePath,
+                    file("src/test/fixtures").absolutePath,
                 )
                 it.systemProperties["robolectric.pixelCopyRenderMode"] = "hardware"
             }

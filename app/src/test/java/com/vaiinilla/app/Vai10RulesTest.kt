@@ -1,6 +1,6 @@
 package com.vaiinilla.app
 
-import com.vaiinilla.app.data.fixture.ContractFixtureParser
+import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.CreateOrderItem
@@ -14,7 +14,7 @@ import org.junit.Test
 
 class Vai10RulesTest {
     private val catalog =
-        ContractFixtureParser().parseCatalog(
+        ContractResponseParser().parseCatalog(
             TestFixtureSource().read("fixtures/catalog.json"),
         )
     private val burrito = catalog.products.first { it.id == 103 }

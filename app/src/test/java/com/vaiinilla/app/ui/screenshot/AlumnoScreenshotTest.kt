@@ -8,13 +8,10 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
-import com.vaiinilla.app.ui.screens.AssistantScreen
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
-import com.vaiinilla.app.ui.screens.DemoGalleryScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
-import com.vaiinilla.app.ui.screens.RoleSelectorScreen
 import com.vaiinilla.app.ui.screens.SplashScreen
 import com.vaiinilla.app.ui.screens.StudentTrackingScreen
 import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
@@ -46,22 +43,6 @@ class AlumnoScreenshotTest {
         }
         composeTestRule.waitForIdle()
         composeTestRule.onRoot().captureRoboImage("01_splash.png")
-    }
-
-    @Test
-    fun `02_role_selector`() {
-        composeTestRule.setContent {
-            ScreenshotTheme {
-                RoleSelectorScreen(
-                    testOnlyMode = true,
-                    onTestOnlyModeChange = {},
-                    onRoleSelected = {},
-                    onOpenDemoGallery = {},
-                )
-            }
-        }
-        composeTestRule.waitForIdle()
-        composeTestRule.onRoot().captureRoboImage("02_role_selector.png")
     }
 
     @Test
@@ -113,39 +94,11 @@ class AlumnoScreenshotTest {
     }
 
     @Test
-    fun `05_assistant_hub`() {
-        val state = ScreenshotFixtures.catalogLoadedState()
-        composeTestRule.setContent {
-            ScreenshotTheme {
-                ScreenshotWithStudentNav(activeTab = StudentTab.ASSISTANT, cartCount = 0) {
-                    AssistantScreen(
-                        state = state,
-                        onOpenChat = {},
-                        onOpenProduct = {},
-                        onMenu = {},
-                        onOrders = {},
-                        onWallet = {},
-                        onCart = {},
-                    )
-                }
-            }
-        }
-        composeTestRule.waitForIdle()
-        composeTestRule.onRoot().captureRoboImage("05_assistant_hub.png")
-    }
-
-    @Test
     fun `06_wallet`() {
-        val state = ScreenshotFixtures.catalogLoadedState()
         composeTestRule.setContent {
             ScreenshotTheme {
                 ScreenshotWithStudentNav(activeTab = StudentTab.WALLET, cartCount = 0) {
                     WalletScreen(
-                        state = state,
-                        balance = 200,
-                        onAddMoney = {},
-                        onPaymentMethods = {},
-                        onAccount = {},
                         onMenu = {},
                         onAssistant = {},
                         onOrders = {},
@@ -182,51 +135,6 @@ class AlumnoScreenshotTest {
         }
         composeTestRule.waitForIdle()
         composeTestRule.onRoot().captureRoboImage("07_catalog_empty_search.png")
-    }
-
-    @Test
-    fun `08_assistant_default`() {
-        val state = ScreenshotFixtures.catalogLoadedState()
-        composeTestRule.setContent {
-            ScreenshotTheme {
-                ScreenshotWithStudentNav(activeTab = StudentTab.ASSISTANT, cartCount = 0) {
-                    AssistantScreen(
-                        state = state,
-                        onOpenChat = {},
-                        onOpenProduct = {},
-                        onMenu = {},
-                        onOrders = {},
-                        onWallet = {},
-                        onCart = {},
-                    )
-                }
-            }
-        }
-        composeTestRule.waitForIdle()
-        composeTestRule.onRoot().captureRoboImage("08_assistant_default.png")
-    }
-
-    @Test
-    fun `09_assistant_budget_chip`() {
-        val state = ScreenshotFixtures.catalogLoadedState()
-        composeTestRule.setContent {
-            ScreenshotTheme {
-                ScreenshotWithStudentNav(activeTab = StudentTab.ASSISTANT, cartCount = 0) {
-                    AssistantScreen(
-                        state = state,
-                        onOpenChat = {},
-                        onOpenProduct = {},
-                        onMenu = {},
-                        onOrders = {},
-                        onWallet = {},
-                        onCart = {},
-                        initialChip = "Menos de \$60",
-                    )
-                }
-            }
-        }
-        composeTestRule.waitForIdle()
-        composeTestRule.onRoot().captureRoboImage("09_assistant_budget_chip.png")
     }
 
     @Test
@@ -415,7 +323,6 @@ class AlumnoScreenshotTest {
                         onSendMessage = {},
                         onClearChat = {},
                         onClose = {},
-                        onMenu = {},
                         onOrders = {},
                         onWallet = {},
                         onCart = {},
@@ -511,19 +418,5 @@ class AlumnoScreenshotTest {
         }
         composeTestRule.waitForIdle()
         composeTestRule.onRoot().captureRoboImage("22_confirm_saldo.png")
-    }
-
-    @Test
-    fun `23_demo_gallery`() {
-        composeTestRule.setContent {
-            ScreenshotTheme {
-                DemoGalleryScreen(
-                    onBack = {},
-                    onItemSelected = {},
-                )
-            }
-        }
-        composeTestRule.waitForIdle()
-        composeTestRule.onRoot().captureRoboImage("23_demo_gallery.png")
     }
 }

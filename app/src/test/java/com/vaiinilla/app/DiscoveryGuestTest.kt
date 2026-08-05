@@ -1,8 +1,8 @@
 package com.vaiinilla.app
 
 import android.net.Uri
+import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.discovery.FixtureDiscoveryRepository
-import com.vaiinilla.app.data.fixture.ContractFixtureParser
 import com.vaiinilla.app.data.guest.GuestCartLineSnapshot
 import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.domain.discovery.DiscoveryFailures
@@ -21,7 +21,7 @@ import org.robolectric.annotation.Config
 
 class FixtureDiscoveryRepositoryTest {
     private val repository =
-        FixtureDiscoveryRepository(TestFixtureSource(), ContractFixtureParser())
+        FixtureDiscoveryRepository(TestFixtureSource(), ContractResponseParser())
 
     @Test
     fun `search returns sorted establishments and filters by name`() {
@@ -85,7 +85,7 @@ class GuestSessionAndDeepLinkTest {
         assertEquals("est-a:none", store.cartStorageKey("est-a", null))
 
         val catalog =
-            FixtureDiscoveryRepository(TestFixtureSource(), ContractFixtureParser())
+            FixtureDiscoveryRepository(TestFixtureSource(), ContractResponseParser())
                 .getGuestCatalog("cafeteria-centro")
                 .getOrThrow()
         val product = catalog.products.first()
@@ -124,7 +124,7 @@ class GuestSessionAndDeepLinkTest {
                 space = PublicSpace(id = 12, name = "Mesa 4", type = "mesa"),
             )
         val catalog =
-            FixtureDiscoveryRepository(TestFixtureSource(), ContractFixtureParser())
+            FixtureDiscoveryRepository(TestFixtureSource(), ContractResponseParser())
                 .getGuestCatalog("cafeteria-centro")
                 .getOrThrow()
         val product = catalog.products.first()

@@ -1,6 +1,6 @@
 package com.vaiinilla.app.data.auth
 
-import com.vaiinilla.app.data.fixture.MetaDto
+import com.vaiinilla.app.data.contract.MetaDto
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 

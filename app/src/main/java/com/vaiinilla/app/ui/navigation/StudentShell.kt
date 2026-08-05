@@ -17,7 +17,6 @@ fun studentTabForRoute(route: String?): StudentTab? =
         route == null -> null
         route == Routes.CATALOG -> StudentTab.MENU
         route == Routes.ASSISTANT ||
-            route == Routes.ASSISTANT_HUB ||
             route == Routes.ASSISTANT_CHAT -> StudentTab.ASSISTANT
         route == Routes.STUDENT_TRACKING -> StudentTab.ORDERS
         route == Routes.WALLET -> StudentTab.WALLET
@@ -39,6 +38,8 @@ fun shouldShowStudentNav(
     catalogDetailOpen: Boolean,
 ): Boolean =
     studentTabForRoute(route) != null &&
+        route != Routes.ASSISTANT &&
+        route != Routes.ASSISTANT_CHAT &&
         !(route == Routes.CATALOG && catalogDetailOpen)
 
 /**
@@ -53,7 +54,6 @@ fun StudentShellHost(
     navController: NavHostController,
     cartCount: Int,
     onNavigateStudent: (String) -> Unit,
-    onNavigateDemo: (String) -> Unit,
     catalogDetailOpen: Boolean = false,
     content: @Composable () -> Unit,
 ) {
@@ -70,15 +70,7 @@ fun StudentShellHost(
                 cartCount = cartCount,
                 onTabSelected = { tab ->
                     val target = routeForStudentTab(tab)
-                    when (tab) {
-                        StudentTab.ASSISTANT,
-                        StudentTab.WALLET,
-                        -> onNavigateDemo(target)
-                        StudentTab.MENU,
-                        StudentTab.ORDERS,
-                        StudentTab.CART,
-                        -> onNavigateStudent(target)
-                    }
+                    onNavigateStudent(target)
                 },
                 modifier = Modifier.align(Alignment.BottomCenter),
             )

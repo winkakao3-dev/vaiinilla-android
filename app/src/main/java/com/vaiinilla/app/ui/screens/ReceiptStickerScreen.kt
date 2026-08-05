@@ -1,9 +1,18 @@
 package com.vaiinilla.app.ui.screens
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +22,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -39,8 +49,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -49,8 +66,10 @@ import com.vaiinilla.app.ui.components.sticker.StickerOrderData
 import com.vaiinilla.app.ui.components.sticker.StickerSize
 import com.vaiinilla.app.ui.components.sticker.StickerStyle
 import com.vaiinilla.app.ui.components.sticker.StickerStyleContent
-import com.vaiinilla.app.ui.components.sticker.demoStickerOrderData
+import com.vaiinilla.app.ui.components.sticker.emptyStickerOrderData
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -62,13 +81,14 @@ fun ReceiptStickerScreen(
 ) {
     val colors = LocalVaiinillaColors.current
     val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val reducedMotion =
         remember {
             runCatching {
                 android.provider.Settings.Global.getFloat(
                     context.contentResolver,
-                    android.provider.Settings.Global.TRANSITION_ANIMATION_SCALE,
+                    android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
                 ) == 0f
             }.getOrDefault(false)
         }
@@ -125,7 +145,7 @@ fun ReceiptStickerScreen(
                     fontWeight = FontWeight.Black,
                     fontSize = 17.sp,
                 )
-                IconButton(onClick = { /* share no-op */ }) {
+                IconButton(onClick = { shareReceiptSticker(context, stickerOrder) }) {
                     Icon(Icons.Outlined.Share, contentDescription = "Compartir", tint = colors.ink)
                 }
             }
@@ -138,8 +158,12 @@ fun ReceiptStickerScreen(
                     StyleChip(
                         label = style.label,
                         selected = styles[pagerState.currentPage] == style,
+                        reducedMotion = reducedMotion,
                         onClick = {
                             val index = styles.indexOf(style)
+                            if (index != pagerState.currentPage) {
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
                             scope.launch {
                                 pagerState.animateScrollToPage(
                                     index,
@@ -186,7 +210,21 @@ fun ReceiptStickerScreen(
                 }
             }
 
-            if (styles[pagerState.currentPage] == StickerStyle.Editorial) {
+            AnimatedVisibility(
+                visible = styles[pagerState.currentPage] == StickerStyle.Editorial,
+                enter =
+                    if (reducedMotion) {
+                        fadeIn(tween(0))
+                    } else {
+                        fadeIn(tween(140)) + slideInVertically(tween(180)) { height -> height / 3 }
+                    },
+                exit =
+                    if (reducedMotion) {
+                        fadeOut(tween(0))
+                    } else {
+                        fadeOut(tween(100)) + slideOutVertically(tween(140)) { height -> height / 4 }
+                    },
+            ) {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -195,7 +233,14 @@ fun ReceiptStickerScreen(
                         StyleChip(
                             label = size.label,
                             selected = selectedSize == size,
-                            onClick = { selectedSize = size },
+                            reducedMotion = reducedMotion,
+                            role = Role.RadioButton,
+                            onClick = {
+                                if (selectedSize != size) {
+                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    selectedSize = size
+                                }
+                            },
                         )
                     }
                 }
@@ -204,31 +249,120 @@ fun ReceiptStickerScreen(
     }
 }
 
+@Preview(name = "Receipt sticker · Editorial", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun ReceiptStickerEditorialPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        ReceiptStickerScreen(order = null, onBack = {}, initialStyleIndex = 0)
+    }
+}
+
+@Preview(name = "Receipt sticker · Core", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun ReceiptStickerCorePreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        ReceiptStickerScreen(order = null, onBack = {}, initialStyleIndex = 1)
+    }
+}
+
+@Preview(name = "Receipt sticker · Limited", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun ReceiptStickerLimitedPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        ReceiptStickerScreen(order = null, onBack = {}, initialStyleIndex = 2)
+    }
+}
+
+@Preview(name = "Receipt sticker · Breakfast", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun ReceiptStickerBreakfastPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        ReceiptStickerScreen(order = null, onBack = {}, initialStyleIndex = 3)
+    }
+}
+
+@Preview(name = "Receipt sticker · QR Live", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun ReceiptStickerQrLivePreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        ReceiptStickerScreen(order = null, onBack = {}, initialStyleIndex = 4)
+    }
+}
+
+@Preview(name = "Receipt sticker · Térmico", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun ReceiptStickerThermalPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        ReceiptStickerScreen(order = null, onBack = {}, initialStyleIndex = 5)
+    }
+}
+
 @Composable
 private fun StyleChip(
     label: String,
     selected: Boolean,
+    reducedMotion: Boolean = false,
+    role: Role = Role.Tab,
     onClick: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    val background by animateColorAsState(
+        targetValue = if (selected) colors.accent else colors.paper2,
+        animationSpec = if (reducedMotion) tween(0) else tween(140),
+        label = "sticker-chip-background",
+    )
+    val content by animateColorAsState(
+        targetValue = if (selected) colors.accentInk else colors.ink,
+        animationSpec = if (reducedMotion) tween(0) else tween(140),
+        label = "sticker-chip-content",
+    )
     Surface(
+        modifier =
+            Modifier
+                .heightIn(min = 48.dp)
+                .semantics {
+                    this.role = role
+                    this.selected = selected
+                },
         onClick = onClick,
-        color = if (selected) colors.accent else colors.paper2,
+        color = background,
         shape = RoundedCornerShape(99.dp),
     ) {
         Text(
             label,
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-            color = if (selected) colors.accentInk else colors.ink,
+            color = content,
             fontWeight = FontWeight.Black,
             fontSize = 12.sp,
         )
     }
 }
 
+private fun shareReceiptSticker(
+    context: android.content.Context,
+    order: StickerOrderData,
+) {
+    val shareText =
+        "Vaiinilla receipt sticker #${order.folio}\n" +
+            "${order.productName} · ${order.total} MXN\n" +
+            "${order.paymentLabel} · ${order.destinationLabel}\n" +
+            "${order.date} · ${order.time}"
+    val intent =
+        Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "Vaiinilla receipt sticker #${order.folio}")
+            putExtra(Intent.EXTRA_TEXT, shareText)
+        }
+    try {
+        context.startActivity(Intent.createChooser(intent, "Compartir receipt sticker"))
+    } catch (_: ActivityNotFoundException) {
+        Toast.makeText(context, "No hay una app disponible para compartir", Toast.LENGTH_SHORT).show()
+    }
+}
+
 private fun OrderDetail?.toStickerOrderData(): StickerOrderData {
-    if (this == null) return demoStickerOrderData()
-    val productName = items.firstOrNull()?.productName ?: "Burrito norteño"
+    if (this == null) return emptyStickerOrderData()
+    val productName = items.firstOrNull()?.productName ?: "Pedido"
     val paymentLabel = paymentMethodLabel(summary.paymentMethod)
     return StickerOrderData(
         folio = summary.folio,
@@ -237,5 +371,10 @@ private fun OrderDetail?.toStickerOrderData(): StickerOrderData {
         paymentLabel = paymentLabel,
         destinationLabel = summary.destination.label,
         date = summary.operationalDate,
+        time =
+            summary.createdAt
+                .substringAfter('T', "")
+                .take(5)
+                .ifBlank { "—" },
     )
 }

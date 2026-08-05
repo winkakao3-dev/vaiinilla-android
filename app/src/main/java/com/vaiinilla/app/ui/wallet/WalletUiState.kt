@@ -16,11 +16,8 @@ data class SavedCard(
 )
 
 class WalletUiState(
-    initialBalance: Int = 200,
-    initialCards: List<SavedCard> =
-        listOf(
-            SavedCard(brand = "VISA", lastFour = "4242", holder = "DANI ÁLVAREZ", expiry = "08/29"),
-        ),
+    initialBalance: Int = 0,
+    initialCards: List<SavedCard> = emptyList(),
 ) {
     var balance by mutableIntStateOf(initialBalance)
     var cards by mutableStateOf(initialCards)
@@ -39,7 +36,7 @@ fun rememberWalletUiState(): WalletUiState {
                 }
             },
             restore = { saved ->
-                val balance = saved.firstOrNull()?.toIntOrNull() ?: 200
+                val balance = saved.firstOrNull()?.toIntOrNull() ?: 0
                 val cards =
                     saved
                         .drop(1)
@@ -50,9 +47,7 @@ fun rememberWalletUiState(): WalletUiState {
                             } else {
                                 null
                             }
-                        }.ifEmpty {
-                            listOf(SavedCard("VISA", "4242", "DANI ÁLVAREZ", "08/29"))
-                        }
+                        }.ifEmpty { emptyList() }
                 WalletUiState(initialBalance = balance, initialCards = cards)
             },
         )

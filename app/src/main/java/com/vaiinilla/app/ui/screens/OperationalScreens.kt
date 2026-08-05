@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -35,6 +36,8 @@ import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.theme.Coral
 import com.vaiinilla.app.ui.theme.Cream
 import com.vaiinilla.app.ui.theme.MutedInk
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import java.math.BigDecimal
 
 @Composable
@@ -273,6 +276,45 @@ fun WaiterOperationalScreen(
                 )
             }
         }
+    }
+}
+
+@Preview(name = "Caja", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun CashierOperationalScreenPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        CashierOperationalScreen(
+            state = OperationalUiState(cashSessionOpen = false),
+            onBack = {},
+            onOpenCashSession = {},
+            onCollect = { _, _, _ -> },
+            onDeliver = { _, _ -> },
+        )
+    }
+}
+
+@Preview(name = "Cocina", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun KitchenOperationalScreenPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        KitchenOperationalScreen(
+            state = OperationalUiState(),
+            onBack = {},
+            onStart = { _, _ -> },
+            onReady = { _, _ -> },
+        )
+    }
+}
+
+@Preview(name = "Mesero", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun WaiterOperationalScreenPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        WaiterOperationalScreen(
+            state = OperationalUiState(),
+            onBack = {},
+            onDeliver = { _, _ -> },
+        )
     }
 }
 

@@ -89,39 +89,12 @@ enum class PaymentMethod(
     CARD("tarjeta", "Tarjeta"),
     ;
 
-    val isInstantDemoPayment: Boolean
-        get() = this == BALANCE || this == CARD
-
     companion object {
         fun fromWireValue(value: String): PaymentMethod =
             entries.firstOrNull {
                 it.wireValue == value
             } ?: throw IllegalArgumentException("metodo_pago no soportado: $value")
     }
-}
-
-object DemoCheckoutFixtures {
-    const val SPACE_TYPE = "mesa"
-
-    data class DemoSpace(
-        val id: Int,
-        val number: Int,
-        val name: String,
-    )
-
-    val DEMO_SPACES: List<DemoSpace> =
-        (1..6).map { number ->
-            DemoSpace(id = 700 + number, number = number, name = "Mesa $number")
-        }
-
-    val DEFAULT_SPACE: DemoSpace = DEMO_SPACES.first { it.number == 4 }
-
-    val DEMO_SPACE_IDS: Set<Int> = DEMO_SPACES.map { it.id }.toSet()
-
-    const val SPACE_ID: Int = 704
-    const val SPACE_NAME: String = "Mesa 4"
-
-    fun spaceForId(id: Int): DemoSpace? = DEMO_SPACES.firstOrNull { it.id == id }
 }
 
 enum class OrderDestination(

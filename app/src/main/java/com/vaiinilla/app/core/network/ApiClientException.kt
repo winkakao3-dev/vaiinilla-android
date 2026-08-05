@@ -8,6 +8,5 @@ class ApiClientException(
 
 class MissingAccessTokenException :
     IllegalStateException(
-        "Falta el token de acceso. Configura vaiinillaAccessToken en local.properties " +
-            "o guárdalo con SecureSessionStore.",
+        "Falta el contexto operativo. Inicia sesión y selecciona un establecimiento para continuar.",
     )

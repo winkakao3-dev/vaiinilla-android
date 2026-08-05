@@ -1,7 +1,9 @@
 package com.vaiinilla.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -11,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -140,5 +143,43 @@ fun WalletScreenShell(
                 .background(colors.paper),
     ) {
         content()
+    }
+}
+
+@Composable
+fun WalletUnavailableScreen(
+    title: String,
+    onBack: () -> Unit,
+    description: String,
+) {
+    val colors = LocalVaiinillaColors.current
+    WalletScreenShell(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            WalletSubflowTopBar(title = title, onBack = onBack)
+            Surface(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                color = colors.paper2,
+                shape = RoundedCornerShape(22.dp),
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        "Función pendiente",
+                        color = colors.ink,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 20.sp,
+                    )
+                    Text(
+                        description,
+                        color = colors.muted,
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+            }
+        }
     }
 }

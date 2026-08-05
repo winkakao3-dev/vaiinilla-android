@@ -41,13 +41,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.model.CartLine
+import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.Category
+import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.components.ActiveOrderBanner
-import com.vaiinilla.app.ui.components.DemoEmptyState
+import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductDetailSheet
 import com.vaiinilla.app.ui.components.ProductImage
@@ -65,6 +70,7 @@ import com.vaiinilla.app.ui.theme.AmoledLimeWash
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
 @Composable
@@ -120,6 +126,121 @@ fun CatalogScreen(
                 onRetry = onRetry,
             )
     }
+}
+
+@Preview(
+    name = "Menú · claro",
+    showBackground = true,
+    widthDp = 411,
+    heightDp = 891,
+)
+@Composable
+private fun CatalogScreenLightPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        CatalogScreenPreviewContent()
+    }
+}
+
+@Preview(
+    name = "Menú · oscuro",
+    showBackground = true,
+    widthDp = 411,
+    heightDp = 891,
+)
+@Composable
+private fun CatalogScreenDarkPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Dark) {
+        CatalogScreenPreviewContent()
+    }
+}
+
+@Composable
+private fun CatalogScreenPreviewContent() {
+    val waffle =
+        Product(
+            id = 1,
+            categoryId = 1,
+            preparationStation = PreparationStation.KITCHEN,
+            name = "Waffle de la casa",
+            description = "Waffle recién hecho con fruta y miel.",
+            ingredients = "Waffle, fruta, miel",
+            allergens = "Gluten, lácteos",
+            estimatedTimeMinutes = 12,
+            counterPrice = "55.00",
+            digitalPrice = "55.00",
+            available = true,
+            imageUrl = "waffle",
+            optionGroups = emptyList(),
+        )
+    val burrito =
+        waffle.copy(
+            id = 2,
+            categoryId = 2,
+            name = "Burrito norteño",
+            description = "Burrito de asada con queso y salsa verde.",
+            ingredients = "Tortilla, asada, queso, salsa",
+            allergens = "Gluten, lácteos",
+            counterPrice = "64.00",
+            digitalPrice = "64.00",
+            imageUrl = "burrito_norteno",
+        )
+    val jamaica =
+        waffle.copy(
+            id = 3,
+            categoryId = 3,
+            name = "Agua de jamaica",
+            description = "Agua fresca de jamaica.",
+            ingredients = "Jamaica, agua, azúcar",
+            allergens = "",
+            estimatedTimeMinutes = 2,
+            counterPrice = "18.00",
+            digitalPrice = "18.00",
+            imageUrl = "jamaica",
+        )
+    val products = listOf(waffle, burrito, jamaica)
+    val previewState =
+        OrderFlowUiState(
+            loading = false,
+            catalog =
+                Catalog(
+                    categories =
+                        listOf(
+                            Category(id = 1, name = "Desayunos", order = 1),
+                            Category(id = 2, name = "Comida", order = 2),
+                            Category(id = 3, name = "Bebidas", order = 3),
+                        ),
+                    products = products,
+                    cursor = null,
+                ),
+            operationalStatus =
+                OperationalStatus(
+                    acceptingOrders = true,
+                    cashSessionOpen = true,
+                    cashierOnline = true,
+                    kitchenOnline = true,
+                    estimatedTimeMinutes = 15,
+                    consultedAt = "preview",
+                ),
+            cartLines = listOf(CartLine(product = burrito, quantity = 1, selectedOptionIds = emptySet())),
+        )
+
+    CatalogScreen(
+        state = previewState,
+        onRetry = {},
+        onSearchChange = {},
+        onCategorySelected = {},
+        onProductSelected = {},
+        onDismissProduct = {},
+        onToggleOption = { _, _ -> },
+        onClearOptionalGroup = {},
+        onQuantityChange = {},
+        onAddProduct = {},
+        onOpenCart = {},
+        onOpenTracking = {},
+        onOpenAssistant = {},
+        onOpenWallet = {},
+        onChangeVenue = {},
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -272,7 +393,7 @@ private fun CatalogHeader(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "Hola, Dani",
+                    "Menú de Vaiinilla",
                     color = colors.muted,
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 11.sp,
@@ -519,7 +640,7 @@ private fun ProductCard(
 
 @Composable
 private fun EmptySearchState(onClearSearch: () -> Unit) {
-    DemoEmptyState(
+    EmptyState(
         icon = Icons.Outlined.Search,
         title = "No encontramos eso",
         message = "Prueba otra palabra o categoría.",

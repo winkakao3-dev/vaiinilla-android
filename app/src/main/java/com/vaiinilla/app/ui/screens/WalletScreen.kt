@@ -2,7 +2,6 @@ package com.vaiinilla.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -10,42 +9,41 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.CreditCard
-import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.ArrowForward
+import androidx.compose.material.icons.outlined.Assistant
+import androidx.compose.material.icons.outlined.MenuBook
+import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
-import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
+/**
+ * Keeps the wallet surface in the student shell without inventing balance,
+ * cards, transfers, or activity that the current backend contract does not
+ * provide. Ordering remains available through the real cash checkout.
+ */
 @Composable
 fun WalletScreen(
-    state: OrderFlowUiState,
-    balance: Int,
-    onAddMoney: () -> Unit,
-    onPaymentMethods: () -> Unit,
-    onAccount: () -> Unit,
     onMenu: () -> Unit,
     onAssistant: () -> Unit,
     onOrders: () -> Unit,
@@ -53,344 +51,163 @@ fun WalletScreen(
 ) {
     val colors = LocalVaiinillaColors.current
 
-    Box(
+    LazyColumn(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(colors.paper),
+                .background(colors.paper)
+                .statusBarsPadding(),
+        contentPadding =
+            PaddingValues(
+                start = 20.dp,
+                end = 20.dp,
+                top = 18.dp,
+                bottom = VaiinillaBottomNavClearance + 48.dp,
+            ),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        LazyColumn(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding(),
-            contentPadding =
-                PaddingValues(
-                    start = 20.dp,
-                    end = 20.dp,
-                    top = 18.dp,
-                    bottom = VaiinillaBottomNavClearance + 48.dp,
-                ),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            item {
-                Text("Cartera", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 22.sp)
-            }
-
-            item {
-                BalanceCard(balance = balance, colors = colors, onAddMoney = onAddMoney)
-            }
-
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    WalletActionCard(
-                        icon = Icons.Outlined.Add,
-                        title = "Añadir dinero",
-                        subtitle = "Tarjeta o transferencia",
-                        modifier = Modifier.weight(1f),
-                        onClick = onAddMoney,
-                    )
-                    WalletActionCard(
-                        icon = Icons.Outlined.CreditCard,
-                        title = "Métodos de pago",
-                        subtitle = "Tarjetas y SPEI",
-                        modifier = Modifier.weight(1f),
-                        onClick = onPaymentMethods,
-                    )
-                    WalletActionCard(
-                        icon = Icons.Outlined.Person,
-                        title = "Mi cuenta",
-                        subtitle = "Perfil y matrícula",
-                        modifier = Modifier.weight(1f),
-                        onClick = onAccount,
-                    )
-                }
-            }
-
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    MiniStatCard(value = "$29", label = "Cashback acumulado", modifier = Modifier.weight(1f))
-                    MiniStatCard(value = "1", label = "Pedidos realizados", modifier = Modifier.weight(1f))
-                }
-            }
-
-            item {
-                SectionHead(title = "Métodos de pago", action = "Administrar", onAction = onPaymentMethods)
-            }
-
-            item {
-                PaymentMethodRow(
-                    brand = "VISA",
-                    title = "•••• 4242",
-                    subtitle = "Vence 08/29 · disponible para pagar pedidos",
-                    selected = true,
-                )
-                Spacer(Modifier.height(8.dp))
-                PaymentMethodRow(
-                    brand = "SPEI",
-                    title = "Transferencia bancaria",
-                    subtitle = "Sólo para añadir dinero al saldo",
-                    selected = false,
-                    brandColor = LocalVaiinillaColors.current.paper2,
-                )
-            }
-
-            item {
-                SectionHead(title = "Movimientos recientes", action = null)
-            }
-
-            item {
-                MovementRow(
-                    icon = "↗",
-                    title = "Recarga",
-                    subtitle = "Hoy, 09:20",
-                    amount = "+$200",
-                    positive = true,
-                )
-                Spacer(Modifier.height(8.dp))
-                MovementRow(
-                    icon = "↙",
-                    title = "Pedido #3472",
-                    subtitle = "Hoy, 11:42",
-                    amount = "-$101",
-                    positive = false,
-                )
-            }
+        item {
+            Text("Cartera", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 22.sp)
         }
-    }
-}
 
-@Composable
-private fun BalanceCard(
-    balance: Int,
-    colors: com.vaiinilla.app.ui.theme.VaiinillaColors,
-    onAddMoney: () -> Unit,
-) {
-    Box(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(32.dp))
-                .background(colors.accent),
-    ) {
-        Text(
-            text = "$",
-            color = colors.accentInk.copy(alpha = 0.08f),
-            fontSize = 120.sp,
-            fontWeight = FontWeight.Black,
-            modifier =
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .offset(y = 12.dp)
-                    .padding(end = 8.dp),
-        )
-        Column(modifier = Modifier.padding(24.dp)) {
-            Text(
-                "Saldo disponible",
-                color = colors.accentInk.copy(alpha = 0.65f),
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 12.sp,
-            )
-            Text(
-                "$$balance",
-                color = colors.accentInk,
-                fontWeight = FontWeight.Black,
-                fontSize = 50.sp,
-                lineHeight = 52.sp,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-            Text(
-                "UTCH-241087",
-                color = colors.accentInk.copy(alpha = 0.7f),
-                fontSize = 13.sp,
-                modifier = Modifier.padding(top = 6.dp),
-            )
-            Button(
-                onClick = onAddMoney,
-                colors = ButtonDefaults.buttonColors(containerColor = colors.paper, contentColor = colors.accentInk),
-                shape = RoundedCornerShape(16.dp),
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp)
-                        .height(48.dp),
+        item {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = colors.accent,
+                shape = RoundedCornerShape(28.dp),
             ) {
-                Text("Añadir dinero", fontWeight = FontWeight.Black)
+                Column(modifier = Modifier.padding(22.dp)) {
+                    Icon(
+                        imageVector = Icons.Outlined.AccountBalanceWallet,
+                        contentDescription = null,
+                        tint = colors.accentInk,
+                    )
+                    Text(
+                        "Cartera pendiente de conexión",
+                        color = colors.accentInk,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 24.sp,
+                        lineHeight = 28.sp,
+                        modifier = Modifier.padding(top = 14.dp),
+                    )
+                    Text(
+                        "El backend actual todavía no expone saldo, tarjetas ni transferencias. No mostraremos datos inventados.",
+                        color = colors.accentInk.copy(alpha = 0.72f),
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
             }
         }
+
+        item {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = colors.paper2,
+                shape = RoundedCornerShape(22.dp),
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Text("Checkout disponible", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 17.sp)
+                    Text(
+                        "Puedes consultar el catálogo y confirmar pedidos con efectivo cuando la caja del establecimiento esté abierta.",
+                        color = colors.muted,
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                    Button(
+                        onClick = onCart,
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = colors.ink,
+                                contentColor = colors.paper,
+                            ),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.padding(top = 14.dp),
+                    ) {
+                        Text("Ver mi pedido", fontWeight = FontWeight.Black)
+                        Icon(
+                            imageVector = Icons.Outlined.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            Text("Atajos", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
+        }
+        item {
+            ShortcutRow(
+                icon = Icons.Outlined.MenuBook,
+                title = "Abrir menú",
+                subtitle = "Consulta el catálogo del establecimiento",
+                onClick = onMenu,
+            )
+        }
+        item {
+            ShortcutRow(
+                icon = Icons.Outlined.ReceiptLong,
+                title = "Mis pedidos",
+                subtitle = "Consulta el estado de tus pedidos reales",
+                onClick = onOrders,
+            )
+        }
+        item {
+            ShortcutRow(
+                icon = Icons.Outlined.Assistant,
+                title = "Asistente",
+                subtitle = "Revisa opciones del producto y del pedido",
+                onClick = onAssistant,
+            )
+        }
+        item { Spacer(Modifier.height(4.dp)) }
     }
 }
 
 @Composable
-private fun WalletActionCard(
+private fun ShortcutRow(
     icon: ImageVector,
     title: String,
     subtitle: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
     Surface(
-        modifier = modifier,
+        modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
         color = colors.paper2,
-        shape = RoundedCornerShape(19.dp),
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Icon(icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(20.dp))
-            Text(
-                title,
-                color = colors.ink,
-                fontWeight = FontWeight.Black,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(top = 10.dp),
-            )
-            Text(
-                subtitle,
-                color = colors.muted,
-                fontSize = 10.sp,
-                lineHeight = 12.sp,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun MiniStatCard(
-    value: String,
-    label: String,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalVaiinillaColors.current
-    Surface(
-        modifier = modifier,
-        color = colors.paper2,
-        shape = RoundedCornerShape(19.dp),
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Text(value, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 20.sp)
-            Text(label, color = colors.muted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
-        }
-    }
-}
-
-@Composable
-private fun SectionHead(
-    title: String,
-    action: String?,
-    onAction: (() -> Unit)? = null,
-) {
-    val colors = LocalVaiinillaColors.current
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(title, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
-        if (action != null && onAction != null) {
-            TextButton(onClick = onAction) {
-                Text(action, color = colors.muted, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-            }
-        }
-    }
-}
-
-@Composable
-private fun PaymentMethodRow(
-    brand: String,
-    title: String,
-    subtitle: String,
-    selected: Boolean,
-    brandColor: Color = LocalVaiinillaColors.current.ink,
-) {
-    val colors = LocalVaiinillaColors.current
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = colors.paper2,
         shape = RoundedCornerShape(18.dp),
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(brandColor),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    brand.take(4),
-                    color =
-                        if (brandColor ==
-                            colors.ink
-                        ) {
-                            colors.paper
-                        } else {
-                            colors.ink
-                        },
-                    fontWeight = FontWeight.Black,
-                    fontSize = 10.sp,
-                )
-            }
-            Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
+            Icon(icon, contentDescription = null, tint = colors.ink)
+            Column(modifier = Modifier.weight(1f).padding(horizontal = 14.dp)) {
                 Text(title, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 14.sp)
-                Text(subtitle, color = colors.muted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp))
+                Text(subtitle, color = colors.muted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
             }
-            if (selected) {
-                Text("✓", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
-            }
+            Icon(Icons.Outlined.ArrowForward, contentDescription = null, tint = colors.muted)
         }
     }
 }
 
+@Preview(name = "Cartera · claro", showBackground = true, widthDp = 411, heightDp = 891)
 @Composable
-private fun MovementRow(
-    icon: String,
-    title: String,
-    subtitle: String,
-    amount: String,
-    positive: Boolean,
-) {
-    val colors = LocalVaiinillaColors.current
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = colors.paper2,
-        shape = RoundedCornerShape(18.dp),
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(colors.accent.copy(alpha = 0.35f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(icon, color = colors.ink, fontWeight = FontWeight.Black)
-            }
-            Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                Text(title, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 14.sp)
-                Text(subtitle, color = colors.muted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp))
-            }
-            Text(
-                amount,
-                color = if (positive) Color(0xFF3D5A1E) else colors.ink,
-                fontWeight = FontWeight.Black,
-                fontSize = 15.sp,
-            )
-        }
+private fun WalletScreenLightPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        WalletScreen(onMenu = {}, onAssistant = {}, onOrders = {}, onCart = {})
+    }
+}
+
+@Preview(name = "Cartera · oscuro", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun WalletScreenDarkPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Dark) {
+        WalletScreen(onMenu = {}, onAssistant = {}, onOrders = {}, onCart = {})
     }
 }

@@ -12,10 +12,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -27,7 +29,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -42,13 +43,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.assistant.AssistantChatMessage
@@ -57,6 +61,8 @@ import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaMark
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.launch
 
 private val chatSuggestions =
@@ -74,7 +80,6 @@ fun AssistantChatScreen(
     onSendMessage: (String) -> Unit,
     onClearChat: () -> Unit,
     onClose: () -> Unit,
-    onMenu: () -> Unit,
     onOrders: () -> Unit,
     onWallet: () -> Unit,
     onCart: () -> Unit,
@@ -91,7 +96,11 @@ fun AssistantChatScreen(
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.lastIndex)
+            if (reduceMotion) {
+                listState.scrollToItem(messages.lastIndex)
+            } else {
+                listState.animateScrollToItem(messages.lastIndex)
+            }
         }
     }
 
@@ -129,8 +138,6 @@ fun AssistantChatScreen(
                     .imePadding(),
         ) {
             AssistantChatHeader(
-                embeddedInBottomNav = embeddedInBottomNav,
-                hasMessages = messages.isNotEmpty(),
                 onClear = {
                     if (messages.isEmpty()) {
                         onClearChat()
@@ -154,7 +161,12 @@ fun AssistantChatScreen(
                         top = 4.dp,
                         bottom = 8.dp,
                     ),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement =
+                    if (messages.isEmpty()) {
+                        Arrangement.Center
+                    } else {
+                        Arrangement.spacedBy(10.dp)
+                    },
             ) {
                 if (messages.isEmpty()) {
                     item(key = "welcome") {
@@ -183,7 +195,9 @@ fun AssistantChatScreen(
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp),
             )
 
-            Spacer(Modifier.height(bottomNavClearance))
+            if (embeddedInBottomNav) {
+                Spacer(Modifier.height(bottomNavClearance))
+            }
         }
 
         if (showClearConfirm) {
@@ -210,51 +224,59 @@ fun AssistantChatScreen(
     }
 }
 
+@Preview(name = "Chat del asistente", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun AssistantChatScreenPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        AssistantChatScreen(
+            state = OrderFlowUiState(),
+            onSendMessage = {},
+            onClearChat = {},
+            onClose = {},
+            onOrders = {},
+            onWallet = {},
+            onCart = {},
+            embeddedInBottomNav = false,
+        )
+    }
+}
+
 @Composable
 private fun AssistantChatHeader(
-    embeddedInBottomNav: Boolean,
-    hasMessages: Boolean,
     onClear: () -> Unit,
     onClose: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    val headerButtonShape = RoundedCornerShape(13.dp)
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        if (!embeddedInBottomNav) {
-            Spacer(Modifier.size(48.dp))
-        } else {
-            Spacer(Modifier.size(48.dp))
-        }
         Text(
             "Asistente Vaiinilla",
             color = colors.ink,
             fontWeight = FontWeight.Black,
-            fontSize = 17.sp,
-            textAlign = TextAlign.Center,
+            fontSize = 14.sp,
+            textAlign = TextAlign.Start,
             modifier =
                 Modifier
-                    .weight(1f)
-                    .padding(horizontal = 8.dp),
+                    .weight(1f),
         )
-        when {
-            hasMessages ->
-                IconButton(onClick = onClear) {
-                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "Limpiar chat", tint = colors.ink)
-                }
-            embeddedInBottomNav ->
-                Spacer(Modifier.size(48.dp))
-            else ->
-                Spacer(Modifier.size(48.dp))
+        IconButton(
+            onClick = onClear,
+            modifier = Modifier.size(48.dp).background(colors.paper2, headerButtonShape),
+        ) {
+            Icon(Icons.Outlined.DeleteOutline, contentDescription = "Limpiar chat", tint = colors.accentInk)
         }
-        if (!embeddedInBottomNav) {
-            IconButton(onClick = onClose) {
-                Icon(Icons.Outlined.Close, contentDescription = "Cerrar", tint = colors.ink)
-            }
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier.size(48.dp).background(colors.paper2, headerButtonShape),
+        ) {
+            Icon(Icons.Outlined.Close, contentDescription = "Cerrar", tint = colors.accentInk)
         }
     }
 }
@@ -269,19 +291,23 @@ private fun AssistantWelcomeContent(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        VaiinillaMark(modifier = Modifier.size(width = 96.dp, height = 76.dp))
+        VaiinillaMark(
+            modifier = Modifier.size(width = 132.dp, height = 110.dp),
+            cream = colors.ink,
+        )
         Text(
             "¡Hola! Soy tu Asistente Vaiinilla. Pregúntame sobre el menú: dietas, recomendaciones, ingredientes y más.",
             color = colors.muted,
             fontSize = 14.sp,
             lineHeight = 20.sp,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 12.dp),
+            modifier = Modifier.widthIn(max = 240.dp).padding(top = 12.dp),
         )
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .widthIn(max = 300.dp)
                     .padding(top = 16.dp),
             verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
@@ -302,7 +328,7 @@ private fun ChatSuggestionChip(
 ) {
     val colors = LocalVaiinillaColors.current
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
         onClick = onClick,
         color = colors.paper,
         shape = RoundedCornerShape(999.dp),
@@ -374,10 +400,20 @@ private fun ChatComposer(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
+    val composerShape = RoundedCornerShape(22.dp)
     Surface(
-        modifier = modifier.fillMaxWidth().bringIntoViewRequester(bringIntoViewRequester),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .shadow(
+                    elevation = 8.dp,
+                    shape = composerShape,
+                    clip = false,
+                    ambientColor = colors.ink.copy(alpha = 0.08f),
+                    spotColor = colors.ink.copy(alpha = 0.08f),
+                ).bringIntoViewRequester(bringIntoViewRequester),
         color = colors.paper2,
-        shape = RoundedCornerShape(22.dp),
+        shape = composerShape,
         border = androidx.compose.foundation.BorderStroke(1.dp, colors.ink.copy(alpha = 0.12f)),
     ) {
         Row(
@@ -406,15 +442,12 @@ private fun ChatComposer(
                     }
                 },
             )
-            IconButton(onClick = {}, modifier = Modifier.size(40.dp)) {
-                Icon(Icons.Outlined.Mic, contentDescription = "Micrófono", tint = colors.ink)
-            }
             IconButton(
                 onClick = onSend,
                 modifier =
                     Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(14.dp))
+                        .size(48.dp)
+                        .clip(composerShape)
                         .background(colors.accent),
             ) {
                 Icon(
@@ -424,5 +457,18 @@ private fun ChatComposer(
                 )
             }
         }
+    }
+}
+
+@Composable
+internal fun rememberReducedMotion(): Boolean {
+    val context = LocalContext.current
+    return remember(context) {
+        runCatching {
+            android.provider.Settings.Global.getFloat(
+                context.contentResolver,
+                android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+            ) == 0f
+        }.getOrDefault(false)
     }
 }

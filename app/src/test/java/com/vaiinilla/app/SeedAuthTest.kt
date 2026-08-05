@@ -2,7 +2,7 @@ package com.vaiinilla.app
 
 import com.vaiinilla.app.data.auth.SesionesContextoDataDto
 import com.vaiinilla.app.data.auth.SesionesContextoEnvelopeDto
-import com.vaiinilla.app.data.fixture.MetaDto
+import com.vaiinilla.app.data.contract.MetaDto
 import com.vaiinilla.app.domain.auth.SeedAccounts
 import com.vaiinilla.app.domain.model.OperationalRole
 import kotlinx.serialization.json.Json

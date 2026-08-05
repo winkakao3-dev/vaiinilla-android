@@ -60,7 +60,6 @@ class DiscoveryScreenshotTest {
                     onConfirmSwitch = {},
                     onDismissSwitch = {},
                     onContinueSelected = {},
-                    onOpenDemoRoles = {},
                 )
             }
         }
@@ -90,7 +89,6 @@ class DiscoveryScreenshotTest {
                     onConfirmSwitch = {},
                     onDismissSwitch = {},
                     onContinueSelected = {},
-                    onOpenDemoRoles = {},
                 )
             }
         }
@@ -107,7 +105,6 @@ class DiscoveryScreenshotTest {
                         establishment = centro,
                         space = PublicSpace(id = 12, name = "Mesa 4", type = "mesa"),
                     ),
-                testOnlyMode = false,
             )
         composeTestRule.setContent {
             ScreenshotTheme {

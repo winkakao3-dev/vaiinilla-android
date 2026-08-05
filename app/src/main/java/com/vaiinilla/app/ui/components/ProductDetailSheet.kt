@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -53,6 +54,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -79,6 +84,7 @@ fun ProductDetailSheet(
     onAdd: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    val reduceMotion = reducedMotion()
     val isCustomized = selectedOptionIds != defaultOptionIds
     val interactionSource = remember { MutableInteractionSource() }
     val sheetVisibility = remember { MutableTransitionState(false) }
@@ -86,9 +92,39 @@ fun ProductDetailSheet(
     val scrimAlpha by
         animateFloatAsState(
             targetValue = if (sheetVisibility.targetState) 0.58f else 0f,
-            animationSpec = tween(durationMillis = 180),
+            animationSpec = tween(durationMillis = if (reduceMotion) 0 else 180),
             label = "product-sheet-scrim",
         )
+    val sheetEnter =
+        if (reduceMotion) {
+            fadeIn(animationSpec = tween(durationMillis = 0))
+        } else {
+            slideInVertically(
+                initialOffsetY = { fullHeight -> fullHeight },
+                animationSpec = spring(dampingRatio = 0.86f, stiffness = 500f),
+            ) +
+                scaleIn(
+                    initialScale = 0.94f,
+                    transformOrigin = TransformOrigin(0.5f, 1f),
+                    animationSpec = spring(dampingRatio = 0.86f, stiffness = 500f),
+                ) +
+                fadeIn(animationSpec = tween(durationMillis = 160))
+        }
+    val sheetExit =
+        if (reduceMotion) {
+            fadeOut(animationSpec = tween(durationMillis = 0))
+        } else {
+            slideOutVertically(
+                targetOffsetY = { fullHeight -> fullHeight },
+                animationSpec = tween(durationMillis = 220),
+            ) +
+                scaleOut(
+                    targetScale = 0.96f,
+                    transformOrigin = TransformOrigin(0.5f, 1f),
+                    animationSpec = tween(durationMillis = 220),
+                ) +
+                fadeOut(animationSpec = tween(durationMillis = 140))
+        }
 
     LaunchedEffect(Unit) {
         sheetVisibility.targetState = true
@@ -122,28 +158,8 @@ fun ProductDetailSheet(
                     .fillMaxWidth()
                     .fillMaxHeight(0.92f)
                     .align(Alignment.BottomCenter),
-            enter =
-                slideInVertically(
-                    initialOffsetY = { fullHeight -> fullHeight },
-                    animationSpec = spring(dampingRatio = 0.86f, stiffness = 500f),
-                ) +
-                    scaleIn(
-                        initialScale = 0.94f,
-                        transformOrigin = TransformOrigin(0.5f, 1f),
-                        animationSpec = spring(dampingRatio = 0.86f, stiffness = 500f),
-                    ) +
-                    fadeIn(animationSpec = tween(durationMillis = 160)),
-            exit =
-                slideOutVertically(
-                    targetOffsetY = { fullHeight -> fullHeight },
-                    animationSpec = tween(durationMillis = 220),
-                ) +
-                    scaleOut(
-                        targetScale = 0.96f,
-                        transformOrigin = TransformOrigin(0.5f, 1f),
-                        animationSpec = tween(durationMillis = 220),
-                    ) +
-                    fadeOut(animationSpec = tween(durationMillis = 140)),
+            enter = sheetEnter,
+            exit = sheetExit,
         ) {
             Surface(
                 modifier =
@@ -420,7 +436,11 @@ private fun OptionChip(
                 .clip(RoundedCornerShape(13.dp))
                 .background(if (selected) colors.accent else colors.paper2)
                 .clickable(onClick = onClick)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .heightIn(min = 48.dp)
+                .semantics {
+                    role = Role.RadioButton
+                    this.selected = selected
+                }.padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Text(text = text, color = colors.ink, fontWeight = FontWeight.ExtraBold)
     }
@@ -456,7 +476,8 @@ private fun QuantityControl(
             onClick = onMinus,
             modifier =
                 Modifier
-                    .size(34.dp)
+                    .size(48.dp)
+                    .padding(7.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(colors.ink),
         ) {
@@ -472,7 +493,8 @@ private fun QuantityControl(
             onClick = onPlus,
             modifier =
                 Modifier
-                    .size(34.dp)
+                    .size(48.dp)
+                    .padding(7.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(colors.ink),
         ) {

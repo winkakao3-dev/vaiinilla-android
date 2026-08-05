@@ -11,11 +11,6 @@ interface OrderRepository {
         idempotencyKey: String,
     ): Result<OrderDetail>
 
-    fun createStudentCheckout(
-        request: CreateOrderRequest,
-        idempotencyKey: String,
-    ): Result<OrderDetail>
-
     fun getOrder(orderId: String): Result<OrderDetail>
 
     fun listOrders(

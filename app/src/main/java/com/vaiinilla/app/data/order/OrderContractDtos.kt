@@ -1,6 +1,6 @@
 package com.vaiinilla.app.data.order
 
-import com.vaiinilla.app.data.fixture.MetaDto
+import com.vaiinilla.app.data.contract.MetaDto
 import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName

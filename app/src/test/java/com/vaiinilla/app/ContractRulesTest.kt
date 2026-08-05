@@ -1,6 +1,6 @@
 package com.vaiinilla.app
 
-import com.vaiinilla.app.data.fixture.ContractFixtureParser
+import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.domain.model.ContractRules
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -9,7 +9,7 @@ import org.junit.Test
 
 class ContractRulesTest {
     private val source = TestFixtureSource()
-    private val parser = ContractFixtureParser()
+    private val parser = ContractResponseParser()
 
     @Test
     fun `canonical JSON catalog satisfies contract invariants`() {

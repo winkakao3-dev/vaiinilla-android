@@ -1,6 +1,6 @@
 package com.vaiinilla.app.core.network
 
-import com.vaiinilla.app.data.fixture.MetaDto
+import com.vaiinilla.app.data.contract.MetaDto
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 

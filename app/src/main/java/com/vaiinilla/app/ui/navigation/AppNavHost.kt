@@ -6,24 +6,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.vaiinilla.app.BuildConfig
-import com.vaiinilla.app.core.config.DataSourceMode
-import com.vaiinilla.app.core.config.DemoFeatures
-import com.vaiinilla.app.di.DataSourceResolverEntryPoint
-import com.vaiinilla.app.domain.model.DemoCheckoutFixtures
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalRole
-import com.vaiinilla.app.domain.model.OrderDestination
-import com.vaiinilla.app.domain.model.OrderState
-import com.vaiinilla.app.domain.model.PaymentMethod
-import com.vaiinilla.app.ui.auth.RoleAuthViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
@@ -32,18 +22,15 @@ import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
-import com.vaiinilla.app.ui.screens.AssistantScreen
 import com.vaiinilla.app.ui.screens.AuthorizedModeScreen
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CashierOperationalScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
-import com.vaiinilla.app.ui.screens.DemoGalleryScreen
 import com.vaiinilla.app.ui.screens.DiscoveryScreen
 import com.vaiinilla.app.ui.screens.InvitationAcceptanceScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
-import com.vaiinilla.app.ui.screens.RoleSelectorScreen
 import com.vaiinilla.app.ui.screens.SplashScreen
 import com.vaiinilla.app.ui.screens.StudentAuthLandingScreen
 import com.vaiinilla.app.ui.screens.StudentForgotPasswordScreen
@@ -57,8 +44,7 @@ import com.vaiinilla.app.ui.screens.WalletAddCardScreen
 import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
 import com.vaiinilla.app.ui.screens.WalletPaymentMethodsScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
-import com.vaiinilla.app.ui.wallet.rememberWalletUiState
-import dagger.hilt.android.EntryPointAccessors
+import com.vaiinilla.app.ui.wallet.WalletUiState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -72,25 +58,20 @@ fun AppNavHost(
     navController: NavHostController,
     pendingEstablishmentSlug: String? = null,
     pendingInvitationToken: String? = null,
-    pendingMockInvitationToken: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
     onInvitationConsumed: () -> Unit = {},
-    onMockInvitationConsumed: () -> Unit = {},
 ) {
     val orderFlowViewModel: OrderFlowViewModel = viewModel()
     val operationalViewModel: OperationalViewModel = viewModel()
-    val roleAuthViewModel: RoleAuthViewModel = viewModel()
     val studentAuthViewModel: StudentAuthViewModel = viewModel()
     val authorizedAccessViewModel: AuthorizedAccessViewModel = viewModel()
     val discoveryViewModel: GuestDiscoveryViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
-    val roleAuthState by roleAuthViewModel.state
     val studentAuthState by studentAuthViewModel.state
     val authorizedAccessState by authorizedAccessViewModel.state
     val discoveryState by discoveryViewModel.state
-    val walletState = rememberWalletUiState()
-    val context = LocalContext.current
+    val walletState = WalletUiState()
 
     fun enterVenueAndOpenCatalog(venue: GuestVenueContext) {
         orderFlowViewModel.enterGuestVenue(venue)
@@ -110,64 +91,26 @@ fun AppNavHost(
             onFinished = onDeepLinkConsumed,
         )
     }
-    val dataSourceResolver =
-        remember {
-            EntryPointAccessors
-                .fromApplication(
-                    context.applicationContext,
-                    DataSourceResolverEntryPoint::class.java,
-                ).effectiveDataSourceResolver()
-        }
-    val demoGallerySeeder =
-        remember {
-            EntryPointAccessors
-                .fromApplication(
-                    context.applicationContext,
-                    DataSourceResolverEntryPoint::class.java,
-                ).demoGallerySeeder()
-        }
-    var testOnlyMode by remember { mutableStateOf(dataSourceResolver.isTestOnlyMode) }
     var qrScannerOpen by remember { mutableStateOf(false) }
     var pendingPickupDelivery by remember { mutableStateOf<PendingPickupDelivery?>(null) }
-    val demoUnlocked = DemoFeatures.isUnlocked(testOnlyMode)
-
-    fun openMockInvitation(token: String) {
-        if (!BuildConfig.DEBUG || dataSourceResolver.effectiveMode() != DataSourceMode.MOCK) return
-        // La carga vive en el LaunchedEffect de la ruta para evitar doble fetch.
-        navController.navigate(Routes.vai27InvitationRoute(token)) {
-            launchSingleTop = true
-        }
-    }
 
     fun openInvitation(token: String) {
-        if (dataSourceResolver.effectiveMode() != DataSourceMode.REMOTE) return
         navController.navigate(Routes.vai27InvitationRoute(token)) {
             launchSingleTop = true
         }
     }
 
-    LaunchedEffect(pendingInvitationToken, dataSourceResolver.effectiveMode()) {
+    LaunchedEffect(pendingInvitationToken) {
         val token = pendingInvitationToken?.trim().orEmpty()
         if (token.isEmpty()) return@LaunchedEffect
-        if (dataSourceResolver.effectiveMode() == DataSourceMode.REMOTE) {
-            openInvitation(token)
-        }
+        openInvitation(token)
         onInvitationConsumed()
-    }
-
-    LaunchedEffect(pendingMockInvitationToken, dataSourceResolver.effectiveMode()) {
-        val token = pendingMockInvitationToken?.trim().orEmpty()
-        if (token.isEmpty()) return@LaunchedEffect
-        if (BuildConfig.DEBUG && dataSourceResolver.effectiveMode() == DataSourceMode.MOCK) {
-            openMockInvitation(token)
-        }
-        onMockInvitationConsumed()
     }
 
     fun navigateAuthorizedMode(modeRole: OperationalRole) {
         // Keep a guest cart in its tenant-scoped snapshot, but do not carry the
         // guest venue/catalog state into an authenticated operational context.
-        orderFlowViewModel.clearGuestVenueForDemo()
+        orderFlowViewModel.clearGuestVenue()
         when (modeRole) {
             OperationalRole.CASHIER -> navController.navigate(Routes.CASHIER) { launchSingleTop = true }
             OperationalRole.KITCHEN -> navController.navigate(Routes.KITCHEN) { launchSingleTop = true }
@@ -182,7 +125,7 @@ fun AppNavHost(
     fun returnToClientFromAuthorizedMode() {
         authorizedAccessViewModel.returnToClient {
             operationalViewModel.setRole(OperationalRole.CLIENT)
-            orderFlowViewModel.clearGuestVenueForDemo()
+            orderFlowViewModel.clearGuestVenue()
             orderFlowViewModel.refresh()
             navController.navigateStudent(Routes.CATALOG)
         }
@@ -208,14 +151,8 @@ fun AppNavHost(
 
     LaunchedEffect(
         authorizedAccessState.activeContext?.membershipId,
-        dataSourceResolver.effectiveMode(),
     ) {
-        if (
-            dataSourceResolver.effectiveMode() != DataSourceMode.REMOTE ||
-            authorizedAccessState.activeContext == null
-        ) {
-            return@LaunchedEffect
-        }
+        if (authorizedAccessState.activeContext == null) return@LaunchedEffect
         while (isActive) {
             delay(AUTHORIZED_ACCESS_SYNC_INTERVAL_MS)
             if (!isActive) break
@@ -228,172 +165,10 @@ fun AppNavHost(
     LaunchedEffect(
         studentAuthState.session?.uid,
         studentAuthState.session?.emailVerified,
-        dataSourceResolver.effectiveMode(),
     ) {
-        if (
-            dataSourceResolver.effectiveMode() == DataSourceMode.REMOTE &&
-            studentAuthState.session?.emailVerified == true
-        ) {
+        if (studentAuthState.session?.emailVerified == true) {
             authorizedAccessViewModel.refreshModes(force = true)
         }
-    }
-
-    fun navigateDemo(route: String) {
-        if (!demoUnlocked) return
-        navController.navigateStudent(route)
-    }
-
-    fun navigateGalleryItem(itemId: String) {
-        if (!demoUnlocked) return
-        operationalViewModel.setRole(OperationalRole.CLIENT)
-        orderFlowViewModel.clearCreatedOrder()
-        when (itemId) {
-            "splash" -> navController.navigate(Routes.SPLASH) { launchSingleTop = true }
-            "01" -> navController.navigate(Routes.ROLE_SELECTOR) { launchSingleTop = true }
-            "vai27-invitation" -> {
-                authorizedAccessViewModel.resetFixtures()
-                authorizedAccessViewModel.prepareMockGallerySession()
-                openMockInvitation("vai27-valid-cashier")
-            }
-            "vai27-modes" -> {
-                authorizedAccessViewModel.resetFixtures()
-                authorizedAccessViewModel.prepareMockGallerySession()
-                authorizedAccessViewModel.prepareMockGalleryModes()
-                navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true }
-            }
-            "vai27-external-revoke" -> {
-                authorizedAccessViewModel.resetFixtures()
-                authorizedAccessViewModel.prepareMockGallerySession()
-                authorizedAccessViewModel.prepareMockExternalRevocationScenario {
-                    operationalViewModel.setRole(OperationalRole.CLIENT)
-                    navController.navigateStudent(Routes.CATALOG)
-                }
-            }
-            "02" -> {
-                demoGallerySeeder.seedCatalogCleared(orderFlowViewModel)
-                operationalViewModel.applyGalleryClientOrders(emptyList(), selectedOrderId = null)
-                navController.navigate(Routes.CATALOG) { launchSingleTop = true }
-            }
-            "05" -> {
-                demoGallerySeeder.seedCatalogActiveOrder(orderFlowViewModel, operationalViewModel)
-                navController.navigate(Routes.CATALOG) { launchSingleTop = true }
-            }
-            "06" -> {
-                demoGallerySeeder.seedCatalogEmptySearch(orderFlowViewModel)
-                navController.navigate(Routes.CATALOG) { launchSingleTop = true }
-            }
-            "07" -> {
-                demoGallerySeeder.seedCatalogProductSheet(orderFlowViewModel)
-                navController.navigate(Routes.CATALOG) { launchSingleTop = true }
-            }
-            "09" -> navController.navigate(Routes.ASSISTANT_HUB) { launchSingleTop = true }
-            "57" -> navController.navigate(Routes.ASSISTANT_CHAT) { launchSingleTop = true }
-            "12" -> {
-                demoGallerySeeder.seedCartEmpty(orderFlowViewModel)
-                navController.navigate(Routes.CART) { launchSingleTop = true }
-            }
-            "13" -> {
-                demoGallerySeeder.seedCheckout(
-                    orderFlowViewModel,
-                    OrderDestination.TAKE_AWAY,
-                    PaymentMethod.CASH,
-                )
-                navController.navigate(Routes.CART) { launchSingleTop = true }
-            }
-            "14" -> {
-                demoGallerySeeder.seedCheckout(
-                    orderFlowViewModel,
-                    OrderDestination.IN_SPACE,
-                    PaymentMethod.BALANCE,
-                    DemoCheckoutFixtures.DEFAULT_SPACE.id,
-                )
-                navController.navigate(Routes.CART) { launchSingleTop = true }
-            }
-            "15" -> {
-                demoGallerySeeder.seedCheckout(
-                    orderFlowViewModel,
-                    OrderDestination.TAKE_AWAY,
-                    PaymentMethod.CARD,
-                )
-                navController.navigate(Routes.CART) { launchSingleTop = true }
-            }
-            "16" -> demoGallerySeeder.seedConfirmation(orderFlowViewModel, PaymentMethod.CASH)
-            "17" -> demoGallerySeeder.seedConfirmation(orderFlowViewModel, PaymentMethod.BALANCE)
-            "18" -> demoGallerySeeder.seedConfirmation(orderFlowViewModel, PaymentMethod.CARD)
-            "19" -> {
-                demoGallerySeeder.seedTrackingEmpty(operationalViewModel)
-                navController.navigate(Routes.STUDENT_TRACKING) { launchSingleTop = true }
-            }
-            "20" -> {
-                demoGallerySeeder.seedTrackingOrder(
-                    operationalViewModel,
-                    OrderState.PENDING_PAYMENT,
-                    PaymentMethod.CASH,
-                )
-                navController.navigate(Routes.STUDENT_TRACKING) { launchSingleTop = true }
-            }
-            "21" -> {
-                demoGallerySeeder.seedTrackingOrder(
-                    operationalViewModel,
-                    OrderState.PAID,
-                    PaymentMethod.BALANCE,
-                )
-                navController.navigate(Routes.STUDENT_TRACKING) { launchSingleTop = true }
-            }
-            "22" -> {
-                demoGallerySeeder.seedTrackingOrder(
-                    operationalViewModel,
-                    OrderState.PREPARING,
-                    PaymentMethod.CASH,
-                )
-                navController.navigate(Routes.STUDENT_TRACKING) { launchSingleTop = true }
-            }
-            "23" -> {
-                demoGallerySeeder.seedTrackingOrder(
-                    operationalViewModel,
-                    OrderState.READY,
-                    PaymentMethod.CASH,
-                )
-                navController.navigate(Routes.STUDENT_TRACKING) { launchSingleTop = true }
-            }
-            "24" -> {
-                demoGallerySeeder.seedTrackingOrder(
-                    operationalViewModel,
-                    OrderState.DELIVERED,
-                    PaymentMethod.CASH,
-                )
-                navController.navigate(Routes.STUDENT_TRACKING) { launchSingleTop = true }
-            }
-            "25" -> navController.navigate(Routes.WALLET) { launchSingleTop = true }
-            "26" -> navController.navigate("wallet/add-money?method=card") { launchSingleTop = true }
-            "27" -> navController.navigate("wallet/add-money?method=spei") { launchSingleTop = true }
-            "28" -> navController.navigate(Routes.WALLET_METHODS) { launchSingleTop = true }
-            "29" -> navController.navigate(Routes.WALLET_ADD_CARD) { launchSingleTop = true }
-            "30" -> navController.navigate(Routes.WALLET_ACCOUNT) { launchSingleTop = true }
-            "51", "52", "53", "54", "55", "56" -> {
-                val styleIndex = itemId.toInt() - 51
-                operationalViewModel.applyGalleryClientOrders(emptyList(), selectedOrderId = null)
-                navController.navigate(Routes.receiptStickerRoute(styleIndex)) { launchSingleTop = true }
-            }
-            "caja" -> {
-                operationalViewModel.setRole(OperationalRole.CASHIER)
-                navController.navigate(Routes.CASHIER) { launchSingleTop = true }
-            }
-            "cocina" -> {
-                operationalViewModel.setRole(OperationalRole.KITCHEN)
-                navController.navigate(Routes.KITCHEN) { launchSingleTop = true }
-            }
-            "mesero" -> {
-                operationalViewModel.setRole(OperationalRole.WAITER)
-                navController.navigate(Routes.WAITER) { launchSingleTop = true }
-            }
-        }
-    }
-
-    LaunchedEffect(testOnlyMode) {
-        dataSourceResolver.isTestOnlyMode = testOnlyMode
-        orderFlowViewModel.applyTestOnlyMode(testOnlyMode)
-        operationalViewModel.onRuntimeModeChanged()
     }
 
     LaunchedEffect(orderState.createdOrder?.summary?.id) {
@@ -440,7 +215,6 @@ fun AppNavHost(
         navController = navController,
         cartCount = orderState.cartItemCount,
         onNavigateStudent = { route -> navController.navigateStudent(route) },
-        onNavigateDemo = { route -> navigateDemo(route) },
         catalogDetailOpen = orderState.selectedProductId != null,
     ) {
         NavHost(navController = navController, startDestination = Routes.SPLASH) {
@@ -478,16 +252,6 @@ fun AppNavHost(
                         val selected = discoveryState.selected ?: return@DiscoveryScreen
                         enterVenueAndOpenCatalog(selected)
                     },
-                    showMockHint = dataSourceResolver.effectiveMode() == DataSourceMode.MOCK,
-                    onOpenDemoRoles = {
-                        if (DemoFeatures.toolsAvailable) {
-                            testOnlyMode = true
-                            orderFlowViewModel.clearGuestVenueForDemo()
-                            navController.navigate(Routes.ROLE_SELECTOR) {
-                                launchSingleTop = true
-                            }
-                        }
-                    },
                 )
 
                 if (qrScannerOpen) {
@@ -502,53 +266,6 @@ fun AppNavHost(
                         },
                     )
                 }
-            }
-
-            composable(Routes.ROLE_SELECTOR) {
-                RoleSelectorScreen(
-                    testOnlyMode = testOnlyMode,
-                    onTestOnlyModeChange = { enabled -> testOnlyMode = enabled },
-                    loadingRole = roleAuthState.authenticatingRole.takeIf { roleAuthState.loading },
-                    errorMessage = roleAuthState.errorMessage,
-                    onDismissError = roleAuthViewModel::clearError,
-                    onOpenDemoGallery = {
-                        if (DemoFeatures.toolsAvailable) {
-                            testOnlyMode = true
-                            navController.navigate(Routes.DEMO_GALLERY) {
-                                launchSingleTop = true
-                            }
-                        }
-                    },
-                    onRoleSelected = { role ->
-                        val staffRole = role != OperationalRole.CLIENT
-                        if (!staffRole || demoUnlocked) {
-                            roleAuthViewModel.authenticate(role) {
-                                operationalViewModel.setRole(role)
-                                when (role) {
-                                    OperationalRole.CLIENT -> {
-                                        orderFlowViewModel.clearGuestVenueForDemo()
-                                        orderFlowViewModel.refresh()
-                                        navController.navigate(Routes.CATALOG) {
-                                            launchSingleTop = true
-                                        }
-                                    }
-                                    OperationalRole.CASHIER ->
-                                        navController.navigate(Routes.CASHIER) {
-                                            launchSingleTop = true
-                                        }
-                                    OperationalRole.KITCHEN ->
-                                        navController.navigate(Routes.KITCHEN) {
-                                            launchSingleTop = true
-                                        }
-                                    OperationalRole.WAITER ->
-                                        navController.navigate(Routes.WAITER) {
-                                            launchSingleTop = true
-                                        }
-                                }
-                            }
-                        }
-                    },
-                )
             }
 
             composable(
@@ -596,23 +313,6 @@ fun AppNavHost(
                 )
             }
 
-            composable(Routes.DEMO_GALLERY) {
-                LaunchedEffect(Unit) {
-                    if (!DemoFeatures.toolsAvailable) {
-                        navController.popBackStack()
-                        return@LaunchedEffect
-                    }
-                    testOnlyMode = true
-                    orderFlowViewModel.refresh()
-                }
-                DemoGalleryScreen(
-                    onBack = {
-                        navController.popBackStack()
-                    },
-                    onItemSelected = { itemId -> navigateGalleryItem(itemId) },
-                )
-            }
-
             composable(Routes.CATALOG) {
                 CatalogScreen(
                     state = orderState,
@@ -628,8 +328,8 @@ fun AppNavHost(
                     onAddProduct = orderFlowViewModel::addSelectedProductToCart,
                     onOpenCart = { navController.navigateStudent(Routes.CART) },
                     onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                    onOpenAssistant = { navigateDemo(Routes.ASSISTANT) },
-                    onOpenWallet = { navigateDemo(Routes.WALLET) },
+                    onOpenAssistant = { navController.navigateStudent(Routes.ASSISTANT) },
+                    onOpenWallet = { navController.navigateStudent(Routes.WALLET) },
                     onChangeVenue = {
                         navController.navigate(Routes.DISCOVERY) {
                             launchSingleTop = true
@@ -648,69 +348,35 @@ fun AppNavHost(
             }
 
             composable(Routes.ASSISTANT) {
-                LaunchedEffect(demoUnlocked) {
-                    if (!demoUnlocked) navController.popBackStack()
-                }
                 AssistantChatScreen(
                     state = orderState,
-                    embeddedInBottomNav = true,
+                    embeddedInBottomNav = false,
                     onSendMessage = orderFlowViewModel::sendAssistantMessage,
                     onClearChat = orderFlowViewModel::clearAssistantChat,
                     onClose = { navController.navigateStudent(Routes.CATALOG) },
-                    onMenu = { navController.navigateStudent(Routes.CATALOG) },
                     onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                    onWallet = { navigateDemo(Routes.WALLET) },
-                    onCart = { navController.navigateStudent(Routes.CART) },
-                )
-            }
-
-            composable(Routes.ASSISTANT_HUB) {
-                LaunchedEffect(demoUnlocked) {
-                    if (!demoUnlocked) navController.popBackStack()
-                }
-                AssistantScreen(
-                    state = orderState,
-                    onOpenChat = { navController.navigate(Routes.ASSISTANT) { launchSingleTop = true } },
-                    onOpenProduct = { productId ->
-                        orderFlowViewModel.openProduct(productId)
-                        navController.navigateStudent(Routes.CATALOG)
-                    },
-                    onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                    onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                    onWallet = { navigateDemo(Routes.WALLET) },
+                    onWallet = { navController.navigateStudent(Routes.WALLET) },
                     onCart = { navController.navigateStudent(Routes.CART) },
                 )
             }
 
             composable(Routes.ASSISTANT_CHAT) {
-                LaunchedEffect(demoUnlocked) {
-                    if (!demoUnlocked) navController.popBackStack()
-                }
                 AssistantChatScreen(
                     state = orderState,
                     embeddedInBottomNav = false,
                     onSendMessage = orderFlowViewModel::sendAssistantMessage,
                     onClearChat = orderFlowViewModel::clearAssistantChat,
                     onClose = { navController.popBackStack() },
-                    onMenu = { navController.navigateStudent(Routes.CATALOG) },
                     onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                    onWallet = { navigateDemo(Routes.WALLET) },
+                    onWallet = { navController.navigateStudent(Routes.WALLET) },
                     onCart = { navController.navigateStudent(Routes.CART) },
                 )
             }
 
             composable(Routes.WALLET) {
-                LaunchedEffect(demoUnlocked) {
-                    if (!demoUnlocked) navController.popBackStack()
-                }
                 WalletScreen(
-                    state = orderState,
-                    balance = walletState.balance,
-                    onAddMoney = { navController.navigate("wallet/add-money?method=card") },
-                    onPaymentMethods = { navController.navigate(Routes.WALLET_METHODS) },
-                    onAccount = { navController.navigate(Routes.WALLET_ACCOUNT) },
                     onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                    onAssistant = { navigateDemo(Routes.ASSISTANT) },
+                    onAssistant = { navController.navigateStudent(Routes.ASSISTANT) },
                     onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
                     onCart = { navController.navigateStudent(Routes.CART) },
                 )
@@ -726,21 +392,15 @@ fun AppNavHost(
                         },
                     ),
             ) { entry ->
-                LaunchedEffect(demoUnlocked) {
-                    if (!demoUnlocked) navController.popBackStack()
-                }
                 WalletAddMoneyScreen(
                     walletState = walletState,
                     initialMethod = entry.arguments?.getString("method") ?: "card",
                     onBack = { navController.popBackStack() },
-                    onCreditBalance = { amount -> walletState.balance += amount },
+                    onCreditBalance = {},
                 )
             }
 
             composable(Routes.WALLET_METHODS) {
-                LaunchedEffect(demoUnlocked) {
-                    if (!demoUnlocked) navController.popBackStack()
-                }
                 WalletPaymentMethodsScreen(
                     walletState = walletState,
                     onBack = { navController.popBackStack() },
@@ -749,9 +409,6 @@ fun AppNavHost(
             }
 
             composable(Routes.WALLET_ADD_CARD) {
-                LaunchedEffect(demoUnlocked) {
-                    if (!demoUnlocked) navController.popBackStack()
-                }
                 WalletAddCardScreen(
                     walletState = walletState,
                     onBack = { navController.popBackStack() },
@@ -760,9 +417,6 @@ fun AppNavHost(
             }
 
             composable(Routes.WALLET_ACCOUNT) {
-                LaunchedEffect(demoUnlocked) {
-                    if (!demoUnlocked) navController.popBackStack()
-                }
                 WalletAccountScreen(onBack = { navController.popBackStack() })
             }
 
@@ -773,7 +427,6 @@ fun AppNavHost(
                 val guestAuthRequired = orderFlowViewModel.requiresStudentAuth()
                 CartScreen(
                     state = orderState,
-                    walletBalance = walletState.balance,
                     onMenu = { navController.navigateStudent(Routes.CATALOG) },
                     onQuantityChange = orderFlowViewModel::changeCartLineQuantity,
                     onNotesChange = orderFlowViewModel::updateKitchenNotes,
@@ -784,16 +437,12 @@ fun AppNavHost(
                         if (guestAuthRequired) {
                             navigateStudentAuth(Routes.CART)
                         } else {
-                            orderFlowViewModel.submitOrder(
-                                walletBalance = walletState.balance,
-                                onWalletDebit = { amount -> walletState.balance -= amount },
-                            )
+                            orderFlowViewModel.submitOrder()
                         }
                     },
                     onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                    onOpenAssistant = { navigateDemo(Routes.ASSISTANT) },
-                    onOpenWallet = { navigateDemo(Routes.WALLET) },
-                    showDemoTabs = demoUnlocked && dataSourceResolver.effectiveMode() == DataSourceMode.MOCK,
+                    onOpenAssistant = { navController.navigateStudent(Routes.ASSISTANT) },
+                    onOpenWallet = { navController.navigateStudent(Routes.WALLET) },
                     guestAuthRequired = guestAuthRequired,
                 )
             }
@@ -964,8 +613,8 @@ fun AppNavHost(
                     state = operationalState,
                     orderState = orderState,
                     onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                    onAssistant = { navigateDemo(Routes.ASSISTANT) },
-                    onWallet = { navigateDemo(Routes.WALLET) },
+                    onAssistant = { navController.navigateStudent(Routes.ASSISTANT) },
+                    onWallet = { navController.navigateStudent(Routes.WALLET) },
                     onCart = { navController.navigateStudent(Routes.CART) },
                     onOpenCatalog = { navController.navigateStudent(Routes.CATALOG) },
                     onSelectOrder = operationalViewModel::selectOrder,
@@ -975,9 +624,9 @@ fun AppNavHost(
 
             composable(Routes.CASHIER) {
                 val authorizedCashier = authorizedAccessState.activeContext?.role == OperationalRole.CASHIER
-                LaunchedEffect(demoUnlocked, authorizedCashier) {
-                    if (!demoUnlocked && !authorizedCashier) {
-                        navController.navigate(Routes.ROLE_SELECTOR) {
+                LaunchedEffect(authorizedCashier) {
+                    if (!authorizedCashier) {
+                        navController.navigate(Routes.VAI27_MODES) {
                             launchSingleTop = true
                         }
                     }
@@ -991,7 +640,7 @@ fun AppNavHost(
                                 navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true }
                             }
                         } else {
-                            returnToRoles(navController, operationalViewModel)
+                            returnToModes(navController, operationalViewModel)
                         },
                     onOpenCashSession = operationalViewModel::openCashRegister,
                     onCollect = operationalViewModel::collectCash,
@@ -1017,9 +666,9 @@ fun AppNavHost(
 
             composable(Routes.KITCHEN) {
                 val authorizedKitchen = authorizedAccessState.activeContext?.role == OperationalRole.KITCHEN
-                LaunchedEffect(demoUnlocked, authorizedKitchen) {
-                    if (!demoUnlocked && !authorizedKitchen) {
-                        navController.navigate(Routes.ROLE_SELECTOR) {
+                LaunchedEffect(authorizedKitchen) {
+                    if (!authorizedKitchen) {
+                        navController.navigate(Routes.VAI27_MODES) {
                             launchSingleTop = true
                         }
                     }
@@ -1033,7 +682,7 @@ fun AppNavHost(
                                 navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true }
                             }
                         } else {
-                            returnToRoles(navController, operationalViewModel)
+                            returnToModes(navController, operationalViewModel)
                         },
                     onStart = operationalViewModel::startKitchen,
                     onReady = operationalViewModel::markReady,
@@ -1055,9 +704,9 @@ fun AppNavHost(
 
             composable(Routes.WAITER) {
                 val authorizedWaiter = authorizedAccessState.activeContext?.role == OperationalRole.WAITER
-                LaunchedEffect(demoUnlocked, authorizedWaiter) {
-                    if (!demoUnlocked && !authorizedWaiter) {
-                        navController.navigate(Routes.ROLE_SELECTOR) {
+                LaunchedEffect(authorizedWaiter) {
+                    if (!authorizedWaiter) {
+                        navController.navigate(Routes.VAI27_MODES) {
                             launchSingleTop = true
                         }
                     }
@@ -1071,7 +720,7 @@ fun AppNavHost(
                                 navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true }
                             }
                         } else {
-                            returnToRoles(navController, operationalViewModel)
+                            returnToModes(navController, operationalViewModel)
                         },
                     onDeliver = { orderId, version -> operationalViewModel.deliver(orderId, version) },
                     onScanDeliver = { orderId, version ->
@@ -1126,13 +775,13 @@ private fun NavHostController.navigateStudent(route: String) {
     }
 }
 
-private fun returnToRoles(
+private fun returnToModes(
     navController: NavHostController,
     operationalViewModel: OperationalViewModel,
 ): () -> Unit =
     {
         operationalViewModel.clearRole()
-        navController.navigate(Routes.ROLE_SELECTOR) {
-            popUpTo(Routes.ROLE_SELECTOR) { inclusive = true }
+        navController.navigate(Routes.VAI27_MODES) {
+            launchSingleTop = true
         }
     }

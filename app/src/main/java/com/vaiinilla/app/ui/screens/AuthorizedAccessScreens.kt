@@ -35,14 +35,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.mode.AuthorizedMode
-import com.vaiinilla.app.ui.components.DemoEmptyState
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialPrimaryButton
+import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.mode.AuthorizedAccessUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -258,7 +261,7 @@ fun AuthorizedModeScreen(
             }
             if (!state.loading && state.modes.isEmpty() && state.errorMessage == null) {
                 item {
-                    DemoEmptyState(
+                    EmptyState(
                         icon = Icons.Outlined.VpnKey,
                         title = "Sin modos operativos",
                         message = "Cuando aceptes una invitación vigente, aquí aparecerán tus accesos autorizados.",
@@ -360,6 +363,32 @@ fun AuthorizedModeScreen(
                 }
             }
         }
+    }
+}
+
+@Preview(name = "Invitación autorizada", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun InvitationAcceptanceScreenPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        InvitationAcceptanceScreen(
+            state = AuthorizedAccessUiState(),
+            onBack = {},
+            onAccept = {},
+            onAuthenticate = {},
+        )
+    }
+}
+
+@Preview(name = "Modos autorizados", showBackground = true, widthDp = 411, heightDp = 891)
+@Composable
+private fun AuthorizedModeScreenPreview() {
+    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
+        AuthorizedModeScreen(
+            state = AuthorizedAccessUiState(),
+            onBack = {},
+            onSelectMode = {},
+            onReturnToClient = {},
+        )
     }
 }
 
