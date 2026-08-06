@@ -4,7 +4,10 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.security.SecureSessionStore
+import com.vaiinilla.app.data.auth.ContextoExchanger
 import com.vaiinilla.app.data.guest.GuestSessionStore
+import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.discovery.DiscoveryFailures
 import com.vaiinilla.app.domain.model.CartLine
@@ -37,6 +40,9 @@ class OrderFlowViewModel
         private val discoveryRepository: DiscoveryRepository,
         private val guestSessionStore: GuestSessionStore,
         private val studentAuthRepository: StudentAuthRepository,
+        private val contextoExchange: ContextoExchanger,
+        private val sessionStore: SecureSessionStore,
+        private val staffPresenceCoordinator: StaffPresenceCoordinator,
     ) : ViewModel() {
         private val _uiState =
             mutableStateOf(
@@ -405,11 +411,42 @@ class OrderFlowViewModel
             _uiState.value = state.copy(creatingOrder = true, createOrderError = null)
             viewModelScope.launch {
                 var current = _uiState.value
-                val status = withContext(Dispatchers.IO) { getOperationalStatus() }.getOrNull()
-                if (status != null) {
-                    current = current.copy(operationalStatus = status)
-                    _uiState.value = current.copy(creatingOrder = true, createOrderError = null)
+                val staffPresenceResult =
+                    withContext(Dispatchers.IO) {
+                        staffPresenceCoordinator.primeStaffPresence()
+                    }
+                if (staffPresenceResult.isFailure) {
+                    val reason =
+                        staffPresenceResult.exceptionOrNull()?.message
+                            ?: "No se pudo avisar a Caja y Cocina."
+                    _uiState.value =
+                        current.copy(
+                            creatingOrder = false,
+                            createOrderError = "No pudimos validar la disponibilidad operativa. $reason",
+                        )
+                    return@launch
                 }
+                var statusResult = withContext(Dispatchers.IO) { getOperationalStatus() }
+                if (
+                    statusResult.isFailure &&
+                    current.guestVenue?.establishment?.clientIdRequired == false
+                ) {
+                    refreshClientContext(requireNotNull(current.guestVenue))
+                    statusResult = withContext(Dispatchers.IO) { getOperationalStatus() }
+                }
+                val status =
+                    statusResult.getOrElse { error ->
+                        _uiState.value =
+                            current.copy(
+                                creatingOrder = false,
+                                createOrderError =
+                                    "No pudimos verificar si el establecimiento está recibiendo pedidos. " +
+                                        (error.message ?: "Vuelve a iniciar sesión."),
+                            )
+                        return@launch
+                    }
+                current = current.copy(operationalStatus = status)
+                _uiState.value = current.copy(creatingOrder = true, createOrderError = null)
 
                 if (current.requiresOperationalReady && !current.isOperationallyReady) {
                     val blocker =
@@ -462,6 +499,20 @@ class OrderFlowViewModel
                             )
                     },
                 )
+            }
+        }
+
+        private suspend fun refreshClientContext(venue: GuestVenueContext) {
+            runCatching {
+                val firebaseToken = studentAuthRepository.getIdToken(forceRefresh = true).getOrThrow()
+                val context =
+                    contextoExchange.exchange(
+                        firebaseIdToken = firebaseToken,
+                        establecimientoSlug = venue.establishment.slug,
+                        establecimientoId = venue.establishment.id,
+                        identificadorCliente = null,
+                    )
+                sessionStore.saveAccessToken(context.accessToken)
             }
         }
 

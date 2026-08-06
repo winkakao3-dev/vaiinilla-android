@@ -13,8 +13,10 @@ import com.vaiinilla.app.domain.mode.AuthorizedModeContext
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -64,7 +66,7 @@ class AuthorizedAccessViewModel
                 )
             invitationJob =
                 viewModelScope.launch {
-                    repository.invitation(normalized).fold(
+                    withContext(Dispatchers.IO) { repository.invitation(normalized) }.fold(
                         onSuccess = { invitation ->
                             _state.value =
                                 _state.value.copy(
@@ -119,7 +121,7 @@ class AuthorizedAccessViewModel
                 )
             modesJob =
                 viewModelScope.launch {
-                    repository.authorizedModes(session).fold(
+                    withContext(Dispatchers.IO) { repository.authorizedModes(session) }.fold(
                         onSuccess = { modes ->
                             lastModesUid = session.uid
                             _state.value =
@@ -156,7 +158,7 @@ class AuthorizedAccessViewModel
             _state.value = _state.value.copy(loading = true, errorMessage = null, message = null)
             actionJob =
                 viewModelScope.launch {
-                    repository.acceptInvitation(token, session).fold(
+                    withContext(Dispatchers.IO) { repository.acceptInvitation(token, session) }.fold(
                         onSuccess = {
                             _state.value =
                                 _state.value.copy(
@@ -192,7 +194,7 @@ class AuthorizedAccessViewModel
             _state.value = _state.value.copy(loading = true, errorMessage = null, message = null)
             actionJob =
                 viewModelScope.launch {
-                    repository.activateMode(mode, session).fold(
+                    withContext(Dispatchers.IO) { repository.activateMode(mode, session) }.fold(
                         onSuccess = { context ->
                             activateContext(mode, session, context)
                             _state.value =
@@ -236,7 +238,7 @@ class AuthorizedAccessViewModel
             _state.value = _state.value.copy(loading = true, errorMessage = null, message = null)
             actionJob =
                 viewModelScope.launch {
-                    repository.activateMode(clientMode, session).fold(
+                    withContext(Dispatchers.IO) { repository.activateMode(clientMode, session) }.fold(
                         onSuccess = { context ->
                             activateContext(clientMode, session, context)
                             _state.value =

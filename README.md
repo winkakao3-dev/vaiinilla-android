@@ -58,10 +58,21 @@ La UI depende de `CatalogRepository` y `OrderRepository`; la implementación de 
 La aplicación usa una única fuente de datos en runtime: Firebase para identidad y Railway para catálogo, contexto, accesos y operación.
 MOCK fue retirado del runtime y del APK; los fixtures que permanecen en tests o previews no son una fuente de datos de producción.
 
+## Estado REMOTE (VAI-27)
+
+- API de desarrollo: `https://vaiinillaback-development-3f6c.up.railway.app/api/v1/`
+- Swagger: `https://vaiinillaback-development-3f6c.up.railway.app/api/docs/`
+- Build validada: `app/build/outputs/apk/debug/app-debug.apk`
+- SHA-256: `c84aa5d28c6c3dce068bceace1bae483a0f90b65c5d5eaaba7ac6365a258aed0`
+
+Build reproducible:
+
 ```bash
-./gradlew assembleDebug \
+./gradlew --no-daemon :app:assembleDebug \
   -PvaiinillaApiBaseUrl=https://vaiinillaback-development-3f6c.up.railway.app/api/v1/
 ```
+
+La evidencia de prueba en dispositivo Android real sigue pendiente; no se reporta como ejecutada mientras `adb devices -l` no muestre un dispositivo y se registre la matriz REMOTE. Ver `docs/VAI-27_HARDENING.md`.
 
 Paths remotos: `catalogo`, `estado-operativo`, `pedidos`, cobros, transiciones, `latidos`, `sesiones-caja`.  
 El contexto operativo se obtiene después de Firebase; no se aceptan JWT manuales ni una fuente local alternativa. Ver `local.properties.example` y `docs/VAI-11_DELIVERY_REPORT.md`.

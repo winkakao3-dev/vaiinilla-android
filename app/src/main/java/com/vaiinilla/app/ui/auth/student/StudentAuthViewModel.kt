@@ -40,6 +40,7 @@ class StudentAuthViewModel
 
         init {
             refreshGuestVenue()
+            restoreRemoteContextIfNeeded()
         }
 
         fun refreshGuestVenue() {
@@ -53,6 +54,15 @@ class StudentAuthViewModel
                         authRepository.isReadyForCheckout(venue?.establishment?.id),
                     session = authRepository.peekSession(),
                 )
+        }
+
+        /** Rehydrates the short-lived Railway context after an app process restart. */
+        private fun restoreRemoteContextIfNeeded() {
+            val session = authRepository.peekSession() ?: return
+            if (!session.emailVerified) return
+            val venue = guestSessionStore.readVenue() ?: return
+            if (!authRepository.isReadyForCheckout(venue.establishment.id)) return
+            completeEnrollment(onSuccess = {}, onNeedsVerify = {})
         }
 
         fun updateName(value: String) {

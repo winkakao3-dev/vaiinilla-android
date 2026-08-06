@@ -38,7 +38,7 @@ Todos terminaron correctamente. El APK generado es:
 
 ```text
 app/build/outputs/apk/debug/app-debug.apk
-SHA-256: d6ac5834a0654581c2c2531e06aeca9c2ed2e8d6bb66055d88afc8d3b7a4c1d9
+SHA-256: c84aa5d28c6c3dce068bceace1bae483a0f90b65c5d5eaaba7ac6365a258aed0
 ```
 
 La integridad ZIP del APK también fue comprobada. Comando reproducible de build:
