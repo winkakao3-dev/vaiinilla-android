@@ -1,6 +1,6 @@
 # Vaiinilla Android — VAI-11
 
-App Android nativa del flujo alumno **VAI-10** (catálogo → carrito efectivo → confirmación) más **VAI-11** (seguimiento + Caja/Cocina/Mesero) con cliente remoto Railway.
+App Android nativa del flujo alumno **VAI-10** (catálogo → carrito efectivo/saldo → confirmación) más **VAI-11** (seguimiento + Caja/Cocina/Mesero) con cliente remoto Railway.
 
 Fuentes de verdad:
 
@@ -17,20 +17,19 @@ Fuentes de verdad:
 3. Abre un producto en un sheet visual comparable al mockup.
 4. Selecciona opciones respetando `min_selecciones` y `max_selecciones`, y una cantidad entre 1 y 20.
 5. Agrega configuraciones al carrito; una línea idéntica se consolida sin superar 20 unidades.
-6. Revisa el carrito para `para_llevar`, añade notas y usa exclusivamente `efectivo`.
+6. Revisa el carrito para `para_llevar`, añade notas y elige `efectivo` o `saldo`.
 7. La app envía un request contractual sin precios, total, folio, tenant, usuario ni estado.
-8. Railway valida y devuelve `OrderDetail` en `por_cobrar`.
-9. La confirmación muestra folio, total confirmado y siguiente paso en Caja.
+8. Railway valida y devuelve `OrderDetail`: `por_cobrar` para efectivo o `cobrado` para saldo.
+9. La confirmación muestra folio, total confirmado y el siguiente paso: Caja para efectivo o Cocina para saldo.
 10. Caja cobra, Cocina prepara/lista, entrega y el alumno ve el seguimiento por polling.
 
 ## Límites respetados
 
-No se implementan:
+Fuera de esta rama/entrega quedan:
 
-- destino `en_espacio`;
-- tarjeta, saldo, wallet, recargas o cashback funcional;
+- tarjeta, Stripe o recargas digitales;
 - stickers, receipts coleccionables o reimpresión;
-- cancelaciones, reembolsos, administración o analíticas;
+- administración de cashback, cancelaciones y ajustes administrativos;
 
 El campo contractual `cashback_otorgado` se conserva en `OrderSummary`, pero no hay lógica de cashback.
 
