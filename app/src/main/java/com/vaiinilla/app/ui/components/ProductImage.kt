@@ -1,12 +1,23 @@
 package com.vaiinilla.app.ui.components
 
+import android.graphics.BitmapFactory
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import com.vaiinilla.app.R
+import java.net.URL
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ProductImage(
@@ -15,13 +26,47 @@ fun ProductImage(
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
 ) {
-    Image(
-        painter = painterResource(productImageResource(imageUrl)),
-        contentDescription = contentDescription,
-        modifier = modifier,
-        contentScale = contentScale,
-    )
+    if (productImageIsRemote(imageUrl)) {
+        var remote by remember(imageUrl) { mutableStateOf<ImageBitmap?>(null) }
+        LaunchedEffect(imageUrl) {
+            remote =
+                withContext(Dispatchers.IO) {
+                    runCatching {
+                        URL(imageUrl).openStream().use { stream ->
+                            BitmapFactory.decodeStream(stream)?.asImageBitmap()
+                        }
+                    }.getOrNull()
+                }
+        }
+        val bitmap = remote
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap,
+                contentDescription = contentDescription,
+                modifier = modifier,
+                contentScale = contentScale,
+            )
+        } else {
+            Image(
+                painter = painterResource(R.drawable.waffle),
+                contentDescription = contentDescription,
+                modifier = modifier,
+                contentScale = contentScale,
+            )
+        }
+    } else {
+        Image(
+            painter = painterResource(productImageResource(imageUrl)),
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = contentScale,
+        )
+    }
 }
+
+fun productImageIsRemote(imageUrl: String): Boolean =
+    imageUrl.startsWith("https://", ignoreCase = true) ||
+        imageUrl.startsWith("http://", ignoreCase = true)
 
 @DrawableRes
 fun productImageResource(imageUrl: String): Int {
