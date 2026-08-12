@@ -10,14 +10,25 @@ class RemoteWalletRepositoryTest {
     @Test
     fun `wallet propia usa contrato remoto y mapea buckets sin exponerlos a UI`() {
         val client = FakeWalletClient()
-        val result = RemoteWalletRepository(client).getMyWallet()
+        val result =
+            RemoteWalletRepository(client)
+                .getMyWallet()
 
         assertTrue(result.isSuccess)
         val wallet = result.getOrThrow()
         assertEquals("125.00", wallet.wallet.visibleBalance)
-        assertEquals("100.00", wallet.wallet.pendingCommissionBalance)
-        assertEquals("25.00", wallet.wallet.paidCommissionBalance)
-        assertEquals("recarga_efectivo", wallet.movements.single().type)
+        assertEquals(
+            "100.00",
+            wallet.wallet.pendingCommissionBalance,
+        )
+        assertEquals(
+            "25.00",
+            wallet.wallet.paidCommissionBalance,
+        )
+        assertEquals(
+            "recarga_efectivo",
+            wallet.movements.single().type,
+        )
         assertEquals("wallets/me", client.lastPath)
     }
 
@@ -25,7 +36,10 @@ class RemoteWalletRepositoryTest {
         override val baseUrl: String = "https://example.invalid/api/v1/"
         var lastPath: String? = null
 
-        override fun get(path: String, query: Map<String, String>): Result<String> {
+        override fun get(
+            path: String,
+            query: Map<String, String>,
+        ): Result<String> {
             lastPath = path
             return Result.success(
                 """
@@ -34,7 +48,10 @@ class RemoteWalletRepositoryTest {
             )
         }
 
-        override fun post(path: String, body: String, headers: Map<String, String>): Result<String> =
-            error("no usado")
+        override fun post(
+            path: String,
+            body: String,
+            headers: Map<String, String>,
+        ): Result<String> = error("no usado")
     }
 }

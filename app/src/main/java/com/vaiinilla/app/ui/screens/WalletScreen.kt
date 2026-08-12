@@ -119,10 +119,11 @@ fun WalletScreen(
                             )
                             Button(
                                 onClick = onRetry,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = colors.accentInk,
-                                    contentColor = colors.accent,
-                                ),
+                                colors =
+                                    ButtonDefaults.buttonColors(
+                                        containerColor = colors.accentInk,
+                                        contentColor = colors.accent,
+                                    ),
                                 modifier = Modifier.padding(top = 12.dp),
                             ) { Text("Reintentar", fontWeight = FontWeight.Black) }
                         }
