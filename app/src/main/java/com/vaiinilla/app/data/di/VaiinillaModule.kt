@@ -29,7 +29,6 @@ import com.vaiinilla.app.data.operational.RemoteCashSessionRepository
 import com.vaiinilla.app.data.operational.RemoteDeviceHeartbeatRepository
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.data.order.RemoteOrderRepository
-import com.vaiinilla.app.data.wallet.RemoteWalletRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
 import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
@@ -38,7 +37,6 @@ import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.repository.OrderRepository
-import com.vaiinilla.app.domain.repository.WalletRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -89,11 +87,6 @@ object VaiinillaModule {
         orderContractJson: OrderContractJson,
         pickupTokenStore: PickupTokenStore,
     ): OrderRepository = RemoteOrderRepository(apiClient, orderContractJson, pickupTokenStore)
-
-    @Provides
-    @Singleton
-    fun provideWalletRepository(apiClient: VaiinillaApiClient): WalletRepository =
-        RemoteWalletRepository(apiClient)
 
     @Provides
     @Singleton

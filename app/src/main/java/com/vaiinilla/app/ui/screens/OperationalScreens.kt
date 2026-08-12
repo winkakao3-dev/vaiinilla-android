@@ -48,15 +48,11 @@ fun CashierOperationalScreen(
     onCollect: (orderId: String, amount: String, version: Int) -> Unit,
     onDeliver: (orderId: String, version: Int) -> Unit,
     onScanDeliver: (orderId: String, version: Int) -> Unit = { _, _ -> },
-    onSearchWalletClients: (String) -> Unit = {},
-    onReloadWallet: (userId: String, amount: String) -> Unit = { _, _ -> },
     onChangeMode: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
 ) {
     val pending = state.orders.filter { it.summary.state == OrderState.PENDING_PAYMENT }
     val ready = state.orders.filter { it.summary.state == OrderState.READY }
-    var walletSearch by remember { mutableStateOf("") }
-    var walletAmount by remember { mutableStateOf("100.00") }
 
     LazyColumn(
         modifier =
@@ -87,53 +83,6 @@ fun CashierOperationalScreen(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("Abrir caja (500.00)", fontWeight = FontWeight.Black)
-                }
-            }
-        }
-        item { SectionLabel("Recargas de saldo") }
-        item {
-            OutlinedTextField(
-                value = walletSearch,
-                onValueChange = { walletSearch = it },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = state.cashSessionOpen == true && !state.acting,
-                label = { Text("Nombre, matrícula o identificador") },
-                singleLine = true,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedTextField(
-                    value = walletAmount,
-                    onValueChange = { walletAmount = it },
-                    modifier = Modifier.weight(1f),
-                    enabled = state.cashSessionOpen == true && !state.acting,
-                    label = { Text("Monto") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                )
-                androidx.compose.material3.Button(
-                    onClick = { onSearchWalletClients(walletSearch) },
-                    enabled = state.cashSessionOpen == true && !state.acting && walletSearch.isNotBlank(),
-                    modifier = Modifier.defaultMinSize(minWidth = 112.dp),
-                ) { Text("Buscar") }
-            }
-        }
-        if (state.walletClients.isEmpty() && walletSearch.isNotBlank()) {
-            item {
-                Text("Busca un cliente del establecimiento para registrar efectivo.", color = MutedInk)
-            }
-        } else {
-            items(state.walletClients, key = { it.userId }) { client ->
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(client.name, fontWeight = FontWeight.Black)
-                    Text(
-                        listOfNotNull(client.contextualId, client.enrollment).joinToString(" · "),
-                        color = MutedInk,
-                    )
-                    androidx.compose.material3.Button(
-                        onClick = { onReloadWallet(client.userId, walletAmount) },
-                        enabled = state.cashSessionOpen == true && !state.acting,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Registrar recarga") }
                 }
             }
         }

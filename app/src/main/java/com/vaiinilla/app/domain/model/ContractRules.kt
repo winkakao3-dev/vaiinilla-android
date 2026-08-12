@@ -105,8 +105,8 @@ object ContractRules {
      * cliente no puede limitar ese identificador a una mesa local prefijada.
      */
     fun validateRemoteOrderRequest(request: CreateOrderRequest) {
-        require(request.paymentMethod == PaymentMethod.CASH || request.paymentMethod == PaymentMethod.BALANCE) {
-            "El backend REMOTE acepta efectivo o saldo."
+        require(request.paymentMethod == PaymentMethod.CASH) {
+            "La Entrega 01 REMOTE solo acepta efectivo."
         }
         when (request.destination) {
             OrderDestination.TAKE_AWAY ->
