@@ -78,6 +78,27 @@ El contexto operativo se obtiene después de Firebase; no se aceptan JWT manuale
 
 ## Validación
 
+### Correcciones de CI de Entrega 03
+
+El primer workflow de la integración de wallet falló en `ktlintCheck` por
+formato en los archivos nuevos de wallet y en algunos puntos de navegación,
+Caja y DI. Se aplicó `./gradlew --no-daemon ktlintFormat` sobre los archivos
+afectados y se verificó nuevamente el mismo gate, sin desactivar reglas ni
+excluir fuentes.
+
+La verificación completa de la corrección pasa localmente:
+
+```bash
+./gradlew --no-daemon ktlintCheck
+./gradlew --no-daemon testDebugUnitTest
+./gradlew --no-daemon lintDebug
+./gradlew --no-daemon assembleDebug
+```
+
+Todos terminan en `BUILD SUCCESSFUL`. La prueba remota de GitHub Actions debe
+confirmar el mismo resultado sobre `main`; la autenticación Firebase no se
+considera E2E hasta probar con una cuenta real autorizada.
+
 ```bash
 chmod +x gradlew scripts/*.sh scripts/*.py
 python3 scripts/validate_fixtures.py

@@ -157,32 +157,38 @@ class OperationalViewModel
                     .onSuccess { clients ->
                         _uiState.value = _uiState.value.copy(walletClients = clients, walletSearchLoading = false)
                     }.onFailure { error ->
-                        _uiState.value = _uiState.value.copy(
-                            walletClients = emptyList(),
-                            walletSearchLoading = false,
-                            errorMessage = error.message ?: "No se pudieron buscar clientes.",
-                        )
+                        _uiState.value =
+                            _uiState.value.copy(
+                                walletClients = emptyList(),
+                                walletSearchLoading = false,
+                                errorMessage = error.message ?: "No se pudieron buscar clientes.",
+                            )
                     }
             }
         }
 
-        fun reloadWallet(userId: String, amount: String) {
+        fun reloadWallet(
+            userId: String,
+            amount: String,
+        ) {
             if (_uiState.value.role != OperationalRole.CASHIER || _uiState.value.cashSessionOpen != true) return
             _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
             viewModelScope.launch {
                 withContext(Dispatchers.IO) {
                     walletRepository.reloadCash(userId, amount, UUID.randomUUID().toString())
                 }.onSuccess { wallet ->
-                    _uiState.value = _uiState.value.copy(
-                        acting = false,
-                        walletReloadReceipt = wallet,
-                        errorMessage = "Recarga registrada. Saldo nuevo: ${wallet.wallet.visibleBalance}.",
-                    )
+                    _uiState.value =
+                        _uiState.value.copy(
+                            acting = false,
+                            walletReloadReceipt = wallet,
+                            errorMessage = "Recarga registrada. Saldo nuevo: ${wallet.wallet.visibleBalance}.",
+                        )
                 }.onFailure { error ->
-                    _uiState.value = _uiState.value.copy(
-                        acting = false,
-                        errorMessage = error.message ?: "No se pudo registrar la recarga.",
-                    )
+                    _uiState.value =
+                        _uiState.value.copy(
+                            acting = false,
+                            errorMessage = error.message ?: "No se pudo registrar la recarga.",
+                        )
                 }
             }
         }

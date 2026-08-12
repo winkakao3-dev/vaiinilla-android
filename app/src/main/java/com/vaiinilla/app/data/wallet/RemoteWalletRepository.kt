@@ -2,15 +2,15 @@ package com.vaiinilla.app.data.wallet
 
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
-import com.vaiinilla.app.domain.model.WalletData
 import com.vaiinilla.app.domain.model.WalletClient
+import com.vaiinilla.app.domain.model.WalletData
 import com.vaiinilla.app.domain.model.WalletMovement
 import com.vaiinilla.app.domain.model.WalletSnapshot
 import com.vaiinilla.app.domain.repository.WalletRepository
 import com.vaiinilla.app.domain.repository.WalletRepositoryException
 import kotlinx.serialization.SerialName
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class RemoteWalletRepository(
@@ -44,7 +44,11 @@ class RemoteWalletRepository(
                 envelope.data.map { WalletClient(it.userId, it.nombre, it.matricula, it.contextualId) }
             }.mapApiErrors()
 
-    override fun reloadCash(userId: String, amount: String, idempotencyKey: String): Result<WalletData> =
+    override fun reloadCash(
+        userId: String,
+        amount: String,
+        idempotencyKey: String,
+    ): Result<WalletData> =
         apiClient
             .post(
                 "wallets/$userId/recargas-efectivo",
@@ -116,8 +120,7 @@ private data class WalletMovementDto(
     @SerialName("idempotency_key") val idempotencyKey: String,
     @SerialName("creado_en") val createdAt: String,
 ) {
-    fun toDomain() =
-        WalletMovement(id, tipo, monto, bucket, orderId, registeredBy, idempotencyKey, createdAt)
+    fun toDomain() = WalletMovement(id, tipo, monto, bucket, orderId, registeredBy, idempotencyKey, createdAt)
 }
 
 @Serializable
