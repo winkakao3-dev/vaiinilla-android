@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -45,6 +46,7 @@ import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
 import com.vaiinilla.app.ui.screens.WalletPaymentMethodsScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
 import com.vaiinilla.app.ui.wallet.WalletUiState
+import com.vaiinilla.app.ui.wallet.WalletViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -66,6 +68,7 @@ fun AppNavHost(
     val studentAuthViewModel: StudentAuthViewModel = viewModel()
     val authorizedAccessViewModel: AuthorizedAccessViewModel = viewModel()
     val discoveryViewModel: GuestDiscoveryViewModel = viewModel()
+    val walletViewModel: WalletViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
     val studentAuthState by studentAuthViewModel.state
@@ -374,7 +377,11 @@ fun AppNavHost(
             }
 
             composable(Routes.WALLET) {
+                val walletRemoteState by walletViewModel.state.collectAsStateWithLifecycle()
+                LaunchedEffect(Unit) { walletViewModel.refresh() }
                 WalletScreen(
+                    remoteState = walletRemoteState,
+                    onRetry = walletViewModel::refresh,
                     onMenu = { navController.navigateStudent(Routes.CATALOG) },
                     onAssistant = { navController.navigateStudent(Routes.ASSISTANT) },
                     onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
@@ -644,6 +651,8 @@ fun AppNavHost(
                         },
                     onOpenCashSession = operationalViewModel::openCashRegister,
                     onCollect = operationalViewModel::collectCash,
+                    onSearchWalletClients = operationalViewModel::searchWalletClients,
+                    onReloadWallet = operationalViewModel::reloadWallet,
                     onDeliver = { orderId, version -> operationalViewModel.deliver(orderId, version) },
                     onScanDeliver = { orderId, version ->
                         pendingPickupDelivery = PendingPickupDelivery(orderId, version)

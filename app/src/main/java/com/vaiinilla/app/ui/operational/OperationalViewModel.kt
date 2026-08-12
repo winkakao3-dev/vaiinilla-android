@@ -10,6 +10,7 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
+import com.vaiinilla.app.domain.repository.WalletRepository
 import com.vaiinilla.app.domain.usecase.CollectCashUseCase
 import com.vaiinilla.app.domain.usecase.GetOrderUseCase
 import com.vaiinilla.app.domain.usecase.ListOrdersUseCase
@@ -36,6 +37,7 @@ class OperationalViewModel
         private val openCashSession: OpenCashSessionUseCase,
         private val cashSessionRepository: CashSessionRepository,
         private val heartbeatRepository: DeviceHeartbeatRepository,
+        private val walletRepository: WalletRepository,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(OperationalUiState())
         val uiState: State<OperationalUiState> = _uiState
@@ -144,6 +146,44 @@ class OperationalViewModel
                     expectedVersion = expectedVersion,
                     idempotencyKey = UUID.randomUUID().toString(),
                 ).getOrThrow()
+            }
+        }
+
+        fun searchWalletClients(query: String) {
+            if (_uiState.value.role != OperationalRole.CASHIER) return
+            _uiState.value = _uiState.value.copy(walletSearchLoading = true, errorMessage = null)
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) { walletRepository.searchClients(query) }
+                    .onSuccess { clients ->
+                        _uiState.value = _uiState.value.copy(walletClients = clients, walletSearchLoading = false)
+                    }.onFailure { error ->
+                        _uiState.value = _uiState.value.copy(
+                            walletClients = emptyList(),
+                            walletSearchLoading = false,
+                            errorMessage = error.message ?: "No se pudieron buscar clientes.",
+                        )
+                    }
+            }
+        }
+
+        fun reloadWallet(userId: String, amount: String) {
+            if (_uiState.value.role != OperationalRole.CASHIER || _uiState.value.cashSessionOpen != true) return
+            _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) {
+                    walletRepository.reloadCash(userId, amount, UUID.randomUUID().toString())
+                }.onSuccess { wallet ->
+                    _uiState.value = _uiState.value.copy(
+                        acting = false,
+                        walletReloadReceipt = wallet,
+                        errorMessage = "Recarga registrada. Saldo nuevo: ${wallet.wallet.visibleBalance}.",
+                    )
+                }.onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        acting = false,
+                        errorMessage = error.message ?: "No se pudo registrar la recarga.",
+                    )
+                }
             }
         }
 

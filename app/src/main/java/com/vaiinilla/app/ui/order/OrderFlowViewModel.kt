@@ -374,10 +374,10 @@ class OrderFlowViewModel
         }
 
         fun updateCheckoutPayment(payment: PaymentMethod) {
-            if (payment != PaymentMethod.CASH) {
+            if (payment == PaymentMethod.CARD) {
                 _uiState.value =
                     _uiState.value.copy(
-                        createOrderError = "Este backend sólo tiene pago en efectivo habilitado.",
+                        createOrderError = "Tarjeta pertenece a Entrega 04. En esta entrega usa efectivo o saldo.",
                     )
                 return
             }
