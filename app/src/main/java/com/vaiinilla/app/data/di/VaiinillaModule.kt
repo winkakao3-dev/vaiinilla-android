@@ -92,7 +92,8 @@ object VaiinillaModule {
 
     @Provides
     @Singleton
-    fun provideWalletRepository(apiClient: VaiinillaApiClient): WalletRepository = RemoteWalletRepository(apiClient)
+    fun provideWalletRepository(apiClient: VaiinillaApiClient): WalletRepository =
+        RemoteWalletRepository(apiClient)
 
     @Provides
     @Singleton
