@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
 import com.vaiinilla.app.ui.components.PhysicalPressScale
+import com.vaiinilla.app.ui.components.VaiinillaMark
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.discovery.DiscoveryUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -316,15 +317,12 @@ private fun DiscoveryBrandRow(
                 Modifier
                     .size(44.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(colors.ink),
+                    .background(colors.paper2),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                "V",
-                color = colors.accent,
-                fontSize = 21.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = (-1.5).sp,
+            VaiinillaMark(
+                modifier = Modifier.padding(6.dp).fillMaxSize(),
+                cream = colors.ink,
             )
         }
         Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
