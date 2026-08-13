@@ -349,16 +349,7 @@ class StudentAuthViewModel
 
         private suspend fun sendVerificationEmail(): Result<Unit> =
             authRepository.getIdToken(forceRefresh = true).fold(
-                onSuccess = { firebaseIdToken ->
-                    val remote = remoteAccessEmailApi.sendVerification(firebaseIdToken)
-                    if (remote.isSuccess) {
-                        remote
-                    } else {
-                        // ponytail: Railway/Resend 500 still leaves a Firebase user; native
-                        // verification unblocks checkout until Saul's mail transport is up.
-                        authRepository.sendEmailVerification()
-                    }
-                },
+                onSuccess = { firebaseIdToken -> remoteAccessEmailApi.sendVerification(firebaseIdToken) },
                 onFailure = { Result.failure(it) },
             )
 
