@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,16 +9,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.ShoppingBag
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -187,7 +191,7 @@ fun CheckoutDestinationPicker(
     ) {
         DestinationOption(
             title = "Para llevar",
-            subtitle = "Recoges en barra",
+            subtitle = "Recoge tu pedido en barra.",
             icon = Icons.Outlined.ShoppingBag,
             selected = selected == OrderDestination.TAKE_AWAY,
             onClick = { onSelect(OrderDestination.TAKE_AWAY) },
@@ -196,7 +200,7 @@ fun CheckoutDestinationPicker(
         if (showInSpace) {
             DestinationOption(
                 title = "En mesa",
-                subtitle = selectedSpaceName,
+                subtitle = "Te lo llevamos cuando esté listo.",
                 icon = Icons.Outlined.Restaurant,
                 selected = selected == OrderDestination.IN_SPACE,
                 onClick = { onSelect(OrderDestination.IN_SPACE) },
@@ -282,32 +286,55 @@ private fun DestinationOption(
     Surface(
         modifier =
             modifier
-                .clip(RoundedCornerShape(20.dp))
+                .clip(RoundedCornerShape(24.dp))
                 .clickable(
                     onClick = {
                         if (!selected) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onClick()
                     },
-                ).heightIn(min = 72.dp)
+                ).heightIn(min = 148.dp)
                 .semantics {
                     role = Role.RadioButton
                     this.selected = selected
                 },
         color = bg,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(24.dp),
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(22.dp))
-            Text(title, color = fg, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 10.dp))
-            Text(subtitle, color = muted, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
+        Box(modifier = Modifier.padding(16.dp)) {
             if (selected) {
+                Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .size(24.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(colors.accent),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Rounded.Check,
+                        contentDescription = null,
+                        tint = colors.accentInk,
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
+            }
+            Column {
+                Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(25.dp))
                 Text(
-                    "SELECCIONADO",
-                    color = colors.accent,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 0.6.sp,
-                    modifier = Modifier.padding(top = 10.dp),
+                    title,
+                    color = fg,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    lineHeight = 28.sp,
+                    modifier = Modifier.padding(top = 22.dp),
+                )
+                Text(
+                    subtitle,
+                    color = muted,
+                    fontSize = 13.sp,
+                    lineHeight = 20.sp,
+                    modifier = Modifier.padding(top = 2.dp),
                 )
             }
         }
@@ -320,18 +347,18 @@ fun CheckoutPaymentPicker(
     onSelect: (PaymentMethod) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         PaymentOption(
-            brand = "CASH",
-            title = "Efectivo en Caja",
-            subtitle = "Se envía a Cocina después del cobro",
+            icon = Icons.Outlined.Payments,
+            title = "Efectivo en caja",
+            subtitle = "Se envía a cocina después del cobro.",
             selected = selected == PaymentMethod.CASH,
             onClick = { onSelect(PaymentMethod.CASH) },
         )
         PaymentOption(
-            brand = "SALDO",
+            icon = Icons.Outlined.AccountBalanceWallet,
             title = "Saldo de la cafetería",
-            subtitle = "Se descuenta del saldo de este establecimiento.",
+            subtitle = "Usa el saldo disponible de este establecimiento.",
             selected = selected == PaymentMethod.BALANCE,
             onClick = { onSelect(PaymentMethod.BALANCE) },
         )
@@ -340,12 +367,11 @@ fun CheckoutPaymentPicker(
 
 @Composable
 private fun PaymentOption(
-    brand: String,
+    icon: ImageVector,
     title: String,
     subtitle: String,
     selected: Boolean,
     onClick: () -> Unit,
-    brandIsTransfer: Boolean = false,
     enabled: Boolean = true,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -359,7 +385,7 @@ private fun PaymentOption(
         }
     val secondaryForeground =
         if (selected) {
-            colors.accentInk.copy(alpha = 0.72f)
+            Color(0xFF536229)
         } else {
             colors.muted
         }
@@ -367,8 +393,7 @@ private fun PaymentOption(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .heightIn(min = 52.dp)
-                .clip(RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(22.dp))
                 .clickable(
                     enabled = enabled,
                     onClick = {
@@ -381,60 +406,67 @@ private fun PaymentOption(
                     if (!enabled) disabled()
                 },
         color = background,
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(22.dp),
     ) {
         Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            PaymentBrandBadge(label = brand, isTransfer = brandIsTransfer)
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center,
+            Box(
+                modifier =
+                    Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(colors.ink.copy(alpha = 0.08f)),
+                contentAlignment = Alignment.Center,
             ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = foreground,
+                    modifier = Modifier.size(23.dp),
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     title,
                     color = foreground,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    lineHeight = 24.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     subtitle,
                     color = secondaryForeground,
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 2.dp),
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    modifier = Modifier.padding(top = 1.dp),
                 )
             }
+            Box(
+                modifier =
+                    Modifier
+                        .size(22.dp)
+                        .border(
+                            width = 2.dp,
+                            color = if (selected) colors.ink.copy(alpha = 0.35f) else colors.ink.copy(alpha = 0.18f),
+                            shape = CircleShape,
+                        ),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (selected) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(colors.ink),
+                    )
+                }
+            }
         }
-    }
-}
-
-@Composable
-private fun PaymentBrandBadge(
-    label: String,
-    isTransfer: Boolean = false,
-) {
-    val colors = LocalVaiinillaColors.current
-    Box(
-        modifier =
-            Modifier
-                .size(width = 42.dp, height = 30.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(if (isTransfer) colors.accent.copy(alpha = 0.22f) else colors.ink),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            label,
-            color = if (isTransfer) colors.accentInk else colors.paper,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Black,
-            letterSpacing = 0.6.sp,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-        )
     }
 }
