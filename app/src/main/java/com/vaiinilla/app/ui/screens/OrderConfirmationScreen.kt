@@ -1,16 +1,5 @@
 package com.vaiinilla.app.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -19,6 +8,8 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,53 +18,64 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderDestination
+import com.vaiinilla.app.domain.model.OrderItem
+import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.OrderSummary
+import com.vaiinilla.app.domain.model.OrderUser
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.components.moneyLabel
-import com.vaiinilla.app.ui.theme.Lime
-import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
-import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
-import kotlinx.coroutines.delay
-import kotlin.math.sin
 
-private val PrinterInk = Color(0xFF111210)
-private val PrinterMuted = Color(0xFF9A9C96)
-private val PaperInk = Color(0xFF171817)
-private val PaperText = Color(0xFFF4F1E7)
-private val PaperMuted = Color(0xFFA9AAA4)
-private val Rule = Color(0xFFE7E4DA)
+private val TicketBg = Color(0xFF0D0D0D)
+private val TicketInk = Color(0xFFF3EFE4)
+private val TicketMuted = Color(0xFFB8B3AA)
+private val TicketMuted2 = Color(0xFF8C8981)
+private val TicketPaper = Color(0xFFF3EFE4)
+private val TicketLime = Color(0xFFB7D464)
+private val TicketLimeInk = Color(0xFF172008)
+private val TicketLine = Color(0xB8F3EFE4)
+private val TicketLineSoft = Color(0x2EF3EFE4)
+private val TicketChipFill = Color(0x14B7D464)
+private val TicketChipStroke = Color(0x3DB7D464)
+
+internal fun confirmationTicketTitle(order: OrderDetail): String {
+    val names = order.items.map { it.productName }
+    return when {
+        names.isEmpty() -> "Pedido"
+        names.size == 1 -> names.first()
+        else -> "${names.size} productos"
+    }
+}
+
+internal fun confirmationTicketQrPayload(order: OrderDetail): String =
+    order.pickupToken?.takeIf { it.isNotBlank() }
+        ?: "PEDIDO-${order.summary.folio}"
+
+internal fun confirmationCashPending(order: OrderDetail): Boolean =
+    order.summary.paymentMethod == PaymentMethod.CASH &&
+        order.summary.state == OrderState.PENDING_PAYMENT
 
 @Composable
 fun OrderConfirmationScreen(
@@ -83,849 +85,317 @@ fun OrderConfirmationScreen(
     onViewSticker: () -> Unit = {},
     screenshotPrinted: Boolean = false,
 ) {
-    if (order == null) {
-        val colors = LocalVaiinillaColors.current
-        Box(
-            modifier = Modifier.fillMaxSize().background(colors.paper),
-            contentAlignment = Alignment.Center,
-        ) {
-            Button(
-                onClick = onReturnToMenu,
-                colors = ButtonDefaults.buttonColors(containerColor = colors.accent, contentColor = colors.accentInk),
-            ) {
-                Text("Volver al menú", fontWeight = FontWeight.Black)
-            }
-        }
-        return
-    }
-
-    val printProgress = remember(order.summary.id) { Animatable(if (screenshotPrinted) 1f else 0f) }
-    var printed by remember(order.summary.id) { mutableStateOf(screenshotPrinted) }
-    val reduceMotion = rememberReducedMotion()
-
-    LaunchedEffect(order.summary.id, screenshotPrinted) {
-        if (screenshotPrinted || reduceMotion) {
-            printed = true
-            printProgress.snapTo(1f)
-            return@LaunchedEffect
-        }
-        printed = false
-        printProgress.snapTo(0f)
-        delay(180)
-        printProgress.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 2_650, easing = LinearEasing),
-        )
-        printed = true
-    }
-
-    val colors = LocalVaiinillaColors.current
-    BoxWithConstraints(
+    Box(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(colors.paper)
-                .statusBarsPadding(),
+                .background(TicketBg),
     ) {
-        val compact = maxWidth < 360.dp
-        val horizontalPadding = if (compact) 12.dp else 18.dp
-        val paperPadding = if (compact) 15.dp else 22.dp
-
+        if (order == null) return@Box
+        val cashPending = confirmationCashPending(order)
+        val qrPayload = confirmationTicketQrPayload(order)
         Column(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                    .statusBarsPadding()
                     .navigationBarsPadding()
-                    .padding(bottom = 18.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                    .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 12.dp),
         ) {
-            ReceiptConfirmHeader(
-                paymentMethod = order.summary.paymentMethod,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = horizontalPadding, vertical = 12.dp),
-            )
-
-            ReceiptPrinterMachine(
-                folio = order.summary.folio,
-                printed = printed,
-                paymentMethod = order.summary.paymentMethod,
-                reduceMotion = reduceMotion,
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-            )
-
-            ReceiptPaperOutput(
-                order = order,
-                contentPadding = paperPadding,
-                progress = { printProgress.value },
-                modifier =
-                    Modifier
-                        .padding(horizontal = horizontalPadding)
-                        .fillMaxWidth(),
-            )
-
-            AnimatedVisibility(
-                visible = printed,
-                enter =
-                    if (reduceMotion) {
-                        fadeIn(tween(0))
-                    } else {
-                        fadeIn(tween(300)) +
-                            slideInVertically(
-                                animationSpec = tween(360),
-                                initialOffsetY = { it / 3 },
-                            )
-                    },
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(
+                Box(
                     modifier =
                         Modifier
-                            .padding(horizontal = horizontalPadding, vertical = 18.dp)
-                            .fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                            .size(36.dp)
+                            .border(1.dp, TicketLineSoft, CircleShape)
+                            .physicalPress(onClick = onReturnToMenu),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    ReceiptCollectionUnlockStrip(
-                        paymentMethod = order.summary.paymentMethod,
-                        modifier = Modifier.fillMaxWidth(),
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Regresar",
+                        tint = TicketInk,
                     )
-                    Button(
-                        onClick = onViewTracking,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = colors.accent,
-                                contentColor = colors.accentInk,
-                            ),
-                    ) {
-                        Text(
-                            "Seguir pedido",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Black,
-                        )
-                    }
-                    Button(
-                        onClick = onViewSticker,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = colors.paper2,
-                                contentColor = colors.ink,
-                            ),
-                    ) {
-                        Text(
-                            "Ver sticker completo",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Black,
-                        )
-                    }
-                    Button(
-                        onClick = onReturnToMenu,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = PrinterInk,
-                                contentColor = colors.paper,
-                            ),
-                    ) {
-                        Text(
-                            "Volver al menú",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Black,
-                        )
-                    }
                 }
-            }
-        }
-    }
-}
-
-@Preview(name = "Confirmación de pedido", showBackground = true, widthDp = 411, heightDp = 891)
-@Composable
-private fun OrderConfirmationScreenPreview() {
-    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
-        OrderConfirmationScreen(
-            order = null,
-            onReturnToMenu = {},
-        )
-    }
-}
-
-@Composable
-private fun ReceiptConfirmHeader(
-    paymentMethod: PaymentMethod,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalVaiinillaColors.current
-    val copy = confirmationCopy(paymentMethod)
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                copy.eyebrow,
-                color = colors.muted,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 1.2.sp,
-            )
-            Text(
-                copy.title,
-                color = colors.ink,
-                fontSize = 26.sp,
-                lineHeight = 28.sp,
-                fontWeight = FontWeight.Black,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-            Text(
-                copy.subtitle,
-                color = colors.muted,
-                fontSize = 15.sp,
-                lineHeight = 22.sp,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        }
-        Box(
-            modifier =
-                Modifier
-                    .padding(start = 12.dp)
-                    .size(52.dp)
-                    .background(colors.accent, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("✓", color = colors.accentInk, fontSize = 24.sp, fontWeight = FontWeight.Black)
-        }
-    }
-}
-
-private data class ConfirmationCopy(
-    val eyebrow: String,
-    val title: String,
-    val subtitle: String,
-)
-
-private fun confirmationCopy(paymentMethod: PaymentMethod): ConfirmationCopy =
-    when (paymentMethod) {
-        PaymentMethod.CASH ->
-            ConfirmationCopy(
-                eyebrow = "PEDIDO CREADO",
-                title = "Tu pase de Caja acaba de salir.",
-                subtitle = "Págalo en efectivo y usa este receipt sticker para identificar la orden.",
-            )
-        PaymentMethod.BALANCE ->
-            ConfirmationCopy(
-                eyebrow = "PAGO CONFIRMADO",
-                title = "Tu compra se volvió un sticker.",
-                subtitle = "El saldo fue descontado y Cocina ya recibió la comanda.",
-            )
-        PaymentMethod.CARD ->
-            ConfirmationCopy(
-                eyebrow = "TARJETA AUTORIZADA",
-                title = "Tu comprobante digital está saliendo.",
-                subtitle = "La compra fue autorizada y el pedido ya llegó a Cocina.",
-            )
-    }
-
-@Composable
-private fun ReceiptCollectionUnlockStrip(
-    paymentMethod: PaymentMethod,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalVaiinillaColors.current
-    val unlockedLabel =
-        when (paymentMethod) {
-            PaymentMethod.CASH -> "Receipt editorial desbloqueado"
-            PaymentMethod.BALANCE -> "Vaiinilla Core añadido a tu colección"
-            PaymentMethod.CARD -> "Live Receipt añadido a tu colección"
-        }
-    Surface(
-        modifier = modifier,
-        color = colors.paper2,
-        shape = RoundedCornerShape(20.dp),
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Text("✦", color = colors.accent, fontSize = 18.sp, fontWeight = FontWeight.Black)
-            Column {
-                Text(
-                    unlockedLabel,
-                    color = colors.ink,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Black,
-                )
-                Text(
-                    "Se guardó automáticamente en tu colección.",
-                    color = colors.muted,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ReceiptPrinterMachine(
-    folio: Int,
-    printed: Boolean,
-    paymentMethod: PaymentMethod,
-    reduceMotion: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    val statusLabel = if (printed) "STICKER LISTO" else "IMPRIMIENDO STICKER…"
-    val ledTransition = rememberInfiniteTransition(label = "receipt-printer-led")
-    val ledAlpha =
-        if (reduceMotion || printed) {
-            1f
-        } else {
-            ledTransition
-                .animateFloat(
-                    initialValue = 1f,
-                    targetValue = .32f,
-                    animationSpec =
-                        infiniteRepeatable(
-                            animation = tween(durationMillis = 420),
-                            repeatMode = RepeatMode.Reverse,
-                        ),
-                    label = "receipt-printer-led-alpha",
-                ).value
-        }
-
-    Box(
-        modifier =
-            modifier
-                .height(184.dp)
-                .background(
-                    brush =
-                        Brush.verticalGradient(
-                            listOf(Color(0xFF1B1C1A), Color(0xFF080908), Color(0xFF141513)),
-                        ),
-                    shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp),
-                ),
-    ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(start = 24.dp, top = 24.dp, end = 24.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    "VAIINILLA / RECEIPT LAB",
-                    modifier = Modifier.weight(1f),
-                    color = PrinterMuted,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.6.sp,
-                    maxLines = 1,
-                )
-                Box(
-                    modifier =
-                        Modifier
-                            .width(34.dp)
-                            .height(8.dp)
-                            .background(Color(0xFF30312E), CircleShape),
-                )
-            }
-
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    if (paymentMethod != PaymentMethod.CASH) "COMANDA ENVIADA" else "PASE DE CAJA",
-                    color = PaperText,
-                    fontSize = 23.sp,
-                    lineHeight = 24.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = (-0.4).sp,
-                )
-                Text(
-                    "ORDER #$folio",
-                    color = Lime,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.2.sp,
-                )
-            }
-
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 13.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(12.dp)
-                            .graphicsLayer { alpha = if (printed) 1f else ledAlpha }
-                            .background(Color(0xFFFFD15B), CircleShape),
-                )
-                Text(
-                    statusLabel,
-                    modifier = Modifier.padding(start = 9.dp),
-                    color = Color(0xFFB7B8B2),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.3.sp,
-                )
                 Spacer(Modifier.weight(1f))
                 Text(
-                    "VNL–10",
-                    color = Color(0xFF6D6F69),
-                    fontSize = 9.sp,
+                    text = if (cashPending) "Por cobrar" else order.summary.state.label,
+                    color = TicketLime,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Black,
-                    letterSpacing = 1.sp,
+                    letterSpacing = 0.8.sp,
+                    modifier =
+                        Modifier
+                            .background(TicketChipFill, RoundedCornerShape(999.dp))
+                            .border(1.dp, TicketChipStroke, RoundedCornerShape(999.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
                 )
             }
-        }
-
-        Box(
-            modifier =
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(horizontal = 30.dp, vertical = 15.dp)
-                    .fillMaxWidth()
-                    .height(27.dp)
-                    .background(Color(0xFF030403), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = if (cashPending) "Pago pendiente" else "Pedido confirmado",
+                color = TicketMuted2,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 2.sp,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = confirmationTicketTitle(order),
+                color = TicketInk,
+                fontSize = 34.sp,
+                fontWeight = FontWeight.Black,
+                lineHeight = 34.sp,
+                letterSpacing = (-1.4).sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text =
+                    if (cashPending) {
+                        "Muéstralo en Caja para pagar."
+                    } else {
+                        "Tu pedido ya está en marcha."
+                    },
+                color = TicketMuted,
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             Box(
                 modifier =
                     Modifier
+                        .weight(1f)
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                        .height(5.dp)
-                        .background(Color(0xFF30312E), CircleShape),
-            )
-        }
-    }
-}
-
-@Composable
-private fun ReceiptPaperOutput(
-    order: OrderDetail,
-    contentPadding: Dp,
-    progress: () -> Float,
-    modifier: Modifier = Modifier,
-) {
-    val pickupToken = order.pickupToken
-    Surface(
-        modifier =
-            modifier
-                .graphicsLayer {
-                    val current = progress().coerceIn(0f, 1f)
-                    translationY = if (current < 1f) sin(current * 110f) * 1.4f else 0f
-                    alpha = .55f + (.45f * current)
-                    shadowElevation = if (current >= .995f) 18.dp.toPx() else 0f
-                    shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
-                    clip = false
-                }.drawWithContent {
-                    val current = progress().coerceIn(0f, 1f)
-                    val contentDrawScope = this
-                    clipRect(
-                        left = 0f,
-                        top = 0f,
-                        right = size.width,
-                        bottom = size.height * current,
-                    ) {
-                        contentDrawScope.drawContent()
-                    }
-                },
-        color = PaperInk,
-        shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp),
-        shadowElevation = 18.dp,
-    ) {
-        Column(
-            modifier =
-                Modifier.padding(
-                    start = contentPadding,
-                    top = 18.dp,
-                    end = contentPadding,
-                    bottom = 24.dp,
-                ),
-        ) {
-            Text(
-                "ANTOJO",
-                color = PaperText,
-                fontSize = 48.sp,
-                lineHeight = 46.sp,
-                fontWeight = FontWeight.Black,
-                letterSpacing = (-2).sp,
-            )
-
-            Row(
-                modifier = Modifier.padding(top = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                listOf("XS", "S", "M", "XL", "XXL").forEach { size ->
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(34.dp)
-                                .border(1.dp, PaperText, CircleShape),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(size, color = PaperText, fontSize = 9.sp)
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(84.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(18.dp),
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                Column(modifier = Modifier.weight(1.25f)) {
-                    if (!pickupToken.isNullOrBlank()) {
-                        VaiinillaQrCode(
-                            value = pickupToken,
-                            qrSize = 128.dp,
-                            modifier = Modifier.align(Alignment.CenterHorizontally),
-                        )
-                        Text(
-                            "QR DE RECOGIDA",
-                            color = PaperText,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 8.sp,
-                            letterSpacing = 1.2.sp,
-                            modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 6.dp),
-                        )
-                    } else {
-                        TicketBarcode(
-                            seed = order.summary.folio,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(104.dp),
-                        )
-                    }
-                    Text(
-                        order.summary.id
-                            .takeLast(14)
-                            .uppercase(),
-                        color = PaperText,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 8.sp,
-                        letterSpacing = 1.2.sp,
-                    )
-                }
-                Column(
-                    modifier = Modifier.weight(.85f),
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                BoxWithConstraints(
+                    modifier =
+                        Modifier
+                            .fillMaxHeight()
+                            .aspectRatio(1f, matchHeightConstraintsFirst = true)
+                            .background(TicketPaper, RoundedCornerShape(22.dp)),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(76.dp)
-                                .border(2.dp, PaperText, RoundedCornerShape(50)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text("VNNL", color = PaperText, fontSize = 24.sp)
-                    }
-                    Text(
-                        "Pase de Caja · pago en efectivo.",
-                        modifier = Modifier.padding(top = 7.dp),
-                        color = PaperMuted,
-                        fontSize = 8.sp,
-                        lineHeight = 10.sp,
-                        textAlign = TextAlign.Center,
-                    )
+                    val qr = (minOf(maxWidth, maxHeight) - 28.dp).coerceAtLeast(72.dp)
+                    VaiinillaQrCode(value = qrPayload, qrSize = qr)
                 }
             }
-
-            Text(
-                "PEDIDO #${order.summary.folio}",
-                modifier = Modifier.padding(top = 22.dp),
-                color = PaperText,
-                fontSize = 28.sp,
-                lineHeight = 30.sp,
-                fontWeight = FontWeight.Black,
-            )
-            Text(
-                "PASE DE CAJA",
-                color = PaperText,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Black,
-            )
-
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 18.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                listOf("✦", "☼", "◉", "⌁").forEach { glyph ->
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(45.dp)
-                                .border(1.dp, PaperText, CircleShape),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(glyph, color = PaperText, fontSize = 16.sp)
-                    }
-                }
-            }
-
-            HorizontalDivider(
-                modifier = Modifier.padding(top = 1.dp),
-                thickness = 1.dp,
-                color = Rule,
-            )
-            ReceiptMetadataGrid(order)
-
-            Text(
-                "DETALLE DEL PEDIDO",
-                modifier = Modifier.padding(top = 20.dp),
-                color = PaperMuted,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Black,
-                letterSpacing = 1.2.sp,
-            )
-
-            order.items.forEachIndexed { index, item ->
-                Column(modifier = Modifier.padding(top = 13.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        Text(
-                            "${item.quantity} × ${item.productName}",
-                            modifier = Modifier.weight(1f),
-                            color = PaperText,
-                            fontSize = 15.sp,
-                            lineHeight = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            moneyLabel(item.subtotal),
-                            modifier = Modifier.padding(start = 12.dp),
-                            color = PaperText,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Black,
-                        )
-                    }
-                    if (item.options.isNotEmpty()) {
-                        Text(
-                            item.options.joinToString(" · ") { it.name },
-                            modifier = Modifier.padding(top = 4.dp),
-                            color = PaperMuted,
-                            fontSize = 10.sp,
-                            lineHeight = 13.sp,
-                        )
-                    }
-                    if (index != order.items.lastIndex) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(top = 12.dp),
-                            color = Color.White.copy(alpha = .12f),
-                        )
-                    }
-                }
-            }
-
-            order.kitchenNotes.takeIf { it.isNotBlank() }?.let { notes ->
-                Text(
-                    "INSTRUCCIONES PARA COCINA",
-                    modifier = Modifier.padding(top = 22.dp),
-                    color = PaperMuted,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.2.sp,
-                )
-                Box(
+            TicketMetaGrid(order)
+            Spacer(Modifier.height(10.dp))
+            val visibleItems = order.items.take(3)
+            val hiddenCount = order.items.size - visibleItems.size
+            visibleItems.forEach { item ->
+                Row(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(top = 8.dp)
-                            .border(1.dp, PaperText.copy(alpha = .7f), RoundedCornerShape(2.dp))
-                            .padding(12.dp),
+                            .padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
-                        notes,
-                        color = PaperText,
-                        fontSize = 11.sp,
-                        lineHeight = 15.sp,
+                        "${item.quantity} × ${item.productName}",
+                        color = TicketInk,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        moneyLabel(item.subtotal),
+                        color = TicketInk,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Black,
                     )
                 }
             }
-
-            HorizontalDivider(
-                modifier = Modifier.padding(top = 24.dp),
-                thickness = 1.dp,
-                color = Rule,
-            )
-            Row(
+            if (hiddenCount > 0) {
+                Text(
+                    "+$hiddenCount más",
+                    color = TicketMuted2,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 6.dp),
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Surface(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(top = 15.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom,
+                        .height(52.dp)
+                        .physicalPress(onClick = onViewTracking),
+                color = TicketLime,
+                shape = RoundedCornerShape(18.dp),
+                shadowElevation = 8.dp,
             ) {
-                Column {
+                Box(contentAlignment = Alignment.Center) {
                     Text(
-                        "TOTAL",
-                        color = PaperMuted,
-                        fontSize = 11.sp,
+                        "Seguir pedido",
+                        color = TicketLimeInk,
                         fontWeight = FontWeight.Black,
-                        letterSpacing = 1.2.sp,
-                    )
-                    Text(
-                        "Confirmado por el pedido",
-                        color = PaperMuted,
-                        fontSize = 9.sp,
+                        fontSize = 17.sp,
+                        letterSpacing = (-0.4).sp,
                     )
                 }
-                Text(
-                    moneyLabel(order.summary.total),
-                    color = PaperText,
-                    fontSize = 27.sp,
-                    fontWeight = FontWeight.Black,
-                )
             }
-
-            Text(
-                "PRESENTA ESTE PASE EN CAJA PARA PAGAR. EL PEDIDO PERMANECE POR COBRAR HASTA QUE CAJA CONFIRME EL PAGO.",
-                modifier = Modifier.padding(top = 24.dp),
-                color = PaperMuted,
-                fontSize = 8.sp,
-                lineHeight = 11.sp,
-                textAlign = TextAlign.Center,
-            )
+            Spacer(Modifier.height(10.dp))
+            Surface(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(46.dp)
+                        .border(1.5.dp, TicketLineSoft, RoundedCornerShape(16.dp))
+                        .physicalPress(onClick = onReturnToMenu),
+                color = Color.Transparent,
+                shape = RoundedCornerShape(16.dp),
+                shadowElevation = 0.dp,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        "Volver al menú",
+                        color = TicketInk,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 15.sp,
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun ReceiptMetadataGrid(order: OrderDetail) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            ReceiptMetadataCell(
-                value = order.summary.operationalDate,
-                label = "FECHA",
-                modifier = Modifier.weight(1f),
-            )
-            ReceiptMetadataCell(
-                value = "#${order.summary.folio}",
-                label = "PEDIDO",
-                modifier = Modifier.weight(1f),
-            )
-            ReceiptMetadataCell(
-                value = moneyLabel(order.summary.total),
-                label = "TOTAL",
-                modifier = Modifier.weight(1f),
-            )
-        }
-        HorizontalDivider(thickness = 1.dp, color = Rule)
-        Row(modifier = Modifier.fillMaxWidth()) {
-            ReceiptMetadataCell("EFECTIVO", "PAGO", Modifier.weight(1f))
-            ReceiptMetadataCell("PARA LLEVAR", "DESTINO", Modifier.weight(1f))
-            ReceiptMetadataCell("POR COBRAR", "ESTADO", Modifier.weight(1f))
-        }
-        HorizontalDivider(thickness = 1.dp, color = Rule)
-    }
-}
-
-@Composable
-private fun ReceiptMetadataCell(
-    value: String,
-    label: String,
-    modifier: Modifier = Modifier,
-) {
+private fun TicketMetaGrid(order: OrderDetail) {
+    val cells =
+        listOf(
+            order.summary.operationalDate to "Fecha",
+            "#${order.summary.folio}" to "Pedido",
+            moneyLabel(order.summary.total) to "Total",
+            order.summary.paymentMethod.label to "Pago",
+            order.summary.destination.label to "Destino",
+            order.summary.state.label to "Estado",
+        )
     Column(
         modifier =
-            modifier
-                .height(58.dp)
-                .border(width = .5.dp, color = Rule.copy(alpha = .65f))
-                .padding(horizontal = 5.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+            Modifier
+                .fillMaxWidth()
+                .border(2.dp, TicketLine),
     ) {
-        Text(
-            value,
-            color = PaperText,
-            fontSize = 10.sp,
-            lineHeight = 12.sp,
-            fontWeight = FontWeight.Black,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-        )
-        Text(
-            label,
-            modifier = Modifier.padding(top = 3.dp),
-            color = PaperMuted,
-            fontSize = 7.sp,
-            letterSpacing = .5.sp,
-        )
-    }
-}
-
-@Composable
-private fun TicketBarcode(
-    seed: Int,
-    modifier: Modifier = Modifier,
-) {
-    val pattern = rememberBarcodePattern(seed)
-    Canvas(modifier = modifier) {
-        val unit = size.width / pattern.sum()
-        var x = 0f
-        pattern.forEachIndexed { index, widthUnits ->
-            val width = unit * widthUnits
-            if (index % 2 == 0) {
-                drawLine(
-                    color = PaperText,
-                    start = Offset(x + width / 2f, 0f),
-                    end = Offset(x + width / 2f, size.height),
-                    strokeWidth = width.coerceAtLeast(1f),
+        cells.chunked(3).forEachIndexed { rowIndex, row ->
+            if (rowIndex > 0) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(2.dp)
+                        .background(TicketLine),
                 )
             }
-            x += width
+            Row(Modifier.fillMaxWidth()) {
+                row.forEachIndexed { colIndex, (value, label) ->
+                    if (colIndex > 0) {
+                        Box(
+                            Modifier
+                                .width(2.dp)
+                                .height(64.dp)
+                                .background(TicketLine),
+                        )
+                    }
+                    Column(
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .height(64.dp)
+                                .padding(horizontal = 6.dp, vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            value.uppercase(),
+                            color = TicketInk,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = (-0.4).sp,
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            label.uppercase(),
+                            color = TicketMuted,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.4.sp,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
+            }
         }
     }
 }
 
-private fun rememberBarcodePattern(seed: Int): List<Float> {
-    val normalized = seed.toString().ifBlank { "10" }
-    val widths = mutableListOf<Float>()
-    repeat(5) { cycle ->
-        normalized.forEachIndexed { index, char ->
-            val digit = char.digitToIntOrNull() ?: 1
-            widths += 1f + ((digit + index + cycle) % 3)
-            widths += 1f + ((digit + cycle) % 2)
-        }
+@Preview(showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+private fun OrderConfirmationPreview() {
+    VaiinillaTheme {
+        OrderConfirmationScreen(
+            order = confirmationPreviewOrder,
+            onReturnToMenu = {},
+            onViewTracking = {},
+        )
     }
-    return widths
 }
+
+private val confirmationPreviewOrder =
+    OrderDetail(
+        summary =
+            OrderSummary(
+                id = "preview-confirm",
+                folio = 1042,
+                operationalDate = "2026-08-13",
+                state = OrderState.PENDING_PAYMENT,
+                paymentMethod = PaymentMethod.CASH,
+                destination = OrderDestination.TAKE_AWAY,
+                space = null,
+                subtotal = "101.00",
+                combinedSavings = "0.00",
+                cashbackAwarded = "0.00",
+                total = "101.00",
+                version = 1,
+                createdAt = "2026-08-13T13:40:00Z",
+                updatedAt = "2026-08-13T13:40:00Z",
+            ),
+        user = OrderUser(name = "David", enrollment = "debug"),
+        kitchenNotes = "",
+        items =
+            listOf(
+                OrderItem(
+                    id = 1,
+                    productId = 2,
+                    productName = "Burrito norteño",
+                    preparationStation = PreparationStation.KITCHEN,
+                    quantity = 1,
+                    unitDigitalPrice = "76.00",
+                    subtotal = "76.00",
+                    options = emptyList(),
+                ),
+                OrderItem(
+                    id = 2,
+                    productId = 3,
+                    productName = "Agua de jamaica",
+                    preparationStation = PreparationStation.KITCHEN,
+                    quantity = 1,
+                    unitDigitalPrice = "25.00",
+                    subtotal = "25.00",
+                    options = emptyList(),
+                ),
+            ),
+        pickupToken = "VN-1042-KX",
+    )

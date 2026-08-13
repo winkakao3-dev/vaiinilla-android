@@ -1,11 +1,21 @@
 package com.vaiinilla.app.ui.components
 
+import android.view.HapticFeedbackConstants
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -16,10 +26,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -29,9 +46,11 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaColors
 
 private val TaskCardDark = Color(0xFF1C1D1B)
 private val TaskCardText = Color(0xFFF5F2E8)
+private val TrackEase = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
 
 private data class TimelineStep(
     val state: OrderState,
@@ -79,9 +98,18 @@ fun OrderTrackingCard(
     onClick: (() -> Unit)? = null,
 ) {
     val colors = LocalVaiinillaColors.current
+    val reduceMotion = reducedMotion()
     val isReady = order.summary.state == OrderState.READY
-    val cardBg = if (isReady) colors.yolk else TaskCardDark
-    val cardText = if (isReady) colors.ink else TaskCardText
+    val cardBg by animateColorAsState(
+        targetValue = if (isReady) colors.yolk else TaskCardDark,
+        animationSpec = tween(if (reduceMotion) 0 else 550, easing = TrackEase),
+        label = "tracking-card-bg",
+    )
+    val cardText by animateColorAsState(
+        targetValue = if (isReady) colors.ink else TaskCardText,
+        animationSpec = tween(if (reduceMotion) 0 else 550, easing = TrackEase),
+        label = "tracking-card-text",
+    )
     val badgeBg = if (isReady) Color.White.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.45f)
     val clickableModifier =
         if (onClick != null) {
@@ -161,19 +189,26 @@ fun OrderTrackingTimeline(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
+    val view = LocalView.current
+    val currentIndex = current.trackingIndex
+    var lastIndex by remember { mutableIntStateOf(currentIndex) }
+    LaunchedEffect(currentIndex) {
+        if (currentIndex > lastIndex) {
+            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+        }
+        lastIndex = currentIndex
+    }
     Column(modifier = modifier) {
         timelineSteps.forEachIndexed { index, step ->
             val stepIndex = step.state.trackingIndex
-            val currentIndex = current.trackingIndex
-            val isDone = stepIndex < currentIndex
-            val isCurrent = stepIndex == currentIndex
             TimelineRow(
                 stepNumber = index + 1,
                 title = step.title(paymentMethod),
                 description = step.description(destination, paymentMethod),
-                isDone = isDone,
-                isCurrent = isCurrent,
+                isDone = stepIndex < currentIndex,
+                isCurrent = stepIndex == currentIndex,
                 showLine = index < timelineSteps.lastIndex,
+                staggerMs = index * 70,
                 colors = colors,
             )
         }
@@ -188,16 +223,63 @@ private fun TimelineRow(
     isDone: Boolean,
     isCurrent: Boolean,
     showLine: Boolean,
-    colors: com.vaiinilla.app.ui.theme.VaiinillaColors,
+    staggerMs: Int,
+    colors: VaiinillaColors,
 ) {
+    val reduceMotion = reducedMotion()
+    val duration = if (reduceMotion) 0 else 520
+    val spec = tween<Color>(duration, delayMillis = if (reduceMotion) 0 else staggerMs, easing = TrackEase)
+    val floatSpec = tween<Float>(duration, delayMillis = if (reduceMotion) 0 else staggerMs, easing = TrackEase)
+    val circleColor by animateColorAsState(
+        targetValue =
+            when {
+                isCurrent -> colors.yolk
+                isDone -> colors.accent
+                else -> colors.paper2
+            },
+        animationSpec = spec,
+        label = "track-circle",
+    )
+    val titleColor by animateColorAsState(
+        targetValue = if (isDone || isCurrent) colors.ink else colors.muted,
+        animationSpec = spec,
+        label = "track-title",
+    )
+    val lineFill by animateFloatAsState(
+        targetValue = if (isDone) 1f else 0f,
+        animationSpec = floatSpec,
+        label = "track-line",
+    )
+    val checkScale by animateFloatAsState(
+        targetValue = if (isDone || isCurrent) 1f else 0.72f,
+        animationSpec = floatSpec,
+        label = "track-check",
+    )
+    val infinite = rememberInfiniteTransition(label = "track-halo")
+    val pulse by infinite.animateFloat(
+        initialValue = 0.86f,
+        targetValue = 1.18f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(900, easing = TrackEase),
+                repeatMode = RepeatMode.Reverse,
+            ),
+        label = "track-halo-scale",
+    )
+    val haloPulse = if (isCurrent && !reduceMotion) pulse else 1f
     Row(modifier = Modifier.fillMaxWidth()) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(contentAlignment = Alignment.Center) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(38.dp)) {
                 if (isCurrent) {
                     Box(
                         modifier =
                             Modifier
                                 .size(38.dp)
+                                .graphicsLayer {
+                                    scaleX = haloPulse
+                                    scaleY = haloPulse
+                                    alpha = 0.45f
+                                }
                                 .clip(CircleShape)
                                 .background(colors.yolk.copy(alpha = 0.35f)),
                     )
@@ -206,14 +288,12 @@ private fun TimelineRow(
                     modifier =
                         Modifier
                             .size(28.dp)
+                            .graphicsLayer {
+                                scaleX = checkScale
+                                scaleY = checkScale
+                            }
                             .clip(CircleShape)
-                            .background(
-                                when {
-                                    isCurrent -> colors.yolk
-                                    isDone -> colors.accent
-                                    else -> colors.paper2
-                                },
-                            ),
+                            .background(circleColor),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (isDone || isCurrent) {
@@ -234,15 +314,24 @@ private fun TimelineRow(
                         Modifier
                             .width(2.dp)
                             .height(40.dp)
-                            .background(if (isDone) colors.accent else colors.paper2),
-                )
+                            .background(colors.paper2),
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight(lineFill)
+                                .align(Alignment.TopCenter)
+                                .background(colors.accent),
+                    )
+                }
             }
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.padding(top = 4.dp, bottom = if (showLine) 8.dp else 0.dp)) {
             Text(
                 title,
-                color = if (isDone || isCurrent) colors.ink else colors.muted,
+                color = titleColor,
                 fontWeight = FontWeight.Black,
                 fontSize = 13.sp,
             )
