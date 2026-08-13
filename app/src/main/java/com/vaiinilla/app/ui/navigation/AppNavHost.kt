@@ -22,6 +22,7 @@ import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.cartItemCount
+import com.vaiinilla.app.ui.profile.displayInitials
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
 import com.vaiinilla.app.ui.screens.AuthorizedModeScreen
 import com.vaiinilla.app.ui.screens.CartScreen
@@ -96,6 +97,7 @@ fun AppNavHost(
         )
     }
     var qrScannerOpen by remember { mutableStateOf(false) }
+    var walletUserQrOpen by remember { mutableStateOf(false) }
     var pendingPickupDelivery by remember { mutableStateOf<PendingPickupDelivery?>(null) }
 
     fun openInvitation(token: String) {
@@ -393,6 +395,8 @@ fun AppNavHost(
                         } else {
                             null
                         },
+                    profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
+                    onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
                 )
             }
 
@@ -469,7 +473,16 @@ fun AppNavHost(
             }
 
             composable(Routes.WALLET_ACCOUNT) {
-                WalletAccountScreen(onBack = { navController.popBackStack() })
+                LaunchedEffect(Unit) { walletViewModel.refresh() }
+                WalletAccountScreen(
+                    onBack = { navController.popBackStack() },
+                    displayName = studentAuthState.session?.displayName.orEmpty(),
+                    email = studentAuthState.session?.email.orEmpty(),
+                    // ponytail: QR uses Firebase uid until wallets/me returns usuario_id; recarga still needs Railway id.
+                    userId =
+                        walletRemoteState.data?.wallet?.userId
+                            ?: studentAuthState.session?.uid,
+                )
             }
 
             composable(Routes.CART) {
@@ -705,6 +718,7 @@ fun AppNavHost(
                     onOpenCashSession = operationalViewModel::openCashRegister,
                     onCollect = operationalViewModel::collectCash,
                     onSearchWalletClients = operationalViewModel::searchWalletClients,
+                    onOpenWalletUserQr = { walletUserQrOpen = true },
                     onReloadWallet = operationalViewModel::reloadWallet,
                     onDeliver = { orderId, version -> operationalViewModel.deliver(orderId, version) },
                     onScanDeliver = { orderId, version ->
@@ -804,6 +818,17 @@ fun AppNavHost(
                 )
             }
         }
+    }
+
+    if (walletUserQrOpen) {
+        QrScannerDialog(
+            onClose = { walletUserQrOpen = false },
+            helperText = "Apunta al QR de cuenta que muestra el alumno",
+            onPayload = { rawValue ->
+                walletUserQrOpen = false
+                operationalViewModel.resolveWalletUserQr(rawValue)
+            },
+        )
     }
 
     if (pendingPickupDelivery != null) {

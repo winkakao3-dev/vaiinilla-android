@@ -31,8 +31,14 @@ class RemoteWalletRepository(
             .mapCatching { raw ->
                 val envelope = json.decodeFromString<WalletEnvelopeDto>(raw)
                 require(envelope.error == null) { "La respuesta de wallet contiene error." }
+                val wallet = envelope.data.wallet.toDomain()
                 WalletData(
-                    wallet = envelope.data.wallet.toDomain(),
+                    wallet =
+                        if (wallet.userId.isNullOrBlank()) {
+                            wallet.copy(userId = envelope.data.cliente.userId)
+                        } else {
+                            wallet
+                        },
                     movements = envelope.data.movimientos.map(WalletMovementDto::toDomain),
                 )
             }.mapApiErrors()

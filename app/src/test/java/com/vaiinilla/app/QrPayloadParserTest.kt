@@ -16,6 +16,15 @@ class QrPayloadParserTest {
     }
 
     @Test
+    fun `canonical user QR becomes wallet user id`() {
+        assertEquals(
+            QrPayload.User("u-42"),
+            QrPayloadParser.parse("https://vaiinilla.app/u/u-42").getOrThrow(),
+        )
+        assertEquals("https://vaiinilla.app/u/u-42", QrPayloadParser.encodeUser(" u-42 "))
+    }
+
+    @Test
     fun `space QR remains opaque token`() {
         assertEquals(
             QrPayload.SpaceToken("mesa-token-opaco"),

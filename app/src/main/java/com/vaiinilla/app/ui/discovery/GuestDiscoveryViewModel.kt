@@ -75,6 +75,13 @@ class GuestDiscoveryViewModel
                                 slug = payload.slug,
                                 onEntered = onEntered,
                             )
+                        is QrPayload.User -> {
+                            _state.value =
+                                _state.value.copy(
+                                    errorMessage =
+                                        "Ese QR es de un alumno. En Caja se usa para recargar saldo.",
+                                )
+                        }
                         is QrPayload.SpaceToken -> {
                             updateSpaceToken(payload.token)
                             resolveSpaceToken(onEntered)

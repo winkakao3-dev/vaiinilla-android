@@ -191,7 +191,12 @@ class CompleteUiScreenshotTest {
     @Test
     fun `38_wallet_account`() {
         capture("38_wallet_account.png") {
-            WalletAccountScreen(onBack = {})
+            WalletAccountScreen(
+                onBack = {},
+                displayName = "David",
+                email = "david@vaiinilla.test",
+                userId = "u-preview",
+            )
         }
     }
 

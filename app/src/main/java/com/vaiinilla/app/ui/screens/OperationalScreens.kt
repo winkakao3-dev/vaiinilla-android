@@ -12,8 +12,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PointOfSale
+import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.RoomService
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -22,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +59,7 @@ fun CashierOperationalScreen(
     onDeliver: (orderId: String, version: Int) -> Unit,
     onScanDeliver: (orderId: String, version: Int) -> Unit = { _, _ -> },
     onSearchWalletClients: (String) -> Unit = {},
+    onOpenWalletUserQr: () -> Unit = {},
     onReloadWallet: (userId: String, amount: String) -> Unit = { _, _ -> },
     onChangeMode: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
@@ -107,17 +112,29 @@ fun CashierOperationalScreen(
         item {
             Text("Recargas de saldo", color = MutedInk, fontWeight = FontWeight.Black)
             Text(
-                "Busca un cliente del establecimiento y registra el efectivo con Caja abierta.",
+                "Busca por nombre o escanea el QR de cuenta del alumno. Caja tiene que estar abierta.",
                 color = MutedInk,
             )
-            OutlinedTextField(
-                value = walletSearch,
-                onValueChange = { walletSearch = it },
+            Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                enabled = !state.walletSearchLoading,
-                label = { Text("Nombre o identificador contextual") },
-                singleLine = true,
-            )
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedTextField(
+                    value = walletSearch,
+                    onValueChange = { walletSearch = it },
+                    modifier = Modifier.weight(1f),
+                    enabled = !state.walletSearchLoading,
+                    label = { Text("Nombre o identificador contextual") },
+                    singleLine = true,
+                )
+                IconButton(
+                    onClick = onOpenWalletUserQr,
+                    enabled = !state.walletSearchLoading && restrictedMode != RestrictedMode.READ_ONLY,
+                ) {
+                    Icon(Icons.Outlined.QrCodeScanner, contentDescription = "Escanear QR del alumno")
+                }
+            }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth(),

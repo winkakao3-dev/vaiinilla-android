@@ -7,6 +7,10 @@ sealed interface QrPayload {
         val slug: String,
     ) : QrPayload
 
+    data class User(
+        val userId: String,
+    ) : QrPayload
+
     data class SpaceToken(
         val token: String,
     ) : QrPayload
@@ -14,6 +18,12 @@ sealed interface QrPayload {
 
 object QrPayloadParser {
     private val allowedHosts = setOf("vaiinilla.app", "www.vaiinilla.app")
+
+    fun encodeUser(userId: String): String {
+        val id = userId.trim()
+        require(id.isNotEmpty()) { "El usuario no tiene identificador para el QR." }
+        return "https://vaiinilla.app/u/$id"
+    }
 
     fun parse(rawValue: String): Result<QrPayload> =
         runCatching {
@@ -27,16 +37,18 @@ object QrPayloadParser {
                     ?.split('/')
                     ?.filter(String::isNotBlank)
                     .orEmpty()
-            val isCanonicalEstablishmentQr =
+            val isHttpsAppHost =
                 uri?.let { parsed ->
                     parsed.scheme.equals("https", ignoreCase = true) &&
                         parsed.host?.lowercase() in allowedHosts &&
                         segments.size == 2 &&
-                        segments.first() == "e" &&
                         segments.last().isNotBlank()
                 } == true
-            if (isCanonicalEstablishmentQr) {
+            if (isHttpsAppHost && segments.first() == "e") {
                 return@runCatching QrPayload.Establishment(segments.last())
+            }
+            if (isHttpsAppHost && segments.first() == "u") {
+                return@runCatching QrPayload.User(segments.last())
             }
 
             // Space QR values are opaque by contract and are sent only in the request body.

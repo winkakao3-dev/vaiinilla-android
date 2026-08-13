@@ -9,6 +9,7 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.WalletClient
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
 import com.vaiinilla.app.domain.repository.WalletRepository
@@ -17,6 +18,8 @@ import com.vaiinilla.app.domain.usecase.GetOrderUseCase
 import com.vaiinilla.app.domain.usecase.ListOrdersUseCase
 import com.vaiinilla.app.domain.usecase.OpenCashSessionUseCase
 import com.vaiinilla.app.domain.usecase.TransitionOrderUseCase
+import com.vaiinilla.app.ui.discovery.QrPayload
+import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -139,6 +142,44 @@ class OperationalViewModel
                             errorMessage = error.message ?: error.javaClass.simpleName,
                         )
                 }
+            }
+        }
+
+        fun resolveWalletUserQr(rawValue: String) {
+            if (_uiState.value.role != OperationalRole.CASHIER) return
+            val payload = QrPayloadParser.parse(rawValue).getOrElse { error ->
+                _uiState.value =
+                    _uiState.value.copy(
+                        errorMessage = error.message ?: "No se pudo leer el QR.",
+                    )
+                return
+            }
+            val userId = (payload as? QrPayload.User)?.userId
+            if (userId == null) {
+                _uiState.value =
+                    _uiState.value.copy(
+                        errorMessage = "Ese QR no es de un alumno. Pide el código de su cuenta.",
+                    )
+                return
+            }
+            _uiState.value = _uiState.value.copy(walletSearchLoading = true, errorMessage = null)
+            viewModelScope.launch {
+                val scanned =
+                    WalletClient(userId = userId, name = "Cliente escaneado", contextualId = userId)
+                withContext(Dispatchers.IO) { walletRepository.searchClients(userId) }
+                    .onSuccess { clients ->
+                        _uiState.value =
+                            _uiState.value.copy(
+                                walletClients = clients.ifEmpty { listOf(scanned) },
+                                walletSearchLoading = false,
+                            )
+                    }.onFailure {
+                        _uiState.value =
+                            _uiState.value.copy(
+                                walletClients = listOf(scanned),
+                                walletSearchLoading = false,
+                            )
+                    }
             }
         }
 

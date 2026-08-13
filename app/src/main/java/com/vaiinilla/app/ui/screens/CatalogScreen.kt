@@ -91,6 +91,8 @@ fun CatalogScreen(
     onOpenWallet: () -> Unit = {},
     onChangeVenue: () -> Unit = {},
     onOpenModes: (() -> Unit)? = null,
+    profileInitials: String = "?",
+    onOpenAccount: () -> Unit = {},
 ) {
     when {
         state.loading -> LoadingCatalog()
@@ -117,6 +119,8 @@ fun CatalogScreen(
                 onOpenWallet = onOpenWallet,
                 onChangeVenue = onChangeVenue,
                 onOpenModes = onOpenModes,
+                profileInitials = profileInitials,
+                onOpenAccount = onOpenAccount,
             )
         else ->
             CatalogError(
@@ -258,6 +262,8 @@ private fun CatalogContent(
     onOpenWallet: () -> Unit,
     onChangeVenue: () -> Unit,
     onOpenModes: (() -> Unit)?,
+    profileInitials: String,
+    onOpenAccount: () -> Unit,
 ) {
     val catalog = requireNotNull(state.catalog)
     val colors = LocalVaiinillaColors.current
@@ -308,6 +314,8 @@ private fun CatalogContent(
                     onChangeVenue = onChangeVenue,
                     onOpenModes = onOpenModes,
                     onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
+                    profileInitials = profileInitials,
+                    onOpenAccount = onOpenAccount,
                 )
             }
 
@@ -376,6 +384,8 @@ private fun CatalogHeader(
     onChangeVenue: () -> Unit,
     onOpenModes: (() -> Unit)?,
     onCycleTheme: () -> Unit,
+    profileInitials: String,
+    onOpenAccount: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
     val venue = state.guestVenue
@@ -450,12 +460,12 @@ private fun CatalogHeader(
                         .clip(RoundedCornerShape(15.dp))
                         .background(colors.ink)
                         .combinedClickable(
-                            onClick = {},
+                            onClick = onOpenAccount,
                             onLongClick = onCycleTheme,
                         ),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("DA", color = colors.paper, fontWeight = FontWeight.Black)
+                Text(profileInitials, color = colors.paper, fontWeight = FontWeight.Black)
             }
         }
 
