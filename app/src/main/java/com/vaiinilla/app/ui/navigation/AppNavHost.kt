@@ -304,6 +304,8 @@ fun AppNavHost(
                         val selected = discoveryState.selected ?: return@DiscoveryScreen
                         enterVenueAndOpenCatalog(selected)
                     },
+                    profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
+                    onOpenAccount = { navController.navigate(Routes.WALLET_ACCOUNT) },
                 )
 
                 if (qrScannerOpen) {

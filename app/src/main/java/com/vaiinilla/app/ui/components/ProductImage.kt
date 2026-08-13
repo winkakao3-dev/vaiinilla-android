@@ -3,6 +3,8 @@ package com.vaiinilla.app.ui.components
 import android.graphics.BitmapFactory
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -15,6 +17,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import com.vaiinilla.app.R
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -47,21 +50,26 @@ fun ProductImage(
                 contentScale = contentScale,
             )
         } else {
+            ProductImagePlaceholder(modifier)
+        }
+    } else {
+        val local = productImageResource(imageUrl)
+        if (local != null) {
             Image(
-                painter = painterResource(R.drawable.waffle),
+                painter = painterResource(local),
                 contentDescription = contentDescription,
                 modifier = modifier,
                 contentScale = contentScale,
             )
+        } else {
+            ProductImagePlaceholder(modifier)
         }
-    } else {
-        Image(
-            painter = painterResource(productImageResource(imageUrl)),
-            contentDescription = contentDescription,
-            modifier = modifier,
-            contentScale = contentScale,
-        )
     }
+}
+
+@Composable
+private fun ProductImagePlaceholder(modifier: Modifier) {
+    Box(modifier = modifier.background(LocalVaiinillaColors.current.paper2))
 }
 
 fun productImageIsRemote(imageUrl: String): Boolean =
@@ -69,9 +77,7 @@ fun productImageIsRemote(imageUrl: String): Boolean =
         imageUrl.startsWith("http://", ignoreCase = true)
 
 @DrawableRes
-fun productImageResource(imageUrl: String): Int {
-    // Backend responses may contain an absolute URL, a path, or a local asset
-    // identifier. The final segment keeps all three forms compatible.
+fun productImageResource(imageUrl: String): Int? {
     val key = imageUrl.substringAfterLast('/').substringAfterLast(':').substringBefore('?')
     return when (key) {
         "jamaica" -> R.drawable.jamaica
@@ -89,6 +95,6 @@ fun productImageResource(imageUrl: String): Int {
         "quesadilla_harina" -> R.drawable.quesadilla_harina
         "sincronizada_nortena" -> R.drawable.sincronizada_nortena
         "torta" -> R.drawable.torta
-        else -> R.drawable.waffle
+        else -> null
     }
 }
