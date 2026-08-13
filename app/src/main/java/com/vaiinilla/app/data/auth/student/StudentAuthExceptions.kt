@@ -1,7 +1,7 @@
 package com.vaiinilla.app.data.auth.student
 
 class StudentAuthEmailExistsException(
-    message: String = "Ya existe una cuenta con este correo.",
+    message: String = "Ya existe una cuenta con este correo. Inicia sesión.",
 ) : IllegalStateException(message)
 
 class StudentEnrollmentUnavailableException(

@@ -17,11 +17,7 @@ interface StudentAuthRepository {
         password: String,
     ): Result<StudentAuthSession>
 
-    suspend fun sendEmailVerification(): Result<Unit>
-
     suspend fun reloadSession(): Result<StudentAuthSession?>
-
-    suspend fun sendPasswordReset(email: String): Result<Unit>
 
     suspend fun getIdToken(forceRefresh: Boolean = false): Result<String>
 

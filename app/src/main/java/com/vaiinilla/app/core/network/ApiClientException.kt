@@ -4,6 +4,7 @@ class ApiClientException(
     val code: String,
     message: String,
     val httpStatus: Int,
+    val retryAfterSeconds: Long? = null,
 ) : IllegalStateException(message)
 
 class MissingAccessTokenException :

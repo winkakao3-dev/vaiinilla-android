@@ -166,7 +166,9 @@ class StudentAuthViewModelTest {
             viewModel.updateName("Bea")
             viewModel.updateEmail("taken@test.com")
             viewModel.updatePassword("secret2")
+            viewModel.updatePasswordConfirm("secret2")
             viewModel.updateTermsAccepted(true)
+            viewModel.updatePrivacyAccepted(true)
 
             viewModel.register {}
             advanceUntilIdle()
@@ -184,7 +186,9 @@ class StudentAuthViewModelTest {
             viewModel.updateName("Ana")
             viewModel.updateEmail("ana@test.com")
             viewModel.updatePassword("secret1")
+            viewModel.updatePasswordConfirm("secret1")
             viewModel.updateTermsAccepted(true)
+            viewModel.updatePrivacyAccepted(true)
             viewModel.register {}
             advanceUntilIdle()
 
@@ -280,4 +284,14 @@ private fun fakeAccessEmailApi(): AccessEmailApi =
         override suspend fun sendVerification(firebaseIdToken: String): Result<Unit> = Result.success(Unit)
 
         override suspend fun sendRecovery(email: String): Result<Unit> = Result.success(Unit)
+
+        override suspend fun currentLegal() =
+            Result.success(
+                com.vaiinilla.app.data.auth.student.LegalDocuments(
+                    termsVersion = "2026-07",
+                    termsUrl = "https://example.test/terminos",
+                    privacyVersion = "2026-07",
+                    privacyUrl = "https://example.test/privacidad",
+                ),
+            )
     }

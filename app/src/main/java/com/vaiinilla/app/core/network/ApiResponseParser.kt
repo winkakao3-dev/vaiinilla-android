@@ -18,6 +18,7 @@ class ApiResponseParser
         fun parseError(
             raw: String,
             httpStatus: Int,
+            retryAfterSeconds: Long? = null,
         ): ApiClientException {
             val envelope = runCatching { json.decodeFromString<ErrorEnvelopeDto>(raw) }.getOrNull()
             val error = envelope?.error
@@ -25,6 +26,7 @@ class ApiResponseParser
                 code = error?.code ?: "HTTP_$httpStatus",
                 message = error?.message ?: "La API respondió con código $httpStatus.",
                 httpStatus = httpStatus,
+                retryAfterSeconds = retryAfterSeconds,
             )
         }
     }

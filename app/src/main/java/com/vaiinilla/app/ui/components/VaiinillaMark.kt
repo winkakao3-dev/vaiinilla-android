@@ -3,6 +3,7 @@ package com.vaiinilla.app.ui.components
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.withTransform
@@ -20,8 +21,11 @@ fun VaiinillaMark(
 ) {
     Canvas(modifier = modifier) {
         val scale = minOf(size.width / 510f, size.height / 420f)
+        val dx = (size.width - 510f * scale) / 2f
+        val dy = (size.height - 420f * scale) / 2f
         withTransform({
-            scale(scale, scale, pivot = androidx.compose.ui.geometry.Offset.Zero)
+            translate(dx, dy)
+            scale(scale, scale, pivot = Offset.Zero)
             translate(-410f, -420f)
         }) {
             drawPath(VaiinillaMarkPaths.cream, cream)

@@ -1,29 +1,17 @@
 package com.vaiinilla.app.ui.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.ui.auth.student.StudentAuthUiState
-import com.vaiinilla.app.ui.components.EditorialAccentButton
-import com.vaiinilla.app.ui.components.EditorialSectionHead
-import com.vaiinilla.app.ui.components.EditorialTextField
-import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.components.AuthAccessField
+import com.vaiinilla.app.ui.components.AuthAccessFieldKind
+import com.vaiinilla.app.ui.components.AuthAccessScaffold
+import com.vaiinilla.app.ui.components.AuthInkSubmitButton
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
@@ -37,81 +25,63 @@ fun StudentLoginScreen(
     onLogin: () -> Unit,
     onForgotPassword: () -> Unit,
     onRegister: () -> Unit,
+    showBack: Boolean = true,
 ) {
-    val colors = LocalVaiinillaColors.current
-    Box(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(colors.paper),
+    AuthAccessScaffold(
+        kicker = "Acceso de estudiante",
+        title = "Qué bueno verte de nuevo.",
+        intro = "Entra a tu menú, pedidos y saldo.",
+        loading = state.loading,
+        hintPrefix = "¿Primera vez aquí?",
+        hintAction = "Crea tu cuenta",
+        onHintAction = onRegister,
+        privacyUrl = state.privacyUrl,
+        termsUrl = state.termsUrl,
+        showBack = showBack,
+        onBack = onBack,
     ) {
-        LazyColumn(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 40.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            item {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
-                }
-                EditorialSectionHead(title = "Iniciar sesión")
-            }
-            item {
-                EditorialTextField(
-                    value = state.email,
-                    onValueChange = onEmailChange,
-                    label = "Correo",
-                    placeholder = "tu@correo.com",
-                )
-            }
-            item {
-                EditorialTextField(
-                    value = state.password,
-                    onValueChange = onPasswordChange,
-                    label = "Contraseña",
-                    placeholder = "Tu contraseña",
-                    isPassword = true,
-                )
-            }
-            if (state.clientIdRequired) {
-                item {
-                    EditorialTextField(
-                        value = state.contextualId,
-                        onValueChange = onContextualIdChange,
-                        label = state.clientIdLabel,
-                        placeholder = "Tu ${state.clientIdLabel.lowercase()}",
-                    )
-                }
-            }
-            item {
-                TextButton(onClick = onForgotPassword) {
-                    Text("¿Olvidaste tu contraseña?")
-                }
-            }
-            state.errorMessage?.let { error ->
-                item { AuthErrorBanner(error) }
-            }
-            item {
-                EditorialAccentButton(
-                    text = "Entrar",
-                    onClick = onLogin,
-                    enabled = !state.loading,
-                )
-            }
-            item {
-                TextButton(onClick = onRegister) {
-                    Text("Crear cuenta nueva")
-                }
-            }
+        AuthAccessField(
+            value = state.email,
+            onValueChange = onEmailChange,
+            label = "Correo",
+            placeholder = "tu@correo.com",
+            kind = AuthAccessFieldKind.Email,
+            imeAction = ImeAction.Next,
+        )
+        Spacer(Modifier.height(10.dp))
+        AuthAccessField(
+            value = state.password,
+            onValueChange = onPasswordChange,
+            label = "Contraseña",
+            placeholder = "Tu contraseña",
+            kind = AuthAccessFieldKind.Password,
+            trailingLabel = "¿La olvidaste?",
+            onTrailingLabel = onForgotPassword,
+            imeAction = if (state.clientIdRequired) ImeAction.Next else ImeAction.Done,
+            onImeAction = { if (!state.clientIdRequired) onLogin() },
+        )
+        if (state.clientIdRequired) {
+            Spacer(Modifier.height(10.dp))
+            AuthAccessField(
+                value = state.contextualId,
+                onValueChange = onContextualIdChange,
+                label = state.clientIdLabel,
+                placeholder = "Tu ${state.clientIdLabel.lowercase()}",
+                kind = AuthAccessFieldKind.Id,
+                imeAction = ImeAction.Done,
+                onImeAction = onLogin,
+            )
         }
-        if (state.loading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = colors.accent)
-            }
+        state.errorMessage?.let { error ->
+            Spacer(Modifier.height(10.dp))
+            AuthErrorBanner(error)
         }
+        Spacer(Modifier.height(16.dp))
+        AuthInkSubmitButton(
+            text = "Entrar a Vaiinilla",
+            onClick = onLogin,
+            enabled = !state.loading,
+        )
     }
 }
 
@@ -120,7 +90,7 @@ fun StudentLoginScreen(
 private fun StudentLoginScreenPreview() {
     VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
         StudentLoginScreen(
-            state = StudentAuthUiState(email = "dani@utch.mx"),
+            state = StudentAuthUiState(email = "dani@correo.com"),
             onBack = {},
             onEmailChange = {},
             onPasswordChange = {},

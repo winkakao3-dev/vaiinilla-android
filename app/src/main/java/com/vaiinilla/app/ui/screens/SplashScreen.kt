@@ -18,6 +18,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.ui.components.VaiinillaMark
 import com.vaiinilla.app.ui.theme.DarkSplash
+import com.vaiinilla.app.ui.theme.Ink
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
@@ -69,7 +70,7 @@ fun SplashScreen(onFinished: () -> Unit) {
                     },
             contentAlignment = Alignment.Center,
         ) {
-            VaiinillaMark(modifier = Modifier.fillMaxSize())
+            VaiinillaMark(modifier = Modifier.fillMaxSize(), cream = Ink)
         }
     }
 }

@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -327,6 +328,14 @@ fun CheckoutPaymentPicker(
             selected = selected == PaymentMethod.CASH,
             onClick = { onSelect(PaymentMethod.CASH) },
         )
+        PaymentOption(
+            brand = "SALDO",
+            title = "Saldo de la cafetería",
+            subtitle = "Recarga en Caja. Aún no está en el servidor.",
+            selected = false,
+            enabled = false,
+            onClick = {},
+        )
     }
 }
 
@@ -338,11 +347,17 @@ private fun PaymentOption(
     selected: Boolean,
     onClick: () -> Unit,
     brandIsTransfer: Boolean = false,
+    enabled: Boolean = true,
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = LocalHapticFeedback.current
     val background = if (selected) colors.accent else colors.paper2
-    val foreground = if (selected) colors.accentInk else colors.ink
+    val foreground =
+        when {
+            selected -> colors.accentInk
+            !enabled -> colors.muted
+            else -> colors.ink
+        }
     val secondaryForeground =
         if (selected) {
             colors.accentInk.copy(alpha = 0.72f)
@@ -356,6 +371,7 @@ private fun PaymentOption(
                 .heightIn(min = 52.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .clickable(
+                    enabled = enabled,
                     onClick = {
                         if (!selected) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onClick()
@@ -363,6 +379,7 @@ private fun PaymentOption(
                 ).semantics {
                     role = Role.RadioButton
                     this.selected = selected
+                    if (!enabled) disabled()
                 },
         color = background,
         shape = RoundedCornerShape(14.dp),

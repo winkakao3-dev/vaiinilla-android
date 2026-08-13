@@ -320,11 +320,7 @@ class RemoteAuthorizedAccessRepositoryTest {
                 UnsupportedOperationException(),
             )
 
-        override suspend fun sendEmailVerification(): Result<Unit> = Result.success(Unit)
-
         override suspend fun reloadSession(): Result<StudentAuthSession?> = Result.success(session)
-
-        override suspend fun sendPasswordReset(email: String): Result<Unit> = Result.success(Unit)
 
         override suspend fun getIdToken(forceRefresh: Boolean): Result<String> = Result.success("firebase-id-token")
 

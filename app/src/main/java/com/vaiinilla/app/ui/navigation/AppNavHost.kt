@@ -197,6 +197,44 @@ fun AppNavHost(
         }
     }
 
+    fun navigateLaunchDestination(destination: LaunchDestination) {
+        val currentRoute = navController.currentDestination?.route
+        if (currentRoute == Routes.CATALOG) {
+            navController.popBackStack(Routes.SPLASH, inclusive = true)
+            return
+        }
+        navController.navigate(destination.toRoute()) {
+            popUpTo(Routes.SPLASH) { inclusive = true }
+            launchSingleTop = true
+        }
+    }
+
+    fun finishLaunchAuth() {
+        orderFlowViewModel.restoreGuestSessionAfterAuth()
+        studentAuthViewModel.refreshGuestVenue()
+        authorizedAccessViewModel.refreshCurrentSession()
+        authorizedAccessViewModel.refreshModes(force = true) {
+            val destination =
+                resolveLaunchDestination(
+                    pendingEstablishmentSlug = pendingEstablishmentSlug,
+                    session = authorizedAccessViewModel.state.value.session,
+                    hasStaffModes =
+                        hasStaffLaunchModes(authorizedAccessViewModel.state.value.modes.map { it.role }),
+                )
+            val route =
+                when (destination) {
+                    LaunchDestination.Login,
+                    LaunchDestination.Discovery,
+                    -> Routes.DISCOVERY
+                    LaunchDestination.StaffModes -> Routes.VAI27_MODES
+                }
+            navController.navigate(route) {
+                popUpTo(Routes.AUTH_LOGIN) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
+
     fun navigateStudentAuth(returnRoute: String = Routes.CART) {
         orderFlowViewModel.prepareForGuestAuth()
         studentAuthViewModel.refreshGuestVenue()
@@ -221,9 +259,17 @@ fun AppNavHost(
             composable(Routes.SPLASH) {
                 SplashScreen(
                     onFinished = {
-                        navController.navigate(Routes.DISCOVERY) {
-                            popUpTo(Routes.SPLASH) { inclusive = true }
-                            launchSingleTop = true
+                        authorizedAccessViewModel.refreshModes(force = true) {
+                            navigateLaunchDestination(
+                                resolveLaunchDestination(
+                                    pendingEstablishmentSlug = pendingEstablishmentSlug,
+                                    session = authorizedAccessViewModel.state.value.session,
+                                    hasStaffModes =
+                                        hasStaffLaunchModes(
+                                            authorizedAccessViewModel.state.value.modes.map { it.role },
+                                        ),
+                                ),
+                            )
                         }
                     },
                 )
@@ -479,8 +525,10 @@ fun AppNavHost(
                     onNameChange = studentAuthViewModel::updateName,
                     onEmailChange = studentAuthViewModel::updateEmail,
                     onPasswordChange = studentAuthViewModel::updatePassword,
+                    onPasswordConfirmChange = studentAuthViewModel::updatePasswordConfirm,
                     onContextualIdChange = studentAuthViewModel::updateContextualId,
                     onTermsChange = studentAuthViewModel::updateTermsAccepted,
+                    onPrivacyChange = studentAuthViewModel::updatePrivacyAccepted,
                     onRegister = {
                         studentAuthViewModel.register {
                             navController.navigate(Routes.authVerifyRoute(returnRoute)) {
@@ -506,16 +554,22 @@ fun AppNavHost(
                 arguments = listOf(authReturnArg),
             ) { entry ->
                 val returnRoute = entry.arguments?.getString("returnRoute") ?: Routes.CART
+                val isLaunchLogin = returnRoute == Routes.DISCOVERY
                 StudentLoginScreen(
                     state = studentAuthState,
                     onBack = { navController.popBackStack() },
+                    showBack = !isLaunchLogin,
                     onEmailChange = studentAuthViewModel::updateEmail,
                     onPasswordChange = studentAuthViewModel::updatePassword,
                     onContextualIdChange = studentAuthViewModel::updateContextualId,
                     onLogin = {
                         studentAuthViewModel.login { enrolled ->
                             if (enrolled) {
-                                finishStudentAuth(returnRoute)
+                                if (isLaunchLogin) {
+                                    finishLaunchAuth()
+                                } else {
+                                    finishStudentAuth(returnRoute)
+                                }
                             } else {
                                 navController.navigate(Routes.authVerifyRoute(returnRoute)) {
                                     launchSingleTop = true
@@ -547,7 +601,11 @@ fun AppNavHost(
                     onResend = studentAuthViewModel::resendVerification,
                     onCheckVerified = {
                         studentAuthViewModel.checkVerification {
-                            finishStudentAuth(returnRoute)
+                            if (returnRoute == Routes.DISCOVERY) {
+                                finishLaunchAuth()
+                            } else {
+                                finishStudentAuth(returnRoute)
+                            }
                         }
                     },
                 )

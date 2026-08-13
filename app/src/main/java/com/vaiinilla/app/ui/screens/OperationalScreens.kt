@@ -1,17 +1,17 @@
 package com.vaiinilla.app.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.PointOfSale
+import androidx.compose.material.icons.outlined.Restaurant
+import androidx.compose.material.icons.outlined.RoomService
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -24,17 +24,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.ui.components.AuthHeroSheetScaffold
+import com.vaiinilla.app.ui.components.AuthInkSubmitButton
 import com.vaiinilla.app.ui.components.OperationalEmptyState
 import com.vaiinilla.app.ui.components.OrderSummaryCard
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.theme.Coral
-import com.vaiinilla.app.ui.theme.Cream
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.MutedInk
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
@@ -54,15 +58,21 @@ fun CashierOperationalScreen(
     val pending = state.orders.filter { it.summary.state == OrderState.PENDING_PAYMENT }
     val ready = state.orders.filter { it.summary.state == OrderState.READY }
 
-    LazyColumn(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(Cream)
-                .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+    AuthHeroSheetScaffold(
+        kicker = "Caja",
+        title = "Ventanilla de pagos.",
+        intro = "Cobra en efectivo y entrega en barra.",
+        loading = false,
+        showBack = true,
+        onBack = onBack,
+        kickerIcon = Icons.Outlined.PointOfSale,
+        scrollSheet = false,
     ) {
-        item { OperationalHeader("Caja", "Ventanas 32–33", onBack, onChangeMode) }
+        WorkerModeLink(onChangeMode)
+        LazyColumn(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
         restrictedMode?.let { mode -> item { RestrictedModeNotice(mode) } }
         state.errorMessage?.let { message -> item { OperationalError(message) } }
         item {
@@ -77,14 +87,19 @@ fun CashierOperationalScreen(
                 color = MutedInk,
             )
             if (open == false) {
-                androidx.compose.material3.Button(
+                AuthInkSubmitButton(
+                    text = "Abrir caja (500.00)",
                     onClick = onOpenCashSession,
                     enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Abrir caja (500.00)", fontWeight = FontWeight.Black)
-                }
+                )
             }
+        }
+        item {
+            Text("Recarga de saldo", color = MutedInk, fontWeight = FontWeight.Black)
+            Text(
+                "Cuando el servidor publique Entrega 03, aquí se busca al alumno y se acredita efectivo. Hoy no hay ruta de recarga.",
+                color = MutedInk,
+            )
         }
         item { SectionLabel("Por cobrar") }
         if (pending.isEmpty()) {
@@ -128,6 +143,7 @@ fun CashierOperationalScreen(
                     },
                 )
             }
+        }
         }
     }
 }
@@ -189,15 +205,21 @@ fun KitchenOperationalScreen(
         state.orders.filter {
             it.summary.state == OrderState.PAID || it.summary.state == OrderState.PREPARING
         }
-    LazyColumn(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(Cream)
-                .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+    AuthHeroSheetScaffold(
+        kicker = "Cocina",
+        title = "Comandas en fuego.",
+        intro = "Empieza preparación y marca cuando esté listo.",
+        loading = false,
+        showBack = true,
+        onBack = onBack,
+        kickerIcon = Icons.Outlined.Restaurant,
+        scrollSheet = false,
     ) {
-        item { OperationalHeader("Cocina", "Ventanas 36–38", onBack, onChangeMode) }
+        WorkerModeLink(onChangeMode)
+        LazyColumn(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
         restrictedMode?.let { mode -> item { RestrictedModeNotice(mode) } }
         state.errorMessage?.let { message -> item { OperationalError(message) } }
         if (active.isEmpty()) {
@@ -223,6 +245,7 @@ fun KitchenOperationalScreen(
                 )
             }
         }
+        }
     }
 }
 
@@ -236,15 +259,21 @@ fun WaiterOperationalScreen(
     restrictedMode: RestrictedMode? = null,
 ) {
     val ready = state.orders.filter { it.summary.state == OrderState.READY }
-    LazyColumn(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(Cream)
-                .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+    AuthHeroSheetScaffold(
+        kicker = "Mesero",
+        title = "Entrega en el espacio.",
+        intro = "Los pedidos listos para mesa aparecen aquí.",
+        loading = false,
+        showBack = true,
+        onBack = onBack,
+        kickerIcon = Icons.Outlined.RoomService,
+        scrollSheet = false,
     ) {
-        item { OperationalHeader("Mesero", "Ventanas 39–40", onBack, onChangeMode) }
+        WorkerModeLink(onChangeMode)
+        LazyColumn(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
         restrictedMode?.let { mode -> item { RestrictedModeNotice(mode) } }
         state.errorMessage?.let { message -> item { OperationalError(message) } }
         if (ready.isEmpty()) {
@@ -275,6 +304,7 @@ fun WaiterOperationalScreen(
                     },
                 )
             }
+        }
         }
     }
 }
@@ -319,6 +349,24 @@ private fun WaiterOperationalScreenPreview() {
 }
 
 @Composable
+private fun WorkerModeLink(onChangeMode: (() -> Unit)?) {
+    if (onChangeMode == null) return
+    val colors = LocalVaiinillaColors.current
+    Text(
+        "Cambiar modo",
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(bottom = 10.dp)
+                .clickable(role = Role.Button, onClick = onChangeMode),
+        color = colors.muted,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+        textAlign = TextAlign.Center,
+    )
+}
+
+@Composable
 private fun RestrictedModeNotice(mode: RestrictedMode) {
     Text(
         text =
@@ -331,34 +379,6 @@ private fun RestrictedModeNotice(mode: RestrictedMode) {
         color = MutedInk,
         style = MaterialTheme.typography.bodySmall,
     )
-}
-
-@Composable
-private fun OperationalHeader(
-    title: String,
-    subtitle: String,
-    onBack: () -> Unit,
-    onChangeMode: (() -> Unit)?,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Column {
-            Text(title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MutedInk)
-        }
-        Text(
-            if (onChangeMode == null) "Roles" else "Cambiar modo",
-            modifier =
-                Modifier
-                    .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                    .padding(horizontal = 8.dp, vertical = 12.dp)
-                    .clickable(role = Role.Button, onClick = onChangeMode ?: onBack),
-            color = MutedInk,
-            fontWeight = FontWeight.Bold,
-        )
-    }
 }
 
 @Composable

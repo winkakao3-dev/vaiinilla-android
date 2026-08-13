@@ -2,7 +2,6 @@ package com.vaiinilla.app.data.auth.student
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
-import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
@@ -39,7 +38,8 @@ class FirebaseStudentAuthRepository
             withContext(Dispatchers.IO) {
                 runCatching {
                     preferences.clear()
-                    val result = auth.createUserWithEmailAndPassword(email.trim(), password).await()
+                    val result =
+                        auth.createUserWithEmailAndPassword(email.trim().lowercase(), password).await()
                     val user =
                         result.user
                             ?: throw IllegalStateException("No se pudo crear la cuenta.")
@@ -56,7 +56,7 @@ class FirebaseStudentAuthRepository
                     if (error is FirebaseAuthException && error.errorCode == "ERROR_EMAIL_ALREADY_IN_USE") {
                         throw StudentAuthEmailExistsException()
                     }
-                    throw error
+                    throw IllegalStateException(firebaseAuthUserMessage(error))
                 }
             }
 
@@ -66,24 +66,13 @@ class FirebaseStudentAuthRepository
         ): Result<StudentAuthSession> =
             withContext(Dispatchers.IO) {
                 runCatching {
-                    auth.signInWithEmailAndPassword(email.trim(), password).await()
+                    auth.signInWithEmailAndPassword(email.trim().lowercase(), password).await()
+                    val user = auth.currentUser ?: throw IllegalStateException("No se pudo iniciar sesión.")
+                    user.reload().await()
                     sessionStore.clear()
-                    auth.currentUser?.toSession()
-                        ?: throw IllegalStateException("No se pudo iniciar sesión.")
+                    user.toSession()
                 }.recoverCatching { error ->
-                    if (error is FirebaseAuthInvalidCredentialsException) {
-                        throw IllegalStateException("Correo o contraseña incorrectos.")
-                    }
-                    throw error
-                }
-            }
-
-        override suspend fun sendEmailVerification(): Result<Unit> =
-            withContext(Dispatchers.IO) {
-                runCatching {
-                    val user = auth.currentUser ?: throw IllegalStateException("No hay sesión activa.")
-                    user.sendEmailVerification().await()
-                    Unit
+                    throw IllegalStateException(firebaseAuthUserMessage(error))
                 }
             }
 
@@ -93,14 +82,6 @@ class FirebaseStudentAuthRepository
                     val user = auth.currentUser ?: return@runCatching null
                     user.reload().await()
                     user.toSession()
-                }
-            }
-
-        override suspend fun sendPasswordReset(email: String): Result<Unit> =
-            withContext(Dispatchers.IO) {
-                runCatching {
-                    auth.sendPasswordResetEmail(email.trim()).await()
-                    Unit
                 }
             }
 

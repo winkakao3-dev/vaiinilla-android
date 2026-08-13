@@ -4,13 +4,14 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- viewBox 510×420 centered in 108; scale keeps the mark inside the adaptive safe zone -->
     <group
-        android:scaleX="0.14"
-        android:scaleY="0.14"
-        android:translateX="18"
-        android:translateY="24">
+        android:scaleX="0.125"
+        android:scaleY="0.125"
+        android:translateX="-29.125"
+        android:translateY="-24.75">
         <path
-            android:fillColor="#F4F1E7"
+            android:fillColor="#171817"
             android:pathData="M423.405,438.866H503.841C536.212,438.866 562.697,455.542 580.354,485.951L706.894,718.431L645.095,825.352L423.405,438.866Z" />
         <path
             android:fillColor="#B9D86D"

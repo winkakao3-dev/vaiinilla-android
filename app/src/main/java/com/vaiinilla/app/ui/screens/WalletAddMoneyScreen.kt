@@ -18,7 +18,7 @@ fun WalletAddMoneyScreen(
         title = "Añadir dinero",
         onBack = onBack,
         description =
-            "El backend vigente todavía no ofrece saldo, transferencias ni una pasarela de pago. El checkout disponible usa efectivo.",
+            "La recarga de Entrega 03 es efectivo en Caja, no tarjeta ni SPEI. Cuando el backend publique esas rutas, Caja acreditará el saldo de esta cafetería.",
     )
 }
 

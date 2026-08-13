@@ -68,13 +68,6 @@ class FixtureStudentAuthRepository
                 account.toSession()
             }
 
-        override suspend fun sendEmailVerification(): Result<Unit> =
-            runCatching {
-                val uid = currentUid ?: throw IllegalStateException("No hay sesión activa.")
-                val account = accounts[uid] ?: throw IllegalStateException("No hay sesión activa.")
-                accounts[uid] = account.copy(verificationSent = true)
-            }
-
         override suspend fun reloadSession(): Result<StudentAuthSession?> =
             runCatching {
                 val uid = currentUid ?: return@runCatching null
@@ -87,14 +80,6 @@ class FixtureStudentAuthRepository
             val account = accounts[uid] ?: return
             accounts[uid] = account.copy(emailVerified = true)
         }
-
-        override suspend fun sendPasswordReset(email: String): Result<Unit> =
-            runCatching {
-                val normalized = email.trim().lowercase()
-                if (accounts.values.none { it.email == normalized }) {
-                    throw IllegalStateException("No encontramos una cuenta con ese correo.")
-                }
-            }
 
         override suspend fun getIdToken(forceRefresh: Boolean): Result<String> =
             runCatching {

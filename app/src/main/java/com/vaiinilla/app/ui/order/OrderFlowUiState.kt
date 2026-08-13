@@ -106,16 +106,25 @@ fun OrderFlowUiState.hasSufficientBalance(walletBalance: Int): Boolean {
     return walletBalance >= total
 }
 
+fun OperationalStatus.checkoutStaffBlocker(): String? {
+    if (acceptingOrders && cashSessionOpen) return null
+    if (!cashSessionOpen) {
+        return "Caja no tiene sesión abierta. Entra a Caja y ábrela antes de confirmar."
+    }
+    return when {
+        !cashierOnline && !kitchenOnline ->
+            "Caja y Cocina no están en línea. Tienen que quedar abiertas en otros dispositivos (o en la web) mientras pides como alumno."
+        !cashierOnline ->
+            "Caja no está en línea. Déjala abierta en otro dispositivo o en la web."
+        !kitchenOnline ->
+            "Cocina no está en línea. Déjala abierta en otro dispositivo o en la web."
+        else -> "El establecimiento no está recibiendo pedidos en este momento."
+    }
+}
+
 val OrderFlowUiState.operationalBlockerMessage: String?
     get() {
         if (cartLines.isEmpty() || isOperationallyReady) return null
         val status = operationalStatus ?: return "No pudimos verificar si el establecimiento está recibiendo pedidos."
-        if (!status.cashSessionOpen) {
-            return "Caja no tiene sesión abierta. Entra a Caja y ábrela antes de confirmar."
-        }
-        if (!status.acceptingOrders) {
-            return "No hay Caja o Cocina disponibles. Si usas un solo teléfono, " +
-                "vuelve a intentar; la app avisará a ambos roles automáticamente."
-        }
-        return "El establecimiento no está recibiendo pedidos en este momento."
+        return status.checkoutStaffBlocker()
     }

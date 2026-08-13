@@ -76,7 +76,7 @@ class HttpVaiinillaApiClient
         fun postWithBearer(
             bearer: String,
             path: String,
-            body: String,
+            body: String? = null,
             headers: Map<String, String> = emptyMap(),
         ): Result<String> =
             execute(
@@ -159,12 +159,13 @@ class HttpVaiinillaApiClient
             }
 
             val status = connection.responseCode
+            val retryAfterSeconds = connection.getHeaderField("Retry-After")?.trim()?.toLongOrNull()
             val raw = readBody(connection, status)
             if (status in 200..299) {
                 return raw
             }
 
-            val error = responseParser.parseError(raw, status)
+            val error = responseParser.parseError(raw, status, retryAfterSeconds)
             if (
                 allowSessionRefresh &&
                 error.httpStatus == 401 &&

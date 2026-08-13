@@ -83,7 +83,7 @@ fun WalletScreen(
                         tint = colors.accentInk,
                     )
                     Text(
-                        "Cartera pendiente de conexión",
+                        "Saldo por cafetería",
                         color = colors.accentInk,
                         fontWeight = FontWeight.Black,
                         fontSize = 24.sp,
@@ -91,7 +91,7 @@ fun WalletScreen(
                         modifier = Modifier.padding(top = 14.dp),
                     )
                     Text(
-                        "El backend actual todavía no expone saldo, tarjetas ni transferencias. No mostraremos datos inventados.",
+                        "Entrega 03: recargas en efectivo en Caja y pago con saldo. El servidor todavía no publica esas rutas, así que no mostramos un número inventado.",
                         color = colors.accentInk.copy(alpha = 0.72f),
                         fontSize = 13.sp,
                         lineHeight = 19.sp,

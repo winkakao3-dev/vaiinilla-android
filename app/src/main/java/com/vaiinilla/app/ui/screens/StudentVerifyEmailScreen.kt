@@ -67,7 +67,7 @@ fun StudentVerifyEmailScreen(
                         buildString {
                             append("Enviamos un enlace a ")
                             append(state.session?.email ?: state.email)
-                            append(". Confírmalo para continuar con tu pedido.")
+                            append(". Ábrelo; te lleva a la web de Vaiinilla para confirmar. Después pulsa Ya verifiqué.")
                             if (state.verificationSent) {
                                 append(" (reenviado)")
                             }
@@ -87,9 +87,14 @@ fun StudentVerifyEmailScreen(
                         enabled = !state.loading,
                     )
                     EditorialPrimaryButton(
-                        text = "Reenviar correo",
+                        text =
+                            if (state.resendLockedUntilMs > System.currentTimeMillis()) {
+                                "Reenviar correo (espera)"
+                            } else {
+                                "Reenviar correo"
+                            },
                         onClick = onResend,
-                        enabled = !state.loading,
+                        enabled = !state.loading && state.resendLockedUntilMs <= System.currentTimeMillis(),
                         background = colors.paper2,
                         contentColor = colors.ink,
                     )
@@ -97,7 +102,7 @@ fun StudentVerifyEmailScreen(
             }
             item {
                 Text(
-                    "La confirmación se valida de forma segura con Firebase.",
+                    "El correo lo envía Vaiinilla. El enlace abre app.vaiinilla.app para verificar.",
                     color = colors.muted,
                     fontWeight = FontWeight.ExtraBold,
                     modifier = Modifier.padding(top = 8.dp),

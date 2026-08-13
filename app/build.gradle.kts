@@ -60,7 +60,7 @@ android {
         applicationId = "com.vaiinilla.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
+        versionCode = 15
         versionName = "0.4.1-vai27-remote"
 
         buildConfigField("String", "API_BASE_URL", "\"$selectedApiBaseUrl\"")

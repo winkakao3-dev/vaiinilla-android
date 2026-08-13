@@ -15,6 +15,8 @@ interface AccessEmailApi {
     suspend fun sendVerification(firebaseIdToken: String): Result<Unit>
 
     suspend fun sendRecovery(email: String): Result<Unit>
+
+    suspend fun currentLegal(): Result<LegalDocuments>
 }
 
 @Singleton
@@ -35,7 +37,6 @@ class RemoteAccessEmailApi
                     .postWithBearer(
                         bearer = firebaseIdToken,
                         path = "publico/correos/verificacion",
-                        body = "{}",
                     ).mapCatching { raw ->
                         requireAccepted(raw)
                         Unit
@@ -47,11 +48,25 @@ class RemoteAccessEmailApi
                 apiClient
                     .postPublic(
                         path = "publico/correos/recuperacion",
-                        body = json.encodeToString(RecoveryRequestDto(email.trim())),
+                        body = json.encodeToString(RecoveryRequestDto(email.trim().lowercase())),
                     ).mapCatching { raw ->
                         requireAccepted(raw)
                         Unit
                     }
+            }
+
+        override suspend fun currentLegal(): Result<LegalDocuments> =
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    val raw = apiClient.getPublic("publico/legal/vigente").getOrThrow()
+                    val versions = json.decodeFromString<EmailLegalEnvelopeDto>(raw).data
+                    LegalDocuments(
+                        termsVersion = versions.terminosVersion,
+                        termsUrl = versions.terminosUrl,
+                        privacyVersion = versions.privacidadVersion,
+                        privacyUrl = versions.privacidadUrl,
+                    )
+                }
             }
 
         private fun requireAccepted(raw: String) {
@@ -75,4 +90,24 @@ private data class EmailDispatchEnvelopeDto(
 @Serializable
 private data class EmailDispatchDataDto(
     @SerialName("aceptado") val accepted: Boolean,
+)
+
+@Serializable
+private data class EmailLegalEnvelopeDto(
+    val data: EmailLegalVersionsDto,
+)
+
+@Serializable
+private data class EmailLegalVersionsDto(
+    @SerialName("terminos_version") val terminosVersion: String,
+    @SerialName("terminos_url") val terminosUrl: String = "",
+    @SerialName("privacidad_version") val privacidadVersion: String,
+    @SerialName("privacidad_url") val privacidadUrl: String = "",
+)
+
+data class LegalDocuments(
+    val termsVersion: String,
+    val termsUrl: String,
+    val privacyVersion: String,
+    val privacyUrl: String,
 )

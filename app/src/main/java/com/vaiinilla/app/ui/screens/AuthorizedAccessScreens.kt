@@ -5,13 +5,17 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -20,8 +24,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.PointOfSale
+import androidx.compose.material.icons.outlined.Restaurant
+import androidx.compose.material.icons.outlined.RoomService
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -32,13 +39,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.mode.AuthorizedMode
+import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.ui.components.AuthHeroSheetScaffold
+import com.vaiinilla.app.ui.components.AuthInkSubmitButton
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialPrimaryButton
 import com.vaiinilla.app.ui.components.EmptyState
@@ -207,164 +219,139 @@ fun AuthorizedModeScreen(
 ) {
     val colors = LocalVaiinillaColors.current
     val activeContext = state.activeContext
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(colors.paper)
-                .statusBarsPadding(),
+    val staffModes = state.modes.filter { it.role != OperationalRole.CLIENT }
+    val clientMode = state.modes.firstOrNull { it.role == OperationalRole.CLIENT }
+    AuthHeroSheetScaffold(
+        kicker = "Personal",
+        title = "Cómo vas a entrar.",
+        intro = "Sólo ves los roles de esta cuenta. Caja, Cocina y Mesero son accesos aparte.",
+        loading = state.loading,
+        showBack = true,
+        onBack = onBack,
+        kickerIcon = Icons.Outlined.Badge,
     ) {
-        Row(
+        if (!state.loading && staffModes.isEmpty() && state.errorMessage == null) {
+            EmptyState(
+                icon = Icons.Outlined.VpnKey,
+                title = "Sin modos de personal",
+                message = "Cuando administración te invite a Caja, Cocina o Mesero, aparecen aquí.",
+            )
+        }
+        staffModes.forEach { mode ->
+            val isActive =
+                activeContext?.role == mode.role &&
+                    activeContext.establishmentId == mode.establishmentId &&
+                    activeContext.membershipId == mode.membershipId
+            StaffModeCard(
+                mode = mode,
+                isActive = isActive,
+                enabled = !state.loading,
+                onSelect = { onSelectMode(mode) },
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+        state.errorMessage?.let { error ->
+            Spacer(Modifier.height(6.dp))
+            Surface(
+                color = colors.coral.copy(alpha = 0.16f),
+                shape = RoundedCornerShape(16.dp),
+            ) {
+                Text(
+                    error,
+                    color = colors.ink,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(14.dp),
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+        }
+        state.message?.let { message ->
+            Text(message, color = colors.accentInk, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(10.dp))
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "¿Entrar como alumno?",
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
-            ) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver", tint = colors.ink)
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Accesos autorizados", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 20.sp)
-                Text(
-                    if (state.hasMultipleModes) "Cambiar modo" else "Selecciona cómo entrar",
-                    color = colors.muted,
-                    fontSize = 13.sp,
-                )
-            }
-            if (state.loading) {
-                CircularProgressIndicator(
-                    color = colors.accent,
-                    modifier =
-                        Modifier
-                            .padding(end = 12.dp)
-                            .size(20.dp)
-                            .semantics { contentDescription = "Actualizando modos" },
-                    strokeWidth = 2.dp,
-                )
-            }
-        }
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item {
-                Text(
-                    "Sólo verás los accesos que pertenecen a tu cuenta.",
-                    color = colors.muted,
-                    modifier = Modifier.padding(bottom = 4.dp),
-                )
-            }
-            if (!state.loading && state.modes.isEmpty() && state.errorMessage == null) {
-                item {
-                    EmptyState(
-                        icon = Icons.Outlined.VpnKey,
-                        title = "Sin modos operativos",
-                        message = "Cuando aceptes una invitación vigente, aquí aparecerán tus accesos autorizados.",
-                    )
-                }
-            }
-            items(state.modes, key = { "${it.establishmentId}-${it.membershipId}-${it.role.wireValue}" }) { mode ->
-                val isActive =
-                    activeContext?.role == mode.role &&
-                        activeContext.establishmentId == mode.establishmentId &&
-                        activeContext.membershipId == mode.membershipId
-                Surface(
-                    color = colors.paper2,
-                    shape = RoundedCornerShape(22.dp),
-                    modifier =
-                        if (isActive) {
-                            Modifier.border(2.dp, colors.accent, RoundedCornerShape(22.dp))
-                        } else {
-                            Modifier
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() },
+                        onClick = {
+                            if (clientMode != null) onSelectMode(clientMode) else onReturnToClient()
                         },
-                ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                if (isActive) Icons.Outlined.CheckCircle else Icons.Outlined.Lock,
-                                contentDescription = if (isActive) "Modo activo" else "Modo autorizado",
-                                tint = if (isActive) colors.accent else colors.muted,
-                            )
-                            Column(modifier = Modifier.padding(start = 10.dp).weight(1f)) {
-                                Text(
-                                    mode.role.label,
-                                    color = colors.ink,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 19.sp,
-                                )
-                                Text(mode.establishmentName, color = colors.muted)
-                                if (isActive) {
-                                    Text(
-                                        "Activo ahora",
-                                        color = colors.accentInk,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp,
-                                    )
-                                }
-                            }
-                        }
-                        EditorialAccentButton(
-                            text =
-                                if (isActive) {
-                                    "Continuar como ${mode.role.label}"
-                                } else {
-                                    "Entrar como ${mode.role.label}"
-                                },
-                            onClick = { onSelectMode(mode) },
-                            enabled = !state.loading,
-                        )
-                    }
-                }
-            }
-            item {
-                EditorialPrimaryButton(
-                    text = "Volver como Alumno",
-                    onClick = onReturnToClient,
-                    enabled = !state.loading,
-                    background = colors.paper2,
-                    contentColor = colors.ink,
-                )
-            }
-            item {
-                AnimatedVisibility(
-                    visible = state.errorMessage != null,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                ) {
-                    state.errorMessage?.let { error ->
-                        Surface(
-                            color = colors.coral.copy(alpha = 0.16f),
-                            shape = RoundedCornerShape(16.dp),
-                        ) {
-                            Text(
-                                error,
-                                color = colors.ink,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(14.dp),
-                            )
-                        }
-                    }
-                }
-            }
-            item {
-                AnimatedVisibility(
-                    visible = state.message != null,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                ) {
-                    state.message?.let { message ->
-                        Text(message, color = colors.accentInk, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
+                    ),
+            color = colors.muted,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+            textAlign = TextAlign.Center,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
+
+@Composable
+private fun StaffModeCard(
+    mode: AuthorizedMode,
+    isActive: Boolean,
+    enabled: Boolean,
+    onSelect: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(colors.paper)
+                .border(
+                    width = if (isActive) 2.dp else 1.dp,
+                    color = if (isActive) colors.accent.copy(alpha = 0.68f) else colors.line,
+                    shape = RoundedCornerShape(16.dp),
+                )
+                .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                staffModeIcon(mode.role),
+                contentDescription = null,
+                tint = if (isActive) colors.accentInk else colors.muted,
+                modifier = Modifier.size(22.dp),
+            )
+            Column(modifier = Modifier.padding(start = 10.dp).weight(1f)) {
+                Text(mode.role.label, color = colors.ink, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(mode.establishmentName, color = colors.muted, fontSize = 13.sp, lineHeight = 18.sp)
+                Text(staffModeBlurb(mode.role), color = colors.muted, fontSize = 12.sp, lineHeight = 16.sp)
+                if (isActive) {
+                    Text("Activo ahora", color = colors.accentInk, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            }
+        }
+        AuthInkSubmitButton(
+            text = if (isActive) "Continuar como ${mode.role.label}" else "Entrar como ${mode.role.label}",
+            onClick = onSelect,
+            enabled = enabled,
+        )
+    }
+}
+
+private fun staffModeIcon(role: OperationalRole) =
+    when (role) {
+        OperationalRole.CASHIER -> Icons.Outlined.PointOfSale
+        OperationalRole.KITCHEN -> Icons.Outlined.Restaurant
+        OperationalRole.WAITER -> Icons.Outlined.RoomService
+        OperationalRole.CLIENT -> Icons.Outlined.Person
+    }
+
+private fun staffModeBlurb(role: OperationalRole) =
+    when (role) {
+        OperationalRole.CASHIER -> "Cobrar en efectivo y entregar en barra."
+        OperationalRole.KITCHEN -> "Preparar comandas y marcarlas listo."
+        OperationalRole.WAITER -> "Entregar pedidos en el espacio."
+        OperationalRole.CLIENT -> "Pedir menú, pedidos y saldo."
+    }
 
 @Preview(name = "Invitación autorizada", showBackground = true, widthDp = 411, heightDp = 891)
 @Composable
@@ -384,7 +371,30 @@ private fun InvitationAcceptanceScreenPreview() {
 private fun AuthorizedModeScreenPreview() {
     VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
         AuthorizedModeScreen(
-            state = AuthorizedAccessUiState(),
+            state =
+                AuthorizedAccessUiState(
+                    modes =
+                        listOf(
+                            AuthorizedMode(
+                                role = OperationalRole.CASHIER,
+                                establishmentId = "e1",
+                                establishmentName = "Cafetería central",
+                                membershipId = "m1",
+                            ),
+                            AuthorizedMode(
+                                role = OperationalRole.KITCHEN,
+                                establishmentId = "e1",
+                                establishmentName = "Cafetería central",
+                                membershipId = "m2",
+                            ),
+                            AuthorizedMode(
+                                role = OperationalRole.WAITER,
+                                establishmentId = "e1",
+                                establishmentName = "Cafetería central",
+                                membershipId = "m3",
+                            ),
+                        ),
+                ),
             onBack = {},
             onSelectMode = {},
             onReturnToClient = {},
