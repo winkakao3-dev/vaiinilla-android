@@ -331,10 +331,9 @@ fun CheckoutPaymentPicker(
         PaymentOption(
             brand = "SALDO",
             title = "Saldo de la cafetería",
-            subtitle = "Recarga en Caja. Aún no está en el servidor.",
-            selected = false,
-            enabled = false,
-            onClick = {},
+            subtitle = "Se descuenta del saldo de este establecimiento.",
+            selected = selected == PaymentMethod.BALANCE,
+            onClick = { onSelect(PaymentMethod.BALANCE) },
         )
     }
 }

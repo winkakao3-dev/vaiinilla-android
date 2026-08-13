@@ -100,13 +100,13 @@ object ContractRules {
     }
 
     /**
-     * Entrega 01 REMOTE: el backend acepta efectivo para recoger o para un espacio
+     * Entrega 01 + Entrega 03 REMOTE: el backend acepta efectivo o saldo para recoger o para un espacio
      * resuelto por QR. El tenant valida que el espacio exista y esté activo; el
      * cliente no puede limitar ese identificador a una mesa local prefijada.
      */
     fun validateRemoteOrderRequest(request: CreateOrderRequest) {
-        require(request.paymentMethod == PaymentMethod.CASH) {
-            "La Entrega 01 REMOTE solo acepta efectivo."
+        require(request.paymentMethod == PaymentMethod.CASH || request.paymentMethod == PaymentMethod.BALANCE) {
+            "El backend REMOTE acepta efectivo o saldo."
         }
         when (request.destination) {
             OrderDestination.TAKE_AWAY ->

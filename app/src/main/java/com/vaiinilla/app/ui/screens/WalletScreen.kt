@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -36,14 +38,16 @@ import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
+import com.vaiinilla.app.ui.wallet.WalletRemoteUiState
 
 /**
- * Keeps the wallet surface in the student shell without inventing balance,
- * cards, transfers, or activity that the current backend contract does not
- * provide. Ordering remains available through the real cash checkout.
+ * Wallet surface backed by the Entrega 03 contract. The API exposes only the
+ * visible balance; internal commission buckets stay server-side.
  */
 @Composable
 fun WalletScreen(
+    remoteState: WalletRemoteUiState = WalletRemoteUiState(),
+    onRetry: () -> Unit = {},
     onMenu: () -> Unit,
     onAssistant: () -> Unit,
     onOrders: () -> Unit,
@@ -82,21 +86,49 @@ fun WalletScreen(
                         contentDescription = null,
                         tint = colors.accentInk,
                     )
-                    Text(
-                        "Saldo por cafetería",
-                        color = colors.accentInk,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 24.sp,
-                        lineHeight = 28.sp,
-                        modifier = Modifier.padding(top = 14.dp),
-                    )
-                    Text(
-                        "Entrega 03: recargas en efectivo en Caja y pago con saldo. El servidor todavía no publica esas rutas, así que no mostramos un número inventado.",
-                        color = colors.accentInk.copy(alpha = 0.72f),
-                        fontSize = 13.sp,
-                        lineHeight = 19.sp,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
+                    when {
+                        remoteState.loading -> {
+                            CircularProgressIndicator(
+                                color = colors.accentInk,
+                                modifier = Modifier.padding(top = 18.dp),
+                            )
+                        }
+                        remoteState.data != null -> {
+                            Text(
+                                "$${remoteState.data.wallet.visibleBalance}",
+                                color = colors.accentInk,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 32.sp,
+                                modifier = Modifier.padding(top = 14.dp),
+                            )
+                            Text(
+                                "Saldo disponible en este establecimiento",
+                                color = colors.accentInk.copy(alpha = 0.72f),
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                        }
+                        else -> {
+                            Text(
+                                remoteState.error ?: "No se pudo consultar el saldo.",
+                                color = colors.accentInk,
+                                fontSize = 14.sp,
+                                lineHeight = 19.sp,
+                                modifier = Modifier.padding(top = 14.dp),
+                            )
+                            Button(
+                                onClick = onRetry,
+                                colors =
+                                    ButtonDefaults.buttonColors(
+                                        containerColor = colors.accentInk,
+                                        contentColor = colors.accent,
+                                    ),
+                                modifier = Modifier.padding(top = 12.dp),
+                            ) {
+                                Text("Reintentar", fontWeight = FontWeight.Black)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -108,9 +140,9 @@ fun WalletScreen(
                 shape = RoundedCornerShape(22.dp),
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    Text("Checkout disponible", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 17.sp)
+                    Text("Saldo y movimientos", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 17.sp)
                     Text(
-                        "Puedes consultar el catálogo y confirmar pedidos con efectivo cuando la caja del establecimiento esté abierta.",
+                        "Las recargas se hacen en Caja y el saldo se consume al confirmar el pedido.",
                         color = colors.muted,
                         fontSize = 13.sp,
                         lineHeight = 19.sp,
@@ -126,11 +158,48 @@ fun WalletScreen(
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.padding(top = 14.dp),
                     ) {
-                        Text("Ver mi pedido", fontWeight = FontWeight.Black)
+                        Text("Ver menú y pagar con saldo", fontWeight = FontWeight.Black)
                         Icon(
                             imageVector = Icons.Outlined.ArrowForward,
                             contentDescription = null,
                             modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+                }
+            }
+        }
+
+        remoteState.data?.movements?.takeIf { it.isNotEmpty() }?.let { movements ->
+            item {
+                Text("Últimos movimientos", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 17.sp)
+            }
+            items(movements.take(8), key = { it.id }) { movement ->
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = colors.paper2,
+                    shape = RoundedCornerShape(16.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                movementLabel(movement.type, movement.description),
+                                color = colors.ink,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 14.sp,
+                            )
+                            Text(
+                                "Saldo después: $${movement.balanceAfter}",
+                                color = colors.muted,
+                                fontSize = 12.sp,
+                            )
+                        }
+                        Text(
+                            "$${movement.amount}",
+                            color = if (movement.amount.startsWith("-")) colors.ink else colors.accentInk,
+                            fontWeight = FontWeight.Black,
                         )
                     }
                 }
@@ -167,6 +236,19 @@ fun WalletScreen(
         item { Spacer(Modifier.height(4.dp)) }
     }
 }
+
+private fun movementLabel(
+    type: String,
+    description: String,
+): String =
+    when (type) {
+        "recarga_efectivo" -> "Recarga en Caja"
+        "compra" -> "Compra"
+        "cashback" -> "Cashback"
+        "cancelacion" -> "Cancelación"
+        "ajuste" -> "Ajuste autorizado"
+        else -> description
+    }
 
 @Composable
 private fun ShortcutRow(

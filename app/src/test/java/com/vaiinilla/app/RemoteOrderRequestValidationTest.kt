@@ -30,6 +30,24 @@ class RemoteOrderRequestValidationTest {
     }
 
     @Test
+    fun `remote accepts balance order for take away`() {
+        val result =
+            runCatching {
+                ContractRules.validateRemoteOrderRequest(
+                    CreateOrderRequest(
+                        paymentMethod = PaymentMethod.BALANCE,
+                        destination = OrderDestination.TAKE_AWAY,
+                        spaceId = null,
+                        kitchenNotes = "",
+                        items = listOf(item),
+                    ),
+                )
+            }
+
+        assertTrue(result.isSuccess)
+    }
+
+    @Test
     fun `remote rejects a table order without a resolved space`() {
         val result =
             runCatching {
@@ -48,7 +66,7 @@ class RemoteOrderRequestValidationTest {
     }
 
     @Test
-    fun `remote rejects payment methods outside Entrega 01`() {
+    fun `remote rejects payment methods outside Entregas 01 y 03`() {
         val result =
             runCatching {
                 ContractRules.validateRemoteOrderRequest(
