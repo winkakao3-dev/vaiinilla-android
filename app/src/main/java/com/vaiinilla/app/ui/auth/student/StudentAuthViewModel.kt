@@ -59,6 +59,15 @@ class StudentAuthViewModel
                 )
         }
 
+        fun signOut(onDone: () -> Unit = {}) {
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) { authRepository.signOut() }
+                _state.value = StudentAuthUiState()
+                refreshGuestVenue()
+                onDone()
+            }
+        }
+
         /** Rehydrates the short-lived Railway context after an app process restart. */
         private fun restoreRemoteContextIfNeeded() {
             val session = authRepository.peekSession() ?: return

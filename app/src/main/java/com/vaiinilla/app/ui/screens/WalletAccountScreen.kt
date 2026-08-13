@@ -29,6 +29,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.ui.components.EditorialAccentButton
+import com.vaiinilla.app.ui.components.EditorialPrimaryButton
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.components.WalletScreenShell
 import com.vaiinilla.app.ui.components.WalletSubflowTopBar
@@ -43,6 +45,10 @@ fun WalletAccountScreen(
     displayName: String = "",
     email: String = "",
     userId: String? = null,
+    signedIn: Boolean = false,
+    onChangeVenue: () -> Unit = {},
+    onSignOut: () -> Unit = {},
+    onSignIn: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val qrValue = userId?.trim()?.takeIf { it.isNotEmpty() }?.let(QrPayloadParser::encodeUser)
@@ -54,7 +60,7 @@ fun WalletAccountScreen(
                     .navigationBarsPadding()
                     .padding(bottom = 20.dp),
         ) {
-            WalletSubflowTopBar(title = "Mi cuenta", onBack = onBack)
+            WalletSubflowTopBar(title = "Configuración", onBack = onBack)
             Column(modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 28.dp)) {
                 Text(
                     "Código personal",
@@ -197,6 +203,17 @@ fun WalletAccountScreen(
                     }
                 }
             }
+            Column(
+                modifier = Modifier.padding(horizontal = 28.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                EditorialAccentButton(text = "Cambiar de tienda", onClick = onChangeVenue)
+                if (signedIn) {
+                    EditorialPrimaryButton(text = "Cerrar sesión", onClick = onSignOut)
+                } else {
+                    EditorialPrimaryButton(text = "Iniciar sesión", onClick = onSignIn)
+                }
+            }
             Text(
                 "También pueden buscarte por nombre en Caja.",
                 color = colors.muted,
@@ -222,6 +239,7 @@ private fun WalletAccountScreenLightPreview() {
             displayName = "David Ramirez",
             email = "keinkao@gmail.com",
             userId = "u-preview",
+            signedIn = true,
         )
     }
 }
@@ -235,6 +253,7 @@ private fun WalletAccountScreenDarkPreview() {
             displayName = "David Ramirez",
             email = "keinkao@gmail.com",
             userId = "u-preview",
+            signedIn = true,
         )
     }
 }

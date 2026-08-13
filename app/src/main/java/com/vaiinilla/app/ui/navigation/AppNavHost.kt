@@ -484,6 +484,28 @@ fun AppNavHost(
                     userId =
                         walletRemoteState.data?.wallet?.userId
                             ?: studentAuthState.session?.uid,
+                    signedIn = studentAuthState.session != null,
+                    onChangeVenue = {
+                        navController.navigate(Routes.DISCOVERY) {
+                            launchSingleTop = true
+                            popUpTo(Routes.DISCOVERY) { inclusive = false }
+                        }
+                    },
+                    onSignOut = {
+                        orderFlowViewModel.clearGuestVenue()
+                        studentAuthViewModel.signOut {
+                            authorizedAccessViewModel.resetAfterSignOut()
+                            navController.navigate(Routes.authLoginRoute(Routes.DISCOVERY)) {
+                                popUpTo(Routes.SPLASH) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
+                    onSignIn = {
+                        navController.navigate(Routes.authLoginRoute(Routes.DISCOVERY)) {
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
 

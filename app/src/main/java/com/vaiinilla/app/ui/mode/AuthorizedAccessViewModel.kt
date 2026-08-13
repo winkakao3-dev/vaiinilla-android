@@ -275,6 +275,15 @@ class AuthorizedAccessViewModel
             _state.value = _state.value.copy(errorMessage = null, message = null)
         }
 
+        fun resetAfterSignOut() {
+            invitationJob?.cancel()
+            modesJob?.cancel()
+            actionJob?.cancel()
+            lastModesUid = null
+            refreshCoordinator.clearSession()
+            _state.value = AuthorizedAccessUiState()
+        }
+
         private fun enforceActiveModeStillAuthorized(
             message: String = "Tu acceso operativo fue revocado. Regresaste al modo Alumno.",
             onForcedToClient: () -> Unit = {},
