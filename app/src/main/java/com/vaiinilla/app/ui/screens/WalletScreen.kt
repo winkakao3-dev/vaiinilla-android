@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.ArrowForward
-import androidx.compose.material.icons.outlined.Assistant
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.Button
@@ -223,14 +222,6 @@ fun WalletScreen(
                 title = "Mis pedidos",
                 subtitle = "Consulta el estado de tus pedidos reales",
                 onClick = onOrders,
-            )
-        }
-        item {
-            ShortcutRow(
-                icon = Icons.Outlined.Assistant,
-                title = "Asistente",
-                subtitle = "Revisa opciones del producto y del pedido",
-                onClick = onAssistant,
             )
         }
         item { Spacer(Modifier.height(4.dp)) }

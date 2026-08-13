@@ -31,11 +31,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.Icon
@@ -81,7 +79,7 @@ internal object StudentNavPillMotion {
 
 /**
  * Port of [SpringFloatingNavBar](https://github.com/Damantha126/Floating-Navbar-M3-Flutter)
- * (lib/Navigation/navbar.dart) to Compose — adapted for Vaiinilla's 5 student tabs + Uber dark glass.
+ * (lib/Navigation/navbar.dart) to Compose — 4 student tabs (asistente hidden until a later update).
  *
  * Flutter SoT:
  * - SpringDescription(mass:1, stiffness:450, damping:28)
@@ -101,9 +99,9 @@ private val NavBubbleShape = RoundedCornerShape(24.dp)
 private val NavPillInsetX = 6.dp
 private val NavPillInsetY = 6.dp
 private val NavDockElevation = 8.dp
-private val NavIconSize = 22.dp
-private val NavLabelSize = 11.sp
-private val NavIconLabelGap = 4.dp
+private val NavIconSize = 24.dp
+private val NavLabelSize = 12.sp
+private val NavIconLabelGap = 5.dp
 private val NavColorMotionMs = 200
 
 /**
@@ -120,7 +118,7 @@ val VaiinillaBottomNavClearance: Dp = NavDockHeight + NavDockGapAboveSafeArea + 
 
 enum class StudentTab {
     MENU,
-    ASSISTANT,
+    ASSISTANT, // reserved; not in the dock until the next assistant drop
     ORDERS,
     WALLET,
     CART,
@@ -156,12 +154,6 @@ fun VaiinillaBottomNav(
                 "Menú",
                 Icons.Outlined.Home,
                 Icons.Filled.Home,
-            ),
-            NavTab(
-                StudentTab.ASSISTANT,
-                "Asistente",
-                Icons.Outlined.AutoAwesome,
-                Icons.Filled.AutoAwesome,
             ),
             NavTab(
                 StudentTab.ORDERS,
@@ -370,7 +362,7 @@ private fun FloatingNavTab(
         modifier =
             modifier
                 .physicalPress(scale = PhysicalPressScale.Nav, onClick = onClick)
-                .padding(horizontal = 2.dp, vertical = 4.dp),
+                .padding(horizontal = 6.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {

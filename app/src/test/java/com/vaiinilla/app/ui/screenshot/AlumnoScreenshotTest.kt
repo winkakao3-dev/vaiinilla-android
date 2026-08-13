@@ -317,7 +317,7 @@ class AlumnoScreenshotTest {
         val state = ScreenshotFixtures.catalogLoadedState()
         composeTestRule.setContent {
             ScreenshotTheme {
-                ScreenshotWithStudentNav(activeTab = StudentTab.ASSISTANT, cartCount = 0) {
+                ScreenshotWithStudentNav(activeTab = StudentTab.MENU, cartCount = 0) {
                     AssistantChatScreen(
                         state = state,
                         onSendMessage = {},

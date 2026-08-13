@@ -88,7 +88,6 @@ fun CatalogScreen(
     onAddProduct: () -> Unit,
     onOpenCart: () -> Unit,
     onOpenTracking: () -> Unit = {},
-    onOpenAssistant: () -> Unit = {},
     onOpenWallet: () -> Unit = {},
     onChangeVenue: () -> Unit = {},
     onOpenModes: (() -> Unit)? = null,
@@ -115,7 +114,6 @@ fun CatalogScreen(
                 onAddProduct = onAddProduct,
                 onOpenCart = onOpenCart,
                 onOpenTracking = onOpenTracking,
-                onOpenAssistant = onOpenAssistant,
                 onOpenWallet = onOpenWallet,
                 onChangeVenue = onChangeVenue,
                 onOpenModes = onOpenModes,
@@ -237,7 +235,6 @@ private fun CatalogScreenPreviewContent() {
         onAddProduct = {},
         onOpenCart = {},
         onOpenTracking = {},
-        onOpenAssistant = {},
         onOpenWallet = {},
         onChangeVenue = {},
     )
@@ -258,7 +255,6 @@ private fun CatalogContent(
     onAddProduct: () -> Unit,
     onOpenCart: () -> Unit,
     onOpenTracking: () -> Unit,
-    onOpenAssistant: () -> Unit,
     onOpenWallet: () -> Unit,
     onChangeVenue: () -> Unit,
     onOpenModes: (() -> Unit)?,
@@ -329,10 +325,7 @@ private fun CatalogContent(
             }
 
             item(span = { GridItemSpan(maxLineSpan) }) {
-                MenuSectionHead(
-                    state = state,
-                    onOpenAssistant = onOpenAssistant,
-                )
+                MenuSectionHead(state = state)
             }
 
             if (state.filteredProducts.isEmpty()) {
@@ -535,7 +528,6 @@ private fun CatalogHeader(
 @Composable
 private fun MenuSectionHead(
     state: OrderFlowUiState,
-    onOpenAssistant: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
     Row(
@@ -548,9 +540,6 @@ private fun MenuSectionHead(
     ) {
         Text("Menú de hoy", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 19.sp)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onOpenAssistant) {
-                Text("No sé qué pedir", color = colors.muted, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
-            }
             state.operationalStatus?.let { status ->
                 Surface(
                     color = if (status.acceptingOrders && status.cashSessionOpen) colors.accent else colors.paper2,

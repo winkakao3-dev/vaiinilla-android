@@ -122,7 +122,7 @@ class UberNavScreenshotTest {
     }
 
     @Test
-    fun `27_uber_nav_slide_settled_assistant`() {
+    fun `27_uber_nav_slide_settled_orders`() {
         val tab = mutableStateOf(StudentTab.MENU)
         composeTestRule.setContent {
             ScreenshotTheme {
@@ -146,9 +146,9 @@ class UberNavScreenshotTest {
             }
         }
         composeTestRule.waitForIdle()
-        tab.value = StudentTab.ASSISTANT
+        tab.value = StudentTab.ORDERS
         composeTestRule.mainClock.advanceTimeBy(800)
         composeTestRule.waitForIdle()
-        composeTestRule.onRoot().captureRoboImage("27_uber_nav_slide_settled_assistant.png")
+        composeTestRule.onRoot().captureRoboImage("27_uber_nav_slide_settled_orders.png")
     }
 }

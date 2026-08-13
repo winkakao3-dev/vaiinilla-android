@@ -378,7 +378,6 @@ fun AppNavHost(
                     onAddProduct = orderFlowViewModel::addSelectedProductToCart,
                     onOpenCart = { navController.navigateStudent(Routes.CART) },
                     onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                    onOpenAssistant = { navController.navigateStudent(Routes.ASSISTANT) },
                     onOpenWallet = { navController.navigateStudent(Routes.WALLET) },
                     onChangeVenue = {
                         navController.navigate(Routes.DISCOVERY) {
@@ -429,7 +428,7 @@ fun AppNavHost(
                     remoteState = walletRemoteState,
                     onRetry = walletViewModel::refresh,
                     onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                    onAssistant = { navController.navigateStudent(Routes.ASSISTANT) },
+                    onAssistant = {},
                     onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
                     onCart = { navController.navigateStudent(Routes.CART) },
                 )
@@ -474,9 +473,6 @@ fun AppNavHost(
             }
 
             composable(Routes.CART) {
-                LaunchedEffect(Unit) {
-                    orderFlowViewModel.refresh()
-                }
                 val guestAuthRequired = orderFlowViewModel.requiresStudentAuth()
                 CartScreen(
                     state = orderState,
@@ -494,7 +490,6 @@ fun AppNavHost(
                         }
                     },
                     onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                    onOpenAssistant = { navController.navigateStudent(Routes.ASSISTANT) },
                     onOpenWallet = { navController.navigateStudent(Routes.WALLET) },
                     guestAuthRequired = guestAuthRequired,
                 )
@@ -678,7 +673,7 @@ fun AppNavHost(
                     state = operationalState,
                     orderState = orderState,
                     onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                    onAssistant = { navController.navigateStudent(Routes.ASSISTANT) },
+                    onAssistant = {},
                     onWallet = { navController.navigateStudent(Routes.WALLET) },
                     onCart = { navController.navigateStudent(Routes.CART) },
                     onOpenCatalog = { navController.navigateStudent(Routes.CATALOG) },

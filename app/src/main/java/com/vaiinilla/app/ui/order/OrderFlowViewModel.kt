@@ -77,6 +77,7 @@ class OrderFlowViewModel
             if (activeCartStorageKey != null && activeCartStorageKey != storageKey) {
                 persistCurrentCartIfNeeded()
             }
+            val sameCart = activeCartStorageKey == storageKey
             activeCartStorageKey = storageKey
             val previous = _uiState.value
             _uiState.value =
@@ -84,7 +85,7 @@ class OrderFlowViewModel
                     loading = true,
                     errorMessage = null,
                     guestVenue = venue,
-                    cartLines = emptyList(),
+                    cartLines = if (sameCart) previous.cartLines else emptyList(),
                     selectedProductId = null,
                     selectedOptionIds = emptySet(),
                     selectedQuantity = 1,
@@ -113,6 +114,10 @@ class OrderFlowViewModel
                     } else {
                         emptyList()
                     }
+                val nextCart =
+                    restored.ifEmpty {
+                        if (sameCart) _uiState.value.cartLines else emptyList()
+                    }
                 // Public guest discovery is valid without identity. Operational status is
                 // authenticated, so its failure must not hide a catalog that loaded correctly.
                 val failure = catalogResult.exceptionOrNull()
@@ -122,7 +127,7 @@ class OrderFlowViewModel
                         loading = false,
                         catalog = catalog,
                         operationalStatus = null,
-                        cartLines = restored,
+                        cartLines = nextCart,
                         errorMessage = failure?.message,
                         guestVenueSuspended = suspended,
                         guestVenue = venue,
