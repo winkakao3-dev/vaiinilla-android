@@ -1,6 +1,6 @@
 # Vaiinilla Android — VAI-11
 
-App Android nativa del flujo alumno **VAI-10** (catálogo → carrito efectivo → confirmación) más **VAI-11** (seguimiento + Caja/Cocina/Mesero) con cliente remoto Railway.
+App Android nativa del flujo alumno **VAI-10** (catálogo → carrito efectivo/saldo → confirmación) más **VAI-11** (seguimiento + Caja/Cocina/Mesero) con cliente remoto Railway.
 
 Fuentes de verdad:
 
@@ -17,20 +17,19 @@ Fuentes de verdad:
 3. Abre un producto en un sheet visual comparable al mockup.
 4. Selecciona opciones respetando `min_selecciones` y `max_selecciones`, y una cantidad entre 1 y 20.
 5. Agrega configuraciones al carrito; una línea idéntica se consolida sin superar 20 unidades.
-6. Revisa el carrito para `para_llevar`, añade notas y usa exclusivamente `efectivo`.
+6. Revisa el carrito para `para_llevar`, añade notas y elige `efectivo` o `saldo`.
 7. La app envía un request contractual sin precios, total, folio, tenant, usuario ni estado.
-8. Railway valida y devuelve `OrderDetail` en `por_cobrar`.
-9. La confirmación muestra folio, total confirmado y siguiente paso en Caja.
+8. Railway valida y devuelve `OrderDetail`: `por_cobrar` para efectivo o `cobrado` para saldo.
+9. La confirmación muestra folio, total confirmado y el siguiente paso: Caja para efectivo o Cocina para saldo.
 10. Caja cobra, Cocina prepara/lista, entrega y el alumno ve el seguimiento por polling.
 
 ## Límites respetados
 
-No se implementan:
+Fuera de esta rama/entrega quedan:
 
-- destino `en_espacio`;
-- tarjeta, saldo, wallet, recargas o cashback funcional;
+- tarjeta, Stripe o recargas digitales;
 - stickers, receipts coleccionables o reimpresión;
-- cancelaciones, reembolsos, administración o analíticas;
+- administración de cashback, cancelaciones y ajustes administrativos;
 
 El campo contractual `cashback_otorgado` se conserva en `OrderSummary`, pero no hay lógica de cashback.
 
@@ -44,7 +43,14 @@ app/src/main/java/com/vaiinilla/app/
 └── ui/         # estado compartido, navegación, componentes y pantallas Compose
 ```
 
-La UI depende de `CatalogRepository` y `OrderRepository`; la implementación de producción usa Firebase + Railway.
+La UI depende de `CatalogRepository`, `OrderRepository` y `WalletRepository`; la implementación de producción usa Firebase + Railway.
+
+## Entrega 03 — Wallet por establecimiento
+
+- El alumno consulta el saldo visible y los movimientos de su establecimiento mediante `wallets/me`.
+- Caja busca clientes con el identificador contextual del establecimiento y registra recargas en efectivo con Caja abierta.
+- Las recargas envían `Idempotency-Key`; los buckets internos, el consumo y la prorrata permanecen bajo control del servidor.
+- Stripe, recargas digitales y cualquier UI de buckets quedan fuera de esta entrega.
 
 ## Dinero
 
@@ -74,7 +80,7 @@ Build reproducible:
 
 La evidencia de prueba en dispositivo Android real sigue pendiente; no se reporta como ejecutada mientras `adb devices -l` no muestre un dispositivo y se registre la matriz REMOTE. Ver `docs/VAI-27_HARDENING.md`.
 
-Paths remotos: `catalogo`, `estado-operativo`, `pedidos`, cobros, transiciones, `latidos`, `sesiones-caja`.  
+Paths remotos: `catalogo`, `estado-operativo`, `pedidos`, `wallets/me`, `wallets/clientes`, `wallets/{usuarioId}/recargas-efectivo`, cobros, transiciones, `latidos`, `sesiones-caja`.
 El contexto operativo se obtiene después de Firebase; no se aceptan JWT manuales ni una fuente local alternativa. Ver `local.properties.example` y `docs/VAI-11_DELIVERY_REPORT.md`.
 
 ## Validación

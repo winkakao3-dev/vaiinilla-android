@@ -84,7 +84,7 @@ val OrderFlowUiState.canSubmitCart: Boolean
     get() = cartLines.isNotEmpty() && !creatingOrder
 
 val OrderFlowUiState.requiresOperationalReady: Boolean
-    get() = checkoutPayment == PaymentMethod.CASH
+    get() = checkoutPayment == PaymentMethod.CASH || checkoutPayment == PaymentMethod.BALANCE
 
 val OrderFlowUiState.canCreateOrder: Boolean
     get() = canSubmitCart && (!requiresOperationalReady || isOperationallyReady)

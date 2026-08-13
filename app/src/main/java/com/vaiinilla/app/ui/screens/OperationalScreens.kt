@@ -3,6 +3,8 @@ package com.vaiinilla.app.ui.screens
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -52,11 +54,19 @@ fun CashierOperationalScreen(
     onCollect: (orderId: String, amount: String, version: Int) -> Unit,
     onDeliver: (orderId: String, version: Int) -> Unit,
     onScanDeliver: (orderId: String, version: Int) -> Unit = { _, _ -> },
+    onSearchWalletClients: (String) -> Unit = {},
+    onReloadWallet: (userId: String, amount: String) -> Unit = { _, _ -> },
     onChangeMode: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
 ) {
     val pending = state.orders.filter { it.summary.state == OrderState.PENDING_PAYMENT }
     val ready = state.orders.filter { it.summary.state == OrderState.READY }
+    var walletSearch by remember { mutableStateOf("") }
+    var walletAmount by remember { mutableStateOf("100.00") }
+    val canReloadWallet =
+        state.cashSessionOpen == true &&
+            !state.acting &&
+            restrictedMode != RestrictedMode.READ_ONLY
 
     AuthHeroSheetScaffold(
         kicker = "Caja",
@@ -95,11 +105,70 @@ fun CashierOperationalScreen(
             }
         }
         item {
-            Text("Recarga de saldo", color = MutedInk, fontWeight = FontWeight.Black)
+            Text("Recargas de saldo", color = MutedInk, fontWeight = FontWeight.Black)
             Text(
-                "Cuando el servidor publique Entrega 03, aquí se busca al alumno y se acredita efectivo. Hoy no hay ruta de recarga.",
+                "Busca un cliente del establecimiento y registra el efectivo con Caja abierta.",
                 color = MutedInk,
             )
+            OutlinedTextField(
+                value = walletSearch,
+                onValueChange = { walletSearch = it },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                enabled = !state.walletSearchLoading,
+                label = { Text("Nombre o identificador contextual") },
+                singleLine = true,
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                OutlinedTextField(
+                    value = walletAmount,
+                    onValueChange = { walletAmount = it },
+                    modifier = Modifier.weight(1f),
+                    enabled = canReloadWallet,
+                    label = { Text("Monto") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                )
+                androidx.compose.material3.Button(
+                    onClick = { onSearchWalletClients(walletSearch) },
+                    enabled = !state.walletSearchLoading && walletSearch.trim().length >= 2,
+                    modifier = Modifier.defaultMinSize(minWidth = 112.dp),
+                ) {
+                    Text(if (state.walletSearchLoading) "Buscando…" else "Buscar")
+                }
+            }
+        }
+        if (state.walletClients.isEmpty() && walletSearch.trim().length >= 2 && !state.walletSearchLoading) {
+            item {
+                Text("No hay clientes coincidentes en este establecimiento.", color = MutedInk)
+            }
+        } else {
+            items(state.walletClients, key = { it.userId }) { client ->
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(client.name, fontWeight = FontWeight.Black)
+                    client.contextualId?.let { identifier ->
+                        Text(identifier, color = MutedInk)
+                    }
+                    androidx.compose.material3.Button(
+                        onClick = { onReloadWallet(client.userId, walletAmount) },
+                        enabled = canReloadWallet,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Registrar recarga")
+                    }
+                }
+            }
+        }
+        state.walletReloadReceipt?.let { receipt ->
+            item {
+                Text("Recarga registrada", color = MutedInk, fontWeight = FontWeight.Black)
+                Text(
+                    "Saldo: $${receipt.previousBalance} + $${receipt.amount} = $${receipt.newBalance}",
+                    color = MutedInk,
+                )
+            }
         }
         item { SectionLabel("Por cobrar") }
         if (pending.isEmpty()) {

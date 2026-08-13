@@ -4,12 +4,14 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
+import com.vaiinilla.app.domain.repository.WalletRepository
 import com.vaiinilla.app.domain.usecase.CollectCashUseCase
 import com.vaiinilla.app.domain.usecase.GetOrderUseCase
 import com.vaiinilla.app.domain.usecase.ListOrdersUseCase
@@ -22,6 +24,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.math.BigDecimal
 import java.util.UUID
 import javax.inject.Inject
 
@@ -36,12 +39,14 @@ class OperationalViewModel
         private val openCashSession: OpenCashSessionUseCase,
         private val cashSessionRepository: CashSessionRepository,
         private val heartbeatRepository: DeviceHeartbeatRepository,
+        private val walletRepository: WalletRepository,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(OperationalUiState())
         val uiState: State<OperationalUiState> = _uiState
 
         private var pollingJob: Job? = null
         private var lastUpdatedSince: String? = null
+        private var pendingWalletReload: PendingWalletReload? = null
 
         fun setRole(role: OperationalRole) {
             _uiState.value =
@@ -50,7 +55,11 @@ class OperationalViewModel
                     selectedOrderId = null,
                     errorMessage = null,
                     cashSessionOpen = null,
+                    walletClients = emptyList(),
+                    walletSearchLoading = false,
+                    walletReloadReceipt = null,
                 )
+            pendingWalletReload = null
             sendHeartbeatIfNeeded()
             refreshCashSession()
             refresh()
@@ -61,6 +70,7 @@ class OperationalViewModel
             pollingJob?.cancel()
             pollingJob = null
             lastUpdatedSince = null
+            pendingWalletReload = null
             _uiState.value = OperationalUiState()
         }
 
@@ -127,6 +137,84 @@ class OperationalViewModel
                         _uiState.value.copy(
                             acting = false,
                             errorMessage = error.message ?: error.javaClass.simpleName,
+                        )
+                }
+            }
+        }
+
+        fun searchWalletClients(query: String) {
+            if (_uiState.value.role != OperationalRole.CASHIER) return
+            val normalizedQuery = query.trim()
+            if (normalizedQuery.length < 2) {
+                _uiState.value =
+                    _uiState.value.copy(
+                        walletClients = emptyList(),
+                        walletSearchLoading = false,
+                        errorMessage = "Escribe al menos 2 caracteres para buscar un cliente.",
+                    )
+                return
+            }
+            _uiState.value = _uiState.value.copy(walletSearchLoading = true, errorMessage = null)
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) { walletRepository.searchClients(normalizedQuery) }
+                    .onSuccess { clients ->
+                        _uiState.value =
+                            _uiState.value.copy(
+                                walletClients = clients,
+                                walletSearchLoading = false,
+                            )
+                    }.onFailure { error ->
+                        _uiState.value =
+                            _uiState.value.copy(
+                                walletClients = emptyList(),
+                                walletSearchLoading = false,
+                                errorMessage = error.message ?: "No se pudieron buscar clientes.",
+                            )
+                    }
+            }
+        }
+
+        fun reloadWallet(
+            userId: String,
+            amount: String,
+        ) {
+            if (_uiState.value.role != OperationalRole.CASHIER || _uiState.value.cashSessionOpen != true) return
+            val normalizedAmount = amount.trim()
+            val validAmount =
+                ContractRules.isValidMoney(normalizedAmount) &&
+                    runCatching { BigDecimal(normalizedAmount) > BigDecimal.ZERO }.getOrDefault(false)
+            if (!validAmount) {
+                _uiState.value =
+                    _uiState.value.copy(
+                        errorMessage = "El monto debe ser positivo y tener dos decimales (ej. 100.00).",
+                    )
+                return
+            }
+            val attempt =
+                pendingWalletReload
+                    ?.takeIf { it.userId == userId && it.amount == normalizedAmount }
+                    ?: PendingWalletReload(
+                        userId = userId,
+                        amount = normalizedAmount,
+                        idempotencyKey = UUID.randomUUID().toString(),
+                    ).also { pendingWalletReload = it }
+            _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) {
+                    walletRepository.reloadCash(attempt.userId, attempt.amount, attempt.idempotencyKey)
+                }.onSuccess { receipt ->
+                    pendingWalletReload = null
+                    _uiState.value =
+                        _uiState.value.copy(
+                            acting = false,
+                            walletReloadReceipt = receipt,
+                            errorMessage = null,
+                        )
+                }.onFailure { error ->
+                    _uiState.value =
+                        _uiState.value.copy(
+                            acting = false,
+                            errorMessage = error.message ?: "No se pudo registrar la recarga.",
                         )
                 }
             }
@@ -316,3 +404,9 @@ class OperationalViewModel
             const val POLL_INTERVAL_MS = 5_000L
         }
     }
+
+private data class PendingWalletReload(
+    val userId: String,
+    val amount: String,
+    val idempotencyKey: String,
+)
