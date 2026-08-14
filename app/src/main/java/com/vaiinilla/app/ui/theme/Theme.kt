@@ -2,6 +2,7 @@ package com.vaiinilla.app.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
@@ -12,7 +13,7 @@ import androidx.compose.ui.unit.dp
 
 private fun VaiinillaThemeMode.toMaterialColorScheme(isSystemDark: Boolean = false) =
     when (resolveEffectiveMode(isSystemDark)) {
-        VaiinillaThemeMode.Light, VaiinillaThemeMode.System ->
+        VaiinillaThemeMode.Light ->
             lightColorScheme(
                 primary = Lime,
                 onPrimary = AccentInk,
@@ -54,6 +55,36 @@ private fun VaiinillaThemeMode.toMaterialColorScheme(isSystemDark: Boolean = fal
                 surfaceVariant = AmoledPaper2,
                 onSurfaceVariant = AmoledMuted,
             )
+        VaiinillaThemeMode.System ->
+            if (isSystemDark) {
+                darkColorScheme(
+                    primary = Lime,
+                    onPrimary = DarkAccentInk,
+                    primaryContainer = LimeSoft,
+                    onPrimaryContainer = DarkInk,
+                    secondary = Coral,
+                    background = DarkPaper,
+                    onBackground = DarkInk,
+                    surface = DarkPaper2,
+                    onSurface = DarkInk,
+                    surfaceVariant = DarkPaper2,
+                    onSurfaceVariant = DarkMuted,
+                )
+            } else {
+                lightColorScheme(
+                    primary = Lime,
+                    onPrimary = AccentInk,
+                    primaryContainer = LimeSoft,
+                    onPrimaryContainer = Ink,
+                    secondary = Coral,
+                    background = Cream,
+                    onBackground = Ink,
+                    surface = CreamDeep,
+                    onSurface = Ink,
+                    surfaceVariant = CreamDeep,
+                    onSurfaceVariant = MutedInk,
+                )
+            }
     }
 
 @Composable
@@ -68,6 +99,7 @@ fun VaiinillaTheme(
         LocalVaiinillaColors provides colors,
         LocalVaiinillaThemeMode provides themeMode,
         LocalVaiinillaThemeModeChanger provides onThemeModeChange,
+        LocalContentColor provides colors.ink,
     ) {
         MaterialTheme(
             colorScheme = themeMode.toMaterialColorScheme(isSystemDark),

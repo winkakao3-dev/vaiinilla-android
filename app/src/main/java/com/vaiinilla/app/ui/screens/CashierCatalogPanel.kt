@@ -1,9 +1,9 @@
 package com.vaiinilla.app.ui.screens
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,10 +18,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -45,7 +48,7 @@ import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.components.AuthInkSubmitButton
 import com.vaiinilla.app.ui.components.ProductImage
-import com.vaiinilla.app.ui.theme.MutedInk
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.math.BigDecimal
@@ -59,6 +62,7 @@ fun CashierCatalogPanel(
     onCreateProduct: (CatalogProductDraft, ByteArray?, String?, String?) -> Unit,
     onUploadImage: (productId: Int, bytes: ByteArray, filename: String, mimeType: String) -> Unit,
 ) {
+    val colors = LocalVaiinillaColors.current
     val context = LocalContext.current
     val products = catalog?.products.orEmpty().sortedBy { it.name.lowercase() }
     val categories = catalog?.categories.orEmpty().sortedBy { it.order }
@@ -119,10 +123,10 @@ fun CashierCatalogPanel(
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Menú del establecimiento", color = MutedInk, fontWeight = FontWeight.Black)
+        Text("Menú del establecimiento", color = colors.muted, fontWeight = FontWeight.Black)
         Text(
             "Crea productos, súbeles foto y apágalos si se agotan.",
-            color = MutedInk,
+            color = colors.muted,
         )
         if (enabled) {
             AuthInkSubmitButton(
@@ -141,11 +145,11 @@ fun CashierCatalogPanel(
                 },
             )
         } else if (composing) {
-            Text("No hay categorías. Un admin tiene que crearlas primero.", color = MutedInk)
+            Text("No hay categorías. Un admin tiene que crearlas primero.", color = colors.muted)
         }
-        imageHint?.let { Text(it, color = MutedInk) }
+        imageHint?.let { Text(it, color = colors.muted) }
         if (products.isEmpty()) {
-            Text("Aún no hay productos en este menú.", color = MutedInk)
+            Text("Aún no hay productos en este menú.", color = colors.muted)
         }
         products.forEach { product ->
             key(product.id) {
@@ -171,6 +175,7 @@ private fun CashierProductRow(
     onPickGallery: () -> Unit,
     onTakePhoto: () -> Unit,
 ) {
+    val colors = LocalVaiinillaColors.current
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -182,22 +187,37 @@ private fun CashierProductRow(
             modifier = Modifier.size(48.dp),
         )
         Column(modifier = Modifier.weight(1f)) {
-            Text(product.name, fontWeight = FontWeight.Bold)
+            Text(product.name, color = colors.ink, fontWeight = FontWeight.Bold)
             Text(
                 if (product.available) "En menú · ${product.counterPrice}" else "Agotado · ${product.counterPrice}",
-                color = MutedInk,
+                color = colors.muted,
             )
         }
         IconButton(onClick = onPickGallery, enabled = enabled && !acting) {
-            Icon(Icons.Outlined.PhotoLibrary, contentDescription = "Elegir foto")
+            Icon(
+                Icons.Outlined.PhotoLibrary,
+                contentDescription = "Elegir foto",
+                tint = colors.ink,
+            )
         }
         IconButton(onClick = onTakePhoto, enabled = enabled && !acting) {
-            Icon(Icons.Outlined.AddAPhoto, contentDescription = "Tomar foto")
+            Icon(
+                Icons.Outlined.AddAPhoto,
+                contentDescription = "Tomar foto",
+                tint = colors.ink,
+            )
         }
         Switch(
             checked = product.available,
             onCheckedChange = { onToggleAvailable(product.id, it) },
             enabled = enabled && !acting,
+            colors =
+                SwitchDefaults.colors(
+                    checkedThumbColor = colors.accentInk,
+                    checkedTrackColor = colors.accent,
+                    uncheckedThumbColor = colors.muted,
+                    uncheckedTrackColor = colors.paper2,
+                ),
         )
     }
 }
@@ -209,6 +229,7 @@ private fun CashierCreateProductForm(
     onImageHint: (String) -> Unit,
     onCreate: (CatalogProductDraft, ByteArray?, String?, String?) -> Unit,
 ) {
+    val colors = LocalVaiinillaColors.current
     val context = LocalContext.current
     var name by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
@@ -251,56 +272,117 @@ private fun CashierCreateProductForm(
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
-            label = { Text("Nombre") },
+            label = { Text("Nombre", color = colors.muted) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
+            colors =
+                OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = colors.ink,
+                    unfocusedTextColor = colors.ink,
+                    focusedBorderColor = colors.accent,
+                    unfocusedBorderColor = colors.line,
+                ),
         )
         OutlinedTextField(
             value = price,
             onValueChange = { price = it },
-            label = { Text("Precio mostrador") },
+            label = { Text("Precio mostrador", color = colors.muted) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.fillMaxWidth(),
+            colors =
+                OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = colors.ink,
+                    unfocusedTextColor = colors.ink,
+                    focusedBorderColor = colors.accent,
+                    unfocusedBorderColor = colors.line,
+                ),
         )
         OutlinedTextField(
             value = minutes,
             onValueChange = { minutes = it.filter(Char::isDigit).take(3) },
-            label = { Text("Minutos de preparación") },
+            label = { Text("Minutos de preparación", color = colors.muted) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth(),
+            colors =
+                OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = colors.ink,
+                    unfocusedTextColor = colors.ink,
+                    focusedBorderColor = colors.accent,
+                    unfocusedBorderColor = colors.line,
+                ),
         )
-        Text("Categoría", color = MutedInk, fontWeight = FontWeight.Bold)
+        Text("Categoría", color = colors.muted, fontWeight = FontWeight.Bold)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             categories.forEach { category ->
+                val isSelected = category.id == categoryId
                 FilterChip(
-                    selected = category.id == categoryId,
+                    selected = isSelected,
                     onClick = { categoryId = category.id },
-                    label = { Text(category.name) },
+                    label = {
+                        Text(
+                            category.name,
+                            color = if (isSelected) colors.accentInk else colors.ink,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        )
+                    },
+                    colors =
+                        FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = colors.accent,
+                            containerColor = colors.paper2,
+                        ),
                 )
             }
         }
-        Text("Estación", color = MutedInk, fontWeight = FontWeight.Bold)
+        Text("Estación", color = colors.muted, fontWeight = FontWeight.Bold)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val isKitchen = station == PreparationStation.KITCHEN
             FilterChip(
-                selected = station == PreparationStation.KITCHEN,
+                selected = isKitchen,
                 onClick = { station = PreparationStation.KITCHEN },
-                label = { Text("Cocina") },
+                label = {
+                    Text(
+                        "Cocina",
+                        color = if (isKitchen) colors.accentInk else colors.ink,
+                        fontWeight = if (isKitchen) FontWeight.Bold else FontWeight.Medium,
+                    )
+                },
+                colors =
+                    FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = colors.accent,
+                        containerColor = colors.paper2,
+                    ),
             )
+            val isCashier = station == PreparationStation.CASHIER
             FilterChip(
-                selected = station == PreparationStation.CASHIER,
+                selected = isCashier,
                 onClick = { station = PreparationStation.CASHIER },
-                label = { Text("Caja") },
+                label = {
+                    Text(
+                        "Caja",
+                        color = if (isCashier) colors.accentInk else colors.ink,
+                        fontWeight = if (isCashier) FontWeight.Bold else FontWeight.Medium,
+                    )
+                },
+                colors =
+                    FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = colors.accent,
+                        containerColor = colors.paper2,
+                    ),
             )
         }
         Text(
             if (pendingImage == null) "Foto opcional" else "Foto lista para subir",
-            color = MutedInk,
+            color = colors.muted,
         )
         Row {
             IconButton(onClick = { gallery.launch("image/*") }) {
-                Icon(Icons.Outlined.PhotoLibrary, contentDescription = "Elegir foto")
+                Icon(
+                    Icons.Outlined.PhotoLibrary,
+                    contentDescription = "Elegir foto",
+                    tint = colors.ink,
+                )
             }
             IconButton(
                 onClick = {
@@ -315,7 +397,11 @@ private fun CashierCreateProductForm(
                     }
                 },
             ) {
-                Icon(Icons.Outlined.AddAPhoto, contentDescription = "Tomar foto")
+                Icon(
+                    Icons.Outlined.AddAPhoto,
+                    contentDescription = "Tomar foto",
+                    tint = colors.ink,
+                )
             }
         }
         AuthInkSubmitButton(

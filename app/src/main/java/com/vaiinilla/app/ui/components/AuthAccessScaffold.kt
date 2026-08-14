@@ -12,8 +12,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -55,8 +58,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
@@ -95,6 +104,59 @@ private val HeroHeight = 230.dp
 private val SheetOverlap = 28.dp
 
 @Composable
+fun AuthSheetHeader(
+    kicker: String,
+    title: String,
+    intro: String,
+    kickerIcon: ImageVector = Icons.Outlined.Lock,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier =
+                Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(colors.paper2)
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                kickerIcon,
+                contentDescription = null,
+                tint = colors.muted,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                kicker,
+                color = colors.muted,
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(
+            title,
+            color = colors.ink,
+            fontSize = 30.sp,
+            lineHeight = 36.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = (-0.6).sp,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            intro,
+            color = colors.muted,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+        )
+        Spacer(Modifier.height(14.dp))
+    }
+}
+
+@Composable
 fun AuthHeroSheetScaffold(
     kicker: String,
     title: String,
@@ -105,12 +167,50 @@ fun AuthHeroSheetScaffold(
     onBack: () -> Unit = {},
     kickerIcon: ImageVector = Icons.Outlined.Lock,
     scrollSheet: Boolean = true,
+    collapsibleHero: Boolean = !scrollSheet,
+    headerInsideScroll: Boolean = !scrollSheet,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
-    val pane =
-        if (LocalVaiinillaThemeMode.current == VaiinillaThemeMode.Light) AuthPaper3Light else colors.paper
+    val isSystemDark = isSystemInDarkTheme()
+    val isDark = LocalVaiinillaThemeMode.current.resolveEffectiveMode(isSystemDark) != VaiinillaThemeMode.Light
+    val pane = if (isDark) colors.paper else AuthPaper3Light
+    val density = LocalDensity.current
     val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val maxHeroCollapsePx = with(density) { (HeroHeight - 12.dp).toPx() }
+    var heroOffsetPx by remember { mutableFloatStateOf(0f) }
+
+    val nestedScrollConnection =
+        remember(collapsibleHero, maxHeroCollapsePx) {
+            if (!collapsibleHero) {
+                null
+            } else {
+                object : NestedScrollConnection {
+                    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                        val delta = available.y
+                        if (delta < 0) {
+                            val prev = heroOffsetPx
+                            val newOffset = (heroOffsetPx + delta).coerceIn(-maxHeroCollapsePx, 0f)
+                            heroOffsetPx = newOffset
+                            return Offset(0f, newOffset - prev)
+                        }
+                        return Offset.Zero
+                    }
+
+                    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                        val delta = available.y
+                        if (delta > 0) {
+                            val prev = heroOffsetPx
+                            val newOffset = (heroOffsetPx + delta).coerceIn(-maxHeroCollapsePx, 0f)
+                            heroOffsetPx = newOffset
+                            return Offset(0f, newOffset - prev)
+                        }
+                        return Offset.Zero
+                    }
+                }
+            }
+        }
+
     val busyAlpha by animateFloatAsState(
         targetValue = if (loading) 0.48f else 1f,
         animationSpec = tween(700, easing = AuthEase),
@@ -121,11 +221,17 @@ fun AuthHeroSheetScaffold(
         animationSpec = tween(700, easing = AuthEase),
         label = "authBusyScale",
     )
+
+    val heroCollapseOffsetDp = with(density) { heroOffsetPx.toDp() }
+    val currentSheetTop =
+        (HeroHeight + statusTop - SheetOverlap + heroCollapseOffsetDp).coerceAtLeast(statusTop + 48.dp)
+
     Box(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(colors.accent),
+                .background(colors.accent)
+                .then(if (nestedScrollConnection != null) Modifier.nestedScroll(nestedScrollConnection) else Modifier),
     ) {
         AuthBrandHero(
             showBack = showBack,
@@ -134,72 +240,51 @@ fun AuthHeroSheetScaffold(
                 Modifier
                     .fillMaxWidth()
                     .height(HeroHeight + statusTop)
-                    .padding(top = statusTop),
+                    .padding(top = statusTop)
+                    .graphicsLayer {
+                        translationY = heroOffsetPx
+                        alpha = if (collapsibleHero) (1f + heroOffsetPx / maxHeroCollapsePx).coerceIn(0.15f, 1f) else 1f
+                    },
         )
         Box(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(top = HeroHeight + statusTop - SheetOverlap)
+                    .padding(top = currentSheetTop)
                     .shadow(12.dp, SheetShape, ambientColor = Color(0x14171817), spotColor = Color(0x14171817))
                     .clip(SheetShape)
                     .background(pane)
                     .navigationBarsPadding()
                     .imePadding(),
         ) {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .then(if (scrollSheet) Modifier.verticalScroll(rememberScrollState()) else Modifier)
-                        .padding(start = 18.dp, end = 18.dp, top = 24.dp, bottom = 14.dp)
-                        .graphicsLayer {
-                            alpha = busyAlpha
-                            scaleX = busyScale
-                            scaleY = busyScale
-                        },
-            ) {
-                Row(
+            CompositionLocalProvider(LocalContentColor provides colors.ink) {
+                Column(
                     modifier =
                         Modifier
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(colors.paper2)
-                            .padding(horizontal = 10.dp, vertical = 7.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                            .fillMaxSize()
+                            .then(if (scrollSheet) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+                            .padding(
+                                start = 18.dp,
+                                end = 18.dp,
+                                top = if (headerInsideScroll) 14.dp else 24.dp,
+                                bottom = 14.dp,
+                            )
+                            .graphicsLayer {
+                                alpha = busyAlpha
+                                scaleX = busyScale
+                                scaleY = busyScale
+                            },
                 ) {
-                    Icon(
-                        kickerIcon,
-                        contentDescription = null,
-                        tint = colors.muted,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        kicker,
-                        color = colors.muted,
-                        fontSize = 11.sp,
-                        lineHeight = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                    if (!headerInsideScroll) {
+                        AuthSheetHeader(
+                            kicker = kicker,
+                            title = title,
+                            intro = intro,
+                            kickerIcon = kickerIcon,
+                        )
+                    }
+                    content()
                 }
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    title,
-                    color = colors.ink,
-                    fontSize = 30.sp,
-                    lineHeight = 36.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.6).sp,
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    intro,
-                    color = colors.muted,
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp,
-                )
-                Spacer(Modifier.height(18.dp))
-                content()
             }
             if (loading) {
                 AuthLoadingOverlay()

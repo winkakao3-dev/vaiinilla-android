@@ -197,7 +197,7 @@ fun WalletScreen(
                         }
                         Text(
                             "$${movement.amount}",
-                            color = if (movement.amount.startsWith("-")) colors.ink else colors.accentInk,
+                            color = if (movement.amount.startsWith("-")) colors.ink else colors.accent,
                             fontWeight = FontWeight.Black,
                         )
                     }

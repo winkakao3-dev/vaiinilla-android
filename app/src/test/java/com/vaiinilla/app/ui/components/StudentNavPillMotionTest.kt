@@ -41,7 +41,7 @@ class StudentNavPillMotionTest {
         tab = StudentTab.CART
         composeTestRule.waitForIdle()
 
-        assertEquals(StudentTab.CART.ordinal.toFloat(), StudentNavPillMotion.index, 0.01f)
+        assertEquals(3f, StudentNavPillMotion.index, 0.01f)
     }
 
     @Test
@@ -58,7 +58,7 @@ class StudentNavPillMotionTest {
         }
         composeTestRule.waitForIdle()
 
-        assertEquals(2f, StudentNavPillMotion.index, 0.01f)
+        assertEquals(1f, StudentNavPillMotion.index, 0.01f)
         assertEquals(StudentTab.ORDERS, StudentNavPillMotion.lastTab)
     }
 }

@@ -5,20 +5,25 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PointOfSale
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.RoomService
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,13 +45,13 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.ui.components.AuthHeroSheetScaffold
 import com.vaiinilla.app.ui.components.AuthInkSubmitButton
+import com.vaiinilla.app.ui.components.AuthSheetHeader
 import com.vaiinilla.app.ui.components.OperationalEmptyState
 import com.vaiinilla.app.ui.components.OrderSummaryCard
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.theme.Coral
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import com.vaiinilla.app.ui.theme.MutedInk
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import java.math.BigDecimal
@@ -68,6 +73,7 @@ fun CashierOperationalScreen(
     onCreateCashierProduct: (CatalogProductDraft, ByteArray?, String?, String?) -> Unit = { _, _, _, _ -> },
     onUploadCashierProductImage: (Int, ByteArray, String, String) -> Unit = { _, _, _, _ -> },
 ) {
+    val colors = LocalVaiinillaColors.current
     val pending = state.orders.filter { it.summary.state == OrderState.PENDING_PAYMENT }
     val ready = state.orders.filter { it.summary.state == OrderState.READY }
     var walletSearch by remember { mutableStateOf("") }
@@ -87,163 +93,205 @@ fun CashierOperationalScreen(
         kickerIcon = Icons.Outlined.PointOfSale,
         scrollSheet = false,
     ) {
-        WorkerModeLink(onChangeMode)
         LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
+            modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-        restrictedMode?.let { mode -> item { RestrictedModeNotice(mode) } }
-        state.errorMessage?.let { message -> item { OperationalError(message) } }
-        item {
-            CashierCatalogPanel(
-                catalog = state.catalog,
-                acting = state.acting,
-                enabled = restrictedMode != RestrictedMode.READ_ONLY,
-                onToggleAvailable = onToggleProductAvailable,
-                onCreateProduct = onCreateCashierProduct,
-                onUploadImage = onUploadCashierProductImage,
-            )
-        }
-        item {
-            val open = state.cashSessionOpen
-            Text(
-                text =
-                    when (open) {
-                        true -> "Sesión de caja abierta"
-                        false -> "Sesión de caja cerrada — ábrela para recibir pedidos"
-                        null -> "Consultando sesión de caja…"
-                    },
-                color = MutedInk,
-            )
-            if (open == false) {
-                AuthInkSubmitButton(
-                    text = "Abrir caja (500.00)",
-                    onClick = onOpenCashSession,
-                    enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
+            item {
+                AuthSheetHeader(
+                    kicker = "Caja",
+                    title = "Ventanilla de pagos.",
+                    intro = "Cobra en efectivo y entrega en barra.",
+                    kickerIcon = Icons.Outlined.PointOfSale,
                 )
             }
-        }
-        item {
-            Text("Recargas de saldo", color = MutedInk, fontWeight = FontWeight.Black)
-            Text(
-                "Busca por nombre o escanea el QR de cuenta del alumno. Caja tiene que estar abierta.",
-                color = MutedInk,
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                OutlinedTextField(
-                    value = walletSearch,
-                    onValueChange = { walletSearch = it },
-                    modifier = Modifier.weight(1f),
-                    enabled = !state.walletSearchLoading,
-                    label = { Text("Nombre o identificador contextual") },
-                    singleLine = true,
-                )
-                IconButton(
-                    onClick = onOpenWalletUserQr,
-                    enabled = !state.walletSearchLoading && restrictedMode != RestrictedMode.READ_ONLY,
-                ) {
-                    Icon(Icons.Outlined.QrCodeScanner, contentDescription = "Escanear QR del alumno")
+            if (onChangeMode != null) {
+                item {
+                    WorkerModeLink(onChangeMode)
                 }
             }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                OutlinedTextField(
-                    value = walletAmount,
-                    onValueChange = { walletAmount = it },
-                    modifier = Modifier.weight(1f),
-                    enabled = canReloadWallet,
-                    label = { Text("Monto") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                )
-                androidx.compose.material3.Button(
-                    onClick = { onSearchWalletClients(walletSearch) },
-                    enabled = !state.walletSearchLoading && walletSearch.trim().length >= 2,
-                    modifier = Modifier.defaultMinSize(minWidth = 112.dp),
-                ) {
-                    Text(if (state.walletSearchLoading) "Buscando…" else "Buscar")
-                }
-            }
-        }
-        if (state.walletClients.isEmpty() && walletSearch.trim().length >= 2 && !state.walletSearchLoading) {
+            restrictedMode?.let { mode -> item { RestrictedModeNotice(mode) } }
+            state.errorMessage?.let { message -> item { OperationalError(message) } }
             item {
-                Text("No hay clientes coincidentes en este establecimiento.", color = MutedInk)
-            }
-        } else {
-            items(state.walletClients, key = { it.userId }) { client ->
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(client.name, fontWeight = FontWeight.Black)
-                    client.contextualId?.let { identifier ->
-                        Text(identifier, color = MutedInk)
-                    }
-                    androidx.compose.material3.Button(
-                        onClick = { onReloadWallet(client.userId, walletAmount) },
-                        enabled = canReloadWallet,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Registrar recarga")
-                    }
-                }
-            }
-        }
-        state.walletReloadReceipt?.let { receipt ->
-            item {
-                Text("Recarga registrada", color = MutedInk, fontWeight = FontWeight.Black)
-                Text(
-                    "Saldo: $${receipt.previousBalance} + $${receipt.amount} = $${receipt.newBalance}",
-                    color = MutedInk,
-                )
-            }
-        }
-        item { SectionLabel("Por cobrar") }
-        if (pending.isEmpty()) {
-            item {
-                OperationalEmptyState(
-                    title = "Sin pedidos por cobrar",
-                    message = "Cuando un alumno confirme en efectivo, aparecerá aquí.",
-                )
-            }
-        } else {
-            items(pending, key = { it.summary.id }) { order ->
-                CashCollectionCard(
-                    order = order,
+                CashierCatalogPanel(
+                    catalog = state.catalog,
                     acting = state.acting,
-                    onCollect = onCollect,
-                    restrictedMode = restrictedMode,
+                    enabled = restrictedMode != RestrictedMode.READ_ONLY,
+                    onToggleAvailable = onToggleProductAvailable,
+                    onCreateProduct = onCreateCashierProduct,
+                    onUploadImage = onUploadCashierProductImage,
                 )
             }
-        }
-        item { SectionLabel("Entregas en barra") }
-        if (ready.isEmpty()) {
             item {
-                OperationalEmptyState(
-                    title = "Sin entregas listas",
-                    message = "Los pedidos para llevar listos se entregan desde aquí.",
+                val open = state.cashSessionOpen
+                Text(
+                    text =
+                        when (open) {
+                            true -> "Sesión de caja abierta"
+                            false -> "Sesión de caja cerrada — ábrela para recibir pedidos"
+                            null -> "Consultando sesión de caja…"
+                        },
+                    color = colors.muted,
                 )
+                if (open == false) {
+                    AuthInkSubmitButton(
+                        text = "Abrir caja (500.00)",
+                        onClick = onOpenCashSession,
+                        enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
+                    )
+                }
             }
-        } else {
-            items(ready, key = { it.summary.id }) { order ->
-                val hasLocalPickupToken = !order.pickupToken.isNullOrBlank()
-                OrderSummaryCard(
-                    order = order,
-                    actionLabel = if (hasLocalPickupToken) "Confirmar entrega" else "Escanear QR y entregar",
-                    enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
-                    onAction = {
-                        if (hasLocalPickupToken) {
-                            onDeliver(order.summary.id, order.summary.version)
-                        } else {
-                            onScanDeliver(order.summary.id, order.summary.version)
+            item {
+                Text("Recargas de saldo", color = colors.ink, fontWeight = FontWeight.Black)
+                Text(
+                    "Busca por nombre o escanea el QR de cuenta del alumno. Caja tiene que estar abierta.",
+                    color = colors.muted,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedTextField(
+                        value = walletSearch,
+                        onValueChange = { walletSearch = it },
+                        modifier = Modifier.weight(1f),
+                        enabled = !state.walletSearchLoading,
+                        label = { Text("Nombre o identificador contextual", color = colors.muted) },
+                        singleLine = true,
+                        colors =
+                            OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = colors.ink,
+                                unfocusedTextColor = colors.ink,
+                                focusedBorderColor = colors.accent,
+                                unfocusedBorderColor = colors.line,
+                            ),
+                    )
+                    IconButton(
+                        onClick = onOpenWalletUserQr,
+                        enabled = !state.walletSearchLoading && restrictedMode != RestrictedMode.READ_ONLY,
+                    ) {
+                        Icon(
+                            Icons.Outlined.QrCodeScanner,
+                            contentDescription = "Escanear QR del alumno",
+                            tint = colors.ink,
+                        )
+                    }
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                ) {
+                    OutlinedTextField(
+                        value = walletAmount,
+                        onValueChange = { walletAmount = it },
+                        modifier = Modifier.weight(1f),
+                        enabled = canReloadWallet,
+                        label = { Text("Monto", color = colors.muted) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        colors =
+                            OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = colors.ink,
+                                unfocusedTextColor = colors.ink,
+                                focusedBorderColor = colors.accent,
+                                unfocusedBorderColor = colors.line,
+                            ),
+                    )
+                    Button(
+                        onClick = { onSearchWalletClients(walletSearch) },
+                        enabled = !state.walletSearchLoading && walletSearch.trim().length >= 2,
+                        modifier = Modifier.defaultMinSize(minWidth = 112.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = colors.accent,
+                                contentColor = colors.accentInk,
+                            ),
+                    ) {
+                        Text(if (state.walletSearchLoading) "Buscando…" else "Buscar", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            if (state.walletClients.isEmpty() && walletSearch.trim().length >= 2 && !state.walletSearchLoading) {
+                item {
+                    Text("No hay clientes coincidentes en este establecimiento.", color = colors.muted)
+                }
+            } else {
+                items(state.walletClients, key = { it.userId }) { client ->
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(client.name, color = colors.ink, fontWeight = FontWeight.Black)
+                        client.contextualId?.let { identifier ->
+                            Text(identifier, color = colors.muted)
                         }
-                    },
-                )
+                        Button(
+                            onClick = { onReloadWallet(client.userId, walletAmount) },
+                            enabled = canReloadWallet,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors =
+                                ButtonDefaults.buttonColors(
+                                    containerColor = colors.accent,
+                                    contentColor = colors.accentInk,
+                                ),
+                        ) {
+                            Text("Registrar recarga", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
-        }
+            state.walletReloadReceipt?.let { receipt ->
+                item {
+                    Text("Recarga registrada", color = colors.accent, fontWeight = FontWeight.Black)
+                    Text(
+                        "Saldo: $${receipt.previousBalance} + $${receipt.amount} = $${receipt.newBalance}",
+                        color = colors.ink,
+                    )
+                }
+            }
+            item { SectionLabel("Por cobrar") }
+            if (pending.isEmpty()) {
+                item {
+                    OperationalEmptyState(
+                        title = "Sin pedidos por cobrar",
+                        message = "Cuando un alumno confirme en efectivo, aparecerá aquí.",
+                    )
+                }
+            } else {
+                items(pending, key = { it.summary.id }) { order ->
+                    CashCollectionCard(
+                        order = order,
+                        acting = state.acting,
+                        onCollect = onCollect,
+                        restrictedMode = restrictedMode,
+                    )
+                }
+            }
+            item { SectionLabel("Entregas en barra") }
+            if (ready.isEmpty()) {
+                item {
+                    OperationalEmptyState(
+                        title = "Sin entregas listas",
+                        message = "Los pedidos para llevar listos se entregan desde aquí.",
+                    )
+                }
+            } else {
+                items(ready, key = { it.summary.id }) { order ->
+                    val hasLocalPickupToken = !order.pickupToken.isNullOrBlank()
+                    OrderSummaryCard(
+                        order = order,
+                        actionLabel = if (hasLocalPickupToken) "Confirmar entrega" else "Escanear QR y entregar",
+                        enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
+                        onAction = {
+                            if (hasLocalPickupToken) {
+                                onDeliver(order.summary.id, order.summary.version)
+                            } else {
+                                onScanDeliver(order.summary.id, order.summary.version)
+                            }
+                        },
+                    )
+                }
+            }
         }
     }
 }
@@ -255,6 +303,7 @@ private fun CashCollectionCard(
     onCollect: (orderId: String, amount: String, version: Int) -> Unit,
     restrictedMode: RestrictedMode?,
 ) {
+    val colors = LocalVaiinillaColors.current
     var received by remember(order.summary.id) { mutableStateOf(order.summary.total) }
     val change =
         runCatching {
@@ -266,9 +315,16 @@ private fun CashCollectionCard(
             onValueChange = { received = it },
             modifier = Modifier.fillMaxWidth(),
             enabled = restrictedMode != RestrictedMode.READ_ONLY,
-            label = { Text("Efectivo recibido") },
+            label = { Text("Efectivo recibido", color = colors.muted) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             singleLine = true,
+            colors =
+                OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = colors.ink,
+                    unfocusedTextColor = colors.ink,
+                    focusedBorderColor = colors.accent,
+                    unfocusedBorderColor = colors.line,
+                ),
         )
         Text(
             text =
@@ -277,7 +333,8 @@ private fun CashCollectionCard(
                 } else {
                     "Monto insuficiente"
                 },
-            color = MutedInk,
+            color = if (change != null && change >= BigDecimal.ZERO) colors.ink else Coral,
+            fontWeight = FontWeight.Bold,
         )
         OrderSummaryCard(
             order = order,
@@ -315,36 +372,48 @@ fun KitchenOperationalScreen(
         kickerIcon = Icons.Outlined.Restaurant,
         scrollSheet = false,
     ) {
-        WorkerModeLink(onChangeMode)
         LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
+            modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-        restrictedMode?.let { mode -> item { RestrictedModeNotice(mode) } }
-        state.errorMessage?.let { message -> item { OperationalError(message) } }
-        if (active.isEmpty()) {
             item {
-                OperationalEmptyState(
-                    title = "Sin comandas",
-                    message = "Cuando Caja confirme un pago con items de cocina, aparecerán aquí.",
+                AuthSheetHeader(
+                    kicker = "Cocina",
+                    title = "Comandas en fuego.",
+                    intro = "Empieza preparación y marca cuando esté listo.",
+                    kickerIcon = Icons.Outlined.Restaurant,
                 )
             }
-        } else {
-            items(active, key = { it.summary.id }) { order ->
-                val action =
-                    if (order.summary.state == OrderState.PAID) {
-                        "Empezar preparación" to { onStart(order.summary.id, order.summary.version) }
-                    } else {
-                        "Marcar como listo" to { onReady(order.summary.id, order.summary.version) }
-                    }
-                OrderSummaryCard(
-                    order = order,
-                    actionLabel = action.first,
-                    enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
-                    onAction = action.second,
-                )
+            if (onChangeMode != null) {
+                item {
+                    WorkerModeLink(onChangeMode)
+                }
             }
-        }
+            restrictedMode?.let { mode -> item { RestrictedModeNotice(mode) } }
+            state.errorMessage?.let { message -> item { OperationalError(message) } }
+            if (active.isEmpty()) {
+                item {
+                    OperationalEmptyState(
+                        title = "Sin comandas",
+                        message = "Cuando Caja confirme un pago con items de cocina, aparecerán aquí.",
+                    )
+                }
+            } else {
+                items(active, key = { it.summary.id }) { order ->
+                    val action =
+                        if (order.summary.state == OrderState.PAID) {
+                            "Empezar preparación" to { onStart(order.summary.id, order.summary.version) }
+                        } else {
+                            "Marcar como listo" to { onReady(order.summary.id, order.summary.version) }
+                        }
+                    OrderSummaryCard(
+                        order = order,
+                        actionLabel = action.first,
+                        enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
+                        onAction = action.second,
+                    )
+                }
+            }
         }
     }
 }
@@ -369,42 +438,54 @@ fun WaiterOperationalScreen(
         kickerIcon = Icons.Outlined.RoomService,
         scrollSheet = false,
     ) {
-        WorkerModeLink(onChangeMode)
         LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
+            modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-        restrictedMode?.let { mode -> item { RestrictedModeNotice(mode) } }
-        state.errorMessage?.let { message -> item { OperationalError(message) } }
-        if (ready.isEmpty()) {
             item {
-                OperationalEmptyState(
-                    title = "Sin mesas esperando",
-                    message = "Los pedidos en espacio listos para entregar aparecerán aquí.",
+                AuthSheetHeader(
+                    kicker = "Mesero",
+                    title = "Entrega en el espacio.",
+                    intro = "Los pedidos listos para mesa aparecen aquí.",
+                    kickerIcon = Icons.Outlined.RoomService,
                 )
             }
-        } else {
-            items(ready, key = { it.summary.id }) { order ->
-                val hasLocalPickupToken = !order.pickupToken.isNullOrBlank()
-                OrderSummaryCard(
-                    order = order,
-                    actionLabel =
-                        if (hasLocalPickupToken) {
-                            "Confirmar entrega en espacio"
-                        } else {
-                            "Escanear QR y entregar en espacio"
+            if (onChangeMode != null) {
+                item {
+                    WorkerModeLink(onChangeMode)
+                }
+            }
+            restrictedMode?.let { mode -> item { RestrictedModeNotice(mode) } }
+            state.errorMessage?.let { message -> item { OperationalError(message) } }
+            if (ready.isEmpty()) {
+                item {
+                    OperationalEmptyState(
+                        title = "Sin mesas esperando",
+                        message = "Los pedidos en espacio listos para entregar aparecerán aquí.",
+                    )
+                }
+            } else {
+                items(ready, key = { it.summary.id }) { order ->
+                    val hasLocalPickupToken = !order.pickupToken.isNullOrBlank()
+                    OrderSummaryCard(
+                        order = order,
+                        actionLabel =
+                            if (hasLocalPickupToken) {
+                                "Confirmar entrega en espacio"
+                            } else {
+                                "Escanear QR y entregar en espacio"
+                            },
+                        enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
+                        onAction = {
+                            if (hasLocalPickupToken) {
+                                onDeliver(order.summary.id, order.summary.version)
+                            } else {
+                                onScanDeliver(order.summary.id, order.summary.version)
+                            }
                         },
-                    enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
-                    onAction = {
-                        if (hasLocalPickupToken) {
-                            onDeliver(order.summary.id, order.summary.version)
-                        } else {
-                            onScanDeliver(order.summary.id, order.summary.version)
-                        }
-                    },
-                )
+                    )
+                }
             }
-        }
         }
     }
 }
@@ -468,6 +549,7 @@ private fun WorkerModeLink(onChangeMode: (() -> Unit)?) {
 
 @Composable
 private fun RestrictedModeNotice(mode: RestrictedMode) {
+    val colors = LocalVaiinillaColors.current
     Text(
         text =
             when (mode) {
@@ -476,14 +558,20 @@ private fun RestrictedModeNotice(mode: RestrictedMode) {
                 RestrictedMode.OPERATIONAL_CLOSE ->
                     "Este establecimiento está en cierre operativo. El servidor limita las acciones disponibles."
             },
-        color = MutedInk,
+        color = colors.muted,
         style = MaterialTheme.typography.bodySmall,
     )
 }
 
 @Composable
 private fun SectionLabel(text: String) {
-    Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+    val colors = LocalVaiinillaColors.current
+    Text(
+        text,
+        color = colors.ink,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Black,
+    )
 }
 
 @Composable

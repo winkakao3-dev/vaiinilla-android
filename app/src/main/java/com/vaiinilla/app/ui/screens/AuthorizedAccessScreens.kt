@@ -94,7 +94,7 @@ fun InvitationAcceptanceScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
-                Text("Acceso invitado", color = colors.accentInk, fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
+                Text("Acceso invitado", color = colors.accent, fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
                 Text(
                     "Acepta la invitación para entrar a un modo autorizado.",
                     color = colors.ink,
@@ -155,7 +155,7 @@ fun InvitationAcceptanceScreen(
                     Text("Sesión actual: ${session.email}", color = colors.muted)
                     Text(
                         if (session.emailVerified) "Correo verificado" else "Correo pendiente de verificación",
-                        color = if (session.emailVerified) colors.accentInk else colors.coral,
+                        color = if (session.emailVerified) colors.accent else colors.coral,
                         fontWeight = FontWeight.Bold,
                     )
                 } ?: run {
@@ -195,7 +195,7 @@ fun InvitationAcceptanceScreen(
                     exit = fadeOut(),
                 ) {
                     state.message?.let { message ->
-                        Text(message, color = colors.accentInk, fontWeight = FontWeight.Bold)
+                        Text(message, color = colors.accent, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -266,7 +266,7 @@ fun AuthorizedModeScreen(
             Spacer(Modifier.height(10.dp))
         }
         state.message?.let { message ->
-            Text(message, color = colors.accentInk, fontWeight = FontWeight.Bold)
+            Text(message, color = colors.accent, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(10.dp))
         }
         Spacer(Modifier.height(6.dp))
@@ -317,7 +317,7 @@ private fun StaffModeCard(
             Icon(
                 staffModeIcon(mode.role),
                 contentDescription = null,
-                tint = if (isActive) colors.accentInk else colors.muted,
+                tint = if (isActive) colors.accent else colors.muted,
                 modifier = Modifier.size(22.dp),
             )
             Column(modifier = Modifier.padding(start = 10.dp).weight(1f)) {
@@ -325,7 +325,7 @@ private fun StaffModeCard(
                 Text(mode.establishmentName, color = colors.muted, fontSize = 13.sp, lineHeight = 18.sp)
                 Text(staffModeBlurb(mode.role), color = colors.muted, fontSize = 12.sp, lineHeight = 16.sp)
                 if (isActive) {
-                    Text("Activo ahora", color = colors.accentInk, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text("Activo ahora", color = colors.accent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
             }
         }

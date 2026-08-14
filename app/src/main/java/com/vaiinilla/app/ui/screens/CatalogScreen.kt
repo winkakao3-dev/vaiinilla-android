@@ -510,7 +510,7 @@ private fun CatalogHeader(
                     onClick = onOpenModes,
                     modifier = Modifier.padding(top = 2.dp),
                 ) {
-                    Text("Cambiar modo", color = colors.accentInk, fontWeight = FontWeight.Black)
+                    Text("Cambiar modo", color = colors.muted, fontWeight = FontWeight.Bold)
                 }
             }
         }
