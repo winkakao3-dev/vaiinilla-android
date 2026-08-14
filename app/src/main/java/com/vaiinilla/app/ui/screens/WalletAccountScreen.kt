@@ -196,16 +196,6 @@ fun WalletAccountScreen(
                             .border(1.dp, colors.line, RoundedCornerShape(32.dp))
                             .padding(24.dp),
                 ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .align(Alignment.TopEnd)
-                                .offset(x = 34.dp, y = (-34).dp)
-                                .size(118.dp)
-                                .rotate(18f)
-                                .clip(RoundedCornerShape(38.dp))
-                                .background(colors.accent.copy(alpha = 0.95f)),
-                    )
                     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         Text(
                             "Para recargar saldo",
@@ -221,7 +211,7 @@ fun WalletAccountScreen(
                             fontSize = 14.sp,
                             lineHeight = 20.sp,
                             fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(top = 6.dp, bottom = 20.dp, end = 48.dp),
+                            modifier = Modifier.padding(top = 6.dp, bottom = 20.dp),
                         )
                         Surface(
                             modifier =
