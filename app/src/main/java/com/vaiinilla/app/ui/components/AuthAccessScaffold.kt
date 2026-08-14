@@ -430,9 +430,7 @@ private fun AuthBrandHero(
                 }
                 VaiinillaMark(
                     modifier = Modifier.size(38.dp),
-                    cream = colors.ink,
-                    leafA = AuthHeroLeafA,
-                    leafB = AuthHeroLeafB,
+                    isDark = false,
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(

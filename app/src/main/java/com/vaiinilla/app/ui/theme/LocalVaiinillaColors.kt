@@ -25,6 +25,7 @@ data class VaiinillaColors(
     val navPill: Color,
     val navTextIdle: Color,
     val navTextActive: Color,
+    val isDark: Boolean = false,
 )
 
 val LocalVaiinillaColors =

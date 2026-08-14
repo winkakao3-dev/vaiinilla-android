@@ -216,6 +216,7 @@ fun AuthorizedModeScreen(
     onBack: () -> Unit,
     onSelectMode: (AuthorizedMode) -> Unit,
     onReturnToClient: () -> Unit,
+    onSignOut: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val activeContext = state.activeContext
@@ -269,7 +270,7 @@ fun AuthorizedModeScreen(
             Text(message, color = colors.accent, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(10.dp))
         }
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(14.dp))
         Text(
             "¿Entrar como alumno?",
             modifier =
@@ -287,6 +288,23 @@ fun AuthorizedModeScreen(
             lineHeight = 18.sp,
             textAlign = TextAlign.Center,
             fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(Modifier.height(14.dp))
+        Text(
+            "Cerrar sesión",
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() },
+                        onClick = onSignOut,
+                    ),
+            color = colors.coral,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+            textAlign = TextAlign.Center,
+            fontWeight = FontWeight.Bold,
         )
     }
 }

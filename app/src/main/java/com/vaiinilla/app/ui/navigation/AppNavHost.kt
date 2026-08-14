@@ -371,6 +371,15 @@ fun AppNavHost(
                         }
                     },
                     onReturnToClient = ::returnToClientFromAuthorizedMode,
+                    onSignOut = {
+                        studentAuthViewModel.signOut {
+                            authorizedAccessViewModel.resetAfterSignOut()
+                            navController.navigate(Routes.authLoginRoute(Routes.DISCOVERY)) {
+                                popUpTo(Routes.SPLASH) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
                 )
             }
 
@@ -483,6 +492,7 @@ fun AppNavHost(
 
             composable(Routes.WALLET_ACCOUNT) {
                 LaunchedEffect(Unit) { walletViewModel.refresh() }
+                val hasStaffModes = authorizedAccessState.modes.any { it.role != OperationalRole.CLIENT }
                 WalletAccountScreen(
                     onBack = { navController.popBackStack() },
                     displayName = studentAuthState.session?.displayName.orEmpty(),
@@ -492,6 +502,12 @@ fun AppNavHost(
                         walletRemoteState.data?.wallet?.userId
                             ?: studentAuthState.session?.uid,
                     signedIn = studentAuthState.session != null,
+                    hasStaffModes = hasStaffModes,
+                    onOpenStaffModes = {
+                        navController.navigate(Routes.VAI27_MODES) {
+                            launchSingleTop = true
+                        }
+                    },
                     onChangeVenue = {
                         navController.navigate(Routes.DISCOVERY) {
                             launchSingleTop = true
@@ -536,6 +552,8 @@ fun AppNavHost(
                     onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
                     onOpenWallet = { navController.navigateStudent(Routes.WALLET) },
                     guestAuthRequired = guestAuthRequired,
+                    profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
+                    onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
                 )
             }
 

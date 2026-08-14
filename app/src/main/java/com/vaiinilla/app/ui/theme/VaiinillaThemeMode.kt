@@ -48,6 +48,7 @@ enum class VaiinillaThemeMode(
                     navPill = NavPillLight,
                     navTextIdle = NavTextIdleLight,
                     navTextActive = NavTextActiveLight,
+                    isDark = false,
                 )
             Dark ->
                 VaiinillaColors(
@@ -69,6 +70,7 @@ enum class VaiinillaThemeMode(
                     navPill = NavPill,
                     navTextIdle = NavTextIdle,
                     navTextActive = NavTextActive,
+                    isDark = true,
                 )
             Amoled ->
                 VaiinillaColors(
@@ -90,6 +92,7 @@ enum class VaiinillaThemeMode(
                     navPill = NavPillAmoled,
                     navTextIdle = NavTextIdle,
                     navTextActive = NavTextActive,
+                    isDark = true,
                 )
         }
 

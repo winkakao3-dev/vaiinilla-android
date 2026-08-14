@@ -59,6 +59,8 @@ fun WalletAccountScreen(
     email: String = "",
     userId: String? = null,
     signedIn: Boolean = false,
+    hasStaffModes: Boolean = false,
+    onOpenStaffModes: () -> Unit = {},
     onChangeVenue: () -> Unit = {},
     onSignOut: () -> Unit = {},
     onSignIn: () -> Unit = {},
@@ -287,9 +289,24 @@ fun WalletAccountScreen(
                 modifier = Modifier.padding(horizontal = 28.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                EditorialAccentButton(text = "Cambiar de tienda", onClick = onChangeVenue)
+                if (hasStaffModes) {
+                    EditorialAccentButton(text = "Cambiar a modo personal", onClick = onOpenStaffModes)
+                    EditorialPrimaryButton(
+                        text = "Cambiar de tienda",
+                        onClick = onChangeVenue,
+                        background = colors.paper2,
+                        contentColor = colors.ink,
+                    )
+                } else {
+                    EditorialAccentButton(text = "Cambiar de tienda", onClick = onChangeVenue)
+                }
                 if (signedIn) {
-                    EditorialPrimaryButton(text = "Cerrar sesión", onClick = onSignOut)
+                    EditorialPrimaryButton(
+                        text = "Cerrar sesión",
+                        onClick = onSignOut,
+                        background = colors.paper2,
+                        contentColor = colors.ink,
+                    )
                 } else {
                     EditorialPrimaryButton(text = "Iniciar sesión", onClick = onSignIn)
                 }

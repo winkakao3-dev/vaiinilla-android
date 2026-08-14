@@ -4,6 +4,7 @@ import com.vaiinilla.app.domain.auth.student.StudentAuthSession
 import com.vaiinilla.app.domain.mode.AuthorizedInvitation
 import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.mode.AuthorizedModeContext
+import com.vaiinilla.app.domain.model.OperationalRole
 
 data class AuthorizedAccessUiState(
     val loading: Boolean = false,
@@ -16,5 +17,5 @@ data class AuthorizedAccessUiState(
     val message: String? = null,
 ) {
     val hasMultipleModes: Boolean
-        get() = modes.size > 1
+        get() = modes.size > 1 || modes.any { it.role != OperationalRole.CLIENT }
 }

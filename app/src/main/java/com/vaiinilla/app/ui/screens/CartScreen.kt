@@ -89,6 +89,8 @@ fun CartScreen(
     onOpenAssistant: () -> Unit = {},
     onOpenWallet: () -> Unit = {},
     guestAuthRequired: Boolean = false,
+    profileInitials: String = "?",
+    onOpenAccount: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val checkoutSpaces =
@@ -141,7 +143,11 @@ fun CartScreen(
             verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
             item {
-                CartTopBar(onBack = onMenu)
+                CartTopBar(
+                    onBack = onMenu,
+                    profileInitials = profileInitials,
+                    onOpenAccount = onOpenAccount,
+                )
             }
             item {
                 Text(
@@ -329,7 +335,11 @@ private fun CartTakeAwayCashPreview() {
 }
 
 @Composable
-private fun CartTopBar(onBack: () -> Unit) {
+private fun CartTopBar(
+    onBack: () -> Unit,
+    profileInitials: String,
+    onOpenAccount: () -> Unit,
+) {
     val colors = LocalVaiinillaColors.current
     Row(
         modifier =
@@ -346,7 +356,7 @@ private fun CartTopBar(onBack: () -> Unit) {
                     .size(44.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(colors.paper2)
-                    .clickable(onClick = onBack),
+                    .physicalPress(scale = PhysicalPressScale.Small, onClick = onBack),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -361,15 +371,15 @@ private fun CartTopBar(onBack: () -> Unit) {
                 Modifier
                     .size(44.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(colors.ink),
+                    .background(colors.paper2)
+                    .physicalPress(scale = PhysicalPressScale.Small, onClick = onOpenAccount),
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                "VA",
-                color = colors.paper,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 12.sp,
-                letterSpacing = 0.6.sp,
+                profileInitials,
+                color = colors.ink,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
             )
         }
     }
