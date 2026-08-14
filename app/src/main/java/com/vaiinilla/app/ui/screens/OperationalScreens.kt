@@ -35,6 +35,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.mode.RestrictedMode
+import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.ui.components.AuthHeroSheetScaffold
@@ -63,6 +64,9 @@ fun CashierOperationalScreen(
     onReloadWallet: (userId: String, amount: String) -> Unit = { _, _ -> },
     onChangeMode: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
+    onToggleProductAvailable: (productId: Int, available: Boolean) -> Unit = { _, _ -> },
+    onCreateCashierProduct: (CatalogProductDraft, ByteArray?, String?, String?) -> Unit = { _, _, _, _ -> },
+    onUploadCashierProductImage: (Int, ByteArray, String, String) -> Unit = { _, _, _, _ -> },
 ) {
     val pending = state.orders.filter { it.summary.state == OrderState.PENDING_PAYMENT }
     val ready = state.orders.filter { it.summary.state == OrderState.READY }
@@ -90,6 +94,16 @@ fun CashierOperationalScreen(
         ) {
         restrictedMode?.let { mode -> item { RestrictedModeNotice(mode) } }
         state.errorMessage?.let { message -> item { OperationalError(message) } }
+        item {
+            CashierCatalogPanel(
+                catalog = state.catalog,
+                acting = state.acting,
+                enabled = restrictedMode != RestrictedMode.READ_ONLY,
+                onToggleAvailable = onToggleProductAvailable,
+                onCreateProduct = onCreateCashierProduct,
+                onUploadImage = onUploadCashierProductImage,
+            )
+        }
         item {
             val open = state.cashSessionOpen
             Text(

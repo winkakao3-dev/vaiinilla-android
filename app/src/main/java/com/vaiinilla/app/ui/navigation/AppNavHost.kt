@@ -761,6 +761,9 @@ fun AppNavHost(
                         authorizedAccessState.activeContext
                             ?.takeIf { it.role == OperationalRole.CASHIER }
                             ?.restrictedMode,
+                    onToggleProductAvailable = operationalViewModel::setProductAvailable,
+                    onCreateCashierProduct = operationalViewModel::createCashierProduct,
+                    onUploadCashierProductImage = operationalViewModel::uploadCashierProductImage,
                 )
             }
 

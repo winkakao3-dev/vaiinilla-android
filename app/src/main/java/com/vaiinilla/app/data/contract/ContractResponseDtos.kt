@@ -63,7 +63,7 @@ data class ProductDto(
     @SerialName("precio_digital") val digitalPrice: String,
     @SerialName("disponible") val available: Boolean,
     @SerialName("imagen_url") val imageUrl: String? = null,
-    @SerialName("grupos_opcion") val optionGroups: List<OptionGroupDto>,
+    @SerialName("grupos_opcion") val optionGroups: List<OptionGroupDto> = emptyList(),
 )
 
 @Serializable
@@ -80,4 +80,44 @@ data class ProductOptionDto(
     val id: Int,
     @SerialName("nombre") val name: String,
     @SerialName("precio_extra") val extraPrice: String,
+)
+
+@Serializable
+data class ProductEnvelopeDto(
+    val data: ProductDto,
+    val meta: MetaDto = MetaDto(),
+    val error: JsonElement? = null,
+)
+
+@Serializable
+data class CatalogProductWriteDto(
+    @SerialName("categoria_id") val categoryId: Int,
+    @SerialName("estacion_preparacion") val preparationStation: String,
+    @SerialName("nombre") val name: String,
+    @SerialName("descripcion") val description: String?,
+    @SerialName("ingredientes") val ingredients: String?,
+    @SerialName("alergenos") val allergens: String?,
+    @SerialName("tiempo_estimado_min") val estimatedTimeMinutes: Int,
+    @SerialName("precio_mostrador") val counterPrice: String,
+    @SerialName("disponible") val available: Boolean,
+    @SerialName("grupos_opcion") val optionGroups: List<CatalogOptionGroupWriteDto>,
+)
+
+@Serializable
+data class CatalogOptionGroupWriteDto(
+    @SerialName("nombre") val name: String,
+    @SerialName("min_selecciones") val minimumSelections: Int,
+    @SerialName("max_selecciones") val maximumSelections: Int,
+    @SerialName("opciones") val options: List<CatalogOptionWriteDto>,
+)
+
+@Serializable
+data class CatalogOptionWriteDto(
+    @SerialName("nombre") val name: String,
+    @SerialName("precio_extra") val extraPrice: String,
+)
+
+@Serializable
+data class ProductAvailabilityWriteDto(
+    @SerialName("disponible") val available: Boolean,
 )

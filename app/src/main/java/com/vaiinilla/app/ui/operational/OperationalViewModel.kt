@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -11,6 +12,7 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.WalletClient
 import com.vaiinilla.app.domain.repository.CashSessionRepository
+import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
 import com.vaiinilla.app.domain.repository.WalletRepository
 import com.vaiinilla.app.domain.usecase.CollectCashUseCase
@@ -43,6 +45,7 @@ class OperationalViewModel
         private val cashSessionRepository: CashSessionRepository,
         private val heartbeatRepository: DeviceHeartbeatRepository,
         private val walletRepository: WalletRepository,
+        private val catalogRepository: CatalogRepository,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(OperationalUiState())
         val uiState: State<OperationalUiState> = _uiState
@@ -61,11 +64,13 @@ class OperationalViewModel
                     walletClients = emptyList(),
                     walletSearchLoading = false,
                     walletReloadReceipt = null,
+                    catalog = null,
                 )
             pendingWalletReload = null
             sendHeartbeatIfNeeded()
             refreshCashSession()
             refresh()
+            if (role == OperationalRole.CASHIER) refreshCatalog()
             startPolling()
         }
 
@@ -417,6 +422,168 @@ class OperationalViewModel
             val role = _uiState.value.role ?: return
             refreshCashSession()
             refresh()
+            if (role == OperationalRole.CASHIER) refreshCatalog()
+        }
+
+        fun refreshCatalog() {
+            if (_uiState.value.role != OperationalRole.CASHIER) return
+            viewModelScope.launch {
+                val result = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }
+                _uiState.value =
+                    _uiState.value.copy(
+                        catalog = result.getOrNull(),
+                        errorMessage = result.exceptionOrNull()?.message ?: _uiState.value.errorMessage,
+                    )
+            }
+        }
+
+        fun setProductAvailable(
+            productId: Int,
+            available: Boolean,
+        ) {
+            if (_uiState.value.acting) return
+            _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
+            viewModelScope.launch {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        catalogRepository.setProductAvailability(
+                            productId = productId,
+                            available = available,
+                            idempotencyKey = UUID.randomUUID().toString(),
+                        )
+                    }
+                result.fold(
+                    onSuccess = { updated ->
+                        val catalog = _uiState.value.catalog
+                        _uiState.value =
+                            _uiState.value.copy(
+                                acting = false,
+                                catalog =
+                                    catalog?.copy(
+                                        products =
+                                            catalog.products.map { product ->
+                                                if (product.id == updated.id) updated else product
+                                            },
+                                    ),
+                            )
+                    },
+                    onFailure = { error ->
+                        _uiState.value =
+                            _uiState.value.copy(
+                                acting = false,
+                                errorMessage =
+                                    error.message
+                                        ?: "No se pudo actualizar la disponibilidad (producto $productId).",
+                            )
+                        refreshCatalog()
+                    },
+                )
+            }
+        }
+
+        fun createCashierProduct(
+            draft: CatalogProductDraft,
+            imageBytes: ByteArray? = null,
+            imageFilename: String? = null,
+            imageMime: String? = null,
+        ) {
+            if (imageBytes != null && imageBytes.size > MAX_PRODUCT_IMAGE_BYTES) {
+                _uiState.value =
+                    _uiState.value.copy(errorMessage = "La foto no puede pesar más de 5 MB.")
+                return
+            }
+            if (_uiState.value.acting) return
+            _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
+            viewModelScope.launch {
+                val created =
+                    withContext(Dispatchers.IO) {
+                        catalogRepository.createProduct(draft, UUID.randomUUID().toString())
+                    }
+                val createdProduct = created.getOrElse { error ->
+                    _uiState.value =
+                        _uiState.value.copy(
+                            acting = false,
+                            errorMessage = error.message ?: "No se pudo crear el producto.",
+                        )
+                    return@launch
+                }
+                if (imageBytes != null && imageFilename != null && imageMime != null) {
+                    val uploaded =
+                        withContext(Dispatchers.IO) {
+                            catalogRepository.uploadProductImage(
+                                productId = createdProduct.id,
+                                bytes = imageBytes,
+                                filename = imageFilename,
+                                mimeType = imageMime,
+                                idempotencyKey = UUID.randomUUID().toString(),
+                            )
+                        }
+                    if (uploaded.isFailure) {
+                        _uiState.value =
+                            _uiState.value.copy(
+                                acting = false,
+                                errorMessage =
+                                    uploaded.exceptionOrNull()?.message
+                                        ?: "El producto se creó, pero la foto no se subió.",
+                            )
+                        refreshCatalog()
+                        return@launch
+                    }
+                }
+                _uiState.value = _uiState.value.copy(acting = false)
+                refreshCatalog()
+            }
+        }
+
+        fun uploadCashierProductImage(
+            productId: Int,
+            bytes: ByteArray,
+            filename: String,
+            mimeType: String,
+        ) {
+            if (bytes.size > MAX_PRODUCT_IMAGE_BYTES) {
+                _uiState.value =
+                    _uiState.value.copy(errorMessage = "La foto no puede pesar más de 5 MB.")
+                return
+            }
+            if (_uiState.value.acting) return
+            _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
+            viewModelScope.launch {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        catalogRepository.uploadProductImage(
+                            productId = productId,
+                            bytes = bytes,
+                            filename = filename,
+                            mimeType = mimeType,
+                            idempotencyKey = UUID.randomUUID().toString(),
+                        )
+                    }
+                result.fold(
+                    onSuccess = { updated ->
+                        val catalog = _uiState.value.catalog
+                        _uiState.value =
+                            _uiState.value.copy(
+                                acting = false,
+                                catalog =
+                                    catalog?.copy(
+                                        products =
+                                            catalog.products.map { product ->
+                                                if (product.id == updated.id) updated else product
+                                            },
+                                    ),
+                            )
+                    },
+                    onFailure = { error ->
+                        _uiState.value =
+                            _uiState.value.copy(
+                                acting = false,
+                                errorMessage =
+                                    error.message ?: "No se pudo subir la foto (producto $productId).",
+                            )
+                    },
+                )
+            }
         }
 
         fun applyGalleryClientOrders(
@@ -443,6 +610,7 @@ class OperationalViewModel
 
         private companion object {
             const val POLL_INTERVAL_MS = 5_000L
+            const val MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024
         }
     }
 

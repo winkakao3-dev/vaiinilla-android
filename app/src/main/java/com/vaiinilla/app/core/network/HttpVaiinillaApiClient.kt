@@ -1,5 +1,6 @@
 package com.vaiinilla.app.core.network
 
+import android.util.Log
 import com.vaiinilla.app.core.auth.ActiveSessionRefresher
 import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.security.SecureSessionStore
@@ -32,6 +33,54 @@ class HttpVaiinillaApiClient
             body: String,
             headers: Map<String, String>,
         ): Result<String> = execute(method = "POST", path = path, body = body, headers = headers)
+
+        override fun put(
+            path: String,
+            body: String,
+            headers: Map<String, String>,
+        ): Result<String> = execute(method = "PUT", path = path, body = body, headers = headers)
+
+        override fun putMultipart(
+            path: String,
+            fieldName: String,
+            filename: String,
+            mimeType: String,
+            bytes: ByteArray,
+            headers: Map<String, String>,
+        ): Result<String> =
+            runCatching {
+                sendMultipartOnce(
+                    method = "PUT",
+                    path = path,
+                    fieldName = fieldName,
+                    filename = filename,
+                    mimeType = mimeType,
+                    bytes = bytes,
+                    headers = headers,
+                    allowSessionRefresh = true,
+                )
+            }
+
+        override fun postMultipart(
+            path: String,
+            fieldName: String,
+            filename: String,
+            mimeType: String,
+            bytes: ByteArray,
+            headers: Map<String, String>,
+        ): Result<String> =
+            runCatching {
+                sendMultipartOnce(
+                    method = "POST",
+                    path = path,
+                    fieldName = fieldName,
+                    filename = filename,
+                    mimeType = mimeType,
+                    bytes = bytes,
+                    headers = headers,
+                    allowSessionRefresh = true,
+                )
+            }
 
         override fun getPublic(
             path: String,
@@ -142,6 +191,7 @@ class HttpVaiinillaApiClient
             }
 
             val connection = openConnection(method, path, query)
+            connection.instanceFollowRedirects = false
             connection.setRequestProperty("Accept", "application/json")
             if (!token.isNullOrBlank()) {
                 connection.setRequestProperty("Authorization", "Bearer $token")
@@ -151,16 +201,21 @@ class HttpVaiinillaApiClient
             }
 
             if (body != null) {
+                val payload = body.toByteArray(Charsets.UTF_8)
                 connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 connection.doOutput = true
+                connection.requestMethod = method
+                connection.setFixedLengthStreamingMode(payload.size)
                 connection.outputStream.use { stream ->
-                    stream.write(body.toByteArray(Charsets.UTF_8))
+                    stream.write(payload)
                 }
             }
 
             val status = connection.responseCode
             val retryAfterSeconds = connection.getHeaderField("Retry-After")?.trim()?.toLongOrNull()
+            val location = connection.getHeaderField("Location")
             val raw = readBody(connection, status)
+            Log.w(TAG, "$method $path -> $status loc=$location ${raw.take(500)}")
             if (status in 200..299) {
                 return raw
             }
@@ -186,6 +241,81 @@ class HttpVaiinillaApiClient
             throw error
         }
 
+        private fun sendMultipartOnce(
+            method: String,
+            path: String,
+            fieldName: String,
+            filename: String,
+            mimeType: String,
+            bytes: ByteArray,
+            headers: Map<String, String>,
+            allowSessionRefresh: Boolean,
+        ): String {
+            val token = sessionStore.readAccessToken()?.takeIf { it.isNotBlank() }
+            if (token.isNullOrBlank()) throw MissingAccessTokenException()
+            val boundary = "----VaiinillaForm${System.nanoTime()}"
+            val safeName = filename.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "producto.jpg" }
+            val prelude =
+                buildString {
+                    append("--").append(boundary).append("\r\n")
+                    append("Content-Disposition: form-data; name=\"")
+                    append(fieldName)
+                    append("\"; filename=\"")
+                    append(safeName)
+                    append("\"\r\n")
+                    append("Content-Type: ").append(mimeType).append("\r\n\r\n")
+                }.toByteArray(Charsets.UTF_8)
+            val closing = "\r\n--$boundary--\r\n".toByteArray(Charsets.UTF_8)
+            val connection = (URL(buildUrl(path, emptyMap())).openConnection() as HttpURLConnection)
+            connection.connectTimeout = CONNECT_TIMEOUT_MS
+            connection.readTimeout = MULTIPART_READ_TIMEOUT_MS
+            connection.instanceFollowRedirects = false
+            connection.doOutput = true
+            connection.requestMethod = method
+            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("Authorization", "Bearer $token")
+            connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+            headers.forEach { (name, value) -> connection.setRequestProperty(name, value) }
+            connection.setFixedLengthStreamingMode(prelude.size + bytes.size + closing.size)
+            try {
+                connection.outputStream.use { stream ->
+                    stream.write(prelude)
+                    stream.write(bytes)
+                    stream.write(closing)
+                }
+                val status = connection.responseCode
+                val retryAfterSeconds = connection.getHeaderField("Retry-After")?.trim()?.toLongOrNull()
+                val location = connection.getHeaderField("Location")
+                val raw = readBody(connection, status)
+                Log.w(
+                    TAG,
+                    "$method-MULTIPART $path (${bytes.size} bytes) -> $status loc=$location ${raw.take(500)}",
+                )
+                if (status in 200..299) return raw
+                val error = responseParser.parseError(raw, status, retryAfterSeconds)
+                if (
+                    allowSessionRefresh &&
+                    error.httpStatus == 401 &&
+                    error.code.equals("UNAUTHENTICATED", ignoreCase = true)
+                ) {
+                    sessionRefresher.refreshActiveSession().getOrThrow()
+                    return sendMultipartOnce(
+                        method = method,
+                        path = path,
+                        fieldName = fieldName,
+                        filename = filename,
+                        mimeType = mimeType,
+                        bytes = bytes,
+                        headers = headers,
+                        allowSessionRefresh = false,
+                    )
+                }
+                throw error
+            } finally {
+                connection.disconnect()
+            }
+        }
+
         private fun openConnection(
             method: String,
             path: String,
@@ -193,6 +323,7 @@ class HttpVaiinillaApiClient
         ): HttpURLConnection {
             val url = URL(buildUrl(path, query))
             return (url.openConnection() as HttpURLConnection).apply {
+                instanceFollowRedirects = false
                 requestMethod = method
                 connectTimeout = CONNECT_TIMEOUT_MS
                 readTimeout = READ_TIMEOUT_MS
@@ -232,7 +363,9 @@ class HttpVaiinillaApiClient
         }
 
         private companion object {
+            const val TAG = "VaiinillaHttp"
             const val CONNECT_TIMEOUT_MS = 15_000
             const val READ_TIMEOUT_MS = 20_000
+            const val MULTIPART_READ_TIMEOUT_MS = 60_000
         }
     }

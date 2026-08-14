@@ -51,5 +51,14 @@
                     android:pathPrefix="/invitaciones/aceptar" />
             </intent-filter>
         </activity>
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.product_photos"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/product_photo_paths" />
+        </provider>
     </application>
 </manifest>

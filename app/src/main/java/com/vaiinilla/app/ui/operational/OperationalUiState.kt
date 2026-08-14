@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.operational
 
+import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.WalletClient
@@ -17,6 +18,7 @@ data class OperationalUiState(
     val walletClients: List<WalletClient> = emptyList(),
     val walletSearchLoading: Boolean = false,
     val walletReloadReceipt: WalletReloadReceipt? = null,
+    val catalog: Catalog? = null,
 ) {
     val selectedOrder: OrderDetail?
         get() = orders.firstOrNull { it.summary.id == selectedOrderId }

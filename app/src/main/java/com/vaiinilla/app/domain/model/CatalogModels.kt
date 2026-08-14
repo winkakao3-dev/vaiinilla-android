@@ -28,6 +28,18 @@ data class Product(
     val optionGroups: List<OptionGroup>,
 )
 
+data class CatalogProductDraft(
+    val categoryId: Int,
+    val preparationStation: PreparationStation,
+    val name: String,
+    val description: String = "",
+    val ingredients: String = "",
+    val allergens: String = "",
+    val estimatedTimeMinutes: Int,
+    val counterPrice: String,
+    val available: Boolean = true,
+)
+
 data class OptionGroup(
     val id: Int,
     val name: String,
