@@ -312,19 +312,9 @@ private fun DiscoveryBrandRow(
         modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(colors.paper2),
-            contentAlignment = Alignment.Center,
-        ) {
-            VaiinillaMark(
-                modifier = Modifier.padding(6.dp).fillMaxSize(),
-                cream = colors.ink,
-            )
-        }
+        VaiinillaMark(
+            modifier = Modifier.size(36.dp),
+        )
         Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
             Text("Vaiinilla", color = colors.ink, fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold)
             Text(
