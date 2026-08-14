@@ -35,11 +35,11 @@ fun SplashScreen(onFinished: () -> Unit) {
     val colors = LocalVaiinillaColors.current
     val themeMode = LocalVaiinillaThemeMode.current
     val isSystemDark = androidx.compose.foundation.isSystemInDarkTheme()
-    val splashBackground =
-        when (themeMode.resolveEffectiveMode(isSystemDark)) {
-            VaiinillaThemeMode.Dark, VaiinillaThemeMode.Amoled -> DarkSplash
-            VaiinillaThemeMode.Light, VaiinillaThemeMode.System -> colors.paper
-        }
+    val effectiveMode = themeMode.resolveEffectiveMode(isSystemDark)
+    val isDarkTheme = effectiveMode == VaiinillaThemeMode.Dark || effectiveMode == VaiinillaThemeMode.Amoled
+    val splashBackground = if (isDarkTheme) DarkSplash else colors.paper
+    val splashLogoRes = if (isDarkTheme) R.drawable.logo_splash_dark else R.drawable.logo_splash_light
+
     val iconIn = remember { Animatable(0f) }
     val iconScale = remember { Animatable(0.85f) }
     val splashAlpha = remember { Animatable(1f) }
@@ -74,7 +74,7 @@ fun SplashScreen(onFinished: () -> Unit) {
             contentAlignment = Alignment.Center,
         ) {
             Image(
-                painter = painterResource(id = R.drawable.logo_splash),
+                painter = painterResource(id = splashLogoRes),
                 contentDescription = "Vaiinilla",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit,
