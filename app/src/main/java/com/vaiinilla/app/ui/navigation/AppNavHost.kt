@@ -282,20 +282,40 @@ fun AppNavHost(
     ) {
         NavHost(navController = navController, startDestination = Routes.SPLASH) {
             composable(Routes.SPLASH) {
+                var preloadedDestination by remember { mutableStateOf<LaunchDestination?>(null) }
+
+                LaunchedEffect(Unit) {
+                    authorizedAccessViewModel.refreshCurrentSession()
+                    studentAuthViewModel.refreshGuestVenue()
+                    discoveryViewModel.search("")
+                    if (orderState.guestVenue != null) {
+                        orderFlowViewModel.refresh()
+                    }
+                    authorizedAccessViewModel.refreshModes(force = true) {
+                        preloadedDestination =
+                            resolveLaunchDestination(
+                                pendingEstablishmentSlug = pendingEstablishmentSlug,
+                                session = authorizedAccessViewModel.state.value.session,
+                                hasStaffModes =
+                                    hasStaffLaunchModes(
+                                        authorizedAccessViewModel.state.value.modes.map { it.role },
+                                    ),
+                            )
+                    }
+                }
+
                 SplashScreen(
                     onFinished = {
-                        authorizedAccessViewModel.refreshModes(force = true) {
-                            navigateLaunchDestination(
-                                resolveLaunchDestination(
-                                    pendingEstablishmentSlug = pendingEstablishmentSlug,
-                                    session = authorizedAccessViewModel.state.value.session,
-                                    hasStaffModes =
-                                        hasStaffLaunchModes(
-                                            authorizedAccessViewModel.state.value.modes.map { it.role },
-                                        ),
-                                ),
+                        val destination =
+                            preloadedDestination ?: resolveLaunchDestination(
+                                pendingEstablishmentSlug = pendingEstablishmentSlug,
+                                session = authorizedAccessViewModel.state.value.session,
+                                hasStaffModes =
+                                    hasStaffLaunchModes(
+                                        authorizedAccessViewModel.state.value.modes.map { it.role },
+                                    ),
                             )
-                        }
+                        navigateLaunchDestination(destination)
                     },
                 )
             }
