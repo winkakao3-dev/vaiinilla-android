@@ -117,14 +117,21 @@ fun AppNavHost(
         // Keep a guest cart in its tenant-scoped snapshot, but do not carry the
         // guest venue/catalog state into an authenticated operational context.
         orderFlowViewModel.clearGuestVenue()
-        when (modeRole) {
-            OperationalRole.CASHIER -> navController.navigate(Routes.CASHIER) { launchSingleTop = true }
-            OperationalRole.KITCHEN -> navController.navigate(Routes.KITCHEN) { launchSingleTop = true }
-            OperationalRole.WAITER -> navController.navigate(Routes.WAITER) { launchSingleTop = true }
-            OperationalRole.CLIENT -> {
-                orderFlowViewModel.refresh()
-                navController.navigateStudent(Routes.CATALOG)
+        val targetRoute =
+            when (modeRole) {
+                OperationalRole.CASHIER -> Routes.CASHIER
+                OperationalRole.KITCHEN -> Routes.KITCHEN
+                OperationalRole.WAITER -> Routes.WAITER
+                OperationalRole.CLIENT -> Routes.CATALOG
             }
+        if (modeRole == OperationalRole.CLIENT) {
+            orderFlowViewModel.refresh()
+        }
+        navController.navigate(targetRoute) {
+            popUpTo(Routes.DISCOVERY) {
+                inclusive = false
+            }
+            launchSingleTop = true
         }
     }
 
@@ -133,7 +140,12 @@ fun AppNavHost(
             operationalViewModel.setRole(OperationalRole.CLIENT)
             orderFlowViewModel.clearGuestVenue()
             orderFlowViewModel.refresh()
-            navController.navigateStudent(Routes.CATALOG)
+            navController.navigate(Routes.CATALOG) {
+                popUpTo(Routes.DISCOVERY) {
+                    inclusive = false
+                }
+                launchSingleTop = true
+            }
         }
     }
 
@@ -755,15 +767,7 @@ fun AppNavHost(
                 }
                 CashierOperationalScreen(
                     state = operationalState,
-                    onBack =
-                        if (authorizedCashier) {
-                            {
-                                operationalViewModel.clearRole()
-                                navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true }
-                            }
-                        } else {
-                            returnToModes(navController, operationalViewModel)
-                        },
+                    onBack = returnToModes(navController, operationalViewModel),
                     onOpenCashSession = operationalViewModel::openCashRegister,
                     onCollect = operationalViewModel::collectCash,
                     onSearchWalletClients = operationalViewModel::searchWalletClients,
@@ -775,10 +779,7 @@ fun AppNavHost(
                     },
                     onChangeMode =
                         if (authorizedCashier && authorizedAccessState.hasMultipleModes) {
-                            {
-                                operationalViewModel.clearRole()
-                                navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true }
-                            }
+                            returnToModes(navController, operationalViewModel)
                         } else {
                             null
                         },
@@ -796,30 +797,17 @@ fun AppNavHost(
                 val authorizedKitchen = authorizedAccessState.activeContext?.role == OperationalRole.KITCHEN
                 LaunchedEffect(authorizedKitchen) {
                     if (!authorizedKitchen) {
-                        navController.navigate(Routes.VAI27_MODES) {
-                            launchSingleTop = true
-                        }
+                        returnToModes(navController, operationalViewModel)()
                     }
                 }
                 KitchenOperationalScreen(
                     state = operationalState,
-                    onBack =
-                        if (authorizedKitchen) {
-                            {
-                                operationalViewModel.clearRole()
-                                navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true }
-                            }
-                        } else {
-                            returnToModes(navController, operationalViewModel)
-                        },
+                    onBack = returnToModes(navController, operationalViewModel),
                     onStart = operationalViewModel::startKitchen,
                     onReady = operationalViewModel::markReady,
                     onChangeMode =
                         if (authorizedKitchen && authorizedAccessState.hasMultipleModes) {
-                            {
-                                operationalViewModel.clearRole()
-                                navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true }
-                            }
+                            returnToModes(navController, operationalViewModel)
                         } else {
                             null
                         },
@@ -834,32 +822,19 @@ fun AppNavHost(
                 val authorizedWaiter = authorizedAccessState.activeContext?.role == OperationalRole.WAITER
                 LaunchedEffect(authorizedWaiter) {
                     if (!authorizedWaiter) {
-                        navController.navigate(Routes.VAI27_MODES) {
-                            launchSingleTop = true
-                        }
+                        returnToModes(navController, operationalViewModel)()
                     }
                 }
                 WaiterOperationalScreen(
                     state = operationalState,
-                    onBack =
-                        if (authorizedWaiter) {
-                            {
-                                operationalViewModel.clearRole()
-                                navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true }
-                            }
-                        } else {
-                            returnToModes(navController, operationalViewModel)
-                        },
+                    onBack = returnToModes(navController, operationalViewModel),
                     onDeliver = { orderId, version -> operationalViewModel.deliver(orderId, version) },
                     onScanDeliver = { orderId, version ->
                         pendingPickupDelivery = PendingPickupDelivery(orderId, version)
                     },
                     onChangeMode =
                         if (authorizedWaiter && authorizedAccessState.hasMultipleModes) {
-                            {
-                                operationalViewModel.clearRole()
-                                navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true }
-                            }
+                            returnToModes(navController, operationalViewModel)
                         } else {
                             null
                         },
@@ -921,6 +896,9 @@ private fun returnToModes(
     {
         operationalViewModel.clearRole()
         navController.navigate(Routes.VAI27_MODES) {
+            popUpTo(Routes.DISCOVERY) {
+                inclusive = false
+            }
             launchSingleTop = true
         }
     }
