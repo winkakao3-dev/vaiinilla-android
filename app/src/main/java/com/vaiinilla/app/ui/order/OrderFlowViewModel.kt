@@ -416,6 +416,11 @@ class OrderFlowViewModel
             _uiState.value = state.copy(creatingOrder = true, createOrderError = null)
             viewModelScope.launch {
                 var current = _uiState.value
+                current.guestVenue?.let { venue ->
+                    if (sessionStore.readAccessToken().isNullOrBlank()) {
+                        withContext(Dispatchers.IO) { refreshClientContext(venue) }
+                    }
+                }
                 val staffPresenceResult =
                     withContext(Dispatchers.IO) {
                         staffPresenceCoordinator.primeStaffPresence()

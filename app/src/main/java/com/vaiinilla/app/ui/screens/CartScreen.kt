@@ -215,12 +215,16 @@ fun CartScreen(
                     CartSectionHead("Resumen", productCountLabel)
                     OrderSummaryCard(state = state)
                 }
-                if (state.requiresOperationalReady && !guestAuthRequired && state.operationalStatus != null) {
-                    state.operationalBlockerMessage?.let { blocker ->
-                        item {
-                            Spacer(Modifier.height(12.dp))
-                            WarningBanner(message = blocker)
-                        }
+                val blockerMessage =
+                    if (state.requiresOperationalReady && !guestAuthRequired && state.operationalStatus != null) {
+                        state.operationalBlockerMessage
+                    } else {
+                        null
+                    }
+                if (blockerMessage != null && blockerMessage != state.createOrderError) {
+                    item {
+                        Spacer(Modifier.height(12.dp))
+                        WarningBanner(message = blockerMessage)
                     }
                 }
                 state.createOrderError?.let { error ->

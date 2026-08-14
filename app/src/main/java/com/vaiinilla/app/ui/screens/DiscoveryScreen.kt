@@ -676,24 +676,24 @@ private fun DiscoveryBottomBar(
                     .fillMaxWidth()
                     .height(58.dp)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(colors.ink)
+                    .background(colors.accent)
                     .physicalPress(onClick = onContinue)
                     .padding(horizontal = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Cafetería activa", color = Color(0xFFB4B5AE), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                Text(name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("Cafetería activa", color = colors.accentInk.copy(alpha = 0.70f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Text(name, color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Box(
                 modifier =
                     Modifier
                         .size(32.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White.copy(alpha = 0.10f)),
+                        .background(colors.accentInk.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(17.dp))
+                Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = colors.accentInk, modifier = Modifier.size(17.dp))
             }
         }
     }

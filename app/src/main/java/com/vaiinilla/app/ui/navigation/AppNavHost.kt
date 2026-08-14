@@ -244,7 +244,14 @@ fun AppNavHost(
     fun navigateStudentAuth(returnRoute: String = Routes.CART) {
         orderFlowViewModel.prepareForGuestAuth()
         studentAuthViewModel.refreshGuestVenue()
-        navController.navigate(Routes.authLandingRoute(returnRoute)) {
+        val session = studentAuthViewModel.state.value.session
+        val targetRoute =
+            if (session != null && !session.emailVerified) {
+                Routes.authVerifyRoute(returnRoute)
+            } else {
+                Routes.authLandingRoute(returnRoute)
+            }
+        navController.navigate(targetRoute) {
             launchSingleTop = true
         }
     }
