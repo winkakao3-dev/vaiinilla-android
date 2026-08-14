@@ -32,10 +32,11 @@ private val BootEaseExpand = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)
 fun SplashScreen(onFinished: () -> Unit) {
     val colors = LocalVaiinillaColors.current
     val themeMode = LocalVaiinillaThemeMode.current
+    val isSystemDark = androidx.compose.foundation.isSystemInDarkTheme()
     val splashBackground =
-        when (themeMode) {
+        when (themeMode.resolveEffectiveMode(isSystemDark)) {
             VaiinillaThemeMode.Dark, VaiinillaThemeMode.Amoled -> DarkSplash
-            VaiinillaThemeMode.Light -> colors.paper
+            VaiinillaThemeMode.Light, VaiinillaThemeMode.System -> colors.paper
         }
     val iconIn = remember { Animatable(0f) }
     val iconScale = remember { Animatable(0.7f) }

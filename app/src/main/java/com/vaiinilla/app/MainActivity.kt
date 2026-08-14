@@ -42,6 +42,32 @@ class MainActivity : ComponentActivity() {
         setContent {
             val context = LocalContext.current
             var themeMode by remember { mutableStateOf(ThemePreferences.load(context)) }
+            val isSystemDark = androidx.compose.foundation.isSystemInDarkTheme()
+            val isDark = themeMode.resolveEffectiveMode(isSystemDark) != com.vaiinilla.app.ui.theme.VaiinillaThemeMode.Light
+
+            androidx.compose.runtime.DisposableEffect(isDark) {
+                enableEdgeToEdge(
+                    statusBarStyle =
+                        if (isDark) {
+                            SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                        } else {
+                            SystemBarStyle.light(
+                                android.graphics.Color.TRANSPARENT,
+                                android.graphics.Color.TRANSPARENT,
+                            )
+                        },
+                    navigationBarStyle =
+                        if (isDark) {
+                            SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                        } else {
+                            SystemBarStyle.light(
+                                android.graphics.Color.TRANSPARENT,
+                                android.graphics.Color.TRANSPARENT,
+                            )
+                        },
+                )
+                onDispose {}
+            }
 
             VaiinillaTheme(
                 themeMode = themeMode,

@@ -8,7 +8,7 @@ object ThemePreferences {
 
     fun load(context: Context): VaiinillaThemeMode {
         val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return VaiinillaThemeMode.fromStorageKey(prefs.getString(KEY_THEME, VaiinillaThemeMode.Light.storageKey))
+        return VaiinillaThemeMode.fromStorageKey(prefs.getString(KEY_THEME, VaiinillaThemeMode.System.storageKey))
     }
 
     fun save(

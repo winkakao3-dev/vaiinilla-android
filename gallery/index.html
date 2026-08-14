@@ -1,0 +1,1518 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vaiinilla Android — Pantallas Oficiales Vivas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #0a0b0c;
+      --bg-card: #131518;
+      --bg-hover: #1c1f24;
+      --border-subtle: #23272e;
+      --border-focus: #3e4451;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent: #f59e0b;
+      --accent-soft: rgba(245, 158, 11, 0.12);
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --shadow-card: 0 12px 32px -8px rgba(0,0,0,0.6);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    header {
+      background: rgba(19, 21, 24, 0.9);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-badge {
+      background: #f59e0b;
+      color: #000;
+      font-weight: 800;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-title h1 {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-title p {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .search-box {
+      position: relative;
+      width: 280px;
+    }
+
+    .search-input {
+      width: 100%;
+      background: #0d0f11;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px 8px 36px;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: var(--font-sans);
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .stats-pill {
+      background: #15181c;
+      border: 1px solid var(--border-subtle);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .stats-pill strong {
+      color: var(--accent-green);
+      font-weight: 800;
+    }
+
+    main {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 24px 32px;
+      width: 100%;
+      flex: 1;
+    }
+
+    .status-notice {
+      background: #111418;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .status-notice p {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .status-notice strong {
+      color: var(--text-primary);
+    }
+
+    .status-notice .tag-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--accent-green);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .category-bar {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+      scrollbar-width: thin;
+    }
+
+    .cat-chip {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      padding: 8px 16px;
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .cat-chip:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--border-focus);
+    }
+
+    .cat-chip.active {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+      font-weight: 700;
+    }
+
+    .cat-chip .count {
+      background: rgba(255,255,255,0.12);
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+
+    .cat-chip.active .count {
+      background: rgba(0,0,0,0.2);
+      color: #000;
+    }
+
+    .screens-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 24px;
+    }
+
+    .screen-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
+      position: relative;
+    }
+
+    .screen-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--border-focus);
+      box-shadow: var(--shadow-card);
+    }
+
+    .screen-card.is-deprecated {
+      opacity: 0.65;
+      border-style: dashed;
+    }
+
+    .screen-card.is-deprecated:hover {
+      opacity: 1;
+    }
+
+    .card-preview {
+      background: #000;
+      position: relative;
+      aspect-ratio: 9 / 19.5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .card-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;
+      transition: transform 0.3s ease;
+    }
+
+    .screen-card:hover .card-preview img {
+      transform: scale(1.02);
+    }
+
+    .card-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.78);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.3px;
+    }
+
+    .card-badge.badge-dep {
+      background: rgba(239, 68, 68, 0.85);
+      color: #fff;
+      border: none;
+    }
+
+    .card-info {
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+
+    .card-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+      flex: 1;
+    }
+
+    .card-footer {
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .card-route {
+      color: var(--accent);
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 180px;
+    }
+
+    /* Lightbox Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.88);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      max-width: 1000px;
+      width: 100%;
+      max-height: 92vh;
+      display: flex;
+      overflow: hidden;
+      box-shadow: 0 25px 60px -15px rgba(0,0,0,0.8);
+      position: relative;
+    }
+
+    .modal-image-col {
+      background: #000;
+      flex: 1.2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow: auto;
+    }
+
+    .modal-image-col img {
+      max-height: 80vh;
+      max-width: 100%;
+      border-radius: 24px;
+      border: 6px solid #1c1f24;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+    }
+
+    .modal-info-col {
+      flex: 0.9;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border-left: 1px solid var(--border-subtle);
+      background: var(--bg-card);
+    }
+
+    .modal-header h2 {
+      font-size: 20px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .modal-header .cat-label {
+      display: inline-block;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+
+    .modal-header p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .spec-table {
+      margin: 20px 0;
+      border-top: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 16px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+
+    .spec-row {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-secondary);
+    }
+
+    .spec-row strong {
+      color: var(--text-primary);
+    }
+
+    .modal-nav-btns {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px;
+      background: #20242a;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #20242a;
+      border: 1px solid var(--border-subtle);
+      color: #fff;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    .close-btn:hover {
+      background: #ff4444;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-badge">PRODUCCIÓN</div>
+      <div class="brand-title">
+        <h1>Vaiinilla Android — Pantallas Oficiales Vivas</h1>
+        <p>100% Jetpack Compose · AppNavHost Verificado</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" class="search-input" placeholder="Buscar pantalla o ruta...">
+      </div>
+      <div class="stats-pill">
+        <strong>38</strong> Pantallas Vivas en App
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="status-notice">
+      <div>
+        <p>Mostrando las <strong>38 pantallas activas y reales</strong> conectadas al grafo de navegación (<code>AppNavHost.kt</code>). Las 17 pantallas o mocks antiguos fueron filtrados a la pestaña "Archivadas".</p>
+      </div>
+      <div class="tag-live">
+        ● 38 Pantallas en Producción
+      </div>
+    </div>
+
+    <div class="category-bar">
+      <button class="cat-chip active" data-category="all_live">🔥 Pantallas Vivas (38) <span class="count">38</span></button><button class="cat-chip " data-category="discovery">📍 Descubrimiento & Entrada <span class="count">5</span></button><button class="cat-chip " data-category="auth">🔐 Autenticación & Identidad <span class="count">7</span></button><button class="cat-chip " data-category="menu">☕ Menú & Catálogo Alumno <span class="count">5</span></button><button class="cat-chip " data-category="cart">🛍️ Carrito & Checkout <span class="count">5</span></button><button class="cat-chip " data-category="tracking">⏱️ Tracking de Pedido <span class="count">6</span></button><button class="cat-chip " data-category="wallet">💳 Wallet & Finanzas <span class="count">6</span></button><button class="cat-chip " data-category="assistant">✨ Asistente IA <span class="count">1</span></button><button class="cat-chip " data-category="staff">👨‍🍳 Caja, Cocina & Mesero <span class="count">3</span></button><button class="cat-chip " data-category="deprecated">📦 Archivadas / Reemplazadas <span class="count">17</span></button>
+    </div>
+
+    <div class="screens-grid" id="screensGrid">
+      
+      <div class="screen-card " data-category="discovery" data-id="01_splash" data-title="Splash de Inicio" data-desc="Splash screen minimalista con isotipo e inicialización de sesión." data-badge="Splash" data-route="Routes.SPLASH" data-file="screenshots/01_splash.png">
+        <div class="card-preview">
+          <img src="screenshots/01_splash.png?v=01_splash" alt="Splash de Inicio" loading="lazy">
+          <span class="card-badge ">Splash</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Splash de Inicio</h3>
+          <p class="card-desc">Splash screen minimalista con isotipo e inicialización de sesión.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.SPLASH</span>
+            <span>01_splash.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="discovery" data-id="vai25_discovery_list" data-title="¿Dónde comes hoy? (Descubrimiento)" data-desc="Pantalla principal de cafeterías con buscador '¿Dónde comes hoy?', acceso por QR y selección de sucursal." data-badge="Descubrimiento" data-route="Routes.DISCOVERY" data-file="screenshots/vai25_discovery_list.png">
+        <div class="card-preview">
+          <img src="screenshots/vai25_discovery_list.png?v=vai25_discovery_list" alt="¿Dónde comes hoy? (Descubrimiento)" loading="lazy">
+          <span class="card-badge ">Descubrimiento</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">¿Dónde comes hoy? (Descubrimiento)</h3>
+          <p class="card-desc">Pantalla principal de cafeterías con buscador '¿Dónde comes hoy?', acceso por QR y selección de sucursal.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.DISCOVERY</span>
+            <span>vai25_discovery_list.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="discovery" data-id="vai25_discovery_active_mesa4" data-title="Establecimiento y Mesa 4 Fijada" data-desc="Vista tras escanear un QR de mesa o token, con botón inferior para continuar directo al menú." data-badge="Mesa QR" data-route="Routes.DISCOVERY (Mesa)" data-file="screenshots/vai25_discovery_active_mesa4.png">
+        <div class="card-preview">
+          <img src="screenshots/vai25_discovery_active_mesa4.png?v=vai25_discovery_active_mesa4" alt="Establecimiento y Mesa 4 Fijada" loading="lazy">
+          <span class="card-badge ">Mesa QR</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Establecimiento y Mesa 4 Fijada</h3>
+          <p class="card-desc">Vista tras escanear un QR de mesa o token, con botón inferior para continuar directo al menú.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.DISCOVERY (Mesa)</span>
+            <span>vai25_discovery_active_mesa4.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="discovery" data-id="vai25_catalog_guest_venue" data-title="Catálogo Invitado (Sin Sesión)" data-desc="Menú completo navegable antes del login o registro de alumno." data-badge="Invitado" data-route="Routes.CATALOG (Invitado)" data-file="screenshots/vai25_catalog_guest_venue.png">
+        <div class="card-preview">
+          <img src="screenshots/vai25_catalog_guest_venue.png?v=vai25_catalog_guest_venue" alt="Catálogo Invitado (Sin Sesión)" loading="lazy">
+          <span class="card-badge ">Invitado</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Catálogo Invitado (Sin Sesión)</h3>
+          <p class="card-desc">Menú completo navegable antes del login o registro de alumno.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.CATALOG (Invitado)</span>
+            <span>vai25_catalog_guest_venue.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="discovery" data-id="45_qr_scanner" data-title="Lector QR de Mesas y Espacios" data-desc="Escáner con visor de cámara para leer los códigos QR pegados en comedores escolares." data-badge="Cámara" data-route="QrScannerDialog" data-file="screenshots/45_qr_scanner.png">
+        <div class="card-preview">
+          <img src="screenshots/45_qr_scanner.png?v=45_qr_scanner" alt="Lector QR de Mesas y Espacios" loading="lazy">
+          <span class="card-badge ">Cámara</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Lector QR de Mesas y Espacios</h3>
+          <p class="card-desc">Escáner con visor de cámara para leer los códigos QR pegados en comedores escolares.</p>
+          <div class="card-footer">
+            <span class="card-route">QrScannerDialog</span>
+            <span>45_qr_scanner.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="auth" data-id="31_auth_landing" data-title="Landing de Autenticación" data-desc="Punto de entrada para identificarse antes de confirmar un pedido." data-badge="Auth" data-route="Routes.AUTH_LANDING" data-file="screenshots/31_auth_landing.png">
+        <div class="card-preview">
+          <img src="screenshots/31_auth_landing.png?v=31_auth_landing" alt="Landing de Autenticación" loading="lazy">
+          <span class="card-badge ">Auth</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Landing de Autenticación</h3>
+          <p class="card-desc">Punto de entrada para identificarse antes de confirmar un pedido.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.AUTH_LANDING</span>
+            <span>31_auth_landing.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="auth" data-id="32_auth_login" data-title="Iniciar Sesión" data-desc="Login seguro con correo, contraseña e identificador contextual (matrícula)." data-badge="Auth" data-route="Routes.AUTH_LOGIN" data-file="screenshots/32_auth_login.png">
+        <div class="card-preview">
+          <img src="screenshots/32_auth_login.png?v=32_auth_login" alt="Iniciar Sesión" loading="lazy">
+          <span class="card-badge ">Auth</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Iniciar Sesión</h3>
+          <p class="card-desc">Login seguro con correo, contraseña e identificador contextual (matrícula).</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.AUTH_LOGIN</span>
+            <span>32_auth_login.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="auth" data-id="33_auth_register" data-title="Registro de Alumno" data-desc="Alta de usuario con nombre, correo institucional y términos legales." data-badge="Auth" data-route="Routes.AUTH_REGISTER" data-file="screenshots/33_auth_register.png">
+        <div class="card-preview">
+          <img src="screenshots/33_auth_register.png?v=33_auth_register" alt="Registro de Alumno" loading="lazy">
+          <span class="card-badge ">Auth</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Registro de Alumno</h3>
+          <p class="card-desc">Alta de usuario con nombre, correo institucional y términos legales.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.AUTH_REGISTER</span>
+            <span>33_auth_register.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="auth" data-id="34_auth_verify_email" data-title="Verificar Correo Electrónico" data-desc="Comprobación de correo verificado con botón de reenvío automático." data-badge="Auth" data-route="Routes.AUTH_VERIFY" data-file="screenshots/34_auth_verify_email.png">
+        <div class="card-preview">
+          <img src="screenshots/34_auth_verify_email.png?v=34_auth_verify_email" alt="Verificar Correo Electrónico" loading="lazy">
+          <span class="card-badge ">Auth</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Verificar Correo Electrónico</h3>
+          <p class="card-desc">Comprobación de correo verificado con botón de reenvío automático.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.AUTH_VERIFY</span>
+            <span>34_auth_verify_email.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="auth" data-id="35_auth_forgot_password" data-title="Recuperar Contraseña" data-desc="Envío de enlace seguro para restablecer credenciales de acceso." data-badge="Auth" data-route="Routes.AUTH_FORGOT" data-file="screenshots/35_auth_forgot_password.png">
+        <div class="card-preview">
+          <img src="screenshots/35_auth_forgot_password.png?v=35_auth_forgot_password" alt="Recuperar Contraseña" loading="lazy">
+          <span class="card-badge ">Auth</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Recuperar Contraseña</h3>
+          <p class="card-desc">Envío de enlace seguro para restablecer credenciales de acceso.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.AUTH_FORGOT</span>
+            <span>35_auth_forgot_password.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="auth" data-id="40_invitation_acceptance" data-title="Aceptar Invitación de Personal" data-desc="Recepción y validación de invitación de 72h para personal de cafetería." data-badge="Personal" data-route="Routes.VAI27_INVITATION" data-file="screenshots/40_invitation_acceptance.png">
+        <div class="card-preview">
+          <img src="screenshots/40_invitation_acceptance.png?v=40_invitation_acceptance" alt="Aceptar Invitación de Personal" loading="lazy">
+          <span class="card-badge ">Personal</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Aceptar Invitación de Personal</h3>
+          <p class="card-desc">Recepción y validación de invitación de 72h para personal de cafetería.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.VAI27_INVITATION</span>
+            <span>40_invitation_acceptance.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="auth" data-id="41_authorized_modes" data-title="Selector de Modos y Sucursales" data-desc="Panel para alternar entre rol Alumno, Caja, Cocina y cambio de tienda." data-badge="Roles & Tiendas" data-route="Routes.VAI27_MODES" data-file="screenshots/41_authorized_modes.png">
+        <div class="card-preview">
+          <img src="screenshots/41_authorized_modes.png?v=41_authorized_modes" alt="Selector de Modos y Sucursales" loading="lazy">
+          <span class="card-badge ">Roles & Tiendas</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Selector de Modos y Sucursales</h3>
+          <p class="card-desc">Panel para alternar entre rol Alumno, Caja, Cocina y cambio de tienda.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.VAI27_MODES</span>
+            <span>41_authorized_modes.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="menu" data-id="03_catalog" data-title="Menú y Catálogo Principal" data-desc="Categorías con chips, tarjetas de producto con foto, precios mostrador y digital." data-badge="Menú" data-route="Routes.CATALOG" data-file="screenshots/03_catalog.png">
+        <div class="card-preview">
+          <img src="screenshots/03_catalog.png?v=03_catalog" alt="Menú y Catálogo Principal" loading="lazy">
+          <span class="card-badge ">Menú</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Menú y Catálogo Principal</h3>
+          <p class="card-desc">Categorías con chips, tarjetas de producto con foto, precios mostrador y digital.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.CATALOG</span>
+            <span>03_catalog.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="menu" data-id="19_catalog_dark" data-title="Catálogo en Modo Oscuro" data-desc="Tema nocturno con alto contraste, tokens Material 3 y fondo negro profundo." data-badge="Dark Mode" data-route="Routes.CATALOG (Oscuro)" data-file="screenshots/19_catalog_dark.png">
+        <div class="card-preview">
+          <img src="screenshots/19_catalog_dark.png?v=19_catalog_dark" alt="Catálogo en Modo Oscuro" loading="lazy">
+          <span class="card-badge ">Dark Mode</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Catálogo en Modo Oscuro</h3>
+          <p class="card-desc">Tema nocturno con alto contraste, tokens Material 3 y fondo negro profundo.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.CATALOG (Oscuro)</span>
+            <span>19_catalog_dark.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="menu" data-id="39_product_detail_sheet" data-title="Ficha y Opciones de Producto" data-desc="Modal inferior con ingredientes, alérgenos, grupos de opción requeridos/opcionales y extras." data-badge="Ficha Producto" data-route="ProductDetailModal" data-file="screenshots/39_product_detail_sheet.png">
+        <div class="card-preview">
+          <img src="screenshots/39_product_detail_sheet.png?v=39_product_detail_sheet" alt="Ficha y Opciones de Producto" loading="lazy">
+          <span class="card-badge ">Ficha Producto</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Ficha y Opciones de Producto</h3>
+          <p class="card-desc">Modal inferior con ingredientes, alérgenos, grupos de opción requeridos/opcionales y extras.</p>
+          <div class="card-footer">
+            <span class="card-route">ProductDetailModal</span>
+            <span>39_product_detail_sheet.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="menu" data-id="07_catalog_empty_search" data-title="Búsqueda sin Coincidencias" data-desc="Estado vacío interactivo cuando no se encuentran platillos." data-badge="Búsqueda" data-route="Routes.CATALOG (Vacío)" data-file="screenshots/07_catalog_empty_search.png">
+        <div class="card-preview">
+          <img src="screenshots/07_catalog_empty_search.png?v=07_catalog_empty_search" alt="Búsqueda sin Coincidencias" loading="lazy">
+          <span class="card-badge ">Búsqueda</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Búsqueda sin Coincidencias</h3>
+          <p class="card-desc">Estado vacío interactivo cuando no se encuentran platillos.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.CATALOG (Vacío)</span>
+            <span>07_catalog_empty_search.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="menu" data-id="46_catalog_active_order" data-title="Catálogo con Pedido en Curso" data-desc="Banner flotante persistente sobre el menú que indica el estado en vivo de tu orden." data-badge="Pedido Activo" data-route="Routes.CATALOG (En Vivo)" data-file="screenshots/46_catalog_active_order.png">
+        <div class="card-preview">
+          <img src="screenshots/46_catalog_active_order.png?v=46_catalog_active_order" alt="Catálogo con Pedido en Curso" loading="lazy">
+          <span class="card-badge ">Pedido Activo</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Catálogo con Pedido en Curso</h3>
+          <p class="card-desc">Banner flotante persistente sobre el menú que indica el estado en vivo de tu orden.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.CATALOG (En Vivo)</span>
+            <span>46_catalog_active_order.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="cart" data-id="04_cart" data-title="Carrito de Compras" data-desc="Desglose de partidas, modificadores, notas a cocina y total general." data-badge="Carrito" data-route="Routes.CART" data-file="screenshots/04_cart.png">
+        <div class="card-preview">
+          <img src="screenshots/04_cart.png?v=04_cart" alt="Carrito de Compras" loading="lazy">
+          <span class="card-badge ">Carrito</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Carrito de Compras</h3>
+          <p class="card-desc">Desglose de partidas, modificadores, notas a cocina y total general.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.CART</span>
+            <span>04_cart.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="cart" data-id="10_cart_empty" data-title="Carrito Vacío" data-desc="Estado inicial con botón directo para regresar a explorar el menú." data-badge="Carrito" data-route="Routes.CART (Vacío)" data-file="screenshots/10_cart_empty.png">
+        <div class="card-preview">
+          <img src="screenshots/10_cart_empty.png?v=10_cart_empty" alt="Carrito Vacío" loading="lazy">
+          <span class="card-badge ">Carrito</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Carrito Vacío</h3>
+          <p class="card-desc">Estado inicial con botón directo para regresar a explorar el menú.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.CART (Vacío)</span>
+            <span>10_cart_empty.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="cart" data-id="11_cart_mesa_saldo" data-title="Checkout: En Mesa + Saldo Wallet" data-desc="Pedido configurado para entrega en espacio/mesa y cobro inmediato con saldo." data-badge="Checkout" data-route="Routes.CART (Mesa + Saldo)" data-file="screenshots/11_cart_mesa_saldo.png">
+        <div class="card-preview">
+          <img src="screenshots/11_cart_mesa_saldo.png?v=11_cart_mesa_saldo" alt="Checkout: En Mesa + Saldo Wallet" loading="lazy">
+          <span class="card-badge ">Checkout</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Checkout: En Mesa + Saldo Wallet</h3>
+          <p class="card-desc">Pedido configurado para entrega en espacio/mesa y cobro inmediato con saldo.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.CART (Mesa + Saldo)</span>
+            <span>11_cart_mesa_saldo.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="cart" data-id="12_cart_tarjeta" data-title="Checkout: Para Llevar + Tarjeta" data-desc="Pedido para recoger en mostrador pagado con tarjeta Stripe." data-badge="Checkout" data-route="Routes.CART (Para Llevar)" data-file="screenshots/12_cart_tarjeta.png">
+        <div class="card-preview">
+          <img src="screenshots/12_cart_tarjeta.png?v=12_cart_tarjeta" alt="Checkout: Para Llevar + Tarjeta" loading="lazy">
+          <span class="card-badge ">Checkout</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Checkout: Para Llevar + Tarjeta</h3>
+          <p class="card-desc">Pedido para recoger en mostrador pagado con tarjeta Stripe.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.CART (Para Llevar)</span>
+            <span>12_cart_tarjeta.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="cart" data-id="20_sticker_receipt" data-title="Ticket de Recibo y Comanda" data-desc="Ticket sticker oficial unificado con folio del día, partidas y código QR de validación." data-badge="Ticket Oficial" data-route="Routes.RECEIPT_STICKER" data-file="screenshots/20_sticker_receipt.png">
+        <div class="card-preview">
+          <img src="screenshots/20_sticker_receipt.png?v=20_sticker_receipt" alt="Ticket de Recibo y Comanda" loading="lazy">
+          <span class="card-badge ">Ticket Oficial</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Ticket de Recibo y Comanda</h3>
+          <p class="card-desc">Ticket sticker oficial unificado con folio del día, partidas y código QR de validación.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.RECEIPT_STICKER</span>
+            <span>20_sticker_receipt.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="tracking" data-id="14_tracking_empty" data-title="Seguimiento: Sin Pedidos" data-desc="Pantalla cuando no hay órdenes en preparación en la cafetería." data-badge="Tracking" data-route="Routes.STUDENT_TRACKING (Vacío)" data-file="screenshots/14_tracking_empty.png">
+        <div class="card-preview">
+          <img src="screenshots/14_tracking_empty.png?v=14_tracking_empty" alt="Seguimiento: Sin Pedidos" loading="lazy">
+          <span class="card-badge ">Tracking</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Seguimiento: Sin Pedidos</h3>
+          <p class="card-desc">Pantalla cuando no hay órdenes en preparación en la cafetería.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.STUDENT_TRACKING (Vacío)</span>
+            <span>14_tracking_empty.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="tracking" data-id="15_tracking_por_cobrar" data-title="Estado: Por Cobrar en Caja" data-desc="Folio asignado y aviso al alumno para acercarse a pagar a caja." data-badge="1. Por Cobrar" data-route="Routes.STUDENT_TRACKING" data-file="screenshots/15_tracking_por_cobrar.png">
+        <div class="card-preview">
+          <img src="screenshots/15_tracking_por_cobrar.png?v=15_tracking_por_cobrar" alt="Estado: Por Cobrar en Caja" loading="lazy">
+          <span class="card-badge ">1. Por Cobrar</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Estado: Por Cobrar en Caja</h3>
+          <p class="card-desc">Folio asignado y aviso al alumno para acercarse a pagar a caja.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.STUDENT_TRACKING</span>
+            <span>15_tracking_por_cobrar.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="tracking" data-id="21_tracking_pagado" data-title="Estado: Cobrado / En Espera" data-desc="Pago confirmado esperando asignación en cocina." data-badge="2. Cobrado" data-route="Routes.STUDENT_TRACKING" data-file="screenshots/21_tracking_pagado.png">
+        <div class="card-preview">
+          <img src="screenshots/21_tracking_pagado.png?v=21_tracking_pagado" alt="Estado: Cobrado / En Espera" loading="lazy">
+          <span class="card-badge ">2. Cobrado</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Estado: Cobrado / En Espera</h3>
+          <p class="card-desc">Pago confirmado esperando asignación en cocina.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.STUDENT_TRACKING</span>
+            <span>21_tracking_pagado.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="tracking" data-id="16_tracking_preparando" data-title="Estado: En Preparación en Cocina" data-desc="Estimación de tiempo en minutos y estado de elaboración en cocina." data-badge="3. Cocina" data-route="Routes.STUDENT_TRACKING" data-file="screenshots/16_tracking_preparando.png">
+        <div class="card-preview">
+          <img src="screenshots/16_tracking_preparando.png?v=16_tracking_preparando" alt="Estado: En Preparación en Cocina" loading="lazy">
+          <span class="card-badge ">3. Cocina</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Estado: En Preparación en Cocina</h3>
+          <p class="card-desc">Estimación de tiempo en minutos y estado de elaboración en cocina.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.STUDENT_TRACKING</span>
+            <span>16_tracking_preparando.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="tracking" data-id="48_tracking_ready" data-title="Estado: Listo para Recoger" data-desc="QR original de entrega para mostrar al cajero o mesero en barra." data-badge="4. Listo" data-route="Routes.STUDENT_TRACKING" data-file="screenshots/48_tracking_ready.png">
+        <div class="card-preview">
+          <img src="screenshots/48_tracking_ready.png?v=48_tracking_ready" alt="Estado: Listo para Recoger" loading="lazy">
+          <span class="card-badge ">4. Listo</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Estado: Listo para Recoger</h3>
+          <p class="card-desc">QR original de entrega para mostrar al cajero o mesero en barra.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.STUDENT_TRACKING</span>
+            <span>48_tracking_ready.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="tracking" data-id="49_tracking_delivered" data-title="Estado: Entregado / Finalizado" data-desc="Confirmación final de entrega con resumen de compra." data-badge="5. Entregado" data-route="Routes.STUDENT_TRACKING" data-file="screenshots/49_tracking_delivered.png">
+        <div class="card-preview">
+          <img src="screenshots/49_tracking_delivered.png?v=49_tracking_delivered" alt="Estado: Entregado / Finalizado" loading="lazy">
+          <span class="card-badge ">5. Entregado</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Estado: Entregado / Finalizado</h3>
+          <p class="card-desc">Confirmación final de entrega con resumen de compra.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.STUDENT_TRACKING</span>
+            <span>49_tracking_delivered.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="wallet" data-id="06_wallet" data-title="Wallet: Saldo y Movimientos" data-desc="Balance total visible, compras, recargas y cashback acumulado." data-badge="Wallet" data-route="Routes.WALLET" data-file="screenshots/06_wallet.png">
+        <div class="card-preview">
+          <img src="screenshots/06_wallet.png?v=06_wallet" alt="Wallet: Saldo y Movimientos" loading="lazy">
+          <span class="card-badge ">Wallet</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Wallet: Saldo y Movimientos</h3>
+          <p class="card-desc">Balance total visible, compras, recargas y cashback acumulado.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.WALLET</span>
+            <span>06_wallet.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="wallet" data-id="17_wallet_add_money" data-title="Recarga de Efectivo en Caja" data-desc="QR personal del alumno para que el cajero le abone efectivo en el POS." data-badge="Recarga QR" data-route="Routes.WALLET_ADD_MONEY" data-file="screenshots/17_wallet_add_money.png">
+        <div class="card-preview">
+          <img src="screenshots/17_wallet_add_money.png?v=17_wallet_add_money" alt="Recarga de Efectivo en Caja" loading="lazy">
+          <span class="card-badge ">Recarga QR</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Recarga de Efectivo en Caja</h3>
+          <p class="card-desc">QR personal del alumno para que el cajero le abone efectivo en el POS.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.WALLET_ADD_MONEY</span>
+            <span>17_wallet_add_money.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="wallet" data-id="50_wallet_add_money_spei" data-title="Recarga mediante SPEI / Clabe" data-desc="Datos bancarios para transferencia electrónica directa a la cuenta." data-badge="SPEI" data-route="Routes.WALLET_ADD_MONEY (SPEI)" data-file="screenshots/50_wallet_add_money_spei.png">
+        <div class="card-preview">
+          <img src="screenshots/50_wallet_add_money_spei.png?v=50_wallet_add_money_spei" alt="Recarga mediante SPEI / Clabe" loading="lazy">
+          <span class="card-badge ">SPEI</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Recarga mediante SPEI / Clabe</h3>
+          <p class="card-desc">Datos bancarios para transferencia electrónica directa a la cuenta.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.WALLET_ADD_MONEY (SPEI)</span>
+            <span>50_wallet_add_money_spei.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="wallet" data-id="36_wallet_payment_methods" data-title="Métodos de Pago Guardados" data-desc="Gestión de tarjetas vinculadas y saldo disponible." data-badge="Métodos" data-route="Routes.WALLET_METHODS" data-file="screenshots/36_wallet_payment_methods.png">
+        <div class="card-preview">
+          <img src="screenshots/36_wallet_payment_methods.png?v=36_wallet_payment_methods" alt="Métodos de Pago Guardados" loading="lazy">
+          <span class="card-badge ">Métodos</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Métodos de Pago Guardados</h3>
+          <p class="card-desc">Gestión de tarjetas vinculadas y saldo disponible.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.WALLET_METHODS</span>
+            <span>36_wallet_payment_methods.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="wallet" data-id="37_wallet_add_card" data-title="Agregar Tarjeta Bancaria" data-desc="Formulario seguro con tokenización Stripe PCI-compliant." data-badge="Stripe" data-route="Routes.WALLET_ADD_CARD" data-file="screenshots/37_wallet_add_card.png">
+        <div class="card-preview">
+          <img src="screenshots/37_wallet_add_card.png?v=37_wallet_add_card" alt="Agregar Tarjeta Bancaria" loading="lazy">
+          <span class="card-badge ">Stripe</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Agregar Tarjeta Bancaria</h3>
+          <p class="card-desc">Formulario seguro con tokenización Stripe PCI-compliant.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.WALLET_ADD_CARD</span>
+            <span>37_wallet_add_card.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="wallet" data-id="38_wallet_account" data-title="Ajustes de Cuenta y Apariencia" data-desc="Datos del alumno, QR de cuenta, selector de tema (📱 Sistema / ☀️ Claro / 🌙 Oscuro / 🖤 Amoled), selector de cafetería y cerrar sesión." data-badge="Perfil & Tema" data-route="Routes.WALLET_ACCOUNT" data-file="screenshots/38_wallet_account.png">
+        <div class="card-preview">
+          <img src="screenshots/38_wallet_account.png?v=38_wallet_account" alt="Ajustes de Cuenta y Apariencia" loading="lazy">
+          <span class="card-badge ">Perfil & Tema</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Ajustes de Cuenta y Apariencia</h3>
+          <p class="card-desc">Datos del alumno, QR de cuenta, selector de tema (📱 Sistema / ☀️ Claro / 🌙 Oscuro / 🖤 Amoled), selector de cafetería y cerrar sesión.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.WALLET_ACCOUNT</span>
+            <span>38_wallet_account.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="assistant" data-id="18_chat_welcome" data-title="Chat del Asistente Vaiinilla" data-desc="Asistente inteligente para pedir recomendaciones de comida y combos." data-badge="Asistente IA" data-route="Routes.ASSISTANT_CHAT" data-file="screenshots/18_chat_welcome.png">
+        <div class="card-preview">
+          <img src="screenshots/18_chat_welcome.png?v=18_chat_welcome" alt="Chat del Asistente Vaiinilla" loading="lazy">
+          <span class="card-badge ">Asistente IA</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Chat del Asistente Vaiinilla</h3>
+          <p class="card-desc">Asistente inteligente para pedir recomendaciones de comida y combos.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.ASSISTANT_CHAT</span>
+            <span>18_chat_welcome.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="staff" data-id="42_cashier" data-title="Pantalla de Caja (POS Operativo)" data-desc="Sesión de caja, catálogo de productos con fotos/disponibilidad, recargas de wallet y cobros." data-badge="Cajero POS" data-route="Routes.CASHIER" data-file="screenshots/42_cashier.png">
+        <div class="card-preview">
+          <img src="screenshots/42_cashier.png?v=42_cashier" alt="Pantalla de Caja (POS Operativo)" loading="lazy">
+          <span class="card-badge ">Cajero POS</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Pantalla de Caja (POS Operativo)</h3>
+          <p class="card-desc">Sesión de caja, catálogo de productos con fotos/disponibilidad, recargas de wallet y cobros.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.CASHIER</span>
+            <span>42_cashier.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="staff" data-id="43_kitchen" data-title="Pantalla KDS de Cocina" data-desc="Comandero digital en tiempo real con tiempos y botón de Listo." data-badge="Cocina KDS" data-route="Routes.KITCHEN" data-file="screenshots/43_kitchen.png">
+        <div class="card-preview">
+          <img src="screenshots/43_kitchen.png?v=43_kitchen" alt="Pantalla KDS de Cocina" loading="lazy">
+          <span class="card-badge ">Cocina KDS</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Pantalla KDS de Cocina</h3>
+          <p class="card-desc">Comandero digital en tiempo real con tiempos y botón de Listo.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.KITCHEN</span>
+            <span>43_kitchen.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card " data-category="staff" data-id="44_waiter" data-title="Pantalla de Mesero / Entrega" data-desc="Pedidos listos para llevar a mesas con validación de espacio." data-badge="Mesero" data-route="Routes.WAITER" data-file="screenshots/44_waiter.png">
+        <div class="card-preview">
+          <img src="screenshots/44_waiter.png?v=44_waiter" alt="Pantalla de Mesero / Entrega" loading="lazy">
+          <span class="card-badge ">Mesero</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Pantalla de Mesero / Entrega</h3>
+          <p class="card-desc">Pedidos listos para llevar a mesas con validación de espacio.</p>
+          <div class="card-footer">
+            <span class="card-route">Routes.WAITER</span>
+            <span>44_waiter.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card is-deprecated" data-category="deprecated" data-id="02_role_selector" data-title="Selector Mock de Roles (Obsoleto)" data-desc="Reemplazado por la pantalla oficial de Modos Autorizados (41_authorized_modes)." data-badge="Obsoleto" data-route="Reemplazado" data-file="screenshots/02_role_selector.png">
+        <div class="card-preview">
+          <img src="screenshots/02_role_selector.png?v=02_role_selector" alt="Selector Mock de Roles (Obsoleto)" loading="lazy">
+          <span class="card-badge badge-dep">Obsoleto</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Selector Mock de Roles (Obsoleto)</h3>
+          <p class="card-desc">Reemplazado por la pantalla oficial de Modos Autorizados (41_authorized_modes).</p>
+          <div class="card-footer">
+            <span class="card-route">Reemplazado</span>
+            <span>02_role_selector.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card is-deprecated" data-category="deprecated" data-id="13_confirm_cash" data-title="Confirmación Efectivo Antigua" data-desc="Reemplazada por el ticket sticker unificado (20_sticker_receipt)." data-badge="Obsoleto" data-route="Reemplazado" data-file="screenshots/13_confirm_cash.png">
+        <div class="card-preview">
+          <img src="screenshots/13_confirm_cash.png?v=13_confirm_cash" alt="Confirmación Efectivo Antigua" loading="lazy">
+          <span class="card-badge badge-dep">Obsoleto</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Confirmación Efectivo Antigua</h3>
+          <p class="card-desc">Reemplazada por el ticket sticker unificado (20_sticker_receipt).</p>
+          <div class="card-footer">
+            <span class="card-route">Reemplazado</span>
+            <span>13_confirm_cash.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card is-deprecated" data-category="deprecated" data-id="22_confirm_saldo" data-title="Confirmación Saldo Antigua" data-desc="Reemplazada por el ticket sticker unificado (20_sticker_receipt)." data-badge="Obsoleto" data-route="Reemplazado" data-file="screenshots/22_confirm_saldo.png">
+        <div class="card-preview">
+          <img src="screenshots/22_confirm_saldo.png?v=22_confirm_saldo" alt="Confirmación Saldo Antigua" loading="lazy">
+          <span class="card-badge badge-dep">Obsoleto</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Confirmación Saldo Antigua</h3>
+          <p class="card-desc">Reemplazada por el ticket sticker unificado (20_sticker_receipt).</p>
+          <div class="card-footer">
+            <span class="card-route">Reemplazado</span>
+            <span>22_confirm_saldo.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card is-deprecated" data-category="deprecated" data-id="47_confirm_card" data-title="Confirmación Tarjeta Antigua" data-desc="Reemplazada por el ticket sticker unificado (20_sticker_receipt)." data-badge="Obsoleto" data-route="Reemplazado" data-file="screenshots/47_confirm_card.png">
+        <div class="card-preview">
+          <img src="screenshots/47_confirm_card.png?v=47_confirm_card" alt="Confirmación Tarjeta Antigua" loading="lazy">
+          <span class="card-badge badge-dep">Obsoleto</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Confirmación Tarjeta Antigua</h3>
+          <p class="card-desc">Reemplazada por el ticket sticker unificado (20_sticker_receipt).</p>
+          <div class="card-footer">
+            <span class="card-route">Reemplazado</span>
+            <span>47_confirm_card.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card is-deprecated" data-category="deprecated" data-id="05_assistant_hub" data-title="Hub de Asistente Antiguo" data-desc="Retirado del bottom bar; el asistente ahora es chat conversacional (18_chat_welcome)." data-badge="Obsoleto" data-route="Reemplazado" data-file="screenshots/05_assistant_hub.png">
+        <div class="card-preview">
+          <img src="screenshots/05_assistant_hub.png?v=05_assistant_hub" alt="Hub de Asistente Antiguo" loading="lazy">
+          <span class="card-badge badge-dep">Obsoleto</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Hub de Asistente Antiguo</h3>
+          <p class="card-desc">Retirado del bottom bar; el asistente ahora es chat conversacional (18_chat_welcome).</p>
+          <div class="card-footer">
+            <span class="card-route">Reemplazado</span>
+            <span>05_assistant_hub.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card is-deprecated" data-category="deprecated" data-id="08_assistant_default" data-title="Mock Asistente por Defecto" data-desc="Mockup estático previo a la integración del chat." data-badge="Obsoleto" data-route="Reemplazado" data-file="screenshots/08_assistant_default.png">
+        <div class="card-preview">
+          <img src="screenshots/08_assistant_default.png?v=08_assistant_default" alt="Mock Asistente por Defecto" loading="lazy">
+          <span class="card-badge badge-dep">Obsoleto</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Mock Asistente por Defecto</h3>
+          <p class="card-desc">Mockup estático previo a la integración del chat.</p>
+          <div class="card-footer">
+            <span class="card-route">Reemplazado</span>
+            <span>08_assistant_default.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card is-deprecated" data-category="deprecated" data-id="09_assistant_budget_chip" data-title="Mock Asistente Presupuesto" data-desc="Mockup estático previo." data-badge="Obsoleto" data-route="Reemplazado" data-file="screenshots/09_assistant_budget_chip.png">
+        <div class="card-preview">
+          <img src="screenshots/09_assistant_budget_chip.png?v=09_assistant_budget_chip" alt="Mock Asistente Presupuesto" loading="lazy">
+          <span class="card-badge badge-dep">Obsoleto</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Mock Asistente Presupuesto</h3>
+          <p class="card-desc">Mockup estático previo.</p>
+          <div class="card-footer">
+            <span class="card-route">Reemplazado</span>
+            <span>09_assistant_budget_chip.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card is-deprecated" data-category="deprecated" data-id="23_demo_gallery" data-title="Galería Demo Fixture" data-desc="Fixture de prueba de diseño interno, no accesible por usuarios." data-badge="Fixture" data-route="Fixture" data-file="screenshots/23_demo_gallery.png">
+        <div class="card-preview">
+          <img src="screenshots/23_demo_gallery.png?v=23_demo_gallery" alt="Galería Demo Fixture" loading="lazy">
+          <span class="card-badge badge-dep">Fixture</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Galería Demo Fixture</h3>
+          <p class="card-desc">Fixture de prueba de diseño interno, no accesible por usuarios.</p>
+          <div class="card-footer">
+            <span class="card-route">Fixture</span>
+            <span>23_demo_gallery.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card is-deprecated" data-category="deprecated" data-id="24_uber_nav_menu_on_cream" data-title="Test Componente UberNav Cream" data-desc="Screenshot unitario de componente de navegación aislado." data-badge="Unit Test" data-route="Unit Test" data-file="screenshots/24_uber_nav_menu_on_cream.png">
+        <div class="card-preview">
+          <img src="screenshots/24_uber_nav_menu_on_cream.png?v=24_uber_nav_menu_on_cream" alt="Test Componente UberNav Cream" loading="lazy">
+          <span class="card-badge badge-dep">Unit Test</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Test Componente UberNav Cream</h3>
+          <p class="card-desc">Screenshot unitario de componente de navegación aislado.</p>
+          <div class="card-footer">
+            <span class="card-route">Unit Test</span>
+            <span>24_uber_nav_menu_on_cream.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card is-deprecated" data-category="deprecated" data-id="25_uber_nav_reference_black" data-title="Test Componente UberNav Black" data-desc="Screenshot unitario de componente de navegación aislado." data-badge="Unit Test" data-route="Unit Test" data-file="screenshots/25_uber_nav_reference_black.png">
+        <div class="card-preview">
+          <img src="screenshots/25_uber_nav_reference_black.png?v=25_uber_nav_reference_black" alt="Test Componente UberNav Black" loading="lazy">
+          <span class="card-badge badge-dep">Unit Test</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Test Componente UberNav Black</h3>
+          <p class="card-desc">Screenshot unitario de componente de navegación aislado.</p>
+          <div class="card-footer">
+            <span class="card-route">Unit Test</span>
+            <span>25_uber_nav_reference_black.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card is-deprecated" data-category="deprecated" data-id="26_uber_nav_cart_active_badge" data-title="Test Componente UberNav Badge" data-desc="Screenshot unitario de componente de navegación aislado." data-badge="Unit Test" data-route="Unit Test" data-file="screenshots/26_uber_nav_cart_active_badge.png">
+        <div class="card-preview">
+          <img src="screenshots/26_uber_nav_cart_active_badge.png?v=26_uber_nav_cart_active_badge" alt="Test Componente UberNav Badge" loading="lazy">
+          <span class="card-badge badge-dep">Unit Test</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Test Componente UberNav Badge</h3>
+          <p class="card-desc">Screenshot unitario de componente de navegación aislado.</p>
+          <div class="card-footer">
+            <span class="card-route">Unit Test</span>
+            <span>26_uber_nav_cart_active_badge.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card is-deprecated" data-category="deprecated" data-id="27_uber_nav_slide_settled_assistant" data-title="Test Componente UberNav Motion" data-desc="Screenshot unitario de componente de navegación aislado." data-badge="Unit Test" data-route="Unit Test" data-file="screenshots/27_uber_nav_slide_settled_assistant.png">
+        <div class="card-preview">
+          <img src="screenshots/27_uber_nav_slide_settled_assistant.png?v=27_uber_nav_slide_settled_assistant" alt="Test Componente UberNav Motion" loading="lazy">
+          <span class="card-badge badge-dep">Unit Test</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Test Componente UberNav Motion</h3>
+          <p class="card-desc">Screenshot unitario de componente de navegación aislado.</p>
+          <div class="card-footer">
+            <span class="card-route">Unit Test</span>
+            <span>27_uber_nav_slide_settled_assistant.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card is-deprecated" data-category="deprecated" data-id="51_sticker_core" data-title="Asset Template: Sticker Core" data-desc="Asset gráfico para render de impresión térmica." data-badge="Asset" data-route="Asset" data-file="screenshots/51_sticker_core.png">
+        <div class="card-preview">
+          <img src="screenshots/51_sticker_core.png?v=51_sticker_core" alt="Asset Template: Sticker Core" loading="lazy">
+          <span class="card-badge badge-dep">Asset</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Asset Template: Sticker Core</h3>
+          <p class="card-desc">Asset gráfico para render de impresión térmica.</p>
+          <div class="card-footer">
+            <span class="card-route">Asset</span>
+            <span>51_sticker_core.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card is-deprecated" data-category="deprecated" data-id="52_sticker_limited" data-title="Asset Template: Sticker Limited" data-desc="Asset gráfico para render de impresión térmica." data-badge="Asset" data-route="Asset" data-file="screenshots/52_sticker_limited.png">
+        <div class="card-preview">
+          <img src="screenshots/52_sticker_limited.png?v=52_sticker_limited" alt="Asset Template: Sticker Limited" loading="lazy">
+          <span class="card-badge badge-dep">Asset</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Asset Template: Sticker Limited</h3>
+          <p class="card-desc">Asset gráfico para render de impresión térmica.</p>
+          <div class="card-footer">
+            <span class="card-route">Asset</span>
+            <span>52_sticker_limited.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card is-deprecated" data-category="deprecated" data-id="53_sticker_breakfast" data-title="Asset Template: Sticker Breakfast" data-desc="Asset gráfico para render de impresión térmica." data-badge="Asset" data-route="Asset" data-file="screenshots/53_sticker_breakfast.png">
+        <div class="card-preview">
+          <img src="screenshots/53_sticker_breakfast.png?v=53_sticker_breakfast" alt="Asset Template: Sticker Breakfast" loading="lazy">
+          <span class="card-badge badge-dep">Asset</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Asset Template: Sticker Breakfast</h3>
+          <p class="card-desc">Asset gráfico para render de impresión térmica.</p>
+          <div class="card-footer">
+            <span class="card-route">Asset</span>
+            <span>53_sticker_breakfast.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card is-deprecated" data-category="deprecated" data-id="54_sticker_qr_live" data-title="Asset Template: Sticker QR Live" data-desc="Asset gráfico para render de impresión térmica." data-badge="Asset" data-route="Asset" data-file="screenshots/54_sticker_qr_live.png">
+        <div class="card-preview">
+          <img src="screenshots/54_sticker_qr_live.png?v=54_sticker_qr_live" alt="Asset Template: Sticker QR Live" loading="lazy">
+          <span class="card-badge badge-dep">Asset</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Asset Template: Sticker QR Live</h3>
+          <p class="card-desc">Asset gráfico para render de impresión térmica.</p>
+          <div class="card-footer">
+            <span class="card-route">Asset</span>
+            <span>54_sticker_qr_live.png</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-card is-deprecated" data-category="deprecated" data-id="55_sticker_thermal" data-title="Asset Template: Sticker Thermal" data-desc="Asset gráfico para render de impresión térmica." data-badge="Asset" data-route="Asset" data-file="screenshots/55_sticker_thermal.png">
+        <div class="card-preview">
+          <img src="screenshots/55_sticker_thermal.png?v=55_sticker_thermal" alt="Asset Template: Sticker Thermal" loading="lazy">
+          <span class="card-badge badge-dep">Asset</span>
+        </div>
+        <div class="card-info">
+          <h3 class="card-title">Asset Template: Sticker Thermal</h3>
+          <p class="card-desc">Asset gráfico para render de impresión térmica.</p>
+          <div class="card-footer">
+            <span class="card-route">Asset</span>
+            <span>55_sticker_thermal.png</span>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </main>
+
+  <!-- Modal Lightbox -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal-content">
+      <button class="close-btn" id="closeBtn">✕</button>
+      
+      <div class="modal-image-col">
+        <img id="modalImg" src="" alt="Screen Preview">
+      </div>
+
+      <div class="modal-info-col">
+        <div class="modal-header">
+          <span class="cat-label" id="modalBadge">MODAL</span>
+          <h2 id="modalTitle">Título de Pantalla</h2>
+          <p id="modalDesc">Descripción funcional de la pantalla.</p>
+          
+          <div class="spec-table">
+            <div class="spec-row"><span>Ruta AppNavHost:</span> <strong id="modalRoute" style="color:var(--accent);">Routes.SPLASH</strong></div>
+            <div class="spec-row"><span>Framework:</span> <strong>Jetpack Compose (Material 3)</strong></div>
+            <div class="spec-row"><span>Resolución:</span> <strong>411 × 891 dp (Pixel 6)</strong></div>
+            <div class="spec-row"><span>Archivo:</span> <strong id="modalFile">01_splash.png</strong></div>
+          </div>
+        </div>
+
+        <div class="modal-nav-btns">
+          <button class="btn" id="prevBtn">← Anterior</button>
+          <button class="btn" id="nextBtn">Siguiente →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const allScreens = [{"id": "01_splash", "file": "01_splash.png", "title": "Splash de Inicio", "cat": "discovery", "desc": "Splash screen minimalista con isotipo e inicializaci\u00f3n de sesi\u00f3n.", "route": "Routes.SPLASH", "badge": "Splash"}, {"id": "vai25_discovery_list", "file": "vai25_discovery_list.png", "title": "\u00bfD\u00f3nde comes hoy? (Descubrimiento)", "cat": "discovery", "desc": "Pantalla principal de cafeter\u00edas con buscador '\u00bfD\u00f3nde comes hoy?', acceso por QR y selecci\u00f3n de sucursal.", "route": "Routes.DISCOVERY", "badge": "Descubrimiento"}, {"id": "vai25_discovery_active_mesa4", "file": "vai25_discovery_active_mesa4.png", "title": "Establecimiento y Mesa 4 Fijada", "cat": "discovery", "desc": "Vista tras escanear un QR de mesa o token, con bot\u00f3n inferior para continuar directo al men\u00fa.", "route": "Routes.DISCOVERY (Mesa)", "badge": "Mesa QR"}, {"id": "vai25_catalog_guest_venue", "file": "vai25_catalog_guest_venue.png", "title": "Cat\u00e1logo Invitado (Sin Sesi\u00f3n)", "cat": "discovery", "desc": "Men\u00fa completo navegable antes del login o registro de alumno.", "route": "Routes.CATALOG (Invitado)", "badge": "Invitado"}, {"id": "45_qr_scanner", "file": "45_qr_scanner.png", "title": "Lector QR de Mesas y Espacios", "cat": "discovery", "desc": "Esc\u00e1ner con visor de c\u00e1mara para leer los c\u00f3digos QR pegados en comedores escolares.", "route": "QrScannerDialog", "badge": "C\u00e1mara"}, {"id": "31_auth_landing", "file": "31_auth_landing.png", "title": "Landing de Autenticaci\u00f3n", "cat": "auth", "desc": "Punto de entrada para identificarse antes de confirmar un pedido.", "route": "Routes.AUTH_LANDING", "badge": "Auth"}, {"id": "32_auth_login", "file": "32_auth_login.png", "title": "Iniciar Sesi\u00f3n", "cat": "auth", "desc": "Login seguro con correo, contrase\u00f1a e identificador contextual (matr\u00edcula).", "route": "Routes.AUTH_LOGIN", "badge": "Auth"}, {"id": "33_auth_register", "file": "33_auth_register.png", "title": "Registro de Alumno", "cat": "auth", "desc": "Alta de usuario con nombre, correo institucional y t\u00e9rminos legales.", "route": "Routes.AUTH_REGISTER", "badge": "Auth"}, {"id": "34_auth_verify_email", "file": "34_auth_verify_email.png", "title": "Verificar Correo Electr\u00f3nico", "cat": "auth", "desc": "Comprobaci\u00f3n de correo verificado con bot\u00f3n de reenv\u00edo autom\u00e1tico.", "route": "Routes.AUTH_VERIFY", "badge": "Auth"}, {"id": "35_auth_forgot_password", "file": "35_auth_forgot_password.png", "title": "Recuperar Contrase\u00f1a", "cat": "auth", "desc": "Env\u00edo de enlace seguro para restablecer credenciales de acceso.", "route": "Routes.AUTH_FORGOT", "badge": "Auth"}, {"id": "40_invitation_acceptance", "file": "40_invitation_acceptance.png", "title": "Aceptar Invitaci\u00f3n de Personal", "cat": "auth", "desc": "Recepci\u00f3n y validaci\u00f3n de invitaci\u00f3n de 72h para personal de cafeter\u00eda.", "route": "Routes.VAI27_INVITATION", "badge": "Personal"}, {"id": "41_authorized_modes", "file": "41_authorized_modes.png", "title": "Selector de Modos y Sucursales", "cat": "auth", "desc": "Panel para alternar entre rol Alumno, Caja, Cocina y cambio de tienda.", "route": "Routes.VAI27_MODES", "badge": "Roles & Tiendas"}, {"id": "03_catalog", "file": "03_catalog.png", "title": "Men\u00fa y Cat\u00e1logo Principal", "cat": "menu", "desc": "Categor\u00edas con chips, tarjetas de producto con foto, precios mostrador y digital.", "route": "Routes.CATALOG", "badge": "Men\u00fa"}, {"id": "19_catalog_dark", "file": "19_catalog_dark.png", "title": "Cat\u00e1logo en Modo Oscuro", "cat": "menu", "desc": "Tema nocturno con alto contraste, tokens Material 3 y fondo negro profundo.", "route": "Routes.CATALOG (Oscuro)", "badge": "Dark Mode"}, {"id": "39_product_detail_sheet", "file": "39_product_detail_sheet.png", "title": "Ficha y Opciones de Producto", "cat": "menu", "desc": "Modal inferior con ingredientes, al\u00e9rgenos, grupos de opci\u00f3n requeridos/opcionales y extras.", "route": "ProductDetailModal", "badge": "Ficha Producto"}, {"id": "07_catalog_empty_search", "file": "07_catalog_empty_search.png", "title": "B\u00fasqueda sin Coincidencias", "cat": "menu", "desc": "Estado vac\u00edo interactivo cuando no se encuentran platillos.", "route": "Routes.CATALOG (Vac\u00edo)", "badge": "B\u00fasqueda"}, {"id": "46_catalog_active_order", "file": "46_catalog_active_order.png", "title": "Cat\u00e1logo con Pedido en Curso", "cat": "menu", "desc": "Banner flotante persistente sobre el men\u00fa que indica el estado en vivo de tu orden.", "route": "Routes.CATALOG (En Vivo)", "badge": "Pedido Activo"}, {"id": "04_cart", "file": "04_cart.png", "title": "Carrito de Compras", "cat": "cart", "desc": "Desglose de partidas, modificadores, notas a cocina y total general.", "route": "Routes.CART", "badge": "Carrito"}, {"id": "10_cart_empty", "file": "10_cart_empty.png", "title": "Carrito Vac\u00edo", "cat": "cart", "desc": "Estado inicial con bot\u00f3n directo para regresar a explorar el men\u00fa.", "route": "Routes.CART (Vac\u00edo)", "badge": "Carrito"}, {"id": "11_cart_mesa_saldo", "file": "11_cart_mesa_saldo.png", "title": "Checkout: En Mesa + Saldo Wallet", "cat": "cart", "desc": "Pedido configurado para entrega en espacio/mesa y cobro inmediato con saldo.", "route": "Routes.CART (Mesa + Saldo)", "badge": "Checkout"}, {"id": "12_cart_tarjeta", "file": "12_cart_tarjeta.png", "title": "Checkout: Para Llevar + Tarjeta", "cat": "cart", "desc": "Pedido para recoger en mostrador pagado con tarjeta Stripe.", "route": "Routes.CART (Para Llevar)", "badge": "Checkout"}, {"id": "20_sticker_receipt", "file": "20_sticker_receipt.png", "title": "Ticket de Recibo y Comanda", "cat": "cart", "desc": "Ticket sticker oficial unificado con folio del d\u00eda, partidas y c\u00f3digo QR de validaci\u00f3n.", "route": "Routes.RECEIPT_STICKER", "badge": "Ticket Oficial"}, {"id": "14_tracking_empty", "file": "14_tracking_empty.png", "title": "Seguimiento: Sin Pedidos", "cat": "tracking", "desc": "Pantalla cuando no hay \u00f3rdenes en preparaci\u00f3n en la cafeter\u00eda.", "route": "Routes.STUDENT_TRACKING (Vac\u00edo)", "badge": "Tracking"}, {"id": "15_tracking_por_cobrar", "file": "15_tracking_por_cobrar.png", "title": "Estado: Por Cobrar en Caja", "cat": "tracking", "desc": "Folio asignado y aviso al alumno para acercarse a pagar a caja.", "route": "Routes.STUDENT_TRACKING", "badge": "1. Por Cobrar"}, {"id": "21_tracking_pagado", "file": "21_tracking_pagado.png", "title": "Estado: Cobrado / En Espera", "cat": "tracking", "desc": "Pago confirmado esperando asignaci\u00f3n en cocina.", "route": "Routes.STUDENT_TRACKING", "badge": "2. Cobrado"}, {"id": "16_tracking_preparando", "file": "16_tracking_preparando.png", "title": "Estado: En Preparaci\u00f3n en Cocina", "cat": "tracking", "desc": "Estimaci\u00f3n de tiempo en minutos y estado de elaboraci\u00f3n en cocina.", "route": "Routes.STUDENT_TRACKING", "badge": "3. Cocina"}, {"id": "48_tracking_ready", "file": "48_tracking_ready.png", "title": "Estado: Listo para Recoger", "cat": "tracking", "desc": "QR original de entrega para mostrar al cajero o mesero en barra.", "route": "Routes.STUDENT_TRACKING", "badge": "4. Listo"}, {"id": "49_tracking_delivered", "file": "49_tracking_delivered.png", "title": "Estado: Entregado / Finalizado", "cat": "tracking", "desc": "Confirmaci\u00f3n final de entrega con resumen de compra.", "route": "Routes.STUDENT_TRACKING", "badge": "5. Entregado"}, {"id": "06_wallet", "file": "06_wallet.png", "title": "Wallet: Saldo y Movimientos", "cat": "wallet", "desc": "Balance total visible, compras, recargas y cashback acumulado.", "route": "Routes.WALLET", "badge": "Wallet"}, {"id": "17_wallet_add_money", "file": "17_wallet_add_money.png", "title": "Recarga de Efectivo en Caja", "cat": "wallet", "desc": "QR personal del alumno para que el cajero le abone efectivo en el POS.", "route": "Routes.WALLET_ADD_MONEY", "badge": "Recarga QR"}, {"id": "50_wallet_add_money_spei", "file": "50_wallet_add_money_spei.png", "title": "Recarga mediante SPEI / Clabe", "cat": "wallet", "desc": "Datos bancarios para transferencia electr\u00f3nica directa a la cuenta.", "route": "Routes.WALLET_ADD_MONEY (SPEI)", "badge": "SPEI"}, {"id": "36_wallet_payment_methods", "file": "36_wallet_payment_methods.png", "title": "M\u00e9todos de Pago Guardados", "cat": "wallet", "desc": "Gesti\u00f3n de tarjetas vinculadas y saldo disponible.", "route": "Routes.WALLET_METHODS", "badge": "M\u00e9todos"}, {"id": "37_wallet_add_card", "file": "37_wallet_add_card.png", "title": "Agregar Tarjeta Bancaria", "cat": "wallet", "desc": "Formulario seguro con tokenizaci\u00f3n Stripe PCI-compliant.", "route": "Routes.WALLET_ADD_CARD", "badge": "Stripe"}, {"id": "38_wallet_account", "file": "38_wallet_account.png", "title": "Ajustes de Cuenta y Apariencia", "cat": "wallet", "desc": "Datos del alumno, QR de cuenta, selector de tema (\ud83d\udcf1 Sistema / \u2600\ufe0f Claro / \ud83c\udf19 Oscuro / \ud83d\udda4 Amoled), selector de cafeter\u00eda y cerrar sesi\u00f3n.", "route": "Routes.WALLET_ACCOUNT", "badge": "Perfil & Tema"}, {"id": "18_chat_welcome", "file": "18_chat_welcome.png", "title": "Chat del Asistente Vaiinilla", "cat": "assistant", "desc": "Asistente inteligente para pedir recomendaciones de comida y combos.", "route": "Routes.ASSISTANT_CHAT", "badge": "Asistente IA"}, {"id": "42_cashier", "file": "42_cashier.png", "title": "Pantalla de Caja (POS Operativo)", "cat": "staff", "desc": "Sesi\u00f3n de caja, cat\u00e1logo de productos con fotos/disponibilidad, recargas de wallet y cobros.", "route": "Routes.CASHIER", "badge": "Cajero POS"}, {"id": "43_kitchen", "file": "43_kitchen.png", "title": "Pantalla KDS de Cocina", "cat": "staff", "desc": "Comandero digital en tiempo real con tiempos y bot\u00f3n de Listo.", "route": "Routes.KITCHEN", "badge": "Cocina KDS"}, {"id": "44_waiter", "file": "44_waiter.png", "title": "Pantalla de Mesero / Entrega", "cat": "staff", "desc": "Pedidos listos para llevar a mesas con validaci\u00f3n de espacio.", "route": "Routes.WAITER", "badge": "Mesero"}, {"id": "02_role_selector", "file": "02_role_selector.png", "title": "Selector Mock de Roles (Obsoleto)", "cat": "deprecated", "desc": "Reemplazado por la pantalla oficial de Modos Autorizados (41_authorized_modes).", "route": "Reemplazado", "badge": "Obsoleto"}, {"id": "13_confirm_cash", "file": "13_confirm_cash.png", "title": "Confirmaci\u00f3n Efectivo Antigua", "cat": "deprecated", "desc": "Reemplazada por el ticket sticker unificado (20_sticker_receipt).", "route": "Reemplazado", "badge": "Obsoleto"}, {"id": "22_confirm_saldo", "file": "22_confirm_saldo.png", "title": "Confirmaci\u00f3n Saldo Antigua", "cat": "deprecated", "desc": "Reemplazada por el ticket sticker unificado (20_sticker_receipt).", "route": "Reemplazado", "badge": "Obsoleto"}, {"id": "47_confirm_card", "file": "47_confirm_card.png", "title": "Confirmaci\u00f3n Tarjeta Antigua", "cat": "deprecated", "desc": "Reemplazada por el ticket sticker unificado (20_sticker_receipt).", "route": "Reemplazado", "badge": "Obsoleto"}, {"id": "05_assistant_hub", "file": "05_assistant_hub.png", "title": "Hub de Asistente Antiguo", "cat": "deprecated", "desc": "Retirado del bottom bar; el asistente ahora es chat conversacional (18_chat_welcome).", "route": "Reemplazado", "badge": "Obsoleto"}, {"id": "08_assistant_default", "file": "08_assistant_default.png", "title": "Mock Asistente por Defecto", "cat": "deprecated", "desc": "Mockup est\u00e1tico previo a la integraci\u00f3n del chat.", "route": "Reemplazado", "badge": "Obsoleto"}, {"id": "09_assistant_budget_chip", "file": "09_assistant_budget_chip.png", "title": "Mock Asistente Presupuesto", "cat": "deprecated", "desc": "Mockup est\u00e1tico previo.", "route": "Reemplazado", "badge": "Obsoleto"}, {"id": "23_demo_gallery", "file": "23_demo_gallery.png", "title": "Galer\u00eda Demo Fixture", "cat": "deprecated", "desc": "Fixture de prueba de dise\u00f1o interno, no accesible por usuarios.", "route": "Fixture", "badge": "Fixture"}, {"id": "24_uber_nav_menu_on_cream", "file": "24_uber_nav_menu_on_cream.png", "title": "Test Componente UberNav Cream", "cat": "deprecated", "desc": "Screenshot unitario de componente de navegaci\u00f3n aislado.", "route": "Unit Test", "badge": "Unit Test"}, {"id": "25_uber_nav_reference_black", "file": "25_uber_nav_reference_black.png", "title": "Test Componente UberNav Black", "cat": "deprecated", "desc": "Screenshot unitario de componente de navegaci\u00f3n aislado.", "route": "Unit Test", "badge": "Unit Test"}, {"id": "26_uber_nav_cart_active_badge", "file": "26_uber_nav_cart_active_badge.png", "title": "Test Componente UberNav Badge", "cat": "deprecated", "desc": "Screenshot unitario de componente de navegaci\u00f3n aislado.", "route": "Unit Test", "badge": "Unit Test"}, {"id": "27_uber_nav_slide_settled_assistant", "file": "27_uber_nav_slide_settled_assistant.png", "title": "Test Componente UberNav Motion", "cat": "deprecated", "desc": "Screenshot unitario de componente de navegaci\u00f3n aislado.", "route": "Unit Test", "badge": "Unit Test"}, {"id": "51_sticker_core", "file": "51_sticker_core.png", "title": "Asset Template: Sticker Core", "cat": "deprecated", "desc": "Asset gr\u00e1fico para render de impresi\u00f3n t\u00e9rmica.", "route": "Asset", "badge": "Asset"}, {"id": "52_sticker_limited", "file": "52_sticker_limited.png", "title": "Asset Template: Sticker Limited", "cat": "deprecated", "desc": "Asset gr\u00e1fico para render de impresi\u00f3n t\u00e9rmica.", "route": "Asset", "badge": "Asset"}, {"id": "53_sticker_breakfast", "file": "53_sticker_breakfast.png", "title": "Asset Template: Sticker Breakfast", "cat": "deprecated", "desc": "Asset gr\u00e1fico para render de impresi\u00f3n t\u00e9rmica.", "route": "Asset", "badge": "Asset"}, {"id": "54_sticker_qr_live", "file": "54_sticker_qr_live.png", "title": "Asset Template: Sticker QR Live", "cat": "deprecated", "desc": "Asset gr\u00e1fico para render de impresi\u00f3n t\u00e9rmica.", "route": "Asset", "badge": "Asset"}, {"id": "55_sticker_thermal", "file": "55_sticker_thermal.png", "title": "Asset Template: Sticker Thermal", "cat": "deprecated", "desc": "Asset gr\u00e1fico para render de impresi\u00f3n t\u00e9rmica.", "route": "Asset", "badge": "Asset"}];
+    let activeFilter = 'all_live';
+
+    const grid = document.getElementById('screensGrid');
+    const searchInput = document.getElementById('searchInput');
+    const catChips = document.querySelectorAll('.cat-chip');
+    const modal = document.getElementById('modalBackdrop');
+    const closeBtn = document.getElementById('closeBtn');
+    const modalImg = document.getElementById('modalImg');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalDesc = document.getElementById('modalDesc');
+    const modalBadge = document.getElementById('modalBadge');
+    const modalRoute = document.getElementById('modalRoute');
+    const modalFile = document.getElementById('modalFile');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    function filterScreens() {
+      const query = searchInput.value.toLowerCase().trim();
+      const cards = document.querySelectorAll('.screen-card');
+
+      cards.forEach(card => {
+        const cat = card.dataset.category;
+        const title = card.dataset.title.toLowerCase();
+        const desc = card.dataset.desc.toLowerCase();
+        const route = card.dataset.route.toLowerCase();
+
+        let matchCat = false;
+        if (activeFilter === 'all_live') {
+          matchCat = (cat !== 'deprecated');
+        } else {
+          matchCat = (cat === activeFilter);
+        }
+
+        const matchQuery = (!query || title.includes(query) || desc.includes(query) || route.includes(query));
+
+        if (matchCat && matchQuery) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    catChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        catChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        activeFilter = chip.dataset.category;
+        filterScreens();
+      });
+    });
+
+    searchInput.addEventListener('input', filterScreens);
+
+    filterScreens();
+
+    let visibleCards = [];
+    let currentVisibleIndex = 0;
+
+    function openModalForCard(card) {
+      const visible = Array.from(document.querySelectorAll('.screen-card')).filter(c => c.style.display !== 'none');
+      visibleCards = visible;
+      currentVisibleIndex = visible.indexOf(card);
+      if (currentVisibleIndex === -1) currentVisibleIndex = 0;
+      updateModalContent();
+      modal.classList.add('open');
+    }
+
+    function updateModalContent() {
+      if (visibleCards.length === 0) return;
+      const card = visibleCards[currentVisibleIndex];
+      modalImg.src = card.dataset.file;
+      modalTitle.textContent = card.dataset.title;
+      modalDesc.textContent = card.dataset.desc;
+      modalBadge.textContent = card.dataset.badge;
+      modalRoute.textContent = card.dataset.route;
+      modalFile.textContent = card.dataset.file.replace('screenshots/', '');
+    }
+
+    function closeModal() {
+      modal.classList.remove('open');
+    }
+
+    document.querySelectorAll('.screen-card').forEach(card => {
+      card.addEventListener('click', () => openModalForCard(card));
+    });
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    prevBtn.addEventListener('click', () => {
+      if (visibleCards.length === 0) return;
+      currentVisibleIndex = (currentVisibleIndex - 1 + visibleCards.length) % visibleCards.length;
+      updateModalContent();
+    });
+
+    nextBtn.addEventListener('click', () => {
+      if (visibleCards.length === 0) return;
+      currentVisibleIndex = (currentVisibleIndex + 1) % visibleCards.length;
+      updateModalContent();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (!modal.classList.contains('open')) return;
+      if (e.key === 'Escape') closeModal();
+      if (e.key === 'ArrowLeft') prevBtn.click();
+      if (e.key === 'ArrowRight') nextBtn.click();
+    });
+  </script>
+</body>
+</html>

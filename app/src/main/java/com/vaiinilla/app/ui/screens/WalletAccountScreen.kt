@@ -2,6 +2,7 @@ package com.vaiinilla.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -15,9 +16,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,6 +47,8 @@ import com.vaiinilla.app.ui.components.WalletScreenShell
 import com.vaiinilla.app.ui.components.WalletSubflowTopBar
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
+import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
@@ -51,6 +64,10 @@ fun WalletAccountScreen(
     onSignIn: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
+    val currentMode = LocalVaiinillaThemeMode.current
+    val onThemeModeChange = LocalVaiinillaThemeModeChanger.current
+    var themeMenuExpanded by remember { mutableStateOf(false) }
+
     val qrValue = userId?.trim()?.takeIf { it.isNotEmpty() }?.let(QrPayloadParser::encodeUser)
     WalletScreenShell(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -60,7 +77,79 @@ fun WalletAccountScreen(
                     .navigationBarsPadding()
                     .padding(bottom = 20.dp),
         ) {
-            WalletSubflowTopBar(title = "Configuración", onBack = onBack)
+            WalletSubflowTopBar(
+                title = "Configuración",
+                onBack = onBack,
+                trailing = {
+                    Box {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(colors.paper2)
+                                    .border(1.dp, colors.line, RoundedCornerShape(12.dp))
+                                    .clickable { themeMenuExpanded = true }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                text = "Tema: ${currentMode.label}",
+                                color = colors.ink,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Icon(
+                                Icons.Outlined.KeyboardArrowDown,
+                                contentDescription = "Menú de tema",
+                                tint = colors.muted,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = themeMenuExpanded,
+                            onDismissRequest = { themeMenuExpanded = false },
+                            modifier =
+                                Modifier
+                                    .background(colors.paper2)
+                                    .border(1.dp, colors.line, RoundedCornerShape(12.dp)),
+                        ) {
+                            VaiinillaThemeMode.entries.forEach { mode ->
+                                val isSelected = mode == currentMode
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Text(
+                                                text = mode.label,
+                                                color = if (isSelected) colors.accent else colors.ink,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                fontSize = 13.sp,
+                                            )
+                                            if (isSelected) {
+                                                Icon(
+                                                    Icons.Outlined.Check,
+                                                    contentDescription = null,
+                                                    tint = colors.accent,
+                                                    modifier = Modifier.size(16.dp).padding(start = 12.dp),
+                                                )
+                                            }
+                                        }
+                                    },
+                                    onClick = {
+                                        themeMenuExpanded = false
+                                        onThemeModeChange?.invoke(mode)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                },
+            )
             Column(modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 28.dp)) {
                 Text(
                     "Código personal",
@@ -203,6 +292,7 @@ fun WalletAccountScreen(
                     }
                 }
             }
+
             Column(
                 modifier = Modifier.padding(horizontal = 28.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),

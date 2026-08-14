@@ -34,6 +34,7 @@ fun ThemeCycleButton(modifier: Modifier = Modifier) {
             Text(
                 text =
                     when (mode) {
+                        VaiinillaThemeMode.System -> "⚙"
                         VaiinillaThemeMode.Light -> "☀"
                         VaiinillaThemeMode.Dark -> "◑"
                         VaiinillaThemeMode.Amoled -> "●"

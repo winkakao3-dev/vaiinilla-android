@@ -291,7 +291,8 @@ class CompleteUiScreenshotTest {
                     OperationalUiState(
                         role = OperationalRole.CASHIER,
                         orders = listOf(pending, ready),
-                        cashSessionOpen = false,
+                        cashSessionOpen = true,
+                        catalog = ScreenshotFixtures.catalogLoadedState().catalog,
                     ),
                 onBack = {},
                 onOpenCashSession = {},

@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
@@ -9,9 +10,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.unit.dp
 
-private fun VaiinillaThemeMode.toMaterialColorScheme() =
-    when (this) {
-        VaiinillaThemeMode.Light ->
+private fun VaiinillaThemeMode.toMaterialColorScheme(isSystemDark: Boolean = false) =
+    when (resolveEffectiveMode(isSystemDark)) {
+        VaiinillaThemeMode.Light, VaiinillaThemeMode.System ->
             lightColorScheme(
                 primary = Lime,
                 onPrimary = AccentInk,
@@ -57,18 +58,19 @@ private fun VaiinillaThemeMode.toMaterialColorScheme() =
 
 @Composable
 fun VaiinillaTheme(
-    themeMode: VaiinillaThemeMode = VaiinillaThemeMode.Light,
+    themeMode: VaiinillaThemeMode = VaiinillaThemeMode.System,
     onThemeModeChange: ((VaiinillaThemeMode) -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
-    val colors = themeMode.resolveColors()
+    val isSystemDark = isSystemInDarkTheme()
+    val colors = themeMode.resolveColors(isSystemDark)
     CompositionLocalProvider(
         LocalVaiinillaColors provides colors,
         LocalVaiinillaThemeMode provides themeMode,
         LocalVaiinillaThemeModeChanger provides onThemeModeChange,
     ) {
         MaterialTheme(
-            colorScheme = themeMode.toMaterialColorScheme(),
+            colorScheme = themeMode.toMaterialColorScheme(isSystemDark),
             typography = VaiinillaTypography,
             shapes =
                 Shapes(

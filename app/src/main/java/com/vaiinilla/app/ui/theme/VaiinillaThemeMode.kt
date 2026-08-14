@@ -2,22 +2,33 @@ package com.vaiinilla.app.ui.theme
 
 enum class VaiinillaThemeMode(
     val storageKey: String,
+    val label: String,
 ) {
-    Light("light"),
-    Dark("dark"),
-    Amoled("amoled"),
+    System("system", "Sistema"),
+    Light("light", "Claro"),
+    Dark("dark", "Oscuro"),
+    Amoled("amoled", "Amoled"),
     ;
 
     fun next(): VaiinillaThemeMode =
         when (this) {
+            System -> Light
             Light -> Dark
             Dark -> Amoled
-            Amoled -> Light
+            Amoled -> System
         }
 
-    fun resolveColors(): VaiinillaColors =
+    fun resolveEffectiveMode(isSystemDark: Boolean): VaiinillaThemeMode =
         when (this) {
-            Light ->
+            System -> if (isSystemDark) Dark else Light
+            Light -> Light
+            Dark -> Dark
+            Amoled -> Amoled
+        }
+
+    fun resolveColors(isSystemDark: Boolean = false): VaiinillaColors =
+        when (resolveEffectiveMode(isSystemDark)) {
+            Light, System ->
                 VaiinillaColors(
                     paper = Cream,
                     paper2 = CreamDeep,
@@ -83,6 +94,6 @@ enum class VaiinillaThemeMode(
         }
 
     companion object {
-        fun fromStorageKey(key: String?): VaiinillaThemeMode = entries.firstOrNull { it.storageKey == key } ?: Light
+        fun fromStorageKey(key: String?): VaiinillaThemeMode = entries.firstOrNull { it.storageKey == key } ?: System
     }
 }

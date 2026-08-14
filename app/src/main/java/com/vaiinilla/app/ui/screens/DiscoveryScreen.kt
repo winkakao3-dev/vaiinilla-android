@@ -524,6 +524,9 @@ private fun QuickAccessCard(
     val colors = LocalVaiinillaColors.current
     val bg = if (ink) colors.ink else colors.paper2
     val fg = if (ink) colors.paper else colors.ink
+    val iconBadgeBg = if (ink) colors.accent else colors.paper
+    val iconTint = if (ink) colors.accentInk else colors.ink
+
     Column(
         modifier =
             modifier
@@ -539,16 +542,16 @@ private fun QuickAccessCard(
                 Modifier
                     .size(42.dp)
                     .clip(RoundedCornerShape(15.dp))
-                    .background(if (ink) colors.accent else Color.White),
+                    .background(iconBadgeBg),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(22.dp))
+            Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp))
         }
         Column {
             Text(title, color = fg, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold)
             Text(
                 subtitle,
-                color = fg.copy(alpha = 0.62f),
+                color = fg.copy(alpha = 0.68f),
                 fontSize = 11.sp,
                 lineHeight = 15.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -578,10 +581,10 @@ private fun EstablishmentCard(
                 .fillMaxWidth()
                 .height(82.dp)
                 .clip(RoundedCornerShape(24.dp))
-                .background(if (selected) Color(0xFFE3E7CF) else colors.paper2)
+                .background(if (selected) colors.accent2.copy(alpha = 0.35f) else colors.paper2)
                 .then(
                     if (selected) {
-                        Modifier.border(2.dp, colors.accent.copy(alpha = 0.25f), RoundedCornerShape(24.dp))
+                        Modifier.border(2.dp, colors.accent.copy(alpha = 0.45f), RoundedCornerShape(24.dp))
                     } else {
                         Modifier
                     },
@@ -595,10 +598,10 @@ private fun EstablishmentCard(
                 Modifier
                     .size(54.dp)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(colors.ink),
+                    .background(colors.paper),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Storefront, contentDescription = null, tint = Color.White, modifier = Modifier.size(25.dp))
+            Icon(Icons.Outlined.Storefront, contentDescription = null, tint = colors.ink, modifier = Modifier.size(25.dp))
         }
         Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -619,7 +622,7 @@ private fun EstablishmentCard(
                                 .padding(start = 7.dp)
                                 .size(7.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF78952E)),
+                                .background(colors.accent),
                     )
                 }
             }
@@ -639,7 +642,7 @@ private fun EstablishmentCard(
                 Modifier
                     .size(32.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(colors.ink.copy(alpha = 0.06f)),
+                    .background(colors.paper),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
