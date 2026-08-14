@@ -360,7 +360,7 @@ private fun ActiveVenueCard(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(158.dp)
+                .height(176.dp)
                 .clip(RoundedCornerShape(28.dp))
                 .background(colors.accent),
     ) {
@@ -425,7 +425,7 @@ private fun ContinueInkButton(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .height(52.dp)
+                .height(58.dp)
                 .clip(RoundedCornerShape(18.dp))
                 .background(colors.ink)
                 .physicalPress(onClick = onClick)
@@ -442,7 +442,7 @@ private fun ContinueInkButton(
         Box(
             modifier =
                 Modifier
-                    .size(32.dp)
+                    .size(36.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color.White.copy(alpha = 0.10f)),
             contentAlignment = Alignment.Center,
