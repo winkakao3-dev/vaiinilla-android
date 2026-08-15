@@ -64,6 +64,21 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import androidx.compose.foundation.layout.offset
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Velocity
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -89,6 +104,66 @@ fun ProductDetailSheet(
     val interactionSource = remember { MutableInteractionSource() }
     val sheetVisibility = remember { MutableTransitionState(false) }
     var dismissing by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val dragOffsetY = remember { Animatable(0f) }
+    val density = LocalDensity.current
+    val dismissThresholdPx = with(density) { 100.dp.toPx() }
+    val scrollState = rememberScrollState()
+
+    fun requestDismiss() {
+        if (!dismissing) {
+            dismissing = true
+            sheetVisibility.targetState = false
+        }
+    }
+
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+                if (delta < 0 && dragOffsetY.value > 0f) {
+                    val consumed = delta.coerceAtLeast(-dragOffsetY.value)
+                    coroutineScope.launch {
+                        dragOffsetY.snapTo(dragOffsetY.value + consumed)
+                    }
+                    return Offset(0f, consumed)
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+                if (delta > 0 && scrollState.value == 0) {
+                    coroutineScope.launch {
+                        dragOffsetY.snapTo(dragOffsetY.value + delta * 0.8f)
+                    }
+                    return Offset(0f, delta)
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (dragOffsetY.value > dismissThresholdPx || available.y > 800f) {
+                    requestDismiss()
+                    return available
+                } else if (dragOffsetY.value > 0f) {
+                    dragOffsetY.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
+                    return available
+                }
+                return Velocity.Zero
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                if (dragOffsetY.value > dismissThresholdPx || available.y > 800f) {
+                    requestDismiss()
+                } else if (dragOffsetY.value > 0f) {
+                    dragOffsetY.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
+                }
+                return Velocity.Zero
+            }
+        }
+    }
+
     val scrimAlpha by
         animateFloatAsState(
             targetValue = if (sheetVisibility.targetState) 0.58f else 0f,
@@ -135,13 +210,6 @@ fun ProductDetailSheet(
         }
     }
 
-    fun requestDismiss() {
-        if (!dismissing) {
-            dismissing = true
-            sheetVisibility.targetState = false
-        }
-    }
-
     Box(
         modifier =
             Modifier
@@ -165,6 +233,8 @@ fun ProductDetailSheet(
                 modifier =
                     Modifier
                         .fillMaxSize()
+                        .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
+                        .nestedScroll(nestedScrollConnection)
                         .clickable(
                             interactionSource = interactionSource,
                             indication = null,
@@ -178,19 +248,51 @@ fun ProductDetailSheet(
                     Box(
                         modifier =
                             Modifier
-                                .padding(top = 12.dp, bottom = 12.dp)
-                                .width(42.dp)
-                                .height(5.dp)
-                                .clip(RoundedCornerShape(99.dp))
-                                .background(colors.ink.copy(alpha = 0.14f))
-                                .align(Alignment.CenterHorizontally),
-                    )
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp)
+                                .pointerInput(Unit) {
+                                    detectVerticalDragGestures(
+                                        onDragStart = {},
+                                        onDragEnd = {
+                                            if (dragOffsetY.value > dismissThresholdPx) {
+                                                requestDismiss()
+                                            } else {
+                                                coroutineScope.launch {
+                                                    dragOffsetY.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
+                                                }
+                                            }
+                                        },
+                                        onDragCancel = {
+                                            coroutineScope.launch {
+                                                dragOffsetY.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
+                                            }
+                                        },
+                                        onVerticalDrag = { change, dragAmount ->
+                                            change.consume()
+                                            val newOffset = (dragOffsetY.value + dragAmount).coerceAtLeast(0f)
+                                            coroutineScope.launch {
+                                                dragOffsetY.snapTo(newOffset)
+                                            }
+                                        },
+                                    )
+                                },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .width(44.dp)
+                                    .height(5.dp)
+                                    .clip(RoundedCornerShape(99.dp))
+                                    .background(colors.ink.copy(alpha = 0.18f)),
+                        )
+                    }
 
                     Column(
                         modifier =
                             Modifier
                                 .weight(1f)
-                                .verticalScroll(rememberScrollState())
+                                .verticalScroll(scrollState)
                                 .padding(horizontal = 20.dp),
                     ) {
                         Box(

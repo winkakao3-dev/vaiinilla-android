@@ -1,8 +1,11 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -20,6 +24,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import kotlinx.coroutines.launch
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.Notes
@@ -699,6 +708,11 @@ private fun SpaceCodeSheet(
     onResolve: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    val coroutineScope = rememberCoroutineScope()
+    val dragOffsetY = remember { Animatable(0f) }
+    val density = LocalDensity.current
+    val dismissThresholdPx = with(density) { 90.dp.toPx() }
+
     Box(
         modifier =
             Modifier
@@ -711,6 +725,9 @@ private fun SpaceCodeSheet(
                 Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
+                    .offset {
+                        IntOffset(0, dragOffsetY.value.toInt())
+                    }
                     .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
                     .background(colors.paper)
                     .clickable(enabled = false) {}
@@ -720,18 +737,57 @@ private fun SpaceCodeSheet(
             Box(
                 modifier =
                     Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .size(width = 42.dp, height = 5.dp)
-                        .clip(RoundedCornerShape(99.dp))
-                        .background(colors.paper2),
-            )
+                        .fillMaxWidth()
+                        .padding(bottom = 6.dp)
+                        .pointerInput(Unit) {
+                            detectVerticalDragGestures(
+                                onDragStart = {},
+                                onDragEnd = {
+                                    if (dragOffsetY.value > dismissThresholdPx) {
+                                        onCancel()
+                                    } else {
+                                        coroutineScope.launch {
+                                            dragOffsetY.animateTo(
+                                                0f,
+                                                spring(dampingRatio = 0.82f, stiffness = 450f),
+                                            )
+                                        }
+                                    }
+                                },
+                                onDragCancel = {
+                                    coroutineScope.launch {
+                                        dragOffsetY.animateTo(
+                                            0f,
+                                            spring(dampingRatio = 0.82f, stiffness = 450f),
+                                        )
+                                    }
+                                },
+                                onVerticalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    val newOffset = (dragOffsetY.value + dragAmount).coerceAtLeast(0f)
+                                    coroutineScope.launch {
+                                        dragOffsetY.snapTo(newOffset)
+                                    }
+                                },
+                            )
+                        },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(width = 42.dp, height = 5.dp)
+                            .clip(RoundedCornerShape(99.dp))
+                            .background(colors.paper2),
+                )
+            }
             Text(
                 "Código del espacio",
                 color = colors.ink,
                 fontSize = 24.sp,
                 lineHeight = 32.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 22.dp),
+                modifier = Modifier.padding(top = 16.dp),
             )
             Text(
                 "Escribe el token que aparece junto al QR del comedor, mesa o cancha.",
