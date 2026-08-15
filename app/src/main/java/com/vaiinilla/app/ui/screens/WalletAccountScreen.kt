@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -52,6 +54,8 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
+private val ThemeControlWidth = 132.dp
+
 @Composable
 fun WalletAccountScreen(
     onBack: () -> Unit,
@@ -76,6 +80,7 @@ fun WalletAccountScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
                     .navigationBarsPadding()
                     .padding(bottom = 20.dp),
         ) {
@@ -87,6 +92,7 @@ fun WalletAccountScreen(
                         Row(
                             modifier =
                                 Modifier
+                                    .width(ThemeControlWidth)
                                     .clip(RoundedCornerShape(12.dp))
                                     .background(colors.paper2)
                                     .border(1.dp, colors.line, RoundedCornerShape(12.dp))
@@ -114,6 +120,7 @@ fun WalletAccountScreen(
                             onDismissRequest = { themeMenuExpanded = false },
                             modifier =
                                 Modifier
+                                    .width(ThemeControlWidth)
                                     .background(colors.paper2)
                                     .border(1.dp, colors.line, RoundedCornerShape(12.dp)),
                         ) {
@@ -121,26 +128,12 @@ fun WalletAccountScreen(
                                 val isSelected = mode == currentMode
                                 DropdownMenuItem(
                                     text = {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            Text(
-                                                text = mode.label,
-                                                color = if (isSelected) colors.accent else colors.ink,
-                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                fontSize = 13.sp,
-                                            )
-                                            if (isSelected) {
-                                                Icon(
-                                                    Icons.Outlined.Check,
-                                                    contentDescription = null,
-                                                    tint = colors.accent,
-                                                    modifier = Modifier.size(16.dp).padding(start = 12.dp),
-                                                )
-                                            }
-                                        }
+                                        Text(
+                                            text = mode.label,
+                                            color = if (isSelected) colors.accent else colors.ink,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            fontSize = 13.sp,
+                                        )
                                     },
                                     onClick = {
                                         themeMenuExpanded = false
@@ -184,7 +177,6 @@ fun WalletAccountScreen(
             Box(
                 modifier =
                     Modifier
-                        .weight(1f)
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp, vertical = 16.dp),
                 contentAlignment = Alignment.Center,
@@ -229,14 +221,14 @@ fun WalletAccountScreen(
                             shape = RoundedCornerShape(24.dp),
                         ) {
                             Column(
-                                modifier = Modifier.padding(18.dp),
+                                modifier = Modifier.fillMaxWidth().padding(18.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 if (qrValue != null) {
                                     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                                         VaiinillaQrCode(
                                             value = qrValue,
-                                            qrSize = minOf(maxWidth, 240.dp),
+                                            qrSize = maxWidth,
                                         )
                                     }
                                     Row(

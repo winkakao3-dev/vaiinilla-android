@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.vaiinilla.app.domain.model.Catalog
@@ -297,6 +298,12 @@ private fun CashierCreateProductForm(
                     focusedBorderColor = colors.accent,
                     unfocusedBorderColor = colors.line,
                 ),
+        )
+        Text(
+            text = "El menú del alumno usa el precio digital que devuelve la API; puede ser distinto al precio mostrador.",
+            color = colors.muted,
+            fontSize = 12.sp,
+            lineHeight = 17.sp,
         )
         OutlinedTextField(
             value = minutes,

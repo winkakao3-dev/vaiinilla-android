@@ -5,6 +5,11 @@ import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -12,10 +17,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.R
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import java.net.URL
@@ -69,7 +78,27 @@ fun ProductImage(
 
 @Composable
 private fun ProductImagePlaceholder(modifier: Modifier) {
-    Box(modifier = modifier.background(LocalVaiinillaColors.current.paper2))
+    val colors = LocalVaiinillaColors.current
+    Box(
+        modifier = modifier.background(colors.paper2),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            androidx.compose.material3.Icon(
+                imageVector = Icons.Outlined.Image,
+                contentDescription = null,
+                tint = colors.muted,
+                modifier = Modifier.size(34.dp),
+            )
+            androidx.compose.material3.Text(
+                text = "Sin foto",
+                color = colors.muted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
+    }
 }
 
 fun productImageIsRemote(imageUrl: String): Boolean =

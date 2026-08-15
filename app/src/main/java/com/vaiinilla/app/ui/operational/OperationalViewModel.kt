@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.OperationalRole
@@ -110,7 +111,7 @@ class OperationalViewModel
                         _uiState.value =
                             _uiState.value.copy(
                                 loading = false,
-                                errorMessage = error.message ?: error.javaClass.simpleName,
+                                errorMessage = error.toUserFacingMessage(),
                             )
                     },
                 )
@@ -144,7 +145,7 @@ class OperationalViewModel
                     _uiState.value =
                         _uiState.value.copy(
                             acting = false,
-                            errorMessage = error.message ?: error.javaClass.simpleName,
+                            errorMessage = error.toUserFacingMessage(),
                         )
                 }
             }
@@ -152,13 +153,16 @@ class OperationalViewModel
 
         fun resolveWalletUserQr(rawValue: String) {
             if (_uiState.value.role != OperationalRole.CASHIER) return
-            val payload = QrPayloadParser.parse(rawValue).getOrElse { error ->
-                _uiState.value =
-                    _uiState.value.copy(
-                        errorMessage = error.message ?: "No se pudo leer el QR.",
-                    )
-                return
-            }
+            val payload =
+                QrPayloadParser
+                    .parse(rawValue)
+                    .getOrElse { error ->
+                        _uiState.value =
+                            _uiState.value.copy(
+                                errorMessage = error.toUserFacingMessage("No se pudo leer el QR."),
+                            )
+                        return
+                    }
             val userId = (payload as? QrPayload.User)?.userId
             if (userId == null) {
                 _uiState.value =
@@ -214,7 +218,7 @@ class OperationalViewModel
                             _uiState.value.copy(
                                 walletClients = emptyList(),
                                 walletSearchLoading = false,
-                                errorMessage = error.message ?: "No se pudieron buscar clientes.",
+                                errorMessage = error.toUserFacingMessage("No se pudieron buscar clientes."),
                             )
                     }
             }
@@ -260,7 +264,7 @@ class OperationalViewModel
                     _uiState.value =
                         _uiState.value.copy(
                             acting = false,
-                            errorMessage = error.message ?: "No se pudo registrar la recarga.",
+                            errorMessage = error.toUserFacingMessage("No se pudo registrar la recarga."),
                         )
                 }
             }
@@ -355,7 +359,7 @@ class OperationalViewModel
                     }.onFailure { error ->
                         _uiState.value =
                             _uiState.value.copy(
-                                errorMessage = error.message ?: error.javaClass.simpleName,
+                                errorMessage = error.toUserFacingMessage(),
                             )
                     }
             }
@@ -379,7 +383,7 @@ class OperationalViewModel
                         _uiState.value =
                             _uiState.value.copy(
                                 acting = false,
-                                errorMessage = error.message ?: error.javaClass.simpleName,
+                                errorMessage = error.toUserFacingMessage(),
                             )
                     }
             }
@@ -432,7 +436,10 @@ class OperationalViewModel
                 _uiState.value =
                     _uiState.value.copy(
                         catalog = result.getOrNull(),
-                        errorMessage = result.exceptionOrNull()?.message ?: _uiState.value.errorMessage,
+                        errorMessage =
+                            result.exceptionOrNull().toUserFacingMessage(
+                                _uiState.value.errorMessage ?: "No se pudo cargar el catálogo.",
+                            ),
                     )
             }
         }
@@ -472,8 +479,9 @@ class OperationalViewModel
                             _uiState.value.copy(
                                 acting = false,
                                 errorMessage =
-                                    error.message
-                                        ?: "No se pudo actualizar la disponibilidad (producto $productId).",
+                                    error.toUserFacingMessage(
+                                        "No se pudo actualizar la disponibilidad (producto $productId).",
+                                    ),
                             )
                         refreshCatalog()
                     },
@@ -499,14 +507,16 @@ class OperationalViewModel
                     withContext(Dispatchers.IO) {
                         catalogRepository.createProduct(draft, UUID.randomUUID().toString())
                     }
-                val createdProduct = created.getOrElse { error ->
-                    _uiState.value =
-                        _uiState.value.copy(
-                            acting = false,
-                            errorMessage = error.message ?: "No se pudo crear el producto.",
-                        )
-                    return@launch
-                }
+                val createdProduct =
+                    created
+                        .getOrElse { error ->
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    acting = false,
+                                    errorMessage = error.toUserFacingMessage("No se pudo crear el producto."),
+                                )
+                            return@launch
+                        }
                 if (imageBytes != null && imageFilename != null && imageMime != null) {
                     val uploaded =
                         withContext(Dispatchers.IO) {
@@ -523,8 +533,9 @@ class OperationalViewModel
                             _uiState.value.copy(
                                 acting = false,
                                 errorMessage =
-                                    uploaded.exceptionOrNull()?.message
-                                        ?: "El producto se creó, pero la foto no se subió.",
+                                    uploaded.exceptionOrNull().toUserFacingMessage(
+                                        "El producto se creó, pero la foto no se subió.",
+                                    ),
                             )
                         refreshCatalog()
                         return@launch
@@ -579,7 +590,7 @@ class OperationalViewModel
                             _uiState.value.copy(
                                 acting = false,
                                 errorMessage =
-                                    error.message ?: "No se pudo subir la foto (producto $productId).",
+                                    error.toUserFacingMessage("No se pudo subir la foto (producto $productId)."),
                             )
                     },
                 )

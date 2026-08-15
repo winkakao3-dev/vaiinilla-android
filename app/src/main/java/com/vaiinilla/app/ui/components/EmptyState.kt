@@ -65,7 +65,7 @@ fun EmptyState(
                     colors =
                         ButtonDefaults.buttonColors(
                             containerColor = colors.accent,
-                            contentColor = colors.ink,
+                            contentColor = colors.accentInk,
                         ),
                     modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
                     shape = RoundedCornerShape(18.dp),

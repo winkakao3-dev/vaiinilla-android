@@ -385,7 +385,7 @@ private fun PaymentOption(
         }
     val secondaryForeground =
         if (selected) {
-            Color(0xFF536229)
+            colors.accentInk.copy(alpha = 0.72f)
         } else {
             colors.muted
         }

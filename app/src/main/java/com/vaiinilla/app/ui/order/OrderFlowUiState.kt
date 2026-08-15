@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.order
 
+import com.vaiinilla.app.core.text.normalizeForSearch
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.ContractRules
@@ -45,13 +46,13 @@ val OrderFlowUiState.filteredProducts: List<Product>
             selectedCategoryId?.let { categoryId ->
                 products.filter { it.categoryId == categoryId }
             } ?: products
-        val query = searchQuery.trim()
+        val query = searchQuery.normalizeForSearch()
         return if (query.isEmpty()) {
             categoryFiltered
         } else {
             categoryFiltered.filter { product ->
-                product.name.contains(query, ignoreCase = true) ||
-                    product.description.contains(query, ignoreCase = true)
+                product.name.normalizeForSearch().contains(query) ||
+                    product.description.normalizeForSearch().contains(query)
             }
         }
     }
