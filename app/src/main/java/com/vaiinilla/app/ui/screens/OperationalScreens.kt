@@ -56,6 +56,8 @@ import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import java.math.BigDecimal
 
+import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+
 @Composable
 fun CashierOperationalScreen(
     state: OperationalUiState,
@@ -74,6 +76,7 @@ fun CashierOperationalScreen(
     onUploadCashierProductImage: (Int, ByteArray, String, String) -> Unit = { _, _, _, _ -> },
 ) {
     val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
     val pending = state.orders.filter { it.summary.state == OrderState.PENDING_PAYMENT }
     val ready = state.orders.filter { it.summary.state == OrderState.READY }
     var walletSearch by remember { mutableStateOf("") }
@@ -358,6 +361,7 @@ fun KitchenOperationalScreen(
     onChangeMode: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
 ) {
+    val haptics = rememberVaiinillaHaptics()
     val active =
         state.orders.filter {
             it.summary.state == OrderState.PAID || it.summary.state == OrderState.PREPARING
@@ -402,9 +406,15 @@ fun KitchenOperationalScreen(
                 items(active, key = { it.summary.id }) { order ->
                     val action =
                         if (order.summary.state == OrderState.PAID) {
-                            "Empezar preparación" to { onStart(order.summary.id, order.summary.version) }
+                            "Empezar preparación" to {
+                                haptics.impact()
+                                onStart(order.summary.id, order.summary.version)
+                            }
                         } else {
-                            "Marcar como listo" to { onReady(order.summary.id, order.summary.version) }
+                            "Marcar como listo" to {
+                                haptics.success()
+                                onReady(order.summary.id, order.summary.version)
+                            }
                         }
                     OrderSummaryCard(
                         order = order,
@@ -427,6 +437,7 @@ fun WaiterOperationalScreen(
     onChangeMode: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
 ) {
+    val haptics = rememberVaiinillaHaptics()
     val ready = state.orders.filter { it.summary.state == OrderState.READY }
     AuthHeroSheetScaffold(
         kicker = "Mesero",

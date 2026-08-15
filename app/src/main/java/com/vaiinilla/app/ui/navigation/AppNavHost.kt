@@ -773,6 +773,7 @@ fun AppNavHost(
                     onOpenCatalog = { navController.navigateStudent(Routes.CATALOG) },
                     onSelectOrder = operationalViewModel::selectOrder,
                     onViewSticker = { navController.navigate(Routes.receiptStickerRoute()) },
+                    onRefresh = { operationalViewModel.refresh() },
                 )
             }
 

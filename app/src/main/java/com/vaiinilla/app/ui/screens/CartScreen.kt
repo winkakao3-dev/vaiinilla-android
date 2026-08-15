@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -24,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.outlined.ShoppingCart
@@ -93,6 +95,7 @@ fun CartScreen(
     onOpenAccount: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
     val checkoutSpaces =
         state.guestVenue
             ?.space
@@ -126,7 +129,8 @@ fun CartScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(colors.paper),
+                .background(colors.paper)
+                .imePadding(),
     ) {
         LazyColumn(
             modifier =
@@ -144,7 +148,10 @@ fun CartScreen(
         ) {
             item {
                 CartTopBar(
-                    onBack = onMenu,
+                    onBack = {
+                        haptics.click()
+                        onMenu()
+                    },
                     profileInitials = profileInitials,
                     onOpenAccount = onOpenAccount,
                 )
@@ -175,8 +182,14 @@ fun CartScreen(
                 items(state.cartLines, key = CartLine::key) { line ->
                     CartLineCard(
                         line = line,
-                        onMinus = { onQuantityChange(line.key, -1) },
-                        onPlus = { onQuantityChange(line.key, 1) },
+                        onMinus = {
+                            haptics.click()
+                            onQuantityChange(line.key, -1)
+                        },
+                        onPlus = {
+                            haptics.click()
+                            onQuantityChange(line.key, 1)
+                        },
                     )
                     Spacer(Modifier.height(12.dp))
                 }
@@ -186,17 +199,23 @@ fun CartScreen(
                     CheckoutDestinationPicker(
                         selected = state.checkoutDestination,
                         selectedSpaceName = state.selectedSpaceName,
-                        onSelect = onDestinationChange,
+                        onSelect = {
+                            haptics.selection()
+                            onDestinationChange(it)
+                        },
                         showInSpace = canChooseInSpace,
                     )
                 }
-                if (state.checkoutDestination == OrderDestination.IN_SPACE && canChooseInSpace) {
+                if (state.checkoutDestination == OrderDestination.IN_SPACE && checkoutSpaces.isNotEmpty()) {
                     item {
-                        Spacer(Modifier.height(10.dp))
+                        Spacer(Modifier.height(16.dp))
                         CheckoutSpacePicker(
-                            selectedSpaceId = state.selectedSpaceId,
+                            selectedSpaceId = state.selectedSpaceId ?: checkoutSpaces.first().id,
                             spaces = checkoutSpaces,
-                            onSelect = onSpaceChange,
+                            onSelect = {
+                                haptics.selection()
+                                onSpaceChange(it)
+                            },
                         )
                     }
                 }
@@ -205,7 +224,10 @@ fun CartScreen(
                     CartSectionHead("Pago", "Elige uno")
                     CheckoutPaymentPicker(
                         selected = state.checkoutPayment,
-                        onSelect = onPaymentChange,
+                        onSelect = {
+                            haptics.selection()
+                            onPaymentChange(it)
+                        },
                     )
                 }
                 item {
@@ -256,7 +278,10 @@ fun CartScreen(
                     price = moneyLabel(state.cartPreviewTotal),
                     enabled = canConfirm,
                     loading = state.creatingOrder,
-                    onClick = onConfirm,
+                    onClick = {
+                        haptics.impact()
+                        onConfirm()
+                    },
                 )
             }
         }

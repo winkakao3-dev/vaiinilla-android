@@ -22,9 +22,13 @@ fun ThemeCycleButton(modifier: Modifier = Modifier) {
     val colors = LocalVaiinillaColors.current
     val mode = LocalVaiinillaThemeMode.current
     val onChange = LocalVaiinillaThemeModeChanger.current ?: return
+    val haptics = rememberVaiinillaHaptics()
 
     IconButton(
-        onClick = { onChange(mode.next()) },
+        onClick = {
+            haptics.selection()
+            onChange(mode.next())
+        },
         modifier =
             modifier
                 .size(42.dp)

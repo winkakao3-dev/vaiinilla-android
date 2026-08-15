@@ -47,6 +47,7 @@ import com.vaiinilla.app.ui.components.EditorialPrimaryButton
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.components.WalletScreenShell
 import com.vaiinilla.app.ui.components.WalletSubflowTopBar
+import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
@@ -70,6 +71,7 @@ fun WalletAccountScreen(
     onSignIn: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
     val currentMode = LocalVaiinillaThemeMode.current
     val onThemeModeChange = LocalVaiinillaThemeModeChanger.current
     var themeMenuExpanded by remember { mutableStateOf(false) }
@@ -86,7 +88,10 @@ fun WalletAccountScreen(
         ) {
             WalletSubflowTopBar(
                 title = "Configuración",
-                onBack = onBack,
+                onBack = {
+                    haptics.click()
+                    onBack()
+                },
                 trailing = {
                     Box {
                         Row(
@@ -96,7 +101,10 @@ fun WalletAccountScreen(
                                     .clip(RoundedCornerShape(12.dp))
                                     .background(colors.paper2)
                                     .border(1.dp, colors.line, RoundedCornerShape(12.dp))
-                                    .clickable { themeMenuExpanded = true }
+                                    .clickable {
+                                        haptics.selection()
+                                        themeMenuExpanded = true
+                                    }
                                     .padding(horizontal = 10.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -136,8 +144,9 @@ fun WalletAccountScreen(
                                         )
                                     },
                                     onClick = {
-                                        themeMenuExpanded = false
+                                        haptics.selection()
                                         onThemeModeChange?.invoke(mode)
+                                        themeMenuExpanded = false
                                     },
                                 )
                             }

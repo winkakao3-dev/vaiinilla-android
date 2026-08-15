@@ -69,6 +69,16 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.platform.LocalFocusManager
+import com.vaiinilla.app.ui.components.VenueCardSkeleton
+import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiscoveryScreen(
     state: DiscoveryUiState,
@@ -84,6 +94,8 @@ fun DiscoveryScreen(
     onOpenAccount: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
+    val focusManager = LocalFocusManager.current
     var codeSheetOpen by remember { mutableStateOf(false) }
     var tokenError by remember { mutableStateOf(false) }
     val selectedId = state.selected?.establishment?.id
@@ -94,167 +106,187 @@ fun DiscoveryScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(colors.paper),
+                .background(colors.paper)
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = { focusManager.clearFocus() })
+                },
     ) {
-        LazyColumn(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding(),
-            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 18.dp, bottom = bottomClearance),
-            verticalArrangement = Arrangement.spacedBy(0.dp),
+        PullToRefreshBox(
+            isRefreshing = state.loading,
+            onRefresh = {
+                haptics.impact()
+                onQueryChange(state.query)
+            },
+            modifier = Modifier.fillMaxSize(),
         ) {
-            item {
-                DiscoveryBrandRow(
-                    initials = profileInitials,
-                    onOpenAccount = onOpenAccount,
-                )
-            }
-            item {
-                Column(modifier = Modifier.padding(horizontal = 2.dp, vertical = 0.dp).padding(bottom = 24.dp)) {
-                    Text(
-                        "Antes de pedir",
-                        color = colors.muted,
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.6.sp,
-                    )
-                    Text(
-                        "¿Dónde comes hoy?",
-                        color = colors.ink,
-                        fontSize = 36.sp,
-                        lineHeight = 40.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-2).sp,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 10.dp),
-                    )
-                    Text(
-                        "Elige tu cafetería o escanea el QR del espacio para abrir el menú correcto.",
-                        color = colors.muted,
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
-            state.selected?.let { selected ->
+            LazyColumn(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding(),
+                contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 18.dp, bottom = bottomClearance),
+                verticalArrangement = Arrangement.spacedBy(0.dp),
+            ) {
                 item {
-                    ActiveVenueCard(
-                        name = selected.establishment.name,
-                        onContinue = onContinueSelected,
-                        modifier = Modifier.padding(bottom = 16.dp),
+                    DiscoveryBrandRow(
+                        initials = profileInitials,
+                        onOpenAccount = onOpenAccount,
                     )
                 }
-            }
-            item {
-                DiscoverySearchField(
-                    value = state.query,
-                    onValueChange = onQueryChange,
-                    modifier = Modifier.padding(bottom = 12.dp),
-                )
-            }
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 30.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    QuickAccessCard(
-                        modifier = Modifier.weight(1f),
-                        ink = true,
-                        icon = Icons.Outlined.QrCodeScanner,
-                        title = "Escanear QR",
-                        subtitle = "Del comedor o mesa",
-                        onClick = onOpenQrScanner,
-                    )
-                    QuickAccessCard(
-                        modifier = Modifier.weight(1f),
-                        ink = false,
-                        icon = Icons.AutoMirrored.Outlined.Notes,
-                        title = "Usar código",
-                        subtitle = "Token del espacio",
-                        onClick = {
-                            tokenError = false
-                            codeSheetOpen = true
-                        },
-                    )
-                }
-            }
-            if (state.suspendedMessage != null) {
                 item {
-                    Text(
-                        state.suspendedMessage,
-                        color = colors.coral,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(bottom = 12.dp),
-                    )
-                }
-            }
-            if (state.errorMessage != null) {
-                item {
-                    Text(
-                        state.errorMessage,
-                        color = colors.coral,
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
-                        modifier = Modifier.padding(bottom = 12.dp),
-                    )
-                }
-            }
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 0.dp).padding(bottom = 12.dp),
-                    verticalAlignment = Alignment.Bottom,
-                ) {
-                    Text(
-                        "Cafeterías",
-                        color = colors.ink,
-                        fontSize = 20.sp,
-                        lineHeight = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.5).sp,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        if (cafeCount == 1) "1 disponible" else "$cafeCount disponibles",
-                        color = colors.muted,
-                        fontSize = 11.sp,
-                        lineHeight = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
-            if (state.loading && state.establishments.isEmpty()) {
-                item {
-                    Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = colors.ink)
-                    }
-                }
-            }
-            if (!state.loading && state.establishments.isEmpty()) {
-                item {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = colors.paper2,
-                        shape = RoundedCornerShape(24.dp),
-                    ) {
+                    Column(modifier = Modifier.padding(horizontal = 2.dp, vertical = 0.dp).padding(bottom = 24.dp)) {
                         Text(
-                            "No encontramos una cafetería con ese nombre.",
+                            "Antes de pedir",
+                            color = colors.muted,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.6.sp,
+                        )
+                        Text(
+                            "¿Dónde comes hoy?",
+                            color = colors.ink,
+                            fontSize = 36.sp,
+                            lineHeight = 40.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-2).sp,
+                            modifier = Modifier.padding(top = 8.dp, bottom = 10.dp),
+                        )
+                        Text(
+                            "Elige tu cafetería o escanea el QR del espacio para abrir el menú correcto.",
                             color = colors.muted,
                             fontSize = 14.sp,
                             lineHeight = 20.sp,
-                            modifier = Modifier.padding(28.dp, 28.dp),
+                            fontWeight = FontWeight.SemiBold,
                         )
                     }
                 }
-            }
-            items(state.establishments, key = { it.id }) { establishment ->
-                EstablishmentCard(
-                    establishment = establishment,
-                    selected = establishment.id == selectedId,
-                    onClick = { onSelectEstablishment(establishment) },
-                    modifier = Modifier.padding(bottom = 10.dp),
-                )
+                state.selected?.let { selected ->
+                    item {
+                        ActiveVenueCard(
+                            name = selected.establishment.name,
+                            onContinue = {
+                                haptics.impact()
+                                onContinueSelected()
+                            },
+                            modifier = Modifier.padding(bottom = 16.dp),
+                        )
+                    }
+                }
+                item {
+                    DiscoverySearchField(
+                        value = state.query,
+                        onValueChange = onQueryChange,
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+                }
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 30.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        QuickAccessCard(
+                            modifier = Modifier.weight(1f),
+                            ink = true,
+                            icon = Icons.Outlined.QrCodeScanner,
+                            title = "Escanear QR",
+                            subtitle = "Del comedor o mesa",
+                            onClick = {
+                                haptics.click()
+                                onOpenQrScanner()
+                            },
+                        )
+                        QuickAccessCard(
+                            modifier = Modifier.weight(1f),
+                            ink = false,
+                            icon = Icons.AutoMirrored.Outlined.Notes,
+                            title = "Usar código",
+                            subtitle = "Token del espacio",
+                            onClick = {
+                                haptics.selection()
+                                tokenError = false
+                                codeSheetOpen = true
+                            },
+                        )
+                    }
+                }
+                if (state.suspendedMessage != null) {
+                    item {
+                        Text(
+                            state.suspendedMessage,
+                            color = colors.coral,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(bottom = 12.dp),
+                        )
+                    }
+                }
+                if (state.errorMessage != null) {
+                    item {
+                        Text(
+                            state.errorMessage,
+                            color = colors.coral,
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp,
+                            modifier = Modifier.padding(bottom = 12.dp),
+                        )
+                    }
+                }
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 0.dp).padding(bottom = 12.dp),
+                        verticalAlignment = Alignment.Bottom,
+                    ) {
+                        Text(
+                            "Cafeterías",
+                            color = colors.ink,
+                            fontSize = 20.sp,
+                            lineHeight = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.5).sp,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            if (cafeCount == 1) "1 disponible" else "$cafeCount disponibles",
+                            color = colors.muted,
+                            fontSize = 11.sp,
+                            lineHeight = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+                if (state.loading && state.establishments.isEmpty()) {
+                    items(3) {
+                        VenueCardSkeleton(modifier = Modifier.padding(bottom = 10.dp))
+                    }
+                }
+                if (!state.loading && state.establishments.isEmpty()) {
+                    item {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = colors.paper2,
+                            shape = RoundedCornerShape(24.dp),
+                        ) {
+                            Text(
+                                "No encontramos una cafetería con ese nombre.",
+                                color = colors.muted,
+                                fontSize = 14.sp,
+                                lineHeight = 20.sp,
+                                modifier = Modifier.padding(28.dp, 28.dp),
+                            )
+                        }
+                    }
+                }
+                items(state.establishments, key = { it.id }) { establishment ->
+                    EstablishmentCard(
+                        establishment = establishment,
+                        selected = establishment.id == selectedId,
+                        onClick = {
+                            haptics.click()
+                            onSelectEstablishment(establishment)
+                        },
+                        modifier = Modifier.padding(bottom = 10.dp),
+                    )
+                }
             }
         }
 

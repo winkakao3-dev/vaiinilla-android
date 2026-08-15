@@ -104,6 +104,7 @@ fun ProductDetailSheet(
     val interactionSource = remember { MutableInteractionSource() }
     val sheetVisibility = remember { MutableTransitionState(false) }
     var dismissing by remember { mutableStateOf(false) }
+    val haptics = rememberVaiinillaHaptics()
     val coroutineScope = rememberCoroutineScope()
     val dragOffsetY = remember { Animatable(0f) }
     val density = LocalDensity.current
@@ -437,13 +438,22 @@ fun ProductDetailSheet(
                                 }
                                 QuantityControl(
                                     quantity = quantity,
-                                    onMinus = { onQuantityChange(-1) },
-                                    onPlus = { onQuantityChange(1) },
+                                    onMinus = {
+                                        haptics.click()
+                                        onQuantityChange(-1)
+                                    },
+                                    onPlus = {
+                                        haptics.click()
+                                        onQuantityChange(1)
+                                    },
                                 )
                             }
                             Spacer(Modifier.height(12.dp))
                             Button(
-                                onClick = onAdd,
+                                onClick = {
+                                    haptics.impact()
+                                    onAdd()
+                                },
                                 enabled = canAdd,
                                 modifier = Modifier.fillMaxWidth().height(52.dp),
                                 shape = RoundedCornerShape(18.dp),
@@ -487,6 +497,7 @@ private fun OptionGroupSection(
     onClearOptionalGroup: (Int) -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
     Column(modifier = Modifier.padding(top = 20.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -510,7 +521,10 @@ private fun OptionGroupSection(
                 OptionChip(
                     text = "Sin extra",
                     selected = !anySelected,
-                    onClick = { onClearOptionalGroup(group.id) },
+                    onClick = {
+                        haptics.selection()
+                        onClearOptionalGroup(group.id)
+                    },
                 )
             }
             group.options.forEach { option ->
@@ -518,7 +532,10 @@ private fun OptionGroupSection(
                 OptionChip(
                     text = option.name + extra,
                     selected = option.id in selectedOptionIds,
-                    onClick = { onToggleOption(group.id, option.id) },
+                    onClick = {
+                        haptics.selection()
+                        onToggleOption(group.id, option.id)
+                    },
                 )
             }
         }

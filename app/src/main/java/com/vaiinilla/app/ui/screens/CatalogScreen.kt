@@ -73,6 +73,20 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import com.vaiinilla.app.ui.components.ProductCardSkeleton
+import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CatalogScreen(
     state: OrderFlowUiState,
@@ -94,27 +108,41 @@ fun CatalogScreen(
     profileInitials: String = "?",
     onOpenAccount: () -> Unit = {},
 ) {
+    val haptics = rememberVaiinillaHaptics()
     when {
-        state.loading -> LoadingCatalog()
+        state.loading && state.catalog == null -> LoadingCatalog()
         state.guestVenueSuspended && state.errorMessage != null ->
             CatalogSuspendedError(
                 message = state.errorMessage,
                 onChangeVenue = onChangeVenue,
             )
-        state.errorMessage != null -> CatalogError(state.errorMessage, onRetry)
+        state.errorMessage != null && state.catalog == null -> CatalogError(state.errorMessage, onRetry)
         state.catalog != null ->
             CatalogContent(
                 state = state,
                 activeOrder = activeOrder,
+                onRefresh = {
+                    haptics.impact()
+                    onRetry()
+                },
                 onSearchChange = onSearchChange,
-                onCategorySelected = onCategorySelected,
-                onProductSelected = onProductSelected,
+                onCategorySelected = { catId ->
+                    haptics.selection()
+                    onCategorySelected(catId)
+                },
+                onProductSelected = { prodId ->
+                    haptics.click()
+                    onProductSelected(prodId)
+                },
                 onDismissProduct = onDismissProduct,
                 onToggleOption = onToggleOption,
                 onClearOptionalGroup = onClearOptionalGroup,
                 onQuantityChange = onQuantityChange,
                 onAddProduct = onAddProduct,
-                onOpenCart = onOpenCart,
+                onOpenCart = {
+                    haptics.click()
+                    onOpenCart()
+                },
                 onOpenTracking = onOpenTracking,
                 onOpenWallet = onOpenWallet,
                 onChangeVenue = onChangeVenue,
@@ -244,11 +272,12 @@ private fun CatalogScreenPreviewContent() {
     )
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun CatalogContent(
     state: OrderFlowUiState,
     activeOrder: OrderDetail?,
+    onRefresh: () -> Unit,
     onSearchChange: (String) -> Unit,
     onCategorySelected: (Int?) -> Unit,
     onProductSelected: (Int) -> Unit,
@@ -269,11 +298,16 @@ private fun CatalogContent(
     val colors = LocalVaiinillaColors.current
     val themeMode = LocalVaiinillaThemeMode.current
     val themeChanger = LocalVaiinillaThemeModeChanger.current
+    val focusManager = LocalFocusManager.current
+
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(colors.paper),
+                .background(colors.paper)
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = { focusManager.clearFocus() })
+                },
     ) {
         if (themeMode == VaiinillaThemeMode.Amoled) {
             Box(
@@ -288,61 +322,67 @@ private fun CatalogContent(
                         ),
             )
         }
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding(),
-            contentPadding =
-                PaddingValues(
-                    start = 20.dp,
-                    end = 20.dp,
-                    top = 16.dp,
-                    bottom = VaiinillaBottomNavClearance + 48.dp,
-                ),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        PullToRefreshBox(
+            isRefreshing = state.loading,
+            onRefresh = onRefresh,
+            modifier = Modifier.fillMaxSize(),
         ) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                CatalogHeader(
-                    state = state,
-                    categories = catalog.categories.sortedBy(Category::order),
-                    onSearchChange = onSearchChange,
-                    onCategorySelected = onCategorySelected,
-                    onOpenCart = onOpenCart,
-                    onChangeVenue = onChangeVenue,
-                    onOpenModes = onOpenModes,
-                    onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
-                    profileInitials = profileInitials,
-                    onOpenAccount = onOpenAccount,
-                )
-            }
-
-            activeOrder?.let { order ->
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding(),
+                contentPadding =
+                    PaddingValues(
+                        start = 20.dp,
+                        end = 20.dp,
+                        top = 16.dp,
+                        bottom = VaiinillaBottomNavClearance + 48.dp,
+                    ),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    ActiveOrderBanner(
-                        folio = order.summary.folio.toString(),
-                        statusLabel = order.summary.state.label,
-                        itemCount = order.items.sumOf { it.quantity },
-                        destination = order.summary.destination.label,
-                        onClick = onOpenTracking,
-                        modifier = Modifier.padding(bottom = 4.dp),
+                    CatalogHeader(
+                        state = state,
+                        categories = catalog.categories.sortedBy(Category::order),
+                        onSearchChange = onSearchChange,
+                        onCategorySelected = onCategorySelected,
+                        onOpenCart = onOpenCart,
+                        onChangeVenue = onChangeVenue,
+                        onOpenModes = onOpenModes,
+                        onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
+                        profileInitials = profileInitials,
+                        onOpenAccount = onOpenAccount,
                     )
                 }
-            }
 
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                MenuSectionHead(state = state)
-            }
-
-            if (state.filteredProducts.isEmpty()) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    EmptySearchState(onClearSearch = { onSearchChange("") })
+                activeOrder?.let { order ->
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        ActiveOrderBanner(
+                            folio = order.summary.folio.toString(),
+                            statusLabel = order.summary.state.label,
+                            itemCount = order.items.sumOf { it.quantity },
+                            destination = order.summary.destination.label,
+                            onClick = onOpenTracking,
+                            modifier = Modifier.padding(bottom = 4.dp),
+                        )
+                    }
                 }
-            } else {
-                items(state.filteredProducts, key = Product::id) { product ->
-                    ProductCard(product = product, onClick = { onProductSelected(product.id) })
+
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    MenuSectionHead(state = state)
+                }
+
+                if (state.filteredProducts.isEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        EmptySearchState(onClearSearch = { onSearchChange("") })
+                    }
+                } else {
+                    items(state.filteredProducts, key = Product::id) { product ->
+                        ProductCard(product = product, onClick = { onProductSelected(product.id) })
+                    }
                 }
             }
         }
@@ -426,7 +466,12 @@ private fun CatalogHeader(
                     Text("Cambiar", color = colors.muted, fontWeight = FontWeight.Bold)
                 }
             }
-            Box {
+            val cartScale by animateFloatAsState(
+                targetValue = if (state.cartItemCount > 0) 1.08f else 1.0f,
+                animationSpec = spring(dampingRatio = 0.45f, stiffness = 400f),
+                label = "cart_bounce",
+            )
+            Box(modifier = Modifier.scale(cartScale)) {
                 IconButton(
                     onClick = onOpenCart,
                     modifier =
@@ -656,11 +701,56 @@ private fun EmptySearchState(onClearSearch: () -> Unit) {
 @Composable
 private fun LoadingCatalog() {
     val colors = LocalVaiinillaColors.current
-    Box(
-        modifier = Modifier.fillMaxSize().background(colors.paper),
-        contentAlignment = Alignment.Center,
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(colors.paper)
+                .statusBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
     ) {
-        CircularProgressIndicator(color = colors.accent)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth(0.35f)
+                            .height(14.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(colors.paper2),
+                )
+                Spacer(Modifier.height(8.dp))
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth(0.6f)
+                            .height(20.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(colors.paper2),
+                )
+            }
+            Box(
+                modifier =
+                    Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(colors.paper2),
+            )
+        }
+        Spacer(Modifier.height(20.dp))
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(6) {
+                ProductCardSkeleton()
+            }
+        }
     }
 }
 

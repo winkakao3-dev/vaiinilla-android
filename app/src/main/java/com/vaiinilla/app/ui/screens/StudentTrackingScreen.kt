@@ -44,6 +44,13 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentTrackingScreen(
     state: OperationalUiState,
@@ -55,7 +62,9 @@ fun StudentTrackingScreen(
     onOpenCatalog: () -> Unit,
     onSelectOrder: (String) -> Unit,
     onViewSticker: () -> Unit = {},
+    onRefresh: () -> Unit = {},
 ) {
+    val haptics = rememberVaiinillaHaptics()
     LaunchedEffect(Unit) {
         if (state.role != OperationalRole.CLIENT) {
             // Role is set by AppNavHost before navigation.
@@ -70,80 +79,89 @@ fun StudentTrackingScreen(
                 .fillMaxSize()
                 .background(colors.paper),
     ) {
-        LazyColumn(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding(),
-            contentPadding =
-                PaddingValues(
-                    start = 20.dp,
-                    end = 20.dp,
-                    top = 18.dp,
-                    bottom = VaiinillaBottomNavClearance + 48.dp,
-                ),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+        PullToRefreshBox(
+            isRefreshing = state.loading,
+            onRefresh = {
+                haptics.impact()
+                onRefresh()
+            },
+            modifier = Modifier.fillMaxSize(),
         ) {
-            item {
-                Text("Mis pedidos", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 22.sp)
-            }
-
-            when {
-                state.orders.isEmpty() -> {
-                    item {
-                        EmptyState(
-                            icon = Icons.Outlined.ReceiptLong,
-                            title = "Sin pedidos activos",
-                            message = "Cuando confirmes uno aparecerá aquí.",
-                            actionLabel = "Pedir algo",
-                            onAction = onOpenCatalog,
-                        )
-                    }
+            LazyColumn(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding(),
+                contentPadding =
+                    PaddingValues(
+                        start = 20.dp,
+                        end = 20.dp,
+                        top = 18.dp,
+                        bottom = VaiinillaBottomNavClearance + 48.dp,
+                    ),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                item {
+                    Text("Mis pedidos", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 22.sp)
                 }
-                selected != null -> {
-                    item {
-                        OrderTrackingCard(order = selected, showEyebrow = true)
-                    }
-                    item {
-                        TrackingSectionHead()
-                    }
-                    item {
-                        OrderTrackingTimeline(
-                            current = selected.summary.state,
-                            destination = selected.summary.destination,
-                            paymentMethod = selected.summary.paymentMethod,
-                        )
-                    }
-                    item {
-                        Text("Resumen", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
-                    }
-                    item {
-                        OrderDetailSummary(order = selected)
-                    }
-                    item {
-                        Button(
-                            onClick = onViewSticker,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape =
-                                androidx.compose.foundation.shape
-                                    .RoundedCornerShape(18.dp),
-                            colors =
-                                ButtonDefaults.buttonColors(
-                                    containerColor = colors.paper2,
-                                    contentColor = colors.ink,
-                                ),
-                        ) {
-                            Text("Ver sticker", fontWeight = FontWeight.Black)
+
+                when {
+                    state.orders.isEmpty() -> {
+                        item {
+                            EmptyState(
+                                icon = Icons.Outlined.ReceiptLong,
+                                title = "Sin pedidos activos",
+                                message = "Cuando confirmes uno aparecerá aquí.",
+                                actionLabel = "Pedir algo",
+                                onAction = onOpenCatalog,
+                            )
                         }
                     }
-                }
-                else -> {
-                    items(state.orders, key = { it.summary.id }) { order ->
-                        OrderTrackingCard(
-                            order = order,
-                            showEyebrow = false,
-                            onClick = { onSelectOrder(order.summary.id) },
-                        )
+                    selected != null -> {
+                        item {
+                            OrderTrackingCard(order = selected, showEyebrow = true)
+                        }
+                        item {
+                            TrackingSectionHead()
+                        }
+                        item {
+                            OrderTrackingTimeline(
+                                current = selected.summary.state,
+                                destination = selected.summary.destination,
+                                paymentMethod = selected.summary.paymentMethod,
+                            )
+                        }
+                        item {
+                            Text("Resumen", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                        }
+                        item {
+                            OrderDetailSummary(order = selected)
+                        }
+                        item {
+                            Button(
+                                onClick = onViewSticker,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape =
+                                    androidx.compose.foundation.shape
+                                        .RoundedCornerShape(18.dp),
+                                colors =
+                                    ButtonDefaults.buttonColors(
+                                        containerColor = colors.paper2,
+                                        contentColor = colors.ink,
+                                    ),
+                            ) {
+                                Text("Ver sticker", fontWeight = FontWeight.Black)
+                            }
+                        }
+                    }
+                    else -> {
+                        items(state.orders, key = { it.summary.id }) { order ->
+                            OrderTrackingCard(
+                                order = order,
+                                showEyebrow = false,
+                                onClick = { onSelectOrder(order.summary.id) },
+                            )
+                        }
                     }
                 }
             }
