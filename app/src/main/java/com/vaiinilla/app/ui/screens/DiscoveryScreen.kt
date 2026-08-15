@@ -808,7 +808,7 @@ private fun SpaceCodeSheet(
                         .fillMaxWidth()
                         .height(58.dp)
                         .clip(RoundedCornerShape(18.dp))
-                        .background(Color(0xFFFFFDF6))
+                        .background(colors.paper2)
                         .border(1.dp, colors.line, RoundedCornerShape(18.dp))
                         .padding(horizontal = 16.dp),
                 decorationBox = { input ->
@@ -823,7 +823,7 @@ private fun SpaceCodeSheet(
             if (showError) {
                 Text(
                     "Escribe un código para continuar.",
-                    color = Color(0xFFA93631),
+                    color = colors.coral,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(top = 9.dp, start = 3.dp),

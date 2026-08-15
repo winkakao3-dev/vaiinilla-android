@@ -562,7 +562,12 @@ private fun MenuSectionHead(
                             } else {
                                 "No disponible"
                             },
-                        color = colors.accentInk,
+                        color =
+                            if (status.acceptingOrders && status.cashSessionOpen) {
+                                colors.accentInk
+                            } else {
+                                colors.muted
+                            },
                         fontWeight = FontWeight.ExtraBold,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                     )

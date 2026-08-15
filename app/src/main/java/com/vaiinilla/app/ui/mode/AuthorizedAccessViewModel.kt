@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
+import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthSession
@@ -79,7 +80,7 @@ class AuthorizedAccessViewModel
                             _state.value =
                                 _state.value.copy(
                                     loading = false,
-                                    errorMessage = error.message ?: "Invitación no disponible.",
+                                    errorMessage = error.toUserFacingMessage("Invitación no disponible."),
                                 )
                         },
                     )
@@ -135,7 +136,7 @@ class AuthorizedAccessViewModel
                             _state.value =
                                 _state.value.copy(
                                     loading = false,
-                                    errorMessage = error.message,
+                                    errorMessage = error.toUserFacingMessage(),
                                 )
                             onRefreshed()
                         },
@@ -174,7 +175,7 @@ class AuthorizedAccessViewModel
                             _state.value =
                                 _state.value.copy(
                                     loading = false,
-                                    errorMessage = error.message ?: "No se pudo aceptar la invitación.",
+                                    errorMessage = error.toUserFacingMessage("No se pudo aceptar la invitación."),
                                 )
                         },
                     )
@@ -210,7 +211,7 @@ class AuthorizedAccessViewModel
                             _state.value =
                                 _state.value.copy(
                                     loading = false,
-                                    errorMessage = error.message ?: "No se pudo activar este modo.",
+                                    errorMessage = error.toUserFacingMessage("No se pudo activar este modo."),
                                 )
                         },
                     )
@@ -254,7 +255,7 @@ class AuthorizedAccessViewModel
                             _state.value =
                                 _state.value.copy(
                                     loading = false,
-                                    errorMessage = error.message ?: "No se pudo volver al modo Alumno.",
+                                    errorMessage = error.toUserFacingMessage("No se pudo volver al modo Alumno."),
                                 )
                         },
                     )

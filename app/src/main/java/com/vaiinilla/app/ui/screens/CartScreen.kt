@@ -736,7 +736,7 @@ private fun OrderSummaryCard(state: OrderFlowUiState) {
                 }
                 Text(
                     "El servidor confirmará precios y disponibilidad antes de crear el pedido.",
-                    color = Color(0xFF8F918B),
+                    color = colors.paper.copy(alpha = 0.72f),
                     fontSize = 12.sp,
                     lineHeight = 18.sp,
                     modifier = Modifier.padding(top = 8.dp),

@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.auth.ContextoExchanger
 import com.vaiinilla.app.data.auth.student.AccessEmailApi
@@ -137,7 +138,7 @@ class StudentAuthViewModel
                                 loading = false,
                                 session = session,
                                 verificationSent = verificationResult.isSuccess,
-                                errorMessage = verificationResult.exceptionOrNull()?.message,
+                                errorMessage = verificationResult.exceptionOrNull().toUserFacingMessage(),
                             )
                         onSuccess()
                     },
@@ -146,7 +147,7 @@ class StudentAuthViewModel
                         _state.value =
                             _state.value.copy(
                                 loading = false,
-                                errorMessage = error.message,
+                                errorMessage = error.toUserFacingMessage(),
                                 emailExistsSuggestion = emailExists,
                             )
                     },
@@ -191,7 +192,7 @@ class StudentAuthViewModel
                         _state.value =
                             _state.value.copy(
                                 loading = false,
-                                errorMessage = error.message,
+                                errorMessage = error.toUserFacingMessage(),
                             )
                     },
                 )
@@ -225,7 +226,7 @@ class StudentAuthViewModel
                             _state.value =
                                 _state.value.copy(
                                     loading = false,
-                                    errorMessage = error.message,
+                                    errorMessage = error.toUserFacingMessage(),
                                 )
                         }
                     },
@@ -257,7 +258,7 @@ class StudentAuthViewModel
                         _state.value =
                             _state.value.copy(
                                 loading = false,
-                                errorMessage = error.message,
+                                errorMessage = error.toUserFacingMessage(),
                             )
                     },
                 )
@@ -285,7 +286,7 @@ class StudentAuthViewModel
                         _state.value =
                             _state.value.copy(
                                 loading = false,
-                                errorMessage = error.message,
+                                errorMessage = error.toUserFacingMessage(),
                             )
                     },
                 )
@@ -389,7 +390,7 @@ class StudentAuthViewModel
                             _state.value =
                                 _state.value.copy(
                                     loading = false,
-                                    errorMessage = error.message,
+                                    errorMessage = error.toUserFacingMessage(),
                                 )
                         }
                     },
@@ -447,7 +448,7 @@ class StudentAuthViewModel
                         _state.value =
                             _state.value.copy(
                                 loading = false,
-                                errorMessage = error.message,
+                                errorMessage = error.toUserFacingMessage(),
                             )
                     },
                 )

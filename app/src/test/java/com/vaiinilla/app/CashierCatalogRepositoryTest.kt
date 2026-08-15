@@ -69,6 +69,8 @@ class CashierCatalogRepositoryTest {
                 ).getOrThrow()
 
         assertEquals(102, product.id)
+        assertEquals("55.00", product.counterPrice)
+        assertEquals("60.00", product.digitalPrice)
         assertEquals("catalogo/productos", client.path)
         assertEquals("idem-create", client.headers["Idempotency-Key"])
         assertTrue(client.body.contains("\"grupos_opcion\":[]"))

@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.domain.discovery.DiscoveryFailures
 import com.vaiinilla.app.domain.model.GuestVenueContext
@@ -91,7 +92,7 @@ class GuestDiscoveryViewModel
                 onFailure = { error ->
                     _state.value =
                         _state.value.copy(
-                            errorMessage = error.message ?: "No se pudo leer el QR.",
+                            errorMessage = error.toUserFacingMessage("No se pudo leer el QR."),
                         )
                 },
             )
@@ -123,7 +124,7 @@ class GuestDiscoveryViewModel
                             _state.value.copy(
                                 loading = false,
                                 establishments = emptyList(),
-                                errorMessage = error.message ?: "No se pudo cargar el descubrimiento.",
+                                errorMessage = error.toUserFacingMessage("No se pudo cargar el descubrimiento."),
                             )
                     },
                 )
@@ -165,7 +166,7 @@ class GuestDiscoveryViewModel
                         _state.value =
                             _state.value.copy(
                                 resolving = false,
-                                errorMessage = error.message ?: "No se pudo resolver el espacio.",
+                                errorMessage = error.toUserFacingMessage("No se pudo resolver el espacio."),
                             )
                     },
                 )
@@ -200,11 +201,11 @@ class GuestDiscoveryViewModel
                                     if (DiscoveryFailures.isEstablishmentSuspended(error)) {
                                         null
                                     } else {
-                                        error.message ?: "QR de establecimiento inválido."
+                                        error.toUserFacingMessage("QR de establecimiento inválido.")
                                     },
                                 suspendedMessage =
                                     if (DiscoveryFailures.isEstablishmentSuspended(error)) {
-                                        error.message
+                                        error.toUserFacingMessage("Este establecimiento está suspendido.")
                                     } else {
                                         null
                                     },

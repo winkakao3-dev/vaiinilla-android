@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.auth.ContextoExchanger
 import com.vaiinilla.app.data.guest.GuestSessionStore
@@ -278,7 +279,13 @@ class OrderFlowViewModel
             val product = state.selectedProduct ?: return
             val validation = runCatching { ContractRules.validateSelections(product, state.selectedOptionIds) }
             if (validation.isFailure) {
-                _uiState.value = state.copy(createOrderError = validation.exceptionOrNull()?.message)
+                _uiState.value =
+                    state.copy(
+                        createOrderError =
+                            validation.exceptionOrNull().toUserFacingMessage(
+                                "Revisa las opciones del producto.",
+                            ),
+                    )
                 return
             }
 
@@ -427,8 +434,9 @@ class OrderFlowViewModel
                     }
                 if (staffPresenceResult.isFailure) {
                     val reason =
-                        staffPresenceResult.exceptionOrNull()?.message
-                            ?: "No se pudo avisar a Caja y Cocina."
+                        staffPresenceResult.exceptionOrNull().toUserFacingMessage(
+                            "No se pudo avisar a Caja y Cocina.",
+                        )
                     _uiState.value =
                         current.copy(
                             creatingOrder = false,
@@ -451,7 +459,7 @@ class OrderFlowViewModel
                                 creatingOrder = false,
                                 createOrderError =
                                     "No pudimos verificar si el establecimiento está recibiendo pedidos. " +
-                                        (error.message ?: "Vuelve a iniciar sesión."),
+                                        error.toUserFacingMessage("Vuelve a iniciar sesión."),
                             )
                         return@launch
                     }
@@ -505,7 +513,7 @@ class OrderFlowViewModel
                         _uiState.value =
                             _uiState.value.copy(
                                 creatingOrder = false,
-                                createOrderError = error.message ?: "No se pudo crear el pedido.",
+                                createOrderError = error.toUserFacingMessage("No se pudo crear el pedido."),
                             )
                     },
                 )
