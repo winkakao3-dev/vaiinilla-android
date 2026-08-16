@@ -70,5 +70,4 @@ class StudentNavPillMotionTest {
         assertEquals(3, nearestStudentNavIndex(2.8f, 4))
         assertEquals(3, nearestStudentNavIndex(8f, 4))
     }
-
 }

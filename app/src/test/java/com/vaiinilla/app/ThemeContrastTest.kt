@@ -54,5 +54,4 @@ class ThemeContrastTest {
             (0.7152 * linearize(color.green)) +
             (0.0722 * linearize(color.blue))
     }
-
 }
