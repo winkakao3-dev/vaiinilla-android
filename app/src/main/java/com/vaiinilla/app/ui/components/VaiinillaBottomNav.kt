@@ -92,7 +92,7 @@ internal object StudentNavPillMotion {
  */
 private val NavDockHeight = 68.dp
 private val NavMaxWidth = 568.dp
-private val NavDockGapAboveSafeArea = 16.dp
+private val NavDockGapAboveSafeArea = 8.dp
 private val NavDockHorizontalMargin = 16.dp
 private val NavDockShape = RoundedCornerShape(32.dp)
 private val NavBubbleShape = RoundedCornerShape(24.dp)
