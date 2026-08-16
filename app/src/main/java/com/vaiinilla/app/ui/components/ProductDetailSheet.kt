@@ -67,15 +67,10 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import androidx.compose.foundation.layout.offset
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.Velocity
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -115,53 +110,6 @@ fun ProductDetailSheet(
         if (!dismissing) {
             dismissing = true
             sheetVisibility.targetState = false
-        }
-    }
-
-    val nestedScrollConnection = remember {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                val delta = available.y
-                if (delta < 0 && dragOffsetY.value > 0f) {
-                    val consumed = delta.coerceAtLeast(-dragOffsetY.value)
-                    coroutineScope.launch {
-                        dragOffsetY.snapTo(dragOffsetY.value + consumed)
-                    }
-                    return Offset(0f, consumed)
-                }
-                return Offset.Zero
-            }
-
-            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                val delta = available.y
-                if (delta > 0 && scrollState.value == 0) {
-                    coroutineScope.launch {
-                        dragOffsetY.snapTo(dragOffsetY.value + delta * 0.8f)
-                    }
-                    return Offset(0f, delta)
-                }
-                return Offset.Zero
-            }
-
-            override suspend fun onPreFling(available: Velocity): Velocity {
-                if (dragOffsetY.value > dismissThresholdPx || available.y > 800f) {
-                    requestDismiss()
-                    return available
-                } else if (dragOffsetY.value > 0f) {
-                    dragOffsetY.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
-                    return available
-                }
-                return Velocity.Zero
-            }
-
-            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                if (dragOffsetY.value > dismissThresholdPx || available.y > 800f) {
-                    requestDismiss()
-                } else if (dragOffsetY.value > 0f) {
-                    dragOffsetY.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
-                }
-                return Velocity.Zero
-            }
         }
     }
 
@@ -235,7 +183,6 @@ fun ProductDetailSheet(
                     Modifier
                         .fillMaxSize()
                         .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
-                        .nestedScroll(nestedScrollConnection)
                         .clickable(
                             interactionSource = interactionSource,
                             indication = null,
@@ -293,6 +240,8 @@ fun ProductDetailSheet(
                         modifier =
                             Modifier
                                 .weight(1f)
+                                // Content may scroll when a configurable product is taller than the viewport.
+                                // Swipe-to-dismiss is intentionally handle-only to avoid gesture ambiguity.
                                 .verticalScroll(scrollState)
                                 .padding(horizontal = 20.dp),
                     ) {
