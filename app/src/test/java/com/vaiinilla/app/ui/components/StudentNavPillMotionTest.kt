@@ -61,4 +61,14 @@ class StudentNavPillMotionTest {
         assertEquals(1f, StudentNavPillMotion.index, 0.01f)
         assertEquals(StudentTab.ORDERS, StudentNavPillMotion.lastTab)
     }
+
+    @Test
+    fun `drag release resolves to nearest valid tab anchor`() {
+        assertEquals(0, nearestStudentNavIndex(-1f, 4))
+        assertEquals(0, nearestStudentNavIndex(0.49f, 4))
+        assertEquals(1, nearestStudentNavIndex(0.51f, 4))
+        assertEquals(3, nearestStudentNavIndex(2.8f, 4))
+        assertEquals(3, nearestStudentNavIndex(8f, 4))
+    }
+
 }

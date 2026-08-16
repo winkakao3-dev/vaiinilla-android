@@ -41,6 +41,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -177,7 +179,11 @@ fun VaiinillaBottomNav(
 
     val activeIndex = tabs.indexOfFirst { it.tab == activeTab }.coerceAtLeast(0)
     val indexAnim = remember { Animatable(StudentNavPillMotion.index) }
+    var dragIndex by remember { mutableFloatStateOf(StudentNavPillMotion.index) }
+    var isDragging by remember { mutableStateOf(false) }
     val onTabSelectedLatest by rememberUpdatedState(onTabSelected)
+    val activeTabLatest by rememberUpdatedState(activeTab)
+    val activeIndexLatest by rememberUpdatedState(activeIndex)
 
     // Flutter didUpdateWidget → SpringSimulation to new index.
     LaunchedEffect(activeIndex, reducedMotion) {
@@ -224,40 +230,50 @@ fun VaiinillaBottomNav(
                 val pillInsetYPx = with(density) { NavPillInsetY.toPx() }
                 val lastIndex = (tabCount - 1).toFloat()
 
+                val visualIndex = if (isDragging) dragIndex else indexAnim.value
                 val dragModifier =
                     if (enableDrag && !reducedMotion) {
                         Modifier.pointerInput(itemWidthPx, lastIndex) {
                             detectHorizontalDragGestures(
+                                onDragStart = {
+                                    // Freeze the visible position into synchronous drag state.
+                                    // This avoids launching one coroutine per pointer movement.
+                                    dragIndex = indexAnim.value.coerceIn(0f, lastIndex)
+                                    isDragging = true
+                                },
                                 onHorizontalDrag = { _, dragAmount ->
-                                    val next =
-                                        (indexAnim.value + dragAmount / itemWidthPx)
+                                    dragIndex =
+                                        (dragIndex + dragAmount / itemWidthPx)
                                             .coerceIn(0f, lastIndex)
-                                    scope.launch { indexAnim.snapTo(next) }
                                 },
                                 onDragEnd = {
-                                    val nearest =
-                                        indexAnim.value
-                                            .roundToInt()
-                                            .coerceIn(0, tabCount - 1)
+                                    val releaseIndex = dragIndex.coerceIn(0f, lastIndex)
+                                    val nearest = nearestStudentNavIndex(releaseIndex, tabCount)
+                                    val targetIndex = nearest.toFloat()
                                     val tab = tabs[nearest].tab
                                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    if (tab != activeTab) {
+
+                                    // Snap navigation and pill from the exact same resolved slot.
+                                    // Keep drag rendering active until Animatable is seeded from the
+                                    // release position, preventing a one-frame jump back to the old tab.
+                                    scope.launch {
+                                        indexAnim.snapTo(releaseIndex)
+                                        isDragging = false
+                                        indexAnim.animateTo(targetIndex, NavPillSpring)
+                                        StudentNavPillMotion.index = targetIndex
+                                        StudentNavPillMotion.lastTab = tab
+                                    }
+                                    if (tab != activeTabLatest) {
                                         onTabSelectedLatest(tab)
-                                    } else {
-                                        scope.launch {
-                                            indexAnim.animateTo(
-                                                nearest.toFloat(),
-                                                NavPillSpring,
-                                            )
-                                        }
                                     }
                                 },
                                 onDragCancel = {
+                                    val releaseIndex = dragIndex.coerceIn(0f, lastIndex)
+                                    val targetIndex = activeIndexLatest.toFloat()
                                     scope.launch {
-                                        indexAnim.animateTo(
-                                            activeIndex.toFloat(),
-                                            NavPillSpring,
-                                        )
+                                        indexAnim.snapTo(releaseIndex)
+                                        isDragging = false
+                                        indexAnim.animateTo(targetIndex, NavPillSpring)
                                     }
                                 },
                             )
@@ -268,7 +284,7 @@ fun VaiinillaBottomNav(
 
                 Box(modifier = Modifier.fillMaxSize().then(dragModifier)) {
                     // Active pill — Flutter Positioned(left: value * itemWidth + inset, …)
-                    val pillLeftPx = indexAnim.value * itemWidthPx + pillInsetXPx
+                    val pillLeftPx = visualIndex * itemWidthPx + pillInsetXPx
                     Box(
                         modifier =
                             Modifier
@@ -288,7 +304,7 @@ fun VaiinillaBottomNav(
                             val selected = entry.tab == activeTab
                             // Soft highlight while dragging near this slot.
                             val near =
-                                abs(indexAnim.value - index) < 0.5f
+                                abs(visualIndex - index) < 0.5f
                             FloatingNavTab(
                                 modifier =
                                     Modifier
@@ -414,6 +430,11 @@ private fun FloatingNavTab(
             modifier = Modifier.padding(top = NavIconLabelGap),
         )
     }
+}
+
+internal fun nearestStudentNavIndex(index: Float, tabCount: Int): Int {
+    if (tabCount <= 0) return 0
+    return index.roundToInt().coerceIn(0, tabCount - 1)
 }
 
 private data class NavTab(
