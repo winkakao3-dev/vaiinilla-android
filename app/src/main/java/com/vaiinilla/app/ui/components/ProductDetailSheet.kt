@@ -30,9 +30,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
@@ -104,7 +102,6 @@ fun ProductDetailSheet(
     val dragOffsetY = remember { Animatable(0f) }
     val density = LocalDensity.current
     val dismissThresholdPx = with(density) { 100.dp.toPx() }
-    val scrollState = rememberScrollState()
 
     fun requestDismiss() {
         if (!dismissing) {
@@ -173,7 +170,7 @@ fun ProductDetailSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.92f)
+                    .fillMaxHeight(0.96f)
                     .align(Alignment.BottomCenter),
             enter = sheetEnter,
             exit = sheetExit,
@@ -183,6 +180,30 @@ fun ProductDetailSheet(
                     Modifier
                         .fillMaxSize()
                         .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
+                        .pointerInput(Unit) {
+                            detectVerticalDragGestures(
+                                onDragStart = {},
+                                onDragEnd = {
+                                    if (dragOffsetY.value > dismissThresholdPx) {
+                                        requestDismiss()
+                                    } else {
+                                        coroutineScope.launch {
+                                            dragOffsetY.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
+                                        }
+                                    }
+                                },
+                                onDragCancel = {
+                                    coroutineScope.launch {
+                                        dragOffsetY.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
+                                    }
+                                },
+                                onVerticalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    val newOffset = (dragOffsetY.value + dragAmount).coerceAtLeast(0f)
+                                    coroutineScope.launch { dragOffsetY.snapTo(newOffset) }
+                                },
+                            )
+                        }
                         .clickable(
                             interactionSource = interactionSource,
                             indication = null,
@@ -197,33 +218,7 @@ fun ProductDetailSheet(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 12.dp)
-                                .pointerInput(Unit) {
-                                    detectVerticalDragGestures(
-                                        onDragStart = {},
-                                        onDragEnd = {
-                                            if (dragOffsetY.value > dismissThresholdPx) {
-                                                requestDismiss()
-                                            } else {
-                                                coroutineScope.launch {
-                                                    dragOffsetY.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
-                                                }
-                                            }
-                                        },
-                                        onDragCancel = {
-                                            coroutineScope.launch {
-                                                dragOffsetY.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
-                                            }
-                                        },
-                                        onVerticalDrag = { change, dragAmount ->
-                                            change.consume()
-                                            val newOffset = (dragOffsetY.value + dragAmount).coerceAtLeast(0f)
-                                            coroutineScope.launch {
-                                                dragOffsetY.snapTo(newOffset)
-                                            }
-                                        },
-                                    )
-                                },
+                                .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Box(
@@ -240,16 +235,21 @@ fun ProductDetailSheet(
                         modifier =
                             Modifier
                                 .weight(1f)
-                                // Content may scroll when a configurable product is taller than the viewport.
-                                // Swipe-to-dismiss is intentionally handle-only to avoid gesture ambiguity.
-                                .verticalScroll(scrollState)
+                                // Product detail is intentionally non-scrollable: the whole sheet is one
+                                // gesture surface and all current catalog content must fit in this viewport.
                                 .padding(horizontal = 20.dp),
                     ) {
                         Box(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .height(240.dp)
+                                    .height(
+                                        when {
+                                            product.optionGroups.size >= 3 -> 120.dp
+                                            product.optionGroups.isNotEmpty() -> 160.dp
+                                            else -> 190.dp
+                                        },
+                                    )
                                     .clip(RoundedCornerShape(26.dp))
                                     .background(colors.paper2),
                         ) {
@@ -293,7 +293,7 @@ fun ProductDetailSheet(
                             }
                         }
 
-                        Spacer(Modifier.height(20.dp))
+                        Spacer(Modifier.height(12.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -326,7 +326,7 @@ fun ProductDetailSheet(
                         Text(
                             text = product.description,
                             color = colors.muted,
-                            modifier = Modifier.padding(top = 9.dp),
+                            modifier = Modifier.padding(top = 7.dp),
                         )
 
                         product.optionGroups.forEach { group ->
@@ -338,22 +338,25 @@ fun ProductDetailSheet(
                             )
                         }
 
-                        Column(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 20.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        Surface(
+                            color = colors.paper2,
+                            shape = RoundedCornerShape(17.dp),
+                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                         ) {
-                            MetaRow("Ingredientes", product.ingredients)
-                            MetaRow("Tiempo estimado", estimatedTimeLabel(product.estimatedTimeMinutes))
-                            MetaRow("Alérgenos", product.allergens)
+                            Column(
+                                modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
+                                verticalArrangement = Arrangement.spacedBy(5.dp),
+                            ) {
+                                MetaRow("Ingredientes", product.ingredients)
+                                MetaRow("Tiempo estimado", estimatedTimeLabel(product.estimatedTimeMinutes))
+                                MetaRow("Alérgenos", product.allergens)
+                            }
                         }
-                        Spacer(Modifier.height(18.dp))
+                        Spacer(Modifier.height(10.dp))
                     }
 
                     Surface(color = colors.paper, shadowElevation = 14.dp) {
-                        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
+                        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)) {
                             val selectionSurfaceModifier =
                                 if (isCustomized) {
                                     Modifier
@@ -397,14 +400,14 @@ fun ProductDetailSheet(
                                     },
                                 )
                             }
-                            Spacer(Modifier.height(12.dp))
+                            Spacer(Modifier.height(10.dp))
                             Button(
                                 onClick = {
                                     haptics.impact()
                                     onAdd()
                                 },
                                 enabled = canAdd,
-                                modifier = Modifier.fillMaxWidth().height(52.dp),
+                                modifier = Modifier.fillMaxWidth().height(50.dp),
                                 shape = RoundedCornerShape(18.dp),
                                 colors =
                                     ButtonDefaults.buttonColors(
@@ -447,7 +450,7 @@ private fun OptionGroupSection(
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
-    Column(modifier = Modifier.padding(top = 20.dp)) {
+    Column(modifier = Modifier.padding(top = 12.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -461,9 +464,9 @@ private fun OptionGroupSection(
             )
         }
         FlowRow(
-            modifier = Modifier.padding(top = 9.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(top = 7.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             if (group.minimumSelections == 0) {
                 val anySelected = group.options.any { it.id in selectedOptionIds }
@@ -520,15 +523,24 @@ private fun MetaRow(
     value: String,
 ) {
     val colors = LocalVaiinillaColors.current
-    Surface(
-        color = colors.paper2,
-        shape = RoundedCornerShape(17.dp),
+    Row(
         modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top,
     ) {
-        Column(modifier = Modifier.padding(13.dp)) {
-            Text(label, color = colors.ink, fontWeight = FontWeight.ExtraBold)
-            Text(value, color = colors.muted, modifier = Modifier.padding(top = 3.dp))
-        }
+        Text(
+            text = label,
+            color = colors.ink,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 12.sp,
+            modifier = Modifier.width(108.dp),
+        )
+        Text(
+            text = value,
+            color = colors.muted,
+            fontSize = 12.sp,
+            lineHeight = 15.sp,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
