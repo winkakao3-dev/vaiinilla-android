@@ -1,113 +1,213 @@
-# Vaiinilla Android — VAI-11
+# Vaiinilla Android
 
-App Android nativa del flujo alumno **VAI-10** (catálogo → carrito efectivo/saldo → confirmación) más **VAI-11** (seguimiento + Caja/Cocina/Mesero) con cliente remoto Railway.
+Cliente Android nativo de **Vaiinilla** para la experiencia de alumno y la operación diaria del establecimiento. Este repositorio contiene la aplicación Android actual; los prototipos, entregas históricas y material de referencia que también viven en el repo no sustituyen al código de `app/` como fuente de verdad del producto.
 
-Fuentes de verdad:
+## Estado actual
 
-- `docs/source-of-truth/BOVEDA_README.md`
-- `docs/source-of-truth/BOVEDA_CONTEXT.md`
-- `docs/source-of-truth/BOVEDA_CONTRACTS.md` v1.0
-- `docs/source-of-truth/VAIINILLA_TASK_HANDOFF.md`
-- `docs/VAI-11_DELIVERY_REPORT.md`
+La app ya cubre el flujo principal de punta a punta para alumno y operación.
 
-## Flujo implementado
+### Alumno
 
-1. El alumno abre el catálogo y ve disponibilidad operativa.
-2. Puede buscar y filtrar productos por categoría.
-3. Abre un producto en un sheet visual comparable al mockup.
-4. Selecciona opciones respetando `min_selecciones` y `max_selecciones`, y una cantidad entre 1 y 20.
-5. Agrega configuraciones al carrito; una línea idéntica se consolida sin superar 20 unidades.
-6. Revisa el carrito para `para_llevar`, añade notas y elige `efectivo` o `saldo`.
-7. La app envía un request contractual sin precios, total, folio, tenant, usuario ni estado.
-8. Railway valida y devuelve `OrderDetail`: `por_cobrar` para efectivo o `cobrado` para saldo.
-9. La confirmación muestra folio, total confirmado y el siguiente paso: Caja para efectivo o Cocina para saldo.
-10. Caja cobra, Cocina prepara/lista, entrega y el alumno ve el seguimiento por polling.
+- descubrimiento y selección de establecimiento;
+- deep links de establecimiento e invitaciones;
+- registro, inicio de sesión, verificación y recuperación con Firebase Auth;
+- catálogo, búsqueda y categorías;
+- detalle de producto con opciones, personalización, alérgenos y tiempo estimado;
+- carrito, destino del pedido y notas;
+- pago en **efectivo** o con **Saldo Vaiinilla**;
+- confirmación visual tipo receipt/sticker;
+- seguimiento del pedido;
+- cartera con saldo y movimientos por establecimiento;
+- navegación persistente entre **Menú**, **Pedidos**, **Cartera** y **Carrito**.
 
-## Límites respetados
+### Operación
 
-Fuera de esta rama/entrega quedan:
+La misma app contiene superficies autorizadas para:
 
-- tarjeta, Stripe o recargas digitales;
-- stickers, receipts coleccionables o reimpresión;
-- administración de cashback, cancelaciones y ajustes administrativos;
+- **Caja** — sesión operativa, cobro de pedidos y recargas de saldo;
+- **Cocina** — preparación y avance de pedidos;
+- **Mesero** — flujo de entrega cuando corresponde.
 
-El campo contractual `cashback_otorgado` se conserva en `OrderSummary`, pero no hay lógica de cashback.
+Los permisos y estados siguen viniendo del backend; la UI no inventa autorización local ni mantiene una segunda fuente de verdad.
+
+## Pagos
+
+| Método | Estado |
+| --- | --- |
+| Efectivo | Implementado |
+| Saldo Vaiinilla | Implementado |
+| Tarjeta / Stripe | Integración pendiente |
+
+Existen superficies y modelos para tarjeta dentro de la UI, pero el backend vigente todavía no expone el flujo digital completo. No se debe presentar tarjeta como método funcional hasta que la integración Stripe/backend esté conectada y verificada de punta a punta.
+
+## Fuente de datos
+
+En runtime la aplicación usa servicios reales:
+
+- **Firebase Auth** para identidad;
+- **backend remoto** para contexto del establecimiento, catálogo, pedidos, operación y wallet.
+
+No existe un modo MOCK alternativo dentro del APK de producción. Fixtures, previews y baselines visuales existen únicamente para desarrollo y pruebas.
+
+Los totales y estados confirmados por el servidor son autoritativos. El dominio monetario evita `Double`/`Float` para cálculos de dinero y usa representación decimal/`BigDecimal` cuando corresponde.
+
+## Deep links
+
+La entrada Android reconoce enlaces de `vaiinilla.app`, incluyendo:
+
+```text
+https://vaiinilla.app/e/{establecimiento}
+https://vaiinilla.app/invitaciones/aceptar?token={token}
+```
+
+Los tokens de invitación se consumen y se eliminan del `Intent` después de capturarse.
 
 ## Arquitectura
 
 ```text
 app/src/main/java/com/vaiinilla/app/
-├── core/       # ambiente, cliente HTTP vacío y seguridad
-├── data/       # DTO, JSON contractual, repositorios remotos y Hilt
-├── domain/     # modelos, dinero BigDecimal, reglas, repositorios y casos de uso
-└── ui/         # estado compartido, navegación, componentes y pantallas Compose
+├── core/       # configuración y utilidades de infraestructura
+├── data/       # auth, catálogo, contratos, discovery, operación, pedidos y wallet remotos
+├── domain/     # modelos, repositorios y casos de uso
+└── ui/         # navegación, estado, pantallas, componentes, temas y módulos por feature
 ```
 
-La UI depende de `CatalogRepository`, `OrderRepository` y `WalletRepository`; la implementación de producción usa Firebase + Railway.
+La app usa una separación `data → domain → ui`, inyección con Hilt y navegación Compose. Las integraciones remotas permanecen detrás de repositorios para evitar que las pantallas dependan directamente de HTTP/Firebase.
 
-## Entrega 03 — Wallet por establecimiento
+## Stack
 
-- El alumno consulta el saldo visible y los movimientos de su establecimiento mediante `wallets/me`.
-- Caja busca clientes con el identificador contextual del establecimiento y registra recargas en efectivo con Caja abierta.
-- Las recargas envían `Idempotency-Key`; los buckets internos, el consumo y la prorrata permanecen bajo control del servidor.
-- Stripe, recargas digitales y cualquier UI de buckets quedan fuera de esta entrega.
+- Kotlin 2.x
+- Jetpack Compose + Material 3
+- Navigation Compose
+- Hilt / KSP
+- Kotlinx Serialization
+- Firebase Auth
+- CameraX + ML Kit Barcode Scanning + ZXing
+- Robolectric + Roborazzi para pruebas visuales JVM
+- ktlint
+- Gradle / Android Gradle Plugin
 
-## Dinero
+Configuración Android actual:
 
-- Los modelos mantienen importes como `String` decimal con dos posiciones.
-- Los cálculos visuales y la validación contractual usan `BigDecimal`.
-- No se usa `Double` ni `Float` en el dominio monetario.
-- Los totales del carrito son una previsualización; el `OrderDetail` devuelto por repositorio es la autoridad para la confirmación.
+```text
+compileSdk 36
+targetSdk 36
+minSdk 26
+JDK 17
+```
 
-## Fuente de datos
+## UI y regresión visual
 
-La aplicación usa una única fuente de datos en runtime: Firebase para identidad y Railway para catálogo, contexto, accesos y operación.
-MOCK fue retirado del runtime y del APK; los fixtures que permanecen en tests o previews no son una fuente de datos de producción.
+La interfaz mantiene el lenguaje visual propio de Vaiinilla: navegación flotante, sheets de producto, receipts/stickers, estados operativos, haptics y soporte de temas.
 
-## Estado REMOTE (VAI-27)
+Las referencias visuales versionadas viven en:
 
-- API de desarrollo: `https://vaiinillaback-development-3f6c.up.railway.app/api/v1/`
-- Swagger: `https://vaiinillaback-development-3f6c.up.railway.app/api/docs/`
-- Build validada: `app/build/outputs/apk/debug/app-debug.apk`
-- SHA-256: `c84aa5d28c6c3dce068bceace1bae483a0f90b65c5d5eaaba7ac6365a258aed0`
+```text
+app/src/test/roborazzi/
+docs/ui-v2/
+```
 
-Build reproducible:
+Para comparar la UI contra las baselines comprometidas:
+
+```bash
+./gradlew :app:verifyRoborazziDebug --no-daemon
+```
+
+Para volver a grabarlas de forma deliberada:
+
+```bash
+./gradlew :app:recordRoborazziDebug --no-daemon
+```
+
+No se deben actualizar baselines únicamente para hacer pasar una regresión: primero se valida que el cambio visual sea intencional.
+
+## Configuración local
+
+Requisitos:
+
+- Android Studio / Android SDK 36;
+- JDK 17;
+- acceso al backend de desarrollo que corresponda.
+
+Copia el ejemplo local:
+
+```bash
+cp local.properties.example local.properties
+```
+
+Configura al menos `sdk.dir` y la URL del backend:
+
+```properties
+sdk.dir=/path/to/Android/sdk
+vaiinillaApiBaseUrl=https://.../api/v1/
+```
+
+Las contraseñas de cuentas seed son opcionales, sólo se usan en builds de depuración/preview y deben permanecer en `local.properties` o propiedades Gradle. **Nunca se deben subir credenciales al repositorio.**
+
+La configuración Firebase del proyecto Android está en `app/google-services.json`; no contiene las contraseñas seed.
+
+## Build
+
+```bash
+./gradlew --no-daemon assembleDebug
+```
+
+También se puede pasar el backend explícitamente:
 
 ```bash
 ./gradlew --no-daemon :app:assembleDebug \
-  -PvaiinillaApiBaseUrl=https://vaiinillaback-development-3f6c.up.railway.app/api/v1/
+  -PvaiinillaApiBaseUrl=https://.../api/v1/
 ```
 
-La evidencia de prueba en dispositivo Android real sigue pendiente; no se reporta como ejecutada mientras `adb devices -l` no muestre un dispositivo y se registre la matriz REMOTE. Ver `docs/VAI-27_HARDENING.md`.
-
-Paths remotos: `catalogo`, `estado-operativo`, `pedidos`, `wallets/me`, `wallets/clientes`, `wallets/{usuarioId}/recargas-efectivo`, cobros, transiciones, `latidos`, `sesiones-caja`.
-El contexto operativo se obtiene después de Firebase; no se aceptan JWT manuales ni una fuente local alternativa. Ver `local.properties.example` y `docs/VAI-11_DELIVERY_REPORT.md`.
-
-## Validación
-
-```bash
-chmod +x gradlew scripts/*.sh scripts/*.py
-python3 scripts/validate_fixtures.py
-./scripts/audit_scope_vai11.sh
-./gradlew testDebugUnitTest
-./gradlew lintDebug
-./gradlew ktlintCheck
-./gradlew assembleDebug
-```
-
-O todo junto:
-
-```bash
-./scripts/verify-on-mac.sh
-```
-
-La autenticación auxiliar de cuentas seed existe sólo para depuración local y siempre pasa por Firebase + Railway; nunca cambia la fuente de datos de la app. Ver `docs/FIREBASE_SEED_AUTH.md`.
-
-APK esperado:
+APK de debug:
 
 ```text
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Consulta `docs/VAI-11_DELIVERY_REPORT.md` (y `docs/VAI-10_DELIVERY_REPORT.md` para el tramo alumno cash).
-Para el hardening de acceso REMOTE de VAI-27, el APK, SHA-256 y la matriz de pruebas, consulta `docs/VAI-27_HARDENING.md`.
+## Verificación
+
+Antes de considerar un cambio terminado:
+
+```bash
+python3 scripts/validate_fixtures.py
+./gradlew --no-daemon testDebugUnitTest
+./gradlew --no-daemon lintDebug
+./gradlew --no-daemon ktlintCheck
+./gradlew --no-daemon assembleDebug
+```
+
+La CI de GitHub ejecuta estas verificaciones en pull requests y pushes a `main`.
+
+Para cambios de UI también se espera verificación visual con Roborazzi y, cuando el comportamiento dependa de gestos, cámara, navegación o integración real, prueba en dispositivo Android.
+
+## Estructura del repositorio
+
+```text
+app/          # aplicación Android nativa actual
+scripts/      # validación y utilidades de desarrollo
+docs/         # contratos, especificaciones, evidencia e historial
+artifacts/    # evidencia y artefactos auxiliares
+expo/         # prototipo/referencia; no es el runtime Android actual
+gallery/      # referencias visuales y material auxiliar
+tools/        # herramientas de apoyo
+```
+
+### Sobre `docs/`
+
+El repositorio conserva documentación de entregas anteriores (`VAI-10`, `VAI-11`, `VAI-26`, `VAI-27`) porque sigue siendo útil como historial, evidencia y referencia contractual. Sus secciones de “fuera de alcance”, fechas, responsables o estado de una entrega **no representan automáticamente el estado actual del producto**.
+
+Para trabajo nuevo:
+
+- usa el código de `app/` y el backend vigente como realidad de ejecución;
+- usa `docs/source-of-truth/` para contratos e invariantes que sigan vigentes;
+- usa `docs/ui-v2/` para especificaciones y regresión visual;
+- usa `docs/history/` y los delivery reports como contexto histórico, no como roadmap actual.
+
+## Regla de cambio
+
+No cambiar en silencio contratos de API, estados de pedido, permisos, modelo de datos o arquitectura. Si una tarea requiere modificar alguno de esos límites, debe tratarse como una decisión explícita y verificarse en ambos lados del contrato.
+
+---
+
+**Vaiinilla Android es la implementación móvil nativa activa.** El README describe el producto actual; los tickets y reportes históricos quedan como evidencia dentro de `docs/`.
