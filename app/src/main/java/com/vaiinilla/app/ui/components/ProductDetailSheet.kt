@@ -395,26 +395,28 @@ fun ProductDetailSheet(
                                 }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Column(modifier = Modifier.weight(1f).then(selectionSurfaceModifier)) {
-                                    Text(
-                                        if (isCustomized) "Tu personalización" else "Tu selección",
-                                        color = colors.muted,
-                                        fontWeight = FontWeight.Bold,
-                                    )
-                                    Text(
-                                        text =
-                                            product.optionGroups
-                                                .flatMap { it.options }
-                                                .filter { it.id in selectedOptionIds }
-                                                .joinToString(" · ") { it.name }
-                                                .ifBlank { "Sin opciones adicionales" },
-                                        color = colors.ink,
-                                        fontWeight = FontWeight.ExtraBold,
-                                    )
+                                Box(modifier = Modifier.weight(1f)) {
+                                    Column(modifier = selectionSurfaceModifier) {
+                                        Text(
+                                            if (isCustomized) "Tu personalización" else "Tu selección",
+                                            color = colors.muted,
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                        Text(
+                                            text =
+                                                product.optionGroups
+                                                    .flatMap { it.options }
+                                                    .filter { it.id in selectedOptionIds }
+                                                    .joinToString(" · ") { it.name }
+                                                    .ifBlank { "Sin opciones adicionales" },
+                                            color = colors.ink,
+                                            fontWeight = FontWeight.ExtraBold,
+                                        )
+                                    }
                                 }
+                                Spacer(Modifier.width(12.dp))
                                 QuantityControl(
                                     quantity = quantity,
                                     onMinus = {
