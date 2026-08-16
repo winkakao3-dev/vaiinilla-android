@@ -101,7 +101,7 @@ fun WalletScreen(
                                 modifier = Modifier.padding(top = 14.dp),
                             )
                             Text(
-                                "Saldo disponible en este establecimiento",
+                                "Saldo Vaiinilla",
                                 color = colors.accentInk.copy(alpha = 0.72f),
                                 fontSize = 13.sp,
                                 modifier = Modifier.padding(top = 4.dp),
@@ -141,7 +141,7 @@ fun WalletScreen(
                 Column(modifier = Modifier.padding(18.dp)) {
                     Text("Saldo y movimientos", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 17.sp)
                     Text(
-                        "Las recargas se hacen en Caja y el saldo se consume al confirmar el pedido.",
+                        "Tu saldo pertenece a este establecimiento. Recárgalo en Caja y úsalo al confirmar tu pedido.",
                         color = colors.muted,
                         fontSize = 13.sp,
                         lineHeight = 19.sp,
@@ -157,7 +157,7 @@ fun WalletScreen(
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.padding(top = 14.dp),
                     ) {
-                        Text("Ver menú y pagar con saldo", fontWeight = FontWeight.Black)
+                        Text("Pagar con saldo", fontWeight = FontWeight.Black)
                         Icon(
                             imageVector = Icons.Outlined.ArrowForward,
                             contentDescription = null,

@@ -357,8 +357,8 @@ fun CheckoutPaymentPicker(
         )
         PaymentOption(
             icon = Icons.Outlined.AccountBalanceWallet,
-            title = "Saldo de la cafetería",
-            subtitle = "Usa el saldo disponible de este establecimiento.",
+            title = "Saldo Vaiinilla",
+            subtitle = "Tu saldo en este establecimiento.",
             selected = selected == PaymentMethod.BALANCE,
             onClick = { onSelect(PaymentMethod.BALANCE) },
         )
