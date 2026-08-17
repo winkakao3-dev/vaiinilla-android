@@ -433,7 +433,10 @@ private fun FloatingNavTab(
     }
 }
 
-internal fun nearestStudentNavIndex(index: Float, tabCount: Int): Int {
+internal fun nearestStudentNavIndex(
+    index: Float,
+    tabCount: Int,
+): Int {
     if (tabCount <= 0) return 0
     return index.roundToInt().coerceIn(0, tabCount - 1)
 }

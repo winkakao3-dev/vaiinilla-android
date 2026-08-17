@@ -49,14 +49,13 @@ import com.vaiinilla.app.ui.components.AuthSheetHeader
 import com.vaiinilla.app.ui.components.OperationalEmptyState
 import com.vaiinilla.app.ui.components.OrderSummaryCard
 import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.theme.Coral
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import java.math.BigDecimal
-
-import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 
 @Composable
 fun CashierOperationalScreen(

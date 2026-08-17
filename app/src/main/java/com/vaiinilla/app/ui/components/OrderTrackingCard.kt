@@ -279,8 +279,7 @@ private fun TimelineRow(
                                     scaleX = haloPulse
                                     scaleY = haloPulse
                                     alpha = 0.45f
-                                }
-                                .clip(CircleShape)
+                                }.clip(CircleShape)
                                 .background(colors.yolk.copy(alpha = 0.35f)),
                     )
                 }
@@ -291,8 +290,7 @@ private fun TimelineRow(
                             .graphicsLayer {
                                 scaleX = checkScale
                                 scaleY = checkScale
-                            }
-                            .clip(CircleShape)
+                            }.clip(CircleShape)
                             .background(circleColor),
                     contentAlignment = Alignment.Center,
                 ) {

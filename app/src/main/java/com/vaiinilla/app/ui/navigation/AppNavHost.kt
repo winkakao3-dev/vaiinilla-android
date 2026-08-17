@@ -237,7 +237,10 @@ fun AppNavHost(
                     pendingEstablishmentSlug = pendingEstablishmentSlug,
                     session = authorizedAccessViewModel.state.value.session,
                     hasStaffModes =
-                        hasStaffLaunchModes(authorizedAccessViewModel.state.value.modes.map { it.role }),
+                        hasStaffLaunchModes(
+                            authorizedAccessViewModel.state.value.modes
+                                .map { it.role },
+                        ),
                 )
             val route =
                 when (destination) {
@@ -298,7 +301,8 @@ fun AppNavHost(
                                 session = authorizedAccessViewModel.state.value.session,
                                 hasStaffModes =
                                     hasStaffLaunchModes(
-                                        authorizedAccessViewModel.state.value.modes.map { it.role },
+                                        authorizedAccessViewModel.state.value.modes
+                                            .map { it.role },
                                     ),
                             )
                     }
@@ -312,7 +316,8 @@ fun AppNavHost(
                                 session = authorizedAccessViewModel.state.value.session,
                                 hasStaffModes =
                                     hasStaffLaunchModes(
-                                        authorizedAccessViewModel.state.value.modes.map { it.role },
+                                        authorizedAccessViewModel.state.value.modes
+                                            .map { it.role },
                                     ),
                             )
                         navigateLaunchDestination(destination)

@@ -70,8 +70,8 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -212,8 +212,7 @@ fun ProductDetailSheet(
                                     coroutineScope.launch { dragOffsetY.snapTo(newOffset) }
                                 },
                             )
-                        }
-                        .clickable(
+                        }.clickable(
                             interactionSource = interactionSource,
                             indication = null,
                             onClick = {},

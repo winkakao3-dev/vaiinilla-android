@@ -12,11 +12,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,28 +50,30 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -186,7 +186,10 @@ fun AuthHeroSheetScaffold(
                 null
             } else {
                 object : NestedScrollConnection {
-                    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                    override fun onPreScroll(
+                        available: Offset,
+                        source: NestedScrollSource,
+                    ): Offset {
                         val delta = available.y
                         if (delta < 0) {
                             val prev = heroOffsetPx
@@ -197,7 +200,11 @@ fun AuthHeroSheetScaffold(
                         return Offset.Zero
                     }
 
-                    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                    override fun onPostScroll(
+                        consumed: Offset,
+                        available: Offset,
+                        source: NestedScrollSource,
+                    ): Offset {
                         val delta = available.y
                         if (delta > 0) {
                             val prev = heroOffsetPx
@@ -268,8 +275,7 @@ fun AuthHeroSheetScaffold(
                                 end = 18.dp,
                                 top = if (headerInsideScroll) 14.dp else 24.dp,
                                 bottom = 14.dp,
-                            )
-                            .graphicsLayer {
+                            ).graphicsLayer {
                                 alpha = busyAlpha
                                 scaleX = busyScale
                                 scaleY = busyScale
@@ -632,9 +638,12 @@ fun AuthInkSubmitButton(
                     scaleX = scale
                     scaleY = scale
                     alpha = if (enabled) 1f else 0.76f
-                }
-                .shadow(14.dp, FieldShape, ambientColor = colors.ink.copy(alpha = 0.16f), spotColor = colors.ink.copy(alpha = 0.16f))
-                .clip(FieldShape)
+                }.shadow(
+                    14.dp,
+                    FieldShape,
+                    ambientColor = colors.ink.copy(alpha = 0.16f),
+                    spotColor = colors.ink.copy(alpha = 0.16f),
+                ).clip(FieldShape)
                 .background(colors.ink)
                 .clickable(
                     enabled = enabled,
@@ -729,8 +738,7 @@ private fun AuthRevealButton(
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
-                }
-                .clip(RoundedCornerShape(12.dp))
+                }.clip(RoundedCornerShape(12.dp))
                 .clickable(
                     interactionSource = interaction,
                     indication = null,
@@ -768,8 +776,7 @@ private fun AuthPressIcon(
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
-                }
-                .clip(CircleShape)
+                }.clip(CircleShape)
                 .clickable(
                     interactionSource = interaction,
                     indication = null,
@@ -837,14 +844,44 @@ private fun AuthLoadingOverlay() {
     ) {
         Box(Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(colors.paper2))
         Spacer(Modifier.height(16.dp))
-        Box(Modifier.fillMaxWidth(0.4f).height(12.dp).clip(RoundedCornerShape(99.dp)).background(colors.paper2))
+        Box(
+            Modifier
+                .fillMaxWidth(0.4f)
+                .height(12.dp)
+                .clip(RoundedCornerShape(99.dp))
+                .background(colors.paper2),
+        )
         Spacer(Modifier.height(10.dp))
-        Box(Modifier.fillMaxWidth(0.7f).height(12.dp).clip(RoundedCornerShape(99.dp)).background(colors.paper2))
+        Box(
+            Modifier
+                .fillMaxWidth(0.7f)
+                .height(12.dp)
+                .clip(RoundedCornerShape(99.dp))
+                .background(colors.paper2),
+        )
         Spacer(Modifier.height(22.dp))
-        Box(Modifier.fillMaxWidth().height(56.dp).clip(FieldShape).background(colors.paper2))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .clip(FieldShape)
+                .background(colors.paper2),
+        )
         Spacer(Modifier.height(12.dp))
-        Box(Modifier.fillMaxWidth().height(56.dp).clip(FieldShape).background(colors.paper2))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .clip(FieldShape)
+                .background(colors.paper2),
+        )
         Spacer(Modifier.height(16.dp))
-        Box(Modifier.fillMaxWidth().height(54.dp).clip(FieldShape).background(colors.ink.copy(alpha = 0.18f)))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(54.dp)
+                .clip(FieldShape)
+                .background(colors.ink.copy(alpha = 0.18f)),
+        )
     }
 }

@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -327,8 +326,7 @@ private fun StaffModeCard(
                     width = if (isActive) 2.dp else 1.dp,
                     color = if (isActive) colors.accent.copy(alpha = 0.68f) else colors.line,
                     shape = RoundedCornerShape(16.dp),
-                )
-                .padding(14.dp),
+                ).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

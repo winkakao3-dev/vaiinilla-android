@@ -107,10 +107,12 @@ fun CashierCatalogPanel(
             captureUri = createCaptureUri(context)
             captureUri?.let { camera.launch(it) }
         }
+
     fun launchGallery(productId: Int) {
         photoTargetId = productId
         gallery.launch("image/*")
     }
+
     fun launchCamera(productId: Int) {
         photoTargetId = productId
         val granted =
@@ -300,7 +302,9 @@ private fun CashierCreateProductForm(
                 ),
         )
         Text(
-            text = "El menú del alumno usa el precio digital que devuelve la API; puede ser distinto al precio mostrador.",
+            text =
+                "El menú del alumno usa el precio digital que devuelve la API; " +
+                    "puede ser distinto al precio mostrador.",
             color = colors.muted,
             fontSize = 12.sp,
             lineHeight = 17.sp,

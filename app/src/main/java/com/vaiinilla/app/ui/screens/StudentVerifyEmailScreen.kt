@@ -67,7 +67,9 @@ fun StudentVerifyEmailScreen(
                         buildString {
                             append("Enviamos un enlace a ")
                             append(state.session?.email ?: state.email)
-                            append(". Ábrelo; te lleva a la web de Vaiinilla para confirmar. Después pulsa Ya verifiqué.")
+                            append(
+                                ". Ábrelo; te lleva a la web de Vaiinilla para confirmar. Después pulsa Ya verifiqué.",
+                            )
                             if (state.verificationSent) {
                                 append(" (reenviado)")
                             }

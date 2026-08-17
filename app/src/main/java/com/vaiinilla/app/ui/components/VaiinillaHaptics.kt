@@ -6,29 +6,35 @@ import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 
-class VaiinillaHaptics(private val haptic: HapticFeedback) {
+class VaiinillaHaptics(
+    private val haptic: HapticFeedback,
+) {
     fun click() {
         try {
             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-        } catch (_: Throwable) {}
+        } catch (_: Throwable) {
+        }
     }
 
     fun selection() {
         try {
             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-        } catch (_: Throwable) {}
+        } catch (_: Throwable) {
+        }
     }
 
     fun impact() {
         try {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        } catch (_: Throwable) {}
+        } catch (_: Throwable) {
+        }
     }
 
     fun success() {
         try {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        } catch (_: Throwable) {}
+        } catch (_: Throwable) {
+        }
     }
 }
 

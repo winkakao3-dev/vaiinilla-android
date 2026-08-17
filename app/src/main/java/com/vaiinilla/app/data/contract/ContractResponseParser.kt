@@ -74,8 +74,7 @@ class ContractResponseParser
                 ),
             )
 
-        fun encodeAvailability(available: Boolean): String =
-            json.encodeToString(ProductAvailabilityWriteDto(available))
+        fun encodeAvailability(available: Boolean): String = json.encodeToString(ProductAvailabilityWriteDto(available))
     }
 
 private fun ProductDto.toDomain(): Product =

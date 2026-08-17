@@ -43,7 +43,8 @@ class MainActivity : ComponentActivity() {
             val context = LocalContext.current
             var themeMode by remember { mutableStateOf(ThemePreferences.load(context)) }
             val isSystemDark = androidx.compose.foundation.isSystemInDarkTheme()
-            val isDark = themeMode.resolveEffectiveMode(isSystemDark) != com.vaiinilla.app.ui.theme.VaiinillaThemeMode.Light
+            val isDark =
+                themeMode.resolveEffectiveMode(isSystemDark) != com.vaiinilla.app.ui.theme.VaiinillaThemeMode.Light
 
             androidx.compose.runtime.DisposableEffect(isDark) {
                 enableEdgeToEdge(
