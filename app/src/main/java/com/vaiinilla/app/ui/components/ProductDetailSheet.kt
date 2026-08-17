@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -14,6 +15,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -46,32 +49,29 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import androidx.compose.foundation.layout.offset
-import androidx.compose.animation.core.Animatable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -106,10 +106,10 @@ fun ProductDetailSheet(
     val denseProduct = optionGroupCount >= 3
     val productImageHeight =
         when {
-            optionGroupCount >= 3 -> 148.dp
-            optionGroupCount == 2 -> 190.dp
-            optionGroupCount == 1 -> 232.dp
-            else -> 272.dp
+            optionGroupCount >= 3 -> 132.dp
+            optionGroupCount == 2 -> 176.dp
+            optionGroupCount == 1 -> 240.dp
+            else -> 280.dp
         }
 
     fun requestDismiss() {
@@ -244,10 +244,9 @@ fun ProductDetailSheet(
                         modifier =
                             Modifier
                                 .weight(1f)
-                                // One fixed viewport: no internal vertical scroll. Extra room is distributed
-                                // between the product sections instead of becoming dead space at the bottom.
+                                // One fixed viewport: no internal vertical scroll. The visual language stays
+                                // identical to the original product sheet while spacing compresses only as needed.
                                 .padding(horizontal = 20.dp),
-                        verticalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Box(
                             modifier =
@@ -299,6 +298,7 @@ fun ProductDetailSheet(
                             }
                         }
 
+                        Spacer(Modifier.height(if (denseProduct) 8.dp else 14.dp))
                         Column {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -310,13 +310,11 @@ fun ProductDetailSheet(
                                         text = categoryName.uppercase(),
                                         color = colors.muted,
                                         fontWeight = FontWeight.ExtraBold,
-                                        fontSize = if (denseProduct) 12.sp else 14.sp,
                                     )
                                     Text(
                                         text = product.name,
                                         color = colors.ink,
                                         fontWeight = FontWeight.Black,
-                                        fontSize = if (denseProduct) 18.sp else 22.sp,
                                         modifier = Modifier.padding(top = 3.dp),
                                     )
                                 }
@@ -324,7 +322,7 @@ fun ProductDetailSheet(
                                     onClick = ::requestDismiss,
                                     modifier =
                                         Modifier
-                                            .size(if (denseProduct) 42.dp else 48.dp)
+                                            .size(42.dp)
                                             .clip(RoundedCornerShape(16.dp))
                                             .background(colors.paper2),
                                 ) {
@@ -334,9 +332,7 @@ fun ProductDetailSheet(
                             Text(
                                 text = product.description,
                                 color = colors.muted,
-                                fontSize = if (denseProduct) 14.sp else 16.sp,
-                                lineHeight = if (denseProduct) 18.sp else 21.sp,
-                                modifier = Modifier.padding(top = 6.dp),
+                                modifier = Modifier.padding(top = 8.dp),
                             )
                         }
 
@@ -356,23 +352,13 @@ fun ProductDetailSheet(
                             }
                         }
 
-                        Surface(
-                            color = colors.paper2,
-                            shape = RoundedCornerShape(19.dp),
-                            modifier = Modifier.fillMaxWidth(),
+                        Column(
+                            modifier = Modifier.padding(top = if (denseProduct) 8.dp else 14.dp),
+                            verticalArrangement = Arrangement.spacedBy(if (denseProduct) 5.dp else 8.dp),
                         ) {
-                            Column(
-                                modifier =
-                                    Modifier.padding(
-                                        horizontal = if (denseProduct) 13.dp else 16.dp,
-                                        vertical = if (denseProduct) 9.dp else 13.dp,
-                                    ),
-                                verticalArrangement = Arrangement.spacedBy(if (denseProduct) 5.dp else 8.dp),
-                            ) {
-                                MetaRow("Ingredientes", product.ingredients, denseProduct)
-                                MetaRow("Tiempo estimado", estimatedTimeLabel(product.estimatedTimeMinutes), denseProduct)
-                                MetaRow("Alérgenos", product.allergens, denseProduct)
-                            }
+                            MetaRow("Ingredientes", product.ingredients, denseProduct)
+                            MetaRow("Tiempo estimado", estimatedTimeLabel(product.estimatedTimeMinutes), denseProduct)
+                            MetaRow("Alérgenos", product.allergens, denseProduct)
                         }
                     }
 
@@ -436,7 +422,7 @@ fun ProductDetailSheet(
                                     onAdd()
                                 },
                                 enabled = canAdd,
-                                modifier = Modifier.fillMaxWidth().height(if (denseProduct) 50.dp else 56.dp),
+                                modifier = Modifier.fillMaxWidth().height(52.dp),
                                 shape = RoundedCornerShape(18.dp),
                                 colors =
                                     ButtonDefaults.buttonColors(
@@ -480,7 +466,7 @@ private fun OptionGroupSection(
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
-    Column {
+    Column(modifier = Modifier.padding(top = if (dense) 8.dp else 16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -490,7 +476,7 @@ private fun OptionGroupSection(
                 group.name,
                 color = colors.ink,
                 fontWeight = FontWeight.ExtraBold,
-                fontSize = if (dense) 14.sp else 17.sp,
+                fontSize = if (dense) 13.sp else 16.sp,
             )
             Text(
                 text = if (group.minimumSelections > 0) "Obligatorio" else "Opcional",
@@ -500,9 +486,9 @@ private fun OptionGroupSection(
             )
         }
         FlowRow(
-            modifier = Modifier.padding(top = if (dense) 6.dp else 8.dp),
+            modifier = Modifier.padding(top = if (dense) 5.dp else 9.dp),
             horizontalArrangement = Arrangement.spacedBy(if (dense) 6.dp else 8.dp),
-            verticalArrangement = Arrangement.spacedBy(if (dense) 6.dp else 8.dp),
+            verticalArrangement = Arrangement.spacedBy(if (dense) 5.dp else 8.dp),
         ) {
             if (group.minimumSelections == 0) {
                 val anySelected = group.options.any { it.id in selectedOptionIds }
@@ -546,20 +532,20 @@ private fun OptionChip(
                 .clip(RoundedCornerShape(13.dp))
                 .background(if (selected) colors.accent else colors.paper2)
                 .clickable(onClick = onClick)
-                .heightIn(min = if (dense) 46.dp else 52.dp)
+                .heightIn(min = if (dense) 42.dp else 48.dp)
                 .semantics {
                     role = Role.RadioButton
                     this.selected = selected
                 }.padding(
-                    horizontal = if (dense) 11.dp else 14.dp,
-                    vertical = if (dense) 9.dp else 11.dp,
+                    horizontal = if (dense) 10.dp else 12.dp,
+                    vertical = if (dense) 8.dp else 10.dp,
                 ),
     ) {
         Text(
             text = text,
             color = colors.ink,
             fontWeight = FontWeight.ExtraBold,
-            fontSize = if (dense) 14.sp else 16.sp,
+            fontSize = if (dense) 13.sp else 15.sp,
         )
     }
 }
@@ -571,24 +557,26 @@ private fun MetaRow(
     dense: Boolean,
 ) {
     val colors = LocalVaiinillaColors.current
-    Row(
+    Surface(
+        color = colors.paper2,
+        shape = RoundedCornerShape(17.dp),
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top,
     ) {
-        Text(
-            text = label,
-            color = colors.ink,
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = if (dense) 12.sp else 14.sp,
-            modifier = Modifier.width(if (dense) 108.dp else 128.dp),
-        )
-        Text(
-            text = value,
-            color = colors.muted,
-            fontSize = if (dense) 12.sp else 14.sp,
-            lineHeight = if (dense) 15.sp else 18.sp,
-            modifier = Modifier.weight(1f),
-        )
+        Column(modifier = Modifier.padding(if (dense) 9.dp else 13.dp)) {
+            Text(
+                text = label,
+                color = colors.ink,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = if (dense) 12.sp else 14.sp,
+            )
+            Text(
+                text = value,
+                color = colors.muted,
+                fontSize = if (dense) 12.sp else 14.sp,
+                lineHeight = if (dense) 15.sp else 18.sp,
+                modifier = Modifier.padding(top = if (dense) 1.dp else 3.dp),
+            )
+        }
     }
 }
 
