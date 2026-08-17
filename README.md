@@ -192,7 +192,7 @@ El AAB queda en `app/build/outputs/bundle/release/app-release.aab`. El workflow
 `Android Release Readiness` valida fixtures, tests, lint, ktlint y bundleRelease
 y sube el AAB como artifact. No publica en Google Play.
 
-El mapa de datos verificable está en [`docs/DATA_MAP.md`](docs/DATA_MAP.md).
+El mapa de datos verificable está en [`docs/DATA_MAP.md`](docs/DATA_MAP.md). El estado vigente de preparación para publicación está en [`docs/RELEASE_READINESS.md`](docs/RELEASE_READINESS.md).
 
 ## Verificación
 
@@ -224,14 +224,15 @@ tools/        # herramientas de apoyo
 
 ### Sobre `docs/`
 
-El repositorio conserva reportes de entregas anteriores porque siguen siendo útiles como historial, evidencia y referencia contractual. Sus secciones de “fuera de alcance”, fechas, responsables o estado de una entrega **no representan automáticamente el estado actual del producto**.
+El repositorio todavía contiene documentos heredados de etapas anteriores. Esos archivos son únicamente evidencia/contexto histórico: **no son backlog, roadmap, tickets vigentes ni una lista de pendientes del Android actual**, y no deben reutilizarse para registrar trabajo nuevo.
 
 Para trabajo nuevo:
 
 - usa el código de `app/` y el backend vigente como realidad de ejecución;
 - usa `docs/source-of-truth/` para contratos e invariantes que sigan vigentes;
 - usa `docs/ui-v2/` para especificaciones y regresión visual;
-- usa `docs/history/` y los delivery reports como contexto histórico, no como roadmap actual.
+- usa [`docs/RELEASE_READINESS.md`](docs/RELEASE_READINESS.md) para los pendientes vigentes de publicación;
+- trata `docs/history/` y cualquier reporte/ID heredado únicamente como contexto histórico.
 
 ## Regla de cambio
 
@@ -239,4 +240,4 @@ No cambiar en silencio contratos de API, estados de pedido, permisos, modelo de 
 
 ---
 
-**Vaiinilla Android es la implementación móvil nativa activa.** El README describe el producto actual; los tickets y reportes históricos quedan como evidencia dentro de `docs/`.
+**Vaiinilla Android es la implementación móvil nativa activa.** El README y `docs/RELEASE_READINESS.md` describen el estado actual; los archivos heredados dentro de `docs/` no representan trabajo vigente.
