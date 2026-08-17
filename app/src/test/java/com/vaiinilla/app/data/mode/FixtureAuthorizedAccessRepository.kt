@@ -129,7 +129,7 @@ class FixtureAuthorizedAccessRepository
                 listOf(
                     AuthorizedInvitation(
                         id = "invite-cashier",
-                        token = "vai27-valid-cashier",
+                        token = "staff-valid-cashier",
                         establishmentId = "8246ff44-aad0-4e49-9268-b71c997893fe",
                         establishmentName = "Cafetería Centro",
                         invitedEmail = "ana@vaiinilla.test",
@@ -138,7 +138,7 @@ class FixtureAuthorizedAccessRepository
                     ),
                     AuthorizedInvitation(
                         id = "invite-kitchen",
-                        token = "vai27-valid-kitchen",
+                        token = "staff-valid-kitchen",
                         establishmentId = "8246ff44-aad0-4e49-9268-b71c997893fe",
                         establishmentName = "Cafetería Centro",
                         invitedEmail = "ana@vaiinilla.test",
@@ -147,7 +147,7 @@ class FixtureAuthorizedAccessRepository
                     ),
                     AuthorizedInvitation(
                         id = "invite-waiter",
-                        token = "vai27-valid-waiter",
+                        token = "staff-valid-waiter",
                         establishmentId = "8246ff44-aad0-4e49-9268-b71c997893fe",
                         establishmentName = "Cafetería Centro",
                         invitedEmail = "ana@vaiinilla.test",
@@ -156,7 +156,7 @@ class FixtureAuthorizedAccessRepository
                     ),
                     AuthorizedInvitation(
                         id = "invite-expired",
-                        token = "vai27-expired",
+                        token = "staff-expired",
                         establishmentId = "8246ff44-aad0-4e49-9268-b71c997893fe",
                         establishmentName = "Cafetería Centro",
                         invitedEmail = "ana@vaiinilla.test",
@@ -165,7 +165,7 @@ class FixtureAuthorizedAccessRepository
                     ),
                     AuthorizedInvitation(
                         id = "invite-revoked",
-                        token = "vai27-revoked",
+                        token = "staff-revoked",
                         establishmentId = "8246ff44-aad0-4e49-9268-b71c997893fe",
                         establishmentName = "Cafetería Centro",
                         invitedEmail = "ana@vaiinilla.test",

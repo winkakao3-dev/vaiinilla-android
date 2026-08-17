@@ -18,7 +18,7 @@ fun WalletAddMoneyScreen(
         title = "Añadir dinero",
         onBack = onBack,
         description =
-            "La recarga de Entrega 03 es efectivo en Caja, no tarjeta ni SPEI. Cuando el backend publique esas rutas, Caja acreditará el saldo de esta cafetería.",
+            "La recarga disponible es efectivo en Caja, no tarjeta ni SPEI. Cuando el backend publique esas rutas, Caja acreditará el saldo de esta cafetería.",
     )
 }
 

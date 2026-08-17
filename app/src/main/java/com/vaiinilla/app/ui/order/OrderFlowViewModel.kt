@@ -389,7 +389,7 @@ class OrderFlowViewModel
             if (payment == PaymentMethod.CARD) {
                 _uiState.value =
                     _uiState.value.copy(
-                        createOrderError = "Tarjeta pertenece a Entrega 04. En esta entrega usa efectivo o saldo.",
+                        createOrderError = "La tarjeta aún no está disponible. Usa efectivo o saldo.",
                     )
                 return
             }

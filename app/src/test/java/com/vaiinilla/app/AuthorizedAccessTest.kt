@@ -37,8 +37,8 @@ class AuthorizedAccessRepositoryTest {
     fun `valid invitation requires verified matching email and is idempotent`() =
         runTest {
             val session = verifiedSession()
-            val first = repository.acceptInvitation("vai27-valid-cashier", session).getOrThrow()
-            val second = repository.acceptInvitation("vai27-valid-cashier", session).getOrThrow()
+            val first = repository.acceptInvitation("staff-valid-cashier", session).getOrThrow()
+            val second = repository.acceptInvitation("staff-valid-cashier", session).getOrThrow()
 
             assertEquals(OperationalRole.CASHIER, first.role)
             assertEquals(first, second)
@@ -51,14 +51,14 @@ class AuthorizedAccessRepositoryTest {
             val ana = verifiedSession(uid = "user-ana", email = "ana@vaiinilla.test")
             val other = verifiedSession(uid = "user-other", email = "ana@vaiinilla.test")
 
-            repository.acceptInvitation("vai27-valid-cashier", ana).getOrThrow()
+            repository.acceptInvitation("staff-valid-cashier", ana).getOrThrow()
             assertFailureContains(
-                repository.acceptInvitation("vai27-valid-cashier", other),
+                repository.acceptInvitation("staff-valid-cashier", other),
                 "utilizada",
             )
             assertTrue(repository.authorizedModes(other).getOrThrow().isEmpty())
 
-            val retry = repository.acceptInvitation("vai27-valid-cashier", ana).getOrThrow()
+            val retry = repository.acceptInvitation("staff-valid-cashier", ana).getOrThrow()
             assertEquals(OperationalRole.CASHIER, retry.role)
             assertEquals(1, repository.authorizedModes(ana).getOrThrow().size)
         }
@@ -67,19 +67,19 @@ class AuthorizedAccessRepositoryTest {
     fun `expired revoked unverified and mismatched invitations are rejected`() =
         runTest {
             assertFailureContains(
-                repository.acceptInvitation("vai27-expired", verifiedSession()),
+                repository.acceptInvitation("staff-expired", verifiedSession()),
                 "expiró",
             )
             assertFailureContains(
-                repository.acceptInvitation("vai27-revoked", verifiedSession()),
+                repository.acceptInvitation("staff-revoked", verifiedSession()),
                 "revocada",
             )
             assertFailureContains(
-                repository.acceptInvitation("vai27-valid-cashier", verifiedSession(emailVerified = false)),
+                repository.acceptInvitation("staff-valid-cashier", verifiedSession(emailVerified = false)),
                 "Verifica",
             )
             assertFailureContains(
-                repository.acceptInvitation("vai27-valid-cashier", verifiedSession(email = "otra@vaiinilla.test")),
+                repository.acceptInvitation("staff-valid-cashier", verifiedSession(email = "otra@vaiinilla.test")),
                 "corresponde",
             )
         }
@@ -88,9 +88,9 @@ class AuthorizedAccessRepositoryTest {
     fun `multiple modes can switch only among authorized contexts`() =
         runTest {
             val session = verifiedSession()
-            repository.acceptInvitation("vai27-valid-cashier", session).getOrThrow()
-            repository.acceptInvitation("vai27-valid-kitchen", session).getOrThrow()
-            repository.acceptInvitation("vai27-valid-waiter", session).getOrThrow()
+            repository.acceptInvitation("staff-valid-cashier", session).getOrThrow()
+            repository.acceptInvitation("staff-valid-kitchen", session).getOrThrow()
+            repository.acceptInvitation("staff-valid-waiter", session).getOrThrow()
             val modes = repository.authorizedModes(session).getOrThrow()
 
             assertEquals(3, modes.size)
@@ -103,8 +103,8 @@ class AuthorizedAccessRepositoryTest {
     fun `each mode activation issues a distinct mock context token`() =
         runTest {
             val session = verifiedSession()
-            repository.acceptInvitation("vai27-valid-cashier", session).getOrThrow()
-            repository.acceptInvitation("vai27-valid-kitchen", session).getOrThrow()
+            repository.acceptInvitation("staff-valid-cashier", session).getOrThrow()
+            repository.acceptInvitation("staff-valid-kitchen", session).getOrThrow()
             val modes = repository.authorizedModes(session).getOrThrow()
             val cashier = modes.first { it.role == OperationalRole.CASHIER }
             val kitchen = modes.first { it.role == OperationalRole.KITCHEN }
@@ -123,8 +123,8 @@ class AuthorizedAccessRepositoryTest {
     fun `external admin revocation removes active access and leaves other modes intact`() =
         runTest {
             val session = verifiedSession()
-            repository.acceptInvitation("vai27-valid-cashier", session).getOrThrow()
-            repository.acceptInvitation("vai27-valid-kitchen", session).getOrThrow()
+            repository.acceptInvitation("staff-valid-cashier", session).getOrThrow()
+            repository.acceptInvitation("staff-valid-kitchen", session).getOrThrow()
             val cashier = repository.authorizedModes(session).getOrThrow().first { it.role == OperationalRole.CASHIER }
 
             repository.activateMode(cashier, session).getOrThrow()
@@ -197,7 +197,7 @@ class AuthorizedAccessCartIsolationTest {
                     displayName = "Ana",
                     emailVerified = true,
                 )
-            repository.acceptInvitation("vai27-valid-cashier", session).getOrThrow()
+            repository.acceptInvitation("staff-valid-cashier", session).getOrThrow()
             val mode = repository.authorizedModes(session).getOrThrow().single()
             repository.activateMode(mode, session).getOrThrow()
 

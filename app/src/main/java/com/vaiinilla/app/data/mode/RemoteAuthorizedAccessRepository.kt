@@ -271,7 +271,7 @@ class RemoteAuthorizedAccessRepository
                 OperationalRole.CASHIER.wireValue -> OperationalRole.CASHIER
                 OperationalRole.KITCHEN.wireValue -> OperationalRole.KITCHEN
                 OperationalRole.WAITER.wireValue -> OperationalRole.WAITER
-                // Administración is intentionally outside Android VAI-27.
+                // Administración remains intentionally outside the Android client.
                 "admin" -> null
                 else -> null
             }
@@ -287,7 +287,7 @@ class RemoteAuthorizedAccessRepository
         ): String =
             UUID
                 .nameUUIDFromBytes(
-                    "vaiinilla:vai27:$operation:${value.trim()}".toByteArray(StandardCharsets.UTF_8),
+                    "vaiinilla:staff:$operation:${value.trim()}".toByteArray(StandardCharsets.UTF_8),
                 ).toString()
     }
 

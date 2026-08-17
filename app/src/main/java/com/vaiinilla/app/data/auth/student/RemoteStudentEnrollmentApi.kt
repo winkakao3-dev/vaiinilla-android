@@ -60,7 +60,7 @@ class RemoteStudentEnrollmentApi
                                         "Idempotency-Key" to
                                             UUID
                                                 .nameUUIDFromBytes(
-                                                    "vaiinilla:vai26:identidad:${request.nombre}:${legalVersions.terminosVersion}:${legalVersions.privacidadVersion}"
+                                                    "vaiinilla:identity:${request.nombre}:${legalVersions.terminosVersion}:${legalVersions.privacidadVersion}"
                                                         .toByteArray(StandardCharsets.UTF_8),
                                                 ).toString(),
                                     ),

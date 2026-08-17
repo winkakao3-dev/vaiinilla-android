@@ -91,16 +91,16 @@ object ContractRules {
     }
 
     fun validateCreateOrderRequest(request: CreateOrderRequest) {
-        require(request.paymentMethod == PaymentMethod.CASH) { "VAI-10 solo acepta efectivo." }
+        require(request.paymentMethod == PaymentMethod.CASH) { "El checkout actual solo acepta efectivo." }
         require(request.destination == OrderDestination.TAKE_AWAY) {
-            "VAI-10 solo acepta destino para_llevar."
+            "El checkout actual solo acepta destino para_llevar."
         }
         require(request.spaceId == null) { "para_llevar exige espacio_id null." }
         validateOrderItems(request)
     }
 
     /**
-     * Entrega 01 + Entrega 03 REMOTE: el backend acepta efectivo o saldo para recoger o para un espacio
+     * Current remote contract: el backend acepta efectivo o saldo para recoger o para un espacio
      * resuelto por QR. El tenant valida que el espacio exista y esté activo; el
      * cliente no puede limitar ese identificador a una mesa local prefijada.
      */

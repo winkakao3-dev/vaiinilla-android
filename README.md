@@ -165,6 +165,35 @@ APK de debug:
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
+## Release y versionado
+
+El `applicationId` de producción es fijo: `com.vaiinilla.app`. Las versiones
+siguen SemVer en `versionName` (`MAJOR.MINOR.PATCH`) y un entero Android
+monótonamente creciente en `versionCode`. La base actual es `0.5.0` / `16` y
+ambos valores pueden entrar por `-PvaiinillaVersionName` /
+`-PvaiinillaVersionCode` o por las variables `VAIINILLA_VERSION_NAME` /
+`VAIINILLA_VERSION_CODE`.
+
+Un release exige una URL de backend explícita mediante
+`-PvaiinillaApiBaseUrl` o `VAIINILLA_API_BASE_URL`; no se permite enviar el
+fallback `localhost.invalid`. R8 y el shrink de recursos están activos. Sin
+credenciales, `bundleRelease` produce un AAB unsigned para verificación; la
+firma de producción se habilita sólo cuando existen juntas estas variables o
+secretos futuros: `VAIINILLA_RELEASE_STORE_FILE`,
+`VAIINILLA_RELEASE_STORE_PASSWORD`, `VAIINILLA_RELEASE_KEY_ALIAS` y
+`VAIINILLA_RELEASE_KEY_PASSWORD`.
+
+```bash
+./gradlew --no-daemon bundleRelease \
+  -PvaiinillaApiBaseUrl=https://.../api/v1/
+```
+
+El AAB queda en `app/build/outputs/bundle/release/app-release.aab`. El workflow
+`Android Release Readiness` valida fixtures, tests, lint, ktlint y bundleRelease
+y sube el AAB como artifact. No publica en Google Play.
+
+El mapa de datos verificable está en [`docs/DATA_MAP.md`](docs/DATA_MAP.md).
+
 ## Verificación
 
 Antes de considerar un cambio terminado:
@@ -195,7 +224,7 @@ tools/        # herramientas de apoyo
 
 ### Sobre `docs/`
 
-El repositorio conserva documentación de entregas anteriores (`VAI-10`, `VAI-11`, `VAI-26`, `VAI-27`) porque sigue siendo útil como historial, evidencia y referencia contractual. Sus secciones de “fuera de alcance”, fechas, responsables o estado de una entrega **no representan automáticamente el estado actual del producto**.
+El repositorio conserva reportes de entregas anteriores porque siguen siendo útiles como historial, evidencia y referencia contractual. Sus secciones de “fuera de alcance”, fechas, responsables o estado de una entrega **no representan automáticamente el estado actual del producto**.
 
 Para trabajo nuevo:
 

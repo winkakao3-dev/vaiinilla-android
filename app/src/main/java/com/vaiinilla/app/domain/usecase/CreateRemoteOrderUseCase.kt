@@ -6,7 +6,7 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.repository.OrderRepository
 import javax.inject.Inject
 
-/** Creates the cash order covered by the live Entrega 01 backend contract. */
+/** Creates the cash order covered by the current backend contract. */
 class CreateRemoteOrderUseCase
     @Inject
     constructor(

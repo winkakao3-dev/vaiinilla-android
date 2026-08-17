@@ -135,7 +135,7 @@ class GuestSessionAndDeepLinkTest {
             listOf(CartLine(product = product, quantity = 1, selectedOptionIds = emptySet())),
         )
 
-        // VAI-26 iniciará auth sin llamar clearVenue(); aquí verificamos que el store lo conserve.
+        // Auth must not clear the selected venue; the store should preserve it.
         assertEquals(venue, store.readVenue())
         assertEquals(1, store.readCartSnapshot(key).size)
     }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Valida fixtures canónicos usados por VAI-10 sin requerir Android SDK."""
+"""Valida fixtures canónicos sin requerir Android SDK."""
 
 from __future__ import annotations
 
@@ -131,9 +131,9 @@ def validate_created_order() -> None:
     }
     require(set(order) == expected, "Campos inesperados en OrderDetail fixture")
     uuid.UUID(order["id"])
-    require(order["estado"] == "por_cobrar", "VAI-10 solo confirma por_cobrar")
-    require(order["metodo_pago"] == "efectivo", "VAI-10 solo confirma efectivo")
-    require(order["destino"] == "para_llevar", "VAI-10 solo confirma para_llevar")
+    require(order["estado"] == "por_cobrar", "El pedido nuevo debe iniciar por_cobrar")
+    require(order["metodo_pago"] == "efectivo", "El fixture debe usar efectivo")
+    require(order["destino"] == "para_llevar", "El fixture debe usar para_llevar")
     require(order["espacio"] is None, "para_llevar exige espacio null")
     require(order["version"] == 1, "El pedido recién creado debe iniciar en versión 1")
     require(UTC.fullmatch(order["creado_en"]) is not None, "creado_en inválido")
@@ -153,4 +153,4 @@ if __name__ == "__main__":
     validate_catalog()
     validate_operational_status()
     validate_created_order()
-    print("Fixtures VAI-10 válidos.")
+    print("Fixtures contractuales válidos.")

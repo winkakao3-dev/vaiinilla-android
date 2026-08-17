@@ -26,7 +26,7 @@ fun LaunchDestination.toRoute(): String =
     when (this) {
         LaunchDestination.Login -> Routes.authLoginRoute(Routes.DISCOVERY)
         LaunchDestination.Discovery -> Routes.DISCOVERY
-        LaunchDestination.StaffModes -> Routes.VAI27_MODES
+        LaunchDestination.StaffModes -> Routes.STAFF_MODES
     }
 
 fun hasStaffLaunchModes(roles: Collection<OperationalRole>): Boolean =

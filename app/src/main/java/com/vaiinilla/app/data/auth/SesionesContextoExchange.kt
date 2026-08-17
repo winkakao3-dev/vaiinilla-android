@@ -47,7 +47,7 @@ class SesionesContextoExchange
                 json.decodeFromString<SesionesContextoEnvelopeDto>(raw).data
             }
 
-        /** Existing seed-role exchange; VAI-26 uses the client-context overload above. */
+        /** Existing seed-role exchange; client authentication uses the overload above. */
         suspend fun exchange(
             firebaseIdToken: String,
             membresiaId: String,

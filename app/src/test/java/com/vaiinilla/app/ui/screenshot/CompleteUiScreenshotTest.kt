@@ -230,10 +230,10 @@ class CompleteUiScreenshotTest {
                 state =
                     AuthorizedAccessUiState(
                         session = session,
-                        invitationToken = "vai27-valid-cashier",
+                        invitationToken = "staff-valid-cashier",
                         invitation =
                             AuthorizedInvitation(
-                                token = "vai27-valid-cashier",
+                                token = "staff-valid-cashier",
                                 establishmentId = "est-centro",
                                 establishmentName = "Cafetería Centro",
                                 invitedEmail = session.email,

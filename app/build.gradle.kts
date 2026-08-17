@@ -115,6 +115,15 @@ val seedPasswordCocina =
 val seedPasswordMesero =
     readConfig("vaiinillaSeedPasswordMesero", "VAIINILLA_SEED_PASSWORD_MESERO", "")
 
+val selectedVersionCode =
+    providers.gradleProperty("vaiinillaVersionCode").orNull
+        ?: providers.environmentVariable("VAIINILLA_VERSION_CODE").orNull
+        ?: "16"
+val selectedVersionName =
+    providers.gradleProperty("vaiinillaVersionName").orNull
+        ?: providers.environmentVariable("VAIINILLA_VERSION_NAME").orNull
+        ?: "0.5.0"
+
 android {
     namespace = "com.vaiinilla.app"
     compileSdk = 36
@@ -123,8 +132,8 @@ android {
         applicationId = "com.vaiinilla.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = providers.gradleProperty("vaiinillaVersionCode").orNull?.toIntOrNull() ?: 16
-        versionName = providers.gradleProperty("vaiinillaVersionName").orNull ?: "0.5.0"
+        versionCode = selectedVersionCode.toIntOrNull() ?: error("VAIINILLA_VERSION_CODE must be an integer")
+        versionName = selectedVersionName
 
         buildConfigField("String", "API_BASE_URL", "\"$selectedApiBaseUrl\"")
         // Defaults: release-safe. Debug buildType overrides below.

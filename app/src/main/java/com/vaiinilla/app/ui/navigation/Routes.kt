@@ -14,8 +14,8 @@ object Routes {
     const val AUTH_LOGIN = "auth/login?returnRoute={returnRoute}"
     const val AUTH_VERIFY = "auth/verify?returnRoute={returnRoute}"
     const val AUTH_FORGOT = "auth/forgot?returnRoute={returnRoute}"
-    const val VAI27_INVITATION = "vai27/invitation?token={token}"
-    const val VAI27_MODES = "vai27/modes"
+    const val STAFF_INVITATION = "staff/invitation?token={token}"
+    const val STAFF_MODES = "staff/modes"
     const val STUDENT_TRACKING = "student/tracking"
     const val ASSISTANT = "assistant"
     const val ASSISTANT_CHAT = "assistant/chat"
@@ -38,7 +38,7 @@ object Routes {
 
     fun authForgotRoute(returnRoute: String = CART): String = "auth/forgot?returnRoute=${Uri.encode(returnRoute)}"
 
-    fun vai27InvitationRoute(token: String): String = "vai27/invitation?token=${Uri.encode(token)}"
+    fun staffInvitationRoute(token: String): String = "staff/invitation?token=${Uri.encode(token)}"
 
     const val CASHIER = "cashier"
     const val KITCHEN = "kitchen"

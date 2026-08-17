@@ -10,7 +10,7 @@ import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Email delivery routes approved by Entrega 02; Firebase remains the identity provider. */
+/** Email delivery routes use Firebase as the identity provider. */
 interface AccessEmailApi {
     suspend fun sendVerification(firebaseIdToken: String): Result<Unit>
 

@@ -40,7 +40,7 @@ import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import com.vaiinilla.app.ui.wallet.WalletRemoteUiState
 
 /**
- * Wallet surface backed by the Entrega 03 contract. The API exposes only the
+ * Wallet surface backed by the current contract. The API exposes only the
  * visible balance; internal commission buckets stay server-side.
  */
 @Composable

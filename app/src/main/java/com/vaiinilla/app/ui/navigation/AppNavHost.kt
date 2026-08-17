@@ -101,7 +101,7 @@ fun AppNavHost(
     var pendingPickupDelivery by remember { mutableStateOf<PendingPickupDelivery?>(null) }
 
     fun openInvitation(token: String) {
-        navController.navigate(Routes.vai27InvitationRoute(token)) {
+        navController.navigate(Routes.staffInvitationRoute(token)) {
             launchSingleTop = true
         }
     }
@@ -247,7 +247,7 @@ fun AppNavHost(
                     LaunchDestination.Login,
                     LaunchDestination.Discovery,
                     -> Routes.DISCOVERY
-                    LaunchDestination.StaffModes -> Routes.VAI27_MODES
+                    LaunchDestination.StaffModes -> Routes.STAFF_MODES
                 }
             navController.navigate(route) {
                 popUpTo(Routes.AUTH_LOGIN) { inclusive = true }
@@ -367,7 +367,7 @@ fun AppNavHost(
             }
 
             composable(
-                route = Routes.VAI27_INVITATION,
+                route = Routes.STAFF_INVITATION,
                 arguments = listOf(navArgument("token") { type = NavType.StringType }),
             ) { entry ->
                 val token = entry.arguments?.getString("token").orEmpty()
@@ -382,19 +382,19 @@ fun AppNavHost(
                     onBack = { navController.popBackStack() },
                     onAccept = {
                         authorizedAccessViewModel.acceptInvitation {
-                            navController.navigate(Routes.VAI27_MODES) {
-                                popUpTo(Routes.VAI27_INVITATION) { inclusive = true }
+                            navController.navigate(Routes.STAFF_MODES) {
+                                popUpTo(Routes.STAFF_INVITATION) { inclusive = true }
                                 launchSingleTop = true
                             }
                         }
                     },
                     onAuthenticate = {
-                        navigateStudentAuth(Routes.vai27InvitationRoute(token))
+                        navigateStudentAuth(Routes.staffInvitationRoute(token))
                     },
                 )
             }
 
-            composable(Routes.VAI27_MODES) {
+            composable(Routes.STAFF_MODES) {
                 LaunchedEffect(authorizedAccessState.session?.uid) {
                     authorizedAccessViewModel.refreshModes(force = true)
                 }
@@ -446,7 +446,7 @@ fun AppNavHost(
                             authorizedAccessState.activeContext == null &&
                             authorizedAccessState.hasMultipleModes
                         ) {
-                            { navController.navigate(Routes.VAI27_MODES) { launchSingleTop = true } }
+                            { navController.navigate(Routes.STAFF_MODES) { launchSingleTop = true } }
                         } else {
                             null
                         },
@@ -541,7 +541,7 @@ fun AppNavHost(
                     signedIn = studentAuthState.session != null,
                     hasStaffModes = hasStaffModes,
                     onOpenStaffModes = {
-                        navController.navigate(Routes.VAI27_MODES) {
+                        navController.navigate(Routes.STAFF_MODES) {
                             launchSingleTop = true
                         }
                     },
@@ -786,7 +786,7 @@ fun AppNavHost(
                 val authorizedCashier = authorizedAccessState.activeContext?.role == OperationalRole.CASHIER
                 LaunchedEffect(authorizedCashier) {
                     if (!authorizedCashier) {
-                        navController.navigate(Routes.VAI27_MODES) {
+                        navController.navigate(Routes.STAFF_MODES) {
                             launchSingleTop = true
                         }
                     }
@@ -921,7 +921,7 @@ private fun returnToModes(
 ): () -> Unit =
     {
         operationalViewModel.clearRole()
-        navController.navigate(Routes.VAI27_MODES) {
+        navController.navigate(Routes.STAFF_MODES) {
             popUpTo(Routes.DISCOVERY) {
                 inclusive = false
             }
