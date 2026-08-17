@@ -20,7 +20,8 @@ con las configuraciones y políticas de esos servicios.
 | Saldo Vaiinilla | Actual | usuario, establecimiento, saldo visible, movimientos, montos, pedido relacionado, recargas y sesión de caja | Backend autenticado; no hay una cartera persistente local equivalente |
 | Cámara y QR | Actual | cámara para escaneo de QR y toma de fotos de producto | El QR interpretado se envía al endpoint correspondiente; la foto seleccionada se sube al backend como multipart |
 | Almacenamiento local | Actual | sesión cifrada, token de recogida cifrado, contexto público, carrito mínimo, establecimiento enrolado y preferencias visuales | Android Keystore + SharedPreferences; no se encontró Room/SQLite/Analytics en este cliente |
-| Logs | Actual, diagnóstico local | método, path, status HTTP, `Location` y hasta 500 caracteres del body de respuesta | `Log.w` del dispositivo; no se observó envío remoto de logs en el cliente |
+| Logs | Actual, diagnóstico local | método, path y status HTTP; multipart registra además el tamaño total del payload en bytes | `Log.w` del dispositivo; no se observó envío remoto de logs en el cliente |
+| Eliminación de cuenta | Actual | Firebase ID token reciente, confirmación exacta `ELIMINAR` e `Idempotency-Key` UUID v4 | `DELETE identidad/cuenta`; tras HTTP 200 se limpia sesión Firebase, contexto, carrito y tokens locales |
 | Stripe/tarjetas | Futuro | no hay SDK, endpoint ni captura real de tarjeta en este Android | Pendiente; la UI sólo muestra una superficie explicativa y no debe declararse como cobro actual |
 
 ## Detalle actual
@@ -49,6 +50,26 @@ correo de verificación usa el ID token de Firebase en
 El cliente no demuestra por sí solo qué metadatos adicionales conserva
 Firebase (por ejemplo, logs internos del proveedor); eso debe verificarse en
 Firebase Console y en la política de Firebase del proyecto.
+
+### Eliminación de cuenta
+
+La eliminación definitiva de cuenta está implementada en el cliente Android.
+`FirebaseStudentAuthRepository` reautentica la sesión de correo/contraseña y
+obtiene un ID token nuevo. `RemoteAccountDeletionRepository` envía ese token al
+backend en `DELETE identidad/cuenta`, junto con un `Idempotency-Key` UUID v4 y
+el body exacto `{"confirmacion":"ELIMINAR"}`.
+
+El contrato actual del backend elimina la identidad de Firebase, desactiva
+membresías y autoridad de plataforma, anonimiza perfil e identificadores y
+conserva pedidos, pagos, movimientos, wallet y aceptaciones legales vinculados
+a un UUID anónimo para mantener contabilidad y auditoría. Una tarea restringida
+puede completar la anonimización si ocurre una caída entre Firebase y
+PostgreSQL.
+
+El cliente sólo ejecuta `StudentSessionCleanup.clear()` después de una respuesta
+HTTP 200: limpia el token de contexto, cierra la sesión Firebase, borra el
+contexto invitado/carrito y elimina tokens de recogida locales. La prueba E2E
+real con una cuenta descartable sigue pendiente.
 
 ### Establecimientos, espacios y QR
 
@@ -121,12 +142,27 @@ interno del proveedor; debe revisarse por separado.
 
 ### Logs
 
-`HttpVaiinillaApiClient` escribe `Log.w` para respuestas HTTP normales y de
-error, incluyendo método, path, código, `Location` y hasta 500 caracteres del
-body. No incluye el header `Authorization`, pero un body de error podría
-contener datos devueltos por el backend. Antes de producción conviene definir
-la política de logs de release y confirmar que no se envían a un colector
-externo.
+`HttpVaiinillaApiClient` escribe `Log.w` con información reducida: método, path
+y código HTTP. Las cargas multipart registran además el tamaño total del payload
+en bytes. El cliente HTTP actual no registra `Authorization`, `Location` ni
+cuerpos de respuesta en esos logs. No se observó un colector remoto de logs en
+el cliente Android inspeccionado; la retención de logs del backend y de los
+proveedores debe revisarse por separado.
+
+### Infraestructura backend observada
+
+La implementación y configuración actuales del backend identifican estos
+proveedores técnicos:
+
+- **Railway** para alojamiento/despliegue del backend;
+- **Supabase / PostgreSQL** para persistencia transaccional;
+- **Supabase Storage** para imágenes de catálogo;
+- **Firebase / Google** para identidad y autenticación;
+- **Resend** para correo transaccional.
+
+Los nombres de proveedor ya no son un dato desconocido para este mapa. Siguen
+pendientes la región exacta de procesamiento, los plazos de retención y la
+validación legal/contractual de cada proveedor antes de una declaración pública.
 
 ## Futuro: Stripe y métodos digitales
 
@@ -140,13 +176,15 @@ de extremo a extremo antes de declararse disponible.
 ## Pendientes para las declaraciones de tienda
 
 1. Confirmar en Firebase Console los datos y retención propios del proveedor.
-2. Confirmar en backend qué campos se almacenan, por cuánto tiempo y quién los
-   puede consultar por rol/establecimiento.
+2. Confirmar en backend los plazos de retención y acceso aplicables a identidad,
+   pedidos, saldo, imágenes, auditoría y backups.
 3. Revisar el alert de Secret Scanning existente sobre la configuración Firebase
    y confirmar las restricciones de la API key; no confundir esa key pública de
    configuración con una credencial privada.
-4. Definir retención, borrado y exportación de identidad, pedidos, saldo,
-   imágenes y tokens. La eliminación de cuenta queda deliberadamente fuera de
-   esta sesión.
-5. Repetir el mapa cuando Stripe y cualquier proveedor de analítica/errores se
+4. Ejecutar la eliminación de cuenta E2E con una cuenta descartable contra el
+   backend real y publicar el recurso web externo de eliminación requerido para
+   la distribución en tienda.
+5. Confirmar regiones de procesamiento y la relación legal/contractual con
+   Railway, Supabase, Firebase/Google y Resend.
+6. Repetir el mapa cuando Stripe y cualquier proveedor de analítica/errores se
    conecten.

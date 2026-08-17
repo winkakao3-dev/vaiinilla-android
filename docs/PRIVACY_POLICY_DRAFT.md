@@ -2,7 +2,7 @@
 
 > **Estado:** BORRADOR — NO PUBLICAR HASTA COMPLETAR LOS CAMPOS `[PENDIENTE]` Y VALIDARLOS CON LOS RESPONSABLES CORRESPONDIENTES.
 >
-> **Base técnica:** este borrador se elaboró a partir de `docs/DATA_MAP.md` y del comportamiento actualmente implementado en el cliente Android. Los datos legales, plazos de retención, proveedores definitivos de producción y jurisdicción deben ser confirmados antes de publicación.
+> **Base técnica:** este borrador se elaboró a partir de `docs/DATA_MAP.md`, del comportamiento actualmente implementado en el cliente Android y del contrato/configuración vigente del backend. El backend actual identifica Railway, Supabase/PostgreSQL, Firebase/Google y Resend; los datos legales, plazos de retención, regiones de procesamiento y la validación contractual de esos proveedores deben completarse antes de publicación.
 
 **Última actualización del borrador:** 17 de agosto de 2026
 
@@ -195,16 +195,15 @@ Se utiliza Firebase Authentication para autenticación y administración de iden
 
 ### Infraestructura del backend
 
-Vaiinilla utiliza infraestructura externa para alojar y operar sus servicios y datos.
+La implementación actual de Vaiinilla utiliza los siguientes proveedores técnicos:
 
-**Proveedores definitivos que deberán figurar en la versión publicable:** `[PENDIENTE — CONFIRMAR CON RESPONSABLE DE BACKEND/INFRAESTRUCTURA]`
+- **Railway** para alojamiento y despliegue del backend;
+- **Supabase / PostgreSQL** para persistencia transaccional;
+- **Supabase Storage** para imágenes de catálogo;
+- **Firebase / Google** para identidad y autenticación;
+- **Resend** para correo transaccional.
 
-Antes de publicar esta política deben confirmarse, como mínimo:
-
-- proveedor de hosting/backend;
-- proveedor de base de datos;
-- proveedor utilizado para envío de correos;
-- ubicación o regiones de procesamiento, cuando corresponda.
+La identificación técnica de estos proveedores está confirmada por el código y la configuración vigentes. Antes de publicar esta política todavía deben confirmarse la entidad jurídica aplicable cuando corresponda, las regiones exactas de procesamiento, los plazos de retención y cualquier subprocesador o transferencia que deba declararse legalmente.
 
 **Venta de datos personales a anunciantes:** `[PENDIENTE — CONFIRMAR FORMALMENTE CON RESPONSABLE LEGAL/PRODUCTO ANTES DE PUBLICAR]`
 
@@ -254,7 +253,7 @@ Antes de efectuar una solicitud de eliminación, Vaiinilla solicita una nueva au
 
 La aplicación obtiene un Firebase ID token reciente y envía una solicitud autenticada al servicio de Vaiinilla encargado de realizar la eliminación. La aplicación móvil **no elimina por sí sola la identidad mediante `FirebaseAuth.currentUser.delete()`**; la eliminación real pertenece al backend.
 
-El backend es responsable de procesar la eliminación de identidad, revocar membresías y accesos correspondientes, anonimizar los datos personales que deban ser disociados y conservar únicamente los registros que deban permanecer por razones legales, contables, de auditoría o seguridad.
+El backend actual elimina la identidad del proyecto Firebase, desactiva membresías y autoridad de plataforma, anonimiza perfil, identificadores e información visible en pedidos e invitaciones, y conserva pedidos, pagos, movimientos, wallet y aceptaciones legales vinculados a un UUID anónimo para no romper contabilidad ni auditoría. Una tarea restringida completa automáticamente la anonimización si una caída temporal interrumpe el proceso entre Firebase y PostgreSQL.
 
 Una vez que el backend confirma correctamente la eliminación mediante HTTP 200:
 
@@ -282,7 +281,7 @@ Cuando corresponda, estos datos deberán conservarse anonimizados o con los dato
 
 **Periodos específicos de conservación:** `[PENDIENTE — DEFINIR CON RESPONSABLE LEGAL/BACKEND]`
 
-**Estado de validación técnica:** `IMPLEMENTED + LOCALLY VERIFIED + CI GREEN + E2E INTEGRATION TEST PENDING`
+**Estado de validación técnica:** `ANDROID IMPLEMENTED + BACKEND IMPLEMENTED/DEPLOYED + CI GREEN + REAL E2E PENDING`
 
 Antes de publicación debe ejecutarse una prueba real con cuenta descartable que valide:
 
@@ -342,7 +341,8 @@ Este bloque es interno y deberá eliminarse de la versión pública final.
 - [ ] Confirmar dominio/sitio web oficial.
 - [ ] Confirmar jurisdicción y domicilio si corresponde.
 - [ ] Definir plazos de retención para identidad, pedidos, pagos/recargas/saldo, términos, imágenes, logs y backups.
-- [ ] Confirmar proveedores definitivos de producción: hosting/backend, base de datos y correo.
+- [x] Identificar proveedores técnicos actuales: Railway, Supabase/PostgreSQL, Supabase Storage, Firebase/Google y Resend.
+- [ ] Confirmar regiones, entidad jurídica aplicable, subprocesadores y condiciones contractuales que deban declararse.
 - [ ] Confirmar formalmente si existe o no venta/compartición de datos con anunciantes.
 - [ ] Definir público objetivo / edad mínima.
 - [ ] Crear y publicar la URL externa de eliminación de cuenta.
