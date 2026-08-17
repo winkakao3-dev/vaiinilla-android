@@ -28,9 +28,11 @@ val localProperties =
 
 fun readConfig(
     name: String,
+    environmentName: String,
     defaultValue: String,
 ): String =
     providers.gradleProperty(name).orNull
+        ?: providers.environmentVariable(environmentName).orNull
         ?: localProperties.getProperty(name)
         ?: defaultValue
 
@@ -43,14 +45,75 @@ fun escapeBuildConfig(value: String): String =
 val selectedApiBaseUrl =
     readConfig(
         "vaiinillaApiBaseUrl",
+        "VAIINILLA_API_BASE_URL",
         "https://localhost.invalid/api/v1/",
     )
 
+val releaseApiBaseUrl =
+    readConfig(
+        "vaiinillaApiBaseUrl",
+        "VAIINILLA_API_BASE_URL",
+        "",
+    )
+
+val releaseStoreFile =
+    readConfig(
+        "vaiinillaReleaseStoreFile",
+        "VAIINILLA_RELEASE_STORE_FILE",
+        "",
+    )
+val releaseStorePassword =
+    readConfig(
+        "vaiinillaReleaseStorePassword",
+        "VAIINILLA_RELEASE_STORE_PASSWORD",
+        "",
+    )
+val releaseKeyAlias =
+    readConfig(
+        "vaiinillaReleaseKeyAlias",
+        "VAIINILLA_RELEASE_KEY_ALIAS",
+        "",
+    )
+val releaseKeyPassword =
+    readConfig(
+        "vaiinillaReleaseKeyPassword",
+        "VAIINILLA_RELEASE_KEY_PASSWORD",
+        "",
+    )
+val releaseSigningInputs =
+    listOf(
+        releaseStoreFile,
+        releaseStorePassword,
+        releaseKeyAlias,
+        releaseKeyPassword,
+    )
+val hasCompleteReleaseSigning = releaseSigningInputs.all(String::isNotBlank)
+val hasPartialReleaseSigning = releaseSigningInputs.any(String::isNotBlank) && !hasCompleteReleaseSigning
+if (hasPartialReleaseSigning) {
+    throw GradleException(
+        "Release signing requires VAIINILLA_RELEASE_STORE_FILE, " +
+            "VAIINILLA_RELEASE_STORE_PASSWORD, VAIINILLA_RELEASE_KEY_ALIAS, " +
+            "and VAIINILLA_RELEASE_KEY_PASSWORD together.",
+    )
+}
+
+val isReleaseTask = gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
+if (isReleaseTask && releaseApiBaseUrl.isBlank()) {
+    throw GradleException(
+        "Release builds require -PvaiinillaApiBaseUrl or VAIINILLA_API_BASE_URL. " +
+            "Do not ship the localhost.invalid fallback.",
+    )
+}
+
 // Seed passwords: local.properties / -P only. Never commit real values.
-val seedPasswordCliente = readConfig("vaiinillaSeedPasswordCliente", "")
-val seedPasswordCajero = readConfig("vaiinillaSeedPasswordCajero", "")
-val seedPasswordCocina = readConfig("vaiinillaSeedPasswordCocina", "")
-val seedPasswordMesero = readConfig("vaiinillaSeedPasswordMesero", "")
+val seedPasswordCliente =
+    readConfig("vaiinillaSeedPasswordCliente", "VAIINILLA_SEED_PASSWORD_CLIENTE", "")
+val seedPasswordCajero =
+    readConfig("vaiinillaSeedPasswordCajero", "VAIINILLA_SEED_PASSWORD_CAJERO", "")
+val seedPasswordCocina =
+    readConfig("vaiinillaSeedPasswordCocina", "VAIINILLA_SEED_PASSWORD_COCINA", "")
+val seedPasswordMesero =
+    readConfig("vaiinillaSeedPasswordMesero", "VAIINILLA_SEED_PASSWORD_MESERO", "")
 
 android {
     namespace = "com.vaiinilla.app"
@@ -60,8 +123,8 @@ android {
         applicationId = "com.vaiinilla.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 15
-        versionName = "0.4.1-vai27-remote"
+        versionCode = providers.gradleProperty("vaiinillaVersionCode").orNull?.toIntOrNull() ?: 16
+        versionName = providers.gradleProperty("vaiinillaVersionName").orNull ?: "0.5.0"
 
         buildConfigField("String", "API_BASE_URL", "\"$selectedApiBaseUrl\"")
         // Defaults: release-safe. Debug buildType overrides below.
@@ -102,6 +165,22 @@ android {
             buildConfigField("String", "SEED_PASSWORD_CAJERO", "\"\"")
             buildConfigField("String", "SEED_PASSWORD_COCINA", "\"\"")
             buildConfigField("String", "SEED_PASSWORD_MESERO", "\"\"")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+            if (hasCompleteReleaseSigning) {
+                val productionSigningConfig =
+                    signingConfigs.create("production") {
+                        storeFile = rootProject.file(releaseStoreFile)
+                        storePassword = releaseStorePassword
+                        keyAlias = releaseKeyAlias
+                        keyPassword = releaseKeyPassword
+                    }
+                signingConfig = productionSigningConfig
+            }
         }
         create("preview") {
             initWith(getByName("release"))
