@@ -34,6 +34,37 @@ class HttpVaiinillaApiClient
             headers: Map<String, String>,
         ): Result<String> = execute(method = "POST", path = path, body = body, headers = headers)
 
+        override fun deleteWithBearer(
+            bearer: String,
+            path: String,
+            body: String?,
+            headers: Map<String, String>,
+        ): Result<String> =
+            execute(
+                method = "DELETE",
+                path = path,
+                body = body,
+                headers = headers,
+                accessToken = bearer,
+                allowSessionRefresh = false,
+            )
+
+        override fun deleteWithBearerExpecting200(
+            bearer: String,
+            path: String,
+            body: String?,
+            headers: Map<String, String>,
+        ): Result<String> =
+            execute(
+                method = "DELETE",
+                path = path,
+                body = body,
+                headers = headers,
+                accessToken = bearer,
+                allowSessionRefresh = false,
+                expectedStatus = 200,
+            )
+
         override fun put(
             path: String,
             body: String,
@@ -159,6 +190,7 @@ class HttpVaiinillaApiClient
             accessToken: String? = null,
             requireAuth: Boolean = true,
             allowSessionRefresh: Boolean = true,
+            expectedStatus: Int? = null,
         ): Result<String> =
             runCatching {
                 executeOnce(
@@ -170,6 +202,7 @@ class HttpVaiinillaApiClient
                     accessToken = accessToken,
                     requireAuth = requireAuth,
                     allowSessionRefresh = allowSessionRefresh,
+                    expectedStatus = expectedStatus,
                 )
             }
 
@@ -182,6 +215,7 @@ class HttpVaiinillaApiClient
             accessToken: String?,
             requireAuth: Boolean,
             allowSessionRefresh: Boolean,
+            expectedStatus: Int?,
         ): String {
             val token =
                 accessToken?.takeIf { it.isNotBlank() }
@@ -213,10 +247,9 @@ class HttpVaiinillaApiClient
 
             val status = connection.responseCode
             val retryAfterSeconds = connection.getHeaderField("Retry-After")?.trim()?.toLongOrNull()
-            val location = connection.getHeaderField("Location")
             val raw = readBody(connection, status)
-            Log.w(TAG, "$method $path -> $status loc=$location ${raw.take(500)}")
-            if (status in 200..299) {
+            Log.w(TAG, "$method $path -> $status")
+            if (status == expectedStatus || (expectedStatus == null && status in 200..299)) {
                 return raw
             }
 
@@ -236,6 +269,7 @@ class HttpVaiinillaApiClient
                     accessToken = null,
                     requireAuth = true,
                     allowSessionRefresh = false,
+                    expectedStatus = expectedStatus,
                 )
             }
             throw error
@@ -285,11 +319,10 @@ class HttpVaiinillaApiClient
                 }
                 val status = connection.responseCode
                 val retryAfterSeconds = connection.getHeaderField("Retry-After")?.trim()?.toLongOrNull()
-                val location = connection.getHeaderField("Location")
                 val raw = readBody(connection, status)
                 Log.w(
                     TAG,
-                    "$method-MULTIPART $path (${bytes.size} bytes) -> $status loc=$location ${raw.take(500)}",
+                    "$method-MULTIPART $path (${bytes.size} bytes) -> $status",
                 )
                 if (status in 200..299) return raw
                 val error = responseParser.parseError(raw, status, retryAfterSeconds)

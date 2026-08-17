@@ -11,6 +11,7 @@ import com.vaiinilla.app.core.security.AndroidKeyStoreSessionStore
 import com.vaiinilla.app.core.security.PickupTokenStore
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.core.security.SharedPreferencesPickupTokenStore
+import com.vaiinilla.app.data.account.RemoteAccountDeletionRepository
 import com.vaiinilla.app.data.auth.ContextoExchanger
 import com.vaiinilla.app.data.auth.SesionesContextoExchange
 import com.vaiinilla.app.data.auth.student.AccessEmailApi
@@ -30,6 +31,7 @@ import com.vaiinilla.app.data.operational.RemoteDeviceHeartbeatRepository
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.data.order.RemoteOrderRepository
 import com.vaiinilla.app.data.wallet.RemoteWalletRepository
+import com.vaiinilla.app.domain.account.AccountDeletionRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
 import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
@@ -145,4 +147,9 @@ object VaiinillaModule {
     @Provides
     @Singleton
     fun provideAccessEmailApi(api: RemoteAccessEmailApi): AccessEmailApi = api
+
+    @Provides
+    @Singleton
+    fun provideAccountDeletionRepository(repository: RemoteAccountDeletionRepository): AccountDeletionRepository =
+        repository
 }

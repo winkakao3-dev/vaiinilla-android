@@ -15,6 +15,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.ui.account.AccountDeletionViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
@@ -70,12 +71,14 @@ fun AppNavHost(
     val authorizedAccessViewModel: AuthorizedAccessViewModel = viewModel()
     val discoveryViewModel: GuestDiscoveryViewModel = viewModel()
     val walletViewModel: WalletViewModel = viewModel()
+    val accountDeletionViewModel: AccountDeletionViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
     val studentAuthState by studentAuthViewModel.state
     val authorizedAccessState by authorizedAccessViewModel.state
     val discoveryState by discoveryViewModel.state
     val walletRemoteState by walletViewModel.state.collectAsStateWithLifecycle()
+    val accountDeletionState by accountDeletionViewModel.state
     val walletState = WalletUiState()
 
     fun enterVenueAndOpenCatalog(venue: GuestVenueContext) {
@@ -267,6 +270,19 @@ fun AppNavHost(
                 Routes.authLandingRoute(returnRoute)
             }
         navController.navigate(targetRoute) {
+            launchSingleTop = true
+        }
+    }
+
+    fun finishAccountSession(noticeMessage: String? = null) {
+        orderFlowViewModel.clearForSessionTermination()
+        walletViewModel.clearForSessionTermination()
+        discoveryViewModel.clearForSessionTermination()
+        operationalViewModel.clearRole()
+        authorizedAccessViewModel.resetAfterSignOut()
+        studentAuthViewModel.markSessionCleared(noticeMessage)
+        navController.navigate(Routes.authLoginRoute(Routes.DISCOVERY)) {
+            popUpTo(Routes.DISCOVERY) { inclusive = false }
             launchSingleTop = true
         }
     }
@@ -560,6 +576,27 @@ fun AppNavHost(
                                 launchSingleTop = true
                             }
                         }
+                    },
+                    accountDeletionState = accountDeletionState,
+                    onRequestAccountDeletion = accountDeletionViewModel::requestConfirmation,
+                    onConfirmAccountDeletion = accountDeletionViewModel::confirm,
+                    onCancelAccountDeletion = accountDeletionViewModel::cancel,
+                    onSubmitAccountDeletionPassword = { password ->
+                        accountDeletionViewModel.submitPassword(
+                            password = password,
+                            onDeleted = {
+                                finishAccountSession("Tu cuenta fue eliminada correctamente")
+                            },
+                            onSessionInvalidated = { finishAccountSession() },
+                        )
+                    },
+                    onRetryAccountDeletion = {
+                        accountDeletionViewModel.retry(
+                            onDeleted = {
+                                finishAccountSession("Tu cuenta fue eliminada correctamente")
+                            },
+                            onSessionInvalidated = { finishAccountSession() },
+                        )
                     },
                     onSignIn = {
                         navController.navigate(Routes.authLoginRoute(Routes.DISCOVERY)) {

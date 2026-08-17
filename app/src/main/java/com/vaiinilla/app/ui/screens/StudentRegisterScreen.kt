@@ -191,3 +191,15 @@ internal fun AuthErrorBanner(message: String) {
         Text(message, color = colors.ink, modifier = Modifier.padding(14.dp), fontSize = 14.sp, lineHeight = 20.sp)
     }
 }
+
+@Composable
+internal fun AuthNoticeBanner(message: String) {
+    val colors = LocalVaiinillaColors.current
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = colors.accent.copy(alpha = 0.3f),
+        shape = RoundedCornerShape(16.dp),
+    ) {
+        Text(message, color = colors.ink, modifier = Modifier.padding(14.dp), fontSize = 14.sp, lineHeight = 20.sp)
+    }
+}

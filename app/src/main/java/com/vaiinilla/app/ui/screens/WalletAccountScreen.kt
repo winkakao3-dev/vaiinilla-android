@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -40,6 +41,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.vaiinilla.app.ui.account.AccountDeletionStatus
+import com.vaiinilla.app.ui.account.AccountDeletionUiState
+import com.vaiinilla.app.ui.components.AuthAccessField
+import com.vaiinilla.app.ui.components.AuthAccessFieldKind
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialPrimaryButton
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
@@ -67,6 +74,12 @@ fun WalletAccountScreen(
     onChangeVenue: () -> Unit = {},
     onSignOut: () -> Unit = {},
     onSignIn: () -> Unit = {},
+    accountDeletionState: AccountDeletionUiState = AccountDeletionUiState(),
+    onRequestAccountDeletion: () -> Unit = {},
+    onConfirmAccountDeletion: () -> Unit = {},
+    onCancelAccountDeletion: () -> Unit = {},
+    onSubmitAccountDeletionPassword: (String) -> Unit = {},
+    onRetryAccountDeletion: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -305,6 +318,32 @@ fun WalletAccountScreen(
                         background = colors.paper2,
                         contentColor = colors.ink,
                     )
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        color = colors.coral.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(22.dp),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Text("Eliminar cuenta", color = colors.ink, fontSize = 19.sp, fontWeight = FontWeight.Black)
+                            Text(
+                                "Esta acción eliminará tu acceso y tus datos personales de Vaiinilla. " +
+                                    "Algunos registros de pedidos, pagos y aceptación de términos se conservarán " +
+                                    "de forma anónima por motivos legales y contables. Esta acción no se puede deshacer.",
+                                color = colors.muted,
+                                fontSize = 13.sp,
+                                lineHeight = 19.sp,
+                            )
+                            EditorialPrimaryButton(
+                                text = "Eliminar cuenta",
+                                onClick = onRequestAccountDeletion,
+                                background = colors.coral,
+                                contentColor = colors.paper,
+                            )
+                        }
+                    }
                 } else {
                     EditorialPrimaryButton(text = "Iniciar sesión", onClick = onSignIn)
                 }
@@ -321,6 +360,177 @@ fun WalletAccountScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 32.dp),
             )
+        }
+
+        when (val status = accountDeletionState.status) {
+            AccountDeletionStatus.Idle,
+            AccountDeletionStatus.Success,
+            -> Unit
+            AccountDeletionStatus.Confirmation ->
+                AccountDeletionConfirmationDialog(
+                    onConfirm = onConfirmAccountDeletion,
+                    onDismiss = onCancelAccountDeletion,
+                )
+            is AccountDeletionStatus.Reauthentication ->
+                AccountDeletionReauthenticationDialog(
+                    state = accountDeletionState,
+                    busy = status.busy,
+                    onSubmit = onSubmitAccountDeletionPassword,
+                    onDismiss = onCancelAccountDeletion,
+                )
+            AccountDeletionStatus.Deleting -> AccountDeletionProgressDialog()
+            is AccountDeletionStatus.RecoverableError ->
+                AccountDeletionErrorDialog(
+                    message = accountDeletionState.errorMessage.orEmpty(),
+                    retryable = status.retryable,
+                    onRetry = onRetryAccountDeletion,
+                    onDismiss = onCancelAccountDeletion,
+                )
+        }
+    }
+}
+
+@Composable
+private fun AccountDeletionConfirmationDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(color = colors.paper, shape = RoundedCornerShape(28.dp)) {
+            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "¿Eliminar definitivamente tu cuenta?",
+                    color = colors.ink,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black,
+                )
+                Text(
+                    "Perderás el acceso a todos tus establecimientos, pedidos, saldo y funciones de Vaiinilla. Esta acción es permanente.",
+                    color = colors.muted,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                )
+                EditorialPrimaryButton(
+                    text = "Eliminar mi cuenta",
+                    onClick = onConfirm,
+                    background = colors.coral,
+                    contentColor = colors.paper,
+                )
+                EditorialPrimaryButton(
+                    text = "Cancelar",
+                    onClick = onDismiss,
+                    background = colors.paper2,
+                    contentColor = colors.ink,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountDeletionReauthenticationDialog(
+    state: AccountDeletionUiState,
+    busy: Boolean,
+    onSubmit: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    var password by remember { mutableStateOf("") }
+    androidx.compose.runtime.LaunchedEffect(state.status is AccountDeletionStatus.Reauthentication) {
+        if (state.status !is AccountDeletionStatus.Reauthentication) password = ""
+    }
+    Dialog(
+        onDismissRequest = { if (!busy) onDismiss() },
+        properties = DialogProperties(dismissOnBackPress = !busy, dismissOnClickOutside = !busy),
+    ) {
+        Surface(color = colors.paper, shape = RoundedCornerShape(28.dp)) {
+            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Confirma tu identidad", color = colors.ink, fontSize = 20.sp, fontWeight = FontWeight.Black)
+                Text(
+                    "Por seguridad, vuelve a ingresar tu contraseña antes de eliminar la cuenta.",
+                    color = colors.muted,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                )
+                AuthAccessField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = "Contraseña",
+                    placeholder = "Tu contraseña",
+                    kind = AuthAccessFieldKind.Password,
+                    error = state.errorMessage,
+                    onImeAction = { if (!busy) onSubmit(password) },
+                )
+                EditorialPrimaryButton(
+                    text = "Continuar",
+                    onClick = { onSubmit(password) },
+                    enabled = !busy,
+                    background = colors.coral,
+                    contentColor = colors.paper,
+                )
+                EditorialPrimaryButton(
+                    text = "Cancelar",
+                    onClick = onDismiss,
+                    enabled = !busy,
+                    background = colors.paper2,
+                    contentColor = colors.ink,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountDeletionProgressDialog() {
+    val colors = LocalVaiinillaColors.current
+    Dialog(onDismissRequest = {}) {
+        Surface(color = colors.paper, shape = RoundedCornerShape(28.dp)) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                CircularProgressIndicator(color = colors.coral)
+                Text("Eliminando tu cuenta…", color = colors.ink, fontWeight = FontWeight.Black)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountDeletionErrorDialog(
+    message: String,
+    retryable: Boolean,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(color = colors.paper, shape = RoundedCornerShape(28.dp)) {
+            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "No pudimos eliminar tu cuenta",
+                    color = colors.ink,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black,
+                )
+                Text(message, color = colors.muted, fontSize = 14.sp, lineHeight = 20.sp)
+                if (retryable) {
+                    EditorialPrimaryButton(
+                        text = "Reintentar",
+                        onClick = onRetry,
+                        background = colors.coral,
+                        contentColor = colors.paper,
+                    )
+                }
+                EditorialPrimaryButton(
+                    text = "Cancelar",
+                    onClick = onDismiss,
+                    background = colors.paper2,
+                    contentColor = colors.ink,
+                )
+            }
         }
     }
 }

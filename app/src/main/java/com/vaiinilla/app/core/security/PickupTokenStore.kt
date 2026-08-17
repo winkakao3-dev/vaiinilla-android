@@ -10,6 +10,8 @@ interface PickupTokenStore {
 
     fun read(orderId: String): String?
 
+    fun clear() {}
+
     fun attach(order: OrderDetail): OrderDetail {
         if (!order.pickupToken.isNullOrBlank()) {
             save(order.summary.id, order.pickupToken)

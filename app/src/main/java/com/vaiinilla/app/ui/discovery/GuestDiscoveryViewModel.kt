@@ -41,6 +41,7 @@ class GuestDiscoveryViewModel
         val state: State<DiscoveryUiState> = _state
 
         private var searchJob: Job? = null
+        private val activeJobs = mutableSetOf<Job>()
 
         init {
             _state.value =
@@ -54,7 +55,7 @@ class GuestDiscoveryViewModel
             _state.value = _state.value.copy(query = query)
             searchJob?.cancel()
             searchJob =
-                viewModelScope.launch {
+                launchTracked {
                     delay(220)
                     search(query)
                 }
@@ -100,7 +101,7 @@ class GuestDiscoveryViewModel
 
         fun search(query: String = _state.value.query) {
             _state.value = _state.value.copy(loading = true, errorMessage = null, suspendedMessage = null)
-            viewModelScope.launch {
+            launchTracked {
                 val result =
                     withContext(Dispatchers.IO) {
                         discoveryRepository.searchEstablishments(query = query.trim())
@@ -146,7 +147,7 @@ class GuestDiscoveryViewModel
                 return
             }
             _state.value = _state.value.copy(resolving = true, errorMessage = null, suspendedMessage = null)
-            viewModelScope.launch {
+            launchTracked {
                 val result =
                     withContext(Dispatchers.IO) {
                         discoveryRepository.resolveSpaceToken(token)
@@ -179,7 +180,7 @@ class GuestDiscoveryViewModel
             onFinished: () -> Unit = {},
         ) {
             _state.value = _state.value.copy(resolving = true, errorMessage = null, suspendedMessage = null)
-            viewModelScope.launch {
+            launchTracked {
                 val result =
                     withContext(Dispatchers.IO) {
                         discoveryRepository.getEstablishment(slug)
@@ -224,6 +225,27 @@ class GuestDiscoveryViewModel
 
         fun dismissPendingSwitch() {
             _state.value = _state.value.copy(pendingSwitch = null)
+        }
+
+        fun clearForSessionTermination() {
+            activeJobs.toList().forEach(Job::cancel)
+            activeJobs.clear()
+            searchJob = null
+            _state.value = DiscoveryUiState()
+        }
+
+        private fun launchTracked(block: suspend () -> Unit): Job {
+            lateinit var job: Job
+            job =
+                viewModelScope.launch {
+                    try {
+                        block()
+                    } finally {
+                        activeJobs.remove(job)
+                    }
+                }
+            activeJobs += job
+            return job
         }
 
         private fun currentVenueHasCart(): Boolean {

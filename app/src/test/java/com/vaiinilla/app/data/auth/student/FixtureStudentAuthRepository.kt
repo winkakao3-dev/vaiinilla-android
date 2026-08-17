@@ -87,6 +87,13 @@ class FixtureStudentAuthRepository
                 "test-firebase-token-$uid"
             }
 
+        override suspend fun reauthenticateWithPassword(password: String): Result<Unit> =
+            runCatching {
+                val uid = currentUid ?: throw IllegalStateException("No hay sesión activa.")
+                val account = accounts[uid] ?: throw StudentAuthUserNotFoundException()
+                if (account.password != password) throw IllegalStateException("Contraseña incorrecta.")
+            }
+
         override suspend fun signOut() {
             currentUid = null
             preferences.clear()

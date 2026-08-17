@@ -20,6 +20,7 @@ data class StudentAuthUiState(
     val privacyVersion: String = "",
     val privacyUrl: String = "",
     val errorMessage: String? = null,
+    val noticeMessage: String? = null,
     val emailExistsSuggestion: Boolean = false,
     val verificationSent: Boolean = false,
     val passwordResetSent: Boolean = false,

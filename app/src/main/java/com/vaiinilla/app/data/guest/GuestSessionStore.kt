@@ -93,6 +93,10 @@ class GuestSessionStore
                 .apply()
         }
 
+        fun clearAll() {
+            prefs.edit().clear().apply()
+        }
+
         fun cartStorageKey(
             establishmentId: String,
             spaceId: Int?,

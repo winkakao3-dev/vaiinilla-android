@@ -25,6 +25,7 @@ import com.vaiinilla.app.ui.assistant.AssistantChatMessage
 import com.vaiinilla.app.ui.assistant.AssistantLocalReplies
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
@@ -55,6 +56,7 @@ class OrderFlowViewModel
 
         private var pendingIdempotencyKey: String? = null
         private var activeCartStorageKey: String? = null
+        private val activeJobs = mutableSetOf<Job>()
 
         init {
             val venue = guestSessionStore.readVenue()
@@ -100,7 +102,7 @@ class OrderFlowViewModel
                     selectedSpaceId = venue.space?.id ?: 0,
                 )
             guestSessionStore.saveVenue(venue)
-            viewModelScope.launch {
+            launchTracked {
                 val catalogResult =
                     withContext(Dispatchers.IO) {
                         discoveryRepository.getGuestCatalog(venue.establishment.slug)
@@ -148,7 +150,7 @@ class OrderFlowViewModel
                     loading = true,
                     errorMessage = null,
                 )
-            viewModelScope.launch {
+            launchTracked {
                 val catalogResult = withContext(Dispatchers.IO) { getCatalog() }
                 val statusResult = withContext(Dispatchers.IO) { getOperationalStatus() }
                 val failure = catalogResult.exceptionOrNull() ?: statusResult.exceptionOrNull()
@@ -185,8 +187,8 @@ class OrderFlowViewModel
         }
 
         /** Leaves the guest venue before entering an authenticated operational mode. */
-        fun clearGuestVenue() {
-            persistCurrentCartIfNeeded()
+        fun clearGuestVenue(persistCurrentCart: Boolean = true) {
+            if (persistCurrentCart) persistCurrentCartIfNeeded()
             activeCartStorageKey = null
             guestSessionStore.clearVenue()
             _uiState.value =
@@ -194,6 +196,15 @@ class OrderFlowViewModel
                     guestVenue = null,
                     cartLines = emptyList(),
                 )
+        }
+
+        fun clearForSessionTermination() {
+            activeJobs.toList().forEach(Job::cancel)
+            activeJobs.clear()
+            pendingIdempotencyKey = null
+            activeCartStorageKey = null
+            guestSessionStore.clearAll()
+            _uiState.value = OrderFlowUiState()
         }
 
         fun updateSearch(query: String) {
@@ -421,7 +432,7 @@ class OrderFlowViewModel
             }
 
             _uiState.value = state.copy(creatingOrder = true, createOrderError = null)
-            viewModelScope.launch {
+            launchTracked {
                 var current = _uiState.value
                 current.guestVenue?.let { venue ->
                     if (sessionStore.readAccessToken().isNullOrBlank()) {
@@ -442,7 +453,7 @@ class OrderFlowViewModel
                             creatingOrder = false,
                             createOrderError = "No pudimos validar la disponibilidad operativa. $reason",
                         )
-                    return@launch
+                    return@launchTracked
                 }
                 var statusResult = withContext(Dispatchers.IO) { getOperationalStatus() }
                 if (
@@ -461,7 +472,7 @@ class OrderFlowViewModel
                                     "No pudimos verificar si el establecimiento está recibiendo pedidos. " +
                                         error.toUserFacingMessage("Vuelve a iniciar sesión."),
                             )
-                        return@launch
+                        return@launchTracked
                     }
                 current = current.copy(operationalStatus = status)
                 _uiState.value = current.copy(creatingOrder = true, createOrderError = null)
@@ -475,7 +486,7 @@ class OrderFlowViewModel
                             creatingOrder = false,
                             createOrderError = blocker,
                         )
-                    return@launch
+                    return@launchTracked
                 }
 
                 val request =
@@ -558,6 +569,19 @@ class OrderFlowViewModel
 
         fun clearAssistantChat() {
             _uiState.value = _uiState.value.copy(assistantChatMessages = emptyList())
+        }
+
+        private fun launchTracked(block: suspend () -> Unit) {
+            lateinit var job: Job
+            job =
+                viewModelScope.launch {
+                    try {
+                        block()
+                    } finally {
+                        activeJobs.remove(job)
+                    }
+                }
+            activeJobs += job
         }
     }
 

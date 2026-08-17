@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.auth.StudentSessionCleanup
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.toUserFacingMessage
@@ -18,7 +19,9 @@ import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRequest
 import com.vaiinilla.app.domain.model.OperationalRole
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -37,9 +40,11 @@ class StudentAuthViewModel
         private val refreshCoordinator: VaiinillaJwtRefreshCoordinator,
         private val preferences: StudentAuthPreferences,
         private val remoteAccessEmailApi: AccessEmailApi,
+        private val sessionCleanup: StudentSessionCleanup,
     ) : ViewModel() {
         private val _state = mutableStateOf(StudentAuthUiState())
         val state: State<StudentAuthUiState> = _state
+        private val activeJobs = mutableSetOf<Job>()
 
         init {
             refreshGuestVenue()
@@ -61,12 +66,19 @@ class StudentAuthViewModel
         }
 
         fun signOut(onDone: () -> Unit = {}) {
-            viewModelScope.launch {
-                withContext(Dispatchers.IO) { authRepository.signOut() }
+            cancelActiveJobs()
+            launchTracked {
+                withContext(Dispatchers.IO) { sessionCleanup.clear() }
                 _state.value = StudentAuthUiState()
                 refreshGuestVenue()
                 onDone()
             }
+        }
+
+        fun markSessionCleared(noticeMessage: String? = null) {
+            cancelActiveJobs()
+            _state.value = StudentAuthUiState(noticeMessage = noticeMessage)
+            refreshGuestVenue()
         }
 
         /** Rehydrates the short-lived Railway context after an app process restart. */
@@ -127,7 +139,7 @@ class StudentAuthViewModel
                 return
             }
             _state.value = current.copy(loading = true, errorMessage = null, emailExistsSuggestion = false)
-            viewModelScope.launch {
+            launchTracked {
                 val email = current.email.trim().lowercase()
                 _state.value = _state.value.copy(email = email)
                 authRepository.signUp(email, current.password, current.name).fold(
@@ -169,7 +181,7 @@ class StudentAuthViewModel
                 return
             }
             _state.value = current.copy(loading = true, errorMessage = null)
-            viewModelScope.launch {
+            launchTracked {
                 val email = current.email.trim().lowercase()
                 _state.value = _state.value.copy(email = email)
                 authRepository.signIn(email, current.password).fold(
@@ -203,7 +215,7 @@ class StudentAuthViewModel
             val current = _state.value
             if (current.resendLockedUntilMs > System.currentTimeMillis()) return
             _state.value = current.copy(loading = true, errorMessage = null)
-            viewModelScope.launch {
+            launchTracked {
                 sendVerificationEmail().fold(
                     onSuccess = {
                         _state.value =
@@ -236,7 +248,7 @@ class StudentAuthViewModel
 
         fun checkVerification(onVerified: () -> Unit) {
             _state.value = _state.value.copy(loading = true, errorMessage = null)
-            viewModelScope.launch {
+            launchTracked {
                 authRepository.reloadSession().fold(
                     onSuccess = { session ->
                         authRepository.getIdToken(forceRefresh = true)
@@ -272,7 +284,7 @@ class StudentAuthViewModel
                 return
             }
             _state.value = _state.value.copy(loading = true, errorMessage = null)
-            viewModelScope.launch {
+            launchTracked {
                 sendPasswordResetEmail(email).fold(
                     onSuccess = {
                         _state.value =
@@ -320,7 +332,7 @@ class StudentAuthViewModel
                 return
             }
             _state.value = current.copy(loading = true, errorMessage = null)
-            viewModelScope.launch {
+            launchTracked {
                 val result =
                     withContext(Dispatchers.IO) {
                         runCatching {
@@ -418,7 +430,7 @@ class StudentAuthViewModel
             onSuccess: () -> Unit,
         ) {
             _state.value = state.copy(loading = true, errorMessage = null)
-            viewModelScope.launch {
+            launchTracked {
                 val result =
                     withContext(Dispatchers.IO) {
                         runCatching {
@@ -469,7 +481,7 @@ class StudentAuthViewModel
         }
 
         private fun loadLegalDocuments() {
-            viewModelScope.launch {
+            launchTracked {
                 remoteAccessEmailApi.currentLegal().onSuccess { legal ->
                     _state.value =
                         _state.value.copy(
@@ -491,11 +503,31 @@ class StudentAuthViewModel
                     resendLockedUntilMs = until,
                     errorMessage = "Espera $wait s para reenviar el correo.",
                 )
-            viewModelScope.launch {
+            launchTracked {
                 delay(wait * 1000)
                 if (_state.value.resendLockedUntilMs == until) {
                     _state.value = _state.value.copy(resendLockedUntilMs = 0L)
                 }
             }
+        }
+
+        private fun cancelActiveJobs() {
+            activeJobs.toList().forEach(Job::cancel)
+            activeJobs.clear()
+        }
+
+        private fun launchTracked(block: suspend () -> Unit): Job {
+            lateinit var job: Job
+            job =
+                viewModelScope.launch(start = CoroutineStart.LAZY) {
+                    try {
+                        block()
+                    } finally {
+                        activeJobs.remove(job)
+                    }
+                }
+            activeJobs += job
+            job.start()
+            return job
         }
     }

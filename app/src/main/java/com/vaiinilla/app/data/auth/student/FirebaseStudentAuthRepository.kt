@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.auth.student
 
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.UserProfileChangeRequest
@@ -92,6 +93,33 @@ class FirebaseStudentAuthRepository
                         ?.token
                         ?.takeIf { it.isNotBlank() }
                         ?: throw IllegalStateException("No se pudo obtener el ID token de Firebase.")
+                }.recoverCatching { error ->
+                    if (error is FirebaseAuthException && error.errorCode == "ERROR_USER_NOT_FOUND") {
+                        throw StudentAuthUserNotFoundException()
+                    }
+                    throw error
+                }
+            }
+
+        override suspend fun reauthenticateWithPassword(password: String): Result<Unit> =
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    require(password.isNotEmpty()) { "Ingresa tu contraseña para continuar." }
+                    val user = auth.currentUser ?: throw IllegalStateException("No hay una sesión activa.")
+                    val email =
+                        user.email?.trim()?.takeIf { it.isNotEmpty() }
+                            ?: throw StudentAuthProviderNotSupportedException()
+                    val hasPasswordProvider =
+                        user.providerData.any { it.providerId == EmailAuthProvider.PROVIDER_ID }
+                    if (!hasPasswordProvider) throw StudentAuthProviderNotSupportedException()
+                    user.reauthenticate(EmailAuthProvider.getCredential(email, password)).await()
+                    Unit
+                }.recoverCatching { error ->
+                    if (error is FirebaseAuthException && error.errorCode == "ERROR_USER_NOT_FOUND") {
+                        throw StudentAuthUserNotFoundException()
+                    }
+                    if (error is StudentAuthProviderNotSupportedException) throw error
+                    throw IllegalStateException(firebaseAuthUserMessage(error))
                 }
             }
 

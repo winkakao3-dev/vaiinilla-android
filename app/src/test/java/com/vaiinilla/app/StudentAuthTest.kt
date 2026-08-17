@@ -1,6 +1,8 @@
 package com.vaiinilla.app
 
+import com.vaiinilla.app.core.auth.StudentSessionCleanup
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
+import com.vaiinilla.app.core.security.PickupTokenStore
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.auth.ContextoExchanger
 import com.vaiinilla.app.data.auth.SesionesContextoDataDto
@@ -18,6 +20,7 @@ import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicSpace
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -88,10 +91,15 @@ class StudentAuthViewModelTest {
     private lateinit var sessionStore: SecureSessionStore
     private lateinit var authRepository: FixtureStudentAuthRepository
     private lateinit var viewModel: StudentAuthViewModel
+    private lateinit var contextExchangeStarted: CompletableDeferred<Unit>
+    private lateinit var allowContextExchange: CompletableDeferred<Unit>
+    private var blockContextExchange = false
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        contextExchangeStarted = CompletableDeferred()
+        allowContextExchange = CompletableDeferred()
         val context = RuntimeEnvironment.getApplication()
         sessionStore =
             object : SecureSessionStore {
@@ -132,12 +140,20 @@ class StudentAuthViewModelTest {
             }
         val contextoExchange =
             ContextoExchanger { _, _, _, _ ->
+                if (blockContextExchange) {
+                    contextExchangeStarted.complete(Unit)
+                    allowContextExchange.await()
+                }
                 SesionesContextoDataDto(
                     accessToken = "jwt-test",
                     tokenType = "Bearer",
                     expiresIn = 900,
                 )
             }
+        val refreshCoordinator =
+            VaiinillaJwtRefreshCoordinator(
+                authRepositoryProvider = Provider { throw UnsupportedOperationException() },
+            )
         viewModel =
             StudentAuthViewModel(
                 authRepository = authRepository,
@@ -145,12 +161,23 @@ class StudentAuthViewModelTest {
                 guestSessionStore = guestStore,
                 sessionStore = sessionStore,
                 contextoExchange = contextoExchange,
-                refreshCoordinator =
-                    VaiinillaJwtRefreshCoordinator(
-                        authRepositoryProvider = Provider { throw UnsupportedOperationException() },
-                    ),
+                refreshCoordinator = refreshCoordinator,
                 preferences = preferences,
                 remoteAccessEmailApi = fakeAccessEmailApi(),
+                sessionCleanup =
+                    StudentSessionCleanup(
+                        authRepository,
+                        guestStore,
+                        object : PickupTokenStore {
+                            override fun save(
+                                orderId: String,
+                                pickupToken: String,
+                            ) = Unit
+
+                            override fun read(orderId: String): String? = null
+                        },
+                        refreshCoordinator,
+                    ),
             )
     }
 
@@ -216,6 +243,26 @@ class StudentAuthViewModelTest {
         }
 
     @Test
+    fun `session termination cancels enrollment that is still in flight`() =
+        runTest {
+            blockContextExchange = true
+            authRepository.signUp("ana@test.com", "secret1", "Ana")
+            authRepository.markCurrentEmailVerified()
+            viewModel.refreshGuestVenue()
+            var enrolled = false
+
+            viewModel.completeEnrollment(onSuccess = { enrolled = true })
+            contextExchangeStarted.await()
+            viewModel.markSessionCleared()
+            allowContextExchange.complete(Unit)
+            advanceUntilIdle()
+
+            assertFalse(enrolled)
+            assertFalse(viewModel.state.value.enrollmentComplete)
+            assertTrue(sessionStore.readAccessToken().isNullOrBlank())
+        }
+
+    @Test
     fun `login requires contextual id when establishment demands it`() =
         runTest {
             val context = RuntimeEnvironment.getApplication()
@@ -244,6 +291,10 @@ class StudentAuthViewModelTest {
                         firebaseIdToken: String,
                     ) = Result.success(StudentEnrollmentResult(membresiaId = "mock-membresia"))
                 }
+            val refreshCoordinator =
+                VaiinillaJwtRefreshCoordinator(
+                    authRepositoryProvider = Provider { throw UnsupportedOperationException() },
+                )
             val vm =
                 StudentAuthViewModel(
                     authRepository = auth,
@@ -258,12 +309,23 @@ class StudentAuthViewModelTest {
                                 expiresIn = 900,
                             )
                         },
-                    refreshCoordinator =
-                        VaiinillaJwtRefreshCoordinator(
-                            authRepositoryProvider = Provider { throw UnsupportedOperationException() },
-                        ),
+                    refreshCoordinator = refreshCoordinator,
                     preferences = preferences,
                     remoteAccessEmailApi = fakeAccessEmailApi(),
+                    sessionCleanup =
+                        StudentSessionCleanup(
+                            auth,
+                            guestStore,
+                            object : PickupTokenStore {
+                                override fun save(
+                                    orderId: String,
+                                    pickupToken: String,
+                                ) = Unit
+
+                                override fun read(orderId: String): String? = null
+                            },
+                            refreshCoordinator,
+                        ),
                 )
             vm.refreshGuestVenue()
             vm.updateEmail("ana@test.com")

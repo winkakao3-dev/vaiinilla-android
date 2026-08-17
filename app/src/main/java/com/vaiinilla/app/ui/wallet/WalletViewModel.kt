@@ -6,6 +6,7 @@ import com.vaiinilla.app.domain.model.WalletData
 import com.vaiinilla.app.domain.repository.WalletRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,17 +28,31 @@ class WalletViewModel
     ) : ViewModel() {
         private val _state = MutableStateFlow(WalletRemoteUiState())
         val state: StateFlow<WalletRemoteUiState> = _state.asStateFlow()
+        private var refreshJob: Job? = null
 
         fun refresh() {
             if (_state.value.loading) return
             _state.value = _state.value.copy(loading = true, error = null)
-            viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { repository.getMyWallet() }
-                _state.value =
-                    result.fold(
-                        onSuccess = { WalletRemoteUiState(data = it) },
-                        onFailure = { WalletRemoteUiState(error = it.message ?: "No se pudo consultar la wallet.") },
-                    )
-            }
+            refreshJob?.cancel()
+            refreshJob =
+                viewModelScope.launch {
+                    val result = withContext(Dispatchers.IO) { repository.getMyWallet() }
+                    _state.value =
+                        result.fold(
+                            onSuccess = { WalletRemoteUiState(data = it) },
+                            onFailure = {
+                                WalletRemoteUiState(
+                                    error =
+                                        it.message ?: "No se pudo consultar la wallet.",
+                                )
+                            },
+                        )
+                }
+        }
+
+        fun clearForSessionTermination() {
+            refreshJob?.cancel()
+            refreshJob = null
+            _state.value = WalletRemoteUiState()
         }
     }

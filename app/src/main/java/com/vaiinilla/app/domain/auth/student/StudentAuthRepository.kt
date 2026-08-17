@@ -21,5 +21,8 @@ interface StudentAuthRepository {
 
     suspend fun getIdToken(forceRefresh: Boolean = false): Result<String>
 
+    suspend fun reauthenticateWithPassword(password: String): Result<Unit> =
+        Result.failure(UnsupportedOperationException("Reautenticación no soportada por este proveedor."))
+
     suspend fun signOut()
 }

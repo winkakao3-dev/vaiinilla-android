@@ -60,6 +60,10 @@ fun StudentLoginScreen(
             imeAction = if (state.clientIdRequired) ImeAction.Next else ImeAction.Done,
             onImeAction = { if (!state.clientIdRequired) onLogin() },
         )
+        state.noticeMessage?.let { message ->
+            Spacer(Modifier.height(10.dp))
+            AuthNoticeBanner(message)
+        }
         if (state.clientIdRequired) {
             Spacer(Modifier.height(10.dp))
             AuthAccessField(

@@ -71,6 +71,11 @@ class SharedPreferencesPickupTokenStore
             return legacy
         }
 
+        override fun clear() {
+            preferences.edit().clear().apply()
+            legacyPreferences.edit().clear().apply()
+        }
+
         private fun storageKey(orderId: String): String = "order_${orderId.replace(ORDER_KEY_PATTERN, "_")}"
 
         private fun getOrCreateSecretKey(): SecretKey {

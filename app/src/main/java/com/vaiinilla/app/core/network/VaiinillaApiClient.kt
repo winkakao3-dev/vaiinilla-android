@@ -14,6 +14,28 @@ interface VaiinillaApiClient {
         headers: Map<String, String> = emptyMap(),
     ): Result<String>
 
+    fun delete(
+        path: String,
+        body: String? = null,
+        headers: Map<String, String> = emptyMap(),
+    ): Result<String> = Result.failure(UnsupportedOperationException("DELETE no soportado"))
+
+    /** Sends an explicit bearer without reading or refreshing the Vaiinilla context JWT. */
+    fun deleteWithBearer(
+        bearer: String,
+        path: String,
+        body: String? = null,
+        headers: Map<String, String> = emptyMap(),
+    ): Result<String> = delete(path, body, headers)
+
+    /** Account deletion has a strict 200-success contract. */
+    fun deleteWithBearerExpecting200(
+        bearer: String,
+        path: String,
+        body: String? = null,
+        headers: Map<String, String> = emptyMap(),
+    ): Result<String> = deleteWithBearer(bearer, path, body, headers)
+
     fun put(
         path: String,
         body: String,
