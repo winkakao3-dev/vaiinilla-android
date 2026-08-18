@@ -20,6 +20,7 @@ import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
+import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.cartItemCount
@@ -828,6 +829,9 @@ fun AppNavHost(
                         }
                     }
                 }
+                if (authorizedCashier) {
+                    OperationalPresenceLifecycle(OperationalRole.CASHIER, operationalViewModel)
+                }
                 CashierOperationalScreen(
                     state = operationalState,
                     onBack = returnToModes(navController, operationalViewModel),
@@ -863,6 +867,9 @@ fun AppNavHost(
                         returnToModes(navController, operationalViewModel)()
                     }
                 }
+                if (authorizedKitchen) {
+                    OperationalPresenceLifecycle(OperationalRole.KITCHEN, operationalViewModel)
+                }
                 KitchenOperationalScreen(
                     state = operationalState,
                     onBack = returnToModes(navController, operationalViewModel),
@@ -887,6 +894,9 @@ fun AppNavHost(
                     if (!authorizedWaiter) {
                         returnToModes(navController, operationalViewModel)()
                     }
+                }
+                if (authorizedWaiter) {
+                    OperationalPresenceLifecycle(OperationalRole.WAITER, operationalViewModel)
                 }
                 WaiterOperationalScreen(
                     state = operationalState,

@@ -17,7 +17,6 @@ class RemoteDeviceHeartbeatRepositoryTest {
             repository.sendHeartbeat(
                 deviceId = "android-cocina",
                 role = OperationalRole.KITCHEN,
-                idempotencyKey = "ignored-by-contract",
             )
 
         assertTrue(result.isSuccess)

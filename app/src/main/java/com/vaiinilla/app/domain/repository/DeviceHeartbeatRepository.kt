@@ -6,6 +6,5 @@ interface DeviceHeartbeatRepository {
     fun sendHeartbeat(
         deviceId: String,
         role: OperationalRole,
-        idempotencyKey: String,
     ): Result<Unit>
 }

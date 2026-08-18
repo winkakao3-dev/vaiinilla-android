@@ -21,7 +21,6 @@ class RemoteDeviceHeartbeatRepository(
     override fun sendHeartbeat(
         deviceId: String,
         role: OperationalRole,
-        idempotencyKey: String,
     ): Result<Unit> {
         if (role == OperationalRole.CLIENT) {
             return Result.success(Unit)
@@ -55,7 +54,6 @@ class NoOpDeviceHeartbeatRepository : DeviceHeartbeatRepository {
     override fun sendHeartbeat(
         deviceId: String,
         role: OperationalRole,
-        idempotencyKey: String,
     ): Result<Unit> = Result.success(Unit)
 }
 

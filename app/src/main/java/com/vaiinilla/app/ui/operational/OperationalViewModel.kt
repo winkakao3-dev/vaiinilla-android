@@ -15,6 +15,7 @@ import com.vaiinilla.app.domain.model.WalletClient
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
+import com.vaiinilla.app.domain.repository.DeviceIdentity
 import com.vaiinilla.app.domain.repository.WalletRepository
 import com.vaiinilla.app.domain.usecase.CollectCashUseCase
 import com.vaiinilla.app.domain.usecase.GetOrderUseCase
@@ -45,6 +46,7 @@ class OperationalViewModel
         private val openCashSession: OpenCashSessionUseCase,
         private val cashSessionRepository: CashSessionRepository,
         private val heartbeatRepository: DeviceHeartbeatRepository,
+        private val deviceIdentity: DeviceIdentity,
         private val walletRepository: WalletRepository,
         private val catalogRepository: CatalogRepository,
     ) : ViewModel() {
@@ -54,6 +56,17 @@ class OperationalViewModel
         private var pollingJob: Job? = null
         private var lastUpdatedSince: String? = null
         private var pendingWalletReload: PendingWalletReload? = null
+        private val heartbeatCoordinator =
+            OperationalHeartbeatCoordinator(
+                scope = viewModelScope,
+                repository = heartbeatRepository,
+                deviceId = deviceIdentity::id,
+                onResult = { online ->
+                    if (_uiState.value.role != null) {
+                        _uiState.value = _uiState.value.copy(heartbeatOnline = online)
+                    }
+                },
+            )
 
         fun setRole(role: OperationalRole) {
             _uiState.value =
@@ -68,7 +81,6 @@ class OperationalViewModel
                     catalog = null,
                 )
             pendingWalletReload = null
-            sendHeartbeatIfNeeded()
             refreshCashSession()
             refresh()
             if (role == OperationalRole.CASHIER) refreshCatalog()
@@ -78,6 +90,7 @@ class OperationalViewModel
         fun clearRole() {
             pollingJob?.cancel()
             pollingJob = null
+            heartbeatCoordinator.stop()
             lastUpdatedSince = null
             pendingWalletReload = null
             _uiState.value = OperationalUiState()
@@ -139,7 +152,6 @@ class OperationalViewModel
                 withContext(Dispatchers.IO) {
                     openCashSession(initialAmount, UUID.randomUUID().toString())
                 }.onSuccess {
-                    sendHeartbeatIfNeeded()
                     _uiState.value = _uiState.value.copy(acting = false, cashSessionOpen = true)
                 }.onFailure { error ->
                     _uiState.value =
@@ -403,23 +415,22 @@ class OperationalViewModel
             pollingJob =
                 viewModelScope.launch {
                     while (isActive) {
-                        sendHeartbeatIfNeeded()
                         delay(POLL_INTERVAL_MS)
                         refresh()
                     }
                 }
         }
 
-        private fun sendHeartbeatIfNeeded() {
-            val role = _uiState.value.role ?: return
-            if (role == OperationalRole.CLIENT) return
-            viewModelScope.launch(Dispatchers.IO) {
-                heartbeatRepository.sendHeartbeat(
-                    deviceId = "android-${role.wireValue}",
-                    role = role,
-                    idempotencyKey = UUID.randomUUID().toString(),
-                )
-            }
+        fun onOperationalForeground(role: OperationalRole) {
+            if (_uiState.value.role != role) return
+            heartbeatCoordinator.start(role)
+            _uiState.value = _uiState.value.copy(heartbeatOnline = false)
+        }
+
+        fun onOperationalBackground(role: OperationalRole) {
+            if (_uiState.value.role != role) return
+            heartbeatCoordinator.pause()
+            _uiState.value = _uiState.value.copy(heartbeatOnline = null)
         }
 
         fun onRuntimeModeChanged() {

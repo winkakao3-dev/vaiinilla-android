@@ -26,6 +26,7 @@ import com.vaiinilla.app.data.discovery.RemoteDiscoveryRepository
 import com.vaiinilla.app.data.mode.AuthorizedAccessApi
 import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessApi
 import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessRepository
+import com.vaiinilla.app.data.operational.AndroidDeviceIdentity
 import com.vaiinilla.app.data.operational.RemoteCashSessionRepository
 import com.vaiinilla.app.data.operational.RemoteDeviceHeartbeatRepository
 import com.vaiinilla.app.data.order.OrderContractJson
@@ -38,6 +39,7 @@ import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
+import com.vaiinilla.app.domain.repository.DeviceIdentity
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.domain.repository.WalletRepository
@@ -100,6 +102,10 @@ object VaiinillaModule {
     @Singleton
     fun provideDeviceHeartbeatRepository(apiClient: VaiinillaApiClient): DeviceHeartbeatRepository =
         RemoteDeviceHeartbeatRepository(apiClient)
+
+    @Provides
+    @Singleton
+    fun provideDeviceIdentity(identity: AndroidDeviceIdentity): DeviceIdentity = identity
 
     @Provides
     @Singleton

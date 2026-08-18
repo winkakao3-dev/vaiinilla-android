@@ -13,6 +13,7 @@ data class OperationalUiState(
     val loading: Boolean = false,
     val acting: Boolean = false,
     val cashSessionOpen: Boolean? = null,
+    val heartbeatOnline: Boolean? = null,
     val errorMessage: String? = null,
     val lastSyncedAt: String? = null,
     val walletClients: List<WalletClient> = emptyList(),
