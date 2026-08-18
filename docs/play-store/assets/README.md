@@ -16,7 +16,7 @@ No marcar estos archivos como finales.
 
 | Archivo | Resolución | Formato | Estado |
 | --- | --- | --- | --- |
-| `final/vaiinilla-play-icon-512.png` | 512 × 512 px | PNG RGB, sin alpha | PASS |
+| `final/vaiinilla-play-icon-512.png` | 512 × 512 px | PNG RGBA, con alpha | PASS |
 | `final/vaiinilla-feature-graphic-1024x500.jpg` | 1024 × 500 px | JPEG, sin alpha | PASS |
 
 El icono usa sólo el símbolo principal de Vaiinilla.
@@ -33,6 +33,7 @@ La validación usó `file`, `identify` y apertura visual.
 - No hay recorte visible.
 - No hay pixelación visible.
 - El icono está centrado.
+- El icono tiene canal alpha.
 - El wordmark está completo y visible.
 - Faltan 6 screenshots de Play Store.
 

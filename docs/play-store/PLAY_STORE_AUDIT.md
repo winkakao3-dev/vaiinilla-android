@@ -6,15 +6,17 @@ Repositorio auditado: `winkakao3-dev/vaiinilla-android`.
 
 Rama auditada: `main`.
 
-Commit auditado: `847fa1ea556179574474b3357b7466e505bd9e61`.
+Commit base auditado: `847fa1ea556179574474b3357b7466e505bd9e61`.
+
+Actualización posterior: el icono se convirtió a PNG RGBA y se volvió a validar.
 
 ## Resumen
 
 Resultado general: **NOT READY**.
 
-PASS: 15.
+PASS: 16.
 
-FAIL: 4.
+FAIL: 3.
 
 BLOCKED: 10.
 
@@ -144,11 +146,11 @@ Ruta:
 - Símbolo centrado — PASS visual.
 - Símbolo sin recorte — PASS visual.
 - Pixelación visible — PASS visual.
-- Alpha — **FAIL**.
+- Alpha — PASS.
 
-El archivo es PNG RGB sin alpha.
+El archivo es PNG RGBA de 8 bits por canal, con canal alpha.
 La documentación oficial exige PNG de 32 bits con alpha para el icono de Play.
-No se marca como listo hasta corregir el alpha y repetir la validación.
+La validación técnica actual cumple este requisito.
 
 ### Feature Graphic
 
@@ -414,7 +416,7 @@ operación`.
 | Punto | Linear | Auditoría | Estado | Acción |
 | --- | --- | --- | --- | --- |
 | Target API | `targetSdk` 36 documentado | AAB final con target 36 | PASS | Sin acción técnica |
-| Icono Play | PASS | 512 × 512 y peso correcto, pero sin alpha | FAIL | Corregir alpha y repetir validación |
+| Icono Play | PASS | 512 × 512, 28,220 bytes, PNG RGBA con alpha | PASS | Sin acción adicional en esta auditoría |
 | Feature Graphic | PASS | 1024 × 500 JPEG sin alpha | PASS | Sin acción técnica |
 | Screenshots | 6 pendientes | No hay screenshots finales | FAIL | Crear y validar 6 screenshots |
 | Signing | KAK-51 dice AAB firmado verificado en CI | AAB local actual sin firma; no hay inputs locales | BLOCKED | Repetir con signing seguro o conservar evidencia CI verificable |
@@ -446,7 +448,7 @@ Linear no se modificó.
 
 1. Confirmar el tipo de cuenta Play y el alcance financiero del saldo.
 2. Confirmar acceso a Play Console y la fecha de creación de la cuenta.
-3. Corregir el icono PNG para incluir alpha.
+3. Conservar el icono PNG RGBA validado.
 4. Crear seis screenshots finales.
 5. Completar la política de privacidad pública.
 6. Publicar el recurso web externo de eliminación.
