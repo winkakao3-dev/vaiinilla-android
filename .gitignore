@@ -26,3 +26,7 @@ GoogleService-Info.plist
 # Workspace-local tooling/assets (no commitear)
 .cursor/skills/pera-design/
 references/
+
+# Android signing material must remain outside the repository.
+*.jks
+*.keystore

@@ -16,8 +16,8 @@ jobs:
       # This is a Repository Variable, not a secret. The workflow refuses to
       # build if it is absent so production never falls back to localhost.
       VAIINILLA_API_BASE_URL: ${{ vars.VAIINILLA_API_BASE_URL }}
-      VAIINILLA_VERSION_NAME: ${{ vars.VAIINILLA_VERSION_NAME }}
-      VAIINILLA_VERSION_CODE: ${{ vars.VAIINILLA_VERSION_CODE }}
+      VAIINILLA_VERSION_NAME: ${{ vars.VAIINILLA_VERSION_NAME || '0.5.0' }}
+      VAIINILLA_VERSION_CODE: ${{ vars.VAIINILLA_VERSION_CODE || '16' }}
       # Signing stays optional until the definitive production key exists.
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       VAIINILLA_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
