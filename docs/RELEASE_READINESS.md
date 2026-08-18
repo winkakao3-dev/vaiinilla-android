@@ -135,18 +135,24 @@ Sigue sin estar confirmado:
 
 No inventar plazos legales ni técnicos.
 
-## KAK-51 — signing bloqueado por falta de upload key oficial
+## KAK-51 — production signing completado
 
-La infraestructura de código para signing está preparada, pero la investigación local no encontró ninguna upload key/keystore oficial de Vaiinilla. Sólo se encontraron keystores de debug, que **no cuentan** como signing de producción.
+KAK-51 quedó resuelto en terminal/local harness. No existía una upload key oficial previa ni evidencia de publicación anterior de `com.vaiinilla.app`; el `debug.keystore` histórico bajo `expo/` no se reutilizó.
 
-En terminal `bundleRelease` terminó correctamente y produjo un AAB técnico, pero `jarsigner` confirmó `jar is unsigned`. Por tanto:
+Se creó una upload key oficial fuera del repositorio con alias `vaiinilla-upload`, RSA 4096 / SHA256withRSA, fingerprint público SHA-256 `4F:93:81:4F:0B:67:68:12:22:23:08:70:9B:53:05:4E:70:CA:86:DD:0C:A1:E0:D0:DE:39:8C:86:9E:96:D8:7A`, custodia primaria y recovery copy con permisos restrictivos. Las contraseñas no se versionaron ni se expusieron.
 
-- upload key oficial: **NO encontrada**;
-- production signing: **NO configurado**;
-- AAB técnico: **generado**;
-- AAB publicable: **NO**.
+GitHub Secrets configurados:
 
-No usar `debug.keystore` para release. El próximo paso es confirmar/obtener una upload key oficial, custodiarla y configurar los cuatro GitHub Secrets esperados antes de volver a generar y verificar el AAB firmado.
+- `ANDROID_KEYSTORE_BASE64`;
+- `ANDROID_KEYSTORE_PASSWORD`;
+- `ANDROID_KEY_ALIAS`;
+- `ANDROID_KEY_PASSWORD`.
+
+La verificación local produjo un AAB release firmado y `jarsigner` confirmó la firma y coincidencia del certificado. El workflow `Android Release Readiness` también terminó correctamente en el run `32089291183` y su artifact verificó `jar verified` con el mismo fingerprint.
+
+El commit `7bb1061af36c778eddf7cde1fc79e8b49be2397f` añadió defaults seguros de versión (`0.5.0` / `16`) cuando las variables opcionales llegan vacías y reforzó `.gitignore` para `*.jks` / `*.keystore`.
+
+Desde la perspectiva de signing, el AAB ya está listo para ser usado en el proceso de Play Console. No se publicó nada en Google Play durante esta verificación.
 
 ## Política de privacidad publicable
 
@@ -164,7 +170,7 @@ La política pública deberá estar en una URL activa, accesible globalmente y n
 
 ## Verificación realizada en terminal/local harness
 
-Ejecutado contra un checkout limpio de `main` en `5e5a9aaffcc2508be52510597c4ed338b4ef6000`:
+Verificación técnica previa contra checkout limpio `5e5a9aaffcc2508be52510597c4ed338b4ef6000`:
 
 - `python3 scripts/validate_fixtures.py` — PASS;
 - `./scripts/audit_release_scope.sh` — PASS;
@@ -173,9 +179,23 @@ Ejecutado contra un checkout limpio de `main` en `5e5a9aaffcc2508be52510597c4ed3
 - `./gradlew --no-daemon ktlintCheck` — PASS;
 - `./gradlew --no-daemon bundleRelease` — PASS.
 
-El primer intento Gradle falló por SDK no configurado y se reintentó con `ANDROID_HOME` sólo para el proceso, sin modificar configuración persistente. El AAB resultante quedó unsigned, así que estas verificaciones demuestran salud técnica del proyecto, **no** un release publicable.
+Después de completar KAK-51, se volvió a generar `bundleRelease` con production signing y la firma se verificó con `jarsigner`. El certificado del AAB coincide con la upload key oficial.
 
-Pendientes de terminal posteriores: E2E de eliminación con cuenta descartable y generación/verificación de AAB firmado cuando exista upload key oficial.
+El workflow `Android Release Readiness` se ejecutó con production URL + signing y terminó exitosamente:
+
+- run: `32089291183`;
+- fixtures — PASS;
+- scope audit — PASS;
+- unit tests — PASS;
+- Android lint — PASS;
+- ktlint — PASS;
+- release bundle — PASS;
+- upload release AAB — PASS;
+- artifact CI — `jar verified`.
+
+Commit de soporte: `7bb1061af36c778eddf7cde1fc79e8b49be2397f`.
+
+Pendiente de terminal posterior: E2E de eliminación con una cuenta Firebase de producción inequívocamente descartable.
 
 ## Fuera de este estado por ahora
 

@@ -124,13 +124,17 @@ Pendiente externo:
 
 ## 7. Signing y Play App Signing
 
-Estado de código: **preparado**.
+Estado: **completado — KAK-51**.
 
-Estado de material: **bloqueado — KAK-51**.
+No se encontró una upload key oficial previa ni evidencia de una publicación anterior que obligara a conservar otra identidad. Se creó la upload key oficial de Vaiinilla fuera del repositorio:
 
-La búsqueda local no encontró una upload key/keystore oficial. Sólo aparecieron keystores de debug, que no sirven para el release oficial.
+- alias: `vaiinilla-upload`;
+- RSA 4096;
+- SHA256withRSA;
+- SHA-256 público: `4F:93:81:4F:0B:67:68:12:22:23:08:70:9B:53:05:4E:70:CA:86:DD:0C:A1:E0:D0:DE:39:8C:86:9E:96:D8:7A`;
+- custodia primaria + recovery copy con permisos restrictivos.
 
-GitHub Actions espera:
+GitHub Actions tiene configurados los cuatro secrets esperados:
 
 ```text
 ANDROID_KEYSTORE_BASE64
@@ -139,22 +143,27 @@ ANDROID_KEY_ALIAS
 ANDROID_KEY_PASSWORD
 ```
 
-El archivo de keystore nunca debe versionarse. `bundleRelease` ya pudo generar un AAB técnico, pero `jarsigner` confirmó que está unsigned. Antes de publicar hay que obtener/generar la upload key oficial, custodiarla, configurar los cuatro secrets y volver a verificar el AAB firmado.
+El keystore y sus contraseñas no están versionados. `.gitignore` protege `*.jks` y `*.keystore`.
 
 ## 8. Builds y AAB
 
-Estado: **verificación técnica ejecutada en terminal**.
+Estado: **release firmado verificado**.
 
-Checkout limpio de `main` en `5e5a9aaffcc2508be52510597c4ed338b4ef6000`:
+Los gates locales ya estaban verdes. Después de configurar production signing se generó de nuevo el AAB y `jarsigner` verificó correctamente la firma y la coincidencia del certificado con la upload key.
 
-- `python3 scripts/validate_fixtures.py` — PASS;
-- `./scripts/audit_release_scope.sh` — PASS;
-- `./gradlew --no-daemon testDebugUnitTest` — PASS;
-- `./gradlew --no-daemon lintDebug` — PASS;
-- `./gradlew --no-daemon ktlintCheck` — PASS;
-- `./gradlew --no-daemon bundleRelease` — PASS.
+El workflow `Android Release Readiness` terminó exitosamente en el run `32089291183` con:
 
-El AAB se generó correctamente pero quedó **unsigned**, así que aún no es publicable. BUILD SUCCESS no equivale a AAB listo para Play hasta completar KAK-51 y verificar la firma.
+- fixtures — PASS;
+- scope audit — PASS;
+- unit tests — PASS;
+- Android lint — PASS;
+- ktlint — PASS;
+- `bundleRelease` — PASS;
+- artifact AAB — cargado y `jar verified`.
+
+El commit `7bb1061af36c778eddf7cde1fc79e8b49be2397f` añadió defaults seguros de versión (`0.5.0` / `16`) para variables opcionales vacías y las protecciones de keystore en `.gitignore`.
+
+Desde signing/CI, el AAB está listo para el proceso de Play Console. Todavía no se ha subido ni publicado en Google Play.
 
 ## 9. Qué falta antes de entrar al envío real de Play Console
 
@@ -163,5 +172,6 @@ El AAB se generó correctamente pero quedó **unsigned**, así que aún no es pu
 3. Terminar KAK-49 — Firebase Console/Google Cloud.
 4. Terminar KAK-50 — retenciones/backups/regiones externas.
 5. Terminar KAK-44 — política publicable y URL estable.
-6. Resolver KAK-51 — upload key/signing; volver a generar e inspeccionar AAB firmado.
+6. Confirmar la cuenta/propietario de Google Play Console y conservar la recovery copy de signing bajo un segundo custodio seguro.
 7. Después, retomar explícitamente formularios Play Console / Data Safety / App Content con datos ya verificados.
+
