@@ -7,7 +7,7 @@ Este documento resume únicamente los pendientes vigentes para preparar una publ
 ## Regla de trabajo actual
 
 - La fuente técnica del cliente es el código de `app/`, `docs/source-of-truth/` y los contratos vigentes del backend.
-- Los trabajos de build/Gradle, lint, ktlint, bundle y pruebas pesadas se ejecutan en terminal/local harness; no se ejecutan desde esta sesión.
+- Los trabajos pesados se ejecutan en terminal/local harness. El 17 de agosto de 2026 se ejecutaron fixtures, auditoría de scope, unit tests, lint, ktlint y `bundleRelease` con resultado PASS; el AAB generado fue técnicamente válido pero **unsigned**, por lo que aún no es publicable.
 - Linear usa **KAK-46** como tracker maestro de publicación. Los bloqueos independientes viven en KAK-44, KAK-45 y KAK-47 a KAK-51.
 - Las antiguas Entregas/VAI pueden conservarse como historia, pero no vuelven a ser backlog actual.
 
@@ -15,14 +15,14 @@ Este documento resume únicamente los pendientes vigentes para preparar una publ
 
 - **KAK-46** — tracker maestro de pendientes de publicación Android.
 - **KAK-44** — completar datos legales y publicar Política de Privacidad.
-- **KAK-45** — configurar `VAIINILLA_API_BASE_URL` de producción en GitHub.
+- **KAK-45** — **resuelto**: `VAIINILLA_API_BASE_URL` de producción configurada y verificada en GitHub.
 - **KAK-47** — publicar recurso web externo para eliminar cuenta.
 - **KAK-48** — validar E2E real de eliminación de cuenta.
 - **KAK-49** — confirmar configuración, retención y restricciones de Firebase.
 - **KAK-50** — definir retención de logs, auditoría y backups del backend.
 - **KAK-51** — configurar material y secretos de signing Android de producción.
 
-Los pasos de Gradle/lint/ktlint/AAB siguen diferidos a terminal/local harness y no tienen un issue de ejecución separado en este corte.
+Los gates Gradle/lint/ktlint/bundle ya fueron ejecutados en terminal/local harness. Lo pendiente de release técnico es principalmente signing oficial y la posterior verificación de un AAB firmado/publicable.
 
 ## Requisitos Play ya cubiertos técnicamente
 
@@ -43,13 +43,35 @@ Referencia operativa adicional: `docs/PLAY_STORE_RELEASE_PREP.md`.
 - Logging Android revisado: método, path y status HTTP; multipart añade tamaño en bytes. No se registran cuerpos de respuesta ni `Authorization` en el cliente HTTP actual.
 - Firebase Android confirmado contra `google-services.json`: proyecto `vaiinilla-b3a70`, paquete `com.vaiinilla.app`. La presencia del bucket en la configuración no implica por sí sola uso de Firebase Storage; no existe dependencia de Firebase Storage en `app/build.gradle.kts`.
 
-## KAK-45 — endpoint de producción todavía NO confirmado
+## KAK-45 — endpoint de producción confirmado y configurado
 
-Notion registraba `app.vaiinilla.app` como despliegue, pero una comprobación manual en navegador el 17 de agosto de 2026 mostró que `https://app.vaiinilla.app/health` devuelve la página web branded de Vaiinilla con **Error 404 / “Esta ruta no existe”**, no el health check del backend.
+Verificado desde Railway CLI y HTTP el 17 de agosto de 2026:
 
-El backend de Saúl define `GET /health` y negocio bajo `/api/v1/...`, así que **no se debe configurar** `VAIINILLA_API_BASE_URL=https://app.vaiinilla.app/api/v1/` hasta demostrar que ese host realmente enruta la API o hasta obtener el dominio Railway de producción correcto.
+- proyecto Railway: `vainiilla-pruebas`;
+- environment: `production`;
+- servicio: `vaiinilla_back`;
+- source: `saul1217/vaiinilla_back` / `main`;
+- deployment SHA: `5d16aa171cfb8a489f7eb73e73f7f45fe2480fef`;
+- región: `us-east4-eqdc4a` / US East;
+- réplicas: `1`;
+- dominio público: `https://vaiinillaback-development-3f6c.up.railway.app`;
+- custom domains: ninguno;
+- healthcheck: `/health`, timeout 30 s;
+- start command: `npm start`;
+- restart: `ON_FAILURE`, máximo 3 reintentos.
 
-El browser automation conectado estuvo temporalmente deshabilitado, por lo que no se pudo ampliar la comprobación automática desde esta sesión. La evidencia manual es suficiente para rechazar `app.vaiinilla.app` como URL confirmada por ahora.
+Aunque el hostname contiene `development`, Railway lo asigna inequívocamente al environment **production** del servicio vigente. La comprobación HTTP dio:
+
+- `GET /health` → `200`;
+- `GET /api/v1/` → `200`, `api: vaiinilla`, `version: v1`.
+
+La Repository Variable quedó configurada y re-leída con coincidencia exacta:
+
+```text
+VAIINILLA_API_BASE_URL=https://vaiinillaback-development-3f6c.up.railway.app/api/v1/
+```
+
+Por tanto KAK-45 ya no es un bloqueo.
 
 ## KAK-47 — recurso web externo de eliminación
 
@@ -61,6 +83,12 @@ Estado actual:
 - todavía no existe una URL web pública confirmada para iniciar la solicitud fuera de la app;
 - el repositorio esperado `saul1217/vaiinilla-web` devuelve 404 con la conexión GitHub disponible, por lo que no puede editarse desde este agente actualmente;
 - cuando tengamos acceso al repo web, la página debe reutilizar el flujo de identidad/backend y no exponer Firebase Admin, service accounts ni secretos en navegador.
+
+## KAK-48 — E2E de eliminación bloqueado sólo por cuenta descartable
+
+El endpoint de producción ya está demostrado y el commit backend desplegado contiene `DELETE /api/v1/identidad/cuenta`. No se ejecutó ningún `DELETE` porque no existe todavía una cuenta Firebase de producción inequívocamente descartable con credenciales y una forma segura de comprobar la anonimización.
+
+El siguiente E2E debe usar exclusivamente una cuenta creada para prueba; no usar cuentas personales o reales.
 
 ## KAK-49 — auditoría Firebase parcialmente avanzada
 
@@ -82,25 +110,43 @@ Sigue requiriendo acceso a Firebase/Google Cloud Console para verificar:
 
 No rotar ni restringir servicios a ciegas sin revisar consola y dependencias reales.
 
-## KAK-50 — retención backend parcialmente avanzada
+## KAK-50 — retención backend parcialmente resuelta
 
-La auditoría del repositorio backend confirmó:
+Confirmado desde Railway production:
 
-- no hay una política de retención de logs/backups expresada como configuración versionada en `.env.example`;
-- el servicio usa Railway, Supabase/PostgreSQL, Supabase Storage, Firebase Admin y Resend;
-- la migración de eliminación conserva registros transaccionales/legales y los anonimiza cuando corresponde;
-- existen tablas y campos de auditoría, pero el código no define por sí solo cuántos días/meses/años deben conservarse;
-- los periodos de logs de infraestructura, snapshots/backups y regiones siguen siendo datos operativos/de proveedor que deben confirmarse fuera del repo.
+- backend único `vaiinilla_back`;
+- sin volúmenes Railway;
+- logs y métricas son consultables, pero Railway CLI no expone el periodo de retención;
+- no se expusieron backups/snapshots desde Railway.
+
+Confirmado desde código backend:
+
+- Firebase se elimina primero en el flujo de eliminación;
+- perfil, identificadores, datos visibles de pedidos, invitaciones y snapshots auditables se anonimizan;
+- pedidos, pagos, movimientos, wallet y aceptaciones legales se conservan por integridad;
+- `limites_tasa` mayores a 48 horas se limpian mediante `pg_cron`.
+
+Sigue sin estar confirmado:
+
+- retención real de logs Railway;
+- backups, snapshots y regiones de Supabase;
+- retención Firebase/Resend;
+- confirmación externa de migraciones aplicadas en Supabase.
 
 No inventar plazos legales ni técnicos.
 
-## KAK-51 — signing preparado en código, material aún pendiente
+## KAK-51 — signing bloqueado por falta de upload key oficial
 
-El workflow actual está listo para recibir una clave de subida/keystore sin versionarla. Antes de cerrar KAK-51 hay que decidir si ya existe una clave de subida válida o generar una nueva en terminal, custodiarla y configurar los cuatro GitHub Secrets esperados.
+La infraestructura de código para signing está preparada, pero la investigación local no encontró ninguna upload key/keystore oficial de Vaiinilla. Sólo se encontraron keystores de debug, que **no cuentan** como signing de producción.
 
-Para Google Play se recomienda usar Play App Signing y conservar de forma segura la **upload key** del desarrollador; la clave de firma de aplicación puede gestionarla Google Play.
+En terminal `bundleRelease` terminó correctamente y produjo un AAB técnico, pero `jarsigner` confirmó `jar is unsigned`. Por tanto:
 
-No se ha generado ni subido ningún keystore desde esta sesión.
+- upload key oficial: **NO encontrada**;
+- production signing: **NO configurado**;
+- AAB técnico: **generado**;
+- AAB publicable: **NO**.
+
+No usar `debug.keystore` para release. El próximo paso es confirmar/obtener una upload key oficial, custodiarla y configurar los cuatro GitHub Secrets esperados antes de volver a generar y verificar el AAB firmado.
 
 ## Política de privacidad publicable
 
@@ -116,16 +162,20 @@ Todavía faltan datos que no pueden inferirse del código:
 
 La política pública deberá estar en una URL activa, accesible globalmente y no ser un PDF.
 
-## Diferidos a terminal/local harness
+## Verificación realizada en terminal/local harness
 
-Cuando estén disponibles el endpoint de producción y la configuración necesaria:
+Ejecutado contra un checkout limpio de `main` en `5e5a9aaffcc2508be52510597c4ed338b4ef6000`:
 
-- ejecutar KAK-48 con una cuenta descartable contra servicios reales;
-- preparar/generar la upload key si no existe y configurar signing de KAK-51;
-- ejecutar las verificaciones Gradle/lint/ktlint correspondientes;
-- ejecutar `Android Release Readiness`;
-- generar/inspeccionar el AAB release;
-- verificar signing del artefacto.
+- `python3 scripts/validate_fixtures.py` — PASS;
+- `./scripts/audit_release_scope.sh` — PASS;
+- `./gradlew --no-daemon testDebugUnitTest` — PASS;
+- `./gradlew --no-daemon lintDebug` — PASS;
+- `./gradlew --no-daemon ktlintCheck` — PASS;
+- `./gradlew --no-daemon bundleRelease` — PASS.
+
+El primer intento Gradle falló por SDK no configurado y se reintentó con `ANDROID_HOME` sólo para el proceso, sin modificar configuración persistente. El AAB resultante quedó unsigned, así que estas verificaciones demuestran salud técnica del proyecto, **no** un release publicable.
+
+Pendientes de terminal posteriores: E2E de eliminación con cuenta descartable y generación/verificación de AAB firmado cuando exista upload key oficial.
 
 ## Fuera de este estado por ahora
 

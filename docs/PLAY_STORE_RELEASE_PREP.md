@@ -53,27 +53,30 @@ La URL externa todavía no existe/está confirmada. `saul1217/vaiinilla-web` no 
 
 ## 4. Endpoint Android de producción
 
-Estado: **pendiente — KAK-45**.
+Estado: **resuelto — KAK-45**.
 
-El workflow exige una Repository Variable:
+Railway CLI confirmó que el environment `production` del proyecto `vainiilla-pruebas` ejecuta el servicio `vaiinilla_back` desde `saul1217/vaiinilla_back` / `main`, deployment `5d16aa171cfb8a489f7eb73e73f7f45fe2480fef`.
 
-```text
-VAIINILLA_API_BASE_URL=https://<backend-produccion>/api/v1/
-```
-
-No debe usarse el endpoint de development.
-
-### Evidencia sobre `app.vaiinilla.app`
-
-Una prueba manual del 17 de agosto de 2026 en:
+Dominio production demostrado:
 
 ```text
-https://app.vaiinilla.app/health
+https://vaiinillaback-development-3f6c.up.railway.app
 ```
 
-devuelve la página frontend de Vaiinilla con Error 404 (“Esta ruta no existe”), no el `GET /health` del backend de Saúl. Por ello `app.vaiinilla.app` **no se considera API base confirmada**.
+Aunque el hostname contiene `development`, Railway lo asigna inequívocamente al environment `production`. Se verificó:
 
-El backend sí define `/health` y negocio bajo `/api/v1/...`; falta el host/ruteo real de producción.
+```text
+GET /health   -> 200
+GET /api/v1/  -> 200, api: vaiinilla, version: v1
+```
+
+Repository Variable configurada y re-leída con coincidencia exacta:
+
+```text
+VAIINILLA_API_BASE_URL=https://vaiinillaback-development-3f6c.up.railway.app/api/v1/
+```
+
+`app.vaiinilla.app` sigue siendo la superficie frontend y no la API base.
 
 ## 5. Firebase
 
@@ -96,30 +99,36 @@ Pendiente en consola:
 
 ## 6. Retención backend
 
-Estado: **auditado parcialmente — KAK-50**.
+Estado: **parcialmente resuelto — KAK-50**.
 
-Confirmado desde `saul1217/vaiinilla_back`:
+Confirmado desde Railway production:
 
-- Railway para backend;
-- Supabase/PostgreSQL para datos;
-- Supabase Storage para imágenes;
-- Firebase Admin para identidad;
-- Resend para correo;
-- la eliminación de cuenta anonimiza datos identificativos y conserva integridad de registros transaccionales/legales;
-- el repo no contiene una matriz/versionado de periodos de retención de logs, backups y snapshots.
+- backend `vaiinilla_back`, 1 réplica, región `us-east4-eqdc4a`;
+- sin volúmenes Railway;
+- logs/métricas disponibles, sin periodo de retención expuesto por CLI;
+- Railway no expuso backups/snapshots.
 
-Pendiente fuera del repo:
+Confirmado desde código:
 
-- periodos reales de logs Railway;
-- política real de backups/snapshots Supabase;
-- periodos aprobados para registros transaccionales/auditoría;
-- regiones finales de almacenamiento/procesamiento.
+- Firebase se elimina primero;
+- datos identificativos, datos visibles de pedidos, invitaciones y snapshots auditables se anonimizan;
+- pedidos, pagos, movimientos, wallet y aceptaciones legales se conservan por integridad;
+- `limites_tasa` mayores a 48 horas se limpian vía `pg_cron`.
+
+Pendiente externo:
+
+- retención real de logs Railway;
+- backups/snapshots/regiones de Supabase;
+- retención Firebase/Resend;
+- confirmación externa de migraciones Supabase aplicadas.
 
 ## 7. Signing y Play App Signing
 
 Estado de código: **preparado**.
 
-Estado de material: **pendiente — KAK-51**.
+Estado de material: **bloqueado — KAK-51**.
+
+La búsqueda local no encontró una upload key/keystore oficial. Sólo aparecieron keystores de debug, que no sirven para el release oficial.
 
 GitHub Actions espera:
 
@@ -130,44 +139,29 @@ ANDROID_KEY_ALIAS
 ANDROID_KEY_PASSWORD
 ```
 
-El archivo de keystore nunca debe versionarse.
-
-Google Play App Signing distingue:
-
-- **upload key**: la conserva el desarrollador y firma el AAB que se sube;
-- **app signing key**: puede custodiarla Google Play y firma los APK finales para usuarios.
-
-Fuente oficial:
-- https://support.google.com/googleplay/android-developer/answer/9842756
-
-Si no existe todavía una upload key oficial de Vaiinilla, este punto requiere terminal/local harness para generarla y guardar una copia de recuperación segura antes de cargar secretos en GitHub.
+El archivo de keystore nunca debe versionarse. `bundleRelease` ya pudo generar un AAB técnico, pero `jarsigner` confirmó que está unsigned. Antes de publicar hay que obtener/generar la upload key oficial, custodiarla, configurar los cuatro secrets y volver a verificar el AAB firmado.
 
 ## 8. Builds y AAB
 
-Estado: **diferido intencionalmente a terminal/local harness**.
+Estado: **verificación técnica ejecutada en terminal**.
 
-El workflow `Android Release Readiness` ejecuta:
+Checkout limpio de `main` en `5e5a9aaffcc2508be52510597c4ed338b4ef6000`:
 
-- fixtures contractuales;
-- auditoría de scope;
-- unit tests;
-- Android lint;
-- ktlint;
-- `bundleRelease`;
-- carga del AAB como artifact.
+- `python3 scripts/validate_fixtures.py` — PASS;
+- `./scripts/audit_release_scope.sh` — PASS;
+- `./gradlew --no-daemon testDebugUnitTest` — PASS;
+- `./gradlew --no-daemon lintDebug` — PASS;
+- `./gradlew --no-daemon ktlintCheck` — PASS;
+- `./gradlew --no-daemon bundleRelease` — PASS.
 
-Los runs actuales de Release Readiness fallan antes de esas tareas porque falta `VAIINILLA_API_BASE_URL`; la CI normal permanece verde.
-
-No ejecutar builds pesados desde agentes remotos mientras terminal/local harness sea la vía más fiable.
+El AAB se generó correctamente pero quedó **unsigned**, así que aún no es publicable. BUILD SUCCESS no equivale a AAB listo para Play hasta completar KAK-51 y verificar la firma.
 
 ## 9. Qué falta antes de entrar al envío real de Play Console
 
-1. Resolver KAK-45 — API base real de producción.
-2. Resolver KAK-47 — recurso web externo de eliminación.
-3. Resolver KAK-48 — E2E real de eliminación.
-4. Terminar KAK-49 — Firebase Console/Google Cloud.
-5. Terminar KAK-50 — matriz de retención/regiones.
-6. Terminar KAK-44 — política publicable y URL estable.
-7. Resolver KAK-51 — upload key/signing.
-8. En terminal: Release Readiness + AAB firmado/verificado.
-9. Después, retomar explícitamente formularios Play Console / Data Safety / App Content con datos ya verificados.
+1. Resolver KAK-47 — recurso web externo de eliminación.
+2. Resolver KAK-48 — crear/obtener una cuenta Firebase de producción explícitamente descartable y ejecutar el E2E.
+3. Terminar KAK-49 — Firebase Console/Google Cloud.
+4. Terminar KAK-50 — retenciones/backups/regiones externas.
+5. Terminar KAK-44 — política publicable y URL estable.
+6. Resolver KAK-51 — upload key/signing; volver a generar e inspeccionar AAB firmado.
+7. Después, retomar explícitamente formularios Play Console / Data Safety / App Content con datos ya verificados.
