@@ -134,6 +134,7 @@ class StudentAuthViewModel
 
         fun register(onSuccess: () -> Unit) {
             val current = _state.value
+            if (current.loading) return
             validateRegistration(current)?.let { error ->
                 _state.value = current.copy(errorMessage = error)
                 return
@@ -213,6 +214,7 @@ class StudentAuthViewModel
 
         fun resendVerification() {
             val current = _state.value
+            if (current.loading) return
             if (current.resendLockedUntilMs > System.currentTimeMillis()) return
             _state.value = current.copy(loading = true, errorMessage = null)
             launchTracked {
@@ -223,6 +225,7 @@ class StudentAuthViewModel
                                 loading = false,
                                 verificationSent = true,
                             )
+                        lockResend(60, errorMessage = null)
                     },
                     onFailure = { error ->
                         val limited = error as? ApiClientException
@@ -247,24 +250,36 @@ class StudentAuthViewModel
         }
 
         fun checkVerification(onVerified: () -> Unit) {
+            if (_state.value.loading) return
             _state.value = _state.value.copy(loading = true, errorMessage = null)
             launchTracked {
                 authRepository.reloadSession().fold(
                     onSuccess = { session ->
-                        authRepository.getIdToken(forceRefresh = true)
-                        val verified = authRepository.peekSession()
-                        _state.value = _state.value.copy(loading = false, session = verified ?: session)
-                        if (verified?.emailVerified == true) {
-                            completeEnrollment(
-                                onSuccess = onVerified,
-                                onNeedsVerify = {},
-                            )
-                        } else {
-                            _state.value =
-                                _state.value.copy(
-                                    errorMessage = "Aún no hemos confirmado tu correo. Revisa tu bandeja.",
-                                )
-                        }
+                        authRepository.getIdToken(forceRefresh = true).fold(
+                            onSuccess = {
+                                val verified = authRepository.peekSession()
+                                _state.value = _state.value.copy(loading = false, session = verified ?: session)
+                                if (verified?.emailVerified == true) {
+                                    completeEnrollment(
+                                        onSuccess = onVerified,
+                                        onNeedsVerify = {},
+                                    )
+                                } else {
+                                    _state.value =
+                                        _state.value.copy(
+                                            errorMessage = "Aún no hemos confirmado tu correo. Revisa tu bandeja.",
+                                        )
+                                }
+                            },
+                            onFailure = { error ->
+                                _state.value =
+                                    _state.value.copy(
+                                        loading = false,
+                                        session = session,
+                                        errorMessage = error.toUserFacingMessage(),
+                                    )
+                            },
+                        )
                     },
                     onFailure = { error ->
                         _state.value =
@@ -385,6 +400,7 @@ class StudentAuthViewModel
                             _state.value.copy(
                                 loading = false,
                                 enrollmentComplete = true,
+                                errorMessage = null,
                             )
                         onSuccess()
                     },
@@ -453,6 +469,7 @@ class StudentAuthViewModel
                                 loading = false,
                                 session = session,
                                 identityEnrollmentComplete = true,
+                                errorMessage = null,
                             )
                         onSuccess()
                     },
@@ -494,14 +511,17 @@ class StudentAuthViewModel
             }
         }
 
-        private fun lockResend(seconds: Long) {
+        private fun lockResend(
+            seconds: Long,
+            errorMessage: String? = "Espera ${seconds.coerceAtLeast(1)} s para reenviar el correo.",
+        ) {
             val wait = seconds.coerceAtLeast(1)
             val until = System.currentTimeMillis() + wait * 1000
             _state.value =
                 _state.value.copy(
                     loading = false,
                     resendLockedUntilMs = until,
-                    errorMessage = "Espera $wait s para reenviar el correo.",
+                    errorMessage = errorMessage ?: _state.value.errorMessage,
                 )
             launchTracked {
                 delay(wait * 1000)

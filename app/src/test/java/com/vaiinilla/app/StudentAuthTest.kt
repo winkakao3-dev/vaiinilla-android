@@ -2,6 +2,7 @@ package com.vaiinilla.app
 
 import com.vaiinilla.app.core.auth.StudentSessionCleanup
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
+import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.security.PickupTokenStore
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.auth.ContextoExchanger
@@ -93,13 +94,19 @@ class StudentAuthViewModelTest {
     private lateinit var viewModel: StudentAuthViewModel
     private lateinit var contextExchangeStarted: CompletableDeferred<Unit>
     private lateinit var allowContextExchange: CompletableDeferred<Unit>
+    private lateinit var emailVerificationStarted: CompletableDeferred<Unit>
+    private lateinit var allowEmailVerification: CompletableDeferred<Unit>
+    private lateinit var emailApi: CountingAccessEmailApi
     private var blockContextExchange = false
+    private var blockEmailVerification = false
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         contextExchangeStarted = CompletableDeferred()
         allowContextExchange = CompletableDeferred()
+        emailVerificationStarted = CompletableDeferred()
+        allowEmailVerification = CompletableDeferred()
         val context = RuntimeEnvironment.getApplication()
         sessionStore =
             object : SecureSessionStore {
@@ -163,7 +170,12 @@ class StudentAuthViewModelTest {
                 contextoExchange = contextoExchange,
                 refreshCoordinator = refreshCoordinator,
                 preferences = preferences,
-                remoteAccessEmailApi = fakeAccessEmailApi(),
+                remoteAccessEmailApi =
+                    CountingAccessEmailApi(
+                        shouldBlock = { blockEmailVerification },
+                        started = emailVerificationStarted,
+                        allow = allowEmailVerification,
+                    ).also { emailApi = it },
                 sessionCleanup =
                     StudentSessionCleanup(
                         authRepository,
@@ -205,6 +217,52 @@ class StudentAuthViewModelTest {
                 viewModel.state.value.errorMessage
                     ?.contains("Ya existe") == true,
             )
+        }
+
+    @Test
+    fun `registration sends exactly one verification request when tapped twice`() =
+        runTest {
+            blockEmailVerification = true
+            viewModel.updateName("Ana")
+            viewModel.updateEmail("ana-once@test.com")
+            viewModel.updatePassword("secret1")
+            viewModel.updatePasswordConfirm("secret1")
+            viewModel.updateTermsAccepted(true)
+            viewModel.updatePrivacyAccepted(true)
+
+            viewModel.register {}
+            emailVerificationStarted.await()
+            viewModel.register {}
+
+            assertEquals(1, emailApi.verificationCalls)
+            assertTrue(viewModel.state.value.loading)
+
+            allowEmailVerification.complete(Unit)
+            advanceUntilIdle()
+            assertFalse(viewModel.state.value.loading)
+        }
+
+    @Test
+    fun `verification failure keeps created session and does not recreate account`() =
+        runTest {
+            emailApi.verificationResult =
+                Result.failure(ApiClientException("UPSTREAM_ERROR", "upstream", 502))
+            viewModel.updateName("Ana")
+            viewModel.updateEmail("ana-preserve@test.com")
+            viewModel.updatePassword("secret1")
+            viewModel.updatePasswordConfirm("secret1")
+            viewModel.updateTermsAccepted(true)
+            viewModel.updatePrivacyAccepted(true)
+
+            viewModel.register {}
+            advanceUntilIdle()
+
+            assertEquals(1, emailApi.verificationCalls)
+            assertTrue(viewModel.state.value.session != null)
+            viewModel.register {}
+            advanceUntilIdle()
+            assertEquals(1, emailApi.verificationCalls)
+            assertTrue(viewModel.state.value.emailExistsSuggestion)
         }
 
     @Test
@@ -357,3 +415,33 @@ private fun fakeAccessEmailApi(): AccessEmailApi =
                 ),
             )
     }
+
+private class CountingAccessEmailApi(
+    private val shouldBlock: () -> Boolean,
+    private val started: CompletableDeferred<Unit>,
+    private val allow: CompletableDeferred<Unit>,
+) : AccessEmailApi {
+    var verificationCalls = 0
+    var verificationResult: Result<Unit> = Result.success(Unit)
+
+    override suspend fun sendVerification(firebaseIdToken: String): Result<Unit> {
+        verificationCalls++
+        if (shouldBlock()) {
+            started.complete(Unit)
+            allow.await()
+        }
+        return verificationResult
+    }
+
+    override suspend fun sendRecovery(email: String): Result<Unit> = Result.success(Unit)
+
+    override suspend fun currentLegal() =
+        Result.success(
+            com.vaiinilla.app.data.auth.student.LegalDocuments(
+                termsVersion = "2026-07",
+                termsUrl = "https://example.test/terminos",
+                privacyVersion = "2026-07",
+                privacyUrl = "https://example.test/privacidad",
+            ),
+        )
+}
