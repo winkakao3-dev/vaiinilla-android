@@ -81,13 +81,68 @@ class StudentAuthViewModel
             refreshGuestVenue()
         }
 
-        /** Rehydrates the short-lived Railway context after an app process restart. */
+        /** Rehydrates only the short-lived Railway client context after process restart. */
         private fun restoreRemoteContextIfNeeded() {
             val session = authRepository.peekSession() ?: return
             if (!session.emailVerified) return
             val venue = guestSessionStore.readVenue() ?: return
-            if (!authRepository.isReadyForCheckout(venue.establishment.id)) return
-            completeEnrollment(onSuccess = {}, onNeedsVerify = {})
+            if (!preferences.isEnrolledFor(venue.establishment.id)) return
+            // Establishments that require a contextual identifier need the user to provide it again.
+            if (venue.establishment.clientIdRequired) return
+
+            launchTracked {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        runCatching {
+                            val firebaseToken = authRepository.getIdToken(forceRefresh = true).getOrThrow()
+                            val contexto =
+                                contextoExchange.exchange(
+                                    firebaseIdToken = firebaseToken,
+                                    establecimientoSlug = venue.establishment.slug,
+                                    establecimientoId = venue.establishment.id,
+                                    identificadorCliente = null,
+                                )
+                            sessionStore.saveAccessToken(contexto.accessToken)
+                            refreshCoordinator.startSession(
+                                OperationalRole.CLIENT,
+                                contexto.expiresIn,
+                                refresh = {
+                                    kotlinx.coroutines.runBlocking {
+                                        runCatching {
+                                            val refreshedFirebaseToken =
+                                                authRepository.getIdToken(forceRefresh = true).getOrThrow()
+                                            val refreshedContext =
+                                                contextoExchange.exchange(
+                                                    firebaseIdToken = refreshedFirebaseToken,
+                                                    establecimientoSlug = venue.establishment.slug,
+                                                    establecimientoId = venue.establishment.id,
+                                                    identificadorCliente = null,
+                                                )
+                                            sessionStore.saveAccessToken(refreshedContext.accessToken)
+                                        }
+                                    }
+                                },
+                            )
+                            contexto
+                        }
+                    }
+                result.fold(
+                    onSuccess = {
+                        _state.value =
+                            _state.value.copy(
+                                enrollmentComplete = true,
+                                errorMessage = null,
+                            )
+                    },
+                    onFailure = { error ->
+                        _state.value =
+                            _state.value.copy(
+                                enrollmentComplete = false,
+                                errorMessage = error.toUserFacingMessage(),
+                            )
+                    },
+                )
+            }
         }
 
         fun updateName(value: String) {

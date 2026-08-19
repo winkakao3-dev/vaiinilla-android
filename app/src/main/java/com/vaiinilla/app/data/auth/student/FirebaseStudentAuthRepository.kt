@@ -26,7 +26,9 @@ class FirebaseStudentAuthRepository
 
         override fun isReadyForCheckout(establishmentId: String?): Boolean {
             val session = peekSession() ?: return false
-            return session.emailVerified
+            return session.emailVerified &&
+                preferences.isEnrolledFor(establishmentId) &&
+                !sessionStore.readAccessToken().isNullOrBlank()
         }
 
         override suspend fun signUp(
