@@ -258,6 +258,7 @@ class RemoteAuthorizedAccessRepository
                 establishmentId = establecimiento.id,
                 establishmentName = establecimiento.nombre,
                 membershipId = membresiaId,
+                clientIdentifier = clientIdentifier,
             )
         }
 

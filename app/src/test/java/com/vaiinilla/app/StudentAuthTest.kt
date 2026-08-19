@@ -13,13 +13,19 @@ import com.vaiinilla.app.data.auth.student.StudentAuthPreferences
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.discovery.FixtureDiscoveryRepository
 import com.vaiinilla.app.data.guest.GuestSessionStore
+import com.vaiinilla.app.domain.auth.student.StudentAuthSession
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRequest
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentResult
+import com.vaiinilla.app.domain.mode.AuthorizedInvitation
+import com.vaiinilla.app.domain.mode.AuthorizedMode
+import com.vaiinilla.app.domain.mode.AuthorizedModeContext
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.GuestVenueContext
+import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicSpace
+import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -165,6 +171,7 @@ class StudentAuthViewModelTest {
             StudentAuthViewModel(
                 authRepository = authRepository,
                 enrollmentRepository = enrollmentRepository,
+                authorizedAccessRepository = fakeAuthorizedAccessRepository(),
                 guestSessionStore = guestStore,
                 sessionStore = sessionStore,
                 contextoExchange = contextoExchange,
@@ -301,6 +308,110 @@ class StudentAuthViewModelTest {
         }
 
     @Test
+    fun `process restart rehydrates required client context from authorized access`() =
+        runTest {
+            val context = RuntimeEnvironment.getApplication()
+            val guestStore = GuestSessionStore(context)
+            guestStore.saveVenue(
+                GuestVenueContext(
+                    establishment =
+                        PublicEstablishment(
+                            id = "est-required",
+                            name = "Centro",
+                            slug = "centro",
+                            clientIdLabel = "Matrícula",
+                            clientIdRequired = true,
+                        ),
+                    space = null,
+                ),
+            )
+            val preferences = StudentAuthPreferences(context).also { it.clear() }
+            val freshTokenSaved = CompletableDeferred<Unit>()
+            val restartSessionStore =
+                object : SecureSessionStore {
+                    private var token: String? = null
+
+                    override fun saveAccessToken(token: String) {
+                        this.token = token
+                        if (token == "fresh-jwt") freshTokenSaved.complete(Unit)
+                    }
+
+                    override fun readAccessToken(): String? = token
+
+                    override fun clear() {
+                        token = null
+                    }
+                }
+            val auth = FixtureStudentAuthRepository(restartSessionStore, preferences)
+            auth.signUp("restart@test.com", "secret1", "Ana")
+            auth.markCurrentEmailVerified()
+            auth.completeTestEnrollment("stale-jwt", "est-required")
+            var exchangedIdentifier: String? = null
+            val refreshCoordinator =
+                VaiinillaJwtRefreshCoordinator(
+                    authRepositoryProvider = Provider { throw UnsupportedOperationException() },
+                )
+            val vm =
+                StudentAuthViewModel(
+                    authRepository = auth,
+                    enrollmentRepository =
+                        object : StudentEnrollmentRepository {
+                            override suspend fun enroll(
+                                request: StudentEnrollmentRequest,
+                                firebaseIdToken: String,
+                            ) = Result.success(StudentEnrollmentResult(membresiaId = "membership-client"))
+                        },
+                    authorizedAccessRepository =
+                        fakeAuthorizedAccessRepository(
+                            listOf(
+                                AuthorizedMode(
+                                    role = OperationalRole.CLIENT,
+                                    establishmentId = "est-required",
+                                    establishmentName = "Centro",
+                                    membershipId = "membership-client",
+                                    clientIdentifier = "A012345",
+                                ),
+                            ),
+                        ),
+                    guestSessionStore = guestStore,
+                    sessionStore = restartSessionStore,
+                    contextoExchange =
+                        ContextoExchanger { _, _, _, identifier ->
+                            exchangedIdentifier = identifier
+                            SesionesContextoDataDto(
+                                accessToken = "fresh-jwt",
+                                tokenType = "Bearer",
+                                expiresIn = 900,
+                            )
+                        },
+                    refreshCoordinator = refreshCoordinator,
+                    preferences = preferences,
+                    remoteAccessEmailApi = fakeAccessEmailApi(),
+                    sessionCleanup =
+                        StudentSessionCleanup(
+                            auth,
+                            guestStore,
+                            object : PickupTokenStore {
+                                override fun save(
+                                    orderId: String,
+                                    pickupToken: String,
+                                ) = Unit
+
+                                override fun read(orderId: String): String? = null
+                            },
+                            refreshCoordinator,
+                        ),
+                )
+
+            freshTokenSaved.await()
+            advanceUntilIdle()
+
+            assertEquals("A012345", exchangedIdentifier)
+            assertEquals("fresh-jwt", restartSessionStore.readAccessToken())
+            assertTrue(vm.isReadyForCheckout())
+        }
+
+    @Test
     fun `session termination cancels enrollment that is still in flight`() =
         runTest {
             blockContextExchange = true
@@ -357,6 +468,7 @@ class StudentAuthViewModelTest {
                 StudentAuthViewModel(
                     authRepository = auth,
                     enrollmentRepository = enrollmentRepository,
+                    authorizedAccessRepository = fakeAuthorizedAccessRepository(),
                     guestSessionStore = guestStore,
                     sessionStore = sessionStore,
                     contextoExchange =
@@ -398,6 +510,30 @@ class StudentAuthViewModelTest {
             )
         }
 }
+
+private fun fakeAuthorizedAccessRepository(modes: List<AuthorizedMode> = emptyList()): AuthorizedAccessRepository =
+    object : AuthorizedAccessRepository {
+        override suspend fun invitation(token: String): Result<AuthorizedInvitation> =
+            Result.failure(UnsupportedOperationException())
+
+        override suspend fun acceptInvitation(
+            token: String,
+            session: StudentAuthSession,
+        ): Result<AuthorizedMode> = Result.failure(UnsupportedOperationException())
+
+        override suspend fun authorizedModes(session: StudentAuthSession): Result<List<AuthorizedMode>> =
+            Result.success(modes)
+
+        override suspend fun activateMode(
+            mode: AuthorizedMode,
+            session: StudentAuthSession,
+        ): Result<AuthorizedModeContext> = Result.failure(UnsupportedOperationException())
+
+        override suspend fun revokeMode(
+            mode: AuthorizedMode,
+            session: StudentAuthSession,
+        ): Result<Unit> = Result.failure(UnsupportedOperationException())
+    }
 
 private fun fakeAccessEmailApi(): AccessEmailApi =
     object : AccessEmailApi {

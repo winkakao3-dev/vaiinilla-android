@@ -21,6 +21,7 @@ data class AuthorizedMode(
     val establishmentId: String,
     val establishmentName: String,
     val membershipId: String,
+    val clientIdentifier: String? = null,
 )
 
 /**

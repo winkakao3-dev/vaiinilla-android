@@ -18,6 +18,7 @@ import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRequest
 import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +35,7 @@ class StudentAuthViewModel
     constructor(
         private val authRepository: StudentAuthRepository,
         private val enrollmentRepository: StudentEnrollmentRepository,
+        private val authorizedAccessRepository: AuthorizedAccessRepository,
         private val guestSessionStore: GuestSessionStore,
         private val sessionStore: SecureSessionStore,
         private val contextoExchange: ContextoExchanger,
@@ -81,26 +83,49 @@ class StudentAuthViewModel
             refreshGuestVenue()
         }
 
-        /** Rehydrates only the short-lived Railway client context after process restart. */
+        /** Rehydrates the short-lived Railway client context after process restart. */
         private fun restoreRemoteContextIfNeeded() {
             val session = authRepository.peekSession() ?: return
             if (!session.emailVerified) return
             val venue = guestSessionStore.readVenue() ?: return
             if (!preferences.isEnrolledFor(venue.establishment.id)) return
-            // Establishments that require a contextual identifier need the user to provide it again.
-            if (venue.establishment.clientIdRequired) return
+
+            // A persisted JWT cannot refresh after a process restart until this coordinator
+            // is rebuilt. Never let checkout trust a token without its refresh callback.
+            sessionStore.clear()
+            refreshCoordinator.clearSession()
+            _state.value = _state.value.copy(enrollmentComplete = false)
 
             launchTracked {
                 val result =
                     withContext(Dispatchers.IO) {
                         runCatching {
+                            val clientIdLabel = venue.establishment.clientIdLabel.lowercase()
+                            val clientIdentifier =
+                                if (venue.establishment.clientIdRequired) {
+                                    authorizedAccessRepository
+                                        .authorizedModes(session)
+                                        .getOrThrow()
+                                        .firstOrNull { mode ->
+                                            mode.role == OperationalRole.CLIENT &&
+                                                mode.establishmentId == venue.establishment.id
+                                        }?.clientIdentifier
+                                        ?.trim()
+                                        ?.takeIf { it.isNotBlank() }
+                                        ?: throw IllegalStateException(
+                                            "No encontramos tu $clientIdLabel vinculada. " +
+                                                "Complétala para continuar.",
+                                        )
+                                } else {
+                                    null
+                                }
                             val firebaseToken = authRepository.getIdToken(forceRefresh = true).getOrThrow()
                             val contexto =
                                 contextoExchange.exchange(
                                     firebaseIdToken = firebaseToken,
                                     establecimientoSlug = venue.establishment.slug,
                                     establecimientoId = venue.establishment.id,
-                                    identificadorCliente = null,
+                                    identificadorCliente = clientIdentifier,
                                 )
                             sessionStore.saveAccessToken(contexto.accessToken)
                             refreshCoordinator.startSession(
@@ -116,7 +141,7 @@ class StudentAuthViewModel
                                                     firebaseIdToken = refreshedFirebaseToken,
                                                     establecimientoSlug = venue.establishment.slug,
                                                     establecimientoId = venue.establishment.id,
-                                                    identificadorCliente = null,
+                                                    identificadorCliente = clientIdentifier,
                                                 )
                                             sessionStore.saveAccessToken(refreshedContext.accessToken)
                                         }
