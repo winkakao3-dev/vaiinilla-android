@@ -60,19 +60,15 @@ fun StudentVerifyEmailScreen(
                 EditorialSectionHead(title = "Verifica tu correo")
             }
             item {
+                val email = state.session?.email ?: state.email
                 EmptyState(
                     icon = Icons.Outlined.MarkEmailRead,
-                    title = "Revisa tu bandeja",
+                    title = if (state.verificationSent) "Revisa tu bandeja" else "Falta enviar el correo",
                     message =
-                        buildString {
-                            append("Enviamos un enlace a ")
-                            append(state.session?.email ?: state.email)
-                            append(
-                                ". Ábrelo; te lleva a la web de Vaiinilla para confirmar. Después pulsa Ya verifiqué.",
-                            )
-                            if (state.verificationSent) {
-                                append(" (reenviado)")
-                            }
+                        if (state.verificationSent) {
+                            "Enviamos un enlace a $email. Ábrelo; te lleva a la web de Vaiinilla para confirmar. Después pulsa Ya verifiqué."
+                        } else {
+                            "Tu cuenta fue creada, pero no pudimos confirmar el envío del correo a $email. Pulsa Reenviar correo para intentarlo otra vez."
                         },
                     actionLabel = "Ya verifiqué",
                     onAction = onCheckVerified,
