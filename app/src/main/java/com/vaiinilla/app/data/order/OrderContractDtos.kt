@@ -111,7 +111,7 @@ data class CashSessionEnvelopeDto(
 @Serializable
 data class OrderUserDto(
     @SerialName("nombre") val name: String,
-    @SerialName("matricula") val enrollment: String,
+    @SerialName("matricula") val enrollment: String? = null,
 )
 
 @Serializable

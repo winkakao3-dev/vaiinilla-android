@@ -48,7 +48,7 @@ fun OrderDetailDto.toDomain(): OrderDetail =
                 createdAt = createdAt,
                 updatedAt = updatedAt,
             ),
-        user = user?.let { OrderUser(name = it.name, enrollment = it.enrollment) },
+        user = user?.let { OrderUser(name = it.name, enrollment = it.enrollment.orEmpty()) },
         kitchenNotes = kitchenNotes.orEmpty(),
         items =
             items.map { item ->
