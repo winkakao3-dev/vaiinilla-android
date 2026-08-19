@@ -3,25 +3,34 @@ package com.vaiinilla.app.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,6 +49,7 @@ import com.vaiinilla.app.ui.components.OrderTrackingTimeline
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
+import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.order.OrderFlowUiState
@@ -58,7 +68,7 @@ fun StudentTrackingScreen(
     onCart: () -> Unit,
     onOpenCatalog: () -> Unit,
     onSelectOrder: (String) -> Unit,
-    onViewSticker: () -> Unit = {},
+    onViewReceipt: () -> Unit = {},
     onRefresh: () -> Unit = {},
 ) {
     val haptics = rememberVaiinillaHaptics()
@@ -128,6 +138,9 @@ fun StudentTrackingScreen(
                                 paymentMethod = selected.summary.paymentMethod,
                             )
                         }
+                        if (selected.summary.state == OrderState.READY) {
+                            item { PickupCodeCard(selected) }
+                        }
                         item {
                             Text("Resumen", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
                         }
@@ -136,7 +149,7 @@ fun StudentTrackingScreen(
                         }
                         item {
                             Button(
-                                onClick = onViewSticker,
+                                onClick = onViewReceipt,
                                 modifier = Modifier.fillMaxWidth(),
                                 shape =
                                     androidx.compose.foundation.shape
@@ -147,7 +160,7 @@ fun StudentTrackingScreen(
                                         contentColor = colors.ink,
                                     ),
                             ) {
-                                Text("Ver sticker", fontWeight = FontWeight.Black)
+                                Text("Ver recibo", fontWeight = FontWeight.Black)
                             }
                         }
                     }
@@ -161,6 +174,68 @@ fun StudentTrackingScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PickupCodeCard(order: OrderDetail) {
+    val colors = LocalVaiinillaColors.current
+    val token = order.pickupToken?.takeIf { it.isNotBlank() }
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = colors.paper2,
+        shape = RoundedCornerShape(24.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                "Código de recogida",
+                color = colors.ink,
+                fontWeight = FontWeight.Black,
+                fontSize = 18.sp,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                if (order.summary.destination == OrderDestination.IN_SPACE) {
+                    "Muéstrale este QR al mesero para confirmar la entrega."
+                } else {
+                    "Muéstralo en Caja cuando recojas tu pedido."
+                },
+                color = colors.muted,
+                textAlign = TextAlign.Center,
+                fontSize = 13.sp,
+            )
+            Spacer(Modifier.height(16.dp))
+            if (token != null) {
+                Surface(
+                    color = Color.White,
+                    shape = RoundedCornerShape(18.dp),
+                ) {
+                    Box(Modifier.padding(14.dp), contentAlignment = Alignment.Center) {
+                        VaiinillaQrCode(value = token, qrSize = 190.dp)
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    token,
+                    color = colors.ink,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp,
+                    lineHeight = 14.sp,
+                    textAlign = TextAlign.Center,
+                )
+            } else {
+                Text(
+                    "El código de recogida no está disponible en este dispositivo. Conserva la app donde hiciste el pedido.",
+                    color = colors.coral,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    fontSize = 13.sp,
+                )
             }
         }
     }

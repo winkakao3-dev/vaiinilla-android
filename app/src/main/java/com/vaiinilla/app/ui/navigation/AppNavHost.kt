@@ -265,10 +265,10 @@ fun AppNavHost(
         studentAuthViewModel.refreshGuestVenue()
         val session = studentAuthViewModel.state.value.session
         val targetRoute =
-            if (session != null && !session.emailVerified) {
-                Routes.authVerifyRoute(returnRoute)
-            } else {
-                Routes.authLandingRoute(returnRoute)
+            when {
+                session == null -> Routes.authLandingRoute(returnRoute)
+                !session.emailVerified -> Routes.authVerifyRoute(returnRoute)
+                else -> Routes.authLoginRoute(returnRoute)
             }
         navController.navigate(targetRoute) {
             launchSingleTop = true
@@ -658,6 +658,7 @@ fun AppNavHost(
                 arguments = listOf(authReturnArg),
             ) { entry ->
                 val returnRoute = entry.arguments?.getString("returnRoute") ?: Routes.CART
+                LaunchedEffect(returnRoute) { studentAuthViewModel.refreshGuestVenue() }
                 StudentRegisterScreen(
                     state = studentAuthState,
                     onBack = { navController.popBackStack() },
@@ -694,6 +695,8 @@ fun AppNavHost(
             ) { entry ->
                 val returnRoute = entry.arguments?.getString("returnRoute") ?: Routes.CART
                 val isLaunchLogin = returnRoute == Routes.DISCOVERY
+                LaunchedEffect(returnRoute) { studentAuthViewModel.refreshGuestVenue() }
+                val existingVerifiedSession = studentAuthState.session?.emailVerified == true
                 StudentLoginScreen(
                     state = studentAuthState,
                     onBack = { navController.popBackStack() },
@@ -702,16 +705,27 @@ fun AppNavHost(
                     onPasswordChange = studentAuthViewModel::updatePassword,
                     onContextualIdChange = studentAuthViewModel::updateContextualId,
                     onLogin = {
-                        studentAuthViewModel.login { enrolled ->
-                            if (enrolled) {
-                                if (isLaunchLogin) {
-                                    finishLaunchAuth()
+                        if (existingVerifiedSession) {
+                            studentAuthViewModel.completeEnrollment(
+                                onSuccess = {
+                                    if (isLaunchLogin) finishLaunchAuth() else finishStudentAuth(returnRoute)
+                                },
+                                onNeedsVerify = {
+                                    navController.navigate(
+                                        Routes.authVerifyRoute(returnRoute),
+                                    ) {
+                                        launchSingleTop = true
+                                    }
+                                },
+                            )
+                        } else {
+                            studentAuthViewModel.login { enrolled ->
+                                if (enrolled) {
+                                    if (isLaunchLogin) finishLaunchAuth() else finishStudentAuth(returnRoute)
                                 } else {
-                                    finishStudentAuth(returnRoute)
-                                }
-                            } else {
-                                navController.navigate(Routes.authVerifyRoute(returnRoute)) {
-                                    launchSingleTop = true
+                                    navController.navigate(Routes.authVerifyRoute(returnRoute)) {
+                                        launchSingleTop = true
+                                    }
                                 }
                             }
                         }
@@ -726,6 +740,7 @@ fun AppNavHost(
                             launchSingleTop = true
                         }
                     },
+                    existingVerifiedSession = existingVerifiedSession,
                 )
             }
 
@@ -763,13 +778,18 @@ fun AppNavHost(
             }
 
             composable(Routes.CONFIRMATION) {
+                val isFreshConfirmation = orderState.createdOrder != null
                 OrderConfirmationScreen(
-                    order = orderState.createdOrder,
+                    order = orderState.createdOrder ?: operationalState.selectedOrder,
                     onReturnToMenu = {
-                        orderFlowViewModel.clearCreatedOrder()
-                        navController.navigate(Routes.CATALOG) {
-                            popUpTo(Routes.CATALOG) { inclusive = true }
-                            launchSingleTop = true
+                        if (isFreshConfirmation) {
+                            orderFlowViewModel.clearCreatedOrder()
+                            navController.navigate(Routes.CATALOG) {
+                                popUpTo(Routes.CATALOG) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        } else {
+                            navController.popBackStack()
                         }
                     },
                     onViewTracking = {
@@ -780,7 +800,6 @@ fun AppNavHost(
                             ?.let(operationalViewModel::selectOrder)
                         navController.navigateStudent(Routes.STUDENT_TRACKING)
                     },
-                    onViewSticker = { navController.navigate(Routes.receiptStickerRoute()) },
                 )
             }
 
@@ -815,7 +834,10 @@ fun AppNavHost(
                     onCart = { navController.navigateStudent(Routes.CART) },
                     onOpenCatalog = { navController.navigateStudent(Routes.CATALOG) },
                     onSelectOrder = operationalViewModel::selectOrder,
-                    onViewSticker = { navController.navigate(Routes.receiptStickerRoute()) },
+                    onViewReceipt = {
+                        orderFlowViewModel.clearCreatedOrder()
+                        navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
+                    },
                     onRefresh = { operationalViewModel.refresh() },
                 )
             }

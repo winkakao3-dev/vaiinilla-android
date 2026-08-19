@@ -26,40 +26,48 @@ fun StudentLoginScreen(
     onForgotPassword: () -> Unit,
     onRegister: () -> Unit,
     showBack: Boolean = true,
+    existingVerifiedSession: Boolean = false,
 ) {
     AuthAccessScaffold(
-        kicker = "Acceso de estudiante",
-        title = "Qué bueno verte de nuevo.",
-        intro = "Entra a tu menú, pedidos y saldo.",
+        kicker = if (existingVerifiedSession) "Vincular comedor" else "Acceso de estudiante",
+        title = if (existingVerifiedSession) "Completa tu acceso." else "Qué bueno verte de nuevo.",
+        intro =
+            if (existingVerifiedSession) {
+                "Tu cuenta ya está verificada. Solo falta vincularla a este comedor."
+            } else {
+                "Entra a tu menú, pedidos y saldo."
+            },
         loading = state.loading,
-        hintPrefix = "¿Primera vez aquí?",
-        hintAction = "Crea tu cuenta",
-        onHintAction = onRegister,
+        hintPrefix = if (existingVerifiedSession) null else "¿Primera vez aquí?",
+        hintAction = if (existingVerifiedSession) null else "Crea tu cuenta",
+        onHintAction = if (existingVerifiedSession) null else onRegister,
         privacyUrl = state.privacyUrl,
         termsUrl = state.termsUrl,
         showBack = showBack,
         onBack = onBack,
     ) {
-        AuthAccessField(
-            value = state.email,
-            onValueChange = onEmailChange,
-            label = "Correo",
-            placeholder = "tu@correo.com",
-            kind = AuthAccessFieldKind.Email,
-            imeAction = ImeAction.Next,
-        )
-        Spacer(Modifier.height(10.dp))
-        AuthAccessField(
-            value = state.password,
-            onValueChange = onPasswordChange,
-            label = "Contraseña",
-            placeholder = "Tu contraseña",
-            kind = AuthAccessFieldKind.Password,
-            trailingLabel = "¿La olvidaste?",
-            onTrailingLabel = onForgotPassword,
-            imeAction = if (state.clientIdRequired) ImeAction.Next else ImeAction.Done,
-            onImeAction = { if (!state.clientIdRequired) onLogin() },
-        )
+        if (!existingVerifiedSession) {
+            AuthAccessField(
+                value = state.email,
+                onValueChange = onEmailChange,
+                label = "Correo",
+                placeholder = "tu@correo.com",
+                kind = AuthAccessFieldKind.Email,
+                imeAction = ImeAction.Next,
+            )
+            Spacer(Modifier.height(10.dp))
+            AuthAccessField(
+                value = state.password,
+                onValueChange = onPasswordChange,
+                label = "Contraseña",
+                placeholder = "Tu contraseña",
+                kind = AuthAccessFieldKind.Password,
+                trailingLabel = "¿La olvidaste?",
+                onTrailingLabel = onForgotPassword,
+                imeAction = if (state.clientIdRequired) ImeAction.Next else ImeAction.Done,
+                onImeAction = { if (!state.clientIdRequired) onLogin() },
+            )
+        }
         state.noticeMessage?.let { message ->
             Spacer(Modifier.height(10.dp))
             AuthNoticeBanner(message)
@@ -82,7 +90,7 @@ fun StudentLoginScreen(
         }
         Spacer(Modifier.height(16.dp))
         AuthInkSubmitButton(
-            text = "Entrar a Vaiinilla",
+            text = if (existingVerifiedSession) "Continuar" else "Entrar a Vaiinilla",
             onClick = onLogin,
             enabled = !state.loading,
         )

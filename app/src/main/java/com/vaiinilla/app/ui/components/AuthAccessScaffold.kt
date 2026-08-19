@@ -305,9 +305,9 @@ fun AuthAccessScaffold(
     title: String,
     intro: String,
     loading: Boolean,
-    hintPrefix: String,
-    hintAction: String,
-    onHintAction: () -> Unit,
+    hintPrefix: String?,
+    hintAction: String?,
+    onHintAction: (() -> Unit)?,
     privacyUrl: String,
     termsUrl: String,
     modifier: Modifier = Modifier,
@@ -326,28 +326,30 @@ fun AuthAccessScaffold(
         onBack = onBack,
     ) {
         content()
-        Spacer(Modifier.height(12.dp))
-        Text(
-            buildAnnotatedString {
-                append(hintPrefix)
-                append(" ")
-                withStyle(SpanStyle(color = colors.ink, fontWeight = FontWeight.SemiBold)) {
-                    append(hintAction)
-                }
-            },
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() },
-                        onClick = onHintAction,
-                    ),
-            color = colors.muted,
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
-            textAlign = TextAlign.Center,
-        )
+        if (hintPrefix != null && hintAction != null && onHintAction != null) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                buildAnnotatedString {
+                    append(hintPrefix)
+                    append(" ")
+                    withStyle(SpanStyle(color = colors.ink, fontWeight = FontWeight.SemiBold)) {
+                        append(hintAction)
+                    }
+                },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() },
+                            onClick = onHintAction,
+                        ),
+                color = colors.muted,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                textAlign = TextAlign.Center,
+            )
+        }
         Spacer(Modifier.height(14.dp))
         AuthLegalFooter(privacyUrl = privacyUrl, termsUrl = termsUrl)
     }

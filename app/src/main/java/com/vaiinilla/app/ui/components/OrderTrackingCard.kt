@@ -106,7 +106,7 @@ fun OrderTrackingCard(
         label = "tracking-card-bg",
     )
     val cardText by animateColorAsState(
-        targetValue = if (isReady) colors.ink else TaskCardText,
+        targetValue = if (isReady) colors.accentInk else TaskCardText,
         animationSpec = tween(if (reduceMotion) 0 else 550, easing = TrackEase),
         label = "tracking-card-text",
     )
@@ -154,7 +154,7 @@ fun OrderTrackingCard(
                         text =
                             order.summary.state.label
                                 .uppercase(),
-                        color = colors.ink,
+                        color = if (isReady) colors.accentInk else Color(0xFF171812),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 0.8.sp,
