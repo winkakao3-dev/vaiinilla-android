@@ -75,6 +75,15 @@ class FirebaseStudentAuthRepository
                 }
             }
 
+        override suspend fun sendEmailVerification(): Result<Unit> =
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    val user = auth.currentUser ?: throw IllegalStateException("No hay sesión activa.")
+                    user.sendEmailVerification().await()
+                    Unit
+                }
+            }
+
         override suspend fun reloadSession(): Result<StudentAuthSession?> =
             withContext(Dispatchers.IO) {
                 runCatching {

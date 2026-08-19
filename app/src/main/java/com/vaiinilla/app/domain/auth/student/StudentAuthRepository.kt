@@ -17,6 +17,9 @@ interface StudentAuthRepository {
         password: String,
     ): Result<StudentAuthSession>
 
+    suspend fun sendEmailVerification(): Result<Unit> =
+        Result.failure(UnsupportedOperationException("Verificación de correo no soportada por este proveedor."))
+
     suspend fun reloadSession(): Result<StudentAuthSession?>
 
     suspend fun getIdToken(forceRefresh: Boolean = false): Result<String>

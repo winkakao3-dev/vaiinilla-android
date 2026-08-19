@@ -68,6 +68,15 @@ class FixtureStudentAuthRepository
                 account.toSession()
             }
 
+        var verificationEmailCalls: Int = 0
+            private set
+
+        override suspend fun sendEmailVerification(): Result<Unit> =
+            runCatching {
+                if (currentUid == null) throw IllegalStateException("No hay sesión activa.")
+                verificationEmailCalls++
+            }
+
         override suspend fun reloadSession(): Result<StudentAuthSession?> =
             runCatching {
                 val uid = currentUid ?: return@runCatching null
