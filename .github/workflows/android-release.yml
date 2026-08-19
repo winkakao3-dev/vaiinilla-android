@@ -56,6 +56,9 @@ jobs:
       - name: Audit release scope
         run: ./scripts/audit_release_scope.sh
 
+      - name: App/backend regression gate
+        run: ./scripts/check_app_backend_contract.sh
+
       - name: Unit tests
         run: ./gradlew --no-daemon testDebugUnitTest
 

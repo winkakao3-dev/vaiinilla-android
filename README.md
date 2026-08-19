@@ -230,6 +230,7 @@ Para trabajo nuevo:
 
 - usa el código de `app/` y el backend vigente como realidad de ejecución;
 - usa `docs/source-of-truth/` para contratos e invariantes que sigan vigentes;
+- antes de tocar auth/checkout/pedidos, lee [`APP_BACKEND_E2E_FLOW.md`](docs/source-of-truth/APP_BACKEND_E2E_FLOW.md) y ejecuta `./scripts/check_app_backend_contract.sh`;
 - usa `docs/ui-v2/` para especificaciones y regresión visual;
 - usa [`docs/RELEASE_READINESS.md`](docs/RELEASE_READINESS.md) para los pendientes vigentes de publicación;
 - trata `docs/history/` y cualquier reporte/ID heredado únicamente como contexto histórico.

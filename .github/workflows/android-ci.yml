@@ -10,6 +10,8 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      VAIINILLA_API_BASE_URL: ${{ vars.VAIINILLA_API_BASE_URL }}
 
     steps:
       - name: Checkout
@@ -30,6 +32,9 @@ jobs:
 
       - name: Audit release scope
         run: ./scripts/audit_release_scope.sh
+
+      - name: App/backend regression gate
+        run: ./scripts/check_app_backend_contract.sh
 
       - name: Unit tests
         run: ./gradlew --no-daemon testDebugUnitTest
