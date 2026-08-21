@@ -4,6 +4,7 @@ import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.fixture.FixtureSource
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.CreateOrderRequest
+import com.vaiinilla.app.domain.model.CreatedOrder
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -14,6 +15,7 @@ import com.vaiinilla.app.domain.model.OrderSpace
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PreparationStation
+import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import java.math.BigDecimal
@@ -31,14 +33,17 @@ class FixtureOrderRepository(
     override fun createOrder(
         request: CreateOrderRequest,
         idempotencyKey: String,
-    ): Result<OrderDetail> =
+    ): Result<CreatedOrder> =
         runCatching {
-            createOrderInternal(
-                request = request,
-                idempotencyKey = idempotencyKey,
-                validate = ContractRules::validateCreateOrderRequest,
-                initialState = OrderState.PENDING_PAYMENT,
-                space = null,
+            CreatedOrder(
+                order =
+                    createOrderInternal(
+                        request = request,
+                        idempotencyKey = idempotencyKey,
+                        validate = ContractRules::validateCreateOrderRequest,
+                        initialState = OrderState.PENDING_PAYMENT,
+                        space = null,
+                    ),
             )
         }
 
@@ -173,6 +178,12 @@ class FixtureOrderRepository(
                     updatedSince == null || order.summary.updatedAt > updatedSince
                 }.sortedByDescending { it.summary.updatedAt }
         }
+
+    override fun retryStripePayment(
+        orderId: String,
+        idempotencyKey: String,
+    ): Result<StripePaymentSession> =
+        Result.failure(UnsupportedOperationException("Stripe no está disponible en fixtures locales."))
 
     @Synchronized
     override fun collectCash(

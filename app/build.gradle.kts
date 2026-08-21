@@ -280,6 +280,7 @@ dependencies {
     implementation(libs.androidx.camera.view)
     implementation(libs.mlkit.barcode.scanning)
     implementation(libs.zxing.core)
+    implementation(libs.stripe.android)
     ksp(libs.hilt.compiler)
 
     testImplementation(libs.junit)

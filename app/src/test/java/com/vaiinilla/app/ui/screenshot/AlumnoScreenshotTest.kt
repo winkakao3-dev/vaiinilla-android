@@ -187,7 +187,7 @@ class AlumnoScreenshotTest {
 
     @Test
     fun `12_cart_tarjeta`() {
-        val state = ScreenshotFixtures.cartState(paymentMethod = PaymentMethod.CARD)
+        val state = ScreenshotFixtures.cartState(paymentMethod = PaymentMethod.STRIPE)
         composeTestRule.setContent {
             ScreenshotTheme {
                 ScreenshotWithStudentNav(activeTab = StudentTab.CART, cartCount = 3) {

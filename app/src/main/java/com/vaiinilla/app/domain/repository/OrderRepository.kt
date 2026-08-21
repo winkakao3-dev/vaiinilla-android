@@ -1,15 +1,17 @@
 package com.vaiinilla.app.domain.repository
 
 import com.vaiinilla.app.domain.model.CreateOrderRequest
+import com.vaiinilla.app.domain.model.CreatedOrder
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.StripePaymentSession
 
 interface OrderRepository {
     fun createOrder(
         request: CreateOrderRequest,
         idempotencyKey: String,
-    ): Result<OrderDetail>
+    ): Result<CreatedOrder>
 
     fun getOrder(orderId: String): Result<OrderDetail>
 
@@ -17,6 +19,11 @@ interface OrderRepository {
         role: OperationalRole,
         updatedSince: String? = null,
     ): Result<List<OrderDetail>>
+
+    fun retryStripePayment(
+        orderId: String,
+        idempotencyKey: String,
+    ): Result<StripePaymentSession>
 
     fun collectCash(
         orderId: String,

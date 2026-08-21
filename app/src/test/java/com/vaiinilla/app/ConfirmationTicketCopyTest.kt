@@ -24,10 +24,10 @@ class ConfirmationTicketCopyTest {
     }
 
     @Test
-    fun `qr falls back to folio when token missing`() {
+    fun `qr never invents a pickup token when creation token is missing`() {
         assertEquals("VN-1", confirmationTicketQrPayload(order(token = "VN-1")))
-        assertEquals("PEDIDO-1042", confirmationTicketQrPayload(order(token = null)))
-        assertEquals("PEDIDO-1042", confirmationTicketQrPayload(order(token = "  ")))
+        assertEquals(null, confirmationTicketQrPayload(order(token = null)))
+        assertEquals(null, confirmationTicketQrPayload(order(token = "  ")))
     }
 
     @Test

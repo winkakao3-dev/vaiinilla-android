@@ -1,8 +1,11 @@
 package com.vaiinilla.app.data.order
 
 import com.vaiinilla.app.domain.model.CreateOrderRequest
+import com.vaiinilla.app.domain.model.CreatedOrder
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.StripePaymentSession
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -53,6 +56,19 @@ class OrderContractJson
                 OpenCashSessionRequestDto(initialAmount = initialAmount),
             )
 
+        fun parseCreatedOrder(raw: String): CreatedOrder {
+            val envelope = json.decodeFromString<OrderDetailEnvelopeDto>(raw)
+            requireEnvelopeSuccess(envelope.error)
+            val order = envelope.data.toDomain()
+            val session =
+                if (order.summary.paymentMethod == PaymentMethod.STRIPE) {
+                    requireNotNull(envelope.data.payment) { "Stripe order missing pago" }.toStripeSession()
+                } else {
+                    null
+                }
+            return CreatedOrder(order = order, stripeSession = session)
+        }
+
         fun parseOrderDetail(raw: String): OrderDetail {
             val envelope = json.decodeFromString<OrderDetailEnvelopeDto>(raw)
             requireEnvelopeSuccess(envelope.error)
@@ -63,6 +79,12 @@ class OrderContractJson
             val envelope = json.decodeFromString<OrderListEnvelopeDto>(raw)
             requireEnvelopeSuccess(envelope.error)
             return envelope.data.map { it.toDomain() }
+        }
+
+        fun parseStripeRetry(raw: String): StripePaymentSession {
+            val envelope = json.decodeFromString<StripeRetryEnvelopeDto>(raw)
+            requireEnvelopeSuccess(envelope.error)
+            return envelope.data.payment.toStripeSession()
         }
 
         fun parseCashCollection(raw: String): OrderDetail {

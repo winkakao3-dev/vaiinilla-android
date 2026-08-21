@@ -4,9 +4,11 @@ import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.security.PickupTokenStore
 import com.vaiinilla.app.domain.model.CreateOrderRequest
+import com.vaiinilla.app.domain.model.CreatedOrder
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
 
@@ -18,15 +20,16 @@ class RemoteOrderRepository(
     override fun createOrder(
         request: CreateOrderRequest,
         idempotencyKey: String,
-    ): Result<OrderDetail> =
+    ): Result<CreatedOrder> =
         apiClient
             .post(
                 path = "pedidos",
                 body = contractJson.encodeCreateRequest(request),
                 headers = mapOf("Idempotency-Key" to idempotencyKey),
-            ).mapCatching { contractJson.parseOrderDetail(it) }
-            .mapCatching { pickupTokenStore.attach(it) }
-            .mapApiErrors()
+            ).mapCatching { contractJson.parseCreatedOrder(it) }
+            .mapCatching { created ->
+                created.copy(order = pickupTokenStore.attach(created.order))
+            }.mapApiErrors()
 
     override fun getOrder(orderId: String): Result<OrderDetail> =
         apiClient
@@ -49,6 +52,17 @@ class RemoteOrderRepository(
             .mapCatching { orders -> orders.map(pickupTokenStore::attach) }
             .mapApiErrors()
     }
+
+    override fun retryStripePayment(
+        orderId: String,
+        idempotencyKey: String,
+    ): Result<StripePaymentSession> =
+        apiClient
+            .postWithoutBody(
+                path = "pedidos/$orderId/pago/stripe",
+                headers = mapOf("Idempotency-Key" to idempotencyKey),
+            ).mapCatching(contractJson::parseStripeRetry)
+            .mapApiErrors()
 
     override fun collectCash(
         orderId: String,

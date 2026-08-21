@@ -66,12 +66,12 @@ class RemoteOrderRequestValidationTest {
     }
 
     @Test
-    fun `remote rejects payment methods outside Entregas 01 y 03`() {
+    fun `remote accepts stripe order from new payment contract`() {
         val result =
             runCatching {
                 ContractRules.validateRemoteOrderRequest(
                     CreateOrderRequest(
-                        paymentMethod = PaymentMethod.CARD,
+                        paymentMethod = PaymentMethod.STRIPE,
                         destination = OrderDestination.TAKE_AWAY,
                         spaceId = null,
                         kitchenNotes = "",
@@ -80,6 +80,6 @@ class RemoteOrderRequestValidationTest {
                 )
             }
 
-        assertTrue(result.isFailure)
+        assertTrue(result.isSuccess)
     }
 }

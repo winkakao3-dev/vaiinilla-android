@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.ShoppingBag
@@ -170,6 +171,33 @@ private fun trackingHeroContent(
                 title = "¡Buen provecho!",
                 message = "Tu pedido fue entregado. Gracias por usar Vaiinilla.",
                 badge = "24 · ENTREGADO",
+                background = darkBg,
+                text = darkText,
+            )
+        OrderState.CANCELED ->
+            TrackingHeroContent(
+                eyebrow = "CANCELADO",
+                title = "Pedido cancelado",
+                message = "Este pedido ya no seguirá en preparación.",
+                badge = "CANCELADO",
+                background = darkBg,
+                text = darkText,
+            )
+        OrderState.NOT_PICKED_UP ->
+            TrackingHeroContent(
+                eyebrow = "NO RECOGIDO",
+                title = "Pedido no recogido",
+                message = "El periodo de recogida terminó sin completar la entrega.",
+                badge = "NO RECOGIDO",
+                background = darkBg,
+                text = darkText,
+            )
+        OrderState.EXPIRED ->
+            TrackingHeroContent(
+                eyebrow = "EXPIRADO",
+                title = "Pedido expirado",
+                message = "Este pedido ya no puede continuar con su flujo anterior.",
+                badge = "EXPIRADO",
                 background = darkBg,
                 text = darkText,
             )
@@ -360,6 +388,20 @@ fun CheckoutPaymentPicker(
             subtitle = "Tu saldo en este establecimiento.",
             selected = selected == PaymentMethod.BALANCE,
             onClick = { onSelect(PaymentMethod.BALANCE) },
+        )
+        PaymentOption(
+            icon = Icons.Outlined.CreditCard,
+            title = "Tarjeta",
+            subtitle = "Pago seguro con Stripe.",
+            selected = selected == PaymentMethod.STRIPE,
+            onClick = { onSelect(PaymentMethod.STRIPE) },
+        )
+        PaymentOption(
+            icon = Icons.Outlined.CreditCard,
+            title = "Tarjeta",
+            subtitle = "Pago seguro con Stripe.",
+            selected = selected == PaymentMethod.STRIPE,
+            onClick = { onSelect(PaymentMethod.STRIPE) },
         )
     }
 }

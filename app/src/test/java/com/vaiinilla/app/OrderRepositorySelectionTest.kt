@@ -28,8 +28,13 @@ class OrderRepositorySelectionTest {
             )
         val result = repository.createOrder(validRequest(), UUID.randomUUID().toString())
         assertTrue(result.isSuccess)
-        assertEquals(OrderState.PENDING_PAYMENT, result.getOrThrow().summary.state)
-        assertEquals("v1.test-token", result.getOrThrow().pickupToken)
+        assertEquals(
+            OrderState.PENDING_PAYMENT,
+            result
+                .getOrThrow()
+                .order.summary.state,
+        )
+        assertEquals("v1.test-token", result.getOrThrow().order.pickupToken)
     }
 
     @Test

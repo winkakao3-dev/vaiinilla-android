@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -13,6 +14,9 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.stripe.android.PaymentConfiguration
+import com.stripe.android.paymentsheet.PaymentSheet
+import com.stripe.android.paymentsheet.PaymentSheetResult
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.ui.account.AccountDeletionViewModel
@@ -24,6 +28,7 @@ import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.cartItemCount
+import com.vaiinilla.app.ui.order.toRuntimeConfiguration
 import com.vaiinilla.app.ui.profile.displayInitials
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
 import com.vaiinilla.app.ui.screens.AuthorizedModeScreen
@@ -779,8 +784,38 @@ fun AppNavHost(
 
             composable(Routes.CONFIRMATION) {
                 val isFreshConfirmation = orderState.createdOrder != null
+                val context = LocalContext.current
+                val paymentSheet =
+                    PaymentSheet
+                        .Builder { result ->
+                            when (result) {
+                                is PaymentSheetResult.Completed -> orderFlowViewModel.onStripePaymentSheetCompleted()
+                                is PaymentSheetResult.Canceled -> orderFlowViewModel.onStripePaymentSheetCanceled()
+                                is PaymentSheetResult.Failed ->
+                                    orderFlowViewModel.onStripePaymentSheetFailed(result.error.message)
+                            }
+                        }.build()
+                LaunchedEffect(orderState.stripePresentationKey) {
+                    val session = orderState.stripePaymentSession ?: return@LaunchedEffect
+                    if (orderState.stripePresentationKey == null) return@LaunchedEffect
+                    val stripeConfig = session.toRuntimeConfiguration()
+                    PaymentConfiguration.init(
+                        context = context,
+                        publishableKey = stripeConfig.publishableKey,
+                        stripeAccountId = stripeConfig.stripeAccountId,
+                    )
+                    orderFlowViewModel.markStripePaymentSheetPresented()
+                    paymentSheet.presentWithPaymentIntent(
+                        paymentIntentClientSecret = stripeConfig.clientSecret,
+                        configuration = PaymentSheet.Configuration(merchantDisplayName = "Vaiinilla"),
+                    )
+                }
                 OrderConfirmationScreen(
                     order = orderState.createdOrder ?: operationalState.selectedOrder,
+                    stripePaymentPhase = orderState.stripePaymentPhase,
+                    stripePaymentMessage = orderState.stripePaymentMessage,
+                    retryingStripePayment = orderState.retryingStripePayment,
+                    onRetryStripePayment = orderFlowViewModel::retryStripePayment,
                     onReturnToMenu = {
                         if (isFreshConfirmation) {
                             orderFlowViewModel.clearCreatedOrder()

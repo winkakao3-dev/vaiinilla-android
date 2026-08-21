@@ -43,9 +43,11 @@ import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.OrderUser
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
+import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.order.StripePaymentPhase
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 
 private val TicketBg = Color(0xFF0D0D0D)
@@ -69,9 +71,7 @@ internal fun confirmationTicketTitle(order: OrderDetail): String {
     }
 }
 
-internal fun confirmationTicketQrPayload(order: OrderDetail): String =
-    order.pickupToken?.takeIf { it.isNotBlank() }
-        ?: "PEDIDO-${order.summary.folio}"
+internal fun confirmationTicketQrPayload(order: OrderDetail): String? = order.pickupToken?.takeIf { it.isNotBlank() }
 
 internal fun confirmationCashPending(order: OrderDetail): Boolean =
     order.summary.paymentMethod == PaymentMethod.CASH &&
@@ -83,6 +83,10 @@ fun OrderConfirmationScreen(
     onReturnToMenu: () -> Unit,
     onViewTracking: () -> Unit = {},
     onViewSticker: () -> Unit = {},
+    stripePaymentPhase: StripePaymentPhase = StripePaymentPhase.IDLE,
+    stripePaymentMessage: String? = null,
+    retryingStripePayment: Boolean = false,
+    onRetryStripePayment: () -> Unit = {},
     screenshotPrinted: Boolean = false,
 ) {
     Box(
@@ -93,6 +97,9 @@ fun OrderConfirmationScreen(
     ) {
         if (order == null) return@Box
         val cashPending = confirmationCashPending(order)
+        val stripeOrder = order.summary.paymentMethod == PaymentMethod.STRIPE
+        val stripeConfirmed = stripeOrder && order.isStripePaymentConfirmedByBackend()
+        val stripeAwaitingConfirmation = stripeOrder && !stripeConfirmed
         val qrPayload = confirmationTicketQrPayload(order)
         Column(
             modifier =
@@ -122,7 +129,12 @@ fun OrderConfirmationScreen(
                 }
                 Spacer(Modifier.weight(1f))
                 Text(
-                    text = if (cashPending) "Por cobrar" else order.summary.state.label,
+                    text =
+                        when {
+                            stripeAwaitingConfirmation -> order.payment?.status?.label ?: "Pago pendiente"
+                            cashPending -> "Por cobrar"
+                            else -> order.summary.state.label
+                        },
                     color = TicketLime,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Black,
@@ -136,7 +148,7 @@ fun OrderConfirmationScreen(
             }
             Spacer(Modifier.height(12.dp))
             Text(
-                text = if (cashPending) "Pago pendiente" else "Pedido confirmado",
+                text = if (cashPending || stripeAwaitingConfirmation) "Pago pendiente" else "Pedido confirmado",
                 color = TicketMuted2,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Black,
@@ -156,10 +168,10 @@ fun OrderConfirmationScreen(
             Spacer(Modifier.height(6.dp))
             Text(
                 text =
-                    if (cashPending) {
-                        "Muéstralo en Caja para pagar."
-                    } else {
-                        "Tu pedido ya está en marcha."
+                    when {
+                        stripeAwaitingConfirmation -> stripePaymentMessage ?: "Esperando confirmación segura del pago."
+                        cashPending -> "Muéstralo en Caja para pagar."
+                        else -> "Tu pedido ya está en marcha."
                     },
                 color = TicketMuted,
                 fontSize = 14.sp,
@@ -182,8 +194,19 @@ fun OrderConfirmationScreen(
                             .background(TicketPaper, RoundedCornerShape(22.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    val qr = (minOf(maxWidth, maxHeight) - 28.dp).coerceAtLeast(72.dp)
-                    VaiinillaQrCode(value = qrPayload, qrSize = qr)
+                    if (qrPayload != null) {
+                        val qr = (minOf(maxWidth, maxHeight) - 28.dp).coerceAtLeast(72.dp)
+                        VaiinillaQrCode(value = qrPayload, qrSize = qr)
+                    } else {
+                        Text(
+                            text = "Código de recogida no disponible",
+                            color = TicketBg,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(24.dp),
+                        )
+                    }
                 }
             }
             TicketMetaGrid(order)
@@ -226,6 +249,44 @@ fun OrderConfirmationScreen(
                 )
             }
             Spacer(Modifier.height(8.dp))
+            if (stripeOrder && stripePaymentMessage != null) {
+                Text(
+                    text = stripePaymentMessage,
+                    color = TicketMuted,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            }
+            val canRetryStripe =
+                stripeOrder &&
+                    stripePaymentPhase in
+                    setOf(
+                        StripePaymentPhase.FAILED,
+                        StripePaymentPhase.CANCELED,
+                        StripePaymentPhase.PENDING,
+                    )
+            if (canRetryStripe) {
+                Surface(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .physicalPress(onClick = onRetryStripePayment),
+                    color = TicketPaper,
+                    shape = RoundedCornerShape(18.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            if (retryingStripePayment) "Preparando pago…" else "Reintentar pago",
+                            color = TicketBg,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 16.sp,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
             Surface(
                 modifier =
                     Modifier

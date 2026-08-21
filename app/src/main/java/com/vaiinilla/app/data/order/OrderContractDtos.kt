@@ -12,7 +12,7 @@ data class CreateOrderRequestDto(
     @SerialName("metodo_pago") val paymentMethod: String,
     @SerialName("destino") val destination: String,
     @SerialName("espacio_id") val spaceId: Int?,
-    @SerialName("notas_cocina") val kitchenNotes: String,
+    @SerialName("notas_cocina") val kitchenNotes: String?,
     @SerialName("items") val items: List<CreateOrderItemDto>,
 )
 
@@ -67,6 +67,18 @@ data class OrderDetailEnvelopeDto(
 )
 
 @Serializable
+data class StripeRetryDataDto(
+    @SerialName("pago") val payment: OrderPaymentDto,
+)
+
+@Serializable
+data class StripeRetryEnvelopeDto(
+    val data: StripeRetryDataDto,
+    val meta: MetaDto,
+    val error: JsonElement? = null,
+)
+
+@Serializable
 data class OrderDetailDto(
     val id: String,
     val folio: Int,
@@ -86,6 +98,17 @@ data class OrderDetailDto(
     @SerialName("notas_cocina") val kitchenNotes: String? = null,
     @SerialName("items") val items: List<OrderItemDto> = emptyList(),
     @SerialName("qr_token") val pickupToken: String? = null,
+    @SerialName("pago") val payment: OrderPaymentDto? = null,
+)
+
+@Serializable
+data class OrderPaymentDto(
+    @SerialName("payment_attempt_id") val paymentAttemptId: String,
+    @SerialName("payment_intent_id") val paymentIntentId: String,
+    @SerialName("stripe_account_id") val stripeAccountId: String,
+    @SerialName("payment_status") val paymentStatus: String,
+    @SerialName("client_secret") val clientSecret: String? = null,
+    @SerialName("publishable_key") val publishableKey: String? = null,
 )
 
 @Serializable
@@ -129,6 +152,7 @@ data class OrderItemDto(
     @SerialName("estacion_preparacion") val preparationStation: String,
     @SerialName("cantidad") val quantity: Int,
     @SerialName("precio_digital_unitario") val unitDigitalPrice: String,
+    @SerialName("precio_cobro_unitario") val unitCollectionPrice: String? = null,
     @SerialName("subtotal") val subtotal: String,
     @SerialName("opciones") val options: List<OrderItemOptionDto>,
 )

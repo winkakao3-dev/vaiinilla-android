@@ -33,7 +33,12 @@ echo "Running focused app/backend regression tests..."
   --tests 'com.vaiinilla.app.StudentAuthViewModelTest' \
   --tests 'com.vaiinilla.app.OrderUserDtoNullabilityTest' \
   --tests 'com.vaiinilla.app.OrderRepositorySelectionTest' \
+  --tests 'com.vaiinilla.app.StripeOrderContractTest' \
+  --tests 'com.vaiinilla.app.StripeCheckoutPolicyTest' \
+  --tests 'com.vaiinilla.app.StripeIdempotencyPersistenceTest' \
+  --tests 'com.vaiinilla.app.ui.order.StripeCheckoutUiTest' \
   --tests 'com.vaiinilla.app.ConfirmationTicketCopyTest' \
+  --tests 'com.vaiinilla.app.RemoteWalletRepositoryTest' \
   --tests 'com.vaiinilla.app.RemoteAuthorizedAccessRepositoryTest'
 
 echo "PASS: app/backend regression gate"

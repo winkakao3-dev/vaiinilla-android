@@ -100,13 +100,17 @@ object ContractRules {
     }
 
     /**
-     * Current remote contract: el backend acepta efectivo o saldo para recoger o para un espacio
+     * Current remote contract: el backend acepta efectivo, saldo o Stripe para recoger o para un espacio
      * resuelto por QR. El tenant valida que el espacio exista y esté activo; el
      * cliente no puede limitar ese identificador a una mesa local prefijada.
      */
     fun validateRemoteOrderRequest(request: CreateOrderRequest) {
-        require(request.paymentMethod == PaymentMethod.CASH || request.paymentMethod == PaymentMethod.BALANCE) {
-            "El backend REMOTE acepta efectivo o saldo."
+        require(
+            request.paymentMethod == PaymentMethod.CASH ||
+                request.paymentMethod == PaymentMethod.BALANCE ||
+                request.paymentMethod == PaymentMethod.STRIPE,
+        ) {
+            "El backend REMOTE acepta efectivo, saldo o stripe."
         }
         when (request.destination) {
             OrderDestination.TAKE_AWAY ->

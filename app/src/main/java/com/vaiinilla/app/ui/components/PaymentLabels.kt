@@ -6,5 +6,5 @@ fun paymentMethodLabel(method: PaymentMethod): String =
     when (method) {
         PaymentMethod.CASH -> "Efectivo"
         PaymentMethod.BALANCE -> "Saldo"
-        PaymentMethod.CARD -> "Tarjeta"
+        PaymentMethod.STRIPE -> "Tarjeta"
     }

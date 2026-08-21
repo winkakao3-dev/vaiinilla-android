@@ -27,13 +27,35 @@ data class CreateOrderItem(
     val optionIds: List<Int>,
 )
 
+data class CreatedOrder(
+    val order: OrderDetail,
+    val stripeSession: StripePaymentSession? = null,
+) {
+    val summary: OrderSummary
+        get() = order.summary
+    val pickupToken: String?
+        get() = order.pickupToken
+}
+
 data class OrderDetail(
     val summary: OrderSummary,
     val user: OrderUser?,
     val kitchenNotes: String,
     val items: List<OrderItem>,
     val pickupToken: String? = null,
+    val payment: OrderPayment? = null,
 )
+
+fun OrderDetail.isStripePaymentConfirmedByBackend(): Boolean =
+    summary.paymentMethod == PaymentMethod.STRIPE &&
+        payment?.status == StripePaymentStatus.CONFIRMED &&
+        summary.state in
+        setOf(
+            OrderState.PAID,
+            OrderState.PREPARING,
+            OrderState.READY,
+            OrderState.DELIVERED,
+        )
 
 data class OrderSummary(
     val id: String,
@@ -50,6 +72,23 @@ data class OrderSummary(
     val version: Int,
     val createdAt: String,
     val updatedAt: String,
+)
+
+data class OrderPayment(
+    val paymentAttemptId: String,
+    val paymentIntentId: String,
+    val stripeAccountId: String,
+    val status: StripePaymentStatus,
+)
+
+/** Ephemeral Stripe credentials returned only by create/retry endpoints. Never persist or log this object. */
+data class StripePaymentSession(
+    val paymentAttemptId: String,
+    val paymentIntentId: String,
+    val clientSecret: String,
+    val stripeAccountId: String,
+    val publishableKey: String,
+    val status: StripePaymentStatus,
 )
 
 data class OrderUser(
@@ -72,6 +111,7 @@ data class OrderItem(
     val unitDigitalPrice: String,
     val subtotal: String,
     val options: List<OrderItemOption>,
+    val unitCollectionPrice: String? = null,
 )
 
 data class OrderItemOption(
@@ -86,7 +126,7 @@ enum class PaymentMethod(
 ) {
     CASH("efectivo", "Efectivo"),
     BALANCE("saldo", "Saldo"),
-    CARD("tarjeta", "Tarjeta"),
+    STRIPE("stripe", "Tarjeta"),
     ;
 
     companion object {
@@ -94,6 +134,29 @@ enum class PaymentMethod(
             entries.firstOrNull {
                 it.wireValue == value
             } ?: throw IllegalArgumentException("metodo_pago no soportado: $value")
+    }
+}
+
+enum class StripePaymentStatus(
+    val wireValue: String,
+    val label: String,
+) {
+    PENDING("pendiente_pago", "Pendiente"),
+    CONFIRMED("confirmado", "Confirmado"),
+    FAILED("fallido", "Fallido"),
+    CANCELED("cancelado", "Cancelado"),
+    REFUND_PENDING("pendiente_reembolso", "Reembolso pendiente"),
+    REFUNDING("reembolsando", "Reembolsando"),
+    REFUNDED("reembolsado", "Reembolsado"),
+    ;
+
+    val canRetry: Boolean
+        get() = this == FAILED || this == CANCELED || this == PENDING
+
+    companion object {
+        fun fromWireValue(value: String): StripePaymentStatus =
+            entries.firstOrNull { it.wireValue == value }
+                ?: throw IllegalArgumentException("payment_status no soportado: $value")
     }
 }
 
@@ -122,17 +185,16 @@ enum class OrderState(
     PREPARING("preparando", "Preparando"),
     READY("listo", "Listo"),
     DELIVERED("entregado", "Entregado"),
+    CANCELED("cancelado", "Cancelado"),
+    NOT_PICKED_UP("no_recogido", "No recogido"),
+    EXPIRED("expirado", "Expirado"),
     ;
 
     val trackingIndex: Int
-        get() =
-            when (this) {
-                PENDING_PAYMENT -> 0
-                PAID -> 1
-                PREPARING -> 2
-                READY -> 3
-                DELIVERED -> 4
-            }
+        get() = trackingFlow.indexOf(this)
+
+    val isTerminalWithoutDelivery: Boolean
+        get() = this == CANCELED || this == NOT_PICKED_UP || this == EXPIRED
 
     companion object {
         val trackingFlow =

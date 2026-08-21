@@ -378,7 +378,7 @@ class CompleteUiScreenshotTest {
     fun `47_confirm_card`() {
         capture("47_confirm_card.png") {
             OrderConfirmationScreen(
-                order = ScreenshotFixtures.sampleOrder(paymentMethod = PaymentMethod.CARD, state = OrderState.PAID),
+                order = ScreenshotFixtures.sampleOrder(paymentMethod = PaymentMethod.STRIPE, state = OrderState.PAID),
                 onReturnToMenu = {},
                 screenshotPrinted = true,
             )

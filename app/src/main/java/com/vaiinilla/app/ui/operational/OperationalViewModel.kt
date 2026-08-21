@@ -360,6 +360,9 @@ class OperationalViewModel
                         "Listo para entrega en tu espacio."
                     }
                 OrderState.DELIVERED -> "Pedido entregado. Gracias por usar Vaiinilla."
+                OrderState.CANCELED -> "Este pedido fue cancelado."
+                OrderState.NOT_PICKED_UP -> "El pedido terminó como no recogido."
+                OrderState.EXPIRED -> "Este pedido expiró."
             }
 
         private fun refreshCashSession() {

@@ -45,6 +45,7 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaColors
 
@@ -54,35 +55,51 @@ private val TrackEase = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
 
 private data class TimelineStep(
     val state: OrderState,
-    val title: (PaymentMethod) -> String,
-    val description: (OrderDestination, PaymentMethod) -> String,
+    val title: (PaymentMethod, StripePaymentStatus?) -> String,
+    val description: (OrderDestination, PaymentMethod, StripePaymentStatus?) -> String,
 )
 
 private val timelineSteps =
     listOf(
-        TimelineStep(OrderState.PENDING_PAYMENT, { payment ->
-            if (payment != PaymentMethod.CASH) "PAGO CONFIRMADO" else "POR COBRAR"
-        }) { _, payment ->
-            if (payment != PaymentMethod.CASH) {
-                "Saldo descontado y pedido enviado."
-            } else {
-                "Caja espera el pago en efectivo."
+        TimelineStep(OrderState.PENDING_PAYMENT, { payment, status ->
+            when (payment) {
+                PaymentMethod.CASH -> "POR COBRAR"
+                PaymentMethod.BALANCE -> "PAGO CONFIRMADO"
+                PaymentMethod.STRIPE ->
+                    if (status ==
+                        StripePaymentStatus.CONFIRMED
+                    ) {
+                        "PAGO CONFIRMADO"
+                    } else {
+                        "PAGO EN PROCESO"
+                    }
+            }
+        }) { _, payment, status ->
+            when (payment) {
+                PaymentMethod.CASH -> "Caja espera el pago en efectivo."
+                PaymentMethod.BALANCE -> "Saldo descontado y pedido enviado."
+                PaymentMethod.STRIPE ->
+                    if (status == StripePaymentStatus.CONFIRMED) {
+                        "Stripe confirmado por Vaiinilla."
+                    } else {
+                        "Esperando confirmación segura del pago."
+                    }
             }
         },
-        TimelineStep(OrderState.PAID, { _ -> "COBRADO" }) { _, _ ->
+        TimelineStep(OrderState.PAID, { _, _ -> "COBRADO" }) { _, _, _ ->
             "Cocina recibió la comanda."
         },
-        TimelineStep(OrderState.PREPARING, { _ -> "PREPARANDO" }) { _, _ ->
+        TimelineStep(OrderState.PREPARING, { _, _ -> "PREPARANDO" }) { _, _, _ ->
             "Tu comida se está preparando."
         },
-        TimelineStep(OrderState.READY, { _ -> "LISTO" }) { destination, _ ->
+        TimelineStep(OrderState.READY, { _, _ -> "LISTO" }) { destination, _, _ ->
             if (destination == OrderDestination.IN_SPACE) {
                 "El mesero lo llevará a tu mesa."
             } else {
                 "Recógelo en la barra."
             }
         },
-        TimelineStep(OrderState.DELIVERED, { _ -> "ENTREGADO" }) { _, _ ->
+        TimelineStep(OrderState.DELIVERED, { _, _ -> "ENTREGADO" }) { _, _, _ ->
             "Pedido completado."
         },
     )
@@ -186,6 +203,7 @@ fun OrderTrackingTimeline(
     current: OrderState,
     destination: OrderDestination = OrderDestination.TAKE_AWAY,
     paymentMethod: PaymentMethod = PaymentMethod.CASH,
+    paymentStatus: StripePaymentStatus? = null,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -203,8 +221,8 @@ fun OrderTrackingTimeline(
             val stepIndex = step.state.trackingIndex
             TimelineRow(
                 stepNumber = index + 1,
-                title = step.title(paymentMethod),
-                description = step.description(destination, paymentMethod),
+                title = step.title(paymentMethod, paymentStatus),
+                description = step.description(destination, paymentMethod, paymentStatus),
                 isDone = stepIndex < currentIndex,
                 isCurrent = stepIndex == currentIndex,
                 showLine = index < timelineSteps.lastIndex,

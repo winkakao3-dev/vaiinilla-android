@@ -19,6 +19,7 @@ coroutinesPlayServices = "1.10.2"
 cameraX = "1.4.2"
 mlKitBarcode = "17.3.0"
 zxing = "3.5.3"
+stripe = "23.13.1"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -51,6 +52,7 @@ androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", versi
 androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "cameraX" }
 mlkit-barcode-scanning = { module = "com.google.mlkit:barcode-scanning", version.ref = "mlKitBarcode" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
+stripe-android = { module = "com.stripe:stripe-android", version.ref = "stripe" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

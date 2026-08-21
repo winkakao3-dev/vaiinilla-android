@@ -136,6 +136,7 @@ fun StudentTrackingScreen(
                                 current = selected.summary.state,
                                 destination = selected.summary.destination,
                                 paymentMethod = selected.summary.paymentMethod,
+                                paymentStatus = selected.payment?.status,
                             )
                         }
                         if (selected.summary.state == OrderState.READY) {

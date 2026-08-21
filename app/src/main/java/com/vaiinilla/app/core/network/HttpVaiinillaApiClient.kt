@@ -34,6 +34,11 @@ class HttpVaiinillaApiClient
             headers: Map<String, String>,
         ): Result<String> = execute(method = "POST", path = path, body = body, headers = headers)
 
+        override fun postWithoutBody(
+            path: String,
+            headers: Map<String, String>,
+        ): Result<String> = execute(method = "POST", path = path, body = null, headers = headers)
+
         override fun deleteWithBearer(
             bearer: String,
             path: String,

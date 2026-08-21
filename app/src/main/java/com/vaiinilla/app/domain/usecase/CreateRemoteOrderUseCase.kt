@@ -2,11 +2,10 @@ package com.vaiinilla.app.domain.usecase
 
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.CreateOrderRequest
-import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.CreatedOrder
 import com.vaiinilla.app.domain.repository.OrderRepository
 import javax.inject.Inject
 
-/** Creates the cash order covered by the current backend contract. */
 class CreateRemoteOrderUseCase
     @Inject
     constructor(
@@ -15,7 +14,7 @@ class CreateRemoteOrderUseCase
         operator fun invoke(
             request: CreateOrderRequest,
             idempotencyKey: String,
-        ): Result<OrderDetail> =
+        ): Result<CreatedOrder> =
             runCatching {
                 ContractRules.validateRemoteOrderRequest(request)
                 repository.createOrder(request, idempotencyKey).getOrThrow()

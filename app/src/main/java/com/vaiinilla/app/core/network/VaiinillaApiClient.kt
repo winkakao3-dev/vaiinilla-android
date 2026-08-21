@@ -14,6 +14,11 @@ interface VaiinillaApiClient {
         headers: Map<String, String> = emptyMap(),
     ): Result<String>
 
+    fun postWithoutBody(
+        path: String,
+        headers: Map<String, String> = emptyMap(),
+    ): Result<String> = Result.failure(UnsupportedOperationException("POST sin body no soportado"))
+
     fun delete(
         path: String,
         body: String? = null,

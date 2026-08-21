@@ -58,6 +58,20 @@ Para efectivo y para llevar, la secuencia operativa conocida buena es:
 
 `por_cobrar → cobrado → preparando → listo → entregado`
 
+### 5.1 Stripe Test Mode + Connect Direct Charges
+
+Contrato final publicado en `/api/docs.json` y consumido por Android:
+
+- crear: `POST /api/v1/pedidos` con `metodo_pago = "stripe"` e `Idempotency-Key`;
+- reanudar/reintentar: `POST /api/v1/pedidos/{id}/pago/stripe` con `Idempotency-Key` y **sin request body**;
+- reconciliar autoridad: `GET /api/v1/pedidos/{id}` después de cerrar PaymentSheet.
+
+Android nunca envía total/subtotal/precios/comisiones, nunca crea PaymentIntents y nunca contiene claves secretas Stripe. La respuesta efímera de creación/reanudación entrega `client_secret`, `publishable_key` y `stripe_account_id`; no se persisten ni se registran en logs. Para la demo solo se acepta `publishable_key` de Test Mode (`pk_test_...`). Cada PaymentSheet se configura con la cuenta conectada recibida en esa misma respuesta.
+
+`PaymentSheetResult.Completed` no equivale a cobro confirmado. Android solo muestra Stripe como confirmado cuando **ambas** condiciones vienen del backend: `pago.payment_status == confirmado` y `estado` está en `cobrado`, `preparando`, `listo` o `entregado`. Mientras el webhook no haya producido esa combinación se conserva estado pendiente y se vuelve a consultar con polling acotado. Un fallo o cancelación local de PaymentSheet tampoco inventa `fallido`/`cancelado`; esos estados solo se muestran si backend los devuelve.
+
+El retry actúa sobre el mismo pedido. Una operación nueva genera nueva UUID; si se pierde la respuesta de esa misma operación, Android conserva su idempotency key para poder repetirla sin duplicar efectos.
+
 - Cliente crea pedido.
 - Caja confirma cobro.
 - Cocina pasa a preparando y luego listo.

@@ -11,6 +11,7 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.ui.assistant.AssistantChatMessage
 
 data class OrderFlowUiState(
@@ -31,6 +32,11 @@ data class OrderFlowUiState(
     val creatingOrder: Boolean = false,
     val createOrderError: String? = null,
     val createdOrder: OrderDetail? = null,
+    val stripePaymentSession: StripePaymentSession? = null,
+    val stripePresentationKey: String? = null,
+    val stripePaymentPhase: StripePaymentPhase = StripePaymentPhase.IDLE,
+    val stripePaymentMessage: String? = null,
+    val retryingStripePayment: Boolean = false,
     val guestVenue: GuestVenueContext? = null,
     val guestVenueSuspended: Boolean = false,
     val assistantChatMessages: List<AssistantChatMessage> = emptyList(),
@@ -85,7 +91,10 @@ val OrderFlowUiState.canSubmitCart: Boolean
     get() = cartLines.isNotEmpty() && !creatingOrder
 
 val OrderFlowUiState.requiresOperationalReady: Boolean
-    get() = checkoutPayment == PaymentMethod.CASH || checkoutPayment == PaymentMethod.BALANCE
+    get() =
+        checkoutPayment == PaymentMethod.CASH ||
+            checkoutPayment == PaymentMethod.BALANCE ||
+            checkoutPayment == PaymentMethod.STRIPE
 
 val OrderFlowUiState.canCreateOrder: Boolean
     get() = canSubmitCart && (!requiresOperationalReady || isOperationallyReady)
@@ -129,3 +138,16 @@ val OrderFlowUiState.operationalBlockerMessage: String?
         val status = operationalStatus ?: return "No pudimos verificar si el establecimiento está recibiendo pedidos."
         return status.checkoutStaffBlocker()
     }
+
+enum class StripePaymentPhase {
+    IDLE,
+    READY,
+    PRESENTING,
+    PROCESSING_CONFIRMATION,
+    PENDING,
+    CONFIRMED,
+    FAILED,
+    CANCELED,
+    REFUNDING,
+    REFUNDED,
+}

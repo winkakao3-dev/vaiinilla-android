@@ -41,6 +41,9 @@ fun OrderStatusBadge(state: OrderState) {
             OrderState.PREPARING -> colors.coral to colors.accentInk
             OrderState.READY -> colors.accent to colors.accentInk
             OrderState.DELIVERED -> colors.paper2 to colors.muted
+            OrderState.CANCELED -> colors.paper2 to colors.muted
+            OrderState.NOT_PICKED_UP -> colors.paper2 to colors.muted
+            OrderState.EXPIRED -> colors.paper2 to colors.muted
         }
     Surface(
         color = background,
@@ -112,6 +115,9 @@ private fun timelineCopy(step: OrderState): String =
         OrderState.PREPARING -> "Cocina preparando tu pedido."
         OrderState.READY -> "Listo para entregar."
         OrderState.DELIVERED -> "Entrega completada."
+        OrderState.CANCELED -> "Pedido cancelado."
+        OrderState.NOT_PICKED_UP -> "Pedido no recogido."
+        OrderState.EXPIRED -> "Pedido expirado."
     }
 
 @Composable

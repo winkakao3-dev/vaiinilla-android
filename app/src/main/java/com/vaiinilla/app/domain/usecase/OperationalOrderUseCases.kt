@@ -26,6 +26,17 @@ class GetOrderUseCase
         operator fun invoke(orderId: String): Result<OrderDetail> = repository.getOrder(orderId)
     }
 
+class RetryStripePaymentUseCase
+    @Inject
+    constructor(
+        private val repository: OrderRepository,
+    ) {
+        operator fun invoke(
+            orderId: String,
+            idempotencyKey: String,
+        ) = repository.retryStripePayment(orderId, idempotencyKey)
+    }
+
 class CollectCashUseCase
     @Inject
     constructor(

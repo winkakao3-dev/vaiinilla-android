@@ -97,6 +97,44 @@ class GuestSessionStore
             prefs.edit().clear().apply()
         }
 
+        fun readPendingCreateIdempotency(fingerprint: String): String? {
+            val storedFingerprint = prefs.getString(KEY_CREATE_IDEMPOTENCY_FINGERPRINT, null)
+            if (storedFingerprint != fingerprint) return null
+            return prefs.getString(KEY_CREATE_IDEMPOTENCY_KEY, null)
+        }
+
+        fun savePendingCreateIdempotency(
+            fingerprint: String,
+            idempotencyKey: String,
+        ) {
+            prefs
+                .edit()
+                .putString(KEY_CREATE_IDEMPOTENCY_FINGERPRINT, fingerprint)
+                .putString(KEY_CREATE_IDEMPOTENCY_KEY, idempotencyKey)
+                .apply()
+        }
+
+        fun clearPendingCreateIdempotency() {
+            prefs
+                .edit()
+                .remove(KEY_CREATE_IDEMPOTENCY_FINGERPRINT)
+                .remove(KEY_CREATE_IDEMPOTENCY_KEY)
+                .apply()
+        }
+
+        fun readPendingStripeRetryIdempotency(orderId: String): String? = prefs.getString("stripe_retry:$orderId", null)
+
+        fun savePendingStripeRetryIdempotency(
+            orderId: String,
+            idempotencyKey: String,
+        ) {
+            prefs.edit().putString("stripe_retry:$orderId", idempotencyKey).apply()
+        }
+
+        fun clearPendingStripeRetryIdempotency(orderId: String) {
+            prefs.edit().remove("stripe_retry:$orderId").apply()
+        }
+
         fun cartStorageKey(
             establishmentId: String,
             spaceId: Int?,
@@ -157,6 +195,8 @@ class GuestSessionStore
             const val KEY_SPACE_ID = "space_id"
             const val KEY_SPACE_NAME = "space_name"
             const val KEY_SPACE_TYPE = "space_type"
+            const val KEY_CREATE_IDEMPOTENCY_FINGERPRINT = "create_idempotency_fingerprint"
+            const val KEY_CREATE_IDEMPOTENCY_KEY = "create_idempotency_key"
         }
     }
 
