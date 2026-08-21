@@ -396,13 +396,6 @@ fun CheckoutPaymentPicker(
             selected = selected == PaymentMethod.STRIPE,
             onClick = { onSelect(PaymentMethod.STRIPE) },
         )
-        PaymentOption(
-            icon = Icons.Outlined.CreditCard,
-            title = "Tarjeta",
-            subtitle = "Pago seguro con Stripe.",
-            selected = selected == PaymentMethod.STRIPE,
-            onClick = { onSelect(PaymentMethod.STRIPE) },
-        )
     }
 }
 

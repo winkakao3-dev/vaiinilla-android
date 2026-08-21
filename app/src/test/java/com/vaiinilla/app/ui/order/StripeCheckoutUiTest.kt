@@ -38,8 +38,8 @@ class StripeCheckoutUiTest {
 
         composeTestRule.onNodeWithText("Efectivo en caja").assertIsDisplayed()
         composeTestRule.onNodeWithText("Saldo Vaiinilla").assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("Tarjeta").assertCountEquals(2)
-        composeTestRule.onAllNodesWithText("Pago seguro con Stripe.").assertCountEquals(2)
+        composeTestRule.onAllNodesWithText("Tarjeta").assertCountEquals(1)
+        composeTestRule.onAllNodesWithText("Pago seguro con Stripe.").assertCountEquals(1)
     }
 
     @Test
