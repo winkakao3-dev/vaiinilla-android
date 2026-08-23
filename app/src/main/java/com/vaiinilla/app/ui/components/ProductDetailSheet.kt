@@ -20,14 +20,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -178,7 +183,16 @@ fun ProductDetailSheet(
                 shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
                 shadowElevation = 24.dp,
             ) {
-                Column(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .windowInsetsPadding(
+                                WindowInsets.safeDrawing.only(
+                                    WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
+                                ),
+                            ),
+                ) {
                     LazyColumn(
                         modifier = Modifier.weight(1f).testTag("product-detail-scroll"),
                         contentPadding =
@@ -640,7 +654,12 @@ private fun ProductDetailDock(
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         shadowElevation = 18.dp,
     ) {
-        Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 14.dp)) {
+        Column(
+            modifier =
+                Modifier
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+                    .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 14.dp),
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
