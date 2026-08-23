@@ -1,5 +1,7 @@
 package com.vaiinilla.app.ui.order
 
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -7,6 +9,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.Density
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.ui.discovery.DiscoveryUiState
@@ -86,5 +89,39 @@ class DiscoveryCompactLayoutTest {
 
         composeTestRule.onNodeWithContentDescription("Ver todas las cafeterías").performClick()
         composeTestRule.onNodeWithText("Ocultar cafeterías").assertIsDisplayed()
+    }
+
+    @Test
+    fun `quick access cards remain readable with larger text`() {
+        composeTestRule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(density.density, fontScale = 1.35f),
+            ) {
+                ScreenshotTheme {
+                    DiscoveryScreen(
+                        state =
+                            DiscoveryUiState(
+                                establishments = listOf(active, america),
+                                selected = GuestVenueContext(establishment = active, space = null),
+                            ),
+                        onQueryChange = {},
+                        onSpaceTokenChange = {},
+                        onSelectEstablishment = {},
+                        onResolveSpace = {},
+                        onConfirmSwitch = {},
+                        onDismissSwitch = {},
+                        onContinueSelected = {},
+                        profileInitials = "DR",
+                    )
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Escanear QR").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Del comedor o mesa").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Usar código").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Token del espacio").assertIsDisplayed()
     }
 }

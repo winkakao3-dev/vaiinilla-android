@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -759,21 +760,21 @@ private fun QuickAccessCard(
     val iconBadgeBackground = if (ink) colors.accent else colors.paper
     val iconTint = if (ink) colors.accentInk else colors.ink
 
-    Box(
+    Column(
         modifier =
             modifier
-                .height(116.dp)
+                .heightIn(min = 124.dp)
                 .clip(RoundedCornerShape(24.dp))
                 .background(background)
                 .then(
                     if (!ink) Modifier.border(1.dp, colors.line, RoundedCornerShape(24.dp)) else Modifier,
                 ).physicalPress(onClick = onClick)
                 .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Box(
             modifier =
                 Modifier
-                    .align(Alignment.TopStart)
                     .size(40.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .background(iconBadgeBackground),
@@ -781,39 +782,47 @@ private fun QuickAccessCard(
         ) {
             Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(21.dp))
         }
-        Column(modifier = Modifier.align(Alignment.BottomStart).padding(end = 32.dp)) {
-            Text(
-                title,
-                color = foreground,
-                fontSize = 15.sp,
-                lineHeight = 19.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                subtitle,
-                color = foreground.copy(alpha = 0.66f),
-                fontSize = 11.sp,
-                lineHeight = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 2.dp),
-                maxLines = 1,
-            )
-        }
-        Box(
-            modifier =
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(32.dp)
-                    .clip(RoundedCornerShape(11.dp))
-                    .background(if (ink) Color.White.copy(alpha = 0.10f) else colors.paper),
-            contentAlignment = Alignment.Center,
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(
-                Icons.AutoMirrored.Outlined.ArrowForward,
-                contentDescription = null,
-                tint = foreground,
-                modifier = Modifier.size(15.dp),
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    title,
+                    color = foreground,
+                    fontSize = 14.sp,
+                    lineHeight = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    subtitle,
+                    color = foreground.copy(alpha = 0.66f),
+                    fontSize = 10.sp,
+                    lineHeight = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 2.dp),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Box(
+                modifier =
+                    Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(11.dp))
+                        .background(if (ink) Color.White.copy(alpha = 0.10f) else colors.paper),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.ArrowForward,
+                    contentDescription = null,
+                    tint = foreground,
+                    modifier = Modifier.size(15.dp),
+                )
+            }
         }
     }
 }
