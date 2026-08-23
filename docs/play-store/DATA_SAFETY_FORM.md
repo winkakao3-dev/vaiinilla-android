@@ -138,7 +138,27 @@ y saldo. La app implementa:
 La decisión Test Mode vs Live Mode de Stripe debe resolverse antes de un release
 público que anuncie tarjeta como función disponible.
 
-## 6. Prácticas de seguridad visibles desde Android
+## 6. Audiencia menor y Data Safety
+
+La audiencia de producto quedó definida como **secundaria en adelante**, lo que
+en México incluye usuarios de aproximadamente 12 años. En Play Console esto se
+representará con los grupos `9-12`, `13-15`, `16-17` y `18 and over`; por tanto,
+la app incluye menores dentro de su audiencia objetivo.
+
+Consecuencias para este formulario:
+
+- nombre, correo, IDs y matrícula/contexto escolar deben declararse con especial
+  cuidado cuando correspondan a estudiantes menores;
+- Firebase/Stripe y cualquier SDK que trate datos fuera del dispositivo deben
+  seguir incluidos en el análisis;
+- la política pública debe explicar el tratamiento de menores y la base
+  legal/consentimiento aplicable una vez validado jurídicamente;
+- no hay anuncios ni `AD_ID` en el cliente auditado, por lo que no existe un
+  bloque de publicidad infantil que declarar en este release.
+
+Ver `docs/play-store/TARGET_AUDIENCE.md`.
+
+## 7. Prácticas de seguridad visibles desde Android
 
 - token de sesión backend cifrado con AES-GCM / Android Keystore;
 - tokens de recogida cifrados con Android Keystore;
@@ -152,13 +172,14 @@ público que anuncie tarjeta como función disponible.
 Estas prácticas no sustituyen la validación de Firebase, Stripe ni
 infraestructura externa.
 
-## 7. Gates para poder marcar Data Safety como listo
+## 8. Gates para poder marcar Data Safety como listo
 
-- [ ] KAK-44: política de privacidad publicable y URL final.
+- [ ] KAK-44: política de privacidad publicable y URL final; edad de producto ya definida, validación legal de menores pendiente.
 - [ ] KAK-47: recurso web externo de eliminación.
 - [ ] KAK-48: E2E de eliminación con cuenta descartable.
 - [ ] KAK-49: revisar Firebase/Google Cloud Console.
 - [ ] KAK-50: retenciones/backups/regiones externas.
+- [ ] Confirmar base legal/consentimiento aplicable para usuarios menores.
 - [ ] Confirmar rol contractual / service-provider de los proveedores para
       responder `Shared` sin inventar.
 - [ ] Ejecutar E2E Stripe Test Mode real.

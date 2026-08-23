@@ -331,27 +331,36 @@ No se ejecutó un `DELETE` contra una cuenta personal.
 
 ## 9. IARC
 
-Estado: **BLOCKED**.
+Estado: **IN PROGRESS**.
 
-No existe evidencia de un cuestionario IARC completado.
-No se debe inventar una clasificación.
+La auditoría de contenido y las respuestas técnicas están preparadas en
+`docs/play-store/IARC_CONTENT_RATING.md`.
 
-Google Play exige completar el cuestionario de clasificación de contenido.
+No se detectan violencia, sexo, drogas, alcohol, apuestas, lenguaje ofensivo,
+chat usuario-a-usuario ni geolocalización. Las notas de cocina son privadas y el
+asistente es local, no social. La clasificación exacta no se inventa: quedará
+pendiente hasta que IARC la emita desde Play Console.
 
 Fuente:
 <https://support.google.com/googleplay/android-developer/answer/9898843?hl=en>
 
 ## 10. Target audience
 
-Estado: **BLOCKED**.
+Estado: **IN PROGRESS — decisión de producto cerrada**.
 
-No existe una decisión formal de edad mínima o público objetivo.
-No se marcará una edad sin decisión del responsable.
+Vaiinilla se dirige **desde secundaria en adelante**. En México la edad típica
+de secundaria es 12-14 años. Como Play no ofrece un bucket `12+`, la selección
+de trabajo será `9-12`, `13-15`, `16-17` y `18 and over`. No se seleccionan
+`5 and under` ni `6-8`.
 
-La selección de público puede activar obligaciones de Families.
+Seleccionar `9-12` activa las obligaciones de Families para una audiencia que
+incluye menores. La app no tiene anuncios/AD_ID, pero quedan por cerrar la base
+legal/consentimiento de datos de menores y la validación de proveedores/SDKs.
+
+Detalle: `docs/play-store/TARGET_AUDIENCE.md`. Preflight Families: `docs/play-store/FAMILIES_COMPLIANCE.md`.
 
 Fuente:
-<https://support.google.com/googleplay/android-developer/answer/9859655?hl=en>
+<https://support.google.com/googleplay/android-developer/answer/9867159?hl=en>
 
 ## 11. Financial features
 
@@ -484,7 +493,7 @@ Linear no se modificó.
 7. Publicar el recurso web externo de eliminación.
 8. Crear una cuenta Firebase descartable y ejecutar el E2E.
 9. Ejecutar E2E Stripe Test Mode y decidir Test Mode vs Live Mode.
-10. Completar IARC, Target audience y App Access.
+10. Trasladar a Play Console IARC, Target Audience y App Access ya documentados; obtener la clasificación IARC emitida.
 11. Preparar credentials de reviewer sin guardar passwords en Git o Linear.
 12. Revisar R8/compatibilidad final del AAB exacto que se subirá.
 13. Ejecutar el flujo de testing requerido por Play Console.

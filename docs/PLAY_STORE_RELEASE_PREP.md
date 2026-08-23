@@ -28,7 +28,7 @@ Repo:
 - `docs/PRIVACY_POLICY_DRAFT.md`
 - `docs/DATA_MAP.md`
 
-Faltan principalmente datos legales, retenciones, regiones/configuración de proveedores, edad mínima y URL pública final.
+Faltan principalmente datos legales, retenciones, regiones/configuración de proveedores, validación jurídica del tratamiento de menores y URL pública final. La audiencia de producto ya está definida como secundaria en adelante (aprox. 12+).
 
 Fuente oficial:
 - https://support.google.com/googleplay/android-developer/answer/10144311
@@ -209,7 +209,32 @@ Fuentes:
 - https://support.google.com/googleplay/android-developer/answer/9859455
 - https://support.google.com/googleplay/android-developer/answer/15748846
 
-## 11. Qué falta antes de entrar al envío real de Play Console
+
+## 11. Target Audience e IARC
+
+Estado: **preparados a nivel de producto/contenido; carga en Play Console pendiente**.
+
+- Target Audience: secundaria en adelante. Para cubrir honestamente a estudiantes
+  de 12 años, la selección de trabajo en Play es `9-12`, `13-15`, `16-17` y
+  `18 and over`.
+- La selección `9-12` implica Families Policy; no se intenta evitar esa
+  obligación declarando artificialmente 13+.
+- IARC: auditoría de contenido preparada. No se detectan violencia, sexo, drogas,
+  alcohol, apuestas, lenguaje ofensivo, chat entre usuarios ni GPS.
+- La etiqueta IARC final solo se conocerá después de completar el cuestionario
+  oficial en Play Console.
+
+Documentos:
+- `docs/play-store/TARGET_AUDIENCE.md`
+- `docs/play-store/IARC_CONTENT_RATING.md`
+- `docs/play-store/FAMILIES_COMPLIANCE.md`
+
+Fuentes:
+- https://support.google.com/googleplay/android-developer/answer/9867159
+- https://support.google.com/googleplay/android-developer/answer/9893335
+- https://support.google.com/googleplay/android-developer/answer/9898843
+
+## 12. Qué falta antes de entrar al envío real de Play Console
 
 1. Resolver KAK-47 — recurso web externo de eliminación.
 2. Resolver KAK-48 — crear/obtener una cuenta Firebase de producción explícitamente descartable y ejecutar el E2E.
@@ -219,5 +244,5 @@ Fuentes:
 6. Confirmar la cuenta/propietario de Google Play Console y conservar la recovery copy de signing bajo un segundo custodio seguro.
 7. Completar Data Safety usando `docs/play-store/DATA_SAFETY_FORM.md` y confirmar contractualmente los campos `Shared`.
 8. Ejecutar E2E Stripe Test Mode y decidir Test Mode vs Live Mode antes de promocionar tarjeta en un release público.
-9. Completar Financial features, App Access, IARC y Target audience en Play Console con datos verificados.
+9. Completar Financial features y trasladar App Access, IARC y Target Audience ya documentados a Play Console; cerrar validación jurídica de menores.
 
