@@ -1,7 +1,6 @@
 package com.vaiinilla.app.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -15,13 +14,10 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -29,13 +25,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.outlined.Eco
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.Button
@@ -49,31 +51,28 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.domain.model.ProductOption
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ProductDetailSheet(
     product: Product,
@@ -95,486 +94,613 @@ fun ProductDetailSheet(
     val reduceMotion = reducedMotion()
     val isCustomized = selectedOptionIds != defaultOptionIds
     val interactionSource = remember { MutableInteractionSource() }
-    val sheetVisibility = remember { MutableTransitionState(false) }
+    val visibility = remember { MutableTransitionState(false) }
     var dismissing by remember { mutableStateOf(false) }
     val haptics = rememberVaiinillaHaptics()
-    val coroutineScope = rememberCoroutineScope()
-    val dragOffsetY = remember { Animatable(0f) }
-    val density = LocalDensity.current
-    val dismissThresholdPx = with(density) { 100.dp.toPx() }
-    val optionGroupCount = product.optionGroups.size
-    val denseProduct = optionGroupCount >= 3
-    val productImageHeight =
-        when {
-            optionGroupCount >= 3 -> 132.dp
-            optionGroupCount == 2 -> 176.dp
-            optionGroupCount == 1 -> 240.dp
-            else -> 280.dp
-        }
 
     fun requestDismiss() {
         if (!dismissing) {
             dismissing = true
-            sheetVisibility.targetState = false
+            visibility.targetState = false
         }
     }
 
     val scrimAlpha by
         animateFloatAsState(
-            targetValue = if (sheetVisibility.targetState) 0.58f else 0f,
+            targetValue = if (visibility.targetState) 0.58f else 0f,
             animationSpec = tween(durationMillis = if (reduceMotion) 0 else 180),
-            label = "product-sheet-scrim",
+            label = "product-detail-scrim",
         )
-    val sheetEnter =
+    val enter =
         if (reduceMotion) {
-            fadeIn(animationSpec = tween(durationMillis = 0))
+            fadeIn(animationSpec = tween(0))
         } else {
             slideInVertically(
-                initialOffsetY = { fullHeight -> fullHeight },
-                animationSpec = spring(dampingRatio = 0.86f, stiffness = 500f),
+                initialOffsetY = { it / 3 },
+                animationSpec = spring(dampingRatio = 0.88f, stiffness = 480f),
             ) +
                 scaleIn(
-                    initialScale = 0.94f,
+                    initialScale = 0.97f,
                     transformOrigin = TransformOrigin(0.5f, 1f),
-                    animationSpec = spring(dampingRatio = 0.86f, stiffness = 500f),
+                    animationSpec = spring(dampingRatio = 0.88f, stiffness = 480f),
                 ) +
-                fadeIn(animationSpec = tween(durationMillis = 160))
+                fadeIn(animationSpec = tween(150))
         }
-    val sheetExit =
+    val exit =
         if (reduceMotion) {
-            fadeOut(animationSpec = tween(durationMillis = 0))
+            fadeOut(animationSpec = tween(0))
         } else {
             slideOutVertically(
-                targetOffsetY = { fullHeight -> fullHeight },
-                animationSpec = tween(durationMillis = 220),
+                targetOffsetY = { it / 3 },
+                animationSpec = tween(210),
             ) +
                 scaleOut(
-                    targetScale = 0.96f,
+                    targetScale = 0.98f,
                     transformOrigin = TransformOrigin(0.5f, 1f),
-                    animationSpec = tween(durationMillis = 220),
+                    animationSpec = tween(210),
                 ) +
-                fadeOut(animationSpec = tween(durationMillis = 140))
+                fadeOut(animationSpec = tween(140))
         }
 
-    LaunchedEffect(Unit) {
-        sheetVisibility.targetState = true
-    }
-    LaunchedEffect(sheetVisibility.currentState, dismissing) {
-        if (dismissing && !sheetVisibility.currentState) {
-            onDismiss()
-        }
+    LaunchedEffect(Unit) { visibility.targetState = true }
+    LaunchedEffect(visibility.currentState, dismissing) {
+        if (dismissing && !visibility.currentState) onDismiss()
     }
 
     Box(
         modifier =
             Modifier
-                .fillMaxHeight()
-                .fillMaxWidth()
+                .fillMaxSize()
                 .background(Color.Black.copy(alpha = scrimAlpha))
                 .clickable(onClick = ::requestDismiss),
         contentAlignment = Alignment.BottomCenter,
     ) {
         AnimatedVisibility(
-            visibleState = sheetVisibility,
+            visibleState = visibility,
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.96f)
+                    .fillMaxHeight(0.985f)
                     .align(Alignment.BottomCenter),
-            enter = sheetEnter,
-            exit = sheetExit,
+            enter = enter,
+            exit = exit,
         ) {
             Surface(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
-                        .pointerInput(Unit) {
-                            detectVerticalDragGestures(
-                                onDragStart = {},
-                                onDragEnd = {
-                                    if (dragOffsetY.value > dismissThresholdPx) {
-                                        requestDismiss()
-                                    } else {
-                                        coroutineScope.launch {
-                                            dragOffsetY.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
-                                        }
-                                    }
-                                },
-                                onDragCancel = {
-                                    coroutineScope.launch {
-                                        dragOffsetY.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
-                                    }
-                                },
-                                onVerticalDrag = { change, dragAmount ->
-                                    change.consume()
-                                    val newOffset = (dragOffsetY.value + dragAmount).coerceAtLeast(0f)
-                                    coroutineScope.launch { dragOffsetY.snapTo(newOffset) }
-                                },
-                            )
-                        }.clickable(
+                        .clickable(
                             interactionSource = interactionSource,
                             indication = null,
                             onClick = {},
                         ),
                 color = colors.paper,
-                shape = RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp),
-                shadowElevation = 26.dp,
+                shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
+                shadowElevation = 24.dp,
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center,
+                    LazyColumn(
+                        modifier = Modifier.weight(1f).testTag("product-detail-scroll"),
+                        contentPadding =
+                            androidx.compose.foundation.layout
+                                .PaddingValues(bottom = 24.dp),
                     ) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .width(44.dp)
-                                    .height(5.dp)
-                                    .clip(RoundedCornerShape(99.dp))
-                                    .background(colors.ink.copy(alpha = 0.18f)),
-                        )
-                    }
-
-                    Column(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                // One fixed viewport: no internal vertical scroll. The visual language stays
-                                // identical to the original product sheet while spacing compresses only as needed.
-                                .padding(horizontal = 20.dp),
-                    ) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(productImageHeight)
-                                    .clip(RoundedCornerShape(26.dp))
-                                    .background(colors.paper2),
-                        ) {
-                            ProductImage(
-                                imageUrl = product.imageUrl,
-                                contentDescription = product.name,
-                                contentScale = ContentScale.Fit,
-                                modifier = Modifier.fillMaxSize(),
+                        item {
+                            ProductHero(
+                                product = product,
+                                previewPrice = previewPrice,
+                                customized = isCustomized,
+                                onDismiss = ::requestDismiss,
                             )
-                            if (isCustomized) {
-                                Surface(
-                                    modifier =
-                                        Modifier
-                                            .align(Alignment.TopStart)
-                                            .padding(12.dp),
-                                    color = colors.accent,
-                                    shape = RoundedCornerShape(12.dp),
-                                ) {
-                                    Text(
-                                        text = "Personalizado",
-                                        color = colors.accentInk,
-                                        fontWeight = FontWeight.Black,
-                                        fontSize = 12.sp,
-                                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
-                                    )
-                                }
-                            }
-                            Surface(
+                        }
+                        item {
+                            Column(
                                 modifier =
                                     Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .padding(12.dp),
-                                color = colors.ink,
-                                shape = RoundedCornerShape(17.dp),
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 20.dp, vertical = 18.dp),
                             ) {
                                 Text(
-                                    text = moneyLabel(previewPrice),
-                                    color = colors.paper,
+                                    text = categoryName.uppercase(),
+                                    color = colors.muted,
+                                    fontSize = 13.sp,
+                                    lineHeight = 17.sp,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                Text(
+                                    text = product.name,
+                                    color = colors.ink,
+                                    fontSize = 34.sp,
+                                    lineHeight = 38.sp,
                                     fontWeight = FontWeight.Black,
-                                    fontSize = 17.sp,
-                                    modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
+                                    letterSpacing = (-1.2).sp,
+                                    modifier = Modifier.padding(top = 4.dp),
+                                )
+                                if (product.description.isNotBlank()) {
+                                    Text(
+                                        text = product.description,
+                                        color = colors.muted,
+                                        fontSize = 16.sp,
+                                        lineHeight = 22.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.padding(top = 6.dp),
+                                    )
+                                }
+                            }
+                        }
+
+                        product.optionGroups.forEach { group ->
+                            item(key = "option-group-${group.id}") {
+                                ProductOptionGroup(
+                                    group = group,
+                                    selectedOptionIds = selectedOptionIds,
+                                    onToggleOption = onToggleOption,
+                                    onClearOptionalGroup = onClearOptionalGroup,
+                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                                 )
                             }
                         }
 
-                        Spacer(Modifier.height(if (denseProduct) 8.dp else 14.dp))
-                        Column {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.Top,
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = categoryName.uppercase(),
-                                        color = colors.muted,
-                                        fontWeight = FontWeight.ExtraBold,
-                                    )
-                                    Text(
-                                        text = product.name,
-                                        color = colors.ink,
-                                        fontWeight = FontWeight.Black,
-                                        modifier = Modifier.padding(top = 3.dp),
-                                    )
-                                }
-                                IconButton(
-                                    onClick = ::requestDismiss,
-                                    modifier =
-                                        Modifier
-                                            .size(42.dp)
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .background(colors.paper2),
-                                ) {
-                                    Icon(Icons.Rounded.Close, contentDescription = "Cerrar", tint = colors.ink)
-                                }
-                            }
-                            Text(
-                                text = product.description,
-                                color = colors.muted,
-                                modifier = Modifier.padding(top = 8.dp),
+                        item {
+                            ProductMetaGrid(
+                                ingredients = product.ingredients,
+                                estimatedTime = estimatedTimeLabel(product.estimatedTimeMinutes),
+                                allergens = product.allergens,
+                                modifier = Modifier.padding(start = 20.dp, top = 16.dp, end = 20.dp),
                             )
                         }
-
-                        if (product.optionGroups.isNotEmpty()) {
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(if (denseProduct) 7.dp else 10.dp),
-                            ) {
-                                product.optionGroups.forEach { group ->
-                                    OptionGroupSection(
-                                        group = group,
-                                        selectedOptionIds = selectedOptionIds,
-                                        dense = denseProduct,
-                                        onToggleOption = onToggleOption,
-                                        onClearOptionalGroup = onClearOptionalGroup,
-                                    )
-                                }
-                            }
-                        }
-
-                        Column(
-                            modifier = Modifier.padding(top = if (denseProduct) 8.dp else 14.dp),
-                            verticalArrangement = Arrangement.spacedBy(if (denseProduct) 5.dp else 8.dp),
-                        ) {
-                            MetaRow("Ingredientes", product.ingredients, denseProduct)
-                            MetaRow("Tiempo estimado", estimatedTimeLabel(product.estimatedTimeMinutes), denseProduct)
-                            MetaRow("Alérgenos", product.allergens, denseProduct)
-                        }
                     }
 
-                    Surface(color = colors.paper, shadowElevation = 14.dp) {
-                        Column(
-                            modifier =
-                                Modifier.padding(
-                                    horizontal = 20.dp,
-                                    vertical = if (denseProduct) 9.dp else 12.dp,
-                                ),
-                        ) {
-                            val selectionSurfaceModifier =
-                                if (isCustomized) {
-                                    Modifier
-                                        .border(2.dp, colors.accent, RoundedCornerShape(18.dp))
-                                        .background(colors.paper2, RoundedCornerShape(18.dp))
-                                        .padding(12.dp)
-                                } else {
-                                    Modifier
-                                }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Box(modifier = Modifier.weight(1f)) {
-                                    Column(modifier = selectionSurfaceModifier) {
-                                        Text(
-                                            if (isCustomized) "Tu personalización" else "Tu selección",
-                                            color = colors.muted,
-                                            fontWeight = FontWeight.Bold,
-                                        )
-                                        Text(
-                                            text =
-                                                product.optionGroups
-                                                    .flatMap { it.options }
-                                                    .filter { it.id in selectedOptionIds }
-                                                    .joinToString(" · ") { it.name }
-                                                    .ifBlank { "Sin opciones adicionales" },
-                                            color = colors.ink,
-                                            fontWeight = FontWeight.ExtraBold,
-                                        )
-                                    }
-                                }
-                                Spacer(Modifier.width(12.dp))
-                                QuantityControl(
-                                    quantity = quantity,
-                                    onMinus = {
-                                        haptics.click()
-                                        onQuantityChange(-1)
-                                    },
-                                    onPlus = {
-                                        haptics.click()
-                                        onQuantityChange(1)
-                                    },
-                                )
-                            }
-                            Spacer(Modifier.height(if (denseProduct) 8.dp else 10.dp))
-                            Button(
-                                onClick = {
-                                    haptics.impact()
-                                    onAdd()
-                                },
-                                enabled = canAdd,
-                                modifier = Modifier.fillMaxWidth().height(52.dp),
-                                shape = RoundedCornerShape(18.dp),
-                                colors =
-                                    ButtonDefaults.buttonColors(
-                                        containerColor = colors.accent,
-                                        contentColor = colors.accentInk,
-                                        disabledContainerColor = colors.paper2,
-                                        disabledContentColor = colors.muted,
-                                    ),
-                            ) {
-                                Text(
-                                    text = "Agregar · ${moneyLabel(previewTotal)}",
-                                    fontWeight = FontWeight.Black,
-                                )
-                            }
-                            errorMessage?.let { message ->
-                                Text(
-                                    text = message,
-                                    color = Color(0xFF9D2E25),
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(top = 8.dp),
-                                )
-                            }
-                        }
-                    }
+                    ProductDetailDock(
+                        product = product,
+                        selectedOptionIds = selectedOptionIds,
+                        quantity = quantity,
+                        previewTotal = previewTotal,
+                        canAdd = canAdd,
+                        errorMessage = errorMessage,
+                        customized = isCustomized,
+                        onQuantityChange = { delta ->
+                            haptics.click()
+                            onQuantityChange(delta)
+                        },
+                        onAdd = {
+                            haptics.impact()
+                            onAdd()
+                        },
+                    )
                 }
             }
         }
     }
 }
 
-private fun estimatedTimeLabel(minutes: Int): String = if (minutes in 8..10) "8–10 min" else "$minutes min"
-
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun OptionGroupSection(
-    group: OptionGroup,
-    selectedOptionIds: Set<Int>,
-    dense: Boolean,
-    onToggleOption: (Int, Int) -> Unit,
-    onClearOptionalGroup: (Int) -> Unit,
-) {
-    val colors = LocalVaiinillaColors.current
-    val haptics = rememberVaiinillaHaptics()
-    Column(modifier = Modifier.padding(top = if (dense) 8.dp else 16.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                group.name,
-                color = colors.ink,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = if (dense) 13.sp else 16.sp,
-            )
-            Text(
-                text = if (group.minimumSelections > 0) "Obligatorio" else "Opcional",
-                color = colors.muted,
-                fontWeight = FontWeight.Bold,
-                fontSize = if (dense) 12.sp else 14.sp,
-            )
-        }
-        FlowRow(
-            modifier = Modifier.padding(top = if (dense) 5.dp else 9.dp),
-            horizontalArrangement = Arrangement.spacedBy(if (dense) 6.dp else 8.dp),
-            verticalArrangement = Arrangement.spacedBy(if (dense) 5.dp else 8.dp),
-        ) {
-            if (group.minimumSelections == 0) {
-                val anySelected = group.options.any { it.id in selectedOptionIds }
-                OptionChip(
-                    text = "Sin extra",
-                    selected = !anySelected,
-                    dense = dense,
-                    onClick = {
-                        haptics.selection()
-                        onClearOptionalGroup(group.id)
-                    },
-                )
-            }
-            group.options.forEach { option ->
-                val extra = if (option.extraPrice == "0.00") "" else " +${moneyLabel(option.extraPrice)}"
-                OptionChip(
-                    text = option.name + extra,
-                    selected = option.id in selectedOptionIds,
-                    dense = dense,
-                    onClick = {
-                        haptics.selection()
-                        onToggleOption(group.id, option.id)
-                    },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun OptionChip(
-    text: String,
-    selected: Boolean,
-    dense: Boolean,
-    onClick: () -> Unit,
+private fun ProductHero(
+    product: Product,
+    previewPrice: String,
+    customized: Boolean,
+    onDismiss: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
     Box(
         modifier =
             Modifier
-                .clip(RoundedCornerShape(13.dp))
-                .background(if (selected) colors.accent else colors.paper2)
-                .clickable(onClick = onClick)
-                .heightIn(min = if (dense) 42.dp else 48.dp)
-                .semantics {
-                    role = Role.RadioButton
-                    this.selected = selected
-                }.padding(
-                    horizontal = if (dense) 10.dp else 12.dp,
-                    vertical = if (dense) 8.dp else 10.dp,
-                ),
+                .fillMaxWidth()
+                .padding(start = 14.dp, end = 14.dp, top = 14.dp)
+                .height(300.dp)
+                .clip(RoundedCornerShape(28.dp))
+                .background(colors.paper2),
     ) {
-        Text(
-            text = text,
-            color = colors.ink,
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = if (dense) 13.sp else 15.sp,
+        ProductImage(
+            imageUrl = product.imageUrl,
+            contentDescription = product.name,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+
+        HeroActionButton(
+            icon = Icons.AutoMirrored.Rounded.ArrowBack,
+            description = "Volver",
+            onClick = onDismiss,
+            modifier = Modifier.align(Alignment.TopStart).padding(14.dp),
+        )
+        HeroActionButton(
+            icon = Icons.Rounded.Close,
+            description = "Cerrar",
+            onClick = onDismiss,
+            modifier = Modifier.align(Alignment.TopEnd).padding(14.dp),
+        )
+
+        if (customized) {
+            Surface(
+                modifier = Modifier.align(Alignment.BottomStart).padding(14.dp),
+                color = colors.accent,
+                shape = RoundedCornerShape(14.dp),
+            ) {
+                Text(
+                    "Personalizado",
+                    color = colors.accentInk,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
+                )
+            }
+        }
+        Surface(
+            modifier = Modifier.align(Alignment.BottomEnd).padding(14.dp),
+            color = colors.ink.copy(alpha = 0.94f),
+            shape = RoundedCornerShape(18.dp),
+        ) {
+            Text(
+                moneyLabel(previewPrice),
+                color = colors.paper,
+                fontSize = 26.sp,
+                lineHeight = 30.sp,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier.padding(horizontal = 17.dp, vertical = 13.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun HeroActionButton(
+    icon: ImageVector,
+    description: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    IconButton(
+        onClick = onClick,
+        modifier =
+            modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(colors.paper.copy(alpha = 0.90f)),
+    ) {
+        Icon(
+            icon,
+            contentDescription = description,
+            tint = colors.ink,
+            modifier = Modifier.size(25.dp),
         )
     }
 }
 
 @Composable
-private fun MetaRow(
+private fun ProductOptionGroup(
+    group: OptionGroup,
+    selectedOptionIds: Set<Int>,
+    onToggleOption: (Int, Int) -> Unit,
+    onClearOptionalGroup: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
+    val options =
+        buildList<ProductOptionChoice> {
+            if (group.minimumSelections == 0) {
+                add(
+                    ProductOptionChoice(
+                        option = null,
+                        label = "Sin extra",
+                        selected = group.options.none { it.id in selectedOptionIds },
+                    ),
+                )
+            }
+            group.options.forEach { option ->
+                add(
+                    ProductOptionChoice(
+                        option = option,
+                        label =
+                            option.name + if (option.extraPrice == "0.00") "" else " +${moneyLabel(option.extraPrice)}",
+                        selected = option.id in selectedOptionIds,
+                    ),
+                )
+            }
+        }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                group.name,
+                color = colors.ink,
+                fontSize = 18.sp,
+                lineHeight = 23.sp,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier.weight(1f),
+            )
+            Surface(
+                color = colors.paper2,
+                shape = RoundedCornerShape(99.dp),
+            ) {
+                Text(
+                    if (group.minimumSelections > 0) "Obligatorio" else "Opcional",
+                    color = colors.muted,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
+                )
+            }
+        }
+        Column(
+            modifier = Modifier.padding(top = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            options.chunked(2).forEach { rowOptions ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    rowOptions.forEach { choice ->
+                        ProductOptionTile(
+                            label = choice.label,
+                            selected = choice.selected,
+                            onClick = {
+                                haptics.selection()
+                                val option = choice.option
+                                if (option == null) {
+                                    onClearOptionalGroup(group.id)
+                                } else {
+                                    onToggleOption(group.id, option.id)
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    if (rowOptions.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+private data class ProductOptionChoice(
+    val option: ProductOption?,
+    val label: String,
+    val selected: Boolean,
+)
+
+@Composable
+private fun ProductOptionTile(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    Row(
+        modifier =
+            modifier
+                .heightIn(min = 64.dp)
+                .clip(RoundedCornerShape(19.dp))
+                .background(if (selected) colors.accent else colors.paper2)
+                .border(
+                    width = 1.dp,
+                    color = if (selected) colors.accent else colors.line,
+                    shape = RoundedCornerShape(19.dp),
+                ).clickable(onClick = onClick)
+                .semantics {
+                    role = Role.RadioButton
+                    this.selected = selected
+                }.padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            label,
+            color = colors.ink,
+            fontSize = 15.sp,
+            lineHeight = 19.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (selected) {
+            Box(
+                modifier =
+                    Modifier
+                        .padding(start = 8.dp)
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(colors.ink),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Rounded.Check,
+                    contentDescription = null,
+                    tint = colors.accent,
+                    modifier = Modifier.size(17.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProductMetaGrid(
+    ingredients: String,
+    estimatedTime: String,
+    allergens: String,
+    modifier: Modifier = Modifier,
+) {
+    val hasRelevantAllergens =
+        allergens.isNotBlank() &&
+            !allergens.startsWith("Sin ", ignoreCase = true)
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ProductMetaCard(
+                icon = Icons.Outlined.Eco,
+                label = "Ingredientes",
+                value = ingredients.ifBlank { "Consulta en cafetería" },
+                modifier = Modifier.weight(1f),
+            )
+            ProductMetaCard(
+                icon = Icons.Outlined.Schedule,
+                label = "Tiempo estimado",
+                value = estimatedTime,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        if (hasRelevantAllergens) {
+            ProductMetaCard(
+                icon = Icons.Outlined.WarningAmber,
+                label = "Alérgenos",
+                value = allergens,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProductMetaCard(
+    icon: ImageVector,
     label: String,
     value: String,
-    dense: Boolean,
+    modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
     Surface(
+        modifier = modifier.heightIn(min = 94.dp),
         color = colors.paper2,
-        shape = RoundedCornerShape(17.dp),
-        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
     ) {
-        Column(modifier = Modifier.padding(if (dense) 9.dp else 13.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .background(colors.accent.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = colors.accentInk,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
             Text(
-                text = label,
+                label,
                 color = colors.ink,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = if (dense) 12.sp else 14.sp,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier.padding(top = 8.dp),
             )
             Text(
-                text = value,
+                value,
                 color = colors.muted,
-                fontSize = if (dense) 12.sp else 14.sp,
-                lineHeight = if (dense) 15.sp else 18.sp,
-                modifier = Modifier.padding(top = if (dense) 1.dp else 3.dp),
+                fontSize = 13.sp,
+                lineHeight = 17.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp),
             )
+        }
+    }
+}
+
+@Composable
+private fun ProductDetailDock(
+    product: Product,
+    selectedOptionIds: Set<Int>,
+    quantity: Int,
+    previewTotal: String,
+    canAdd: Boolean,
+    errorMessage: String?,
+    customized: Boolean,
+    onQuantityChange: (Int) -> Unit,
+    onAdd: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    val selection =
+        product.optionGroups
+            .flatMap { it.options }
+            .filter { it.id in selectedOptionIds }
+            .joinToString(" · ") { it.name }
+            .ifBlank { "Sin opciones adicionales" }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = colors.paper,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shadowElevation = 18.dp,
+    ) {
+        Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text(
+                        if (customized) "Tu personalización" else "Tu selección",
+                        color = colors.muted,
+                        fontSize = 13.sp,
+                        lineHeight = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        selection,
+                        color = colors.ink,
+                        fontSize = 17.sp,
+                        lineHeight = 21.sp,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+                QuantityControl(
+                    quantity = quantity,
+                    onMinus = { onQuantityChange(-1) },
+                    onPlus = { onQuantityChange(1) },
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            Button(
+                onClick = onAdd,
+                enabled = canAdd,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(18.dp),
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = colors.accent,
+                        contentColor = colors.accentInk,
+                        disabledContainerColor = colors.paper2,
+                        disabledContentColor = colors.muted,
+                    ),
+            ) {
+                Text(
+                    "Agregar · ${moneyLabel(previewTotal)}",
+                    fontSize = 17.sp,
+                    lineHeight = 21.sp,
+                    fontWeight = FontWeight.Black,
+                )
+            }
+            errorMessage?.let { message ->
+                Text(
+                    message,
+                    color = Color(0xFF9D2E25),
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 7.dp),
+                )
+            }
         }
     }
 }
@@ -587,33 +713,54 @@ private fun QuantityControl(
 ) {
     val colors = LocalVaiinillaColors.current
     Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(
+        QuantityButton(
+            icon = Icons.Rounded.Remove,
+            description = "Quitar uno",
             onClick = onMinus,
-            modifier =
-                Modifier
-                    .size(48.dp)
-                    .padding(7.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(colors.ink),
-        ) {
-            Icon(Icons.Rounded.Remove, contentDescription = "Quitar uno", tint = colors.paper)
-        }
-        Text(
-            text = quantity.toString(),
-            color = colors.ink,
-            fontWeight = FontWeight.Black,
-            modifier = Modifier.padding(horizontal = 10.dp),
         )
-        IconButton(
+        Text(
+            quantity.toString(),
+            color = colors.ink,
+            fontSize = 22.sp,
+            lineHeight = 26.sp,
+            fontWeight = FontWeight.Black,
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
+        QuantityButton(
+            icon = Icons.Rounded.Add,
+            description = "Agregar uno",
             onClick = onPlus,
-            modifier =
-                Modifier
-                    .size(48.dp)
-                    .padding(7.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(colors.ink),
-        ) {
-            Icon(Icons.Rounded.Add, contentDescription = "Agregar uno", tint = colors.paper)
-        }
+        )
     }
 }
+
+@Composable
+private fun QuantityButton(
+    icon: ImageVector,
+    description: String,
+    onClick: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    IconButton(
+        onClick = onClick,
+        modifier =
+            Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(15.dp))
+                .background(colors.ink),
+    ) {
+        Icon(
+            icon,
+            contentDescription = description,
+            tint = colors.paper,
+            modifier = Modifier.size(22.dp),
+        )
+    }
+}
+
+private fun estimatedTimeLabel(minutes: Int): String =
+    when (minutes) {
+        in 8..10 -> "8–10 min"
+        in 11..15 -> "10–15 min"
+        else -> "$minutes min"
+    }
