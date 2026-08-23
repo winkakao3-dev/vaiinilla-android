@@ -1,6 +1,8 @@
 # Recursos gráficos de Google Play
 
-Fecha de validación: 2026-08-18.
+Fecha de validación técnica base: 2026-08-18.
+
+Estado de screenshots actualizado: 2026-08-23.
 
 ## Borradores inválidos
 
@@ -35,10 +37,10 @@ La validación usó `file`, `identify` y apertura visual.
 - El icono está centrado.
 - El icono tiene canal alpha.
 - El wordmark está completo y visible.
-- Faltan 6 screenshots de Play Store.
+- Los 6 screenshots promocionales fueron generados externamente; aún no han sido recibidos, validados ni integrados aquí.
 
 ## Pendiente
 
 El punto 15 de la checklist permanece EN PROGRESO.
 
-Faltan 6 screenshots de Play Store.
+Los 6 screenshots están generados externamente, pero todavía falta recibirlos, validarlos e integrarlos en `final/`.

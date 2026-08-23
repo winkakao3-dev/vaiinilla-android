@@ -191,7 +191,25 @@ Fuentes:
 - https://support.google.com/googleplay/android-developer/answer/13849271
 - https://support.stripe.com/questions/stripe-mobile-sdk-privacy-details
 
-## 10. Qué falta antes de entrar al envío real de Play Console
+
+## 10. Store Listing y App Access
+
+Estado: **preparados a nivel de documentación; carga/credenciales externas pendientes**.
+
+- `docs/play-store/STORE_LISTING.md` contiene nombre, categoría `Comida y bebida`, descripción breve y descripción completa dentro de los límites oficiales.
+- Los seis screenshots están generados externamente y pendientes de recepción/validación.
+- `docs/play-store/APP_ACCESS_REVIEW.md` contiene dos juegos de instrucciones de reviewer en inglés, sin contraseñas: cliente y staff.
+- Falta crear/confirmar credenciales demo reutilizables y cargarlas solo en Play Console.
+
+Google Play exige acceso a cualquier parte restringida por login u otra autenticación. Las credenciales deben ser de prueba, estar disponibles durante la revisión y no depender de OTP, ubicación o recursos temporales.
+
+Fuentes:
+- https://support.google.com/googleplay/android-developer/answer/9859152
+- https://support.google.com/googleplay/android-developer/answer/9859673
+- https://support.google.com/googleplay/android-developer/answer/9859455
+- https://support.google.com/googleplay/android-developer/answer/15748846
+
+## 11. Qué falta antes de entrar al envío real de Play Console
 
 1. Resolver KAK-47 — recurso web externo de eliminación.
 2. Resolver KAK-48 — crear/obtener una cuenta Firebase de producción explícitamente descartable y ejecutar el E2E.

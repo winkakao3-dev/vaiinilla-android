@@ -114,7 +114,9 @@ Fuentes:
 
 ## 3. Store Listing
 
-Estado: **BLOCKED**.
+Estado: **IN PROGRESS**.
+
+Copy y categoría documentados en `docs/play-store/STORE_LISTING.md`.
 
 ### Verificado desde el repositorio
 
@@ -122,20 +124,25 @@ Estado: **BLOCKED**.
 - Aplicación Android, no juego — PASS por el tipo de proyecto.
 - `applicationId`: `com.vaiinilla.app` — PASS.
 
-### No verificado o faltante
+### Cerrado en el borrador de metadata
 
-- Idioma predeterminado — BLOCKED.
-- Categoría — BLOCKED.
-- Tags — BLOCKED.
-- Descripción breve — BLOCKED.
-- Descripción completa — BLOCKED.
-- Correo del desarrollador — BLOCKED.
-- Teléfono — BLOCKED.
+- Categoría: `Comida y bebida` — PASS de producto; falta cargarla en Play Console.
+- Descripción breve — PASS de copy, 67/80 caracteres.
+- Descripción completa — PASS de copy, 1,308/4,000 caracteres.
+- Nombre `Vaiinilla` — PASS.
+
+### Pendiente externo / Play Console
+
+- Locale exacto del idioma predeterminado — BLOCKED.
+- Tags exactos ofrecidos por Play Console — BLOCKED.
+- Correo del desarrollador/soporte — BLOCKED.
+- Teléfono — BLOCKED cuando corresponda.
 - Sitio web — BLOCKED.
 - URL de política de privacidad pública — BLOCKED.
 - URL web de eliminación de cuenta — FAIL.
+- Seis screenshots finales — generados externamente, pendientes de entrega/validación.
 
-No existe un directorio local de metadata de Play Store con estos campos.
+Metadata de trabajo: `docs/play-store/STORE_LISTING.md`.
 
 ## 4. Recursos gráficos
 
@@ -195,7 +202,9 @@ Fuente oficial de assets:
 
 ## 5. App Access
 
-Estado: **BLOCKED**.
+Estado: **IN PROGRESS**.
+
+Instrucciones no secretas preparadas en `docs/play-store/APP_ACCESS_REVIEW.md`.
 
 El cliente contiene:
 
@@ -210,11 +219,15 @@ Console.
 No se guardaron credenciales en el repositorio.
 No se guardaron contraseñas en este reporte.
 
-Acción pendiente:
+Avance:
 
-- crear o confirmar una cuenta de reviewer descartable;
-- documentar instrucciones de acceso sin password en Git;
-- probar los roles necesarios en una versión de revisión.
+- [x] documentar flujo de cliente y staff sin guardar passwords en Git;
+- [x] definir que Play debe marcar toda o parte de la funcionalidad como restringida;
+- [x] preparar instrucciones en inglés para Play Console;
+- [ ] crear o confirmar una cuenta reviewer cliente, reutilizable y verificada;
+- [ ] crear/confirmar cuenta reviewer staff si los modos operativos entran al release público;
+- [ ] probar las cuentas sobre el mismo build candidato;
+- [ ] cargar credenciales exclusivamente en Play Console.
 
 ## 6. Ads
 
