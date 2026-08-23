@@ -1,6 +1,6 @@
 # Google Play — preparación técnica de Vaiinilla Android
 
-Fecha de corte: 2026-08-17
+Fecha de corte: 2026-08-23
 
 Este documento concentra prerrequisitos comprobables para publicar `com.vaiinilla.app` en Google Play. No sustituye los formularios de Play Console ni reabre automáticamente App Content/Data Safety; sirve para llegar a esa etapa con infraestructura, privacidad y release correctamente preparados.
 
@@ -151,7 +151,7 @@ Estado: **release firmado verificado**.
 
 Los gates locales ya estaban verdes. Después de configurar production signing se generó de nuevo el AAB y `jarsigner` verificó correctamente la firma y la coincidencia del certificado con la upload key.
 
-El workflow `Android Release Readiness` terminó exitosamente en el run `32089291183` con:
+El workflow `Android Release Readiness` del `main` actual (`b0d73fb2`) terminó exitosamente en el run `32505457217`. El artifact `vaiinilla-release-aab` de ese mismo SHA fue descargado y `jarsigner` confirmó una firma válida. El SHA-256 verificado del AAB es `e6d6bbfcf3bf1dd7f2436b84076e869286c607b3453c4c1fb6a20ffd7ac15f44`. El workflow incluye:
 
 - fixtures — PASS;
 - scope audit — PASS;
@@ -165,7 +165,33 @@ El commit `7bb1061af36c778eddf7cde1fc79e8b49be2397f` añadió defaults seguros d
 
 Desde signing/CI, el AAB está listo para el proceso de Play Console. Todavía no se ha subido ni publicado en Google Play.
 
-## 9. Qué falta antes de entrar al envío real de Play Console
+
+## 9. Stripe y Data Safety
+
+Estado Stripe Android: **integrado en Test Mode; E2E real pendiente**.
+
+- Stripe Android `23.13.1` está incluido en `app/build.gradle.kts`.
+- Checkout presenta PaymentSheet para `PaymentMethod.STRIPE`.
+- Android recibe `client_secret`, `publishable_key` y `stripe_account_id`; no
+  crea PaymentIntents ni contiene secretos Stripe.
+- El cliente exige `pk_test_...` y rechaza `pk_live_...` en el mapper actual.
+- PaymentSheet procesa la información sensible de pago directamente con Stripe.
+- Stripe documenta telemetría de interacción/características del dispositivo y
+  señales antifraude, por lo que Data Safety debe incluir el SDK.
+
+La matriz de trabajo para el formulario está en:
+`docs/play-store/DATA_SAFETY_FORM.md`.
+
+Financial features: `Mobile payments and digital wallets` debe tratarse como
+aplicable. `Rewards, points ... and other incentives` requiere decisión final
+porque el cliente expone cashback/recompensas.
+
+Fuentes:
+- https://support.google.com/googleplay/android-developer/answer/10787469
+- https://support.google.com/googleplay/android-developer/answer/13849271
+- https://support.stripe.com/questions/stripe-mobile-sdk-privacy-details
+
+## 10. Qué falta antes de entrar al envío real de Play Console
 
 1. Resolver KAK-47 — recurso web externo de eliminación.
 2. Resolver KAK-48 — crear/obtener una cuenta Firebase de producción explícitamente descartable y ejecutar el E2E.
@@ -173,5 +199,7 @@ Desde signing/CI, el AAB está listo para el proceso de Play Console. Todavía n
 4. Terminar KAK-50 — retenciones/backups/regiones externas.
 5. Terminar KAK-44 — política publicable y URL estable.
 6. Confirmar la cuenta/propietario de Google Play Console y conservar la recovery copy de signing bajo un segundo custodio seguro.
-7. Después, retomar explícitamente formularios Play Console / Data Safety / App Content con datos ya verificados.
+7. Completar Data Safety usando `docs/play-store/DATA_SAFETY_FORM.md` y confirmar contractualmente los campos `Shared`.
+8. Ejecutar E2E Stripe Test Mode y decidir Test Mode vs Live Mode antes de promocionar tarjeta en un release público.
+9. Completar Financial features, App Access, IARC y Target audience en Play Console con datos verificados.
 
