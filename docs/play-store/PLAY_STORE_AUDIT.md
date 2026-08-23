@@ -6,6 +6,8 @@ Revisión de estado vigente: 2026-08-23 (`main` `b0d73fb2`).
 
 Repositorio auditado: `winkakao3-dev/vaiinilla-android`.
 
+Valores consolidados para Play Console: `docs/play-store/PLAY_CONSOLE_FORM_VALUES.md`.
+
 Rama auditada: `main`.
 
 Commit base auditado: `847fa1ea556179574474b3357b7466e505bd9e61`.

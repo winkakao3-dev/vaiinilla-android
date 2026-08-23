@@ -4,6 +4,8 @@ Fecha de corte: 2026-08-23
 
 Este documento concentra prerrequisitos comprobables para publicar `com.vaiinilla.app` en Google Play. No sustituye los formularios de Play Console ni reabre automáticamente App Content/Data Safety; sirve para llegar a esa etapa con infraestructura, privacidad y release correctamente preparados.
 
+Checklist maestra de valores para los formularios: `docs/play-store/PLAY_CONSOLE_FORM_VALUES.md`.
+
 ## 1. Compatibilidad de plataforma
 
 Estado: **cubierto**.
