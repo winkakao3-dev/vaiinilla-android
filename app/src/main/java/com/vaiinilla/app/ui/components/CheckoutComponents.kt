@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
@@ -39,7 +38,6 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -218,7 +216,8 @@ fun CheckoutDestinationPicker(
     ) {
         DestinationOption(
             title = "Para llevar",
-            subtitle = "Recoge tu pedido en barra.",
+            subtitle = "Recoge en barra",
+            detail = "Sin costo de entrega",
             icon = Icons.Outlined.ShoppingBag,
             selected = selected == OrderDestination.TAKE_AWAY,
             onClick = { onSelect(OrderDestination.TAKE_AWAY) },
@@ -227,7 +226,8 @@ fun CheckoutDestinationPicker(
         if (showInSpace) {
             DestinationOption(
                 title = "En mesa",
-                subtitle = "Te lo llevamos cuando esté listo.",
+                subtitle = "Te lo llevamos al estar listo",
+                detail = selectedSpaceName.ifBlank { "Dentro del establecimiento" },
                 icon = Icons.Outlined.Restaurant,
                 selected = selected == OrderDestination.IN_SPACE,
                 onClick = { onSelect(OrderDestination.IN_SPACE) },
@@ -300,6 +300,7 @@ fun CheckoutSpacePicker(
 private fun DestinationOption(
     title: String,
     subtitle: String,
+    detail: String,
     icon: ImageVector,
     selected: Boolean,
     onClick: () -> Unit,
@@ -307,9 +308,11 @@ private fun DestinationOption(
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = LocalHapticFeedback.current
-    val bg = if (selected) colors.ink else colors.paper2
-    val fg = if (selected) colors.paper else colors.ink
-    val muted = if (selected) colors.paper.copy(alpha = 0.72f) else colors.muted
+    val selectedBackground = if (colors.isDark) colors.paper2 else colors.ink
+    val selectedForeground = if (colors.isDark) colors.ink else colors.paper
+    val background = if (selected) selectedBackground else colors.paper2
+    val foreground = if (selected) selectedForeground else colors.ink
+    val secondary = if (selected) selectedForeground.copy(alpha = 0.78f) else colors.muted
     Surface(
         modifier =
             modifier
@@ -319,12 +322,16 @@ private fun DestinationOption(
                         if (!selected) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onClick()
                     },
-                ).heightIn(min = 148.dp)
-                .semantics {
+                ).heightIn(min = 154.dp)
+                .border(
+                    width = if (selected) 1.5.dp else 1.dp,
+                    color = if (selected) colors.accent else colors.line,
+                    shape = RoundedCornerShape(24.dp),
+                ).semantics {
                     role = Role.RadioButton
                     this.selected = selected
                 },
-        color = bg,
+        color = background,
         shape = RoundedCornerShape(24.dp),
     ) {
         Box(modifier = Modifier.padding(16.dp)) {
@@ -333,8 +340,8 @@ private fun DestinationOption(
                     modifier =
                         Modifier
                             .align(Alignment.TopEnd)
-                            .size(24.dp)
-                            .clip(RoundedCornerShape(9.dp))
+                            .size(30.dp)
+                            .clip(RoundedCornerShape(10.dp))
                             .background(colors.accent),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -342,26 +349,45 @@ private fun DestinationOption(
                         Icons.Rounded.Check,
                         contentDescription = null,
                         tint = colors.accentInk,
-                        modifier = Modifier.size(14.dp),
+                        modifier = Modifier.size(17.dp),
                     )
                 }
             }
             Column {
-                Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(25.dp))
+                Box(
+                    modifier =
+                        Modifier
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(
+                                if (selected) selectedForeground.copy(alpha = 0.10f) else colors.paper,
+                            ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(icon, contentDescription = null, tint = foreground, modifier = Modifier.size(24.dp))
+                }
                 Text(
                     title,
-                    color = fg,
+                    color = foreground,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    lineHeight = 28.sp,
-                    modifier = Modifier.padding(top = 22.dp),
+                    fontSize = 20.sp,
+                    lineHeight = 24.sp,
+                    modifier = Modifier.padding(top = 14.dp),
                 )
                 Text(
                     subtitle,
-                    color = muted,
+                    color = secondary,
+                    fontSize = 14.sp,
+                    lineHeight = 19.sp,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                Text(
+                    detail,
+                    color = if (selected) colors.accent else secondary,
+                    fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp,
-                    lineHeight = 20.sp,
-                    modifier = Modifier.padding(top = 2.dp),
+                    lineHeight = 18.sp,
+                    modifier = Modifier.padding(top = 6.dp),
                 )
             }
         }
@@ -374,27 +400,30 @@ fun CheckoutPaymentPicker(
     onSelect: (PaymentMethod) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         PaymentOption(
             icon = Icons.Outlined.Payments,
-            title = "Efectivo en caja",
-            subtitle = "Se envía a cocina después del cobro.",
+            title = "Efectivo",
             selected = selected == PaymentMethod.CASH,
             onClick = { onSelect(PaymentMethod.CASH) },
+            modifier = Modifier.weight(1f),
         )
         PaymentOption(
             icon = Icons.Outlined.AccountBalanceWallet,
-            title = "Saldo Vaiinilla",
-            subtitle = "Tu saldo en este establecimiento.",
+            title = "Saldo",
             selected = selected == PaymentMethod.BALANCE,
             onClick = { onSelect(PaymentMethod.BALANCE) },
+            modifier = Modifier.weight(1f),
         )
         PaymentOption(
             icon = Icons.Outlined.CreditCard,
             title = "Tarjeta",
-            subtitle = "Pago seguro con Stripe.",
             selected = selected == PaymentMethod.STRIPE,
             onClick = { onSelect(PaymentMethod.STRIPE) },
+            modifier = Modifier.weight(1f),
         )
     }
 }
@@ -403,9 +432,9 @@ fun CheckoutPaymentPicker(
 private fun PaymentOption(
     icon: ImageVector,
     title: String,
-    subtitle: String,
     selected: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -417,90 +446,48 @@ private fun PaymentOption(
             !enabled -> colors.muted
             else -> colors.ink
         }
-    val secondaryForeground =
-        if (selected) {
-            colors.accentInk.copy(alpha = 0.72f)
-        } else {
-            colors.muted
-        }
     Surface(
         modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(22.dp))
+            modifier
+                .heightIn(min = 74.dp)
+                .clip(RoundedCornerShape(20.dp))
                 .clickable(
                     enabled = enabled,
                     onClick = {
                         if (!selected) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onClick()
                     },
+                ).border(
+                    width = 1.dp,
+                    color = if (selected) colors.accent.copy(alpha = 0.95f) else colors.line,
+                    shape = RoundedCornerShape(20.dp),
                 ).semantics {
                     role = Role.RadioButton
                     this.selected = selected
                     if (!enabled) disabled()
                 },
         color = background,
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(20.dp),
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(colors.ink.copy(alpha = 0.08f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = foreground,
-                    modifier = Modifier.size(23.dp),
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    title,
-                    color = foreground,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    lineHeight = 24.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    subtitle,
-                    color = secondaryForeground,
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp,
-                    modifier = Modifier.padding(top = 1.dp),
-                )
-            }
-            Box(
-                modifier =
-                    Modifier
-                        .size(22.dp)
-                        .border(
-                            width = 2.dp,
-                            color = if (selected) colors.ink.copy(alpha = 0.35f) else colors.ink.copy(alpha = 0.18f),
-                            shape = CircleShape,
-                        ),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (selected) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(10.dp)
-                                .clip(CircleShape)
-                                .background(colors.ink),
-                    )
-                }
-            }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = foreground,
+                modifier = Modifier.size(21.dp),
+            )
+            Text(
+                title,
+                color = foreground,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+                maxLines = 1,
+            )
         }
     }
 }
