@@ -151,3 +151,8 @@ enum class StripePaymentPhase {
     REFUNDING,
     REFUNDED,
 }
+
+internal fun isEstablishmentSwitch(
+    current: GuestVenueContext?,
+    next: GuestVenueContext,
+): Boolean = current?.establishment?.id?.let { it != next.establishment.id } == true

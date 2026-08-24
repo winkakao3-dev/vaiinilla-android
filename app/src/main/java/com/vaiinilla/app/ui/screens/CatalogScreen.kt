@@ -533,7 +533,7 @@ private fun CatalogHeader(
                     decorationBox = { input ->
                         Box {
                             if (state.searchQuery.isBlank()) {
-                                Text("Buscar burritos, bebidas…", color = colors.muted)
+                                Text("Buscar productos…", color = colors.muted)
                             }
                             input()
                         }

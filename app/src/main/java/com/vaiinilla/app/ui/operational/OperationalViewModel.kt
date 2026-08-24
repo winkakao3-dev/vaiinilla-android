@@ -55,6 +55,7 @@ class OperationalViewModel
 
         private var pollingJob: Job? = null
         private var lastUpdatedSince: String? = null
+        private var roleGeneration: Long = 0
         private var pendingWalletReload: PendingWalletReload? = null
         private val heartbeatCoordinator =
             OperationalHeartbeatCoordinator(
@@ -69,9 +70,15 @@ class OperationalViewModel
             )
 
         fun setRole(role: OperationalRole) {
+            val roleChanged = _uiState.value.role != role
+            if (roleChanged) {
+                roleGeneration += 1
+                lastUpdatedSince = null
+            }
             _uiState.value =
                 _uiState.value.copy(
                     role = role,
+                    orders = if (roleChanged) emptyList() else _uiState.value.orders,
                     selectedOrderId = null,
                     errorMessage = null,
                     cashSessionOpen = null,
@@ -88,6 +95,7 @@ class OperationalViewModel
         }
 
         fun clearRole() {
+            roleGeneration += 1
             pollingJob?.cancel()
             pollingJob = null
             heartbeatCoordinator.stop()
@@ -102,9 +110,11 @@ class OperationalViewModel
 
         fun refresh() {
             val role = _uiState.value.role ?: return
+            val generation = roleGeneration
             _uiState.value = _uiState.value.copy(loading = true, errorMessage = null)
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { listOrders(role, lastUpdatedSince) }
+                if (generation != roleGeneration || _uiState.value.role != role) return@launch
                 result.fold(
                     onSuccess = { orders ->
                         val merged = mergeOrders(_uiState.value.orders, orders)
@@ -132,8 +142,10 @@ class OperationalViewModel
         }
 
         fun refreshOrder(orderId: String) {
+            val generation = roleGeneration
             viewModelScope.launch {
                 withContext(Dispatchers.IO) { getOrder(orderId) }.onSuccess { order ->
+                    if (generation != roleGeneration) return@onSuccess
                     val updated =
                         _uiState.value.orders
                             .filterNot { it.summary.id == orderId } + order

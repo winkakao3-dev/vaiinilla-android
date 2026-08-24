@@ -66,6 +66,7 @@ class OrderFlowViewModel
         private var pendingIdempotencyKey: String? = null
         private var pendingStripeRetryIdempotencyKey: String? = null
         private var activeCartStorageKey: String? = null
+        private var guestVenueLoadJob: Job? = null
         private val activeJobs = mutableSetOf<Job>()
 
         init {
@@ -91,18 +92,41 @@ class OrderFlowViewModel
                 persistCurrentCartIfNeeded()
             }
             val sameCart = activeCartStorageKey == storageKey
-            activeCartStorageKey = storageKey
             val previous = _uiState.value
+            val switchingEstablishment = isEstablishmentSwitch(previous.guestVenue, venue)
+            if (switchingEstablishment) {
+                activeJobs.toList().forEach(Job::cancel)
+                activeJobs.clear()
+                guestVenueLoadJob = null
+                pendingIdempotencyKey = null
+                pendingStripeRetryIdempotencyKey = null
+                guestSessionStore.clearPendingCreateIdempotency()
+                previous.createdOrder
+                    ?.summary
+                    ?.id
+                    ?.let(guestSessionStore::clearPendingStripeRetryIdempotency)
+            } else {
+                guestVenueLoadJob?.cancel()
+            }
+            activeCartStorageKey = storageKey
             _uiState.value =
                 previous.copy(
                     loading = true,
                     errorMessage = null,
                     guestVenue = venue,
                     cartLines = if (sameCart) previous.cartLines else emptyList(),
+                    kitchenNotes = if (sameCart) previous.kitchenNotes else "",
                     selectedProductId = null,
                     selectedOptionIds = emptySet(),
                     selectedQuantity = 1,
                     createOrderError = null,
+                    createdOrder = if (switchingEstablishment) null else previous.createdOrder,
+                    stripePaymentSession = if (switchingEstablishment) null else previous.stripePaymentSession,
+                    stripePresentationKey = if (switchingEstablishment) null else previous.stripePresentationKey,
+                    stripePaymentPhase =
+                        if (switchingEstablishment) StripePaymentPhase.IDLE else previous.stripePaymentPhase,
+                    stripePaymentMessage = if (switchingEstablishment) null else previous.stripePaymentMessage,
+                    retryingStripePayment = if (switchingEstablishment) false else previous.retryingStripePayment,
                     checkoutDestination =
                         if (venue.space != null) {
                             OrderDestination.IN_SPACE
@@ -112,40 +136,42 @@ class OrderFlowViewModel
                     selectedSpaceId = venue.space?.id ?: 0,
                 )
             guestSessionStore.saveVenue(venue)
-            launchTracked {
-                val catalogResult =
-                    withContext(Dispatchers.IO) {
-                        discoveryRepository.getGuestCatalog(venue.establishment.slug)
-                    }
-                val catalog = catalogResult.getOrNull()
-                val restored =
-                    if (catalog != null) {
-                        guestSessionStore.restoreCartLines(
-                            guestSessionStore.readCartSnapshot(storageKey),
-                            catalog.products,
+            guestVenueLoadJob =
+                launchTracked {
+                    val catalogResult =
+                        withContext(Dispatchers.IO) {
+                            discoveryRepository.getGuestCatalog(venue.establishment.slug)
+                        }
+                    if (activeCartStorageKey != storageKey) return@launchTracked
+                    val catalog = catalogResult.getOrNull()
+                    val restored =
+                        if (catalog != null) {
+                            guestSessionStore.restoreCartLines(
+                                guestSessionStore.readCartSnapshot(storageKey),
+                                catalog.products,
+                            )
+                        } else {
+                            emptyList()
+                        }
+                    val nextCart =
+                        restored.ifEmpty {
+                            if (sameCart) _uiState.value.cartLines else emptyList()
+                        }
+                    // Public guest discovery is valid without identity. Operational status is
+                    // authenticated, so its failure must not hide a catalog that loaded correctly.
+                    val failure = catalogResult.exceptionOrNull()
+                    val suspended = DiscoveryFailures.isEstablishmentSuspended(failure)
+                    _uiState.value =
+                        _uiState.value.copy(
+                            loading = false,
+                            catalog = catalog,
+                            operationalStatus = null,
+                            cartLines = nextCart,
+                            errorMessage = failure?.message,
+                            guestVenueSuspended = suspended,
+                            guestVenue = venue,
                         )
-                    } else {
-                        emptyList()
-                    }
-                val nextCart =
-                    restored.ifEmpty {
-                        if (sameCart) _uiState.value.cartLines else emptyList()
-                    }
-                // Public guest discovery is valid without identity. Operational status is
-                // authenticated, so its failure must not hide a catalog that loaded correctly.
-                val failure = catalogResult.exceptionOrNull()
-                val suspended = DiscoveryFailures.isEstablishmentSuspended(failure)
-                _uiState.value =
-                    _uiState.value.copy(
-                        loading = false,
-                        catalog = catalog,
-                        operationalStatus = null,
-                        cartLines = nextCart,
-                        errorMessage = failure?.message,
-                        guestVenueSuspended = suspended,
-                        guestVenue = venue,
-                    )
-            }
+                }
         }
 
         fun refresh() {
@@ -199,6 +225,8 @@ class OrderFlowViewModel
         /** Leaves the guest venue before entering an authenticated operational mode. */
         fun clearGuestVenue(persistCurrentCart: Boolean = true) {
             if (persistCurrentCart) persistCurrentCartIfNeeded()
+            guestVenueLoadJob?.cancel()
+            guestVenueLoadJob = null
             activeCartStorageKey = null
             guestSessionStore.clearVenue()
             _uiState.value =
@@ -213,6 +241,8 @@ class OrderFlowViewModel
             activeJobs.clear()
             pendingIdempotencyKey = null
             pendingStripeRetryIdempotencyKey = null
+            guestVenueLoadJob?.cancel()
+            guestVenueLoadJob = null
             activeCartStorageKey = null
             guestSessionStore.clearAll()
             _uiState.value = OrderFlowUiState()
@@ -805,7 +835,7 @@ class OrderFlowViewModel
             _uiState.value = _uiState.value.copy(assistantChatMessages = emptyList())
         }
 
-        private fun launchTracked(block: suspend () -> Unit) {
+        private fun launchTracked(block: suspend () -> Unit): Job {
             lateinit var job: Job
             job =
                 viewModelScope.launch {
@@ -816,6 +846,7 @@ class OrderFlowViewModel
                     }
                 }
             activeJobs += job
+            return job
         }
 
         private companion object {

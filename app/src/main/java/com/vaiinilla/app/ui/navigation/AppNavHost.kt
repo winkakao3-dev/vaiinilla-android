@@ -29,6 +29,7 @@ import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.cartItemCount
+import com.vaiinilla.app.ui.order.isEstablishmentSwitch
 import com.vaiinilla.app.ui.order.toRuntimeConfiguration
 import com.vaiinilla.app.ui.profile.displayInitials
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
@@ -89,6 +90,10 @@ fun AppNavHost(
     val walletState = WalletUiState()
 
     fun enterVenueAndOpenCatalog(venue: GuestVenueContext) {
+        val switchingEstablishment = isEstablishmentSwitch(orderState.guestVenue, venue)
+        if (switchingEstablishment) {
+            operationalViewModel.clearRole()
+        }
         orderFlowViewModel.enterGuestVenue(venue)
         navController.navigate(Routes.CATALOG) {
             launchSingleTop = true
@@ -858,24 +863,31 @@ fun AppNavHost(
             }
 
             composable(Routes.STUDENT_TRACKING) {
-                LaunchedEffect(Unit) {
-                    operationalViewModel.setRole(OperationalRole.CLIENT)
+                val venueAuthRequired = orderFlowViewModel.requiresStudentAuth()
+                LaunchedEffect(venueAuthRequired) {
+                    if (venueAuthRequired) {
+                        navigateStudentAuth(Routes.STUDENT_TRACKING)
+                    } else {
+                        operationalViewModel.setRole(OperationalRole.CLIENT)
+                    }
                 }
-                StudentTrackingScreen(
-                    state = operationalState,
-                    orderState = orderState,
-                    onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                    onAssistant = {},
-                    onWallet = { navController.navigateStudent(Routes.WALLET) },
-                    onCart = { navController.navigateStudent(Routes.CART) },
-                    onOpenCatalog = { navController.navigateStudent(Routes.CATALOG) },
-                    onSelectOrder = operationalViewModel::selectOrder,
-                    onViewReceipt = {
-                        orderFlowViewModel.clearCreatedOrder()
-                        navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
-                    },
-                    onRefresh = { operationalViewModel.refresh() },
-                )
+                if (!venueAuthRequired) {
+                    StudentTrackingScreen(
+                        state = operationalState,
+                        orderState = orderState,
+                        onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                        onAssistant = {},
+                        onWallet = { navController.navigateStudent(Routes.WALLET) },
+                        onCart = { navController.navigateStudent(Routes.CART) },
+                        onOpenCatalog = { navController.navigateStudent(Routes.CATALOG) },
+                        onSelectOrder = operationalViewModel::selectOrder,
+                        onViewReceipt = {
+                            orderFlowViewModel.clearCreatedOrder()
+                            navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
+                        },
+                        onRefresh = { operationalViewModel.refresh() },
+                    )
+                }
             }
 
             composable(Routes.CASHIER) {

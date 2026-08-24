@@ -217,7 +217,7 @@ fun CheckoutDestinationPicker(
         DestinationOption(
             title = "Para llevar",
             subtitle = "Recoge en barra",
-            detail = "Sin costo de entrega",
+            detail = null,
             icon = Icons.Outlined.ShoppingBag,
             selected = selected == OrderDestination.TAKE_AWAY,
             onClick = { onSelect(OrderDestination.TAKE_AWAY) },
@@ -300,7 +300,7 @@ fun CheckoutSpacePicker(
 private fun DestinationOption(
     title: String,
     subtitle: String,
-    detail: String,
+    detail: String?,
     icon: ImageVector,
     selected: Boolean,
     onClick: () -> Unit,
@@ -381,14 +381,16 @@ private fun DestinationOption(
                     lineHeight = 19.sp,
                     modifier = Modifier.padding(top = 4.dp),
                 )
-                Text(
-                    detail,
-                    color = if (selected) colors.accent else secondary,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp,
-                    modifier = Modifier.padding(top = 6.dp),
-                )
+                detail?.takeIf(String::isNotBlank)?.let { detailText ->
+                    Text(
+                        detailText,
+                        color = if (selected) colors.accent else secondary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
             }
         }
     }

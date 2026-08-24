@@ -1,7 +1,9 @@
 package com.vaiinilla.app.ui.order
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.ui.components.StudentTab
@@ -61,6 +63,7 @@ class CartCompactLayoutTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Pago").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Sin costo de entrega").assertCountEquals(0)
         composeTestRule.onNodeWithText("Añadir nota para cocina").assertIsDisplayed()
         composeTestRule.onNodeWithText("Subtotal").assertIsDisplayed()
         composeTestRule.onNodeWithText("Confirmar pedido").assertIsDisplayed()
