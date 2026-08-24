@@ -796,6 +796,15 @@ class OrderFlowViewModel
             }
         }
 
+        fun dismissCreatedOrder(orderId: String) {
+            if (_uiState.value.createdOrder
+                    ?.summary
+                    ?.id == orderId
+            ) {
+                clearCreatedOrder()
+            }
+        }
+
         fun clearCreatedOrder() {
             _uiState.value.createdOrder
                 ?.summary

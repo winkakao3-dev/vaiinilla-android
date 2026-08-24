@@ -221,6 +221,11 @@ fun AppNavHost(
             ?: operationalState.selectedOrder
             ?: operationalState.orders.firstOrNull()
 
+    fun dismissClientOrder(orderId: String) {
+        operationalViewModel.dismissClientOrder(orderId)
+        orderFlowViewModel.dismissCreatedOrder(orderId)
+    }
+
     fun finishStudentAuth(returnRoute: String) {
         orderFlowViewModel.restoreGuestSessionAfterAuth()
         studentAuthViewModel.refreshGuestVenue()
@@ -463,6 +468,7 @@ fun AppNavHost(
                     onAddProduct = orderFlowViewModel::addSelectedProductToCart,
                     onOpenCart = { navController.navigateStudent(Routes.CART) },
                     onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
+                    onDeleteOrder = ::dismissClientOrder,
                     onOpenWallet = { navController.navigateStudent(Routes.WALLET) },
                     onChangeVenue = {
                         navController.navigate(Routes.DISCOVERY) {
@@ -881,6 +887,7 @@ fun AppNavHost(
                         onCart = { navController.navigateStudent(Routes.CART) },
                         onOpenCatalog = { navController.navigateStudent(Routes.CATALOG) },
                         onSelectOrder = operationalViewModel::selectOrder,
+                        onDeleteOrder = ::dismissClientOrder,
                         onViewReceipt = {
                             orderFlowViewModel.clearCreatedOrder()
                             navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }

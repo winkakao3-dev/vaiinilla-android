@@ -64,6 +64,7 @@ import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductCardSkeleton
 import com.vaiinilla.app.ui.components.ProductDetailSheet
 import com.vaiinilla.app.ui.components.ProductImage
+import com.vaiinilla.app.ui.components.SwipeToDeleteOrder
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
@@ -98,6 +99,7 @@ fun CatalogScreen(
     onAddProduct: () -> Unit,
     onOpenCart: () -> Unit,
     onOpenTracking: () -> Unit = {},
+    onDeleteOrder: (String) -> Unit = {},
     onOpenWallet: () -> Unit = {},
     onChangeVenue: () -> Unit = {},
     onOpenModes: (() -> Unit)? = null,
@@ -140,6 +142,7 @@ fun CatalogScreen(
                     onOpenCart()
                 },
                 onOpenTracking = onOpenTracking,
+                onDeleteOrder = onDeleteOrder,
                 onOpenWallet = onOpenWallet,
                 onChangeVenue = onChangeVenue,
                 onOpenModes = onOpenModes,
@@ -284,6 +287,7 @@ private fun CatalogContent(
     onAddProduct: () -> Unit,
     onOpenCart: () -> Unit,
     onOpenTracking: () -> Unit,
+    onDeleteOrder: (String) -> Unit,
     onOpenWallet: () -> Unit,
     onChangeVenue: () -> Unit,
     onOpenModes: (() -> Unit)?,
@@ -355,15 +359,22 @@ private fun CatalogContent(
                 }
 
                 activeOrder?.let { order ->
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        ActiveOrderBanner(
-                            folio = order.summary.folio.toString(),
-                            statusLabel = order.summary.state.label,
-                            itemCount = order.items.sumOf { it.quantity },
-                            destination = order.summary.destination.label,
-                            onClick = onOpenTracking,
+                    item(
+                        key = "active-order-${order.summary.id}",
+                        span = { GridItemSpan(maxLineSpan) },
+                    ) {
+                        SwipeToDeleteOrder(
+                            onDelete = { onDeleteOrder(order.summary.id) },
                             modifier = Modifier.padding(bottom = 4.dp),
-                        )
+                        ) {
+                            ActiveOrderBanner(
+                                folio = order.summary.folio.toString(),
+                                statusLabel = order.summary.state.label,
+                                itemCount = order.items.sumOf { it.quantity },
+                                destination = order.summary.destination.label,
+                                onClick = onOpenTracking,
+                            )
+                        }
                     }
                 }
 

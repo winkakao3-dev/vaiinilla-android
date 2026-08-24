@@ -47,6 +47,7 @@ import com.vaiinilla.app.ui.components.OrderDetailSummary
 import com.vaiinilla.app.ui.components.OrderTrackingCard
 import com.vaiinilla.app.ui.components.OrderTrackingTimeline
 import com.vaiinilla.app.ui.components.StudentTab
+import com.vaiinilla.app.ui.components.SwipeToDeleteOrder
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
@@ -68,6 +69,7 @@ fun StudentTrackingScreen(
     onCart: () -> Unit,
     onOpenCatalog: () -> Unit,
     onSelectOrder: (String) -> Unit,
+    onDeleteOrder: (String) -> Unit = {},
     onViewReceipt: () -> Unit = {},
     onRefresh: () -> Unit = {},
 ) {
@@ -125,8 +127,12 @@ fun StudentTrackingScreen(
                         }
                     }
                     selected != null -> {
-                        item {
-                            OrderTrackingCard(order = selected, showEyebrow = true)
+                        item(key = "selected-${selected.summary.id}") {
+                            SwipeToDeleteOrder(
+                                onDelete = { onDeleteOrder(selected.summary.id) },
+                            ) {
+                                OrderTrackingCard(order = selected, showEyebrow = true)
+                            }
                         }
                         item {
                             TrackingSectionHead()
@@ -167,11 +173,15 @@ fun StudentTrackingScreen(
                     }
                     else -> {
                         items(state.orders, key = { it.summary.id }) { order ->
-                            OrderTrackingCard(
-                                order = order,
-                                showEyebrow = false,
-                                onClick = { onSelectOrder(order.summary.id) },
-                            )
+                            SwipeToDeleteOrder(
+                                onDelete = { onDeleteOrder(order.summary.id) },
+                            ) {
+                                OrderTrackingCard(
+                                    order = order,
+                                    showEyebrow = false,
+                                    onClick = { onSelectOrder(order.summary.id) },
+                                )
+                            }
                         }
                     }
                 }

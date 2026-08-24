@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.data.order.DismissedClientOrdersStore
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.OperationalRole
@@ -49,6 +50,7 @@ class OperationalViewModel
         private val deviceIdentity: DeviceIdentity,
         private val walletRepository: WalletRepository,
         private val catalogRepository: CatalogRepository,
+        private val dismissedClientOrdersStore: DismissedClientOrdersStore,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(OperationalUiState())
         val uiState: State<OperationalUiState> = _uiState
@@ -56,6 +58,7 @@ class OperationalViewModel
         private var pollingJob: Job? = null
         private var lastUpdatedSince: String? = null
         private var roleGeneration: Long = 0
+        private var dismissedClientOrderIds: Set<String> = dismissedClientOrdersStore.read()
         private var pendingWalletReload: PendingWalletReload? = null
         private val heartbeatCoordinator =
             OperationalHeartbeatCoordinator(
@@ -108,6 +111,20 @@ class OperationalViewModel
             _uiState.value = _uiState.value.copy(selectedOrderId = orderId, errorMessage = null)
         }
 
+        fun dismissClientOrder(orderId: String) {
+            if (orderId.isBlank()) return
+            dismissedClientOrdersStore.dismiss(orderId)
+            dismissedClientOrderIds = dismissedClientOrdersStore.read()
+            if (_uiState.value.role == OperationalRole.CLIENT) {
+                _uiState.value =
+                    _uiState.value.copy(
+                        orders = _uiState.value.orders.filterNot { it.summary.id == orderId },
+                        selectedOrderId = _uiState.value.selectedOrderId.takeUnless { it == orderId },
+                        errorMessage = null,
+                    )
+            }
+        }
+
         fun refresh() {
             val role = _uiState.value.role ?: return
             val generation = roleGeneration
@@ -122,10 +139,16 @@ class OperationalViewModel
                         if (newest != null) {
                             lastUpdatedSince = newest
                         }
+                        val visibleOrders =
+                            filterDismissedClientOrders(
+                                role = role,
+                                orders = merged,
+                                dismissedOrderIds = dismissedClientOrderIds,
+                            )
                         _uiState.value =
                             _uiState.value.copy(
                                 loading = false,
-                                orders = merged.sortedByDescending { it.summary.updatedAt },
+                                orders = visibleOrders.sortedByDescending { it.summary.updatedAt },
                                 lastSyncedAt = newest,
                                 errorMessage = null,
                             )
@@ -146,6 +169,12 @@ class OperationalViewModel
             viewModelScope.launch {
                 withContext(Dispatchers.IO) { getOrder(orderId) }.onSuccess { order ->
                     if (generation != roleGeneration) return@onSuccess
+                    if (
+                        _uiState.value.role == OperationalRole.CLIENT &&
+                        order.summary.id in dismissedClientOrderIds
+                    ) {
+                        return@onSuccess
+                    }
                     val updated =
                         _uiState.value.orders
                             .filterNot { it.summary.id == orderId } + order
@@ -656,3 +685,14 @@ private data class PendingWalletReload(
     val amount: String,
     val idempotencyKey: String,
 )
+
+internal fun filterDismissedClientOrders(
+    role: OperationalRole?,
+    orders: List<OrderDetail>,
+    dismissedOrderIds: Set<String>,
+): List<OrderDetail> =
+    if (role == OperationalRole.CLIENT) {
+        orders.filterNot { it.summary.id in dismissedOrderIds }
+    } else {
+        orders
+    }
