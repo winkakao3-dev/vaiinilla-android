@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -164,8 +163,12 @@ fun ProductDetailSheet(
             visibleState = visibility,
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.985f)
+                    .fillMaxSize()
+                    .windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(
+                            WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
+                        ),
+                    ).padding(top = 8.dp)
                     .align(Alignment.BottomCenter),
             enter = enter,
             exit = exit,
@@ -174,6 +177,7 @@ fun ProductDetailSheet(
                 modifier =
                     Modifier
                         .fillMaxSize()
+                        .testTag("product-detail-surface")
                         .clickable(
                             interactionSource = interactionSource,
                             indication = null,
@@ -183,16 +187,7 @@ fun ProductDetailSheet(
                 shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
                 shadowElevation = 24.dp,
             ) {
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .windowInsetsPadding(
-                                WindowInsets.safeDrawing.only(
-                                    WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
-                                ),
-                            ),
-                ) {
+                Column(modifier = Modifier.fillMaxSize()) {
                     LazyColumn(
                         modifier = Modifier.weight(1f).testTag("product-detail-scroll"),
                         contentPadding =

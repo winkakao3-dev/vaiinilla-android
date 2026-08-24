@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -975,6 +976,10 @@ fun AppNavHost(
                 )
             }
         }
+    }
+
+    BackHandler(enabled = orderState.selectedProductId != null) {
+        orderFlowViewModel.closeProduct()
     }
 
     if (walletUserQrOpen) {

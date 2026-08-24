@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.Density
 import com.vaiinilla.app.ui.components.ProductDetailSheet
 import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -147,5 +148,48 @@ class ProductDetailLayoutTest {
 
         composeTestRule.onNodeWithText("Agregar · $20").assertIsDisplayed()
         composeTestRule.onNodeWithText("Agua de jamaica").assertIsDisplayed()
+    }
+
+    @Test
+    fun `product surface keeps breathing room from the top edge`() {
+        val catalog = ScreenshotFixtures.catalog()
+        val product = catalog.products.first()
+        val defaultIds =
+            setOf(
+                product.optionGroups
+                    .first()
+                    .options
+                    .first()
+                    .id,
+            )
+
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                ProductDetailSheet(
+                    product = product,
+                    categoryName = "Bebidas",
+                    selectedOptionIds = defaultIds,
+                    defaultOptionIds = defaultIds,
+                    quantity = 1,
+                    previewPrice = product.digitalPrice,
+                    previewTotal = product.digitalPrice,
+                    canAdd = true,
+                    errorMessage = null,
+                    onDismiss = {},
+                    onToggleOption = { _, _ -> },
+                    onClearOptionalGroup = {},
+                    onQuantityChange = {},
+                    onAdd = {},
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        val top =
+            composeTestRule
+                .onNodeWithTag("product-detail-surface", useUnmergedTree = true)
+                .fetchSemanticsNode()
+                .boundsInRoot.top
+        assertTrue("Product detail surface must start below the root top edge", top > 0f)
     }
 }
