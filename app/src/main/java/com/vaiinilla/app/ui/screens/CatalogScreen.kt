@@ -364,6 +364,7 @@ private fun CatalogContent(
                         span = { GridItemSpan(maxLineSpan) },
                     ) {
                         SwipeToDeleteOrder(
+                            orderFolio = order.summary.folio.toString(),
                             onDelete = { onDeleteOrder(order.summary.id) },
                             modifier = Modifier.padding(bottom = 4.dp),
                         ) {

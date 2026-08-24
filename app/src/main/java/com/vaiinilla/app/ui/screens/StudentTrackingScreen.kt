@@ -129,6 +129,7 @@ fun StudentTrackingScreen(
                     selected != null -> {
                         item(key = "selected-${selected.summary.id}") {
                             SwipeToDeleteOrder(
+                                orderFolio = selected.summary.folio.toString(),
                                 onDelete = { onDeleteOrder(selected.summary.id) },
                             ) {
                                 OrderTrackingCard(order = selected, showEyebrow = true)
@@ -174,6 +175,7 @@ fun StudentTrackingScreen(
                     else -> {
                         items(state.orders, key = { it.summary.id }) { order ->
                             SwipeToDeleteOrder(
+                                orderFolio = order.summary.folio.toString(),
                                 onDelete = { onDeleteOrder(order.summary.id) },
                             ) {
                                 OrderTrackingCard(
