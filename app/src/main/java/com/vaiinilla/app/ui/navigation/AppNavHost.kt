@@ -849,12 +849,10 @@ fun AppNavHost(
                     onReturnToMenu = {
                         if (isFreshConfirmation) {
                             orderFlowViewModel.clearCreatedOrder()
-                            navController.navigate(Routes.CATALOG) {
-                                popUpTo(Routes.CATALOG) { inclusive = true }
-                                launchSingleTop = true
-                            }
-                        } else {
-                            navController.popBackStack()
+                        }
+                        navController.navigate(Routes.CATALOG) {
+                            popUpTo(Routes.CATALOG) { inclusive = true }
+                            launchSingleTop = true
                         }
                     },
                     onViewTracking = {
@@ -863,7 +861,11 @@ fun AppNavHost(
                             ?.summary
                             ?.id
                             ?.let(operationalViewModel::selectOrder)
-                        navController.navigateStudent(Routes.STUDENT_TRACKING)
+                        val returnedToExistingTracking =
+                            navController.popBackStack(Routes.STUDENT_TRACKING, inclusive = false)
+                        if (!returnedToExistingTracking) {
+                            navController.navigateStudent(Routes.STUDENT_TRACKING)
+                        }
                     },
                 )
             }
