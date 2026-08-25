@@ -69,6 +69,7 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.canCreateOrder
 import com.vaiinilla.app.ui.order.cartPreviewTotal
+import com.vaiinilla.app.ui.order.hasUnresolvedStripePayment
 import com.vaiinilla.app.ui.order.operationalBlockerMessage
 import com.vaiinilla.app.ui.order.requiresOperationalReady
 import com.vaiinilla.app.ui.order.selectedSpaceName
@@ -105,10 +106,11 @@ fun CartScreen(
     // operational-status check runs. submitOrder performs that check after auth.
     val canConfirm =
         if (guestAuthRequired) {
-            state.cartLines.isNotEmpty() && !state.creatingOrder
+            state.cartLines.isNotEmpty() && !state.creatingOrder && !state.hasUnresolvedStripePayment
         } else {
             state.cartLines.isNotEmpty() &&
                 !state.creatingOrder &&
+                !state.hasUnresolvedStripePayment &&
                 (state.canCreateOrder || state.operationalStatus == null)
         }
 
@@ -243,10 +245,12 @@ fun CartScreen(
                     OrderSummaryCard(state = state)
                 }
                 val blockerMessage =
-                    if (state.requiresOperationalReady && !guestAuthRequired && state.operationalStatus != null) {
-                        state.operationalBlockerMessage
-                    } else {
-                        null
+                    when {
+                        state.hasUnresolvedStripePayment ->
+                            "Tienes un pago Stripe pendiente. Revisa Mis pedidos antes de crear otro pedido."
+                        state.requiresOperationalReady && !guestAuthRequired && state.operationalStatus != null ->
+                            state.operationalBlockerMessage
+                        else -> null
                     }
                 if (blockerMessage != null && blockerMessage != state.createOrderError) {
                     item {

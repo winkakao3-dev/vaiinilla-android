@@ -19,6 +19,7 @@ import com.stripe.android.paymentsheet.PaymentSheet
 import com.stripe.android.paymentsheet.PaymentSheetResult
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.account.AccountDeletionViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
@@ -784,7 +785,21 @@ fun AppNavHost(
 
             composable(Routes.CONFIRMATION) {
                 val isFreshConfirmation = orderState.createdOrder != null
+                val selectedOrder = operationalState.selectedOrder
+                val confirmationOrder =
+                    orderState.createdOrder
+                        ?: orderState.stripeObservedOrder?.takeIf {
+                            selectedOrder == null || selectedOrder.summary.id == it.summary.id
+                        }
+                        ?: selectedOrder
+                        ?: orderState.stripeObservedOrder
                 val context = LocalContext.current
+                LaunchedEffect(confirmationOrder?.summary?.id) {
+                    val order = confirmationOrder ?: return@LaunchedEffect
+                    if (order.summary.paymentMethod == PaymentMethod.STRIPE) {
+                        orderFlowViewModel.resumeStripePaymentConfirmation(order)
+                    }
+                }
                 val paymentSheet =
                     PaymentSheet
                         .Builder { result ->
@@ -811,11 +826,12 @@ fun AppNavHost(
                     )
                 }
                 OrderConfirmationScreen(
-                    order = orderState.createdOrder ?: operationalState.selectedOrder,
                     stripePaymentPhase = orderState.stripePaymentPhase,
                     stripePaymentMessage = orderState.stripePaymentMessage,
                     retryingStripePayment = orderState.retryingStripePayment,
                     onRetryStripePayment = orderFlowViewModel::retryStripePayment,
+                    onRefreshStripePayment = orderFlowViewModel::refreshStripePaymentStatus,
+                    order = confirmationOrder,
                     onReturnToMenu = {
                         if (isFreshConfirmation) {
                             orderFlowViewModel.clearCreatedOrder()
@@ -829,7 +845,7 @@ fun AppNavHost(
                     },
                     onViewTracking = {
                         operationalViewModel.setRole(OperationalRole.CLIENT)
-                        orderState.createdOrder
+                        confirmationOrder
                             ?.summary
                             ?.id
                             ?.let(operationalViewModel::selectOrder)

@@ -135,6 +135,19 @@ class GuestSessionStore
             prefs.edit().remove("stripe_retry:$orderId").apply()
         }
 
+        fun readPendingStripeConfirmationOrderId(): String? =
+            prefs.getString(KEY_PENDING_STRIPE_CONFIRMATION_ORDER_ID, null)
+
+        fun savePendingStripeConfirmationOrderId(orderId: String) {
+            prefs.edit().putString(KEY_PENDING_STRIPE_CONFIRMATION_ORDER_ID, orderId).apply()
+        }
+
+        fun clearPendingStripeConfirmationOrderId(orderId: String) {
+            if (readPendingStripeConfirmationOrderId() == orderId) {
+                prefs.edit().remove(KEY_PENDING_STRIPE_CONFIRMATION_ORDER_ID).apply()
+            }
+        }
+
         fun cartStorageKey(
             establishmentId: String,
             spaceId: Int?,
@@ -197,6 +210,7 @@ class GuestSessionStore
             const val KEY_SPACE_TYPE = "space_type"
             const val KEY_CREATE_IDEMPOTENCY_FINGERPRINT = "create_idempotency_fingerprint"
             const val KEY_CREATE_IDEMPOTENCY_KEY = "create_idempotency_key"
+            const val KEY_PENDING_STRIPE_CONFIRMATION_ORDER_ID = "pending_stripe_confirmation_order_id"
         }
     }
 

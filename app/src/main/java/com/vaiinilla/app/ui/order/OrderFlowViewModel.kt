@@ -16,9 +16,9 @@ import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OrderDestination
+import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.StripePaymentStatus
-import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
 import com.vaiinilla.app.domain.usecase.CreateRemoteOrderUseCase
@@ -31,7 +31,6 @@ import com.vaiinilla.app.ui.assistant.AssistantLocalReplies
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.security.MessageDigest
@@ -59,6 +58,7 @@ class OrderFlowViewModel
             mutableStateOf(
                 OrderFlowUiState(
                     guestVenue = guestSessionStore.readVenue(),
+                    stripePendingOrderId = guestSessionStore.readPendingStripeConfirmationOrderId(),
                 ),
             )
         val uiState: State<OrderFlowUiState> = _uiState
@@ -67,6 +67,8 @@ class OrderFlowViewModel
         private var pendingStripeRetryIdempotencyKey: String? = null
         private var activeCartStorageKey: String? = null
         private val activeJobs = mutableSetOf<Job>()
+        private var stripeConfirmationJob: Job? = null
+        private var stripeConfirmationOrderId: String? = null
 
         init {
             val venue = guestSessionStore.readVenue()
@@ -425,6 +427,14 @@ class OrderFlowViewModel
                     )
                 return
             }
+            if (state.hasUnresolvedStripePayment) {
+                _uiState.value =
+                    state.copy(
+                        createOrderError =
+                            "Tienes un pago Stripe pendiente. Revisa Mis pedidos antes de crear otro pedido.",
+                    )
+                return
+            }
             if (state.creatingOrder) return
 
             if (requiresStudentAuth()) {
@@ -520,6 +530,12 @@ class OrderFlowViewModel
                         guestSessionStore.clearPendingCreateIdempotency()
                         pendingStripeRetryIdempotencyKey = null
                         val stripeSession = created.stripeSession
+                        val stripePendingOrderId =
+                            stripeSession?.let {
+                                created.order.summary.id.also(
+                                    guestSessionStore::savePendingStripeConfirmationOrderId,
+                                )
+                            }
                         _uiState.value =
                             _uiState.value.copy(
                                 creatingOrder = false,
@@ -528,6 +544,8 @@ class OrderFlowViewModel
                                 checkoutDestination = OrderDestination.TAKE_AWAY,
                                 checkoutPayment = PaymentMethod.CASH,
                                 createdOrder = created.order,
+                                stripeObservedOrder = null,
+                                stripePendingOrderId = stripePendingOrderId,
                                 stripePaymentSession = stripeSession,
                                 stripePresentationKey = stripeSession?.let { UUID.randomUUID().toString() },
                                 stripePaymentPhase =
@@ -598,50 +616,75 @@ class OrderFlowViewModel
         }
 
         fun onStripePaymentSheetCompleted() {
-            val orderId =
-                _uiState.value.createdOrder
-                    ?.summary
-                    ?.id ?: return
-            dropStripeSecret(
-                phase = StripePaymentPhase.PROCESSING_CONFIRMATION,
-                message = "Procesando confirmación del pago…",
+            val orderId = currentStripeOrder()?.summary?.id ?: return
+            startStripeConfirmation(
+                orderId = orderId,
+                initialMessage = "Confirmando tu pago…",
             )
-            reconcileStripeOrder(orderId = orderId, maxAttempts = 6)
         }
 
         fun onStripePaymentSheetCanceled() {
-            val orderId =
-                _uiState.value.createdOrder
-                    ?.summary
-                    ?.id ?: return
-            dropStripeSecret(
-                phase = StripePaymentPhase.PROCESSING_CONFIRMATION,
-                message = "Verificando el estado del pago…",
+            val orderId = currentStripeOrder()?.summary?.id ?: return
+            startStripeConfirmation(
+                orderId = orderId,
+                initialMessage = "Confirmando el estado de tu pago…",
             )
-            reconcileStripeOrder(orderId = orderId, maxAttempts = 2, localCanceled = true)
         }
 
-        fun onStripePaymentSheetFailed(errorMessage: String?) {
-            val orderId =
-                _uiState.value.createdOrder
-                    ?.summary
-                    ?.id ?: return
-            dropStripeSecret(
-                phase = StripePaymentPhase.PROCESSING_CONFIRMATION,
-                message = "Verificando el intento de pago…",
-            )
-            reconcileStripeOrder(
+        fun onStripePaymentSheetFailed(
+            @Suppress("UNUSED_PARAMETER") errorMessage: String?,
+        ) {
+            val orderId = currentStripeOrder()?.summary?.id ?: return
+            startStripeConfirmation(
                 orderId = orderId,
-                maxAttempts = 2,
-                localFailureMessage = errorMessage?.takeIf { it.isNotBlank() },
+                initialMessage = "Verificando el intento de pago…",
             )
+        }
+
+        /** Re-enters backend confirmation when a pending Stripe order is opened again. */
+        fun resumeStripePaymentConfirmation(order: OrderDetail) {
+            if (order.summary.paymentMethod != PaymentMethod.STRIPE) return
+
+            val current = currentStripeOrder(order.summary.id)
+            if (current == null && _uiState.value.createdOrder == null) {
+                _uiState.value = _uiState.value.copy(stripeObservedOrder = order)
+            }
+            val knownOrder = current ?: order
+            val backendPhase = stripePhaseFromBackend(knownOrder)
+            if (backendPhase.isTerminalStripeConfirmationPhase()) {
+                updateStripeOrderState(
+                    order = knownOrder,
+                    phase = backendPhase,
+                    message = stripeConfirmationMessage(backendPhase, knownOrder, null),
+                )
+                return
+            }
+            if (
+                _uiState.value.stripePaymentSession != null &&
+                _uiState.value.stripePaymentPhase in
+                setOf(
+                    StripePaymentPhase.READY,
+                    StripePaymentPhase.PRESENTING,
+                )
+            ) {
+                return
+            }
+            if (_uiState.value.stripePendingOrderId != order.summary.id) {
+                guestSessionStore.savePendingStripeConfirmationOrderId(order.summary.id)
+                _uiState.value = _uiState.value.copy(stripePendingOrderId = order.summary.id)
+            }
+            startStripeConfirmation(order.summary.id)
+        }
+
+        fun refreshStripePaymentStatus() {
+            currentStripeOrder()?.let(::resumeStripePaymentConfirmation)
         }
 
         fun retryStripePayment() {
-            val order = _uiState.value.createdOrder ?: return
+            val order = currentStripeOrder() ?: return
             if (order.summary.paymentMethod != PaymentMethod.STRIPE || _uiState.value.retryingStripePayment) return
             val paymentStatus = order.payment?.status
-            if (paymentStatus != null && !paymentStatus.canRetry) return
+            if (paymentStatus !in setOf(StripePaymentStatus.FAILED, StripePaymentStatus.CANCELED)) return
 
             val key =
                 pendingStripeRetryIdempotencyKey
@@ -678,10 +721,10 @@ class OrderFlowViewModel
                         _uiState.value =
                             _uiState.value.copy(
                                 retryingStripePayment = false,
-                                stripePaymentPhase = StripePaymentPhase.PENDING,
+                                stripePaymentPhase = stripePhaseFromBackend(order),
                                 stripePaymentMessage =
                                     error.toUserFacingMessage(
-                                        "No se pudo reanudar el pago todavía.",
+                                        "No se pudo preparar el reintento.",
                                     ),
                             )
                     },
@@ -689,96 +732,136 @@ class OrderFlowViewModel
             }
         }
 
-        private fun dropStripeSecret(
-            phase: StripePaymentPhase,
-            message: String?,
+        private fun currentStripeOrder(orderId: String? = null): OrderDetail? {
+            val candidates =
+                listOfNotNull(
+                    _uiState.value.createdOrder,
+                    _uiState.value.stripeObservedOrder,
+                )
+            return candidates.firstOrNull { orderId == null || it.summary.id == orderId }
+        }
+
+        private fun startStripeConfirmation(
+            orderId: String,
+            initialMessage: String? = null,
         ) {
+            if (
+                stripeConfirmationOrderId == orderId &&
+                stripeConfirmationJob?.isActive == true
+            ) {
+                return
+            }
+            stripeConfirmationJob?.cancel()
+            stripeConfirmationOrderId = orderId
+            guestSessionStore.savePendingStripeConfirmationOrderId(orderId)
             _uiState.value =
                 _uiState.value.copy(
+                    stripePendingOrderId = orderId,
                     stripePaymentSession = null,
                     stripePresentationKey = null,
+                    stripePaymentPhase = StripePaymentPhase.PENDING,
+                    stripePaymentMessage = initialMessage ?: "Confirmando tu pago…",
+                )
+
+            val job =
+                viewModelScope.launch {
+                    val seed = currentStripeOrder(orderId)
+                    val result =
+                        pollStripePaymentConfirmation(
+                            orderId = orderId,
+                            fetch = { id -> withContext(Dispatchers.IO) { getOrder(id) } },
+                        )
+                    val latest = result.order ?: seed
+                    val phase = if (result.timedOut) StripePaymentPhase.TIMED_OUT else result.phase
+                    updateStripeOrderState(
+                        order = latest,
+                        phase = phase,
+                        message = stripeConfirmationMessage(phase, latest, result.lastError),
+                    )
+                }
+            stripeConfirmationJob = job
+            job.invokeOnCompletion {
+                if (stripeConfirmationJob == job) {
+                    stripeConfirmationJob = null
+                    stripeConfirmationOrderId = null
+                }
+            }
+        }
+
+        private fun updateStripeOrderState(
+            order: OrderDetail?,
+            phase: StripePaymentPhase,
+            message: String,
+        ) {
+            val current = _uiState.value
+            val unlockPendingOrder =
+                order != null &&
+                    order.summary.id == current.stripePendingOrderId &&
+                    phase.isTerminalStripeConfirmationPhase()
+            val next =
+                when {
+                    order == null -> current
+                    current.createdOrder?.summary?.id == order.summary.id -> current.copy(createdOrder = order)
+                    else -> current.copy(stripeObservedOrder = order)
+                }
+            if (unlockPendingOrder) {
+                guestSessionStore.clearPendingStripeConfirmationOrderId(requireNotNull(order).summary.id)
+            }
+            _uiState.value =
+                next.copy(
+                    stripePendingOrderId = if (unlockPendingOrder) null else next.stripePendingOrderId,
                     stripePaymentPhase = phase,
                     stripePaymentMessage = message,
                 )
         }
 
-        private fun reconcileStripeOrder(
-            orderId: String,
-            maxAttempts: Int,
-            localCanceled: Boolean = false,
-            localFailureMessage: String? = null,
-        ) {
-            launchTracked {
-                var latest = _uiState.value.createdOrder
-                var lastError: Throwable? = null
-                for (attempt in 0 until maxAttempts) {
-                    val result = withContext(Dispatchers.IO) { getOrder(orderId) }
-                    result.onSuccess { latest = it }.onFailure { lastError = it }
-                    val status = latest?.payment?.status
-                    val confirmed = latest?.isStripePaymentConfirmedByBackend() == true
-                    val terminalPaymentStatus =
-                        status in
-                            setOf(
-                                StripePaymentStatus.FAILED,
-                                StripePaymentStatus.CANCELED,
-                                StripePaymentStatus.REFUND_PENDING,
-                                StripePaymentStatus.REFUNDING,
-                                StripePaymentStatus.REFUNDED,
-                            )
-                    if (confirmed || terminalPaymentStatus) break
-                    if (attempt < maxAttempts - 1) {
-                        delay(STRIPE_CONFIRMATION_POLL_MS * (attempt + 1))
-                    }
-                }
-
-                val refreshed = latest
-                val status = refreshed?.payment?.status
-                val phase = stripePhaseFromBackend(refreshed)
-                val message =
-                    when (phase) {
-                        StripePaymentPhase.CONFIRMED -> "Pago confirmado por Vaiinilla."
-                        StripePaymentPhase.PENDING ->
-                            when {
-                                localCanceled -> "Pago pendiente. Puedes retomarlo cuando quieras."
-                                localFailureMessage != null ->
-                                    "Vaiinilla aún no confirma un fallo. El pedido sigue pendiente de pago."
-                                lastError != null ->
-                                    lastError.toUserFacingMessage(
-                                        "No pudimos confirmar el estado del pago todavía.",
-                                    )
-                                else ->
-                                    "El pago sigue procesándose. Actualizaremos el estado desde Vaiinilla."
-                            }
-                        StripePaymentPhase.FAILED ->
-                            "El backend confirmó que el pago falló. Puedes reintentarlo."
-                        StripePaymentPhase.CANCELED ->
-                            "El backend confirmó que el pago fue cancelado. Puedes reintentarlo."
-                        StripePaymentPhase.REFUNDING -> "El reembolso está en proceso."
-                        StripePaymentPhase.REFUNDED -> "El pago fue reembolsado."
-                        else -> "Verificando el estado del pago…"
-                    }
-                _uiState.value =
-                    _uiState.value.copy(
-                        createdOrder = refreshed ?: _uiState.value.createdOrder,
-                        stripePaymentPhase = phase,
-                        stripePaymentMessage = message,
-                    )
+        private fun stripeConfirmationMessage(
+            phase: StripePaymentPhase,
+            order: OrderDetail?,
+            lastError: Throwable?,
+        ): String =
+            when (phase) {
+                StripePaymentPhase.CONFIRMED -> "Pago confirmado por Vaiinilla."
+                StripePaymentPhase.FAILED -> "El pago no se completó. Puedes reintentarlo."
+                StripePaymentPhase.CANCELED -> "El pago fue cancelado. Puedes reintentarlo."
+                StripePaymentPhase.TIMED_OUT ->
+                    "Seguimos confirmando tu pago. Actualiza el estado o consulta Mis pedidos."
+                StripePaymentPhase.REFUNDING -> "El reembolso está en proceso."
+                StripePaymentPhase.REFUNDED -> "El pago fue reembolsado."
+                else ->
+                    lastError?.let {
+                        "Seguimos confirmando tu pago. La conexión se reintentará automáticamente."
+                    } ?: order?.payment?.status.confirmationMessage()
             }
-        }
 
         fun clearCreatedOrder() {
-            _uiState.value.createdOrder
+            val currentState = _uiState.value
+            val retainedStripeOrder =
+                listOfNotNull(currentState.createdOrder, currentState.stripeObservedOrder)
+                    .firstOrNull { it.summary.id == currentState.stripePendingOrderId }
+            val keepPendingStripeOrder = currentState.stripePendingOrderId != null
+            stripeConfirmationJob?.cancel()
+            stripeConfirmationJob = null
+            stripeConfirmationOrderId = null
+            currentState.createdOrder
                 ?.summary
                 ?.id
                 ?.let(guestSessionStore::clearPendingStripeRetryIdempotency)
             pendingStripeRetryIdempotencyKey = null
             _uiState.value =
-                _uiState.value.copy(
+                currentState.copy(
                     createdOrder = null,
+                    stripeObservedOrder = if (keepPendingStripeOrder) retainedStripeOrder else null,
                     stripePaymentSession = null,
                     stripePresentationKey = null,
-                    stripePaymentPhase = StripePaymentPhase.IDLE,
-                    stripePaymentMessage = null,
+                    stripePaymentPhase =
+                        if (keepPendingStripeOrder) StripePaymentPhase.PENDING else StripePaymentPhase.IDLE,
+                    stripePaymentMessage =
+                        if (keepPendingStripeOrder) {
+                            "Revisa Mis pedidos para continuar confirmando tu pago."
+                        } else {
+                            null
+                        },
                     retryingStripePayment = false,
                 )
         }
@@ -816,10 +899,6 @@ class OrderFlowViewModel
                     }
                 }
             activeJobs += job
-        }
-
-        private companion object {
-            const val STRIPE_CONFIRMATION_POLL_MS = 500L
         }
     }
 

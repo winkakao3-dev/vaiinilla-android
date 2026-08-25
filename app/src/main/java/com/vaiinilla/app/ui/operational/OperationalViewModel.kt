@@ -11,6 +11,7 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.WalletClient
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
@@ -350,7 +351,12 @@ class OperationalViewModel
 
         fun trackingHint(order: OrderDetail): String =
             when (order.summary.state) {
-                OrderState.PENDING_PAYMENT -> "Pasa a Caja para confirmar el pago en efectivo."
+                OrderState.PENDING_PAYMENT ->
+                    when (order.summary.paymentMethod) {
+                        PaymentMethod.CASH -> "Pasa a Caja para confirmar el pago en efectivo."
+                        PaymentMethod.BALANCE -> "El saldo está pendiente de actualización."
+                        PaymentMethod.STRIPE -> "Estamos verificando el pago con Vaiinilla."
+                    }
                 OrderState.PAID -> "Cocina recibirá la comanda en cuanto abra su pantalla."
                 OrderState.PREPARING -> "Tu pedido se está preparando."
                 OrderState.READY ->

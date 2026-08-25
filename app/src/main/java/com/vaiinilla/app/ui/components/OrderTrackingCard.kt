@@ -59,31 +59,39 @@ private data class TimelineStep(
     val description: (OrderDestination, PaymentMethod, StripePaymentStatus?) -> String,
 )
 
+private fun stripeTimelineTitle(status: StripePaymentStatus?): String =
+    when (status) {
+        StripePaymentStatus.CONFIRMED -> "PAGO CONFIRMADO"
+        StripePaymentStatus.FAILED -> "PAGO NO COMPLETADO"
+        StripePaymentStatus.CANCELED -> "PAGO CANCELADO"
+        StripePaymentStatus.REQUIRES_ACTION -> "ACCIÓN REQUERIDA"
+        StripePaymentStatus.PROCESSING -> "PAGO EN PROCESO"
+        else -> "CONFIRMANDO PAGO"
+    }
+
+private fun stripeTimelineDescription(status: StripePaymentStatus?): String =
+    when (status) {
+        StripePaymentStatus.CONFIRMED -> "Stripe confirmó el pago; Vaiinilla actualizará el pedido."
+        StripePaymentStatus.FAILED -> "El pago no se completó. Puedes reintentarlo desde el pedido."
+        StripePaymentStatus.CANCELED -> "El intento fue cancelado. Puedes reintentarlo desde el pedido."
+        StripePaymentStatus.REQUIRES_ACTION -> "Completa la acción solicitada para continuar."
+        StripePaymentStatus.PROCESSING -> "Stripe está procesando tu pago."
+        else -> "Estamos verificando el pago con Vaiinilla."
+    }
+
 private val timelineSteps =
     listOf(
         TimelineStep(OrderState.PENDING_PAYMENT, { payment, status ->
             when (payment) {
                 PaymentMethod.CASH -> "POR COBRAR"
                 PaymentMethod.BALANCE -> "PAGO CONFIRMADO"
-                PaymentMethod.STRIPE ->
-                    if (status ==
-                        StripePaymentStatus.CONFIRMED
-                    ) {
-                        "PAGO CONFIRMADO"
-                    } else {
-                        "PAGO EN PROCESO"
-                    }
+                PaymentMethod.STRIPE -> stripeTimelineTitle(status)
             }
         }) { _, payment, status ->
             when (payment) {
                 PaymentMethod.CASH -> "Caja espera el pago en efectivo."
                 PaymentMethod.BALANCE -> "Saldo descontado y pedido enviado."
-                PaymentMethod.STRIPE ->
-                    if (status == StripePaymentStatus.CONFIRMED) {
-                        "Stripe confirmado por Vaiinilla."
-                    } else {
-                        "Esperando confirmación segura del pago."
-                    }
+                PaymentMethod.STRIPE -> stripeTimelineDescription(status)
             }
         },
         TimelineStep(OrderState.PAID, { _, _ -> "COBRADO" }) { _, _, _ ->

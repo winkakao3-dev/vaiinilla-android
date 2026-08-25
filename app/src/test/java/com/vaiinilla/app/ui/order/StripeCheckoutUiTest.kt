@@ -71,7 +71,75 @@ class StripeCheckoutUiTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Pago pendiente").assertIsDisplayed()
-        composeTestRule.onAllNodesWithText(message).assertCountEquals(2)
+        composeTestRule.onNodeWithText("Confirmando tu pago").assertIsDisplayed()
+        composeTestRule.onNodeWithText(message).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Total a pagar").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Reintentar pago").assertCountEquals(0)
+        composeTestRule.onAllNodesWithText("Pasa a Caja").assertCountEquals(0)
+    }
+
+    @Test
+    fun `processing Stripe payment shows a waiting state without retry`() {
+        val order =
+            ScreenshotFixtures
+                .sampleOrder(
+                    state = OrderState.PENDING_PAYMENT,
+                    paymentMethod = PaymentMethod.STRIPE,
+                ).copy(
+                    payment =
+                        OrderPayment(
+                            paymentAttemptId = "attempt-1",
+                            paymentIntentId = "pi_test_001",
+                            stripeAccountId = "acct_test_001",
+                            status = StripePaymentStatus.PROCESSING,
+                        ),
+                )
+
+        composeTestRule.setContent {
+            VaiinillaTheme {
+                OrderConfirmationScreen(
+                    order = order,
+                    onReturnToMenu = {},
+                    stripePaymentPhase = StripePaymentPhase.PENDING,
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Pago en proceso").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Reintentar pago").assertCountEquals(0)
+        composeTestRule.onAllNodesWithText("Pasa a Caja").assertCountEquals(0)
+    }
+
+    @Test
+    fun `backend failure enables retry but never shows cash instructions`() {
+        val order =
+            ScreenshotFixtures
+                .sampleOrder(
+                    state = OrderState.PENDING_PAYMENT,
+                    paymentMethod = PaymentMethod.STRIPE,
+                ).copy(
+                    payment =
+                        OrderPayment(
+                            paymentAttemptId = "attempt-1",
+                            paymentIntentId = "pi_test_001",
+                            stripeAccountId = "acct_test_001",
+                            status = StripePaymentStatus.FAILED,
+                        ),
+                )
+
+        composeTestRule.setContent {
+            VaiinillaTheme {
+                OrderConfirmationScreen(
+                    order = order,
+                    onReturnToMenu = {},
+                    stripePaymentPhase = StripePaymentPhase.FAILED,
+                    onRetryStripePayment = {},
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Pago no completado").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Reintentar pago").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Pasa a Caja").assertCountEquals(0)
     }
 }

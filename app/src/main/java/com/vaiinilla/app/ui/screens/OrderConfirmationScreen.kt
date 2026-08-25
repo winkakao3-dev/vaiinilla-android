@@ -87,6 +87,7 @@ fun OrderConfirmationScreen(
     stripePaymentMessage: String? = null,
     retryingStripePayment: Boolean = false,
     onRetryStripePayment: () -> Unit = {},
+    onRefreshStripePayment: () -> Unit = {},
     screenshotPrinted: Boolean = false,
 ) {
     Box(
@@ -100,6 +101,28 @@ fun OrderConfirmationScreen(
         val stripeOrder = order.summary.paymentMethod == PaymentMethod.STRIPE
         val stripeConfirmed = stripeOrder && order.isStripePaymentConfirmedByBackend()
         val stripeAwaitingConfirmation = stripeOrder && !stripeConfirmed
+        val stripeStatusScreen =
+            stripeOrder &&
+                stripePaymentPhase in
+                setOf(
+                    StripePaymentPhase.PROCESSING_CONFIRMATION,
+                    StripePaymentPhase.PENDING,
+                    StripePaymentPhase.TIMED_OUT,
+                    StripePaymentPhase.FAILED,
+                    StripePaymentPhase.CANCELED,
+                )
+        if (stripeStatusScreen) {
+            StripePaymentPendingScreen(
+                order = order,
+                phase = stripePaymentPhase,
+                message = stripePaymentMessage,
+                retrying = retryingStripePayment,
+                onRetry = onRetryStripePayment,
+                onRefresh = onRefreshStripePayment,
+                onViewOrders = onViewTracking,
+            )
+            return@Box
+        }
         val qrPayload = confirmationTicketQrPayload(order)
         Column(
             modifier =
@@ -264,7 +287,6 @@ fun OrderConfirmationScreen(
                     setOf(
                         StripePaymentPhase.FAILED,
                         StripePaymentPhase.CANCELED,
-                        StripePaymentPhase.PENDING,
                     )
             if (canRetryStripe) {
                 Surface(

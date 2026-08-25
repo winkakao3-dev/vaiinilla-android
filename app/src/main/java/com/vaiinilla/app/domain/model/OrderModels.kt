@@ -142,6 +142,8 @@ enum class StripePaymentStatus(
     val label: String,
 ) {
     PENDING("pendiente_pago", "Pendiente"),
+    PROCESSING("processing", "Pago en proceso"),
+    REQUIRES_ACTION("requires_action", "Acción requerida"),
     CONFIRMED("confirmado", "Confirmado"),
     FAILED("fallido", "Fallido"),
     CANCELED("cancelado", "Cancelado"),
@@ -151,7 +153,10 @@ enum class StripePaymentStatus(
     ;
 
     val canRetry: Boolean
-        get() = this == FAILED || this == CANCELED || this == PENDING
+        get() = this == FAILED || this == CANCELED
+
+    val isAwaitingConfirmation: Boolean
+        get() = this == PENDING || this == PROCESSING || this == REQUIRES_ACTION
 
     companion object {
         fun fromWireValue(value: String): StripePaymentStatus =

@@ -7,6 +7,8 @@ import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.ui.order.StripePaymentPhase
+import com.vaiinilla.app.ui.order.canCreateOrder
+import com.vaiinilla.app.ui.order.canSubmitCart
 import com.vaiinilla.app.ui.order.stripePhaseFromBackend
 import com.vaiinilla.app.ui.order.toRuntimeConfiguration
 import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
@@ -45,10 +47,24 @@ class StripeCheckoutPolicyTest {
 
     @Test
     fun `processing or requires action remain backend pending and never false-confirm`() {
-        val order = stripeOrder(OrderState.PENDING_PAYMENT, StripePaymentStatus.PENDING)
+        listOf(StripePaymentStatus.PROCESSING, StripePaymentStatus.REQUIRES_ACTION).forEach { status ->
+            val order = stripeOrder(OrderState.PENDING_PAYMENT, status)
 
-        assertEquals(StripePaymentPhase.PENDING, stripePhaseFromBackend(order))
-        assertFalse(order.isStripePaymentConfirmedByBackend())
+            assertEquals(StripePaymentPhase.PENDING, stripePhaseFromBackend(order))
+            assertFalse(order.isStripePaymentConfirmedByBackend())
+            assertFalse(status.canRetry)
+        }
+    }
+
+    @Test
+    fun `unresolved Stripe payment blocks a second order`() {
+        val state =
+            ScreenshotFixtures
+                .cartState(paymentMethod = PaymentMethod.STRIPE)
+                .copy(stripePendingOrderId = "order-pending")
+
+        assertFalse(state.canSubmitCart)
+        assertFalse(state.canCreateOrder)
     }
 
     @Test

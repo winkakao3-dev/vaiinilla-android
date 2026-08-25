@@ -32,6 +32,8 @@ data class OrderFlowUiState(
     val creatingOrder: Boolean = false,
     val createOrderError: String? = null,
     val createdOrder: OrderDetail? = null,
+    val stripeObservedOrder: OrderDetail? = null,
+    val stripePendingOrderId: String? = null,
     val stripePaymentSession: StripePaymentSession? = null,
     val stripePresentationKey: String? = null,
     val stripePaymentPhase: StripePaymentPhase = StripePaymentPhase.IDLE,
@@ -88,7 +90,10 @@ val OrderFlowUiState.isOperationallyReady: Boolean
         } == true
 
 val OrderFlowUiState.canSubmitCart: Boolean
-    get() = cartLines.isNotEmpty() && !creatingOrder
+    get() = cartLines.isNotEmpty() && !creatingOrder && !hasUnresolvedStripePayment
+
+val OrderFlowUiState.hasUnresolvedStripePayment: Boolean
+    get() = !stripePendingOrderId.isNullOrBlank()
 
 val OrderFlowUiState.requiresOperationalReady: Boolean
     get() =
@@ -145,6 +150,7 @@ enum class StripePaymentPhase {
     PRESENTING,
     PROCESSING_CONFIRMATION,
     PENDING,
+    TIMED_OUT,
     CONFIRMED,
     FAILED,
     CANCELED,
