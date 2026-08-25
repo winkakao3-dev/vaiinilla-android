@@ -9,9 +9,11 @@ import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.StripePaymentSession
+import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.ui.assistant.AssistantChatMessage
 
 data class OrderFlowUiState(
@@ -39,10 +41,54 @@ data class OrderFlowUiState(
     val stripePaymentPhase: StripePaymentPhase = StripePaymentPhase.IDLE,
     val stripePaymentMessage: String? = null,
     val retryingStripePayment: Boolean = false,
+    val purchaseCelebration: PurchaseCelebration? = null,
     val guestVenue: GuestVenueContext? = null,
     val guestVenueSuspended: Boolean = false,
     val assistantChatMessages: List<AssistantChatMessage> = emptyList(),
 )
+
+/** A one-shot visual confirmation for the order currently being created. */
+data class PurchaseCelebration(
+    val orderId: String,
+    val kind: PurchaseCelebrationKind,
+)
+
+enum class PurchaseCelebrationKind {
+    PAYMENT_CONFIRMED,
+    ORDER_RECEIVED,
+}
+
+internal fun purchaseCelebrationFor(order: OrderDetail): PurchaseCelebration? =
+    when (order.summary.paymentMethod) {
+        PaymentMethod.CASH ->
+            PurchaseCelebration(
+                orderId = order.summary.id,
+                kind = PurchaseCelebrationKind.ORDER_RECEIVED,
+            )
+        PaymentMethod.BALANCE ->
+            order
+                .takeIf {
+                    it.summary.state in
+                        setOf(
+                            OrderState.PAID,
+                            OrderState.PREPARING,
+                            OrderState.READY,
+                            OrderState.DELIVERED,
+                        )
+                }?.let {
+                    PurchaseCelebration(
+                        orderId = it.summary.id,
+                        kind = PurchaseCelebrationKind.PAYMENT_CONFIRMED,
+                    )
+                }
+        PaymentMethod.STRIPE ->
+            order.takeIf { it.isStripePaymentConfirmedByBackend() }?.let {
+                PurchaseCelebration(
+                    orderId = it.summary.id,
+                    kind = PurchaseCelebrationKind.PAYMENT_CONFIRMED,
+                )
+            }
+    }
 
 val OrderFlowUiState.selectedProduct: Product?
     get() = catalog?.products?.firstOrNull { it.id == selectedProductId }

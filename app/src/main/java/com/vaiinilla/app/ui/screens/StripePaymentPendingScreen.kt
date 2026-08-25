@@ -29,6 +29,7 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Sync
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -84,6 +85,7 @@ fun StripePaymentPendingScreen(
             failed -> "Pago no completado"
             canceled -> "Pago cancelado"
             timedOut -> "Seguimos confirmando tu pago"
+            phase == StripePaymentPhase.PROCESSING_CONFIRMATION -> "Procesando compra"
             status == StripePaymentStatus.PROCESSING -> "Pago en proceso"
             status == StripePaymentStatus.REQUIRES_ACTION -> "Necesitamos completar una acción"
             else -> "Confirmando tu pago"
@@ -173,6 +175,13 @@ fun StripePaymentPendingScreen(
                             }.background(StripePanel, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
+                    if (displayedWaiting) {
+                        CircularProgressIndicator(
+                            color = displayedTint,
+                            strokeWidth = 3.dp,
+                            modifier = Modifier.size(96.dp),
+                        )
+                    }
                     Icon(
                         imageVector = displayedIcon,
                         contentDescription =

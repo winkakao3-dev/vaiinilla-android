@@ -129,6 +129,7 @@ class OrderFlowViewModel
                         if (switchingEstablishment) StripePaymentPhase.IDLE else previous.stripePaymentPhase,
                     stripePaymentMessage = if (switchingEstablishment) null else previous.stripePaymentMessage,
                     retryingStripePayment = if (switchingEstablishment) false else previous.retryingStripePayment,
+                    purchaseCelebration = if (switchingEstablishment) null else previous.purchaseCelebration,
                     checkoutDestination =
                         if (venue.space != null) {
                             OrderDestination.IN_SPACE
@@ -560,6 +561,7 @@ class OrderFlowViewModel
                         guestSessionStore.clearPendingCreateIdempotency()
                         pendingStripeRetryIdempotencyKey = null
                         val stripeSession = created.stripeSession
+                        val purchaseCelebration = purchaseCelebrationFor(created.order)
                         val stripePendingOrderId =
                             stripeSession?.let {
                                 created.order.summary.id.also(
@@ -582,6 +584,7 @@ class OrderFlowViewModel
                                     if (stripeSession != null) StripePaymentPhase.READY else StripePaymentPhase.IDLE,
                                 stripePaymentMessage =
                                     if (stripeSession != null) "Elige cómo pagar de forma segura." else null,
+                                purchaseCelebration = purchaseCelebration,
                                 createOrderError = null,
                             )
                         activeCartStorageKey?.let { guestSessionStore.clearCart(it) }
@@ -649,7 +652,7 @@ class OrderFlowViewModel
             val orderId = currentStripeOrder()?.summary?.id ?: return
             startStripeConfirmation(
                 orderId = orderId,
-                initialMessage = "Confirmando tu pago…",
+                initialMessage = "Procesando compra…",
             )
         }
 
@@ -657,7 +660,7 @@ class OrderFlowViewModel
             val orderId = currentStripeOrder()?.summary?.id ?: return
             startStripeConfirmation(
                 orderId = orderId,
-                initialMessage = "Confirmando el estado de tu pago…",
+                initialMessage = "Verificando el intento de pago…",
             )
         }
 
@@ -667,7 +670,7 @@ class OrderFlowViewModel
             val orderId = currentStripeOrder()?.summary?.id ?: return
             startStripeConfirmation(
                 orderId = orderId,
-                initialMessage = "Verificando el intento de pago…",
+                initialMessage = "Procesando compra…",
             )
         }
 
@@ -771,6 +774,11 @@ class OrderFlowViewModel
             return candidates.firstOrNull { orderId == null || it.summary.id == orderId }
         }
 
+        fun completePurchaseCelebration(orderId: String) {
+            if (_uiState.value.purchaseCelebration?.orderId != orderId) return
+            _uiState.value = _uiState.value.copy(purchaseCelebration = null)
+        }
+
         private fun startStripeConfirmation(
             orderId: String,
             initialMessage: String? = null,
@@ -789,8 +797,8 @@ class OrderFlowViewModel
                     stripePendingOrderId = orderId,
                     stripePaymentSession = null,
                     stripePresentationKey = null,
-                    stripePaymentPhase = StripePaymentPhase.PENDING,
-                    stripePaymentMessage = initialMessage ?: "Confirmando tu pago…",
+                    stripePaymentPhase = StripePaymentPhase.PROCESSING_CONFIRMATION,
+                    stripePaymentMessage = initialMessage ?: "Procesando compra…",
                 )
 
             val job =
@@ -837,11 +845,24 @@ class OrderFlowViewModel
             if (unlockPendingOrder) {
                 guestSessionStore.clearPendingStripeConfirmationOrderId(requireNotNull(order).summary.id)
             }
+            val shouldCelebrateStripe =
+                phase == StripePaymentPhase.CONFIRMED &&
+                    order != null &&
+                    current.createdOrder?.summary?.id == order.summary.id
             _uiState.value =
                 next.copy(
                     stripePendingOrderId = if (unlockPendingOrder) null else next.stripePendingOrderId,
                     stripePaymentPhase = phase,
                     stripePaymentMessage = message,
+                    purchaseCelebration =
+                        if (shouldCelebrateStripe) {
+                            PurchaseCelebration(
+                                orderId = requireNotNull(order).summary.id,
+                                kind = PurchaseCelebrationKind.PAYMENT_CONFIRMED,
+                            )
+                        } else {
+                            next.purchaseCelebration
+                        },
                 )
         }
 
@@ -854,6 +875,8 @@ class OrderFlowViewModel
                 StripePaymentPhase.CONFIRMED -> "Pago confirmado por Vaiinilla."
                 StripePaymentPhase.FAILED -> "El pago no se completó. Puedes reintentarlo."
                 StripePaymentPhase.CANCELED -> "El pago fue cancelado. Puedes reintentarlo."
+                StripePaymentPhase.PROCESSING_CONFIRMATION -> "Procesando compra…"
+                StripePaymentPhase.PENDING -> "Estamos verificando tu pago con Vaiinilla."
                 StripePaymentPhase.TIMED_OUT ->
                     "Seguimos confirmando tu pago. Actualiza el estado o consulta Mis pedidos."
                 StripePaymentPhase.REFUNDING -> "El reembolso está en proceso."
@@ -902,6 +925,7 @@ class OrderFlowViewModel
                             null
                         },
                     retryingStripePayment = false,
+                    purchaseCelebration = null,
                 )
         }
 

@@ -6,9 +6,11 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
+import com.vaiinilla.app.ui.order.PurchaseCelebrationKind
 import com.vaiinilla.app.ui.order.StripePaymentPhase
 import com.vaiinilla.app.ui.order.canCreateOrder
 import com.vaiinilla.app.ui.order.canSubmitCart
+import com.vaiinilla.app.ui.order.purchaseCelebrationFor
 import com.vaiinilla.app.ui.order.stripePhaseFromBackend
 import com.vaiinilla.app.ui.order.toRuntimeConfiguration
 import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
@@ -98,6 +100,27 @@ class StripeCheckoutPolicyTest {
         assertEquals(StripePaymentPhase.PENDING, stripePhaseFromBackend(stillPending))
         assertEquals(StripePaymentPhase.FAILED, stripePhaseFromBackend(failed))
         assertEquals(StripePaymentPhase.CANCELED, stripePhaseFromBackend(canceled))
+    }
+
+    @Test
+    fun `purchase celebration distinguishes authorization from cash receipt`() {
+        val cash =
+            ScreenshotFixtures.sampleOrder(
+                state = OrderState.PENDING_PAYMENT,
+                paymentMethod = PaymentMethod.CASH,
+            )
+        val balance =
+            ScreenshotFixtures.sampleOrder(
+                state = OrderState.PAID,
+                paymentMethod = PaymentMethod.BALANCE,
+            )
+        val stripeConfirmed = stripeOrder(OrderState.PAID, StripePaymentStatus.CONFIRMED)
+        val stripePending = stripeOrder(OrderState.PENDING_PAYMENT, StripePaymentStatus.PENDING)
+
+        assertEquals(PurchaseCelebrationKind.ORDER_RECEIVED, purchaseCelebrationFor(cash)?.kind)
+        assertEquals(PurchaseCelebrationKind.PAYMENT_CONFIRMED, purchaseCelebrationFor(balance)?.kind)
+        assertEquals(PurchaseCelebrationKind.PAYMENT_CONFIRMED, purchaseCelebrationFor(stripeConfirmed)?.kind)
+        assertEquals(null, purchaseCelebrationFor(stripePending))
     }
 
     private fun stripeOrder(

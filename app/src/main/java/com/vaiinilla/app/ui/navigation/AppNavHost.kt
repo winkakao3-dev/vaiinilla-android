@@ -843,6 +843,8 @@ fun AppNavHost(
                     retryingStripePayment = orderState.retryingStripePayment,
                     onRetryStripePayment = orderFlowViewModel::retryStripePayment,
                     onRefreshStripePayment = orderFlowViewModel::refreshStripePaymentStatus,
+                    purchaseCelebration = orderState.purchaseCelebration,
+                    onPurchaseCelebrationFinished = orderFlowViewModel::completePurchaseCelebration,
                     order = confirmationOrder,
                     onReturnToMenu = {
                         if (isFreshConfirmation) {

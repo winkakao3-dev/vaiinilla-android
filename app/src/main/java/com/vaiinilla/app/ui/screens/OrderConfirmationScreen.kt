@@ -47,6 +47,7 @@ import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.order.PurchaseCelebration
 import com.vaiinilla.app.ui.order.StripePaymentPhase
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 
@@ -88,6 +89,8 @@ fun OrderConfirmationScreen(
     retryingStripePayment: Boolean = false,
     onRetryStripePayment: () -> Unit = {},
     onRefreshStripePayment: () -> Unit = {},
+    purchaseCelebration: PurchaseCelebration? = null,
+    onPurchaseCelebrationFinished: (String) -> Unit = {},
     screenshotPrinted: Boolean = false,
 ) {
     Box(
@@ -97,6 +100,15 @@ fun OrderConfirmationScreen(
                 .background(TicketBg),
     ) {
         if (order == null) return@Box
+        val activeCelebration = purchaseCelebration?.takeIf { it.orderId == order.summary.id }
+        if (activeCelebration != null) {
+            PurchaseSuccessScreen(
+                order = order,
+                kind = activeCelebration.kind,
+                onFinished = { onPurchaseCelebrationFinished(activeCelebration.orderId) },
+            )
+            return@Box
+        }
         val cashPending = confirmationCashPending(order)
         val stripeOrder = order.summary.paymentMethod == PaymentMethod.STRIPE
         val stripeConfirmed = stripeOrder && order.isStripePaymentConfirmedByBackend()
