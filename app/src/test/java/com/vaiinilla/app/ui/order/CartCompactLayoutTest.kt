@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.screens.CartScreen
@@ -62,10 +63,15 @@ class CartCompactLayoutTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Pago").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Pago").assertCountEquals(0)
+        composeTestRule.onAllNodesWithText("Tarjeta").assertCountEquals(0)
         composeTestRule.onAllNodesWithText("Sin costo de entrega").assertCountEquals(0)
         composeTestRule.onNodeWithText("Añadir nota para cocina").assertIsDisplayed()
         composeTestRule.onNodeWithText("Subtotal").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Confirmar pedido").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Pagar").assertIsDisplayed().performClick()
+        composeTestRule.onNodeWithText("¿Cómo quieres pagar?").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Efectivo").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Saldo Vaiinilla").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Tarjeta").assertIsDisplayed()
     }
 }

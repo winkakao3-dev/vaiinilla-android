@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
@@ -26,7 +27,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Remove
@@ -35,10 +39,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -46,6 +55,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.Category
@@ -56,7 +67,6 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.components.CheckoutDestinationPicker
-import com.vaiinilla.app.ui.components.CheckoutPaymentPicker
 import com.vaiinilla.app.ui.components.CheckoutSpaceOption
 import com.vaiinilla.app.ui.components.CheckoutSpacePicker
 import com.vaiinilla.app.ui.components.EmptyState
@@ -98,6 +108,7 @@ fun CartScreen(
     val haptics = rememberVaiinillaHaptics()
     val density = LocalDensity.current
     val imeVisible = WindowInsets.ime.getBottom(density) > 0
+    var paymentDialogOpen by remember { mutableStateOf(false) }
     val checkoutSpaces =
         state.guestVenue
             ?.space
@@ -119,7 +130,7 @@ fun CartScreen(
     val destinationLabel =
         when (state.checkoutDestination) {
             OrderDestination.TAKE_AWAY -> "Para llevar"
-            OrderDestination.IN_SPACE -> "En mesa"
+            OrderDestination.IN_SPACE -> "Comer aquí"
         }
     val productCountLabel =
         if (state.cartLines.size == 1) {
@@ -223,17 +234,6 @@ fun CartScreen(
                     }
                 }
                 item {
-                    Spacer(Modifier.height(22.dp))
-                    CartSectionHead("Pago", "Elige tu método")
-                    CheckoutPaymentPicker(
-                        selected = state.checkoutPayment,
-                        onSelect = {
-                            haptics.selection()
-                            onPaymentChange(it)
-                        },
-                    )
-                }
-                item {
                     Spacer(Modifier.height(16.dp))
                     CartNotesField(
                         value = state.kitchenNotes,
@@ -288,8 +288,149 @@ fun CartScreen(
                     loading = state.creatingOrder,
                     onClick = {
                         haptics.impact()
-                        onConfirm()
+                        paymentDialogOpen = true
                     },
+                )
+            }
+        }
+
+        if (paymentDialogOpen) {
+            PaymentMethodDialog(
+                onDismiss = { paymentDialogOpen = false },
+                onSelect = { method ->
+                    paymentDialogOpen = false
+                    haptics.selection()
+                    onPaymentChange(method)
+                    onConfirm()
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun PaymentMethodDialog(
+    onDismiss: () -> Unit,
+    onSelect: (PaymentMethod) -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    var selectionLocked by remember { mutableStateOf(false) }
+
+    fun selectOnce(method: PaymentMethod) {
+        if (selectionLocked) return
+        selectionLocked = true
+        onSelect(method)
+    }
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = colors.paper,
+                shape = RoundedCornerShape(28.dp),
+                shadowElevation = 12.dp,
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        "¿Cómo quieres pagar?",
+                        color = colors.ink,
+                        fontSize = 24.sp,
+                        lineHeight = 28.sp,
+                        fontWeight = FontWeight.Black,
+                    )
+                    Text(
+                        "Elige una opción para continuar con tu pedido.",
+                        color = colors.muted,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    PaymentDialogOption(
+                        icon = Icons.Outlined.Payments,
+                        title = "Efectivo",
+                        subtitle = "Paga en Caja antes de que preparen tu pedido.",
+                        onClick = { selectOnce(PaymentMethod.CASH) },
+                    )
+                    PaymentDialogOption(
+                        icon = Icons.Outlined.AccountBalanceWallet,
+                        title = "Saldo Vaiinilla",
+                        subtitle = "Usa el saldo disponible de tu cuenta.",
+                        onClick = { selectOnce(PaymentMethod.BALANCE) },
+                    )
+                    PaymentDialogOption(
+                        icon = Icons.Outlined.CreditCard,
+                        title = "Tarjeta",
+                        subtitle = "Continúa al pago seguro con Stripe.",
+                        onClick = { selectOnce(PaymentMethod.STRIPE) },
+                    )
+                    Surface(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .physicalPress(enabled = !selectionLocked, onClick = onDismiss),
+                        color = colors.paper2,
+                        shape = RoundedCornerShape(16.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("Cancelar", color = colors.ink, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PaymentDialogOption(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Surface(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .physicalPress(onClick = onClick),
+        color = colors.paper2,
+        shape = RoundedCornerShape(18.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 15.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(44.dp)
+                        .background(colors.paper, RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(22.dp))
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, color = colors.ink, fontSize = 16.sp, fontWeight = FontWeight.Black)
+                Text(
+                    subtitle,
+                    color = colors.muted,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    modifier = Modifier.padding(top = 2.dp),
                 )
             }
         }
@@ -455,8 +596,8 @@ private fun CartSectionHead(
 @Composable
 private fun confirmLabel(guestAuthRequired: Boolean): String =
     when {
-        guestAuthRequired -> "Continuar para confirmar"
-        else -> "Confirmar pedido"
+        guestAuthRequired -> "Continuar para pagar"
+        else -> "Pagar"
     }
 
 @Composable
@@ -795,7 +936,7 @@ private fun OrderSummaryCard(state: OrderFlowUiState) {
     val destinationLabel =
         when (state.checkoutDestination) {
             OrderDestination.TAKE_AWAY -> "Para llevar"
-            OrderDestination.IN_SPACE -> state.selectedSpaceName.ifBlank { "En mesa" }
+            OrderDestination.IN_SPACE -> state.selectedSpaceName.ifBlank { "Comer aquí" }
         }
     Surface(
         modifier = Modifier.fillMaxWidth(),

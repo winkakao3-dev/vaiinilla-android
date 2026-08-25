@@ -225,8 +225,8 @@ fun CheckoutDestinationPicker(
         )
         if (showInSpace) {
             DestinationOption(
-                title = "En mesa",
-                subtitle = "Te lo llevamos al estar listo",
+                title = "Comer aquí",
+                subtitle = "Te lo llevamos a tu espacio",
                 detail = selectedSpaceName.ifBlank { "Dentro del establecimiento" },
                 icon = Icons.Outlined.Restaurant,
                 selected = selected == OrderDestination.IN_SPACE,

@@ -657,11 +657,20 @@ class OrderFlowViewModel
         }
 
         fun onStripePaymentSheetCanceled() {
-            val orderId = currentStripeOrder()?.summary?.id ?: return
-            startStripeConfirmation(
-                orderId = orderId,
-                initialMessage = "Verificando el intento de pago…",
-            )
+            val order = currentStripeOrder() ?: return
+            val orderId = order.summary.id
+            stripeConfirmationJob?.cancel()
+            stripeConfirmationJob = null
+            stripeConfirmationOrderId = null
+            guestSessionStore.clearPendingStripeConfirmationOrderId(orderId)
+            _uiState.value =
+                _uiState.value.copy(
+                    stripePendingOrderId = null,
+                    stripePaymentSession = null,
+                    stripePresentationKey = null,
+                    stripePaymentPhase = StripePaymentPhase.CANCELED,
+                    stripePaymentMessage = "Saliste del pago. No se hizo ningún cargo desde esta pantalla.",
+                )
         }
 
         fun onStripePaymentSheetFailed(
@@ -717,7 +726,12 @@ class OrderFlowViewModel
             val order = currentStripeOrder() ?: return
             if (order.summary.paymentMethod != PaymentMethod.STRIPE || _uiState.value.retryingStripePayment) return
             val paymentStatus = order.payment?.status
-            if (paymentStatus !in setOf(StripePaymentStatus.FAILED, StripePaymentStatus.CANCELED)) return
+            val locallyCanceled = _uiState.value.stripePaymentPhase == StripePaymentPhase.CANCELED
+            if (!locallyCanceled &&
+                paymentStatus !in setOf(StripePaymentStatus.FAILED, StripePaymentStatus.CANCELED)
+            ) {
+                return
+            }
 
             val key =
                 pendingStripeRetryIdempotencyKey
