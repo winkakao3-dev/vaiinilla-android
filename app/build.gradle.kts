@@ -31,9 +31,9 @@ fun readConfig(
     environmentName: String,
     defaultValue: String,
 ): String =
-    providers.gradleProperty(name).orNull
-        ?: providers.environmentVariable(environmentName).orNull
-        ?: localProperties.getProperty(name)
+    providers.gradleProperty(name).orNull?.takeIf(String::isNotBlank)
+        ?: providers.environmentVariable(environmentName).orNull?.takeIf(String::isNotBlank)
+        ?: localProperties.getProperty(name)?.takeIf(String::isNotBlank)
         ?: defaultValue
 
 fun escapeBuildConfig(value: String): String =
@@ -47,6 +47,15 @@ val selectedApiBaseUrl =
         "vaiinillaApiBaseUrl",
         "VAIINILLA_API_BASE_URL",
         "https://localhost.invalid/api/v1/",
+    )
+
+// Debug/preview builds should be installable without requiring every developer
+// to create local.properties first. Release still requires an explicit URL.
+val selectedDebugApiBaseUrl =
+    readConfig(
+        "vaiinillaApiBaseUrl",
+        "VAIINILLA_API_BASE_URL",
+        "https://vaiinillaback-development-3f6c.up.railway.app/api/v1/",
     )
 
 val releaseApiBaseUrl =
@@ -146,6 +155,7 @@ android {
 
     buildTypes {
         getByName("debug") {
+            buildConfigField("String", "API_BASE_URL", "\"$selectedDebugApiBaseUrl\"")
             buildConfigField("boolean", "SEED_AUTH_ENABLED", "true")
             buildConfigField(
                 "String",
@@ -195,6 +205,7 @@ android {
             initWith(getByName("release"))
             matchingFallbacks += listOf("release", "debug")
             signingConfig = signingConfigs.getByName("debug")
+            buildConfigField("String", "API_BASE_URL", "\"$selectedDebugApiBaseUrl\"")
             buildConfigField("boolean", "SEED_AUTH_ENABLED", "true")
             buildConfigField(
                 "String",

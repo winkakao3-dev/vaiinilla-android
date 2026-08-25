@@ -142,6 +142,8 @@ sdk.dir=/path/to/Android/sdk
 vaiinillaApiBaseUrl=https://.../api/v1/
 ```
 
+Los builds `debug` y `preview` usan por defecto el backend de desarrollo documentado si no existe `local.properties`; una URL explícita sigue teniendo prioridad. Los builds `release` siempre requieren una URL explícita.
+
 Las contraseñas de cuentas seed son opcionales, sólo se usan en builds de depuración/preview y deben permanecer en `local.properties` o propiedades Gradle. **Nunca se deben subir credenciales al repositorio.**
 
 La configuración Firebase del proyecto Android está en `app/google-services.json`; no contiene las contraseñas seed.
