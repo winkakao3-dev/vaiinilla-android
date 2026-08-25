@@ -4,7 +4,7 @@
 sdk.dir=/path/to/Android/sdk
 
 # Backend Railway de desarrollo (Saúl)
-vaiinillaApiBaseUrl=https://vaiinillaback-development.up.railway.app/api/v1/
+vaiinillaApiBaseUrl=https://vaiinillaback-development-3f6c.up.railway.app/api/v1/
 
 # Debug: passwords seed Firebase (solo local.properties, nunca en git).
 # Tras rotar en Firebase Console / Identity Toolkit, pégalos aquí.
