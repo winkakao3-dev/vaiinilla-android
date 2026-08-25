@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.PointOfSale
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.RoomService
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -25,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -306,18 +308,35 @@ private fun CashCollectionCard(
     restrictedMode: RestrictedMode?,
 ) {
     val colors = LocalVaiinillaColors.current
-    var received by remember(order.summary.id) { mutableStateOf(order.summary.total) }
+    var received by remember(order.summary.id) { mutableStateOf("") }
+    var confirmOpen by remember(order.summary.id) { mutableStateOf(false) }
+    val normalizedReceived = received.trim().replace(',', '.')
+    val receivedAmount = runCatching { BigDecimal(normalizedReceived) }.getOrNull()
+    val totalAmount = runCatching { BigDecimal(order.summary.total) }.getOrNull()
     val change =
-        runCatching {
-            BigDecimal(received).subtract(BigDecimal(order.summary.total))
-        }.getOrNull()
+        if (receivedAmount != null && totalAmount != null) {
+            receivedAmount.subtract(totalAmount)
+        } else {
+            null
+        }
+    val canReview =
+        !acting &&
+            restrictedMode != RestrictedMode.READ_ONLY &&
+            receivedAmount != null &&
+            receivedAmount > BigDecimal.ZERO &&
+            change != null &&
+            change >= BigDecimal.ZERO
+
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         OutlinedTextField(
             value = received,
-            onValueChange = { received = it },
+            onValueChange = { value ->
+                received = value.filter { it.isDigit() || it == '.' || it == ',' }.take(12)
+            },
             modifier = Modifier.fillMaxWidth(),
-            enabled = restrictedMode != RestrictedMode.READ_ONLY,
+            enabled = restrictedMode != RestrictedMode.READ_ONLY && !acting,
             label = { Text("Efectivo recibido", color = colors.muted) },
+            placeholder = { Text("Escribe el monto entregado por el alumno") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             singleLine = true,
             colors =
@@ -330,23 +349,57 @@ private fun CashCollectionCard(
         )
         Text(
             text =
-                if (change != null && change >= BigDecimal.ZERO) {
-                    "Cambio: ${moneyLabel(change.toPlainString())}"
-                } else {
-                    "Monto insuficiente"
+                when {
+                    received.isBlank() -> "Total a cobrar: ${moneyLabel(order.summary.total)}"
+                    change != null && change >= BigDecimal.ZERO -> "Cambio: ${moneyLabel(change.toPlainString())}"
+                    else -> "Monto insuficiente"
                 },
-            color = if (change != null && change >= BigDecimal.ZERO) colors.ink else Coral,
+            color = if (received.isNotBlank() && (change == null || change < BigDecimal.ZERO)) Coral else colors.ink,
             fontWeight = FontWeight.Bold,
         )
         OrderSummaryCard(
             order = order,
-            actionLabel = "Confirmar cobro",
-            enabled =
-                !acting &&
-                    restrictedMode != RestrictedMode.READ_ONLY &&
-                    change != null &&
-                    change >= BigDecimal.ZERO,
-            onAction = { onCollect(order.summary.id, received, order.summary.version) },
+            actionLabel = "Revisar cobro",
+            enabled = canReview,
+            onAction = { confirmOpen = true },
+        )
+    }
+
+    if (confirmOpen) {
+        AlertDialog(
+            onDismissRequest = { if (!acting) confirmOpen = false },
+            title = { Text("Verifica el cobro") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Pedido #${order.summary.folio}")
+                    Text("Total: ${moneyLabel(order.summary.total)}", fontWeight = FontWeight.Bold)
+                    Text("Recibido: ${moneyLabel(receivedAmount?.toPlainString() ?: normalizedReceived)}")
+                    Text("Cambio: ${moneyLabel(change?.toPlainString() ?: "0.00")}")
+                    Text(
+                        "Confirma solo después de contar el efectivo. Esta acción registra el pago y no debe repetirse.",
+                        color = colors.muted,
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        confirmOpen = false
+                        onCollect(order.summary.id, normalizedReceived, order.summary.version)
+                    },
+                    enabled = canReview,
+                ) {
+                    Text("Confirmar efectivo")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { confirmOpen = false },
+                    enabled = !acting,
+                ) {
+                    Text("Volver")
+                }
+            },
         )
     }
 }
