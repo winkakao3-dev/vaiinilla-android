@@ -13,20 +13,20 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Remove
@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -63,7 +64,6 @@ import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.moneyLabel
-import com.vaiinilla.app.ui.components.paymentMethodLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.OrderFlowUiState
@@ -96,6 +96,8 @@ fun CartScreen(
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
+    val density = LocalDensity.current
+    val imeVisible = WindowInsets.ime.getBottom(density) > 0
     val checkoutSpaces =
         state.guestVenue
             ?.space
@@ -142,8 +144,8 @@ fun CartScreen(
                 PaddingValues(
                     start = 20.dp,
                     end = 20.dp,
-                    top = 10.dp,
-                    bottom = VaiinillaBottomNavClearance + 78.dp,
+                    top = 8.dp,
+                    bottom = VaiinillaBottomNavClearance + 126.dp,
                 ),
             verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
@@ -159,20 +161,20 @@ fun CartScreen(
             }
             item {
                 Text(
-                    "Revisa antes de pedir",
+                    "REVISA Y CONFIRMA",
                     color = colors.muted,
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.2.sp,
+                    letterSpacing = 2.2.sp,
                 )
                 Text(
                     "Tu pedido",
                     color = colors.ink,
-                    fontSize = 36.sp,
-                    lineHeight = 40.sp,
+                    fontSize = 38.sp,
+                    lineHeight = 42.sp,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = (-1.6).sp,
+                    letterSpacing = (-1.8).sp,
                     modifier = Modifier.padding(top = 4.dp, bottom = 24.dp),
                 )
             }
@@ -180,23 +182,23 @@ fun CartScreen(
             if (state.cartLines.isEmpty()) {
                 item { EmptyCart(onMenu) }
             } else {
-                items(state.cartLines, key = CartLine::key) { line ->
-                    CartLineCard(
-                        line = line,
-                        onMinus = {
+                item {
+                    CartSectionHead("Pedido", productCountLabel)
+                    CartItemsPanel(
+                        lines = state.cartLines,
+                        onQuantityChange = { lineKey, delta ->
                             haptics.click()
-                            onQuantityChange(line.key, -1)
-                        },
-                        onPlus = {
-                            haptics.click()
-                            onQuantityChange(line.key, 1)
+                            onQuantityChange(lineKey, delta)
                         },
                     )
-                    Spacer(Modifier.height(12.dp))
                 }
 
                 item {
-                    CartSectionHead("Entrega", destinationLabel)
+                    Spacer(Modifier.height(22.dp))
+                    CartSectionHead(
+                        title = "Entrega",
+                        meta = if (canChooseInSpace) "Elige cómo recibirlo" else "Recoge en barra",
+                    )
                     CheckoutDestinationPicker(
                         selected = state.checkoutDestination,
                         selectedSpaceName = state.selectedSpaceName,
@@ -209,7 +211,7 @@ fun CartScreen(
                 }
                 if (state.checkoutDestination == OrderDestination.IN_SPACE && checkoutSpaces.isNotEmpty()) {
                     item {
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(14.dp))
                         CheckoutSpacePicker(
                             selectedSpaceId = state.selectedSpaceId ?: checkoutSpaces.first().id,
                             spaces = checkoutSpaces,
@@ -221,8 +223,8 @@ fun CartScreen(
                     }
                 }
                 item {
-                    Spacer(Modifier.height(32.dp))
-                    CartSectionHead("Pago", "Elige uno")
+                    Spacer(Modifier.height(22.dp))
+                    CartSectionHead("Pago", "Elige tu método")
                     CheckoutPaymentPicker(
                         selected = state.checkoutPayment,
                         onSelect = {
@@ -232,16 +234,14 @@ fun CartScreen(
                     )
                 }
                 item {
-                    Spacer(Modifier.height(32.dp))
-                    CartSectionHead("Notas", "Opcional")
+                    Spacer(Modifier.height(16.dp))
                     CartNotesField(
                         value = state.kitchenNotes,
                         onValueChange = onNotesChange,
                     )
                 }
                 item {
-                    Spacer(Modifier.height(32.dp))
-                    CartSectionHead("Resumen", productCountLabel)
+                    Spacer(Modifier.height(16.dp))
                     OrderSummaryCard(state = state)
                 }
                 val blockerMessage =
@@ -267,17 +267,22 @@ fun CartScreen(
             }
         }
 
-        if (state.cartLines.isNotEmpty()) {
+        if (shouldShowCheckoutDock(state.cartLines.isNotEmpty(), imeVisible)) {
             Box(
                 modifier =
                     Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                         .windowInsetsPadding(WindowInsets.navigationBars)
-                        .padding(start = 20.dp, end = 20.dp, bottom = 90.dp),
+                        .padding(
+                            start = 16.dp,
+                            end = 16.dp,
+                            bottom = VaiinillaBottomNavClearance + 2.dp,
+                        ),
             ) {
                 CheckoutDockButton(
                     label = confirmLabel(guestAuthRequired),
+                    subtitle = "$productCountLabel · $destinationLabel",
                     price = moneyLabel(state.cartPreviewTotal),
                     enabled = canConfirm,
                     loading = state.creatingOrder,
@@ -423,24 +428,26 @@ private fun CartSectionHead(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(start = 4.dp, end = 4.dp, bottom = 12.dp),
-        verticalAlignment = Alignment.Bottom,
+                .padding(start = 2.dp, end = 2.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
             title,
             color = colors.ink,
-            fontSize = 24.sp,
-            lineHeight = 32.sp,
+            fontSize = 20.sp,
+            lineHeight = 26.sp,
             fontWeight = FontWeight.Bold,
-            letterSpacing = (-0.7).sp,
+            letterSpacing = (-0.4).sp,
         )
         Text(
             meta,
             color = colors.muted,
-            fontSize = 12.sp,
-            lineHeight = 16.sp,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
             fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.End,
+            modifier = Modifier.padding(start = 16.dp),
         )
     }
 }
@@ -453,87 +460,104 @@ private fun confirmLabel(guestAuthRequired: Boolean): String =
     }
 
 @Composable
-private fun CartLineCard(
-    line: CartLine,
-    onMinus: () -> Unit,
-    onPlus: () -> Unit,
+private fun CartItemsPanel(
+    lines: List<CartLine>,
+    onQuantityChange: (lineKey: String, delta: Int) -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = colors.paper2,
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(26.dp),
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            ProductImage(
-                imageUrl = line.product.imageUrl,
-                contentDescription = line.product.name,
-                modifier =
-                    Modifier
-                        .width(92.dp)
-                        .height(112.dp)
-                        .clip(RoundedCornerShape(20.dp)),
-            )
-            Column(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .height(112.dp)
-                        .padding(vertical = 4.dp),
-            ) {
-                Text(
-                    line.product.name,
-                    color = colors.ink,
-                    fontSize = 20.sp,
-                    lineHeight = 28.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.5).sp,
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+            lines.forEachIndexed { index, line ->
+                CartLineRow(
+                    line = line,
+                    onMinus = { onQuantityChange(line.key, -1) },
+                    onPlus = { onQuantityChange(line.key, 1) },
                 )
-                val variants =
-                    line.product.optionGroups
-                        .flatMap { it.options }
-                        .filter { it.id in line.selectedOptionIds }
-                        .joinToString(" · ") { option ->
-                            if (option.extraPrice == "0.00") {
-                                option.name
-                            } else {
-                                "${option.name} +${moneyLabel(option.extraPrice)}"
-                            }
-                        }
-                if (variants.isNotBlank()) {
-                    Text(
-                        variants,
-                        color = colors.muted,
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp,
-                        modifier = Modifier.padding(top = 2.dp),
-                    )
-                }
-                Spacer(Modifier.weight(1f))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        moneyLabel(Money.cartLinePreview(line)),
-                        color = colors.ink,
-                        fontSize = 26.sp,
-                        lineHeight = 32.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.8).sp,
-                    )
-                    QuantityStepper(
-                        quantity = line.quantity,
-                        onMinus = onMinus,
-                        onPlus = onPlus,
+                if (index != lines.lastIndex) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(colors.line),
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CartLineRow(
+    line: CartLine,
+    onMinus: () -> Unit,
+    onPlus: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    val variants =
+        line.product.optionGroups
+            .flatMap { it.options }
+            .filter { it.id in line.selectedOptionIds }
+            .joinToString(" · ") { option ->
+                if (option.extraPrice == "0.00") {
+                    option.name
+                } else {
+                    "${option.name} +${moneyLabel(option.extraPrice)}"
+                }
+            }
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        ProductImage(
+            imageUrl = line.product.imageUrl,
+            contentDescription = line.product.name,
+            modifier =
+                Modifier
+                    .size(76.dp)
+                    .clip(RoundedCornerShape(18.dp)),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                line.product.name,
+                color = colors.ink,
+                fontSize = 19.sp,
+                lineHeight = 23.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.35).sp,
+                maxLines = 1,
+            )
+            Text(
+                variants.ifBlank { "Preparación original" },
+                color = colors.muted,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(top = 2.dp),
+                maxLines = 1,
+            )
+            Text(
+                moneyLabel(Money.cartLinePreview(line)),
+                color = colors.ink,
+                fontSize = 20.sp,
+                lineHeight = 24.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+        QuantityStepper(
+            quantity = line.quantity,
+            onMinus = onMinus,
+            onPlus = onPlus,
+        )
     }
 }
 
@@ -544,25 +568,36 @@ private fun QuantityStepper(
     onPlus: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    val background = if (colors.isDark) colors.paper2 else colors.ink
+    val foreground = if (colors.isDark) colors.ink else colors.paper
     Surface(
-        color = colors.paper,
-        shape = RoundedCornerShape(16.dp),
+        color = background,
+        shape = RoundedCornerShape(18.dp),
     ) {
         Row(
-            modifier = Modifier.padding(4.dp),
+            modifier = Modifier.height(44.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            QuantityButton(icon = Icons.Rounded.Remove, description = "Quitar uno", onClick = onMinus)
+            QuantityButton(
+                icon = Icons.Rounded.Remove,
+                description = "Quitar uno",
+                tint = foreground,
+                onClick = onMinus,
+            )
             Text(
                 quantity.toString(),
-                color = colors.ink,
-                fontSize = 16.sp,
+                color = foreground,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.width(30.dp),
+                modifier = Modifier.width(28.dp),
             )
-            QuantityButton(icon = Icons.Rounded.Add, description = "Agregar uno", onClick = onPlus)
+            QuantityButton(
+                icon = Icons.Rounded.Add,
+                description = "Agregar uno",
+                tint = foreground,
+                onClick = onPlus,
+            )
         }
     }
 }
@@ -571,19 +606,18 @@ private fun QuantityStepper(
 private fun QuantityButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     description: String,
+    tint: androidx.compose.ui.graphics.Color,
     onClick: () -> Unit,
 ) {
-    val colors = LocalVaiinillaColors.current
     Box(
         modifier =
             Modifier
                 .size(38.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(colors.ink)
+                .clip(RoundedCornerShape(14.dp))
                 .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = description, tint = colors.paper, modifier = Modifier.size(18.dp))
+        Icon(icon, contentDescription = description, tint = tint, modifier = Modifier.size(18.dp))
     }
 }
 
@@ -594,49 +628,64 @@ private fun CartNotesField(
 ) {
     val colors = LocalVaiinillaColors.current
     val limited = if (value.length <= NOTES_MAX) value else value.take(NOTES_MAX)
-    Box(modifier = Modifier.fillMaxWidth()) {
-        BasicTextField(
-            value = limited,
-            onValueChange = { next -> onValueChange(next.take(NOTES_MAX)) },
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(122.dp)
-                    .clip(RoundedCornerShape(22.dp))
-                    .border(1.dp, colors.line, RoundedCornerShape(22.dp))
-                    .padding(16.dp),
-            textStyle =
-                TextStyle(
-                    color = colors.ink,
-                    fontSize = 16.sp,
-                    lineHeight = 24.sp,
-                ),
-            cursorBrush = SolidColor(colors.ink),
-            decorationBox = { input ->
-                Box {
+    BasicTextField(
+        value = limited,
+        onValueChange = { next -> onValueChange(next.take(NOTES_MAX)) },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(72.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .border(1.dp, colors.line, RoundedCornerShape(22.dp)),
+        textStyle =
+            TextStyle(
+                color = colors.ink,
+                fontSize = 15.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+            ),
+        cursorBrush = SolidColor(colors.ink),
+        maxLines = 2,
+        decorationBox = { input ->
+            Row(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Icon(
+                    Icons.Outlined.Edit,
+                    contentDescription = null,
+                    tint = colors.ink,
+                    modifier = Modifier.size(22.dp),
+                )
+                Box(modifier = Modifier.weight(1f)) {
                     if (limited.isBlank()) {
                         Text(
-                            "Ej. sin cebolla, salsa aparte",
-                            color = colors.muted,
-                            fontSize = 16.sp,
-                            lineHeight = 24.sp,
+                            "Añadir nota para cocina",
+                            color = colors.ink,
+                            fontSize = 15.sp,
+                            lineHeight = 20.sp,
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                     input()
                 }
-            },
-        )
-        Text(
-            "${limited.length}/$NOTES_MAX",
-            color = colors.muted,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier =
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 13.dp, bottom = 11.dp),
-        )
-    }
+                Surface(
+                    color = colors.paper2,
+                    shape = RoundedCornerShape(14.dp),
+                ) {
+                    Text(
+                        if (limited.isBlank()) "Opcional" else "${limited.length}/$NOTES_MAX",
+                        color = colors.muted,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                    )
+                }
+            }
+        },
+    )
 }
 
 private const val NOTES_MAX = 90
@@ -644,59 +693,95 @@ private const val NOTES_MAX = 90
 @Composable
 private fun CheckoutDockButton(
     label: String,
+    subtitle: String,
     price: String,
     enabled: Boolean,
     loading: Boolean,
     onClick: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    val dockBackground = if (colors.isDark) colors.paper2 else colors.ink
     Surface(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .height(58.dp)
-                .physicalPress(
-                    enabled = enabled && !loading,
-                    scale = PhysicalPressScale.Default,
-                    onClick = onClick,
-                ),
-        color = if (enabled) colors.accent else colors.paper2,
-        shape = RoundedCornerShape(20.dp),
-        shadowElevation = if (enabled) 8.dp else 0.dp,
+                .height(94.dp),
+        color = dockBackground,
+        shape = RoundedCornerShape(30.dp),
+        shadowElevation = if (enabled) 12.dp else 0.dp,
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+        Surface(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(10.dp)
+                    .physicalPress(
+                        enabled = enabled && !loading,
+                        scale = PhysicalPressScale.Default,
+                        onClick = onClick,
+                    ),
+            color = if (enabled) colors.accent else colors.paper2,
+            shape = RoundedCornerShape(22.dp),
         ) {
-            if (loading) {
-                Text("Confirmando pedido", color = colors.accentInk, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                CircularProgressIndicator(
-                    color = colors.accentInk,
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.size(18.dp),
-                )
-            } else {
-                Text(
-                    label,
-                    color = if (enabled) colors.accentInk else colors.muted,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                if (loading) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Confirmando pedido",
+                            color = colors.accentInk,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                        )
+                        Text(
+                            "Un momento…",
+                            color = colors.accentInk.copy(alpha = 0.72f),
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                    }
+                    CircularProgressIndicator(
+                        color = colors.accentInk,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(20.dp),
+                    )
+                } else {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            label,
+                            color = if (enabled) colors.accentInk else colors.muted,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            lineHeight = 22.sp,
+                            maxLines = 1,
+                        )
+                        Text(
+                            subtitle,
+                            color = if (enabled) colors.accentInk.copy(alpha = 0.72f) else colors.muted,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                            modifier = Modifier.padding(top = 2.dp),
+                            maxLines = 1,
+                        )
+                    }
                     Box(
                         modifier =
                             Modifier
-                                .padding(end = 14.dp)
+                                .padding(horizontal = 16.dp)
                                 .width(1.dp)
-                                .height(16.dp)
+                                .height(34.dp)
                                 .background(colors.ink.copy(alpha = 0.14f)),
                     )
                     Text(
                         price,
                         color = if (enabled) colors.accentInk else colors.muted,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
+                        fontSize = 20.sp,
                     )
                 }
             }
@@ -710,62 +795,42 @@ private fun OrderSummaryCard(state: OrderFlowUiState) {
     val destinationLabel =
         when (state.checkoutDestination) {
             OrderDestination.TAKE_AWAY -> "Para llevar"
-            OrderDestination.IN_SPACE -> state.selectedSpaceName
+            OrderDestination.IN_SPACE -> state.selectedSpaceName.ifBlank { "En mesa" }
         }
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = colors.ink,
-        shape = RoundedCornerShape(28.dp),
+        color = colors.paper2,
+        shape = RoundedCornerShape(24.dp),
     ) {
-        Box {
-            Text(
-                "V",
-                color = colors.paper.copy(alpha = 0.035f),
-                fontSize = 150.sp,
-                fontWeight = FontWeight.Bold,
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+            SummaryRow("Subtotal", moneyLabel(state.cartPreviewTotal))
+            SummaryRow("Entrega · $destinationLabel", "$0")
+            Box(
                 modifier =
                     Modifier
-                        .align(Alignment.BottomEnd)
-                        .offset(x = 10.dp, y = 56.dp),
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .height(1.dp)
+                        .background(colors.line),
             )
-            Column(modifier = Modifier.padding(20.dp)) {
-                SummaryRow("Subtotal", moneyLabel(state.cartPreviewTotal), colors)
-                SummaryRow("Entrega", destinationLabel, colors)
-                SummaryRow("Método", paymentMethodLabel(state.checkoutPayment), colors)
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 10.dp)
-                            .height(1.dp)
-                            .background(colors.paper.copy(alpha = 0.12f)),
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "Total",
-                        color = colors.paper,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 24.sp,
-                        lineHeight = 32.sp,
-                    )
-                    Text(
-                        moneyLabel(state.cartPreviewTotal),
-                        color = colors.paper,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 24.sp,
-                        lineHeight = 32.sp,
-                    )
-                }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
-                    "El servidor confirmará precios y disponibilidad antes de crear el pedido.",
-                    color = colors.paper.copy(alpha = 0.72f),
-                    fontSize = 12.sp,
-                    lineHeight = 18.sp,
-                    modifier = Modifier.padding(top = 8.dp),
+                    "Total",
+                    color = colors.ink,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    lineHeight = 26.sp,
+                )
+                Text(
+                    moneyLabel(state.cartPreviewTotal),
+                    color = colors.ink,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 26.sp,
+                    lineHeight = 30.sp,
                 )
             }
         }
@@ -776,14 +841,27 @@ private fun OrderSummaryCard(state: OrderFlowUiState) {
 private fun SummaryRow(
     label: String,
     value: String,
-    colors: com.vaiinilla.app.ui.theme.VaiinillaColors,
 ) {
+    val colors = LocalVaiinillaColors.current
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, color = colors.paper.copy(alpha = 0.75f))
-        Text(value, color = colors.paper, fontWeight = FontWeight.ExtraBold)
+        Text(
+            label,
+            color = colors.muted,
+            fontSize = 14.sp,
+            lineHeight = 18.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            value,
+            color = colors.ink,
+            fontSize = 14.sp,
+            lineHeight = 18.sp,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 
@@ -821,3 +899,8 @@ private fun EmptyCart(onMenu: () -> Unit) {
         onAction = onMenu,
     )
 }
+
+internal fun shouldShowCheckoutDock(
+    hasCartItems: Boolean,
+    imeVisible: Boolean,
+): Boolean = hasCartItems && !imeVisible

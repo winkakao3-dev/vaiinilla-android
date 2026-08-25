@@ -36,10 +36,9 @@ class StripeCheckoutUiTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Efectivo en caja").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Saldo Vaiinilla").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Efectivo").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Saldo").assertIsDisplayed()
         composeTestRule.onAllNodesWithText("Tarjeta").assertCountEquals(1)
-        composeTestRule.onAllNodesWithText("Pago seguro con Stripe.").assertCountEquals(1)
     }
 
     @Test

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -47,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -95,9 +97,18 @@ fun DiscoveryScreen(
     val focusManager = LocalFocusManager.current
     var codeSheetOpen by remember { mutableStateOf(false) }
     var tokenError by remember { mutableStateOf(false) }
+    var showAllVenues by remember { mutableStateOf(false) }
+
     val selectedId = state.selected?.establishment?.id
     val cafeCount = state.establishments.size
-    val bottomClearance = if (state.selected != null) 116.dp else 40.dp
+    val showVenueResults = showAllVenues || state.query.isNotBlank()
+    val quickVenues =
+        buildList {
+            state.selected?.establishment?.let(::add)
+            state.establishments.forEach { establishment ->
+                if (none { it.id == establishment.id }) add(establishment)
+            }
+        }.take(2)
 
     Box(
         modifier =
@@ -121,7 +132,7 @@ fun DiscoveryScreen(
                     Modifier
                         .fillMaxSize()
                         .statusBarsPadding(),
-                contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 18.dp, bottom = bottomClearance),
+                contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 30.dp),
                 verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
                 item {
@@ -131,14 +142,19 @@ fun DiscoveryScreen(
                     )
                 }
                 item {
-                    Column(modifier = Modifier.padding(horizontal = 2.dp, vertical = 0.dp).padding(bottom = 24.dp)) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .padding(horizontal = 2.dp)
+                                .padding(bottom = 20.dp),
+                    ) {
                         Text(
-                            "Antes de pedir",
-                            color = colors.muted,
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp,
+                            "ANTES DE PEDIR",
+                            color = colors.accentInk.copy(alpha = if (colors.isDark) 0.88f else 0.78f),
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.6.sp,
+                            letterSpacing = 2.2.sp,
                         )
                         Text(
                             "¿Dónde comes hoy?",
@@ -146,40 +162,58 @@ fun DiscoveryScreen(
                             fontSize = 36.sp,
                             lineHeight = 40.sp,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = (-2).sp,
-                            modifier = Modifier.padding(top = 8.dp, bottom = 10.dp),
+                            letterSpacing = (-1.9).sp,
+                            modifier = Modifier.padding(top = 7.dp, bottom = 7.dp),
                         )
                         Text(
-                            "Elige tu cafetería o escanea el QR del espacio para abrir el menú correcto.",
+                            if (state.selected != null) {
+                                "Continúa en tu cafetería activa o cambia de espacio cuando lo necesites."
+                            } else {
+                                "Elige tu cafetería o entra con el QR o código de tu espacio."
+                            },
                             color = colors.muted,
-                            fontSize = 14.sp,
-                            lineHeight = 20.sp,
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp,
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
                 }
+
                 state.selected?.let { selected ->
                     item {
                         ActiveVenueCard(
                             name = selected.establishment.name,
+                            clientIdLabel = selected.establishment.clientIdLabel,
+                            clientIdRequired = selected.establishment.clientIdRequired,
                             onContinue = {
                                 haptics.impact()
                                 onContinueSelected()
                             },
-                            modifier = Modifier.padding(bottom = 16.dp),
+                            modifier = Modifier.padding(bottom = 18.dp),
                         )
                     }
+                }
+
+                item {
+                    DiscoverySectionHeader(
+                        title = if (state.selected != null) "¿Quieres cambiar?" else "Elige tu cafetería",
+                        meta = "Elige cómo",
+                        modifier = Modifier.padding(bottom = 10.dp),
+                    )
                 }
                 item {
                     DiscoverySearchField(
                         value = state.query,
-                        onValueChange = onQueryChange,
-                        modifier = Modifier.padding(bottom = 12.dp),
+                        onValueChange = { query ->
+                            showAllVenues = query.isNotBlank()
+                            onQueryChange(query)
+                        },
+                        modifier = Modifier.padding(bottom = 10.dp),
                     )
                 }
                 item {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 30.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 18.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         QuickAccessCard(
@@ -207,98 +241,120 @@ fun DiscoveryScreen(
                         )
                     }
                 }
+
                 if (state.suspendedMessage != null) {
                     item {
-                        Text(
-                            state.suspendedMessage,
-                            color = colors.coral,
-                            fontSize = 13.sp,
+                        DiscoveryInlineMessage(
+                            message = state.suspendedMessage,
+                            error = true,
                             modifier = Modifier.padding(bottom = 12.dp),
                         )
                     }
                 }
-                if (state.errorMessage != null) {
+                if (state.errorMessage != null && state.query.isBlank()) {
                     item {
-                        Text(
-                            state.errorMessage,
-                            color = colors.coral,
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp,
+                        DiscoveryInlineMessage(
+                            message = state.errorMessage,
+                            error = true,
                             modifier = Modifier.padding(bottom = 12.dp),
                         )
                     }
                 }
-                item {
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(
-                                    horizontal = 2.dp,
-                                    vertical = 0.dp,
-                                ).padding(bottom = 12.dp),
-                        verticalAlignment = Alignment.Bottom,
-                    ) {
-                        Text(
-                            "Cafeterías",
-                            color = colors.ink,
-                            fontSize = 20.sp,
-                            lineHeight = 28.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = (-0.5).sp,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            if (cafeCount == 1) "1 disponible" else "$cafeCount disponibles",
-                            color = colors.muted,
-                            fontSize = 11.sp,
-                            lineHeight = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                }
-                if (state.loading && state.establishments.isEmpty()) {
-                    items(3) {
-                        VenueCardSkeleton(modifier = Modifier.padding(bottom = 10.dp))
-                    }
-                }
-                if (!state.loading && state.establishments.isEmpty()) {
+
+                if (quickVenues.isNotEmpty() && state.query.isBlank()) {
                     item {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            color = colors.paper2,
-                            shape = RoundedCornerShape(24.dp),
+                        DiscoverySectionHeader(
+                            title = "Acceso rápido",
+                            meta = if (quickVenues.size == 1) "1 cafetería" else "${quickVenues.size} cafeterías",
+                            modifier = Modifier.padding(bottom = 10.dp),
+                        )
+                    }
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            Text(
-                                "No encontramos una cafetería con ese nombre.",
-                                color = colors.muted,
-                                fontSize = 14.sp,
-                                lineHeight = 20.sp,
-                                modifier = Modifier.padding(28.dp, 28.dp),
+                            quickVenues.forEach { establishment ->
+                                CompactVenueCard(
+                                    establishment = establishment,
+                                    selected = establishment.id == selectedId,
+                                    onClick = {
+                                        haptics.click()
+                                        if (establishment.id == selectedId) {
+                                            onContinueSelected()
+                                        } else {
+                                            onSelectEstablishment(establishment)
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            if (quickVenues.size == 1) {
+                                Box(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    AllVenuesToggle(
+                        count = cafeCount,
+                        expanded = showVenueResults,
+                        loading = state.loading,
+                        onClick = {
+                            haptics.selection()
+                            focusManager.clearFocus()
+                            if (state.query.isNotBlank()) {
+                                onQueryChange("")
+                                showAllVenues = false
+                            } else {
+                                showAllVenues = !showAllVenues
+                            }
+                        },
+                        modifier = Modifier.padding(bottom = if (showVenueResults) 14.dp else 0.dp),
+                    )
+                }
+
+                if (showVenueResults) {
+                    if (state.loading && state.establishments.isEmpty()) {
+                        items(3) {
+                            VenueCardSkeleton(modifier = Modifier.padding(bottom = 10.dp))
+                        }
+                    } else if (!state.loading && state.establishments.isEmpty()) {
+                        item {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = colors.paper2,
+                                shape = RoundedCornerShape(24.dp),
+                            ) {
+                                Text(
+                                    "No encontramos una cafetería con ese nombre.",
+                                    color = colors.muted,
+                                    fontSize = 14.sp,
+                                    lineHeight = 20.sp,
+                                    modifier = Modifier.padding(22.dp),
+                                )
+                            }
+                        }
+                    } else {
+                        items(state.establishments, key = { it.id }) { establishment ->
+                            EstablishmentCard(
+                                establishment = establishment,
+                                selected = establishment.id == selectedId,
+                                onClick = {
+                                    haptics.click()
+                                    if (establishment.id == selectedId) {
+                                        onContinueSelected()
+                                    } else {
+                                        onSelectEstablishment(establishment)
+                                    }
+                                },
+                                modifier = Modifier.padding(bottom = 10.dp),
                             )
                         }
                     }
                 }
-                items(state.establishments, key = { it.id }) { establishment ->
-                    EstablishmentCard(
-                        establishment = establishment,
-                        selected = establishment.id == selectedId,
-                        onClick = {
-                            haptics.click()
-                            onSelectEstablishment(establishment)
-                        },
-                        modifier = Modifier.padding(bottom = 10.dp),
-                    )
-                }
             }
-        }
-
-        if (state.selected != null) {
-            DiscoveryBottomBar(
-                name = state.selected.establishment.name,
-                onContinue = onContinueSelected,
-                modifier = Modifier.align(Alignment.BottomCenter),
-            )
         }
 
         if (codeSheetOpen) {
@@ -353,7 +409,7 @@ private fun DiscoveryBrandRow(
 ) {
     val colors = LocalVaiinillaColors.current
     Row(
-        modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         VaiinillaMark(
@@ -386,6 +442,8 @@ private fun DiscoveryBrandRow(
 @Composable
 private fun ActiveVenueCard(
     name: String,
+    clientIdLabel: String,
+    clientIdRequired: Boolean,
     onContinue: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -394,57 +452,96 @@ private fun ActiveVenueCard(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(176.dp)
+                .height(190.dp)
                 .clip(RoundedCornerShape(28.dp))
                 .background(colors.accent),
     ) {
-        Text(
-            "V",
-            modifier = Modifier.align(Alignment.TopEnd).padding(end = 10.dp),
-            color = colors.accentInk.copy(alpha = 0.08f),
-            fontSize = 148.sp,
-            fontWeight = FontWeight.ExtraBold,
-            letterSpacing = (-12).sp,
-            maxLines = 1,
-        )
+        repeat(2) { index ->
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .offset(x = (58 + index * 34).dp, y = (-20 + index * 54).dp)
+                        .size(width = 190.dp, height = 30.dp)
+                        .rotate(-24f)
+                        .background(colors.accentInk.copy(alpha = 0.06f)),
+            )
+        }
         Column(
-            modifier = Modifier.fillMaxSize().padding(20.dp),
+            modifier = Modifier.fillMaxSize().padding(16.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
-                    Text(
-                        "Activa ahora",
-                        color = colors.accentInk.copy(alpha = 0.66f),
-                        fontSize = 11.sp,
-                        lineHeight = 16.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.5.sp,
-                    )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                    Surface(
+                        color = colors.accentInk.copy(alpha = 0.06f),
+                        shape = RoundedCornerShape(99.dp),
+                    ) {
+                        Text(
+                            "CAFETERÍA ACTIVA",
+                            color = colors.accentInk.copy(alpha = 0.78f),
+                            fontSize = 10.sp,
+                            lineHeight = 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.5.sp,
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                        )
+                    }
                     Text(
                         name,
                         color = colors.accentInk,
                         fontSize = 30.sp,
-                        lineHeight = 36.sp,
+                        lineHeight = 34.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = (-1.2).sp,
-                        maxLines = 2,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 4.dp),
+                        modifier = Modifier.padding(top = 7.dp),
+                    )
+                    Text(
+                        "$clientIdLabel ${if (clientIdRequired) "requerida" else "opcional"}",
+                        color = colors.accentInk.copy(alpha = 0.68f),
+                        fontSize = 13.sp,
+                        lineHeight = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 2.dp),
                     )
                 }
-                Surface(color = Color.White.copy(alpha = 0.48f), shape = RoundedCornerShape(99.dp)) {
-                    Text(
-                        "Lista para pedir",
-                        color = colors.accentInk,
-                        fontSize = 11.sp,
-                        lineHeight = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                    )
+                Surface(
+                    color = Color.White.copy(alpha = 0.58f),
+                    shape = RoundedCornerShape(99.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF72A52A)),
+                        )
+                        Text(
+                            "Lista para pedir",
+                            color = colors.accentInk,
+                            fontSize = 11.sp,
+                            lineHeight = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
             }
-            ContinueInkButton(label = "Seguir al menú", onClick = onContinue)
+            ContinueInkButton(
+                label = "Seguir al menú",
+                subtitle = "Entrar a $name",
+                onClick = onContinue,
+            )
         }
     }
 }
@@ -452,6 +549,7 @@ private fun ActiveVenueCard(
 @Composable
 private fun ContinueInkButton(
     label: String,
+    subtitle: String,
     onClick: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -459,25 +557,52 @@ private fun ContinueInkButton(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .height(58.dp)
-                .clip(RoundedCornerShape(18.dp))
+                .height(62.dp)
+                .clip(RoundedCornerShape(19.dp))
                 .background(colors.ink)
                 .physicalPress(onClick = onClick)
-                .padding(start = 18.dp, end = 14.dp),
+                .padding(start = 14.dp, end = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            label,
-            color = colors.paper,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1f),
-        )
         Box(
             modifier =
                 Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(Color.White.copy(alpha = 0.10f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Outlined.Storefront,
+                contentDescription = null,
+                tint = colors.paper,
+                modifier = Modifier.size(19.dp),
+            )
+        }
+        Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
+            Text(
+                label,
+                color = colors.paper,
+                fontSize = 16.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                subtitle,
+                color = colors.paper.copy(alpha = 0.68f),
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 1.dp),
+            )
+        }
+        Box(
+            modifier =
+                Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(13.dp))
                     .background(Color.White.copy(alpha = 0.10f)),
             contentAlignment = Alignment.Center,
         ) {
@@ -485,9 +610,39 @@ private fun ContinueInkButton(
                 Icons.AutoMirrored.Outlined.ArrowForward,
                 contentDescription = null,
                 tint = colors.paper,
-                modifier = Modifier.size(17.dp),
+                modifier = Modifier.size(18.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun DiscoverySectionHeader(
+    title: String,
+    meta: String,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            title,
+            color = colors.ink,
+            fontSize = 17.sp,
+            lineHeight = 22.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = (-0.25).sp,
+        )
+        Text(
+            meta,
+            color = colors.muted,
+            fontSize = 11.sp,
+            lineHeight = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
@@ -498,60 +653,94 @@ private fun DiscoverySearchField(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
-    Box(modifier = modifier.fillMaxWidth().height(58.dp)) {
-        Row(
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(68.dp)
+                .clip(RoundedCornerShape(21.dp))
+                .background(colors.paper2)
+                .border(1.dp, colors.line, RoundedCornerShape(21.dp))
+                .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
             modifier =
                 Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(colors.paper2)
-                    .padding(start = 16.dp, end = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(colors.accent),
+            contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Search, contentDescription = null, tint = colors.muted, modifier = Modifier.size(20.dp))
+            Icon(
+                Icons.Outlined.Search,
+                contentDescription = null,
+                tint = colors.accentInk,
+                modifier = Modifier.size(21.dp),
+            )
+        }
+        Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .padding(horizontal = 12.dp)
-                        .semantics { contentDescription = "Buscar cafetería" },
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Buscar cafetería" },
                 singleLine = true,
-                textStyle = TextStyle(color = colors.ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
+                textStyle =
+                    TextStyle(
+                        color = colors.ink,
+                        fontSize = 15.sp,
+                        lineHeight = 19.sp,
+                        fontWeight = FontWeight.Bold,
+                    ),
                 cursorBrush = SolidColor(colors.ink),
                 decorationBox = { input ->
                     Box {
                         if (value.isBlank()) {
                             Text(
-                                "Buscar cafetería",
-                                color = colors.muted,
+                                "Buscar otra cafetería",
+                                color = colors.ink,
                                 fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
+                                lineHeight = 19.sp,
+                                fontWeight = FontWeight.Bold,
                             )
                         }
                         input()
                     }
                 },
             )
-            if (value.isNotBlank()) {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(32.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(colors.ink.copy(alpha = 0.07f))
-                            .clickable { onValueChange("") },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Outlined.Close,
-                        contentDescription = "Limpiar búsqueda",
-                        tint = colors.ink,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
+            Text(
+                if (value.isBlank()) "Escribe el nombre del espacio" else "Buscando coincidencias",
+                color = colors.muted,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        if (value.isNotBlank()) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(11.dp))
+                        .background(colors.paper)
+                        .clickable { onValueChange("") },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Outlined.Close,
+                    contentDescription = "Limpiar búsqueda",
+                    tint = colors.ink,
+                    modifier = Modifier.size(16.dp),
+                )
             }
+        } else {
+            Icon(
+                Icons.AutoMirrored.Outlined.ArrowForward,
+                contentDescription = null,
+                tint = colors.ink,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }
@@ -566,42 +755,274 @@ private fun QuickAccessCard(
     onClick: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
-    val bg = if (ink) colors.ink else colors.paper2
-    val fg = if (ink) colors.paper else colors.ink
-    val iconBadgeBg = if (ink) colors.accent else colors.paper
+    val background = if (ink) colors.ink else colors.paper2
+    val foreground = if (ink) colors.paper else colors.ink
+    val iconBadgeBackground = if (ink) colors.accent else colors.paper
     val iconTint = if (ink) colors.accentInk else colors.ink
 
     Column(
         modifier =
             modifier
-                .height(126.dp)
+                .heightIn(min = 124.dp)
                 .clip(RoundedCornerShape(24.dp))
-                .background(bg)
-                .physicalPress(onClick = onClick)
-                .padding(16.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
+                .background(background)
+                .then(
+                    if (!ink) Modifier.border(1.dp, colors.line, RoundedCornerShape(24.dp)) else Modifier,
+                ).physicalPress(onClick = onClick)
+                .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Box(
             modifier =
                 Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(15.dp))
-                    .background(iconBadgeBg),
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(iconBadgeBackground),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp))
+            Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(21.dp))
         }
-        Column {
-            Text(title, color = fg, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold)
-            Text(
-                subtitle,
-                color = fg.copy(alpha = 0.68f),
-                fontSize = 11.sp,
-                lineHeight = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 3.dp),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    title,
+                    color = foreground,
+                    fontSize = 14.sp,
+                    lineHeight = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    subtitle,
+                    color = foreground.copy(alpha = 0.66f),
+                    fontSize = 10.sp,
+                    lineHeight = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 2.dp),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Box(
+                modifier =
+                    Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(11.dp))
+                        .background(if (ink) Color.White.copy(alpha = 0.10f) else colors.paper),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.ArrowForward,
+                    contentDescription = null,
+                    tint = foreground,
+                    modifier = Modifier.size(15.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactVenueCard(
+    establishment: PublicEstablishment,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    val background = if (selected) colors.accent2.copy(alpha = 0.62f) else colors.paper2
+    Box(
+        modifier =
+            modifier
+                .height(100.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(background)
+                .border(
+                    1.dp,
+                    if (selected) colors.accent.copy(alpha = 0.55f) else colors.line,
+                    RoundedCornerShape(22.dp),
+                ).physicalPress(onClick = onClick)
+                .padding(12.dp),
+    ) {
+        if (selected) {
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .offset(x = 42.dp, y = (-10).dp)
+                        .size(width = 120.dp, height = 24.dp)
+                        .rotate(-24f)
+                        .background(colors.accentInk.copy(alpha = 0.05f)),
             )
         }
+        Box(
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(colors.paper),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Outlined.Storefront,
+                contentDescription = null,
+                tint = colors.ink,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        Column(modifier = Modifier.align(Alignment.BottomStart).padding(end = 32.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    establishment.name,
+                    color = colors.ink,
+                    fontSize = 14.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (selected) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .padding(start = 5.dp)
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF72A52A)),
+                    )
+                }
+            }
+            Text(
+                if (selected) {
+                    "Activa ahora"
+                } else if (establishment.clientIdRequired) {
+                    "${establishment.clientIdLabel} requerida"
+                } else {
+                    "${establishment.clientIdLabel} opcional"
+                },
+                color = colors.muted,
+                fontSize = 10.sp,
+                lineHeight = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        Box(
+            modifier =
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(30.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(colors.paper),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.AutoMirrored.Outlined.ArrowForward,
+                contentDescription = null,
+                tint = colors.ink,
+                modifier = Modifier.size(14.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AllVenuesToggle(
+    count: Int,
+    expanded: Boolean,
+    loading: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(58.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .border(1.dp, colors.line, RoundedCornerShape(20.dp))
+                .physicalPress(onClick = onClick)
+                .semantics(mergeDescendants = true) {
+                    contentDescription = if (expanded) "Ocultar cafeterías" else "Ver todas las cafeterías"
+                }.padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(colors.accent),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Outlined.Storefront,
+                contentDescription = null,
+                tint = colors.accentInk,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        Text(
+            if (expanded) "Ocultar cafeterías" else "Ver todas las cafeterías",
+            color = colors.ink,
+            fontSize = 14.sp,
+            lineHeight = 18.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 11.dp).weight(1f),
+        )
+        if (loading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                color = colors.ink,
+                strokeWidth = 2.dp,
+            )
+        } else {
+            Text(
+                if (count == 1) "1 disponible" else "$count disponibles",
+                color = colors.muted,
+                fontSize = 10.sp,
+                lineHeight = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        Icon(
+            Icons.AutoMirrored.Outlined.ArrowForward,
+            contentDescription = null,
+            tint = colors.ink,
+            modifier = Modifier.padding(start = 8.dp).size(16.dp),
+        )
+    }
+}
+
+@Composable
+private fun DiscoveryInlineMessage(
+    message: String,
+    error: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = if (error) colors.coral.copy(alpha = 0.12f) else colors.paper2,
+        shape = RoundedCornerShape(16.dp),
+    ) {
+        Text(
+            message,
+            color = if (error) colors.coral else colors.ink,
+            fontSize = 12.sp,
+            lineHeight = 17.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 13.dp, vertical = 11.dp),
+        )
     }
 }
 
@@ -699,67 +1120,6 @@ private fun EstablishmentCard(
                 tint = colors.ink,
                 modifier = Modifier.size(15.dp),
             )
-        }
-    }
-}
-
-@Composable
-private fun DiscoveryBottomBar(
-    name: String,
-    onContinue: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalVaiinillaColors.current
-    Column(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .background(colors.paper)
-                .navigationBarsPadding()
-                .padding(horizontal = 18.dp, vertical = 12.dp),
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(58.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(colors.accent)
-                    .physicalPress(onClick = onContinue)
-                    .padding(horizontal = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "Cafetería activa",
-                    color = colors.accentInk.copy(alpha = 0.70f),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    name,
-                    color = colors.accentInk,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Box(
-                modifier =
-                    Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(colors.accentInk.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Outlined.ArrowForward,
-                    contentDescription = null,
-                    tint = colors.accentInk,
-                    modifier = Modifier.size(17.dp),
-                )
-            }
         }
     }
 }

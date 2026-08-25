@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,6 +30,7 @@ import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.cartItemCount
+import com.vaiinilla.app.ui.order.isEstablishmentSwitch
 import com.vaiinilla.app.ui.order.toRuntimeConfiguration
 import com.vaiinilla.app.ui.profile.displayInitials
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
@@ -89,6 +91,10 @@ fun AppNavHost(
     val walletState = WalletUiState()
 
     fun enterVenueAndOpenCatalog(venue: GuestVenueContext) {
+        val switchingEstablishment = isEstablishmentSwitch(orderState.guestVenue, venue)
+        if (switchingEstablishment) {
+            operationalViewModel.clearRole()
+        }
         orderFlowViewModel.enterGuestVenue(venue)
         navController.navigate(Routes.CATALOG) {
             launchSingleTop = true
@@ -215,6 +221,11 @@ fun AppNavHost(
         orderState.createdOrder
             ?: operationalState.selectedOrder
             ?: operationalState.orders.firstOrNull()
+
+    fun dismissClientOrder(orderId: String) {
+        operationalViewModel.dismissClientOrder(orderId)
+        orderFlowViewModel.dismissCreatedOrder(orderId)
+    }
 
     fun finishStudentAuth(returnRoute: String) {
         orderFlowViewModel.restoreGuestSessionAfterAuth()
@@ -458,6 +469,7 @@ fun AppNavHost(
                     onAddProduct = orderFlowViewModel::addSelectedProductToCart,
                     onOpenCart = { navController.navigateStudent(Routes.CART) },
                     onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
+                    onDeleteOrder = ::dismissClientOrder,
                     onOpenWallet = { navController.navigateStudent(Routes.WALLET) },
                     onChangeVenue = {
                         navController.navigate(Routes.DISCOVERY) {
@@ -873,24 +885,32 @@ fun AppNavHost(
             }
 
             composable(Routes.STUDENT_TRACKING) {
-                LaunchedEffect(Unit) {
-                    operationalViewModel.setRole(OperationalRole.CLIENT)
+                val venueAuthRequired = orderFlowViewModel.requiresStudentAuth()
+                LaunchedEffect(venueAuthRequired) {
+                    if (venueAuthRequired) {
+                        navigateStudentAuth(Routes.STUDENT_TRACKING)
+                    } else {
+                        operationalViewModel.setRole(OperationalRole.CLIENT)
+                    }
                 }
-                StudentTrackingScreen(
-                    state = operationalState,
-                    orderState = orderState,
-                    onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                    onAssistant = {},
-                    onWallet = { navController.navigateStudent(Routes.WALLET) },
-                    onCart = { navController.navigateStudent(Routes.CART) },
-                    onOpenCatalog = { navController.navigateStudent(Routes.CATALOG) },
-                    onSelectOrder = operationalViewModel::selectOrder,
-                    onViewReceipt = {
-                        orderFlowViewModel.clearCreatedOrder()
-                        navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
-                    },
-                    onRefresh = { operationalViewModel.refresh() },
-                )
+                if (!venueAuthRequired) {
+                    StudentTrackingScreen(
+                        state = operationalState,
+                        orderState = orderState,
+                        onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                        onAssistant = {},
+                        onWallet = { navController.navigateStudent(Routes.WALLET) },
+                        onCart = { navController.navigateStudent(Routes.CART) },
+                        onOpenCatalog = { navController.navigateStudent(Routes.CATALOG) },
+                        onSelectOrder = operationalViewModel::selectOrder,
+                        onDeleteOrder = ::dismissClientOrder,
+                        onViewReceipt = {
+                            orderFlowViewModel.clearCreatedOrder()
+                            navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
+                        },
+                        onRefresh = { operationalViewModel.refresh() },
+                    )
+                }
             }
 
             composable(Routes.CASHIER) {
@@ -991,6 +1011,10 @@ fun AppNavHost(
                 )
             }
         }
+    }
+
+    BackHandler(enabled = orderState.selectedProductId != null) {
+        orderFlowViewModel.closeProduct()
     }
 
     if (walletUserQrOpen) {

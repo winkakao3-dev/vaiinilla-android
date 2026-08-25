@@ -1,8 +1,12 @@
 # Google Play Audit — Vaiinilla
 
-Fecha: 2026-08-18.
+Fecha original: 2026-08-18.
+
+Revisión de estado vigente: 2026-08-23 (`main` `b0d73fb2`).
 
 Repositorio auditado: `winkakao3-dev/vaiinilla-android`.
+
+Valores consolidados para Play Console: `docs/play-store/PLAY_CONSOLE_FORM_VALUES.md`.
 
 Rama auditada: `main`.
 
@@ -13,6 +17,11 @@ Actualización posterior: el icono se convirtió a PNG RGBA y se volvió a valid
 ## Resumen
 
 Resultado general: **NOT READY**.
+
+> Los conteos PASS/FAIL/BLOCKED siguientes corresponden a la auditoría base del
+> 18 de agosto. La revisión del 23 de agosto corrige Stripe, signing, screenshots
+> y Data Safety en las secciones específicas sin reetiquetar retroactivamente
+> todos los conteos históricos.
 
 PASS: 16.
 
@@ -107,7 +116,9 @@ Fuentes:
 
 ## 3. Store Listing
 
-Estado: **BLOCKED**.
+Estado: **IN PROGRESS**.
+
+Copy y categoría documentados en `docs/play-store/STORE_LISTING.md`.
 
 ### Verificado desde el repositorio
 
@@ -115,20 +126,25 @@ Estado: **BLOCKED**.
 - Aplicación Android, no juego — PASS por el tipo de proyecto.
 - `applicationId`: `com.vaiinilla.app` — PASS.
 
-### No verificado o faltante
+### Cerrado en el borrador de metadata
 
-- Idioma predeterminado — BLOCKED.
-- Categoría — BLOCKED.
-- Tags — BLOCKED.
-- Descripción breve — BLOCKED.
-- Descripción completa — BLOCKED.
-- Correo del desarrollador — BLOCKED.
-- Teléfono — BLOCKED.
+- Categoría: `Comida y bebida` — PASS de producto; falta cargarla en Play Console.
+- Descripción breve — PASS de copy, 67/80 caracteres.
+- Descripción completa — PASS de copy, 1,308/4,000 caracteres.
+- Nombre `Vaiinilla` — PASS.
+
+### Pendiente externo / Play Console
+
+- Locale exacto del idioma predeterminado — BLOCKED.
+- Tags exactos ofrecidos por Play Console — BLOCKED.
+- Correo del desarrollador/soporte — BLOCKED.
+- Teléfono — BLOCKED cuando corresponda.
 - Sitio web — BLOCKED.
 - URL de política de privacidad pública — BLOCKED.
 - URL web de eliminación de cuenta — FAIL.
+- Seis screenshots finales — generados externamente, pendientes de entrega/validación.
 
-No existe un directorio local de metadata de Play Store con estos campos.
+Metadata de trabajo: `docs/play-store/STORE_LISTING.md`.
 
 ## 4. Recursos gráficos
 
@@ -188,7 +204,9 @@ Fuente oficial de assets:
 
 ## 5. App Access
 
-Estado: **BLOCKED**.
+Estado: **IN PROGRESS**.
+
+Instrucciones no secretas preparadas en `docs/play-store/APP_ACCESS_REVIEW.md`.
 
 El cliente contiene:
 
@@ -203,11 +221,15 @@ Console.
 No se guardaron credenciales en el repositorio.
 No se guardaron contraseñas en este reporte.
 
-Acción pendiente:
+Avance:
 
-- crear o confirmar una cuenta de reviewer descartable;
-- documentar instrucciones de acceso sin password en Git;
-- probar los roles necesarios en una versión de revisión.
+- [x] documentar flujo de cliente y staff sin guardar passwords en Git;
+- [x] definir que Play debe marcar toda o parte de la funcionalidad como restringida;
+- [x] preparar instrucciones en inglés para Play Console;
+- [ ] crear o confirmar una cuenta reviewer cliente, reutilizable y verificada;
+- [ ] crear/confirmar cuenta reviewer staff si los modos operativos entran al release público;
+- [ ] probar las cuentas sobre el mismo build candidato;
+- [ ] cargar credenciales exclusivamente en Play Console.
 
 ## 6. Ads
 
@@ -218,7 +240,7 @@ No se encontró Firebase Analytics.
 No se encontró Crashlytics.
 No se encontró Firebase Messaging.
 No se encontró Firebase Storage como dependencia del cliente.
-No se encontró Stripe.
+Stripe Android `23.13.1` está presente, pero no es un SDK de anuncios.
 
 El permiso `com.google.android.gms.permission.AD_ID` no aparece en el
 manifiesto final del AAB.
@@ -239,7 +261,12 @@ El formulario también debe indicar si existe un mecanismo de eliminación.
 Fuente:
 <https://support.google.com/googleplay/android-developer/answer/10787469?hl=en>
 
-### Tabla de datos
+La tabla operativa actualizada, incluyendo Stripe, está en
+`docs/play-store/DATA_SAFETY_FORM.md`. La tabla histórica siguiente se conserva
+como evidencia de la auditoría inicial, pero **no debe usarse para enviar el
+formulario actual sin aplicar la actualización Stripe**.
+
+### Tabla histórica de datos
 
 | Tipo de dato | Collected | Shared | Required/Optional | Finalidad | Proveedor | Retención | Eliminación | Evidencia |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -306,27 +333,36 @@ No se ejecutó un `DELETE` contra una cuenta personal.
 
 ## 9. IARC
 
-Estado: **BLOCKED**.
+Estado: **IN PROGRESS**.
 
-No existe evidencia de un cuestionario IARC completado.
-No se debe inventar una clasificación.
+La auditoría de contenido y las respuestas técnicas están preparadas en
+`docs/play-store/IARC_CONTENT_RATING.md`.
 
-Google Play exige completar el cuestionario de clasificación de contenido.
+No se detectan violencia, sexo, drogas, alcohol, apuestas, lenguaje ofensivo,
+chat usuario-a-usuario ni geolocalización. Las notas de cocina son privadas y el
+asistente es local, no social. La clasificación exacta no se inventa: quedará
+pendiente hasta que IARC la emita desde Play Console.
 
 Fuente:
 <https://support.google.com/googleplay/android-developer/answer/9898843?hl=en>
 
 ## 10. Target audience
 
-Estado: **BLOCKED**.
+Estado: **IN PROGRESS — decisión de producto cerrada**.
 
-No existe una decisión formal de edad mínima o público objetivo.
-No se marcará una edad sin decisión del responsable.
+Vaiinilla se dirige **desde secundaria en adelante**. En México la edad típica
+de secundaria es 12-14 años. Como Play no ofrece un bucket `12+`, la selección
+de trabajo será `9-12`, `13-15`, `16-17` y `18 and over`. No se seleccionan
+`5 and under` ni `6-8`.
 
-La selección de público puede activar obligaciones de Families.
+Seleccionar `9-12` activa las obligaciones de Families para una audiencia que
+incluye menores. La app no tiene anuncios/AD_ID, pero quedan por cerrar la base
+legal/consentimiento de datos de menores y la validación de proveedores/SDKs.
+
+Detalle: `docs/play-store/TARGET_AUDIENCE.md`. Preflight Families: `docs/play-store/FAMILIES_COMPLIANCE.md`.
 
 Fuente:
-<https://support.google.com/googleplay/android-developer/answer/9859655?hl=en>
+<https://support.google.com/googleplay/android-developer/answer/9867159?hl=en>
 
 ## 11. Financial features
 
@@ -339,10 +375,11 @@ La aplicación implementa:
 - recarga en efectivo por Caja;
 - pago de pedidos con saldo.
 
+Implementa además checkout con `Tarjeta` mediante Stripe Android 23.13.1 +
+PaymentSheet, actualmente cerrado a `pk_test_...` (Test Mode).
+
 No implementa actualmente:
 
-- captura de tarjeta en Android;
-- Stripe activo;
 - préstamos;
 - BNPL;
 - criptomonedas;
@@ -350,8 +387,10 @@ No implementa actualmente:
 - seguros.
 
 Google Play incluye “Mobile payments and digital wallets” en la declaración de
-funciones financieras. La selección exacta y cualquier documentación legal
-requieren revisión del responsable.
+funciones financieras y esa selección es aplicable al alcance actual. Además,
+el cliente expone cashback/recompensas, por lo que debe revisarse si corresponde
+marcar “Rewards, points, frequent flier miles, and other incentives” en el
+release público.
 
 La cuenta personal también requiere revisión porque Google indica que las
 cuentas de organización son las recomendadas para servicios financieros.
@@ -418,13 +457,13 @@ operación`.
 | Target API | `targetSdk` 36 documentado | AAB final con target 36 | PASS | Sin acción técnica |
 | Icono Play | PASS | 512 × 512, 28,220 bytes, PNG RGBA con alpha | PASS | Sin acción adicional en esta auditoría |
 | Feature Graphic | PASS | 1024 × 500 JPEG sin alpha | PASS | Sin acción técnica |
-| Screenshots | 6 pendientes | No hay screenshots finales | FAIL | Crear y validar 6 screenshots |
-| Signing | KAK-51 dice AAB firmado verificado en CI | AAB local actual sin firma; no hay inputs locales | BLOCKED | Repetir con signing seguro o conservar evidencia CI verificable |
+| Screenshots | 6 generados externamente, aún no entregados | Pendientes de recepción/validación e integración en repo | IN PROGRESS | Recibir, validar e integrar los 6 finales |
+| Signing | KAK-51 Done | AAB del `main` actual (`b0d73fb2`) verificado desde workflow `32505457217`; `jarsigner` válido | PASS | Conservar evidencia y usar el AAB final decidido para Play |
 | Account deletion | KAK-47 pendiente | In-app PASS; URL externa inexistente | FAIL | Publicar recurso web externo |
 | Privacy | KAK-44 pendiente | Política sólo en borrador con campos pendientes | BLOCKED | Completar datos legales y URL pública |
-| Data Safety | Aparcado en KAK-46 | Formulario no completado; proveedores y retención pendientes | BLOCKED | Completar antes de tracks que no sean sólo internal |
+| Data Safety | Retomado | Matriz actualizada con Stripe en `DATA_SAFETY_FORM.md`; `Shared`/retenciones externos pendientes | IN PROGRESS | Cerrar evidencia externa y trasladar respuestas a Play Console |
 | Firebase | KAK-49 pendiente | Firebase Auth visible; consola no verificada | BLOCKED | Revisar consola, restricciones y retención |
-| Financial features | No definido como blocker separado | Wallet y recargas requieren clasificación y declaración | BLOCKED | Decidir clasificación y completar declaración |
+| Financial features | Pendiente Play Console | Wallet + saldo + Stripe hacen aplicable `Mobile payments and digital wallets`; cashback requiere revisar Rewards/Incentives | IN PROGRESS | Completar declaración con alcance final del release |
 | R8 | No documentado en Linear | Minify y shrink PASS; flag de optimized resource shrinking no confirmado | BLOCKED | Revisar la configuración antes de cerrar release |
 
 Linear no se modificó.
@@ -441,23 +480,25 @@ Linear no se modificó.
 - Cuenta Firebase descartable para E2E.
 - URL web externa de eliminación.
 - Clasificación financiera del saldo y recargas.
-- Seis screenshots finales.
-- Upload key o inputs de signing disponibles para reproducir localmente el AAB firmado.
+- Seis screenshots finales ya generados externamente, pendientes de recibir/validar/integrar.
+- Cerrar `Shared`/retenciones/proveedores en Data Safety.
+- E2E Stripe Test Mode y decisión Test Mode vs Live Mode.
 
 ## 18. Orden recomendado
 
 1. Confirmar el tipo de cuenta Play y el alcance financiero del saldo.
 2. Confirmar acceso a Play Console y la fecha de creación de la cuenta.
 3. Conservar el icono PNG RGBA validado.
-4. Crear seis screenshots finales.
-5. Completar la política de privacidad pública.
-6. Publicar el recurso web externo de eliminación.
-7. Crear una cuenta Firebase descartable y ejecutar el E2E.
-8. Completar Data Safety, IARC, Target audience y Financial features.
-9. Preparar credentials de reviewer sin guardar passwords en Git o Linear.
-10. Repetir el bundle con signing seguro y verificar el certificado.
-11. Revisar R8 optimized resource shrinking.
-12. Ejecutar el flujo de testing requerido por Play Console.
+4. Recibir, validar e integrar los seis screenshots finales ya generados.
+5. Cerrar la matriz Data Safety/Stripe con evidencia externa y completar Financial features.
+6. Completar la política de privacidad pública.
+7. Publicar el recurso web externo de eliminación.
+8. Crear una cuenta Firebase descartable y ejecutar el E2E.
+9. Ejecutar E2E Stripe Test Mode y decidir Test Mode vs Live Mode.
+10. Trasladar a Play Console IARC, Target Audience y App Access ya documentados; obtener la clasificación IARC emitida.
+11. Preparar credentials de reviewer sin guardar passwords en Git o Linear.
+12. Revisar R8/compatibilidad final del AAB exacto que se subirá.
+13. Ejecutar el flujo de testing requerido por Play Console.
 
 ## Skills usadas
 

@@ -1,6 +1,6 @@
 # Mapa real de datos de Vaiinilla Android
 
-Fecha de revisión: 2026-08-17
+Fecha de revisión: 2026-08-23
 
 Este documento describe lo que el cliente Android realmente lee, genera,
 guarda localmente y envía según `app/src/main/java/`. No sustituye la revisión
@@ -22,7 +22,7 @@ con las configuraciones y políticas de esos servicios.
 | Almacenamiento local | Actual | sesión cifrada, token de recogida cifrado, contexto público, carrito mínimo, establecimiento enrolado y preferencias visuales | Android Keystore + SharedPreferences; no se encontró Room/SQLite/Analytics en este cliente |
 | Logs | Actual, diagnóstico local | método, path y status HTTP; multipart registra además el tamaño total del payload en bytes | `Log.w` del dispositivo; no se observó envío remoto de logs en el cliente |
 | Eliminación de cuenta | Actual | Firebase ID token reciente, confirmación exacta `ELIMINAR` e `Idempotency-Key` UUID v4 | `DELETE identidad/cuenta`; tras HTTP 200 se limpia sesión Firebase, contexto, carrito y tokens locales |
-| Stripe/tarjetas | Futuro | no hay SDK, endpoint ni captura real de tarjeta en este Android | Pendiente; la UI sólo muestra una superficie explicativa y no debe declararse como cobro actual |
+| Stripe/tarjetas | Actual, Test Mode | Stripe Android 23.13.1 + PaymentSheet; `client_secret`, `publishable_key`, `stripe_account_id`, estado de pago e información de pago capturada por Stripe | PaymentSheet envía datos sensibles directamente a Stripe; el backend propio entrega sesión/estado de pago y sigue siendo autoridad del pedido |
 
 ## Detalle actual
 
@@ -89,7 +89,7 @@ opciones; vuelve a resolver los productos contra el catálogo actual.
 
 La creación de pedido envía al backend:
 
-- método de pago seleccionado por el contrato vigente (`efectivo` o `saldo`);
+- método de pago seleccionado por el contrato vigente (`efectivo`, `saldo` o `stripe`);
 - destino (`para_llevar` o `en_espacio`) y espacio cuando corresponde;
 - notas libres para cocina;
 - IDs de producto, cantidades e IDs de opciones.
@@ -109,10 +109,12 @@ por nombre/identificador y registrar recargas en efectivo mediante
 `POST wallets/{userId}/recargas-efectivo`; la respuesta incluye saldos anterior y
 nuevo, movimiento y sesión de caja.
 
-La pantalla “Agregar tarjeta” es una explicación de que el backend aún no
-integra una pasarela. `WalletUiState` contiene un modelo de tarjeta para
-previews/estado Compose, pero no existe una ruta actual que capture, envíe o
-persista una tarjeta real.
+Las pantallas históricas de “Agregar tarjeta” dentro de Wallet siguen siendo
+superficies no funcionales, pero el **checkout sí integra Stripe** mediante
+PaymentSheet. La selección `Tarjeta` usa la sesión Stripe devuelta para el
+pedido actual. Android no almacena PAN/CVC ni crea PaymentIntents; la captura
+de información sensible ocurre dentro del SDK de Stripe y se transmite
+directamente a Stripe.
 
 ### Cámara, imágenes y QR
 
@@ -136,9 +138,10 @@ imagen del producto a `PUT catalogo/productos/{id}/imagen` mediante multipart.
 - `ThemePreferences`: guarda la preferencia de tema.
 
 No se encontró almacenamiento local de contraseña, una base Room/SQLite,
-Firebase Analytics, Crashlytics ni un SDK de Stripe en el código y catálogo de
-dependencias inspeccionados. Firebase Auth puede mantener su propio estado
-interno del proveedor; debe revisarse por separado.
+Firebase Analytics ni Crashlytics. **Sí existe Stripe Android 23.13.1** en el
+catálogo de dependencias y PaymentSheet está cableado al checkout. Firebase Auth
+y Stripe pueden mantener o transmitir datos propios del proveedor; deben
+reflejarse en Data Safety según su comportamiento y relación contractual.
 
 ### Logs
 
@@ -164,14 +167,28 @@ Los nombres de proveedor ya no son un dato desconocido para este mapa. Siguen
 pendientes la región exacta de procesamiento, los plazos de retención y la
 validación legal/contractual de cada proveedor antes de una declaración pública.
 
-## Futuro: Stripe y métodos digitales
+## Stripe y métodos digitales — estado actual
 
-Stripe no está conectado actualmente. Cuando se implemente, el diseño de datos
-debe limitar el cliente a tokens/payment-method IDs y estados de pago; no debe
-capturar ni persistir PAN, CVC o datos completos de tarjeta en Android ni en el
-backend propio. La integración futura requerirá actualizar este documento,
-Play Data Safety, Apple App Privacy, permisos, política de privacidad y pruebas
-de extremo a extremo antes de declararse disponible.
+Stripe está integrado en Android en **Test Mode** mediante
+`com.stripe:stripe-android:23.13.1` y PaymentSheet. El cliente recibe desde el
+contrato del pedido `client_secret`, `publishable_key` y `stripe_account_id`;
+no genera PaymentIntents ni contiene claves secretas de Stripe.
+
+`OrderContractMapper` exige actualmente una publishable key `pk_test_...`; una
+`pk_live_...` falla antes de presentar PaymentSheet. Por tanto, la integración
+es funcional a nivel de cliente pero todavía necesita E2E real y una decisión
+explícita Test Mode vs Live Mode antes de anunciar tarjeta como disponible en
+producción pública.
+
+La información sensible de tarjeta se introduce en componentes de Stripe y se
+envía directamente a Stripe. Stripe documenta además recopilación de interacción
+con el SDK, características/modelo del dispositivo y versión de sistema para
+funcionalidad, análisis y prevención de fraude; 3DS2 puede transmitir datos de
+dispositivo a la red de tarjeta/banco emisor. Todo ello debe reflejarse en Play
+Data Safety.
+
+La guía operativa para rellenar el formulario vive en
+`docs/play-store/DATA_SAFETY_FORM.md`.
 
 ## Pendientes para las declaraciones de tienda
 
@@ -186,5 +203,7 @@ de extremo a extremo antes de declararse disponible.
    la distribución en tienda.
 5. Confirmar regiones de procesamiento y la relación legal/contractual con
    Railway, Supabase, Firebase/Google y Resend.
-6. Repetir el mapa cuando Stripe y cualquier proveedor de analítica/errores se
-   conecten.
+6. Confirmar la clasificación contractual de Stripe y demás proveedores para
+   cerrar `Shared` en Data Safety; no inferirla solo desde el código.
+7. Ejecutar E2E Stripe Test Mode y decidir Test Mode vs Live Mode antes de un
+   release público con tarjeta.

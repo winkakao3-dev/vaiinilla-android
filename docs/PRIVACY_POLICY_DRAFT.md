@@ -307,9 +307,13 @@ Podremos solicitar información razonablemente necesaria para verificar la ident
 
 ## 17. Menores de edad
 
-**Público objetivo / edad mínima:** `[PENDIENTE — DEFINIR ANTES DE PLAY STORE]`
+**Público objetivo de producto:** desde educación secundaria en adelante. En México, la edad típica de secundaria comienza alrededor de los **12 años**.
 
-Una vez que el responsable de producto y legal determine el público objetivo oficial de Vaiinilla, este apartado deberá actualizarse para reflejar los requisitos correspondientes.
+Vaiinilla puede, por tanto, ser utilizada por personas menores de edad. El tratamiento actual puede incluir nombre, correo, identificadores de cuenta o matrícula/contexto escolar, pedidos, saldo y, según el flujo, datos procesados por proveedores técnicos.
+
+**Pendiente jurídico antes de publicar:** definir y documentar la base legal y cualquier consentimiento parental, de tutor o institucional que resulte aplicable a usuarios menores según la jurisdicción y el modelo de operación de cada establecimiento. La decisión de producto sobre audiencia ya está tomada; lo que queda pendiente es la validación legal y su redacción pública final.
+
+La selección de trabajo en Google Play está documentada en `docs/play-store/TARGET_AUDIENCE.md`.
 
 ## 18. Transferencias y ubicación del procesamiento
 
@@ -344,8 +348,8 @@ Este bloque es interno y deberá eliminarse de la versión pública final.
 - [x] Identificar proveedores técnicos actuales: Railway, Supabase/PostgreSQL, Supabase Storage, Firebase/Google y Resend.
 - [ ] Confirmar regiones, entidad jurídica aplicable, subprocesadores y condiciones contractuales que deban declararse.
 - [ ] Confirmar formalmente si existe o no venta/compartición de datos con anunciantes.
-- [ ] Definir público objetivo / edad mínima.
+- [x] Público objetivo de producto definido: secundaria en adelante (aprox. 12+); pendiente validación jurídica de menores/consentimiento.
 - [ ] Crear y publicar la URL externa de eliminación de cuenta.
 - [ ] Confirmar configuración/retención de Firebase.
 - [ ] Ejecutar la prueba E2E real de eliminación de cuenta.
-- [ ] Volver a revisar este documento cuando Stripe u otros SDK de analítica/errores se habiliten.
+- [ ] Incorporar en la versión pública final el tratamiento de Stripe ya habilitado en Android y cualquier obligación específica para menores antes de Live Mode.
