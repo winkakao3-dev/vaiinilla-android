@@ -29,6 +29,10 @@ import kotlinx.coroutines.withContext
 import java.time.Instant
 import javax.inject.Inject
 
+private class MissingClientIdentifierException(
+    label: String,
+) : IllegalStateException("Ingresa tu ${label.lowercase()} para continuar.")
+
 @HiltViewModel
 class StudentAuthViewModel
     @Inject
@@ -47,6 +51,7 @@ class StudentAuthViewModel
         private val _state = mutableStateOf(StudentAuthUiState())
         val state: State<StudentAuthUiState> = _state
         private val activeJobs = mutableSetOf<Job>()
+        private var contextBootstrapJob: Job? = null
 
         init {
             refreshGuestVenue()
@@ -56,11 +61,14 @@ class StudentAuthViewModel
 
         fun refreshGuestVenue() {
             val venue = guestSessionStore.readVenue()
+            val current = _state.value
+            val venueChanged = current.guestVenue?.establishment?.id != venue?.establishment?.id
             _state.value =
-                _state.value.copy(
+                current.copy(
                     guestVenue = venue,
                     clientIdLabel = venue?.establishment?.clientIdLabel ?: "Identificador",
                     clientIdRequired = venue?.establishment?.clientIdRequired == true,
+                    contextualId = if (venueChanged) "" else current.contextualId,
                     enrollmentComplete =
                         authRepository.isReadyForCheckout(venue?.establishment?.id),
                     session = authRepository.peekSession(),
@@ -96,78 +104,80 @@ class StudentAuthViewModel
             refreshCoordinator.clearSession()
             _state.value = _state.value.copy(enrollmentComplete = false)
 
-            launchTracked {
-                val result =
-                    withContext(Dispatchers.IO) {
-                        runCatching {
-                            val clientIdLabel = venue.establishment.clientIdLabel.lowercase()
-                            val clientIdentifier =
-                                if (venue.establishment.clientIdRequired) {
-                                    authorizedAccessRepository
-                                        .authorizedModes(session)
-                                        .getOrThrow()
-                                        .firstOrNull { mode ->
-                                            mode.role == OperationalRole.CLIENT &&
-                                                mode.establishmentId == venue.establishment.id
-                                        }?.clientIdentifier
-                                        ?.trim()
-                                        ?.takeIf { it.isNotBlank() }
-                                        ?: throw IllegalStateException(
-                                            "No encontramos tu $clientIdLabel vinculada. " +
-                                                "Complétala para continuar.",
-                                        )
-                                } else {
-                                    null
-                                }
-                            val firebaseToken = authRepository.getIdToken(forceRefresh = true).getOrThrow()
-                            val contexto =
-                                contextoExchange.exchange(
-                                    firebaseIdToken = firebaseToken,
-                                    establecimientoSlug = venue.establishment.slug,
-                                    establecimientoId = venue.establishment.id,
-                                    identificadorCliente = clientIdentifier,
-                                )
-                            sessionStore.saveAccessToken(contexto.accessToken)
-                            refreshCoordinator.startSession(
-                                OperationalRole.CLIENT,
-                                contexto.expiresIn,
-                                refresh = {
-                                    kotlinx.coroutines.runBlocking {
-                                        runCatching {
-                                            val refreshedFirebaseToken =
-                                                authRepository.getIdToken(forceRefresh = true).getOrThrow()
-                                            val refreshedContext =
-                                                contextoExchange.exchange(
-                                                    firebaseIdToken = refreshedFirebaseToken,
-                                                    establecimientoSlug = venue.establishment.slug,
-                                                    establecimientoId = venue.establishment.id,
-                                                    identificadorCliente = clientIdentifier,
-                                                )
-                                            sessionStore.saveAccessToken(refreshedContext.accessToken)
-                                        }
+            contextBootstrapJob?.cancel()
+            contextBootstrapJob =
+                launchTracked {
+                    val result =
+                        withContext(Dispatchers.IO) {
+                            runCatching {
+                                val clientIdLabel = venue.establishment.clientIdLabel.lowercase()
+                                val clientIdentifier =
+                                    if (venue.establishment.clientIdRequired) {
+                                        authorizedAccessRepository
+                                            .authorizedModes(session)
+                                            .getOrThrow()
+                                            .firstOrNull { mode ->
+                                                mode.role == OperationalRole.CLIENT &&
+                                                    mode.establishmentId == venue.establishment.id
+                                            }?.clientIdentifier
+                                            ?.trim()
+                                            ?.takeIf { it.isNotBlank() }
+                                            ?: throw IllegalStateException(
+                                                "No encontramos tu $clientIdLabel vinculada. " +
+                                                    "Complétala para continuar.",
+                                            )
+                                    } else {
+                                        null
                                     }
-                                },
-                            )
-                            contexto
+                                val firebaseToken = authRepository.getIdToken(forceRefresh = true).getOrThrow()
+                                val contexto =
+                                    contextoExchange.exchange(
+                                        firebaseIdToken = firebaseToken,
+                                        establecimientoSlug = venue.establishment.slug,
+                                        establecimientoId = venue.establishment.id,
+                                        identificadorCliente = clientIdentifier,
+                                    )
+                                sessionStore.saveAccessToken(contexto.accessToken)
+                                refreshCoordinator.startSession(
+                                    OperationalRole.CLIENT,
+                                    contexto.expiresIn,
+                                    refresh = {
+                                        kotlinx.coroutines.runBlocking {
+                                            runCatching {
+                                                val refreshedFirebaseToken =
+                                                    authRepository.getIdToken(forceRefresh = true).getOrThrow()
+                                                val refreshedContext =
+                                                    contextoExchange.exchange(
+                                                        firebaseIdToken = refreshedFirebaseToken,
+                                                        establecimientoSlug = venue.establishment.slug,
+                                                        establecimientoId = venue.establishment.id,
+                                                        identificadorCliente = clientIdentifier,
+                                                    )
+                                                sessionStore.saveAccessToken(refreshedContext.accessToken)
+                                            }
+                                        }
+                                    },
+                                )
+                                contexto
+                            }
                         }
-                    }
-                result.fold(
-                    onSuccess = {
-                        _state.value =
-                            _state.value.copy(
-                                enrollmentComplete = true,
-                                errorMessage = null,
-                            )
-                    },
-                    onFailure = { error ->
-                        _state.value =
-                            _state.value.copy(
-                                enrollmentComplete = false,
-                                errorMessage = error.toUserFacingMessage(),
-                            )
-                    },
-                )
-            }
+                    result.fold(
+                        onSuccess = {
+                            _state.value =
+                                _state.value.copy(
+                                    enrollmentComplete = true,
+                                    errorMessage = null,
+                                )
+                        },
+                        onFailure = { error ->
+                            _state.value =
+                                _state.value.copy(
+                                    enrollmentComplete = false,
+                                    errorMessage = error.toUserFacingMessage(),
+                                )
+                        },
+                    )
+                }
         }
 
         fun updateName(value: String) {
@@ -403,6 +413,7 @@ class StudentAuthViewModel
         fun completeEnrollment(
             onSuccess: () -> Unit,
             onNeedsVerify: () -> Unit = {},
+            onNeedsContextualId: () -> Unit = {},
         ) {
             val current = _state.value
             val session = authRepository.peekSession()
@@ -419,91 +430,112 @@ class StudentAuthViewModel
                 enrollIdentityOnly(current, session, onSuccess)
                 return
             }
-            if (venue.establishment.clientIdRequired && current.contextualId.isBlank()) {
-                _state.value =
-                    current.copy(
-                        errorMessage = "Ingresa tu ${venue.establishment.clientIdLabel.lowercase()}.",
-                    )
-                return
-            }
             _state.value = current.copy(loading = true, errorMessage = null)
-            launchTracked {
-                val result =
-                    withContext(Dispatchers.IO) {
-                        runCatching {
-                            val firebaseToken =
-                                authRepository.getIdToken(forceRefresh = true).getOrThrow()
-                            enrollmentRepository
-                                .enroll(
-                                    StudentEnrollmentRequest(
-                                        nombre = session.displayName.ifBlank { current.name },
-                                        terminosVersion = current.termsVersion,
-                                        privacidadVersion = current.privacyVersion,
-                                    ),
-                                    firebaseIdToken = firebaseToken,
-                                ).getOrThrow()
-                            val contexto =
-                                contextoExchange.exchange(
-                                    firebaseIdToken = firebaseToken,
-                                    establecimientoSlug = venue.establishment.slug,
-                                    establecimientoId = venue.establishment.id,
-                                    identificadorCliente = current.contextualId.trim().ifBlank { null },
-                                )
-                            sessionStore.saveAccessToken(contexto.accessToken)
-                            refreshCoordinator.startSession(
-                                OperationalRole.CLIENT,
-                                contexto.expiresIn,
-                                refresh = {
-                                    kotlinx.coroutines.runBlocking {
-                                        runCatching {
-                                            val refreshedFirebaseToken =
-                                                authRepository.getIdToken(forceRefresh = true).getOrThrow()
-                                            val refreshedContext =
-                                                contextoExchange.exchange(
-                                                    firebaseIdToken = refreshedFirebaseToken,
-                                                    establecimientoSlug = venue.establishment.slug,
-                                                    establecimientoId = venue.establishment.id,
-                                                    identificadorCliente = current.contextualId.trim().ifBlank { null },
-                                                )
-                                            sessionStore.saveAccessToken(refreshedContext.accessToken)
-                                        }
+            contextBootstrapJob?.cancel()
+            contextBootstrapJob =
+                launchTracked {
+                    val result =
+                        withContext(Dispatchers.IO) {
+                            runCatching {
+                                val firebaseToken =
+                                    authRepository.getIdToken(forceRefresh = true).getOrThrow()
+                                enrollmentRepository
+                                    .enroll(
+                                        StudentEnrollmentRequest(
+                                            nombre = session.displayName.ifBlank { current.name },
+                                            terminosVersion = current.termsVersion,
+                                            privacidadVersion = current.privacyVersion,
+                                        ),
+                                        firebaseIdToken = firebaseToken,
+                                    ).getOrThrow()
+                                val explicitClientIdentifier = current.contextualId.trim().ifBlank { null }
+                                val linkedClientIdentifier =
+                                    if (venue.establishment.clientIdRequired && explicitClientIdentifier == null) {
+                                        authorizedAccessRepository
+                                            .authorizedModes(session)
+                                            .getOrThrow()
+                                            .firstOrNull { mode ->
+                                                mode.role == OperationalRole.CLIENT &&
+                                                    mode.establishmentId == venue.establishment.id
+                                            }?.clientIdentifier
+                                            ?.trim()
+                                            ?.takeIf { it.isNotBlank() }
+                                    } else {
+                                        null
                                     }
-                                },
-                            )
-                            preferences.markEnrolled(venue.establishment.id)
-                            contexto
+                                val clientIdentifier = explicitClientIdentifier ?: linkedClientIdentifier
+                                if (venue.establishment.clientIdRequired && clientIdentifier == null) {
+                                    throw MissingClientIdentifierException(venue.establishment.clientIdLabel)
+                                }
+                                val contexto =
+                                    contextoExchange.exchange(
+                                        firebaseIdToken = firebaseToken,
+                                        establecimientoSlug = venue.establishment.slug,
+                                        establecimientoId = venue.establishment.id,
+                                        identificadorCliente = clientIdentifier,
+                                    )
+                                sessionStore.saveAccessToken(contexto.accessToken)
+                                refreshCoordinator.startSession(
+                                    OperationalRole.CLIENT,
+                                    contexto.expiresIn,
+                                    refresh = {
+                                        kotlinx.coroutines.runBlocking {
+                                            runCatching {
+                                                val refreshedFirebaseToken =
+                                                    authRepository.getIdToken(forceRefresh = true).getOrThrow()
+                                                val refreshedContext =
+                                                    contextoExchange.exchange(
+                                                        firebaseIdToken = refreshedFirebaseToken,
+                                                        establecimientoSlug = venue.establishment.slug,
+                                                        establecimientoId = venue.establishment.id,
+                                                        identificadorCliente = clientIdentifier,
+                                                    )
+                                                sessionStore.saveAccessToken(refreshedContext.accessToken)
+                                            }
+                                        }
+                                    },
+                                )
+                                preferences.markEnrolled(venue.establishment.id)
+                                contexto
+                            }
                         }
-                    }
-                result.fold(
-                    onSuccess = {
-                        _state.value =
-                            _state.value.copy(
-                                loading = false,
-                                enrollmentComplete = true,
-                                errorMessage = null,
-                            )
-                        onSuccess()
-                    },
-                    onFailure = { error ->
-                        if (error is ApiClientException &&
-                            error.code.equals("EMAIL_NOT_VERIFIED", ignoreCase = true)
-                        ) {
-                            onNeedsVerify()
+                    result.fold(
+                        onSuccess = {
                             _state.value =
                                 _state.value.copy(
                                     loading = false,
-                                    errorMessage = "Vuelve a verificar tu correo.",
+                                    enrollmentComplete = true,
+                                    errorMessage = null,
                                 )
-                        } else {
-                            _state.value =
-                                _state.value.copy(
-                                    loading = false,
-                                    errorMessage = error.toUserFacingMessage(),
-                                )
-                        }
-                    },
-                )
-            }
+                            onSuccess()
+                        },
+                        onFailure = { error ->
+                            if (error is MissingClientIdentifierException) {
+                                _state.value =
+                                    _state.value.copy(
+                                        loading = false,
+                                        errorMessage = error.message,
+                                    )
+                                onNeedsContextualId()
+                            } else if (error is ApiClientException &&
+                                error.code.equals("EMAIL_NOT_VERIFIED", ignoreCase = true)
+                            ) {
+                                onNeedsVerify()
+                                _state.value =
+                                    _state.value.copy(
+                                        loading = false,
+                                        errorMessage = "Vuelve a verificar tu correo.",
+                                    )
+                            } else {
+                                _state.value =
+                                    _state.value.copy(
+                                        loading = false,
+                                        errorMessage = error.toUserFacingMessage(),
+                                    )
+                            }
+                        },
+                    )
+                }
         }
 
         private suspend fun sendVerificationEmail(): Result<Unit> =
@@ -527,6 +559,28 @@ class StudentAuthViewModel
 
         private suspend fun sendPasswordResetEmail(email: String): Result<Unit> =
             remoteAccessEmailApi.sendRecovery(email)
+
+        fun ensureVenueContext(
+            onReady: () -> Unit,
+            onNeedsAuth: () -> Unit,
+        ) {
+            refreshGuestVenue()
+            val session = authRepository.peekSession()
+            val venue = _state.value.guestVenue
+            if (session == null || !session.emailVerified || venue == null) {
+                onNeedsAuth()
+                return
+            }
+            if (authRepository.isReadyForCheckout(venue.establishment.id)) {
+                onReady()
+                return
+            }
+            completeEnrollment(
+                onSuccess = onReady,
+                onNeedsVerify = onNeedsAuth,
+                onNeedsContextualId = onNeedsAuth,
+            )
+        }
 
         fun isReadyForCheckout(): Boolean {
             val venue = _state.value.guestVenue ?: guestSessionStore.readVenue()
@@ -627,6 +681,7 @@ class StudentAuthViewModel
         private fun cancelActiveJobs() {
             activeJobs.toList().forEach(Job::cancel)
             activeJobs.clear()
+            contextBootstrapJob = null
         }
 
         private fun launchTracked(block: suspend () -> Unit): Job {

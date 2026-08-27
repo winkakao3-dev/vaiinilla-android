@@ -76,6 +76,35 @@ class GuestSessionAndDeepLinkTest {
             MainActivity.establishmentSlugFrom(Uri.parse("https://www.vaiinilla.app/e/cafeteria-centro")),
         )
         assertNull(MainActivity.establishmentSlugFrom(Uri.parse("https://vaiinilla.app/other")))
+        assertNull(MainActivity.establishmentSlugFrom(Uri.parse("http://vaiinilla.app/e/cafeteria-centro")))
+        assertNull(MainActivity.establishmentSlugFrom(Uri.parse("https://vaiinilla.app/e/cafeteria-centro/extra")))
+        assertNull(MainActivity.establishmentSlugFrom(Uri.parse("https://user@vaiinilla.app/e/cafeteria-centro")))
+    }
+
+    @Test
+    fun `invitation links require canonical https host path and bounded token`() {
+        assertEquals(
+            "invite-123",
+            MainActivity.invitationTokenFrom(
+                Uri.parse("https://vaiinilla.app/invitaciones/aceptar?token=invite-123"),
+            ),
+        )
+        assertNull(
+            MainActivity.invitationTokenFrom(
+                Uri.parse("http://vaiinilla.app/invitaciones/aceptar?token=invite-123"),
+            ),
+        )
+        assertNull(
+            MainActivity.invitationTokenFrom(
+                Uri.parse("https://vaiinilla.app/invitaciones/aceptar/extra?token=invite-123"),
+            ),
+        )
+        val oversized = "a".repeat(4_097)
+        assertNull(
+            MainActivity.invitationTokenFrom(
+                Uri.parse("https://vaiinilla.app/invitaciones/aceptar?token=$oversized"),
+            ),
+        )
     }
 
     @Test

@@ -65,6 +65,8 @@ val releaseApiBaseUrl =
         "",
     )
 
+val productionApiBaseUrl = "https://vaiinillaback-development-3f6c.up.railway.app/api/v1/"
+
 val releaseStoreFile =
     readConfig(
         "vaiinillaReleaseStoreFile",
@@ -111,6 +113,15 @@ if (isReleaseTask && releaseApiBaseUrl.isBlank()) {
     throw GradleException(
         "Release builds require -PvaiinillaApiBaseUrl or VAIINILLA_API_BASE_URL. " +
             "Do not ship the localhost.invalid fallback.",
+    )
+}
+if (
+    isReleaseTask &&
+    releaseApiBaseUrl.trimEnd('/') != productionApiBaseUrl.trimEnd('/')
+) {
+    throw GradleException(
+        "Release builds are pinned to the verified production API endpoint. " +
+            "Refusing VAIINILLA_API_BASE_URL=$releaseApiBaseUrl",
     )
 }
 

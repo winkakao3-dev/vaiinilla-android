@@ -526,7 +526,7 @@ private fun PaymentDialogOption(
         label = "paymentOptionTitle",
     )
     val subtitleColor by animateColorAsState(
-        targetValue = if (selected) colors.accentInk.copy(alpha = 0.72f) else colors.muted,
+        targetValue = if (selected) colors.accentInk.copy(alpha = 0.82f) else colors.muted,
         animationSpec = tween(170),
         label = "paymentOptionSubtitle",
     )

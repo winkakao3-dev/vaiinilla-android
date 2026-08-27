@@ -273,7 +273,7 @@ fun EditorialHero(
             Column {
                 Text(
                     eyebrow.uppercase(),
-                    color = colors.accentInk.copy(alpha = 0.72f),
+                    color = colors.accentInk.copy(alpha = 0.82f),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 1.2.sp,
@@ -289,7 +289,7 @@ fun EditorialHero(
                 )
                 Text(
                     body,
-                    color = colors.accentInk.copy(alpha = 0.72f),
+                    color = colors.accentInk.copy(alpha = 0.82f),
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
                     modifier = Modifier.padding(top = 10.dp),

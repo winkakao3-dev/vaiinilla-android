@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.components
 
 import android.graphics.BitmapFactory
+import android.util.LruCache
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -26,9 +27,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.R
+import com.vaiinilla.app.core.io.readBytesLimited
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
 import java.net.URL
 
 @Composable
@@ -41,14 +44,7 @@ fun ProductImage(
     if (productImageIsRemote(imageUrl)) {
         var remote by remember(imageUrl) { mutableStateOf<ImageBitmap?>(null) }
         LaunchedEffect(imageUrl) {
-            remote =
-                withContext(Dispatchers.IO) {
-                    runCatching {
-                        URL(imageUrl).openStream().use { stream ->
-                            BitmapFactory.decodeStream(stream)?.asImageBitmap()
-                        }
-                    }.getOrNull()
-                }
+            remote = withContext(Dispatchers.IO) { loadRemoteProductImage(imageUrl) }
         }
         val bitmap = remote
         if (bitmap != null) {
@@ -74,6 +70,64 @@ fun ProductImage(
             ProductImagePlaceholder(modifier)
         }
     }
+}
+
+private fun loadRemoteProductImage(imageUrl: String): ImageBitmap? {
+    remoteProductImageCache.get(imageUrl)?.let { return it.asImageBitmap() }
+    return runCatching {
+        val url = URL(imageUrl)
+        val connection = url.openConnection() as? HttpURLConnection ?: return@runCatching null
+        try {
+            connection.connectTimeout = REMOTE_IMAGE_CONNECT_TIMEOUT_MS
+            connection.readTimeout = REMOTE_IMAGE_READ_TIMEOUT_MS
+            connection.instanceFollowRedirects = false
+            connection.setRequestProperty("Accept", "image/*")
+            val status = connection.responseCode
+            if (status !in 200..299) return@runCatching null
+            val contentLength = connection.contentLengthLong
+            if (contentLength > REMOTE_IMAGE_MAX_BYTES) return@runCatching null
+            val contentType =
+                connection.contentType
+                    .orEmpty()
+                    .substringBefore(';')
+                    .trim()
+                    .lowercase()
+            if (contentType.isNotEmpty() && !contentType.startsWith("image/")) return@runCatching null
+            val bytes =
+                connection.inputStream.use { input ->
+                    input.readBytesLimited(REMOTE_IMAGE_MAX_BYTES)
+                } ?: return@runCatching null
+            decodeBoundedImage(bytes)?.let { bitmap ->
+                remoteProductImageCache.put(imageUrl, bitmap)
+                bitmap.asImageBitmap()
+            }
+        } finally {
+            connection.disconnect()
+        }
+    }.getOrNull()
+}
+
+private fun decodeBoundedImage(bytes: ByteArray): android.graphics.Bitmap? {
+    if (bytes.isEmpty()) return null
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+    if (bounds.outWidth > REMOTE_IMAGE_MAX_SOURCE_DIMENSION || bounds.outHeight > REMOTE_IMAGE_MAX_SOURCE_DIMENSION) {
+        return null
+    }
+    var sample = 1
+    while (
+        bounds.outWidth / sample > REMOTE_IMAGE_MAX_DECODE_DIMENSION ||
+        bounds.outHeight / sample > REMOTE_IMAGE_MAX_DECODE_DIMENSION
+    ) {
+        sample *= 2
+    }
+    return BitmapFactory.decodeByteArray(
+        bytes,
+        0,
+        bytes.size,
+        BitmapFactory.Options().apply { inSampleSize = sample },
+    )
 }
 
 @Composable
@@ -102,8 +156,15 @@ private fun ProductImagePlaceholder(modifier: Modifier) {
 }
 
 fun productImageIsRemote(imageUrl: String): Boolean =
-    imageUrl.startsWith("https://", ignoreCase = true) ||
-        imageUrl.startsWith("http://", ignoreCase = true)
+    runCatching {
+        val url = URL(imageUrl)
+        val host = url.host.trim().lowercase()
+        url.protocol.equals("https", ignoreCase = true) &&
+            host.isNotEmpty() &&
+            host != "localhost" &&
+            url.userInfo == null &&
+            (url.port == -1 || url.port == 443)
+    }.getOrDefault(false)
 
 @DrawableRes
 fun productImageResource(imageUrl: String): Int? {
@@ -127,3 +188,17 @@ fun productImageResource(imageUrl: String): Int? {
         else -> null
     }
 }
+
+private val remoteProductImageCache =
+    object : LruCache<String, android.graphics.Bitmap>(24 * 1024) {
+        override fun sizeOf(
+            key: String,
+            value: android.graphics.Bitmap,
+        ): Int = (value.allocationByteCount / 1024).coerceAtLeast(1)
+    }
+
+private const val REMOTE_IMAGE_MAX_BYTES = 8 * 1024 * 1024
+private const val REMOTE_IMAGE_MAX_DECODE_DIMENSION = 2048
+private const val REMOTE_IMAGE_MAX_SOURCE_DIMENSION = 32_768
+private const val REMOTE_IMAGE_CONNECT_TIMEOUT_MS = 7_000
+private const val REMOTE_IMAGE_READ_TIMEOUT_MS = 10_000

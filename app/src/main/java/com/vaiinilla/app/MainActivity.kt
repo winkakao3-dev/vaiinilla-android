@@ -108,13 +108,12 @@ class MainActivity : ComponentActivity() {
         }
 
         fun establishmentSlugFrom(uri: Uri): String? {
-            val host = uri.host ?: return null
-            if (host != "vaiinilla.app" && host != "www.vaiinilla.app") return null
+            if (!isTrustedAppUri(uri)) return null
             val segments = uri.pathSegments
-            if (segments.size >= 2 && segments[0] == "e") {
-                return segments[1].takeIf { it.isNotBlank() }
-            }
-            return null
+            if (segments.size != 2 || segments[0] != "e") return null
+            return segments[1]
+                .trim()
+                .takeIf { it.length in 1..MAX_ESTABLISHMENT_SLUG_LENGTH && ESTABLISHMENT_SLUG.matches(it) }
         }
 
         fun invitationTokenFrom(intent: Intent?): String? {
@@ -123,10 +122,25 @@ class MainActivity : ComponentActivity() {
         }
 
         fun invitationTokenFrom(uri: Uri): String? {
-            val host = uri.host ?: return null
-            if (host != "vaiinilla.app" && host != "www.vaiinilla.app") return null
+            if (!isTrustedAppUri(uri)) return null
             if (uri.pathSegments != listOf("invitaciones", "aceptar")) return null
-            return uri.getQueryParameter("token")?.trim()?.takeIf { it.isNotEmpty() }
+            return uri
+                .getQueryParameter("token")
+                ?.trim()
+                ?.takeIf { token ->
+                    token.length in 1..MAX_INVITATION_TOKEN_LENGTH && token.none(Char::isWhitespace)
+                }
         }
+
+        private fun isTrustedAppUri(uri: Uri): Boolean {
+            if (!uri.scheme.equals("https", ignoreCase = true)) return false
+            val authority = uri.authority?.lowercase() ?: return false
+            return authority in APP_HOSTS
+        }
+
+        private val APP_HOSTS = setOf("vaiinilla.app", "www.vaiinilla.app")
+        private val ESTABLISHMENT_SLUG = Regex("[A-Za-z0-9][A-Za-z0-9_-]*")
+        private const val MAX_ESTABLISHMENT_SLUG_LENGTH = 100
+        private const val MAX_INVITATION_TOKEN_LENGTH = 4_096
     }
 }

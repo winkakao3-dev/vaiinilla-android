@@ -504,7 +504,7 @@ private fun ActiveVenueCard(
                     )
                     Text(
                         "$clientIdLabel ${if (clientIdRequired) "requerida" else "opcional"}",
-                        color = colors.accentInk.copy(alpha = 0.68f),
+                        color = colors.accentInk.copy(alpha = 0.78f),
                         fontSize = 13.sp,
                         lineHeight = 17.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -835,7 +835,12 @@ private fun CompactVenueCard(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
-    val background = if (selected) colors.accent2.copy(alpha = 0.62f) else colors.paper2
+    val background =
+        if (selected) {
+            colors.accent.copy(alpha = if (colors.isDark) 0.18f else 0.28f)
+        } else {
+            colors.paper2
+        }
     Box(
         modifier =
             modifier
@@ -1046,8 +1051,13 @@ private fun EstablishmentCard(
                 .fillMaxWidth()
                 .height(82.dp)
                 .clip(RoundedCornerShape(24.dp))
-                .background(if (selected) colors.accent2.copy(alpha = 0.35f) else colors.paper2)
-                .then(
+                .background(
+                    if (selected) {
+                        colors.accent.copy(alpha = if (colors.isDark) 0.16f else 0.24f)
+                    } else {
+                        colors.paper2
+                    },
+                ).then(
                     if (selected) {
                         Modifier.border(2.dp, colors.accent.copy(alpha = 0.45f), RoundedCornerShape(24.dp))
                     } else {
@@ -1283,10 +1293,15 @@ private fun SpaceCodeSheet(
                         CircularProgressIndicator(
                             modifier = Modifier.size(22.dp),
                             strokeWidth = 2.dp,
-                            color = colors.ink,
+                            color = colors.accentInk,
                         )
                     } else {
-                        Text("Resolver espacio", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.ink)
+                        Text(
+                            "Resolver espacio",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = colors.accentInk,
+                        )
                     }
                 }
             }

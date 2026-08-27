@@ -14,18 +14,13 @@ if [[ -z "$api_url" ]]; then
   exit 1
 fi
 
-case "$api_url" in
-  https://localhost.invalid/*|*localhost*|*127.0.0.1*)
-    echo "FAIL: la APK usaría un backend local/inválido: $api_url" >&2
-    exit 1
-    ;;
-  https://*/api/v1/|https://*/api/v1)
-    ;;
-  *)
-    echo "FAIL: la API debe ser HTTPS y terminar en /api/v1/: $api_url" >&2
-    exit 1
-    ;;
-esac
+production_api_url="https://vaiinillaback-development-3f6c.up.railway.app/api/v1/"
+normalized_api_url="${api_url%/}/"
+if [[ "$normalized_api_url" != "$production_api_url" ]]; then
+  echo "FAIL: endpoint no reconocido para Vaiinilla: $api_url" >&2
+  echo "Esperado: $production_api_url" >&2
+  exit 1
+fi
 
 echo "PASS: API base apta para dispositivo real: $api_url"
 echo "Running focused app/backend regression tests..."

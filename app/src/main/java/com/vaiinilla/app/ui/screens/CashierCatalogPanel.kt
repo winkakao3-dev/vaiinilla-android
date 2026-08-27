@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import com.vaiinilla.app.core.io.readBytesLimited
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.Category
@@ -460,7 +461,10 @@ private fun prepareProductImage(
     context: android.content.Context,
     uri: Uri,
 ): PreparedProductImage? {
-    val original = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
+    val original =
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            input.readBytesLimited(MAX_SOURCE_PRODUCT_IMAGE_BYTES)
+        } ?: return null
     if (original.isEmpty()) return null
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeByteArray(original, 0, original.size, bounds)
@@ -491,3 +495,4 @@ private fun prepareProductImage(
 }
 
 private const val MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024
+private const val MAX_SOURCE_PRODUCT_IMAGE_BYTES = 16 * 1024 * 1024

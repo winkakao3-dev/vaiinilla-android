@@ -56,8 +56,8 @@ import com.vaiinilla.app.ui.screens.WalletAddCardScreen
 import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
 import com.vaiinilla.app.ui.screens.WalletPaymentMethodsScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
-import com.vaiinilla.app.ui.wallet.WalletUiState
 import com.vaiinilla.app.ui.wallet.WalletViewModel
+import com.vaiinilla.app.ui.wallet.rememberWalletUiState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -88,7 +88,7 @@ fun AppNavHost(
     val discoveryState by discoveryViewModel.state
     val walletRemoteState by walletViewModel.state.collectAsStateWithLifecycle()
     val accountDeletionState by accountDeletionViewModel.state
-    val walletState = WalletUiState()
+    val walletState = rememberWalletUiState()
 
     fun enterVenueAndOpenCatalog(venue: GuestVenueContext) {
         val switchingEstablishment = isEstablishmentSwitch(orderState.guestVenue, venue)
@@ -517,7 +517,15 @@ fun AppNavHost(
             }
 
             composable(Routes.WALLET) {
-                LaunchedEffect(Unit) { walletViewModel.refresh() }
+                LaunchedEffect(
+                    studentAuthState.session?.uid,
+                    orderState.guestVenue?.establishment?.id,
+                ) {
+                    studentAuthViewModel.ensureVenueContext(
+                        onReady = walletViewModel::refresh,
+                        onNeedsAuth = { navigateStudentAuth(Routes.WALLET) },
+                    )
+                }
                 WalletScreen(
                     remoteState = walletRemoteState,
                     onRetry = walletViewModel::refresh,
@@ -637,7 +645,10 @@ fun AppNavHost(
                     onPaymentChange = orderFlowViewModel::updateCheckoutPayment,
                     onConfirm = {
                         if (guestAuthRequired) {
-                            navigateStudentAuth(Routes.CART)
+                            studentAuthViewModel.ensureVenueContext(
+                                onReady = orderFlowViewModel::submitOrder,
+                                onNeedsAuth = { navigateStudentAuth(Routes.CART) },
+                            )
                         } else {
                             orderFlowViewModel.submitOrder()
                         }
@@ -890,9 +901,12 @@ fun AppNavHost(
 
             composable(Routes.STUDENT_TRACKING) {
                 val venueAuthRequired = orderFlowViewModel.requiresStudentAuth()
-                LaunchedEffect(venueAuthRequired) {
+                LaunchedEffect(venueAuthRequired, studentAuthState.session?.uid) {
                     if (venueAuthRequired) {
-                        navigateStudentAuth(Routes.STUDENT_TRACKING)
+                        studentAuthViewModel.ensureVenueContext(
+                            onReady = { operationalViewModel.setRole(OperationalRole.CLIENT) },
+                            onNeedsAuth = { navigateStudentAuth(Routes.STUDENT_TRACKING) },
+                        )
                     } else {
                         operationalViewModel.setRole(OperationalRole.CLIENT)
                     }
@@ -928,33 +942,30 @@ fun AppNavHost(
                 }
                 if (authorizedCashier) {
                     OperationalPresenceLifecycle(OperationalRole.CASHIER, operationalViewModel)
-                }
-                CashierOperationalScreen(
-                    state = operationalState,
-                    onBack = returnToModes(navController, operationalViewModel),
-                    onOpenCashSession = operationalViewModel::openCashRegister,
-                    onCollect = operationalViewModel::collectCash,
-                    onSearchWalletClients = operationalViewModel::searchWalletClients,
-                    onOpenWalletUserQr = { walletUserQrOpen = true },
-                    onReloadWallet = operationalViewModel::reloadWallet,
-                    onDeliver = { orderId, version -> operationalViewModel.deliver(orderId, version) },
-                    onScanDeliver = { orderId, version ->
-                        pendingPickupDelivery = PendingPickupDelivery(orderId, version)
-                    },
-                    onChangeMode =
-                        if (authorizedCashier && authorizedAccessState.hasMultipleModes) {
-                            returnToModes(navController, operationalViewModel)
-                        } else {
-                            null
+                    CashierOperationalScreen(
+                        state = operationalState,
+                        onBack = returnToModes(navController, operationalViewModel),
+                        onOpenCashSession = operationalViewModel::openCashRegister,
+                        onCollect = operationalViewModel::collectCash,
+                        onSearchWalletClients = operationalViewModel::searchWalletClients,
+                        onOpenWalletUserQr = { walletUserQrOpen = true },
+                        onReloadWallet = operationalViewModel::reloadWallet,
+                        onDeliver = { orderId, version -> operationalViewModel.deliver(orderId, version) },
+                        onScanDeliver = { orderId, version ->
+                            pendingPickupDelivery = PendingPickupDelivery(orderId, version)
                         },
-                    restrictedMode =
-                        authorizedAccessState.activeContext
-                            ?.takeIf { it.role == OperationalRole.CASHIER }
-                            ?.restrictedMode,
-                    onToggleProductAvailable = operationalViewModel::setProductAvailable,
-                    onCreateCashierProduct = operationalViewModel::createCashierProduct,
-                    onUploadCashierProductImage = operationalViewModel::uploadCashierProductImage,
-                )
+                        onChangeMode =
+                            if (authorizedAccessState.hasMultipleModes) {
+                                returnToModes(navController, operationalViewModel)
+                            } else {
+                                null
+                            },
+                        restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
+                        onToggleProductAvailable = operationalViewModel::setProductAvailable,
+                        onCreateCashierProduct = operationalViewModel::createCashierProduct,
+                        onUploadCashierProductImage = operationalViewModel::uploadCashierProductImage,
+                    )
+                }
             }
 
             composable(Routes.KITCHEN) {
@@ -966,23 +977,20 @@ fun AppNavHost(
                 }
                 if (authorizedKitchen) {
                     OperationalPresenceLifecycle(OperationalRole.KITCHEN, operationalViewModel)
+                    KitchenOperationalScreen(
+                        state = operationalState,
+                        onBack = returnToModes(navController, operationalViewModel),
+                        onStart = operationalViewModel::startKitchen,
+                        onReady = operationalViewModel::markReady,
+                        onChangeMode =
+                            if (authorizedAccessState.hasMultipleModes) {
+                                returnToModes(navController, operationalViewModel)
+                            } else {
+                                null
+                            },
+                        restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
+                    )
                 }
-                KitchenOperationalScreen(
-                    state = operationalState,
-                    onBack = returnToModes(navController, operationalViewModel),
-                    onStart = operationalViewModel::startKitchen,
-                    onReady = operationalViewModel::markReady,
-                    onChangeMode =
-                        if (authorizedKitchen && authorizedAccessState.hasMultipleModes) {
-                            returnToModes(navController, operationalViewModel)
-                        } else {
-                            null
-                        },
-                    restrictedMode =
-                        authorizedAccessState.activeContext
-                            ?.takeIf { it.role == OperationalRole.KITCHEN }
-                            ?.restrictedMode,
-                )
             }
 
             composable(Routes.WAITER) {
@@ -994,25 +1002,22 @@ fun AppNavHost(
                 }
                 if (authorizedWaiter) {
                     OperationalPresenceLifecycle(OperationalRole.WAITER, operationalViewModel)
-                }
-                WaiterOperationalScreen(
-                    state = operationalState,
-                    onBack = returnToModes(navController, operationalViewModel),
-                    onDeliver = { orderId, version -> operationalViewModel.deliver(orderId, version) },
-                    onScanDeliver = { orderId, version ->
-                        pendingPickupDelivery = PendingPickupDelivery(orderId, version)
-                    },
-                    onChangeMode =
-                        if (authorizedWaiter && authorizedAccessState.hasMultipleModes) {
-                            returnToModes(navController, operationalViewModel)
-                        } else {
-                            null
+                    WaiterOperationalScreen(
+                        state = operationalState,
+                        onBack = returnToModes(navController, operationalViewModel),
+                        onDeliver = { orderId, version -> operationalViewModel.deliver(orderId, version) },
+                        onScanDeliver = { orderId, version ->
+                            pendingPickupDelivery = PendingPickupDelivery(orderId, version)
                         },
-                    restrictedMode =
-                        authorizedAccessState.activeContext
-                            ?.takeIf { it.role == OperationalRole.WAITER }
-                            ?.restrictedMode,
-                )
+                        onChangeMode =
+                            if (authorizedAccessState.hasMultipleModes) {
+                                returnToModes(navController, operationalViewModel)
+                            } else {
+                                null
+                            },
+                        restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
+                    )
+                }
             }
         }
     }

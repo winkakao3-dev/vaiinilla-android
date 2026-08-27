@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.ui.theme.Ink
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.Yolk
 
@@ -53,7 +54,6 @@ fun OrderStateTrackingHero(
     spaceName: String? = null,
     modifier: Modifier = Modifier,
 ) {
-    val colors = LocalVaiinillaColors.current
     val content = trackingHeroContent(state, destination, spaceName)
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -91,7 +91,7 @@ fun OrderStateTrackingHero(
                 ) {
                     Text(
                         text = content.badge,
-                        color = colors.ink,
+                        color = Ink,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 0.8.sp,

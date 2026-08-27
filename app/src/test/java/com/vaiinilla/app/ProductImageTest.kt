@@ -15,6 +15,9 @@ class ProductImageTest {
                 "https://lyhidclkdpfgxnabevia.supabase.co/storage/v1/object/public/catalogo-productos/x.jpg",
             ),
         )
+        assertFalse(productImageIsRemote("http://cdn.example/producto.jpg"))
+        assertFalse(productImageIsRemote("https://user@cdn.example/producto.jpg"))
+        assertFalse(productImageIsRemote("https://cdn.example:8443/producto.jpg"))
         assertFalse(productImageIsRemote("waffle"))
         assertFalse(productImageIsRemote("fixture://jamaica"))
     }

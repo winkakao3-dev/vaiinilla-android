@@ -1,6 +1,7 @@
 package com.vaiinilla.app.core.network
 
 import android.util.Log
+import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.core.auth.ActiveSessionRefresher
 import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.security.SecureSessionStore
@@ -230,54 +231,74 @@ class HttpVaiinillaApiClient
             }
 
             val connection = openConnection(method, path, query)
-            connection.instanceFollowRedirects = false
-            connection.setRequestProperty("Accept", "application/json")
-            if (!token.isNullOrBlank()) {
-                connection.setRequestProperty("Authorization", "Bearer $token")
-            }
-            headers.forEach { (name, value) ->
-                connection.setRequestProperty(name, value)
-            }
-
-            if (body != null) {
-                val payload = body.toByteArray(Charsets.UTF_8)
-                connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                connection.doOutput = true
-                connection.requestMethod = method
-                connection.setFixedLengthStreamingMode(payload.size)
-                connection.outputStream.use { stream ->
-                    stream.write(payload)
+            try {
+                connection.instanceFollowRedirects = false
+                connection.setRequestProperty("Accept", "application/json")
+                if (!token.isNullOrBlank()) {
+                    connection.setRequestProperty("Authorization", "Bearer $token")
                 }
-            }
+                headers.forEach { (name, value) ->
+                    connection.setRequestProperty(name, value)
+                }
 
-            val status = connection.responseCode
-            val retryAfterSeconds = connection.getHeaderField("Retry-After")?.trim()?.toLongOrNull()
-            val raw = readBody(connection, status)
-            Log.w(TAG, "$method $path -> $status")
-            if (status == expectedStatus || (expectedStatus == null && status in 200..299)) {
-                return raw
-            }
+                if (body != null) {
+                    val payload = body.toByteArray(Charsets.UTF_8)
+                    connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                    connection.doOutput = true
+                    connection.requestMethod = method
+                    connection.setFixedLengthStreamingMode(payload.size)
+                    connection.outputStream.use { stream ->
+                        stream.write(payload)
+                    }
+                }
 
-            val error = responseParser.parseError(raw, status, retryAfterSeconds)
-            if (
-                allowSessionRefresh &&
-                error.httpStatus == 401 &&
-                error.code.equals("UNAUTHENTICATED", ignoreCase = true)
-            ) {
-                sessionRefresher.refreshActiveSession().getOrThrow()
-                return executeOnce(
-                    method = method,
-                    path = path,
-                    query = query,
-                    body = body,
-                    headers = headers,
-                    accessToken = null,
-                    requireAuth = true,
-                    allowSessionRefresh = false,
-                    expectedStatus = expectedStatus,
-                )
+                val status = connection.responseCode
+                val retryAfterSeconds = connection.getHeaderField("Retry-After")?.trim()?.toLongOrNull()
+                val raw = readBody(connection, status)
+                if (BuildConfig.DEBUG) {
+                    Log.w(TAG, "$method ${sanitizePathForLog(path)} -> $status")
+                }
+                if (status == expectedStatus || (expectedStatus == null && status in 200..299)) {
+                    return raw
+                }
+
+                val error = responseParser.parseError(raw, status, retryAfterSeconds)
+                if (
+                    allowSessionRefresh &&
+                    error.httpStatus == 401 &&
+                    error.code.equals("UNAUTHENTICATED", ignoreCase = true)
+                ) {
+                    val currentToken = sessionStore.readAccessToken()?.takeIf { it.isNotBlank() }
+                    if (accessToken == null && currentToken != null && currentToken != token) {
+                        return executeOnce(
+                            method = method,
+                            path = path,
+                            query = query,
+                            body = body,
+                            headers = headers,
+                            accessToken = null,
+                            requireAuth = true,
+                            allowSessionRefresh = false,
+                            expectedStatus = expectedStatus,
+                        )
+                    }
+                    sessionRefresher.refreshActiveSession().getOrThrow()
+                    return executeOnce(
+                        method = method,
+                        path = path,
+                        query = query,
+                        body = body,
+                        headers = headers,
+                        accessToken = null,
+                        requireAuth = true,
+                        allowSessionRefresh = false,
+                        expectedStatus = expectedStatus,
+                    )
+                }
+                throw error
+            } finally {
+                connection.disconnect()
             }
-            throw error
         }
 
         private fun sendMultipartOnce(
@@ -325,10 +346,12 @@ class HttpVaiinillaApiClient
                 val status = connection.responseCode
                 val retryAfterSeconds = connection.getHeaderField("Retry-After")?.trim()?.toLongOrNull()
                 val raw = readBody(connection, status)
-                Log.w(
-                    TAG,
-                    "$method-MULTIPART $path (${bytes.size} bytes) -> $status",
-                )
+                if (BuildConfig.DEBUG) {
+                    Log.w(
+                        TAG,
+                        "$method-MULTIPART ${sanitizePathForLog(path)} (${bytes.size} bytes) -> $status",
+                    )
+                }
                 if (status in 200..299) return raw
                 val error = responseParser.parseError(raw, status, retryAfterSeconds)
                 if (
@@ -399,6 +422,17 @@ class HttpVaiinillaApiClient
                 BufferedReader(InputStreamReader(input, Charsets.UTF_8)).readText()
             }
         }
+
+        private fun sanitizePathForLog(path: String): String =
+            path
+                .split('/')
+                .joinToString("/") { segment ->
+                    when {
+                        segment.length >= 24 -> "{id}"
+                        segment.count { it == '-' } >= 3 -> "{id}"
+                        else -> segment
+                    }
+                }
 
         private companion object {
             const val TAG = "VaiinillaHttp"

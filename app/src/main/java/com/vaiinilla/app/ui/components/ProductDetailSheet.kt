@@ -2,6 +2,7 @@ package com.vaiinilla.app.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -33,6 +34,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -53,16 +55,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -70,6 +79,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OptionGroup
@@ -101,6 +111,10 @@ fun ProductDetailSheet(
     val visibility = remember { MutableTransitionState(false) }
     var dismissing by remember { mutableStateOf(false) }
     val haptics = rememberVaiinillaHaptics()
+    val listState = rememberLazyListState()
+    val density = LocalDensity.current
+    val dismissThresholdPx = with(density) { 96.dp.toPx() }
+    var sheetDragOffsetPx by remember(product.id) { mutableFloatStateOf(0f) }
 
     fun requestDismiss() {
         if (!dismissing) {
@@ -108,6 +122,52 @@ fun ProductDetailSheet(
             visibility.targetState = false
         }
     }
+
+    val sheetNestedScroll =
+        remember(product.id, listState, dismissThresholdPx) {
+            object : NestedScrollConnection {
+                override fun onPreScroll(
+                    available: Offset,
+                    source: NestedScrollSource,
+                ): Offset {
+                    if (available.y >= 0f || sheetDragOffsetPx <= 0f) return Offset.Zero
+                    val previous = sheetDragOffsetPx
+                    sheetDragOffsetPx = (sheetDragOffsetPx + available.y).coerceAtLeast(0f)
+                    return Offset(0f, sheetDragOffsetPx - previous)
+                }
+
+                override fun onPostScroll(
+                    consumed: Offset,
+                    available: Offset,
+                    source: NestedScrollSource,
+                ): Offset {
+                    val atTop =
+                        listState.firstVisibleItemIndex == 0 &&
+                            listState.firstVisibleItemScrollOffset == 0
+                    if (!atTop || available.y <= 0f) return Offset.Zero
+                    sheetDragOffsetPx += available.y
+                    return Offset(0f, available.y)
+                }
+
+                override suspend fun onPreFling(available: Velocity): Velocity {
+                    if (sheetDragOffsetPx <= 0f) return Velocity.Zero
+                    val shouldDismiss =
+                        sheetDragOffsetPx >= dismissThresholdPx || available.y >= 1_100f
+                    if (shouldDismiss) {
+                        requestDismiss()
+                    } else {
+                        animate(
+                            initialValue = sheetDragOffsetPx,
+                            targetValue = 0f,
+                            animationSpec = spring(dampingRatio = 0.84f, stiffness = 540f),
+                        ) { value, _ ->
+                            sheetDragOffsetPx = value
+                        }
+                    }
+                    return Velocity(0f, available.y)
+                }
+            }
+        }
 
     val scrimAlpha by
         animateFloatAsState(
@@ -177,6 +237,8 @@ fun ProductDetailSheet(
                 modifier =
                     Modifier
                         .fillMaxSize()
+                        .graphicsLayer { translationY = sheetDragOffsetPx }
+                        .nestedScroll(sheetNestedScroll)
                         .testTag("product-detail-surface")
                         .clickable(
                             interactionSource = interactionSource,
@@ -189,6 +251,7 @@ fun ProductDetailSheet(
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.weight(1f).testTag("product-detail-scroll"),
                         contentPadding =
                             androidx.compose.foundation.layout
@@ -505,7 +568,7 @@ private fun ProductOptionTile(
     ) {
         Text(
             label,
-            color = colors.ink,
+            color = if (selected) colors.accentInk else colors.ink,
             fontSize = 15.sp,
             lineHeight = 19.sp,
             fontWeight = FontWeight.Bold,
@@ -520,7 +583,7 @@ private fun ProductOptionTile(
                         .padding(start = 8.dp)
                         .size(28.dp)
                         .clip(CircleShape)
-                        .background(colors.ink),
+                        .background(colors.accentInk),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(

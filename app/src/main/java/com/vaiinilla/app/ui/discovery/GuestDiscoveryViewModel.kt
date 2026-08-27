@@ -41,6 +41,7 @@ class GuestDiscoveryViewModel
         val state: State<DiscoveryUiState> = _state
 
         private var searchJob: Job? = null
+        private var searchRevision: Long = 0
         private val activeJobs = mutableSetOf<Job>()
 
         init {
@@ -53,12 +54,7 @@ class GuestDiscoveryViewModel
 
         fun updateQuery(query: String) {
             _state.value = _state.value.copy(query = query)
-            searchJob?.cancel()
-            searchJob =
-                launchTracked {
-                    delay(220)
-                    search(query)
-                }
+            launchSearch(query = query, debounceMs = 220L)
         }
 
         fun updateSpaceToken(token: String) {
@@ -100,36 +96,49 @@ class GuestDiscoveryViewModel
         }
 
         fun search(query: String = _state.value.query) {
+            launchSearch(query = query, debounceMs = 0L)
+        }
+
+        private fun launchSearch(
+            query: String,
+            debounceMs: Long,
+        ) {
+            searchJob?.cancel()
+            val revision = ++searchRevision
             _state.value = _state.value.copy(loading = true, errorMessage = null, suspendedMessage = null)
-            launchTracked {
-                val result =
-                    withContext(Dispatchers.IO) {
-                        discoveryRepository.searchEstablishments(query = query.trim())
-                    }
-                result.fold(
-                    onSuccess = { (items, _) ->
-                        _state.value =
-                            _state.value.copy(
-                                loading = false,
-                                establishments = items,
-                                errorMessage =
-                                    if (items.isEmpty()) {
-                                        "No encontramos cafeterías con ese nombre."
-                                    } else {
-                                        null
-                                    },
-                            )
-                    },
-                    onFailure = { error ->
-                        _state.value =
-                            _state.value.copy(
-                                loading = false,
-                                establishments = emptyList(),
-                                errorMessage = error.toUserFacingMessage("No se pudo cargar el descubrimiento."),
-                            )
-                    },
-                )
-            }
+            searchJob =
+                viewModelScope.launch {
+                    if (debounceMs > 0) delay(debounceMs)
+                    val result =
+                        withContext(Dispatchers.IO) {
+                            discoveryRepository.searchEstablishments(query = query.trim())
+                        }
+                    if (revision != searchRevision) return@launch
+                    result.fold(
+                        onSuccess = { (items, _) ->
+                            _state.value =
+                                _state.value.copy(
+                                    loading = false,
+                                    establishments = items,
+                                    errorMessage =
+                                        if (items.isEmpty()) {
+                                            "No encontramos cafeterías con ese nombre."
+                                        } else {
+                                            null
+                                        },
+                                )
+                        },
+                        onFailure = { error ->
+                            _state.value =
+                                _state.value.copy(
+                                    loading = false,
+                                    establishments = emptyList(),
+                                    errorMessage =
+                                        error.toUserFacingMessage("No se pudo cargar el descubrimiento."),
+                                )
+                        },
+                    )
+                }
         }
 
         fun selectEstablishment(
@@ -228,9 +237,11 @@ class GuestDiscoveryViewModel
         }
 
         fun clearForSessionTermination() {
+            searchRevision += 1
+            searchJob?.cancel()
+            searchJob = null
             activeJobs.toList().forEach(Job::cancel)
             activeJobs.clear()
-            searchJob = null
             _state.value = DiscoveryUiState()
         }
 

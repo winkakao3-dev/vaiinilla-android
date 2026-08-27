@@ -61,6 +61,8 @@ class OperationalViewModel
         private var roleGeneration: Long = 0
         private var dismissedClientOrderIds: Set<String> = dismissedClientOrdersStore.read()
         private var pendingWalletReload: PendingWalletReload? = null
+        private var walletSearchJob: Job? = null
+        private var mutationJob: Job? = null
         private val heartbeatCoordinator =
             OperationalHeartbeatCoordinator(
                 scope = viewModelScope,
@@ -78,6 +80,10 @@ class OperationalViewModel
             if (roleChanged) {
                 roleGeneration += 1
                 lastUpdatedSince = null
+                walletSearchJob?.cancel()
+                walletSearchJob = null
+                mutationJob?.cancel()
+                mutationJob = null
             }
             _uiState.value =
                 _uiState.value.copy(
@@ -102,6 +108,10 @@ class OperationalViewModel
             roleGeneration += 1
             pollingJob?.cancel()
             pollingJob = null
+            walletSearchJob?.cancel()
+            walletSearchJob = null
+            mutationJob?.cancel()
+            mutationJob = null
             heartbeatCoordinator.stop()
             lastUpdatedSince = null
             pendingWalletReload = null
@@ -189,20 +199,27 @@ class OperationalViewModel
         }
 
         fun openCashRegister(initialAmount: String = "500.00") {
+            if (_uiState.value.role != OperationalRole.CASHIER || _uiState.value.acting) return
+            val generation = roleGeneration
             _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
-            viewModelScope.launch {
-                withContext(Dispatchers.IO) {
-                    openCashSession(initialAmount, UUID.randomUUID().toString())
-                }.onSuccess {
-                    _uiState.value = _uiState.value.copy(acting = false, cashSessionOpen = true)
-                }.onFailure { error ->
-                    _uiState.value =
-                        _uiState.value.copy(
-                            acting = false,
-                            errorMessage = error.toUserFacingMessage(),
-                        )
+            mutationJob =
+                viewModelScope.launch {
+                    val result =
+                        withContext(Dispatchers.IO) {
+                            openCashSession(initialAmount, UUID.randomUUID().toString())
+                        }
+                    if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
+                    result
+                        .onSuccess {
+                            _uiState.value = _uiState.value.copy(acting = false, cashSessionOpen = true)
+                        }.onFailure { error ->
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    acting = false,
+                                    errorMessage = error.toUserFacingMessage(),
+                                )
+                        }
                 }
-            }
         }
 
         fun resolveWalletUserQr(rawValue: String) {
@@ -225,31 +242,38 @@ class OperationalViewModel
                     )
                 return
             }
+            walletSearchJob?.cancel()
+            val generation = roleGeneration
             _uiState.value = _uiState.value.copy(walletSearchLoading = true, errorMessage = null)
-            viewModelScope.launch {
-                val scanned =
-                    WalletClient(userId = userId, name = "Cliente escaneado", contextualId = userId)
-                withContext(Dispatchers.IO) { walletRepository.searchClients(userId) }
-                    .onSuccess { clients ->
-                        _uiState.value =
-                            _uiState.value.copy(
-                                walletClients = clients.ifEmpty { listOf(scanned) },
-                                walletSearchLoading = false,
-                            )
-                    }.onFailure {
-                        _uiState.value =
-                            _uiState.value.copy(
-                                walletClients = listOf(scanned),
-                                walletSearchLoading = false,
-                            )
-                    }
-            }
+            walletSearchJob =
+                viewModelScope.launch {
+                    val scanned =
+                        WalletClient(userId = userId, name = "Cliente escaneado", contextualId = userId)
+                    val result = withContext(Dispatchers.IO) { walletRepository.searchClients(userId) }
+                    if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
+                    result
+                        .onSuccess { clients ->
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    walletClients = clients.ifEmpty { listOf(scanned) },
+                                    walletSearchLoading = false,
+                                )
+                        }.onFailure {
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    walletClients = listOf(scanned),
+                                    walletSearchLoading = false,
+                                )
+                        }
+                }
         }
 
         fun searchWalletClients(query: String) {
             if (_uiState.value.role != OperationalRole.CASHIER) return
             val normalizedQuery = query.trim()
             if (normalizedQuery.length < 2) {
+                walletSearchJob?.cancel()
+                walletSearchJob = null
                 _uiState.value =
                     _uiState.value.copy(
                         walletClients = emptyList(),
@@ -258,31 +282,42 @@ class OperationalViewModel
                     )
                 return
             }
+            walletSearchJob?.cancel()
+            val generation = roleGeneration
             _uiState.value = _uiState.value.copy(walletSearchLoading = true, errorMessage = null)
-            viewModelScope.launch {
-                withContext(Dispatchers.IO) { walletRepository.searchClients(normalizedQuery) }
-                    .onSuccess { clients ->
-                        _uiState.value =
-                            _uiState.value.copy(
-                                walletClients = clients,
-                                walletSearchLoading = false,
-                            )
-                    }.onFailure { error ->
-                        _uiState.value =
-                            _uiState.value.copy(
-                                walletClients = emptyList(),
-                                walletSearchLoading = false,
-                                errorMessage = error.toUserFacingMessage("No se pudieron buscar clientes."),
-                            )
-                    }
-            }
+            walletSearchJob =
+                viewModelScope.launch {
+                    val result = withContext(Dispatchers.IO) { walletRepository.searchClients(normalizedQuery) }
+                    if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
+                    result
+                        .onSuccess { clients ->
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    walletClients = clients,
+                                    walletSearchLoading = false,
+                                )
+                        }.onFailure { error ->
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    walletClients = emptyList(),
+                                    walletSearchLoading = false,
+                                    errorMessage = error.toUserFacingMessage("No se pudieron buscar clientes."),
+                                )
+                        }
+                }
         }
 
         fun reloadWallet(
             userId: String,
             amount: String,
         ) {
-            if (_uiState.value.role != OperationalRole.CASHIER || _uiState.value.cashSessionOpen != true) return
+            if (
+                _uiState.value.role != OperationalRole.CASHIER ||
+                _uiState.value.cashSessionOpen != true ||
+                _uiState.value.acting
+            ) {
+                return
+            }
             val normalizedAmount = amount.trim()
             val validAmount =
                 ContractRules.isValidMoney(normalizedAmount) &&
@@ -302,26 +337,32 @@ class OperationalViewModel
                         amount = normalizedAmount,
                         idempotencyKey = UUID.randomUUID().toString(),
                     ).also { pendingWalletReload = it }
+            val generation = roleGeneration
             _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
-            viewModelScope.launch {
-                withContext(Dispatchers.IO) {
-                    walletRepository.reloadCash(attempt.userId, attempt.amount, attempt.idempotencyKey)
-                }.onSuccess { receipt ->
-                    pendingWalletReload = null
-                    _uiState.value =
-                        _uiState.value.copy(
-                            acting = false,
-                            walletReloadReceipt = receipt,
-                            errorMessage = null,
-                        )
-                }.onFailure { error ->
-                    _uiState.value =
-                        _uiState.value.copy(
-                            acting = false,
-                            errorMessage = error.toUserFacingMessage("No se pudo registrar la recarga."),
-                        )
+            mutationJob =
+                viewModelScope.launch {
+                    val result =
+                        withContext(Dispatchers.IO) {
+                            walletRepository.reloadCash(attempt.userId, attempt.amount, attempt.idempotencyKey)
+                        }
+                    if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
+                    result
+                        .onSuccess { receipt ->
+                            pendingWalletReload = null
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    acting = false,
+                                    walletReloadReceipt = receipt,
+                                    errorMessage = null,
+                                )
+                        }.onFailure { error ->
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    acting = false,
+                                    errorMessage = error.toUserFacingMessage("No se pudo registrar la recarga."),
+                                )
+                        }
                 }
-            }
         }
 
         fun collectCash(
@@ -414,8 +455,11 @@ class OperationalViewModel
 
         private fun refreshCashSession() {
             if (_uiState.value.role != OperationalRole.CASHIER) return
+            val generation = roleGeneration
             viewModelScope.launch {
-                withContext(Dispatchers.IO) { cashSessionRepository.hasActiveSession() }
+                val result = withContext(Dispatchers.IO) { cashSessionRepository.hasActiveSession() }
+                if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
+                result
                     .onSuccess { open ->
                         _uiState.value = _uiState.value.copy(cashSessionOpen = open)
                     }.onFailure { error ->
@@ -428,27 +472,33 @@ class OperationalViewModel
         }
 
         private fun performMutation(block: () -> OrderDetail) {
+            if (_uiState.value.acting) return
+            val role = _uiState.value.role ?: return
+            val generation = roleGeneration
             _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
-            viewModelScope.launch {
-                runCatching { withContext(Dispatchers.IO) { block() } }
-                    .onSuccess { order ->
-                        val updated =
-                            _uiState.value.orders
-                                .filterNot { it.summary.id == order.summary.id } + order
-                        _uiState.value =
-                            _uiState.value.copy(
-                                acting = false,
-                                orders = updated.sortedByDescending { it.summary.updatedAt },
-                                selectedOrderId = order.summary.id,
-                            )
-                    }.onFailure { error ->
-                        _uiState.value =
-                            _uiState.value.copy(
-                                acting = false,
-                                errorMessage = error.toUserFacingMessage(),
-                            )
-                    }
-            }
+            mutationJob =
+                viewModelScope.launch {
+                    val result = runCatching { withContext(Dispatchers.IO) { block() } }
+                    if (generation != roleGeneration || _uiState.value.role != role) return@launch
+                    result
+                        .onSuccess { order ->
+                            val updated =
+                                _uiState.value.orders
+                                    .filterNot { it.summary.id == order.summary.id } + order
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    acting = false,
+                                    orders = updated.sortedByDescending { it.summary.updatedAt },
+                                    selectedOrderId = order.summary.id,
+                                )
+                        }.onFailure { error ->
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    acting = false,
+                                    errorMessage = error.toUserFacingMessage(),
+                                )
+                        }
+                }
         }
 
         private fun mergeOrders(

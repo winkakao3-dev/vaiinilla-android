@@ -381,7 +381,7 @@ private fun ChatBubble(
         ) {
             Text(
                 message.text,
-                color = colors.ink,
+                color = if (message.fromUser) colors.accentInk else colors.ink,
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
                 modifier = Modifier.padding(12.dp),

@@ -82,6 +82,7 @@ fun WalletAccountScreen(
     onRetryAccountDeletion: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
+    val qrCaptionColor = if (colors.isDark) colors.paper else colors.muted
     val haptics = rememberVaiinillaHaptics()
     val currentMode = LocalVaiinillaThemeMode.current
     val onThemeModeChange = LocalVaiinillaThemeModeChanger.current
@@ -273,7 +274,7 @@ fun WalletAccountScreen(
                                         }
                                         Text(
                                             "Listo para escanear",
-                                            color = colors.muted,
+                                            color = qrCaptionColor,
                                             fontSize = 12.sp,
                                             lineHeight = 16.sp,
                                             fontWeight = FontWeight.Bold,
@@ -283,7 +284,7 @@ fun WalletAccountScreen(
                                 } else {
                                     Text(
                                         "Inicia sesión para ver tu código.",
-                                        color = colors.muted,
+                                        color = qrCaptionColor,
                                         fontSize = 14.sp,
                                         lineHeight = 20.sp,
                                         fontWeight = FontWeight.SemiBold,

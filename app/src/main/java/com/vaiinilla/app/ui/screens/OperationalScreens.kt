@@ -109,7 +109,7 @@ fun CashierOperationalScreen(
                     kickerIcon = Icons.Outlined.PointOfSale,
                 )
             }
-            if (onChangeMode != null) {
+            if (onChangeMode != null && !state.acting) {
                 item {
                     WorkerModeLink(onChangeMode)
                 }
@@ -440,7 +440,7 @@ fun KitchenOperationalScreen(
                     kickerIcon = Icons.Outlined.Restaurant,
                 )
             }
-            if (onChangeMode != null) {
+            if (onChangeMode != null && !state.acting) {
                 item {
                     WorkerModeLink(onChangeMode)
                 }
@@ -513,7 +513,7 @@ fun WaiterOperationalScreen(
                     kickerIcon = Icons.Outlined.RoomService,
                 )
             }
-            if (onChangeMode != null) {
+            if (onChangeMode != null && !state.acting) {
                 item {
                     WorkerModeLink(onChangeMode)
                 }

@@ -452,7 +452,7 @@ private fun AuthBrandHero(
             Spacer(Modifier.height(24.dp))
             Text(
                 "COMEDOR CONECTADO",
-                color = colors.accentInk.copy(alpha = 0.66f),
+                color = colors.accentInk.copy(alpha = 0.78f),
                 fontSize = 11.sp,
                 lineHeight = 16.sp,
                 fontWeight = FontWeight.Bold,
