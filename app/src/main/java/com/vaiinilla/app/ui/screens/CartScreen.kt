@@ -1,10 +1,23 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -23,8 +36,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
@@ -33,12 +48,14 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,8 +72,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.Category
@@ -295,7 +310,7 @@ fun CartScreen(
         }
 
         if (paymentDialogOpen) {
-            PaymentMethodDialog(
+            PaymentMethodOverlay(
                 onDismiss = { paymentDialogOpen = false },
                 onSelect = { method ->
                     paymentDialogOpen = false
@@ -309,82 +324,179 @@ fun CartScreen(
 }
 
 @Composable
-private fun PaymentMethodDialog(
+private fun PaymentMethodOverlay(
     onDismiss: () -> Unit,
     onSelect: (PaymentMethod) -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    var selectedMethod by remember { mutableStateOf<PaymentMethod?>(null) }
     var selectionLocked by remember { mutableStateOf(false) }
+    val scrimInteraction = remember { MutableInteractionSource() }
+    val panelInteraction = remember { MutableInteractionSource() }
+    var reveal by remember { mutableStateOf(false) }
+    val scrimAlpha by animateFloatAsState(
+        targetValue = if (reveal) 0.38f else 0f,
+        animationSpec = tween(180),
+        label = "paymentOverlayScrim",
+    )
 
-    fun selectOnce(method: PaymentMethod) {
+    LaunchedEffect(Unit) { reveal = true }
+
+    fun continueWithSelection() {
+        val method = selectedMethod ?: return
         if (selectionLocked) return
         selectionLocked = true
         onSelect(method)
     }
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+
+    BoxWithConstraints(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(
+                    androidx.compose.ui.graphics.Color.Black
+                        .copy(alpha = scrimAlpha),
+                ).clickable(
+                    interactionSource = scrimInteraction,
+                    indication = null,
+                    enabled = !selectionLocked,
+                    onClick = onDismiss,
+                ).windowInsetsPadding(WindowInsets.navigationBars)
+                .padding(
+                    start = 18.dp,
+                    end = 18.dp,
+                    top = 16.dp,
+                    bottom = VaiinillaBottomNavClearance + 12.dp,
+                ),
+        contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 24.dp),
-            contentAlignment = Alignment.Center,
+        val availablePanelHeight = maxHeight
+        AnimatedVisibility(
+            visible = reveal,
+            enter =
+                fadeIn(animationSpec = tween(160)) +
+                    scaleIn(
+                        initialScale = 0.965f,
+                        animationSpec = spring(dampingRatio = 0.86f, stiffness = 520f),
+                    ),
         ) {
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = availablePanelHeight)
+                        .clickable(
+                            interactionSource = panelInteraction,
+                            indication = null,
+                            onClick = {},
+                        ),
                 color = colors.paper,
-                shape = RoundedCornerShape(28.dp),
-                shadowElevation = 12.dp,
+                shape = RoundedCornerShape(32.dp),
+                shadowElevation = 24.dp,
+                tonalElevation = 0.dp,
             ) {
                 Column(
-                    modifier = Modifier.padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier =
+                        Modifier
+                            .padding(24.dp)
+                            .verticalScroll(rememberScrollState()),
                 ) {
-                    Text(
-                        "¿Cómo quieres pagar?",
-                        color = colors.ink,
-                        fontSize = 24.sp,
-                        lineHeight = 28.sp,
-                        fontWeight = FontWeight.Black,
-                    )
-                    Text(
-                        "Elige una opción para continuar con tu pedido.",
-                        color = colors.muted,
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    PaymentDialogOption(
-                        icon = Icons.Outlined.Payments,
-                        title = "Efectivo",
-                        subtitle = "Paga en Caja antes de que preparen tu pedido.",
-                        onClick = { selectOnce(PaymentMethod.CASH) },
-                    )
-                    PaymentDialogOption(
-                        icon = Icons.Outlined.AccountBalanceWallet,
-                        title = "Saldo Vaiinilla",
-                        subtitle = "Usa el saldo disponible de tu cuenta.",
-                        onClick = { selectOnce(PaymentMethod.BALANCE) },
-                    )
-                    PaymentDialogOption(
-                        icon = Icons.Outlined.CreditCard,
-                        title = "Tarjeta",
-                        subtitle = "Continúa al pago seguro con Stripe.",
-                        onClick = { selectOnce(PaymentMethod.STRIPE) },
-                    )
+                    Column(modifier = Modifier.padding(horizontal = 4.dp)) {
+                        Text(
+                            "¿Cómo quieres pagar?",
+                            color = colors.ink,
+                            fontSize = 30.sp,
+                            lineHeight = 31.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = (-0.8).sp,
+                        )
+                        Text(
+                            "Elige el método que prefieras para este pedido.",
+                            color = colors.muted,
+                            fontSize = 15.sp,
+                            lineHeight = 21.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(top = 10.dp, bottom = 18.dp),
+                        )
+                    }
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = colors.paper2,
+                        shape = RoundedCornerShape(24.dp),
+                    ) {
+                        Column {
+                            PaymentDialogOption(
+                                icon = Icons.Outlined.Payments,
+                                title = "Efectivo",
+                                subtitle = "Paga en Caja antes de preparar tu pedido.",
+                                selected = selectedMethod == PaymentMethod.CASH,
+                                enabled = !selectionLocked,
+                                onClick = { selectedMethod = PaymentMethod.CASH },
+                            )
+                            PaymentDialogOption(
+                                icon = Icons.Outlined.AccountBalanceWallet,
+                                title = "Saldo Vaiinilla",
+                                subtitle = "Usa el saldo disponible de tu cuenta.",
+                                selected = selectedMethod == PaymentMethod.BALANCE,
+                                enabled = !selectionLocked,
+                                onClick = { selectedMethod = PaymentMethod.BALANCE },
+                            )
+                            PaymentDialogOption(
+                                icon = Icons.Outlined.CreditCard,
+                                title = "Tarjeta",
+                                subtitle = "Pago seguro con Stripe.",
+                                selected = selectedMethod == PaymentMethod.STRIPE,
+                                enabled = !selectionLocked,
+                                onClick = { selectedMethod = PaymentMethod.STRIPE },
+                            )
+                        }
+                    }
+
+                    if (selectedMethod != null) {
+                        Surface(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 14.dp)
+                                    .height(54.dp)
+                                    .physicalPress(
+                                        enabled = !selectionLocked,
+                                        onClick = ::continueWithSelection,
+                                    ),
+                            color = colors.accent,
+                            contentColor = colors.accentInk,
+                            shape = RoundedCornerShape(19.dp),
+                            shadowElevation = 8.dp,
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "Continuar con ${selectedMethod.paymentDialogLabel()}",
+                                    color = colors.accentInk,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Black,
+                                )
+                            }
+                        }
+                    }
+
                     Surface(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 48.dp)
+                                .padding(top = 10.dp)
+                                .heightIn(min = 50.dp)
                                 .physicalPress(enabled = !selectionLocked, onClick = onDismiss),
-                        color = colors.paper2,
-                        shape = RoundedCornerShape(16.dp),
+                        color = androidx.compose.ui.graphics.Color.Transparent,
+                        shape = RoundedCornerShape(18.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Text("Cancelar", color = colors.ink, fontWeight = FontWeight.Bold)
+                            Text(
+                                "Cancelar",
+                                color = colors.ink,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
                         }
                     }
                 }
@@ -398,44 +510,137 @@ private fun PaymentDialogOption(
     icon: ImageVector,
     title: String,
     subtitle: String,
+    selected: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    val background by animateColorAsState(
+        targetValue = if (selected) colors.accent else androidx.compose.ui.graphics.Color.Transparent,
+        animationSpec = tween(170),
+        label = "paymentOptionBackground",
+    )
+    val titleColor by animateColorAsState(
+        targetValue = if (selected) colors.accentInk else colors.ink,
+        animationSpec = tween(170),
+        label = "paymentOptionTitle",
+    )
+    val subtitleColor by animateColorAsState(
+        targetValue = if (selected) colors.accentInk.copy(alpha = 0.72f) else colors.muted,
+        animationSpec = tween(170),
+        label = "paymentOptionSubtitle",
+    )
+    val iconBackground by animateColorAsState(
+        targetValue = if (selected) colors.accentInk.copy(alpha = 0.13f) else colors.paper,
+        animationSpec = tween(170),
+        label = "paymentOptionIconBackground",
+    )
+
     Surface(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .physicalPress(onClick = onClick),
-        color = colors.paper2,
-        shape = RoundedCornerShape(18.dp),
+                .heightIn(min = 88.dp)
+                .physicalPress(enabled = enabled, onClick = onClick),
+        color = background,
+        shape = RoundedCornerShape(20.dp),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 15.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Box(
                 modifier =
                     Modifier
-                        .size(44.dp)
-                        .background(colors.paper, RoundedCornerShape(14.dp)),
+                        .size(54.dp)
+                        .background(iconBackground, RoundedCornerShape(18.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(22.dp))
+                Icon(icon, contentDescription = null, tint = titleColor, modifier = Modifier.size(27.dp))
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = colors.ink, fontSize = 16.sp, fontWeight = FontWeight.Black)
+                Text(
+                    title,
+                    color = titleColor,
+                    fontSize = 17.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.Black,
+                )
                 Text(
                     subtitle,
-                    color = colors.muted,
+                    color = subtitleColor,
                     fontSize = 13.sp,
-                    lineHeight = 18.sp,
-                    modifier = Modifier.padding(top = 2.dp),
+                    lineHeight = 17.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(top = 4.dp),
                 )
+            }
+            Box(
+                modifier = Modifier.size(28.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                AnimatedContent(
+                    targetState = selected,
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                    transitionSpec = {
+                        (
+                            fadeIn(tween(120)) +
+                                scaleIn(
+                                    initialScale = 0.86f,
+                                    animationSpec = spring(dampingRatio = 0.8f, stiffness = 650f),
+                                )
+                        ) togetherWith
+                            (
+                                fadeOut(tween(90)) +
+                                    scaleOut(
+                                        targetScale = 0.9f,
+                                        animationSpec = tween(90),
+                                    )
+                            )
+                    },
+                    label = "paymentOptionTrailing",
+                ) { isSelected ->
+                    if (isSelected) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(22.dp)
+                                    .background(
+                                        androidx.compose.ui.graphics.Color.White,
+                                        androidx.compose.foundation.shape.CircleShape,
+                                    ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Check,
+                                contentDescription = null,
+                                tint = colors.accent,
+                                modifier = Modifier.size(14.dp),
+                            )
+                        }
+                    } else {
+                        Text(
+                            "›",
+                            color = colors.muted.copy(alpha = 0.7f),
+                            fontSize = 27.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                }
             }
         }
     }
 }
+
+private fun PaymentMethod?.paymentDialogLabel(): String =
+    when (this) {
+        PaymentMethod.CASH -> "Efectivo"
+        PaymentMethod.BALANCE -> "Saldo Vaiinilla"
+        PaymentMethod.STRIPE -> "Tarjeta"
+        null -> ""
+    }
 
 @Preview(name = "Carrito", showBackground = true, widthDp = 411, heightDp = 891)
 @Composable

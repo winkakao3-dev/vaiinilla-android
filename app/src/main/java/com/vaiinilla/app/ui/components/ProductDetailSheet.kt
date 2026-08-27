@@ -592,7 +592,7 @@ private fun ProductMetaCard(
                     Modifier
                         .size(30.dp)
                         .clip(CircleShape)
-                        .background(colors.accent.copy(alpha = 0.18f)),
+                        .background(colors.accent),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -612,7 +612,7 @@ private fun ProductMetaCard(
             )
             Text(
                 value,
-                color = colors.muted,
+                color = colors.ink2,
                 fontSize = 13.sp,
                 lineHeight = 17.sp,
                 maxLines = 2,
