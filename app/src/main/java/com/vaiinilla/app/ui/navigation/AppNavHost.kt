@@ -1,6 +1,8 @@
 package com.vaiinilla.app.ui.navigation
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -23,6 +25,7 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.account.AccountDeletionViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
+import com.vaiinilla.app.ui.components.prefetchProductImages
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
@@ -89,6 +92,16 @@ fun AppNavHost(
     val walletRemoteState by walletViewModel.state.collectAsStateWithLifecycle()
     val accountDeletionState by accountDeletionViewModel.state
     val walletState = rememberWalletUiState()
+
+    // Warm product imagery as soon as catalog data exists, before cards enter composition.
+    LaunchedEffect(orderState.catalog) {
+        val urls =
+            orderState.catalog
+                ?.products
+                ?.map { it.imageUrl }
+                .orEmpty()
+        if (urls.isNotEmpty()) prefetchProductImages(urls)
+    }
 
     fun enterVenueAndOpenCatalog(venue: GuestVenueContext) {
         val switchingEstablishment = isEstablishmentSwitch(orderState.guestVenue, venue)
@@ -317,7 +330,14 @@ fun AppNavHost(
         onNavigateStudent = { route -> navController.navigateStudent(route) },
         catalogDetailOpen = orderState.selectedProductId != null,
     ) {
-        NavHost(navController = navController, startDestination = Routes.SPLASH) {
+        NavHost(
+            navController = navController,
+            startDestination = Routes.SPLASH,
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None },
+        ) {
             composable(Routes.SPLASH) {
                 var preloadedDestination by remember { mutableStateOf<LaunchDestination?>(null) }
 
@@ -479,7 +499,9 @@ fun AppNavHost(
                     onOpenModes =
                         if (
                             authorizedAccessState.activeContext == null &&
-                            authorizedAccessState.hasMultipleModes
+                            authorizedAccessState.modes.any { mode ->
+                                mode.role == OperationalRole.CASHIER || mode.role == OperationalRole.KITCHEN
+                            }
                         ) {
                             { navController.navigate(Routes.STAFF_MODES) { launchSingleTop = true } }
                         } else {
@@ -528,6 +550,9 @@ fun AppNavHost(
                 }
                 WalletScreen(
                     remoteState = walletRemoteState,
+                    userId =
+                        walletRemoteState.data?.wallet?.userId
+                            ?: studentAuthState.session?.uid,
                     onRetry = walletViewModel::refresh,
                     onMenu = { navController.navigateStudent(Routes.CATALOG) },
                     onAssistant = {},
@@ -734,29 +759,39 @@ fun AppNavHost(
                     onPasswordChange = studentAuthViewModel::updatePassword,
                     onContextualIdChange = studentAuthViewModel::updateContextualId,
                     onLogin = {
-                        if (existingVerifiedSession) {
-                            studentAuthViewModel.completeEnrollment(
-                                onSuccess = {
-                                    if (isLaunchLogin) finishLaunchAuth() else finishStudentAuth(returnRoute)
-                                },
-                                onNeedsVerify = {
-                                    navController.navigate(
-                                        Routes.authVerifyRoute(returnRoute),
-                                    ) {
-                                        launchSingleTop = true
-                                    }
-                                },
-                            )
-                        } else {
-                            studentAuthViewModel.login { enrolled ->
-                                if (enrolled) {
-                                    if (isLaunchLogin) finishLaunchAuth() else finishStudentAuth(returnRoute)
-                                } else {
-                                    navController.navigate(Routes.authVerifyRoute(returnRoute)) {
-                                        launchSingleTop = true
+                        when {
+                            isLaunchLogin && existingVerifiedSession -> finishLaunchAuth()
+                            isLaunchLogin ->
+                                studentAuthViewModel.loginIdentity { authenticated ->
+                                    if (authenticated) {
+                                        finishLaunchAuth()
+                                    } else {
+                                        navController.navigate(Routes.authVerifyRoute(returnRoute)) {
+                                            launchSingleTop = true
+                                        }
                                     }
                                 }
-                            }
+                            existingVerifiedSession ->
+                                studentAuthViewModel.completeEnrollment(
+                                    onSuccess = { finishStudentAuth(returnRoute) },
+                                    onNeedsVerify = {
+                                        navController.navigate(
+                                            Routes.authVerifyRoute(returnRoute),
+                                        ) {
+                                            launchSingleTop = true
+                                        }
+                                    },
+                                )
+                            else ->
+                                studentAuthViewModel.login { enrolled ->
+                                    if (enrolled) {
+                                        finishStudentAuth(returnRoute)
+                                    } else {
+                                        navController.navigate(Routes.authVerifyRoute(returnRoute)) {
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                }
                         }
                     },
                     onForgotPassword = {
@@ -921,6 +956,7 @@ fun AppNavHost(
                         onCart = { navController.navigateStudent(Routes.CART) },
                         onOpenCatalog = { navController.navigateStudent(Routes.CATALOG) },
                         onSelectOrder = operationalViewModel::selectOrder,
+                        onBackFromSelectedOrder = { operationalViewModel.selectOrder(null) },
                         onDeleteOrder = ::dismissClientOrder,
                         onViewReceipt = {
                             orderFlowViewModel.clearCreatedOrder()

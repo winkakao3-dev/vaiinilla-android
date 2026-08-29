@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -97,6 +98,12 @@ fun DiscoveryScreen(
     val focusManager = LocalFocusManager.current
     var codeSheetOpen by remember { mutableStateOf(false) }
     var tokenError by remember { mutableStateOf(false) }
+    BackHandler(enabled = state.pendingSwitch != null) {
+        onDismissSwitch()
+    }
+    BackHandler(enabled = state.pendingSwitch == null && codeSheetOpen) {
+        codeSheetOpen = false
+    }
     var showAllVenues by remember { mutableStateOf(false) }
 
     val selectedId = state.selected?.establishment?.id
@@ -510,31 +517,6 @@ private fun ActiveVenueCard(
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(top = 2.dp),
                     )
-                }
-                Surface(
-                    color = Color.White.copy(alpha = 0.58f),
-                    shape = RoundedCornerShape(99.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .size(7.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF72A52A)),
-                        )
-                        Text(
-                            "Lista para pedir",
-                            color = colors.accentInk,
-                            fontSize = 11.sp,
-                            lineHeight = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
                 }
             }
             ContinueInkButton(

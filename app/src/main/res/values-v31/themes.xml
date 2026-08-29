@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.Vaiinilla.Splash" parent="Theme.Vaiinilla">
-        <item name="android:windowBackground">@color/vaiinilla_paper</item>
-        <item name="android:windowSplashScreenBackground">@color/vaiinilla_paper</item>
+        <item name="android:windowBackground">@color/vaiinilla_splash_boot</item>
+        <item name="android:windowSplashScreenBackground">@color/vaiinilla_splash_boot</item>
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_empty_icon</item>
         <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
     </style>

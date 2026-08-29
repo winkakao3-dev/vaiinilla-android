@@ -21,8 +21,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.R
 import com.vaiinilla.app.ui.theme.DarkSplash
-import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.delay
@@ -32,25 +30,20 @@ private val BootEaseExpand = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)
 
 @Composable
 fun SplashScreen(onFinished: () -> Unit) {
-    val colors = LocalVaiinillaColors.current
-    val themeMode = LocalVaiinillaThemeMode.current
-    val isSystemDark = androidx.compose.foundation.isSystemInDarkTheme()
-    val effectiveMode = themeMode.resolveEffectiveMode(isSystemDark)
-    val isDarkTheme = effectiveMode == VaiinillaThemeMode.Dark || effectiveMode == VaiinillaThemeMode.Amoled
-    val splashBackground = if (isDarkTheme) DarkSplash else colors.paper
-    val splashLogoRes = if (isDarkTheme) R.drawable.logo_splash_dark else R.drawable.logo_splash_light
+    val splashBackground = DarkSplash
+    val splashLogoRes = R.drawable.logo_splash_dark
 
     val iconIn = remember { Animatable(0f) }
     val iconScale = remember { Animatable(0.85f) }
     val splashAlpha = remember { Animatable(1f) }
 
     LaunchedEffect(Unit) {
-        iconIn.animateTo(1f, tween(450, easing = BootEaseIn))
-        iconScale.animateTo(1f, tween(450, easing = BootEaseIn))
-        delay(600)
-        iconScale.animateTo(1.6f, tween(500, easing = BootEaseExpand))
-        iconIn.animateTo(0f, tween(500, easing = BootEaseExpand))
-        splashAlpha.animateTo(0f, tween(350))
+        iconIn.animateTo(1f, tween(225, easing = BootEaseIn))
+        iconScale.animateTo(1f, tween(225, easing = BootEaseIn))
+        delay(300)
+        iconScale.animateTo(1.6f, tween(250, easing = BootEaseExpand))
+        iconIn.animateTo(0f, tween(250, easing = BootEaseExpand))
+        splashAlpha.animateTo(0f, tween(175))
         onFinished()
     }
 

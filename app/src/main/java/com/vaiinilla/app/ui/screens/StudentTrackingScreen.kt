@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -69,6 +70,7 @@ fun StudentTrackingScreen(
     onCart: () -> Unit,
     onOpenCatalog: () -> Unit,
     onSelectOrder: (String) -> Unit,
+    onBackFromSelectedOrder: () -> Unit = {},
     onDeleteOrder: (String) -> Unit = {},
     onViewReceipt: () -> Unit = {},
     onRefresh: () -> Unit = {},
@@ -81,6 +83,9 @@ fun StudentTrackingScreen(
     }
 
     val selected = state.selectedOrder
+    BackHandler(enabled = selected != null) {
+        onBackFromSelectedOrder()
+    }
     val colors = LocalVaiinillaColors.current
     Box(
         modifier =
@@ -89,7 +94,7 @@ fun StudentTrackingScreen(
                 .background(colors.paper),
     ) {
         PullToRefreshBox(
-            isRefreshing = state.loading,
+            isRefreshing = false,
             onRefresh = {
                 haptics.impact()
                 onRefresh()

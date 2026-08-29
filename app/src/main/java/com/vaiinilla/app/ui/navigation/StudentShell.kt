@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.navigation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -10,6 +11,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 
 /** Routes that participate in the persistent student shell (content swaps; nav stays). */
 fun studentTabForRoute(route: String?): StudentTab? =
@@ -62,12 +66,20 @@ fun StudentShellHost(
     val activeTab = studentTabForRoute(route)
     val showNav = shouldShowStudentNav(route, catalogDetailOpen)
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        content()
+    val hazeState = rememberHazeState()
+    val colors = LocalVaiinillaColors.current
+    Box(modifier = Modifier.fillMaxSize().background(colors.paper)) {
+        Box(
+            modifier = Modifier.fillMaxSize().hazeSource(hazeState),
+        ) {
+            content()
+        }
         if (activeTab != null && showNav) {
             VaiinillaBottomNav(
                 activeTab = activeTab,
                 cartCount = cartCount,
+                hazeState = hazeState,
+                enableDrag = true,
                 onTabSelected = { tab ->
                     val target = routeForStudentTab(tab)
                     onNavigateStudent(target)

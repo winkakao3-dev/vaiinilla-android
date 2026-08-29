@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -249,36 +248,6 @@ fun WalletAccountScreen(
                                         VaiinillaQrCode(
                                             value = qrValue,
                                             qrSize = maxWidth,
-                                        )
-                                    }
-                                    Row(
-                                        modifier = Modifier.padding(top = 16.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    ) {
-                                        Box(
-                                            modifier =
-                                                Modifier
-                                                    .size(18.dp)
-                                                    .clip(CircleShape)
-                                                    .background(colors.accent.copy(alpha = 0.22f)),
-                                            contentAlignment = Alignment.Center,
-                                        ) {
-                                            Box(
-                                                modifier =
-                                                    Modifier
-                                                        .size(8.dp)
-                                                        .clip(CircleShape)
-                                                        .background(colors.accent),
-                                            )
-                                        }
-                                        Text(
-                                            "Listo para escanear",
-                                            color = qrCaptionColor,
-                                            fontSize = 12.sp,
-                                            lineHeight = 16.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            letterSpacing = 0.4.sp,
                                         )
                                     }
                                 } else {

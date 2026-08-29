@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -12,12 +13,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -44,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -326,6 +331,7 @@ private fun CatalogContent(
             isRefreshing = state.loading,
             onRefresh = onRefresh,
             modifier = Modifier.fillMaxSize(),
+            indicator = {},
         ) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
@@ -340,7 +346,7 @@ private fun CatalogContent(
                         top = 16.dp,
                         bottom = VaiinillaBottomNavClearance + 48.dp,
                     ),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
@@ -380,7 +386,7 @@ private fun CatalogContent(
                 }
 
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    MenuSectionHead(state = state)
+                    MenuSectionHead()
                 }
 
                 if (state.filteredProducts.isEmpty()) {
@@ -491,16 +497,24 @@ private fun CatalogHeader(
                     Icon(Icons.Outlined.ShoppingCart, contentDescription = "Abrir carrito", tint = colors.ink)
                 }
                 if (state.cartItemCount > 0) {
-                    Surface(
-                        modifier = Modifier.align(Alignment.TopEnd),
-                        color = colors.accent,
-                        shape = RoundedCornerShape(99.dp),
+                    Box(
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 8.dp, y = (-6).dp)
+                                .height(16.dp)
+                                .width(if (state.cartItemCount > 9) 20.dp else 16.dp)
+                                .clip(RoundedCornerShape(99.dp))
+                                .background(colors.coral)
+                                .border(2.dp, colors.paper2, RoundedCornerShape(99.dp)),
+                        contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = state.cartItemCount.toString(),
-                            color = colors.accentInk,
+                            text = state.cartItemCount.coerceAtMost(99).toString(),
+                            color = Color(0xFF28100D),
+                            fontSize = 8.sp,
+                            lineHeight = 8.sp,
                             fontWeight = FontWeight.Black,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
                 }
@@ -589,43 +603,17 @@ private fun CatalogHeader(
 }
 
 @Composable
-private fun MenuSectionHead(state: OrderFlowUiState) {
+private fun MenuSectionHead() {
     val colors = LocalVaiinillaColors.current
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(top = 24.dp, bottom = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Bottom,
-    ) {
-        Text("Menú de hoy", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 19.sp)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            state.operationalStatus?.let { status ->
-                Surface(
-                    color = if (status.acceptingOrders && status.cashSessionOpen) colors.accent else colors.paper2,
-                    shape = RoundedCornerShape(12.dp),
-                ) {
-                    Text(
-                        text =
-                            if (status.acceptingOrders && status.cashSessionOpen) {
-                                "${status.estimatedTimeMinutes} min"
-                            } else {
-                                "No disponible"
-                            },
-                        color =
-                            if (status.acceptingOrders && status.cashSessionOpen) {
-                                colors.accentInk
-                            } else {
-                                colors.muted
-                            },
-                        fontWeight = FontWeight.ExtraBold,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                    )
-                }
-            }
-        }
-    }
+    Text(
+        text = "Menú de hoy",
+        color = colors.ink,
+        fontWeight = FontWeight.Black,
+        fontSize = 38.sp,
+        lineHeight = 42.sp,
+        letterSpacing = (-1.4).sp,
+        modifier = Modifier.fillMaxWidth().padding(top = 28.dp, bottom = 8.dp),
+    )
 }
 
 @Composable
@@ -657,39 +645,40 @@ private fun ProductCard(
     onClick: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
-    Surface(
+    Column(
         modifier =
             Modifier
                 .fillMaxWidth()
+                .padding(bottom = 14.dp)
                 .physicalPress(scale = PhysicalPressScale.ProductCard, onClick = onClick),
-        color = colors.paper2,
-        shape = RoundedCornerShape(28.dp),
     ) {
-        Column {
-            ProductImage(
-                imageUrl = product.imageUrl,
-                contentDescription = product.name,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(170.dp),
-            )
-            Column(modifier = Modifier.padding(horizontal = 13.dp, vertical = 14.dp)) {
-                Text(
-                    text = product.name,
-                    color = colors.ink,
-                    fontWeight = FontWeight.Black,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = moneyLabel(product.digitalPrice),
-                    color = colors.ink,
-                    fontWeight = FontWeight.Black,
-                    modifier = Modifier.padding(top = 9.dp),
-                )
-            }
-        }
+        ProductImage(
+            imageUrl = product.imageUrl,
+            contentDescription = product.name,
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(24.dp)),
+        )
+        Text(
+            text = product.name,
+            color = colors.ink,
+            fontWeight = FontWeight.Black,
+            fontSize = 17.sp,
+            lineHeight = 21.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 2.dp, top = 12.dp, end = 2.dp),
+        )
+        Text(
+            text = moneyLabel(product.digitalPrice),
+            color = colors.muted,
+            fontWeight = FontWeight.Bold,
+            fontSize = 15.sp,
+            lineHeight = 19.sp,
+            modifier = Modifier.padding(start = 2.dp, top = 4.dp, end = 2.dp),
+        )
     }
 }
 

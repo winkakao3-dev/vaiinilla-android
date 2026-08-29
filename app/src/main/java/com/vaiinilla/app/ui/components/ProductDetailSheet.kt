@@ -2,7 +2,6 @@ package com.vaiinilla.app.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -65,7 +64,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -114,7 +112,7 @@ fun ProductDetailSheet(
     val listState = rememberLazyListState()
     val density = LocalDensity.current
     val dismissThresholdPx = with(density) { 96.dp.toPx() }
-    var sheetDragOffsetPx by remember(product.id) { mutableFloatStateOf(0f) }
+    var sheetPullDistancePx by remember(product.id) { mutableFloatStateOf(0f) }
 
     fun requestDismiss() {
         if (!dismissing) {
@@ -130,10 +128,10 @@ fun ProductDetailSheet(
                     available: Offset,
                     source: NestedScrollSource,
                 ): Offset {
-                    if (available.y >= 0f || sheetDragOffsetPx <= 0f) return Offset.Zero
-                    val previous = sheetDragOffsetPx
-                    sheetDragOffsetPx = (sheetDragOffsetPx + available.y).coerceAtLeast(0f)
-                    return Offset(0f, sheetDragOffsetPx - previous)
+                    if (available.y < 0f && sheetPullDistancePx > 0f) {
+                        sheetPullDistancePx = (sheetPullDistancePx + available.y).coerceAtLeast(0f)
+                    }
+                    return Offset.Zero
                 }
 
                 override fun onPostScroll(
@@ -145,26 +143,26 @@ fun ProductDetailSheet(
                         listState.firstVisibleItemIndex == 0 &&
                             listState.firstVisibleItemScrollOffset == 0
                     if (!atTop || available.y <= 0f) return Offset.Zero
-                    sheetDragOffsetPx += available.y
+                    sheetPullDistancePx += available.y
+                    // Consume the overscroll so the list and dismiss gesture never animate the sheet independently.
                     return Offset(0f, available.y)
                 }
 
                 override suspend fun onPreFling(available: Velocity): Velocity {
-                    if (sheetDragOffsetPx <= 0f) return Velocity.Zero
+                    if (sheetPullDistancePx <= 0f) return Velocity.Zero
                     val shouldDismiss =
-                        sheetDragOffsetPx >= dismissThresholdPx || available.y >= 1_100f
-                    if (shouldDismiss) {
-                        requestDismiss()
-                    } else {
-                        animate(
-                            initialValue = sheetDragOffsetPx,
-                            targetValue = 0f,
-                            animationSpec = spring(dampingRatio = 0.84f, stiffness = 540f),
-                        ) { value, _ ->
-                            sheetDragOffsetPx = value
-                        }
-                    }
-                    return Velocity(0f, available.y)
+                        sheetPullDistancePx >= dismissThresholdPx || available.y >= 1_100f
+                    sheetPullDistancePx = 0f
+                    if (shouldDismiss) requestDismiss()
+                    return if (shouldDismiss) Velocity(0f, available.y) else Velocity.Zero
+                }
+
+                override suspend fun onPostFling(
+                    consumed: Velocity,
+                    available: Velocity,
+                ): Velocity {
+                    sheetPullDistancePx = 0f
+                    return Velocity.Zero
                 }
             }
         }
@@ -237,7 +235,6 @@ fun ProductDetailSheet(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .graphicsLayer { translationY = sheetDragOffsetPx }
                         .nestedScroll(sheetNestedScroll)
                         .testTag("product-detail-surface")
                         .clickable(

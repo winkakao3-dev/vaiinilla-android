@@ -30,9 +30,15 @@ import com.vaiinilla.app.R
 import com.vaiinilla.app.core.io.readBytesLimited
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.ConcurrentHashMap
 
 @Composable
 fun ProductImage(
@@ -74,38 +80,59 @@ fun ProductImage(
 
 private fun loadRemoteProductImage(imageUrl: String): ImageBitmap? {
     remoteProductImageCache.get(imageUrl)?.let { return it.asImageBitmap() }
-    return runCatching {
-        val url = URL(imageUrl)
-        val connection = url.openConnection() as? HttpURLConnection ?: return@runCatching null
-        try {
-            connection.connectTimeout = REMOTE_IMAGE_CONNECT_TIMEOUT_MS
-            connection.readTimeout = REMOTE_IMAGE_READ_TIMEOUT_MS
-            connection.instanceFollowRedirects = false
-            connection.setRequestProperty("Accept", "image/*")
-            val status = connection.responseCode
-            if (status !in 200..299) return@runCatching null
-            val contentLength = connection.contentLengthLong
-            if (contentLength > REMOTE_IMAGE_MAX_BYTES) return@runCatching null
-            val contentType =
-                connection.contentType
-                    .orEmpty()
-                    .substringBefore(';')
-                    .trim()
-                    .lowercase()
-            if (contentType.isNotEmpty() && !contentType.startsWith("image/")) return@runCatching null
-            val bytes =
-                connection.inputStream.use { input ->
-                    input.readBytesLimited(REMOTE_IMAGE_MAX_BYTES)
-                } ?: return@runCatching null
-            decodeBoundedImage(bytes)?.let { bitmap ->
-                remoteProductImageCache.put(imageUrl, bitmap)
-                bitmap.asImageBitmap()
+    val lock = remoteProductImageLocks.computeIfAbsent(imageUrl) { Any() }
+    return synchronized(lock) {
+        remoteProductImageCache.get(imageUrl)?.let { return@synchronized it.asImageBitmap() }
+        runCatching {
+            val url = URL(imageUrl)
+            val connection = url.openConnection() as? HttpURLConnection ?: return@runCatching null
+            try {
+                connection.connectTimeout = REMOTE_IMAGE_CONNECT_TIMEOUT_MS
+                connection.readTimeout = REMOTE_IMAGE_READ_TIMEOUT_MS
+                connection.instanceFollowRedirects = false
+                connection.setRequestProperty("Accept", "image/*")
+                val status = connection.responseCode
+                if (status !in 200..299) return@runCatching null
+                val contentLength = connection.contentLengthLong
+                if (contentLength > REMOTE_IMAGE_MAX_BYTES) return@runCatching null
+                val contentType =
+                    connection.contentType
+                        .orEmpty()
+                        .substringBefore(';')
+                        .trim()
+                        .lowercase()
+                if (contentType.isNotEmpty() && !contentType.startsWith("image/")) return@runCatching null
+                val bytes =
+                    connection.inputStream.use { input ->
+                        input.readBytesLimited(REMOTE_IMAGE_MAX_BYTES)
+                    } ?: return@runCatching null
+                decodeBoundedImage(bytes)?.let { bitmap ->
+                    remoteProductImageCache.put(imageUrl, bitmap)
+                    bitmap.asImageBitmap()
+                }
+            } finally {
+                connection.disconnect()
             }
-        } finally {
-            connection.disconnect()
-        }
-    }.getOrNull()
+        }.getOrNull()
+    }
 }
+
+/** Warms the in-memory cache before product cards are composed. */
+suspend fun prefetchProductImages(imageUrls: List<String>) =
+    coroutineScope {
+        val limiter = Semaphore(REMOTE_IMAGE_PREFETCH_CONCURRENCY)
+        imageUrls
+            .asSequence()
+            .distinct()
+            .filter(::productImageIsRemote)
+            .map { imageUrl ->
+                async(Dispatchers.IO) {
+                    limiter.withPermit { loadRemoteProductImage(imageUrl) }
+                }
+            }.toList()
+            .awaitAll()
+        Unit
+    }
 
 private fun decodeBoundedImage(bytes: ByteArray): android.graphics.Bitmap? {
     if (bytes.isEmpty()) return null
@@ -189,8 +216,10 @@ fun productImageResource(imageUrl: String): Int? {
     }
 }
 
+private val remoteProductImageLocks = ConcurrentHashMap<String, Any>()
+
 private val remoteProductImageCache =
-    object : LruCache<String, android.graphics.Bitmap>(24 * 1024) {
+    object : LruCache<String, android.graphics.Bitmap>(48 * 1024) {
         override fun sizeOf(
             key: String,
             value: android.graphics.Bitmap,
@@ -198,7 +227,8 @@ private val remoteProductImageCache =
     }
 
 private const val REMOTE_IMAGE_MAX_BYTES = 8 * 1024 * 1024
-private const val REMOTE_IMAGE_MAX_DECODE_DIMENSION = 2048
+private const val REMOTE_IMAGE_MAX_DECODE_DIMENSION = 1280
 private const val REMOTE_IMAGE_MAX_SOURCE_DIMENSION = 32_768
+private const val REMOTE_IMAGE_PREFETCH_CONCURRENCY = 6
 private const val REMOTE_IMAGE_CONNECT_TIMEOUT_MS = 7_000
 private const val REMOTE_IMAGE_READ_TIMEOUT_MS = 10_000

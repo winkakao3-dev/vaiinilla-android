@@ -70,8 +70,8 @@ class CartCompactLayoutTest {
         composeTestRule.onNodeWithText("Subtotal").assertIsDisplayed()
         composeTestRule.onNodeWithText("Pagar").assertIsDisplayed().performClick()
         composeTestRule.onNodeWithText("¿Cómo quieres pagar?").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Efectivo").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Pago en caja").assertIsDisplayed()
         composeTestRule.onNodeWithText("Saldo Vaiinilla").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Tarjeta").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Pago desde la app").assertIsDisplayed()
     }
 }

@@ -27,15 +27,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,20 +44,25 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.R
 import com.vaiinilla.app.ui.theme.Coral
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.blur.HazeColorEffect
+import dev.chrisbanes.haze.blur.blurEffect
+import dev.chrisbanes.haze.hazeEffect
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -87,24 +83,25 @@ internal object StudentNavPillMotion {
  * Flutter SoT:
  * - SpringDescription(mass:1, stiffness:450, damping:28)
  * - Pill: left = index * itemWidth + inset, inset top/bottom 6
- * - Dock: height 68, radius 28, BackdropFilter blur 20 + translucent fill
+ * - Dock proportions now follow the supplied Vaiinilla navbar reference.
  * - Selected icon scale 1.15, filled vs outlined
  *
  * Chrome (dock/pill/text) comes from the active theme: near-white in Light, Uber dark in
  * Dark/Amoled. See [com.vaiinilla.app.ui.theme.VaiinillaThemeMode.resolveColors].
  */
-private val NavDockHeight = 68.dp
+private val NavDockHeight = 55.dp
 private val NavMaxWidth = 568.dp
 private val NavDockGapAboveSafeArea = 8.dp
-private val NavDockHorizontalMargin = 16.dp
-private val NavDockShape = RoundedCornerShape(32.dp)
-private val NavBubbleShape = RoundedCornerShape(24.dp)
-private val NavPillInsetX = 6.dp
-private val NavPillInsetY = 6.dp
-private val NavDockElevation = 8.dp
+private val NavDockHorizontalMargin = 19.dp
+private val NavDockShape = RoundedCornerShape(28.dp)
+private val NavBubbleShape = RoundedCornerShape(25.dp)
+private val NavContentInsetX = 10.dp
+private val NavPillExtraWidth = 12.dp
+private val NavPillInsetY = 3.dp
+private val NavDockElevation = 5.dp
 private val NavIconSize = 24.dp
-private val NavLabelSize = 12.sp
-private val NavIconLabelGap = 5.dp
+private val NavLabelSize = 8.sp
+private val NavIconLabelGap = 4.dp
 private val NavColorMotionMs = 200
 
 /**
@@ -131,9 +128,10 @@ enum class StudentTab {
 fun VaiinillaBottomNav(
     activeTab: StudentTab,
     cartCount: Int,
+    hazeState: HazeState? = null,
     onTabSelected: (StudentTab) -> Unit,
     modifier: Modifier = Modifier,
-    enableDrag: Boolean = true,
+    enableDrag: Boolean = false,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -155,26 +153,30 @@ fun VaiinillaBottomNav(
             NavTab(
                 StudentTab.MENU,
                 "Menú",
-                Icons.Outlined.Home,
-                Icons.Filled.Home,
+                R.drawable.ic_nav_home_reference,
+                iconWidth = 24.55.dp,
+                iconHeight = 21.82.dp,
             ),
             NavTab(
                 StudentTab.ORDERS,
                 "Pedidos",
-                Icons.AutoMirrored.Outlined.ReceiptLong,
-                Icons.AutoMirrored.Filled.ReceiptLong,
+                R.drawable.ic_nav_orders_reference,
+                iconWidth = 24.25.dp,
+                iconHeight = 18.79.dp,
             ),
             NavTab(
                 StudentTab.WALLET,
                 "Cartera",
-                Icons.Outlined.AccountBalanceWallet,
-                Icons.Filled.AccountBalanceWallet,
+                R.drawable.ic_nav_wallet_reference,
+                iconWidth = 17.27.dp,
+                iconHeight = 22.12.dp,
             ),
             NavTab(
                 StudentTab.CART,
                 "Carrito",
-                Icons.Outlined.ShoppingCart,
-                Icons.Filled.ShoppingCart,
+                R.drawable.ic_nav_cart_reference,
+                iconWidth = 23.03.dp,
+                iconHeight = 20.31.dp,
             ),
         )
 
@@ -220,14 +222,34 @@ fun VaiinillaBottomNav(
                     .height(NavDockHeight)
                     .shadow(NavDockElevation, NavDockShape)
                     .clip(NavDockShape)
-                    .background(colors.navGlass)
-                    .border(1.dp, colors.navBorder, NavDockShape),
+                    .then(
+                        if (hazeState != null) {
+                            Modifier.hazeEffect(hazeState) {
+                                blurEffect {
+                                    blurEnabled = true
+                                    blurRadius = 20.dp
+                                    noiseFactor = 0f
+                                    backgroundColor = Color.Transparent
+                                    colorEffects =
+                                        listOf(
+                                            HazeColorEffect.tint(colors.navGlass.copy(alpha = 0.72f)),
+                                        )
+                                    fallbackTint = HazeColorEffect.tint(colors.navGlass.copy(alpha = 0.94f))
+                                }
+                            }
+                        } else {
+                            Modifier.background(colors.navGlass)
+                        },
+                    ).border(1.dp, colors.navBorder, NavDockShape),
         ) {
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val tabCount = tabs.size.coerceAtLeast(1)
-                val itemWidth = maxWidth / tabCount
+                val contentWidth = maxWidth - NavContentInsetX * 2
+                val itemWidth = contentWidth / tabCount
+                val pillWidth = itemWidth + NavPillExtraWidth
                 val itemWidthPx = with(density) { itemWidth.toPx() }
-                val pillInsetXPx = with(density) { NavPillInsetX.toPx() }
+                val contentInsetXPx = with(density) { NavContentInsetX.toPx() }
+                val pillExtraHalfPx = with(density) { (NavPillExtraWidth / 2).toPx() }
                 val pillInsetYPx = with(density) { NavPillInsetY.toPx() }
                 val lastIndex = (tabCount - 1).toFloat()
 
@@ -285,7 +307,8 @@ fun VaiinillaBottomNav(
 
                 Box(modifier = Modifier.fillMaxSize().then(dragModifier)) {
                     // Active pill — Flutter Positioned(left: value * itemWidth + inset, …)
-                    val pillLeftPx = visualIndex * itemWidthPx + pillInsetXPx
+                    val pillLeftPx =
+                        contentInsetXPx + visualIndex * itemWidthPx - pillExtraHalfPx
                     Box(
                         modifier =
                             Modifier
@@ -294,13 +317,15 @@ fun VaiinillaBottomNav(
                                         x = pillLeftPx.roundToInt(),
                                         y = pillInsetYPx.roundToInt(),
                                     )
-                                }.width(itemWidth - NavPillInsetX * 2)
+                                }.width(pillWidth)
                                 .height(NavDockHeight - NavPillInsetY * 2)
                                 .clip(NavBubbleShape)
                                 .background(colors.navPill),
                     )
 
-                    Row(modifier = Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = NavContentInsetX),
+                    ) {
                         tabs.forEachIndexed { index, entry ->
                             val selected = entry.tab == activeTab
                             // Soft highlight while dragging near this slot.
@@ -312,9 +337,11 @@ fun VaiinillaBottomNav(
                                         .weight(1f)
                                         .fillMaxHeight(),
                                 label = entry.label,
-                                icon = if (selected || near) entry.iconSelected else entry.iconIdle,
+                                iconRes = entry.iconRes,
                                 active = selected || near,
                                 badge = if (entry.tab == StudentTab.CART) cartCount else 0,
+                                iconWidth = entry.iconWidth,
+                                iconHeight = entry.iconHeight,
                                 reduceMotion = reducedMotion,
                                 onClick = {
                                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -332,10 +359,12 @@ fun VaiinillaBottomNav(
 @Composable
 private fun FloatingNavTab(
     label: String,
-    icon: ImageVector,
+    iconRes: Int,
     active: Boolean,
     onClick: () -> Unit,
     reduceMotion: Boolean,
+    iconWidth: Dp,
+    iconHeight: Dp,
     modifier: Modifier = Modifier,
     badge: Int = 0,
 ) {
@@ -350,9 +379,9 @@ private fun FloatingNavTab(
             },
         label = "nav-fg",
     )
-    // Flutter AnimatedScale(scale: selected ? 1.15 : 1)
+    // Reference icons are already traced at their final visible size.
     val iconScale by animateFloatAsState(
-        targetValue = if (active) 1.15f else 1f,
+        targetValue = 1f,
         animationSpec =
             if (reduceMotion) {
                 tween(0)
@@ -365,7 +394,7 @@ private fun FloatingNavTab(
         label = "nav-icon-scale",
     )
     val labelAlpha by animateFloatAsState(
-        targetValue = if (active) 1f else 0.6f,
+        targetValue = 1f,
         animationSpec =
             if (reduceMotion) {
                 tween(0)
@@ -383,14 +412,17 @@ private fun FloatingNavTab(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Box(contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier.size(width = iconWidth, height = iconHeight),
+            contentAlignment = Alignment.Center,
+        ) {
             Icon(
-                imageVector = icon,
+                painter = painterResource(iconRes),
                 contentDescription = label,
                 tint = foreground,
                 modifier =
                     Modifier
-                        .size(NavIconSize)
+                        .fillMaxSize()
                         .graphicsLayer {
                             scaleX = iconScale
                             scaleY = iconScale
@@ -401,19 +433,19 @@ private fun FloatingNavTab(
                     modifier =
                         Modifier
                             .align(Alignment.TopEnd)
-                            .offset(x = 8.dp, y = (-6).dp)
-                            .height(16.dp)
-                            .width(if (badge > 9) 20.dp else 16.dp)
+                            .offset(x = 7.dp, y = (-4).dp)
+                            .height(18.dp)
+                            .width(if (badge > 9) 23.dp else 18.dp)
                             .clip(RoundedCornerShape(99.dp))
                             .background(Coral)
-                            .border(2.dp, colors.navPill, RoundedCornerShape(99.dp)),
+                            .border(1.dp, colors.navPill, RoundedCornerShape(99.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = badge.coerceAtMost(99).toString(),
-                        color = Color(0xFF28100D),
-                        fontSize = 8.sp,
-                        lineHeight = 8.sp,
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        lineHeight = 10.sp,
                         fontWeight = FontWeight.Black,
                     )
                 }
@@ -423,7 +455,7 @@ private fun FloatingNavTab(
             text = label,
             color = foreground.copy(alpha = labelAlpha),
             fontSize = NavLabelSize,
-            lineHeight = 13.sp,
+            lineHeight = 10.sp,
             fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
             letterSpacing = (-0.04).sp,
             maxLines = 1,
@@ -444,6 +476,7 @@ internal fun nearestStudentNavIndex(
 private data class NavTab(
     val tab: StudentTab,
     val label: String,
-    val iconIdle: ImageVector,
-    val iconSelected: ImageVector,
+    val iconRes: Int,
+    val iconWidth: Dp = NavIconSize,
+    val iconHeight: Dp = NavIconSize,
 )

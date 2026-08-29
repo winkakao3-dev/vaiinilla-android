@@ -259,12 +259,32 @@ class StudentAuthViewModel
         }
 
         fun login(onSuccess: (Boolean) -> Unit) {
+            signIn(bootstrapClientContext = true, onSuccess = onSuccess)
+        }
+
+        /**
+         * Authenticates the Firebase identity without assuming that it is a client account.
+         * Launch login uses this path so staff roles can be resolved from `sesiones/accesos`
+         * before any client enrollment/context bootstrap is attempted.
+         */
+        fun loginIdentity(onSuccess: (Boolean) -> Unit) {
+            signIn(bootstrapClientContext = false, onSuccess = onSuccess)
+        }
+
+        private fun signIn(
+            bootstrapClientContext: Boolean,
+            onSuccess: (Boolean) -> Unit,
+        ) {
             val current = _state.value
             if (current.email.isBlank() || current.password.isBlank()) {
                 _state.value = current.copy(errorMessage = "Ingresa correo y contraseña.")
                 return
             }
-            if (current.clientIdRequired && current.contextualId.isBlank()) {
+            if (
+                bootstrapClientContext &&
+                current.clientIdRequired &&
+                current.contextualId.isBlank()
+            ) {
                 _state.value =
                     current.copy(
                         errorMessage = "Ingresa tu ${current.clientIdLabel.lowercase()}.",
@@ -282,13 +302,15 @@ class StudentAuthViewModel
                                 loading = false,
                                 session = session,
                             )
-                        if (session.emailVerified) {
+                        if (!session.emailVerified) {
+                            onSuccess(false)
+                        } else if (bootstrapClientContext) {
                             completeEnrollment(
                                 onSuccess = { onSuccess(true) },
                                 onNeedsVerify = { onSuccess(false) },
                             )
                         } else {
-                            onSuccess(false)
+                            onSuccess(true)
                         }
                     },
                     onFailure = { error ->

@@ -10,6 +10,6 @@
     </style>
 
     <style name="Theme.Vaiinilla.Splash" parent="Theme.Vaiinilla">
-        <item name="android:windowBackground">@color/vaiinilla_paper</item>
+        <item name="android:windowBackground">@color/vaiinilla_splash_boot</item>
     </style>
 </resources>

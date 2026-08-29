@@ -22,6 +22,8 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -31,14 +33,24 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
+import com.vaiinilla.app.ui.components.VaiinillaQrCode
+import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
@@ -51,6 +63,7 @@ import com.vaiinilla.app.ui.wallet.WalletRemoteUiState
 @Composable
 fun WalletScreen(
     remoteState: WalletRemoteUiState = WalletRemoteUiState(),
+    userId: String? = null,
     onRetry: () -> Unit = {},
     onMenu: () -> Unit,
     onAssistant: () -> Unit,
@@ -58,6 +71,15 @@ fun WalletScreen(
     onCart: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    var qrDialogOpen by remember { mutableStateOf(false) }
+    val qrValue = userId?.trim()?.takeIf { it.isNotEmpty() }?.let(QrPayloadParser::encodeUser)
+
+    if (qrDialogOpen) {
+        WalletQrDialog(
+            qrValue = qrValue,
+            onDismiss = { qrDialogOpen = false },
+        )
+    }
 
     LazyColumn(
         modifier =
@@ -67,8 +89,8 @@ fun WalletScreen(
                 .statusBarsPadding(),
         contentPadding =
             PaddingValues(
-                start = 20.dp,
-                end = 20.dp,
+                start = 16.dp,
+                end = 16.dp,
                 top = 18.dp,
                 bottom = VaiinillaBottomNavClearance + 48.dp,
             ),
@@ -94,7 +116,7 @@ fun WalletScreen(
             Spacer(Modifier.height(24.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 WalletAction(
                     modifier = Modifier.weight(1f),
@@ -109,6 +131,13 @@ fun WalletScreen(
                     title = "Pedidos",
                     subtitle = "Ver actividad",
                     onClick = onOrders,
+                )
+                WalletAction(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Outlined.QrCode2,
+                    title = "QR",
+                    subtitle = "Recargar saldo",
+                    onClick = { qrDialogOpen = true },
                 )
             }
         }
@@ -282,14 +311,18 @@ private fun WalletAction(
     val colors = LocalVaiinillaColors.current
 
     Surface(
-        modifier = modifier,
+        modifier = modifier.height(158.dp),
         onClick = onClick,
         color = colors.paper2,
         shape = RoundedCornerShape(22.dp),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 17.dp),
-            horizontalAlignment = Alignment.Start,
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
         ) {
             Box(
                 modifier =
@@ -310,14 +343,113 @@ private fun WalletAction(
                 color = colors.ink,
                 fontWeight = FontWeight.Black,
                 fontSize = 16.sp,
-                modifier = Modifier.padding(top = 14.dp),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
             )
             Text(
                 text = subtitle,
                 color = colors.muted,
                 fontSize = 12.sp,
-                modifier = Modifier.padding(top = 3.dp),
+                lineHeight = 15.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 3.dp),
             )
+        }
+    }
+}
+
+@Composable
+private fun WalletQrDialog(
+    qrValue: String?,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            color = colors.paper,
+            shape = RoundedCornerShape(30.dp),
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 22.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Recargar saldo",
+                        color = colors.ink,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 22.sp,
+                        modifier = Modifier.align(Alignment.Center),
+                    )
+                    Surface(
+                        onClick = onDismiss,
+                        color = colors.paper2,
+                        shape = CircleShape,
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "Cerrar",
+                            tint = colors.ink,
+                            modifier = Modifier.padding(9.dp).size(20.dp),
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Muestra este QR en Caja para encontrar tu cuenta y recargar Saldo Vaiinilla.",
+                    color = colors.muted,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 10.dp, bottom = 20.dp),
+                )
+
+                Surface(
+                    color = Color.White,
+                    shape = RoundedCornerShape(24.dp),
+                ) {
+                    Box(
+                        modifier = Modifier.padding(16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (qrValue != null) {
+                            VaiinillaQrCode(
+                                value = qrValue,
+                                qrSize = 232.dp,
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier.size(232.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "Tu código todavía no está disponible.",
+                                    color = colors.muted,
+                                    fontSize = 14.sp,
+                                    lineHeight = 20.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(24.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Text(
+                    text = "Caja escanea este código. No necesitas escribir tu identificador.",
+                    color = colors.muted,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 16.dp),
+                )
+            }
         }
     }
 }

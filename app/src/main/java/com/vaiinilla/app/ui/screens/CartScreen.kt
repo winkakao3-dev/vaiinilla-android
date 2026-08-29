@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -124,6 +125,9 @@ fun CartScreen(
     val density = LocalDensity.current
     val imeVisible = WindowInsets.ime.getBottom(density) > 0
     var paymentDialogOpen by remember { mutableStateOf(false) }
+    BackHandler(enabled = paymentDialogOpen) {
+        paymentDialogOpen = false
+    }
     val checkoutSpaces =
         state.guestVenue
             ?.space
@@ -428,7 +432,7 @@ private fun PaymentMethodOverlay(
                         Column {
                             PaymentDialogOption(
                                 icon = Icons.Outlined.Payments,
-                                title = "Efectivo",
+                                title = "Pago en caja",
                                 subtitle = "Paga en Caja antes de preparar tu pedido.",
                                 selected = selectedMethod == PaymentMethod.CASH,
                                 enabled = !selectionLocked,
@@ -444,7 +448,7 @@ private fun PaymentMethodOverlay(
                             )
                             PaymentDialogOption(
                                 icon = Icons.Outlined.CreditCard,
-                                title = "Tarjeta",
+                                title = "Pago desde la app",
                                 subtitle = "Pago seguro con Stripe.",
                                 selected = selectedMethod == PaymentMethod.STRIPE,
                                 enabled = !selectionLocked,
@@ -636,9 +640,9 @@ private fun PaymentDialogOption(
 
 private fun PaymentMethod?.paymentDialogLabel(): String =
     when (this) {
-        PaymentMethod.CASH -> "Efectivo"
+        PaymentMethod.CASH -> "pago en caja"
         PaymentMethod.BALANCE -> "Saldo Vaiinilla"
-        PaymentMethod.STRIPE -> "Tarjeta"
+        PaymentMethod.STRIPE -> "pago desde la app"
         null -> ""
     }
 

@@ -103,6 +103,7 @@ class StudentAuthViewModelTest {
     private lateinit var emailVerificationStarted: CompletableDeferred<Unit>
     private lateinit var allowEmailVerification: CompletableDeferred<Unit>
     private lateinit var emailApi: CountingAccessEmailApi
+    private var enrollmentCalls = 0
     private var blockContextExchange = false
     private var blockEmailVerification = false
 
@@ -144,12 +145,16 @@ class StudentAuthViewModelTest {
                 space = null,
             ),
         )
+        enrollmentCalls = 0
         val enrollmentRepository =
             object : StudentEnrollmentRepository {
                 override suspend fun enroll(
                     request: StudentEnrollmentRequest,
                     firebaseIdToken: String,
-                ) = Result.success(StudentEnrollmentResult(membresiaId = "mock-membresia"))
+                ): Result<StudentEnrollmentResult> {
+                    enrollmentCalls += 1
+                    return Result.success(StudentEnrollmentResult(membresiaId = "mock-membresia"))
+                }
             }
         val contextoExchange =
             ContextoExchanger { _, _, _, _ ->
@@ -270,6 +275,25 @@ class StudentAuthViewModelTest {
             advanceUntilIdle()
             assertEquals(1, emailApi.verificationCalls)
             assertTrue(viewModel.state.value.emailExistsSuggestion)
+        }
+
+    @Test
+    fun `launch identity login does not bootstrap client enrollment`() =
+        runTest {
+            authRepository.signUp("staff@test.com", "secret1", "Staff")
+            authRepository.markCurrentEmailVerified()
+            authRepository.signOut()
+            viewModel.updateEmail("staff@test.com")
+            viewModel.updatePassword("secret1")
+            var authenticated = false
+
+            viewModel.loginIdentity { authenticated = it }
+            advanceUntilIdle()
+
+            assertTrue(authenticated)
+            assertTrue(viewModel.state.value.session?.emailVerified == true)
+            assertEquals(0, enrollmentCalls)
+            assertEquals(null, sessionStore.readAccessToken())
         }
 
     @Test

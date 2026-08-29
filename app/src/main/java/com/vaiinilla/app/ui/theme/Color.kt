@@ -23,17 +23,17 @@ val NavPillLight = Color(0xFFE9E9E7)
 val NavTextIdleLight = Color(0xFF6F7168)
 val NavTextActiveLight = Ink
 
-// Dark bottom nav — opaque chrome keeps icons and labels independent from the content below.
-val NavGlass = Color(0xFF111111)
-val NavBorder = Color(0x1AFFFFFF) // rgba(255, 255, 255, 0.10)
-val NavPill = Color(0xFF292929) // --active-bg from uber_navbar_replica.html
-val NavTextActive = Color(0xFFF2F2F2) // --text-active
-val NavTextIdle = Color(0xFFB7B7B7) // --text-idle
+// Dark bottom nav — measured from the approved Vaiinilla navbar reference.
+val NavGlass = Color(0xFF2F2F2F)
+val NavBorder = Color(0xFF4E4E4C)
+val NavPill = Color(0xFF111111)
+val NavTextActive = Color(0xFFCCE088)
+val NavTextIdle = Color(0xFFF8F8F8)
 val NavInsetHighlight = Color(0x06FFFFFF) // inset hairline ~2.5%
 val NavShadow = Color(0xB3000000)
 
-val NavGlassAmoled = Color(0xFF000000)
-val NavPillAmoled = Color(0xFF292929)
+val NavGlassAmoled = NavGlass
+val NavPillAmoled = NavPill
 
 // Dark theme tokens.
 val DarkPaper = Color(0xFF1D1E1C)
