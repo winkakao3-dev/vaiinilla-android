@@ -232,6 +232,24 @@ class StudentAuthViewModelTest {
         }
 
     @Test
+    fun `successful registration does not show an error banner after verification email`() =
+        runTest {
+            viewModel.updateName("Ana")
+            viewModel.updateEmail("ana-success@test.com")
+            viewModel.updatePassword("secret1")
+            viewModel.updatePasswordConfirm("secret1")
+            viewModel.updateTermsAccepted(true)
+            viewModel.updatePrivacyAccepted(true)
+
+            viewModel.register {}
+            advanceUntilIdle()
+
+            assertTrue(viewModel.state.value.verificationSent)
+            assertEquals(null, viewModel.state.value.errorMessage)
+            assertTrue(viewModel.state.value.session != null)
+        }
+
+    @Test
     fun `registration sends exactly one verification request when tapped twice`() =
         runTest {
             blockEmailVerification = true

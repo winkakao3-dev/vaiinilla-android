@@ -241,7 +241,7 @@ class StudentAuthViewModel
                                 loading = false,
                                 session = session,
                                 verificationSent = verificationResult.isSuccess,
-                                errorMessage = verificationResult.exceptionOrNull().toUserFacingMessage(),
+                                errorMessage = verificationResult.exceptionOrNull()?.toUserFacingMessage(),
                             )
                         onSuccess()
                     },
