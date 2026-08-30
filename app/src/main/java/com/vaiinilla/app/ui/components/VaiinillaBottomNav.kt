@@ -1,8 +1,7 @@
 package com.vaiinilla.app.ui.components
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -63,9 +62,15 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.blurEffect
 import dev.chrisbanes.haze.hazeEffect
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.roundToInt
+import kotlin.math.sin
+import androidx.compose.ui.graphics.lerp as lerpColor
 
 /**
  * Process-local seed so a rare remount can spring from the previous index
@@ -102,15 +107,23 @@ private val NavDockElevation = 5.dp
 private val NavIconSize = 24.dp
 private val NavLabelSize = 8.sp
 private val NavIconLabelGap = 4.dp
-private val NavColorMotionMs = 200
+private val NavColorMotionMs = 240
 
 /**
  * Flutter: damping / (2 * sqrt(stiffness * mass)) = 28 / (2 * sqrt(450)) ≈ 0.66
  */
+private val NavMotionEase = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
+
 private val NavPillSpring =
     spring<Float>(
-        dampingRatio = 0.66f,
-        stiffness = 450f,
+        dampingRatio = 0.82f,
+        stiffness = 310f,
+    )
+
+private val NavTapMotion =
+    tween<Float>(
+        durationMillis = 220,
+        easing = NavMotionEase,
     )
 
 /** Content clearance: dock + float gap + breathing room (excludes system inset). */
@@ -130,6 +143,7 @@ fun VaiinillaBottomNav(
     cartCount: Int,
     hazeState: HazeState? = null,
     onTabSelected: (StudentTab) -> Unit,
+    onTabPreparing: (StudentTab) -> Unit = {},
     modifier: Modifier = Modifier,
     enableDrag: Boolean = false,
 ) {
@@ -184,12 +198,25 @@ fun VaiinillaBottomNav(
     val indexAnim = remember { Animatable(StudentNavPillMotion.index) }
     var dragIndex by remember { mutableFloatStateOf(StudentNavPillMotion.index) }
     var isDragging by remember { mutableStateOf(false) }
+    var optimisticTargetIndex by remember { mutableStateOf<Int?>(null) }
+    var motionJob by remember { mutableStateOf<Job?>(null) }
     val onTabSelectedLatest by rememberUpdatedState(onTabSelected)
+    val onTabPreparingLatest by rememberUpdatedState(onTabPreparing)
     val activeTabLatest by rememberUpdatedState(activeTab)
     val activeIndexLatest by rememberUpdatedState(activeIndex)
 
-    // Flutter didUpdateWidget → SpringSimulation to new index.
+    // Navigation confirms the selected route after the local pill has already started moving.
+    // If this route change matches our optimistic target, do not restart the animation.
     LaunchedEffect(activeIndex, reducedMotion) {
+        val optimisticTarget = optimisticTargetIndex
+        if (optimisticTarget == activeIndex) {
+            optimisticTargetIndex = null
+            StudentNavPillMotion.lastTab = activeTab
+            return@LaunchedEffect
+        }
+        optimisticTargetIndex = null
+        motionJob?.cancel()
+        motionJob = null
         if (reducedMotion) {
             indexAnim.snapTo(activeIndex.toFloat())
         } else {
@@ -246,19 +273,27 @@ fun VaiinillaBottomNav(
                 val tabCount = tabs.size.coerceAtLeast(1)
                 val contentWidth = maxWidth - NavContentInsetX * 2
                 val itemWidth = contentWidth / tabCount
-                val pillWidth = itemWidth + NavPillExtraWidth
+                val basePillWidth = itemWidth + NavPillExtraWidth
                 val itemWidthPx = with(density) { itemWidth.toPx() }
                 val contentInsetXPx = with(density) { NavContentInsetX.toPx() }
-                val pillExtraHalfPx = with(density) { (NavPillExtraWidth / 2).toPx() }
                 val pillInsetYPx = with(density) { NavPillInsetY.toPx() }
                 val lastIndex = (tabCount - 1).toFloat()
 
                 val visualIndex = if (isDragging) dragIndex else indexAnim.value
+                val boundedVisualIndex = visualIndex.coerceIn(0f, lastIndex)
+                val segmentProgress = boundedVisualIndex - floor(boundedVisualIndex)
+                val stretchProgress = sin(PI.toFloat() * segmentProgress).coerceIn(0f, 1f)
+                val stretchWidth = itemWidth * (0.72f * stretchProgress)
+                val pillWidth = basePillWidth + stretchWidth
+                val pillWidthPx = with(density) { pillWidth.toPx() }
                 val dragModifier =
                     if (enableDrag && !reducedMotion) {
                         Modifier.pointerInput(itemWidthPx, lastIndex) {
                             detectHorizontalDragGestures(
                                 onDragStart = {
+                                    motionJob?.cancel()
+                                    motionJob = null
+                                    optimisticTargetIndex = null
                                     // Freeze the visible position into synchronous drag state.
                                     // This avoids launching one coroutine per pointer movement.
                                     dragIndex = indexAnim.value.coerceIn(0f, lastIndex)
@@ -274,30 +309,39 @@ fun VaiinillaBottomNav(
                                     val nearest = nearestStudentNavIndex(releaseIndex, tabCount)
                                     val targetIndex = nearest.toFloat()
                                     val tab = tabs[nearest].tab
+                                    optimisticTargetIndex = nearest
                                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
 
                                     // Snap navigation and pill from the exact same resolved slot.
                                     // Keep drag rendering active until Animatable is seeded from the
                                     // release position, preventing a one-frame jump back to the old tab.
-                                    scope.launch {
-                                        indexAnim.snapTo(releaseIndex)
-                                        isDragging = false
-                                        indexAnim.animateTo(targetIndex, NavPillSpring)
-                                        StudentNavPillMotion.index = targetIndex
-                                        StudentNavPillMotion.lastTab = tab
-                                    }
-                                    if (tab != activeTabLatest) {
-                                        onTabSelectedLatest(tab)
-                                    }
+                                    motionJob?.cancel()
+                                    motionJob =
+                                        scope.launch {
+                                            indexAnim.snapTo(releaseIndex)
+                                            isDragging = false
+                                            launch {
+                                                delay(24)
+                                                onTabPreparingLatest(tab)
+                                            }
+                                            indexAnim.animateTo(targetIndex, NavPillSpring)
+                                            StudentNavPillMotion.index = targetIndex
+                                            StudentNavPillMotion.lastTab = tab
+                                            if (tab != activeTabLatest) {
+                                                onTabSelectedLatest(tab)
+                                            }
+                                        }
                                 },
                                 onDragCancel = {
                                     val releaseIndex = dragIndex.coerceIn(0f, lastIndex)
                                     val targetIndex = activeIndexLatest.toFloat()
-                                    scope.launch {
-                                        indexAnim.snapTo(releaseIndex)
-                                        isDragging = false
-                                        indexAnim.animateTo(targetIndex, NavPillSpring)
-                                    }
+                                    motionJob?.cancel()
+                                    motionJob =
+                                        scope.launch {
+                                            indexAnim.snapTo(releaseIndex)
+                                            isDragging = false
+                                            indexAnim.animateTo(targetIndex, NavPillSpring)
+                                        }
                                 },
                             )
                         }
@@ -307,8 +351,9 @@ fun VaiinillaBottomNav(
 
                 Box(modifier = Modifier.fillMaxSize().then(dragModifier)) {
                     // Active pill — Flutter Positioned(left: value * itemWidth + inset, …)
-                    val pillLeftPx =
-                        contentInsetXPx + visualIndex * itemWidthPx - pillExtraHalfPx
+                    val pillCenterPx =
+                        contentInsetXPx + (boundedVisualIndex + 0.5f) * itemWidthPx
+                    val pillLeftPx = pillCenterPx - pillWidthPx / 2f
                     Box(
                         modifier =
                             Modifier
@@ -319,7 +364,9 @@ fun VaiinillaBottomNav(
                                     )
                                 }.width(pillWidth)
                                 .height(NavDockHeight - NavPillInsetY * 2)
-                                .clip(NavBubbleShape)
+                                .graphicsLayer {
+                                    scaleY = 1f + 0.025f * stretchProgress
+                                }.clip(NavBubbleShape)
                                 .background(colors.navPill),
                     )
 
@@ -327,10 +374,8 @@ fun VaiinillaBottomNav(
                         modifier = Modifier.fillMaxSize().padding(horizontal = NavContentInsetX),
                     ) {
                         tabs.forEachIndexed { index, entry ->
-                            val selected = entry.tab == activeTab
-                            // Soft highlight while dragging near this slot.
-                            val near =
-                                abs(visualIndex - index) < 0.5f
+                            val selection =
+                                (1f - abs(boundedVisualIndex - index.toFloat())).coerceIn(0f, 1f)
                             FloatingNavTab(
                                 modifier =
                                     Modifier
@@ -338,14 +383,39 @@ fun VaiinillaBottomNav(
                                         .fillMaxHeight(),
                                 label = entry.label,
                                 iconRes = entry.iconRes,
-                                active = selected || near,
+                                selection = selection,
+                                directSelection = isDragging,
                                 badge = if (entry.tab == StudentTab.CART) cartCount else 0,
                                 iconWidth = entry.iconWidth,
                                 iconHeight = entry.iconHeight,
                                 reduceMotion = reducedMotion,
                                 onClick = {
+                                    val targetIndex = index
+                                    val targetValue = targetIndex.toFloat()
+                                    if (targetIndex == activeIndexLatest && optimisticTargetIndex == null) {
+                                        return@FloatingNavTab
+                                    }
+                                    optimisticTargetIndex = targetIndex
                                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    onTabSelected(entry.tab)
+                                    motionJob?.cancel()
+                                    motionJob =
+                                        scope.launch {
+                                            launch {
+                                                delay(24)
+                                                onTabPreparingLatest(entry.tab)
+                                            }
+                                            if (reducedMotion) {
+                                                indexAnim.snapTo(targetValue)
+                                            } else {
+                                                indexAnim.animateTo(targetValue, NavTapMotion)
+                                            }
+                                            StudentNavPillMotion.index = targetValue
+                                            StudentNavPillMotion.lastTab = entry.tab
+                                            // Only after the liquid motion has completed may content swap.
+                                            if (entry.tab != activeTabLatest) {
+                                                onTabSelectedLatest(entry.tab)
+                                            }
+                                        }
                                 },
                             )
                         }
@@ -360,7 +430,8 @@ fun VaiinillaBottomNav(
 private fun FloatingNavTab(
     label: String,
     iconRes: Int,
-    active: Boolean,
+    selection: Float,
+    directSelection: Boolean,
     onClick: () -> Unit,
     reduceMotion: Boolean,
     iconWidth: Dp,
@@ -369,40 +440,18 @@ private fun FloatingNavTab(
     badge: Int = 0,
 ) {
     val colors = LocalVaiinillaColors.current
-    val foreground by animateColorAsState(
-        targetValue = if (active) colors.navTextActive else colors.navTextIdle,
+    val animatedSelection by animateFloatAsState(
+        targetValue = selection,
         animationSpec =
             if (reduceMotion) {
                 tween(0)
             } else {
-                tween(NavColorMotionMs)
+                tween(NavColorMotionMs, easing = NavMotionEase)
             },
-        label = "nav-fg",
+        label = "nav-selection",
     )
-    // Reference icons are already traced at their final visible size.
-    val iconScale by animateFloatAsState(
-        targetValue = 1f,
-        animationSpec =
-            if (reduceMotion) {
-                tween(0)
-            } else {
-                spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMedium,
-                )
-            },
-        label = "nav-icon-scale",
-    )
-    val labelAlpha by animateFloatAsState(
-        targetValue = 1f,
-        animationSpec =
-            if (reduceMotion) {
-                tween(0)
-            } else {
-                tween(NavColorMotionMs)
-            },
-        label = "nav-label-alpha",
-    )
+    val visualSelection = if (directSelection) selection else animatedSelection
+    val foreground = lerpColor(colors.navTextIdle, colors.navTextActive, visualSelection)
 
     Column(
         modifier =
@@ -420,13 +469,7 @@ private fun FloatingNavTab(
                 painter = painterResource(iconRes),
                 contentDescription = label,
                 tint = foreground,
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            scaleX = iconScale
-                            scaleY = iconScale
-                        },
+                modifier = Modifier.fillMaxSize(),
             )
             if (badge > 0) {
                 Box(
@@ -453,10 +496,10 @@ private fun FloatingNavTab(
         }
         Text(
             text = label,
-            color = foreground.copy(alpha = labelAlpha),
+            color = foreground,
             fontSize = NavLabelSize,
             lineHeight = 10.sp,
-            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+            fontWeight = if (visualSelection >= 0.5f) FontWeight.SemiBold else FontWeight.Normal,
             letterSpacing = (-0.04).sp,
             maxLines = 1,
             overflow = TextOverflow.Clip,

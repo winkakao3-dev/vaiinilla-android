@@ -9,6 +9,8 @@ import com.vaiinilla.app.domain.model.WalletReloadReceipt
 data class OperationalUiState(
     val role: OperationalRole? = null,
     val orders: List<OrderDetail> = emptyList(),
+    val latestClientOrder: OrderDetail? = null,
+    val menuOrder: OrderDetail? = null,
     val selectedOrderId: String? = null,
     val loading: Boolean = false,
     val acting: Boolean = false,

@@ -4,6 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
@@ -42,6 +44,27 @@ class StudentNavPillMotionTest {
         composeTestRule.waitForIdle()
 
         assertEquals(3f, StudentNavPillMotion.index, 0.01f)
+    }
+
+    @Test
+    fun `tap starts pill motion before navigation confirms route`() {
+        var requestedTab: StudentTab? = null
+        composeTestRule.setContent {
+            VaiinillaBottomNav(
+                activeTab = StudentTab.MENU,
+                cartCount = 0,
+                onTabSelected = { requestedTab = it },
+                enableDrag = false,
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Pedidos").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(StudentTab.ORDERS, requestedTab)
+        assertEquals(1f, StudentNavPillMotion.index, 0.01f)
+        assertEquals(StudentTab.ORDERS, StudentNavPillMotion.lastTab)
     }
 
     @Test

@@ -35,7 +35,7 @@ fun Modifier.physicalPress(
             when {
                 !pressed -> 1f
                 scale == PhysicalPressScale.Small -> 0.93f
-                scale == PhysicalPressScale.Nav -> 0.97f
+                scale == PhysicalPressScale.Nav -> 1f
                 scale == PhysicalPressScale.ProductCard -> 0.955f
                 else -> 0.965f
             }
@@ -46,6 +46,8 @@ fun Modifier.physicalPress(
                     tween(durationMillis = 0)
                 } else if (pressed) {
                     tween(durationMillis = 90)
+                } else if (scale == PhysicalPressScale.Nav) {
+                    tween(durationMillis = 120)
                 } else {
                     tween(durationMillis = 240)
                 },

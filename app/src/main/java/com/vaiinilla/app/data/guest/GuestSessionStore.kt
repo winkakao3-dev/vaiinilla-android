@@ -57,6 +57,14 @@ class GuestSessionStore
             )
         }
 
+        fun refreshSelectedVenueMetadata(establishment: PublicEstablishment): GuestVenueContext? {
+            val current = readVenue() ?: return null
+            if (current.establishment.id != establishment.id) return null
+            val refreshed = current.copy(establishment = establishment)
+            if (refreshed != current) saveVenue(refreshed)
+            return refreshed
+        }
+
         fun saveVenue(context: GuestVenueContext) {
             prefs
                 .edit()

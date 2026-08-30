@@ -52,6 +52,13 @@ class GuestDiscoveryViewModel
             search("")
         }
 
+        fun refreshSelectedVenue() {
+            val selected = guestSessionStore.readVenue()
+            if (_state.value.selected != selected) {
+                _state.value = _state.value.copy(selected = selected)
+            }
+        }
+
         fun updateQuery(query: String) {
             _state.value = _state.value.copy(query = query)
             launchSearch(query = query, debounceMs = 220L)
@@ -116,10 +123,19 @@ class GuestDiscoveryViewModel
                     if (revision != searchRevision) return@launch
                     result.fold(
                         onSuccess = { (items, _) ->
+                            val selected = _state.value.selected ?: guestSessionStore.readVenue()
+                            val refreshedSelected =
+                                selected?.let { current ->
+                                    items
+                                        .firstOrNull { it.id == current.establishment.id }
+                                        ?.let(guestSessionStore::refreshSelectedVenueMetadata)
+                                        ?: current
+                                }
                             _state.value =
                                 _state.value.copy(
                                     loading = false,
                                     establishments = items,
+                                    selected = refreshedSelected,
                                     errorMessage =
                                         if (items.isEmpty()) {
                                             "No encontramos cafeterías con ese nombre."

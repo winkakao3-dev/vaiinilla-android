@@ -25,6 +25,7 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.account.AccountDeletionViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
+import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.prefetchProductImages
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
@@ -93,6 +94,13 @@ fun AppNavHost(
     val accountDeletionState by accountDeletionViewModel.state
     val walletState = rememberWalletUiState()
 
+    // Keep every in-memory copy of the selected venue aligned when persisted metadata
+    // changes (for example, an establishment rename that also changes its slug).
+    LaunchedEffect(orderState.guestVenue) {
+        discoveryViewModel.refreshSelectedVenue()
+        studentAuthViewModel.refreshGuestVenue()
+    }
+
     // Warm product imagery as soon as catalog data exists, before cards enter composition.
     LaunchedEffect(orderState.catalog) {
         val urls =
@@ -101,6 +109,43 @@ fun AppNavHost(
                 ?.map { it.imageUrl }
                 .orEmpty()
         if (urls.isNotEmpty()) prefetchProductImages(urls)
+    }
+
+    // Keep wallet data warm while the authenticated client shell is active so opening
+    // Cartera does not spend its first visible frames waiting on the network.
+    LaunchedEffect(
+        studentAuthState.session?.uid,
+        studentAuthState.session?.emailVerified,
+        orderState.guestVenue?.establishment?.id,
+    ) {
+        if (
+            studentAuthState.session?.emailVerified == true &&
+            orderState.guestVenue != null &&
+            studentAuthViewModel.isReadyForCheckout() &&
+            walletRemoteState.data == null
+        ) {
+            walletViewModel.refresh()
+        }
+    }
+
+    // Keep client orders warm while browsing the student shell. This makes Pedidos a
+    // composition swap instead of starting its first network request after navigation.
+    LaunchedEffect(
+        studentAuthState.session?.uid,
+        studentAuthState.session?.emailVerified,
+        orderState.guestVenue?.establishment?.id,
+        authorizedAccessState.activeContext?.role,
+        operationalState.role,
+    ) {
+        if (
+            studentAuthState.session?.emailVerified == true &&
+            orderState.guestVenue != null &&
+            authorizedAccessState.activeContext == null &&
+            studentAuthViewModel.isReadyForCheckout() &&
+            operationalState.role == null
+        ) {
+            operationalViewModel.setRole(OperationalRole.CLIENT)
+        }
     }
 
     fun enterVenueAndOpenCatalog(venue: GuestVenueContext) {
@@ -230,10 +275,7 @@ fun AppNavHost(
         }
     }
 
-    val activeOrder =
-        orderState.createdOrder
-            ?: operationalState.selectedOrder
-            ?: operationalState.orders.firstOrNull()
+    val activeOrder = orderState.createdOrder ?: operationalState.menuOrder
 
     fun dismissClientOrder(orderId: String) {
         operationalViewModel.dismissClientOrder(orderId)
@@ -328,6 +370,38 @@ fun AppNavHost(
         navController = navController,
         cartCount = orderState.cartItemCount,
         onNavigateStudent = { route -> navController.navigateStudent(route) },
+        onPrepareStudent = { tab ->
+            when (tab) {
+                StudentTab.MENU -> {
+                    if (orderState.catalog == null && !orderState.loading) {
+                        orderFlowViewModel.refresh()
+                    }
+                }
+
+                StudentTab.ORDERS -> {
+                    if (!orderFlowViewModel.requiresStudentAuth()) {
+                        if (operationalState.role != OperationalRole.CLIENT) {
+                            operationalViewModel.setRole(OperationalRole.CLIENT)
+                        } else if (operationalState.orders.isEmpty() && !operationalState.loading) {
+                            operationalViewModel.refresh()
+                        }
+                    }
+                }
+
+                StudentTab.WALLET -> {
+                    if (
+                        studentAuthState.session?.emailVerified == true &&
+                        studentAuthViewModel.isReadyForCheckout() &&
+                        walletRemoteState.data == null &&
+                        !walletRemoteState.loading
+                    ) {
+                        walletViewModel.refresh()
+                    }
+                }
+
+                StudentTab.CART, StudentTab.ASSISTANT -> Unit
+            }
+        },
         catalogDetailOpen = orderState.selectedProductId != null,
     ) {
         NavHost(
@@ -939,10 +1013,14 @@ fun AppNavHost(
                 LaunchedEffect(venueAuthRequired, studentAuthState.session?.uid) {
                     if (venueAuthRequired) {
                         studentAuthViewModel.ensureVenueContext(
-                            onReady = { operationalViewModel.setRole(OperationalRole.CLIENT) },
+                            onReady = {
+                                if (operationalState.role != OperationalRole.CLIENT) {
+                                    operationalViewModel.setRole(OperationalRole.CLIENT)
+                                }
+                            },
                             onNeedsAuth = { navigateStudentAuth(Routes.STUDENT_TRACKING) },
                         )
-                    } else {
+                    } else if (operationalState.role != OperationalRole.CLIENT) {
                         operationalViewModel.setRole(OperationalRole.CLIENT)
                     }
                 }

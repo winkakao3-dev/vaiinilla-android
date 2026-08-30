@@ -12,12 +12,14 @@ import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.discovery.DiscoveryFailures
 import com.vaiinilla.app.domain.model.CartLine
+import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
@@ -141,9 +143,9 @@ class OrderFlowViewModel
             guestSessionStore.saveVenue(venue)
             guestVenueLoadJob =
                 launchTracked {
-                    val catalogResult =
+                    val (resolvedVenue, catalogResult) =
                         withContext(Dispatchers.IO) {
-                            discoveryRepository.getGuestCatalog(venue.establishment.slug)
+                            loadGuestCatalogWithVenueRefresh(venue)
                         }
                     if (activeCartStorageKey != storageKey) return@launchTracked
                     val catalog = catalogResult.getOrNull()
@@ -172,9 +174,38 @@ class OrderFlowViewModel
                             cartLines = nextCart,
                             errorMessage = failure?.message,
                             guestVenueSuspended = suspended,
-                            guestVenue = venue,
+                            guestVenue = resolvedVenue,
                         )
                 }
+        }
+
+        private fun loadGuestCatalogWithVenueRefresh(
+            venue: GuestVenueContext,
+        ): Pair<GuestVenueContext, Result<Catalog>> {
+            val initial = discoveryRepository.getGuestCatalog(venue.establishment.slug)
+            if (initial.isSuccess) return venue to initial
+
+            val freshEstablishment = findEstablishmentById(venue.establishment.id) ?: return venue to initial
+            if (freshEstablishment == venue.establishment) return venue to initial
+
+            val refreshedVenue = venue.copy(establishment = freshEstablishment)
+            guestSessionStore.refreshSelectedVenueMetadata(freshEstablishment)
+            return refreshedVenue to discoveryRepository.getGuestCatalog(freshEstablishment.slug)
+        }
+
+        private fun findEstablishmentById(establishmentId: String): PublicEstablishment? {
+            var cursor: String? = null
+            repeat(10) {
+                val (items, nextCursor) =
+                    discoveryRepository
+                        .searchEstablishments(query = "", limit = 50, cursor = cursor)
+                        .getOrNull()
+                        ?: return null
+                items.firstOrNull { it.id == establishmentId }?.let { return it }
+                if (nextCursor.isNullOrBlank() || nextCursor == cursor) return null
+                cursor = nextCursor
+            }
+            return null
         }
 
         fun refresh() {

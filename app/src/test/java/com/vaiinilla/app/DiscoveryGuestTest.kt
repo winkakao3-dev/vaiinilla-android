@@ -145,6 +145,41 @@ class GuestSessionAndDeepLinkTest {
     }
 
     @Test
+    fun `venue metadata refresh follows stable id and preserves space`() {
+        val store = GuestSessionStore(RuntimeEnvironment.getApplication())
+        store.clearAll()
+        val oldVenue =
+            GuestVenueContext(
+                establishment =
+                    PublicEstablishment(
+                        id = "stable-id",
+                        name = "Stripe",
+                        slug = "stripe-tienda",
+                        clientIdLabel = "Matrícula",
+                        clientIdRequired = false,
+                    ),
+                space = PublicSpace(id = 12, name = "Mesa 4", type = "mesa"),
+            )
+        store.saveVenue(oldVenue)
+
+        val refreshed =
+            store.refreshSelectedVenueMetadata(
+                PublicEstablishment(
+                    id = "stable-id",
+                    name = "VENECIA",
+                    slug = "venecia-tienda",
+                    clientIdLabel = "Matrícula",
+                    clientIdRequired = false,
+                ),
+            )
+
+        assertEquals("VENECIA", refreshed?.establishment?.name)
+        assertEquals("venecia-tienda", refreshed?.establishment?.slug)
+        assertEquals(12, refreshed?.space?.id)
+        assertEquals(refreshed, store.readVenue())
+    }
+
+    @Test
     fun `guest venue and cart survive auth handoff without clearing session`() {
         val store = GuestSessionStore(RuntimeEnvironment.getApplication())
         val venue =

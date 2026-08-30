@@ -58,6 +58,7 @@ fun StudentShellHost(
     navController: NavHostController,
     cartCount: Int,
     onNavigateStudent: (String) -> Unit,
+    onPrepareStudent: (StudentTab) -> Unit = {},
     catalogDetailOpen: Boolean = false,
     content: @Composable () -> Unit,
 ) {
@@ -80,6 +81,7 @@ fun StudentShellHost(
                 cartCount = cartCount,
                 hazeState = hazeState,
                 enableDrag = true,
+                onTabPreparing = onPrepareStudent,
                 onTabSelected = { tab ->
                     val target = routeForStudentTab(tab)
                     onNavigateStudent(target)

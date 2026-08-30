@@ -23,6 +23,32 @@ class DismissedClientOrdersFilterTest {
     }
 
     @Test
+    fun `menu never falls back to an older order after latest is dismissed`() {
+        val older =
+            first.copy(
+                summary =
+                    first.summary.copy(
+                        id = "older-order",
+                        createdAt = "2026-08-29T12:00:00Z",
+                    ),
+            )
+        val latest =
+            second.copy(
+                summary =
+                    second.summary.copy(
+                        id = "latest-order",
+                        createdAt = "2026-08-29T13:00:00Z",
+                    ),
+            )
+
+        val resolvedLatest = resolveLatestClientOrder(previous = latest, incoming = listOf(older))
+        val menuOrder = visibleLatestMenuOrder(resolvedLatest, setOf(latest.summary.id))
+
+        assertEquals(latest, resolvedLatest)
+        assertEquals(null, menuOrder)
+    }
+
+    @Test
     fun `staff lists never inherit client dismissals`() {
         val visible =
             filterDismissedClientOrders(

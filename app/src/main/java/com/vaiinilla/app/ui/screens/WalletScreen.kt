@@ -251,13 +251,6 @@ private fun WalletBalanceHero(
         Spacer(Modifier.height(14.dp))
 
         when {
-            remoteState.loading -> {
-                CircularProgressIndicator(
-                    color = colors.accent,
-                    modifier = Modifier.size(32.dp),
-                )
-            }
-
             remoteState.data != null -> {
                 Text(
                     text = "$${remoteState.data.wallet.visibleBalance}",
@@ -273,6 +266,13 @@ private fun WalletBalanceHero(
                     fontWeight = FontWeight.Medium,
                     fontSize = 14.sp,
                     modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+
+            remoteState.loading -> {
+                CircularProgressIndicator(
+                    color = colors.accent,
+                    modifier = Modifier.size(32.dp),
                 )
             }
 

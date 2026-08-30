@@ -291,7 +291,10 @@ class StudentAuthViewModelTest {
             advanceUntilIdle()
 
             assertTrue(authenticated)
-            assertTrue(viewModel.state.value.session?.emailVerified == true)
+            assertTrue(
+                viewModel.state.value.session
+                    ?.emailVerified == true,
+            )
             assertEquals(0, enrollmentCalls)
             assertEquals(null, sessionStore.readAccessToken())
         }

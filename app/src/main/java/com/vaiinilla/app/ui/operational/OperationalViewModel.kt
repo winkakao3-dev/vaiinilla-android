@@ -89,6 +89,8 @@ class OperationalViewModel
                 _uiState.value.copy(
                     role = role,
                     orders = if (roleChanged) emptyList() else _uiState.value.orders,
+                    latestClientOrder = if (roleChanged) null else _uiState.value.latestClientOrder,
+                    menuOrder = if (roleChanged) null else _uiState.value.menuOrder,
                     selectedOrderId = null,
                     errorMessage = null,
                     cashSessionOpen = null,
@@ -130,6 +132,7 @@ class OperationalViewModel
                 _uiState.value =
                     _uiState.value.copy(
                         orders = _uiState.value.orders.filterNot { it.summary.id == orderId },
+                        menuOrder = _uiState.value.menuOrder?.takeUnless { it.summary.id == orderId },
                         selectedOrderId = _uiState.value.selectedOrderId.takeUnless { it == orderId },
                         errorMessage = null,
                     )
@@ -146,6 +149,15 @@ class OperationalViewModel
                 result.fold(
                     onSuccess = { orders ->
                         val merged = mergeOrders(_uiState.value.orders, orders)
+                        val latestClientOrder =
+                            if (role == OperationalRole.CLIENT) {
+                                resolveLatestClientOrder(
+                                    previous = _uiState.value.latestClientOrder,
+                                    incoming = orders,
+                                )
+                            } else {
+                                null
+                            }
                         val newest = merged.maxOfOrNull { it.summary.updatedAt }
                         if (newest != null) {
                             lastUpdatedSince = newest
@@ -160,6 +172,8 @@ class OperationalViewModel
                             _uiState.value.copy(
                                 loading = false,
                                 orders = visibleOrders.sortedByDescending { it.summary.updatedAt },
+                                latestClientOrder = latestClientOrder,
+                                menuOrder = visibleLatestMenuOrder(latestClientOrder, dismissedClientOrderIds),
                                 lastSyncedAt = newest,
                                 errorMessage = null,
                             )
@@ -180,10 +194,22 @@ class OperationalViewModel
             viewModelScope.launch {
                 withContext(Dispatchers.IO) { getOrder(orderId) }.onSuccess { order ->
                     if (generation != roleGeneration) return@onSuccess
-                    if (
-                        _uiState.value.role == OperationalRole.CLIENT &&
-                        order.summary.id in dismissedClientOrderIds
-                    ) {
+                    val clientRole = _uiState.value.role == OperationalRole.CLIENT
+                    val latestClientOrder =
+                        if (clientRole) {
+                            resolveLatestClientOrder(
+                                previous = _uiState.value.latestClientOrder,
+                                incoming = listOf(order),
+                            )
+                        } else {
+                            null
+                        }
+                    if (clientRole && order.summary.id in dismissedClientOrderIds) {
+                        _uiState.value =
+                            _uiState.value.copy(
+                                latestClientOrder = latestClientOrder,
+                                menuOrder = visibleLatestMenuOrder(latestClientOrder, dismissedClientOrderIds),
+                            )
                         return@onSuccess
                     }
                     val updated =
@@ -192,6 +218,8 @@ class OperationalViewModel
                     _uiState.value =
                         _uiState.value.copy(
                             orders = updated.sortedByDescending { it.summary.updatedAt },
+                            latestClientOrder = latestClientOrder,
+                            menuOrder = visibleLatestMenuOrder(latestClientOrder, dismissedClientOrderIds),
                             selectedOrderId = orderId,
                         )
                 }
@@ -714,10 +742,13 @@ class OperationalViewModel
         ) {
             pollingJob?.cancel()
             pollingJob = null
+            val latestClientOrder = resolveLatestClientOrder(previous = null, incoming = orders)
             _uiState.value =
                 _uiState.value.copy(
                     role = OperationalRole.CLIENT,
                     orders = orders.sortedByDescending { it.summary.updatedAt },
+                    latestClientOrder = latestClientOrder,
+                    menuOrder = visibleLatestMenuOrder(latestClientOrder, dismissedClientOrderIds),
                     selectedOrderId = selectedOrderId,
                     loading = false,
                     acting = false,
@@ -741,6 +772,18 @@ private data class PendingWalletReload(
     val amount: String,
     val idempotencyKey: String,
 )
+
+internal fun resolveLatestClientOrder(
+    previous: OrderDetail?,
+    incoming: List<OrderDetail>,
+): OrderDetail? =
+    (incoming + listOfNotNull(previous))
+        .maxByOrNull { it.summary.createdAt }
+
+internal fun visibleLatestMenuOrder(
+    latest: OrderDetail?,
+    dismissedOrderIds: Set<String>,
+): OrderDetail? = latest?.takeUnless { it.summary.id in dismissedOrderIds }
 
 internal fun filterDismissedClientOrders(
     role: OperationalRole?,
