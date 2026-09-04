@@ -1,5 +1,12 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -252,14 +259,28 @@ private fun WalletBalanceHero(
 
         when {
             remoteState.data != null -> {
-                Text(
-                    text = "$${remoteState.data.wallet.visibleBalance}",
-                    color = colors.ink,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 46.sp,
-                    lineHeight = 50.sp,
-                    letterSpacing = (-1.4).sp,
-                )
+                AnimatedContent(
+                    targetState = remoteState.data.wallet.visibleBalance,
+                    transitionSpec = {
+                        if (targetState > initialState) {
+                            (slideInVertically { height -> height } + fadeIn()) togetherWith
+                                (slideOutVertically { height -> -height } + fadeOut())
+                        } else {
+                            (slideInVertically { height -> -height } + fadeIn()) togetherWith
+                                (slideOutVertically { height -> height } + fadeOut())
+                        }.using(SizeTransform(clip = false))
+                    },
+                    label = "wallet_balance_ticker",
+                ) { balance ->
+                    Text(
+                        text = "$$balance",
+                        color = colors.ink,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 46.sp,
+                        lineHeight = 50.sp,
+                        letterSpacing = (-1.4).sp,
+                    )
+                }
                 Text(
                     text = "Saldo Vaiinilla",
                     color = colors.muted,
