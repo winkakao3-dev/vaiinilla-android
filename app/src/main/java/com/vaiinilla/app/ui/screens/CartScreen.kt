@@ -15,10 +15,12 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -67,6 +69,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
@@ -938,14 +941,29 @@ private fun QuantityStepper(
     onPlus: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
-    val background = if (colors.isDark) colors.paper2 else colors.ink
-    val foreground = if (colors.isDark) colors.ink else colors.paper
+    val background =
+        when {
+            colors.isDark -> Color(0xFF141514)
+            else -> colors.ink
+        }
+    val border =
+        if (colors.isDark) {
+            BorderStroke(1.dp, Color(0x38FFFFFF))
+        } else {
+            null
+        }
+    val foreground =
+        when {
+            colors.isDark -> Color(0xFFF5F1E5)
+            else -> colors.paper
+        }
     Surface(
         color = background,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(22.dp),
+        border = border,
     ) {
         Row(
-            modifier = Modifier.height(44.dp),
+            modifier = Modifier.height(44.dp).padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             QuantityButton(
@@ -997,7 +1015,7 @@ private fun QuantityButton(
         modifier =
             Modifier
                 .size(38.dp)
-                .clip(RoundedCornerShape(14.dp))
+                .clip(CircleShape)
                 .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
