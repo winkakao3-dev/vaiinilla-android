@@ -37,6 +37,15 @@ fun routeForStudentTab(tab: StudentTab): String =
         StudentTab.CART -> Routes.CART
     }
 
+fun studentTabOrder(tab: StudentTab?): Int =
+    when (tab) {
+        StudentTab.MENU -> 0
+        StudentTab.ORDERS -> 1
+        StudentTab.WALLET -> 2
+        StudentTab.CART -> 3
+        StudentTab.ASSISTANT, null -> -1
+    }
+
 fun shouldShowStudentNav(
     route: String?,
     catalogDetailOpen: Boolean,

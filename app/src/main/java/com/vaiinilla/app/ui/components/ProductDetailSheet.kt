@@ -1,6 +1,9 @@
 package com.vaiinilla.app.ui.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -11,6 +14,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,6 +35,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -57,10 +62,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
@@ -72,10 +79,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -84,6 +95,7 @@ import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.ProductOption
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import kotlinx.coroutines.launch
 
 @Composable
 fun ProductDetailSheet(
@@ -401,14 +413,28 @@ private fun ProductHero(
             color = colors.ink.copy(alpha = 0.94f),
             shape = RoundedCornerShape(18.dp),
         ) {
-            Text(
-                moneyLabel(previewPrice),
-                color = colors.paper,
-                fontSize = 26.sp,
-                lineHeight = 30.sp,
-                fontWeight = FontWeight.Black,
-                modifier = Modifier.padding(horizontal = 17.dp, vertical = 13.dp),
-            )
+            AnimatedContent(
+                targetState = previewPrice,
+                transitionSpec = {
+                    if (targetState > initialState) {
+                        (slideInVertically { height -> height } + fadeIn()) togetherWith
+                            (slideOutVertically { height -> -height } + fadeOut())
+                    } else {
+                        (slideInVertically { height -> -height } + fadeIn()) togetherWith
+                            (slideOutVertically { height -> height } + fadeOut())
+                    }.using(SizeTransform(clip = false))
+                },
+                label = "hero_price_ticker",
+            ) { price ->
+                Text(
+                    moneyLabel(price),
+                    color = colors.paper,
+                    fontSize = 26.sp,
+                    lineHeight = 30.sp,
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.padding(horizontal = 17.dp, vertical = 13.dp),
+                )
+            }
         }
     }
 }
@@ -704,7 +730,14 @@ private fun ProductDetailDock(
             .ifBlank { "Sin opciones adicionales" }
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {},
+                ),
         color = colors.paper,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         shadowElevation = 18.dp,
@@ -748,7 +781,10 @@ private fun ProductDetailDock(
             Button(
                 onClick = onAdd,
                 enabled = canAdd,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
                 shape = RoundedCornerShape(18.dp),
                 colors =
                     ButtonDefaults.buttonColors(
@@ -758,12 +794,41 @@ private fun ProductDetailDock(
                         disabledContentColor = colors.muted,
                     ),
             ) {
-                Text(
-                    "Agregar · ${moneyLabel(previewTotal)}",
-                    fontSize = 17.sp,
-                    lineHeight = 21.sp,
-                    fontWeight = FontWeight.Black,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier =
+                        Modifier.clearAndSetSemantics {
+                            text = AnnotatedString("Agregar · ${moneyLabel(previewTotal)}")
+                        },
+                ) {
+                    Text(
+                        "Agregar · ",
+                        fontSize = 17.sp,
+                        lineHeight = 21.sp,
+                        fontWeight = FontWeight.Black,
+                    )
+                    AnimatedContent(
+                        targetState = previewTotal,
+                        transitionSpec = {
+                            if (targetState > initialState) {
+                                (slideInVertically { height -> height } + fadeIn()) togetherWith
+                                    (slideOutVertically { height -> -height } + fadeOut())
+                            } else {
+                                (slideInVertically { height -> -height } + fadeIn()) togetherWith
+                                    (slideOutVertically { height -> height } + fadeOut())
+                            }.using(SizeTransform(clip = false))
+                        },
+                        label = "add_price_ticker",
+                    ) { total ->
+                        Text(
+                            moneyLabel(total),
+                            fontSize = 17.sp,
+                            lineHeight = 21.sp,
+                            fontWeight = FontWeight.Black,
+                        )
+                    }
+                }
             }
             errorMessage?.let { message ->
                 Text(
@@ -792,14 +857,29 @@ private fun QuantityControl(
             description = "Quitar uno",
             onClick = onMinus,
         )
-        Text(
-            quantity.toString(),
-            color = colors.ink,
-            fontSize = 22.sp,
-            lineHeight = 26.sp,
-            fontWeight = FontWeight.Black,
-            modifier = Modifier.padding(horizontal = 12.dp),
-        )
+        AnimatedContent(
+            targetState = quantity,
+            transitionSpec = {
+                if (targetState > initialState) {
+                    (slideInVertically { height -> height } + fadeIn()) togetherWith
+                        (slideOutVertically { height -> -height } + fadeOut())
+                } else {
+                    (slideInVertically { height -> -height } + fadeIn()) togetherWith
+                        (slideOutVertically { height -> height } + fadeOut())
+                }.using(SizeTransform(clip = false))
+            },
+            label = "sheet_quantity_ticker",
+        ) { count ->
+            Text(
+                count.toString(),
+                color = colors.ink,
+                fontSize = 22.sp,
+                lineHeight = 26.sp,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 12.dp).widthIn(min = 28.dp),
+            )
+        }
         QuantityButton(
             icon = Icons.Rounded.Add,
             description = "Agregar uno",
@@ -815,11 +895,23 @@ private fun QuantityButton(
     onClick: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    val buttonScale = remember { Animatable(1f) }
+    val scope = rememberCoroutineScope()
     IconButton(
-        onClick = onClick,
+        onClick = {
+            scope.launch {
+                buttonScale.snapTo(0.85f)
+                buttonScale.animateTo(
+                    targetValue = 1f,
+                    animationSpec = spring(dampingRatio = 0.45f, stiffness = 500f),
+                )
+            }
+            onClick()
+        },
         modifier =
             Modifier
                 .size(48.dp)
+                .scale(buttonScale.value)
                 .clip(RoundedCornerShape(15.dp))
                 .background(colors.ink),
     ) {

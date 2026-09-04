@@ -33,10 +33,13 @@ import com.vaiinilla.app.ui.assistant.AssistantLocalReplies
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.security.MessageDigest
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 @HiltViewModel
@@ -113,12 +116,25 @@ class OrderFlowViewModel
                 guestVenueLoadJob?.cancel()
             }
             activeCartStorageKey = storageKey
+            val cachedCatalog =
+                if (sameCart) previous.catalog else catalogMemoryCache[venue.establishment.slug]
+            val initialCart =
+                if (cachedCatalog != null) {
+                    guestSessionStore
+                        .restoreCartLines(
+                            guestSessionStore.readCartSnapshot(storageKey),
+                            cachedCatalog.products,
+                        ).ifEmpty { if (sameCart) previous.cartLines else emptyList() }
+                } else {
+                    if (sameCart) previous.cartLines else emptyList()
+                }
             _uiState.value =
                 previous.copy(
-                    loading = true,
+                    loading = cachedCatalog == null,
+                    catalog = cachedCatalog ?: if (sameCart) previous.catalog else null,
                     errorMessage = null,
                     guestVenue = venue,
-                    cartLines = if (sameCart) previous.cartLines else emptyList(),
+                    cartLines = initialCart,
                     kitchenNotes = if (sameCart) previous.kitchenNotes else "",
                     selectedProductId = null,
                     selectedOptionIds = emptySet(),
@@ -149,11 +165,15 @@ class OrderFlowViewModel
                         }
                     if (activeCartStorageKey != storageKey) return@launchTracked
                     val catalog = catalogResult.getOrNull()
+                    if (catalog != null) {
+                        catalogMemoryCache[resolvedVenue.establishment.slug] = catalog
+                    }
+                    val effectiveCatalog = catalog ?: _uiState.value.catalog
                     val restored =
-                        if (catalog != null) {
+                        if (effectiveCatalog != null) {
                             guestSessionStore.restoreCartLines(
                                 guestSessionStore.readCartSnapshot(storageKey),
-                                catalog.products,
+                                effectiveCatalog.products,
                             )
                         } else {
                             emptyList()
@@ -169,10 +189,10 @@ class OrderFlowViewModel
                     _uiState.value =
                         _uiState.value.copy(
                             loading = false,
-                            catalog = catalog,
+                            catalog = effectiveCatalog,
                             operationalStatus = null,
                             cartLines = nextCart,
-                            errorMessage = failure?.message,
+                            errorMessage = if (effectiveCatalog == null) failure?.message else null,
                             guestVenueSuspended = suspended,
                             guestVenue = resolvedVenue,
                         )
@@ -221,8 +241,12 @@ class OrderFlowViewModel
                     errorMessage = null,
                 )
             launchTracked {
-                val catalogResult = withContext(Dispatchers.IO) { getCatalog() }
-                val statusResult = withContext(Dispatchers.IO) { getOperationalStatus() }
+                val (catalogResult, statusResult) =
+                    coroutineScope {
+                        val catalogDeferred = async(Dispatchers.IO) { getCatalog() }
+                        val statusDeferred = async(Dispatchers.IO) { getOperationalStatus() }
+                        catalogDeferred.await() to statusDeferred.await()
+                    }
                 val failure = catalogResult.exceptionOrNull() ?: statusResult.exceptionOrNull()
                 val errorMessage =
                     failure?.message
@@ -1008,6 +1032,10 @@ class OrderFlowViewModel
                 }
             activeJobs += job
             return job
+        }
+
+        private companion object {
+            val catalogMemoryCache = ConcurrentHashMap<String, Catalog>()
         }
     }
 

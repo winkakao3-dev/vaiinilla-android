@@ -34,4 +34,14 @@ class StudentShellTest {
             assertEquals(tab, studentTabForRoute(routeForStudentTab(tab)))
         }
     }
+
+    @Test
+    fun `studentTabOrder orders primary dock tabs left to right`() {
+        assertEquals(0, studentTabOrder(StudentTab.MENU))
+        assertEquals(1, studentTabOrder(StudentTab.ORDERS))
+        assertEquals(2, studentTabOrder(StudentTab.WALLET))
+        assertEquals(3, studentTabOrder(StudentTab.CART))
+        assertEquals(-1, studentTabOrder(StudentTab.ASSISTANT))
+        assertEquals(-1, studentTabOrder(null))
+    }
 }

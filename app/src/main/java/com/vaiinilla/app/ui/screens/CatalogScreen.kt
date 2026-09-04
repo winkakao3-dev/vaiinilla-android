@@ -1,7 +1,15 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -43,7 +51,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -304,6 +314,11 @@ private fun CatalogContent(
     val themeMode = LocalVaiinillaThemeMode.current
     val themeChanger = LocalVaiinillaThemeModeChanger.current
     val focusManager = LocalFocusManager.current
+    val sortedCategories = remember(catalog.categories) { catalog.categories.sortedBy(Category::order) }
+    val filteredProducts =
+        remember(state.catalog, state.searchQuery, state.selectedCategoryId) {
+            state.filteredProducts
+        }
 
     Box(
         modifier =
@@ -352,7 +367,7 @@ private fun CatalogContent(
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     CatalogHeader(
                         state = state,
-                        categories = catalog.categories.sortedBy(Category::order),
+                        categories = sortedCategories,
                         onSearchChange = onSearchChange,
                         onCategorySelected = onCategorySelected,
                         onOpenCart = onOpenCart,
@@ -389,12 +404,12 @@ private fun CatalogContent(
                     MenuSectionHead()
                 }
 
-                if (state.filteredProducts.isEmpty()) {
+                if (filteredProducts.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         EmptySearchState(onClearSearch = { onSearchChange("") })
                     }
                 } else {
-                    items(state.filteredProducts, key = Product::id) { product ->
+                    items(filteredProducts, key = Product::id) { product ->
                         ProductCard(product = product, onClick = { onProductSelected(product.id) })
                     }
                 }
@@ -497,11 +512,24 @@ private fun CatalogHeader(
                     Icon(Icons.Outlined.ShoppingCart, contentDescription = "Abrir carrito", tint = colors.ink)
                 }
                 if (state.cartItemCount > 0) {
+                    val badgeScale = remember { Animatable(1f) }
+                    LaunchedEffect(state.cartItemCount) {
+                        badgeScale.snapTo(1.4f)
+                        badgeScale.animateTo(
+                            targetValue = 1f,
+                            animationSpec =
+                                spring(
+                                    dampingRatio = 0.45f,
+                                    stiffness = 500f,
+                                ),
+                        )
+                    }
                     Box(
                         modifier =
                             Modifier
                                 .align(Alignment.TopEnd)
                                 .offset(x = 8.dp, y = (-6).dp)
+                                .scale(badgeScale.value)
                                 .height(16.dp)
                                 .width(if (state.cartItemCount > 9) 20.dp else 16.dp)
                                 .clip(RoundedCornerShape(99.dp))
@@ -509,13 +537,27 @@ private fun CatalogHeader(
                                 .border(2.dp, colors.paper2, RoundedCornerShape(99.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(
-                            text = state.cartItemCount.coerceAtMost(99).toString(),
-                            color = Color(0xFF28100D),
-                            fontSize = 8.sp,
-                            lineHeight = 8.sp,
-                            fontWeight = FontWeight.Black,
-                        )
+                        AnimatedContent(
+                            targetState = state.cartItemCount,
+                            transitionSpec = {
+                                if (targetState > initialState) {
+                                    (slideInVertically { height -> height } + fadeIn()) togetherWith
+                                        (slideOutVertically { height -> -height } + fadeOut())
+                                } else {
+                                    (slideInVertically { height -> -height } + fadeIn()) togetherWith
+                                        (slideOutVertically { height -> height } + fadeOut())
+                                }.using(SizeTransform(clip = false))
+                            },
+                            label = "catalog_badge_ticker",
+                        ) { count ->
+                            Text(
+                                text = count.coerceAtMost(99).toString(),
+                                color = Color(0xFF28100D),
+                                fontSize = 8.sp,
+                                lineHeight = 8.sp,
+                                fontWeight = FontWeight.Black,
+                            )
+                        }
                     }
                 }
             }

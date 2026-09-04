@@ -48,9 +48,13 @@ fun ProductImage(
     contentScale: ContentScale = ContentScale.Crop,
 ) {
     if (productImageIsRemote(imageUrl)) {
-        var remote by remember(imageUrl) { mutableStateOf<ImageBitmap?>(null) }
+        var remote by remember(imageUrl) {
+            mutableStateOf(remoteProductImageCache.get(imageUrl)?.asImageBitmap())
+        }
         LaunchedEffect(imageUrl) {
-            remote = withContext(Dispatchers.IO) { loadRemoteProductImage(imageUrl) }
+            if (remote == null) {
+                remote = withContext(Dispatchers.IO) { loadRemoteProductImage(imageUrl) }
+            }
         }
         val bitmap = remote
         if (bitmap != null) {
@@ -182,16 +186,17 @@ private fun ProductImagePlaceholder(modifier: Modifier) {
     }
 }
 
-fun productImageIsRemote(imageUrl: String): Boolean =
-    runCatching {
+fun productImageIsRemote(imageUrl: String): Boolean {
+    if (!imageUrl.startsWith("https://", ignoreCase = true)) return false
+    return runCatching {
         val url = URL(imageUrl)
         val host = url.host.trim().lowercase()
-        url.protocol.equals("https", ignoreCase = true) &&
-            host.isNotEmpty() &&
+        host.isNotEmpty() &&
             host != "localhost" &&
             url.userInfo == null &&
             (url.port == -1 || url.port == 443)
     }.getOrDefault(false)
+}
 
 @DrawableRes
 fun productImageResource(imageUrl: String): Int? {

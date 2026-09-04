@@ -1,10 +1,16 @@
 package com.vaiinilla.app.ui.components
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -40,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -58,6 +65,7 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.R
 import com.vaiinilla.app.ui.theme.Coral
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import dev.chrisbanes.haze.HazeInputScale
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.blurEffect
@@ -252,9 +260,11 @@ fun VaiinillaBottomNav(
                     .then(
                         if (hazeState != null) {
                             Modifier.hazeEffect(hazeState) {
+                                inputScale = HazeInputScale.Fixed(0.33f)
+                                clipToAreasBounds = true
                                 blurEffect {
                                     blurEnabled = true
-                                    blurRadius = 20.dp
+                                    blurRadius = 16.dp
                                     noiseFactor = 0f
                                     backgroundColor = Color.Transparent
                                     colorEffects =
@@ -315,6 +325,9 @@ fun VaiinillaBottomNav(
                                     // Snap navigation and pill from the exact same resolved slot.
                                     // Keep drag rendering active until Animatable is seeded from the
                                     // release position, preventing a one-frame jump back to the old tab.
+                                    if (tab != activeTabLatest) {
+                                        onTabSelectedLatest(tab)
+                                    }
                                     motionJob?.cancel()
                                     motionJob =
                                         scope.launch {
@@ -327,9 +340,6 @@ fun VaiinillaBottomNav(
                                             indexAnim.animateTo(targetIndex, NavPillSpring)
                                             StudentNavPillMotion.index = targetIndex
                                             StudentNavPillMotion.lastTab = tab
-                                            if (tab != activeTabLatest) {
-                                                onTabSelectedLatest(tab)
-                                            }
                                         }
                                 },
                                 onDragCancel = {
@@ -397,12 +407,16 @@ fun VaiinillaBottomNav(
                                     }
                                     optimisticTargetIndex = targetIndex
                                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    val selectedTab = entry.tab
+                                    if (selectedTab != activeTabLatest) {
+                                        onTabSelectedLatest(selectedTab)
+                                    }
                                     motionJob?.cancel()
                                     motionJob =
                                         scope.launch {
                                             launch {
                                                 delay(24)
-                                                onTabPreparingLatest(entry.tab)
+                                                onTabPreparingLatest(selectedTab)
                                             }
                                             if (reducedMotion) {
                                                 indexAnim.snapTo(targetValue)
@@ -410,11 +424,7 @@ fun VaiinillaBottomNav(
                                                 indexAnim.animateTo(targetValue, NavTapMotion)
                                             }
                                             StudentNavPillMotion.index = targetValue
-                                            StudentNavPillMotion.lastTab = entry.tab
-                                            // Only after the liquid motion has completed may content swap.
-                                            if (entry.tab != activeTabLatest) {
-                                                onTabSelectedLatest(entry.tab)
-                                            }
+                                            StudentNavPillMotion.lastTab = selectedTab
                                         }
                                 },
                             )
@@ -440,17 +450,7 @@ private fun FloatingNavTab(
     badge: Int = 0,
 ) {
     val colors = LocalVaiinillaColors.current
-    val animatedSelection by animateFloatAsState(
-        targetValue = selection,
-        animationSpec =
-            if (reduceMotion) {
-                tween(0)
-            } else {
-                tween(NavColorMotionMs, easing = NavMotionEase)
-            },
-        label = "nav-selection",
-    )
-    val visualSelection = if (directSelection) selection else animatedSelection
+    val visualSelection = selection
     val foreground = lerpColor(colors.navTextIdle, colors.navTextActive, visualSelection)
 
     Column(
@@ -472,11 +472,24 @@ private fun FloatingNavTab(
                 modifier = Modifier.fillMaxSize(),
             )
             if (badge > 0) {
+                val badgeScale = remember { Animatable(1f) }
+                LaunchedEffect(badge) {
+                    badgeScale.snapTo(1.4f)
+                    badgeScale.animateTo(
+                        targetValue = 1f,
+                        animationSpec =
+                            spring(
+                                dampingRatio = 0.45f,
+                                stiffness = 500f,
+                            ),
+                    )
+                }
                 Box(
                     modifier =
                         Modifier
                             .align(Alignment.TopEnd)
                             .offset(x = 7.dp, y = (-4).dp)
+                            .scale(badgeScale.value)
                             .height(18.dp)
                             .width(if (badge > 9) 23.dp else 18.dp)
                             .clip(RoundedCornerShape(99.dp))
@@ -484,13 +497,27 @@ private fun FloatingNavTab(
                             .border(1.dp, colors.navPill, RoundedCornerShape(99.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = badge.coerceAtMost(99).toString(),
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        lineHeight = 10.sp,
-                        fontWeight = FontWeight.Black,
-                    )
+                    AnimatedContent(
+                        targetState = badge,
+                        transitionSpec = {
+                            if (targetState > initialState) {
+                                (slideInVertically { height -> height } + fadeIn()) togetherWith
+                                    (slideOutVertically { height -> -height } + fadeOut())
+                            } else {
+                                (slideInVertically { height -> -height } + fadeIn()) togetherWith
+                                    (slideOutVertically { height -> height } + fadeOut())
+                            }.using(SizeTransform(clip = false))
+                        },
+                        label = "cart_badge_ticker",
+                    ) { count ->
+                        Text(
+                            text = count.coerceAtMost(99).toString(),
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            lineHeight = 10.sp,
+                            fontWeight = FontWeight.Black,
+                        )
+                    }
                 }
             }
         }

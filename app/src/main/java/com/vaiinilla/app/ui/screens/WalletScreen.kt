@@ -116,13 +116,13 @@ fun WalletScreen(
             Spacer(Modifier.height(24.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 WalletAction(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Outlined.ShoppingCart,
                     title = "Pagar",
-                    subtitle = "Usar mi saldo",
+                    subtitle = "Usar saldo",
                     onClick = onCart,
                 )
                 WalletAction(
@@ -135,8 +135,8 @@ fun WalletScreen(
                 WalletAction(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Outlined.QrCode2,
-                    title = "QR",
-                    subtitle = "Recargar saldo",
+                    title = "Recargar",
+                    subtitle = "Mostrar QR",
                     onClick = { qrDialogOpen = true },
                 )
             }
@@ -311,48 +311,50 @@ private fun WalletAction(
     val colors = LocalVaiinillaColors.current
 
     Surface(
-        modifier = modifier.height(158.dp),
+        modifier = modifier.height(168.dp),
         onClick = onClick,
         color = colors.paper2,
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(26.dp),
     ) {
         Column(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 8.dp, vertical = 12.dp),
+                    .padding(vertical = 18.dp, horizontal = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
             Box(
                 modifier =
                     Modifier
-                        .size(42.dp)
-                        .background(colors.accent, RoundedCornerShape(14.dp)),
+                        .size(56.dp)
+                        .background(colors.accent, RoundedCornerShape(20.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
                     tint = colors.accentInk,
-                    modifier = Modifier.size(21.dp),
+                    modifier = Modifier.size(28.dp),
                 )
             }
+            Spacer(Modifier.height(14.dp))
             Text(
                 text = title,
                 color = colors.ink,
-                fontWeight = FontWeight.Black,
-                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+                modifier = Modifier.fillMaxWidth(),
             )
+            Spacer(Modifier.height(3.dp))
             Text(
                 text = subtitle,
                 color = colors.muted,
                 fontSize = 12.sp,
-                lineHeight = 15.sp,
+                lineHeight = 16.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 3.dp),
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }

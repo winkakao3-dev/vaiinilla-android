@@ -1,8 +1,13 @@
 package com.vaiinilla.app.ui.navigation
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -12,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -407,10 +413,10 @@ fun AppNavHost(
         NavHost(
             navController = navController,
             startDestination = Routes.SPLASH,
-            enterTransition = { EnterTransition.None },
-            exitTransition = { ExitTransition.None },
-            popEnterTransition = { EnterTransition.None },
-            popExitTransition = { ExitTransition.None },
+            enterTransition = { studentTabSlideEnter(this) },
+            exitTransition = { studentTabSlideExit(this) },
+            popEnterTransition = { studentTabSlideEnter(this) },
+            popExitTransition = { studentTabSlideExit(this) },
         ) {
             composable(Routes.SPLASH) {
                 var preloadedDestination by remember { mutableStateOf<LaunchDestination?>(null) }
@@ -1195,3 +1201,36 @@ private fun returnToModes(
             launchSingleTop = true
         }
     }
+
+private val StudentTabMotionEase = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+private const val STUDENT_TAB_SLIDE_MS = 220
+
+private fun studentTabSlideEnter(scope: AnimatedContentTransitionScope<NavBackStackEntry>): EnterTransition {
+    val initialTab = studentTabForRoute(scope.initialState.destination.route)
+    val targetTab = studentTabForRoute(scope.targetState.destination.route)
+    val fromOrder = studentTabOrder(initialTab)
+    val toOrder = studentTabOrder(targetTab)
+    if (fromOrder == -1 || toOrder == -1 || fromOrder == toOrder) {
+        return EnterTransition.None
+    }
+    val forward = toOrder > fromOrder
+    return slideInHorizontally(
+        animationSpec = tween(durationMillis = STUDENT_TAB_SLIDE_MS, easing = StudentTabMotionEase),
+        initialOffsetX = { fullWidth -> if (forward) fullWidth else -fullWidth },
+    )
+}
+
+private fun studentTabSlideExit(scope: AnimatedContentTransitionScope<NavBackStackEntry>): ExitTransition {
+    val initialTab = studentTabForRoute(scope.initialState.destination.route)
+    val targetTab = studentTabForRoute(scope.targetState.destination.route)
+    val fromOrder = studentTabOrder(initialTab)
+    val toOrder = studentTabOrder(targetTab)
+    if (fromOrder == -1 || toOrder == -1 || fromOrder == toOrder) {
+        return ExitTransition.None
+    }
+    val forward = toOrder > fromOrder
+    return slideOutHorizontally(
+        animationSpec = tween(durationMillis = STUDENT_TAB_SLIDE_MS, easing = StudentTabMotionEase),
+        targetOffsetX = { fullWidth -> if (forward) -fullWidth else fullWidth },
+    )
+}

@@ -3,6 +3,7 @@ package com.vaiinilla.app.ui.screens
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -11,6 +12,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -70,6 +73,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -879,29 +883,45 @@ private fun CartLineRow(
             Text(
                 line.product.name,
                 color = colors.ink,
-                fontSize = 19.sp,
-                lineHeight = 23.sp,
+                fontSize = 17.sp,
+                lineHeight = 21.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.35).sp,
-                maxLines = 1,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 variants.ifBlank { "Preparación original" },
                 color = colors.muted,
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(top = 2.dp),
-                maxLines = 1,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
-            Text(
-                moneyLabel(Money.cartLinePreview(line)),
-                color = colors.ink,
-                fontSize = 20.sp,
-                lineHeight = 24.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 4.dp),
-            )
+            AnimatedContent(
+                targetState = line.quantity,
+                transitionSpec = {
+                    if (targetState > initialState) {
+                        (slideInVertically { height -> height } + fadeIn()) togetherWith
+                            (slideOutVertically { height -> -height } + fadeOut())
+                    } else {
+                        (slideInVertically { height -> -height } + fadeIn()) togetherWith
+                            (slideOutVertically { height -> height } + fadeOut())
+                    }.using(SizeTransform(clip = false))
+                },
+                label = "cart_item_price_ticker",
+            ) {
+                Text(
+                    moneyLabel(Money.cartLinePreview(line)),
+                    color = colors.ink,
+                    fontSize = 20.sp,
+                    lineHeight = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
         }
         QuantityStepper(
             quantity = line.quantity,
@@ -934,14 +954,28 @@ private fun QuantityStepper(
                 tint = foreground,
                 onClick = onMinus,
             )
-            Text(
-                quantity.toString(),
-                color = foreground,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.width(28.dp),
-            )
+            AnimatedContent(
+                targetState = quantity,
+                transitionSpec = {
+                    if (targetState > initialState) {
+                        (slideInVertically { height -> height } + fadeIn()) togetherWith
+                            (slideOutVertically { height -> -height } + fadeOut())
+                    } else {
+                        (slideInVertically { height -> -height } + fadeIn()) togetherWith
+                            (slideOutVertically { height -> height } + fadeOut())
+                    }.using(SizeTransform(clip = false))
+                },
+                label = "cart_stepper_ticker",
+            ) { count ->
+                Text(
+                    count.toString(),
+                    color = foreground,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.width(28.dp),
+                )
+            }
             QuantityButton(
                 icon = Icons.Rounded.Add,
                 description = "Agregar uno",
@@ -964,7 +998,7 @@ private fun QuantityButton(
             Modifier
                 .size(38.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .clickable(onClick = onClick),
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = description, tint = tint, modifier = Modifier.size(18.dp))
@@ -1127,12 +1161,26 @@ private fun CheckoutDockButton(
                                 .height(34.dp)
                                 .background(colors.ink.copy(alpha = 0.14f)),
                     )
-                    Text(
-                        price,
-                        color = if (enabled) colors.accentInk else colors.muted,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
-                    )
+                    AnimatedContent(
+                        targetState = price,
+                        transitionSpec = {
+                            if (targetState > initialState) {
+                                (slideInVertically { height -> height } + fadeIn()) togetherWith
+                                    (slideOutVertically { height -> -height } + fadeOut())
+                            } else {
+                                (slideInVertically { height -> -height } + fadeIn()) togetherWith
+                                    (slideOutVertically { height -> height } + fadeOut())
+                            }.using(SizeTransform(clip = false))
+                        },
+                        label = "checkout_price_ticker",
+                    ) { p ->
+                        Text(
+                            p,
+                            color = if (enabled) colors.accentInk else colors.muted,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                        )
+                    }
                 }
             }
         }
