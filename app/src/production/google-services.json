@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
+    "project_number": "1063589785442",
     "project_id": "vaiinilla-produc",
     "storage_bucket": "vaiinilla-produc.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:prod00000000000000",
+        "mobilesdk_app_id": "1:1063589785442:android:950ab6206d27fad555463b",
         "android_client_info": {
           "package_name": "com.vaiinilla.app"
         }
@@ -15,10 +15,14 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyPlaceholderProductionApiKey000000"
+          "current_key": "AIzaSyA8-IkBXV9M67ZlmvEJazmUmx6AgL31Xrk"
         }
       ],
-      "services": {}
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
     }
   ],
   "configuration_version": "1"
