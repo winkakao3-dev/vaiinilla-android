@@ -22,9 +22,13 @@ Fuente oficial:
 
 ## 2. Política de privacidad
 
-Estado: **borrador técnico avanzado; no publicable todavía**.
+Estado: **cubierto y verificado en vivo**.
 
 Google Play exige una política de privacidad completa y accesible desde Play Console y desde la app. La URL debe ser pública, activa, accesible globalmente y no un PDF.
+
+- URL pública activa verificada (HTTP 200): `https://app.vaiinilla.app/legal/privacidad/2026-07`
+- Endpoint legal de producción: `GET /api/v1/publico/legal/vigente` devuelve versión `2026-07` y URL `https://app.vaiinilla.app/legal/privacidad/2026-07`.
+- Enlace in-app en Android: `StudentRegisterScreen` ('Leer privacidad') abre dinámicamente esta URL a través de `RemoteAccessEmailApi`.
 
 Repo:
 - `docs/PRIVACY_POLICY_DRAFT.md`
@@ -39,19 +43,17 @@ Fuente oficial:
 
 Estado in-app: **implementado**.
 
-Estado web externo: **pendiente — KAK-47**.
+Estado web externo: **resuelto y verificado en vivo — KAK-47 CERRADO**.
 
 Google Play exige que una app que permite crear cuentas ofrezca:
 
-1. una vía detectable dentro de la app para solicitar eliminación;
+1. una vía detectable dentro de la app para solicitar eliminación (implementada en `StudentAuthViewModel` / cuenta);
 2. un recurso web externo desde el que también pueda iniciarse la solicitud;
 3. eliminación de datos asociados, salvo retenciones legítimas que deben declararse claramente.
 
-Fuentes oficiales:
-- https://support.google.com/googleplay/android-developer/answer/13327111
-- https://support.google.com/googleplay/android-developer/answer/10144311
-
-La URL externa todavía no existe/está confirmada. `saul1217/vaiinilla-web` no es accesible con la conexión GitHub actual, así que la implementación web requiere acceso del responsable o trabajo desde su repo.
+- URL web pública activa verificada (HTTP 200): `https://app.vaiinilla.app/eliminar-cuenta`
+- Backend endpoint: `DELETE /api/v1/identidad/cuenta` con confirmación 'ELIMINAR' y token Firebase.
+- Flujo: frontend SPA React en producción permite a cualquier usuario autenticarse y borrar su cuenta de Firebase, anonimizando sus datos personales y preservando registros contables/legales.
 
 ## 4. Endpoint Android de producción
 
@@ -199,7 +201,7 @@ Fuentes:
 Estado: **preparados a nivel de documentación; carga/credenciales externas pendientes**.
 
 - `docs/play-store/STORE_LISTING.md` contiene nombre, categoría `Comida y bebida`, descripción breve y descripción completa dentro de los límites oficiales.
-- Los seis screenshots están generados externamente y pendientes de recepción/validación.
+- Screenshots para Store Listing: los screenshots automáticos de pruebas anteriores fueron DESCARTADOS por decisión de producto. Se prepararán y subirán nuevos screenshots finales (PENDIENTE).
 - `docs/play-store/APP_ACCESS_REVIEW.md` contiene dos juegos de instrucciones de reviewer en inglés, sin contraseñas: cliente y staff.
 - Falta crear/confirmar credenciales demo reutilizables y cargarlas solo en Play Console.
 

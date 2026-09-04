@@ -18,13 +18,12 @@ configuración externa. No contiene secretos.
   `Consulta el menú y haz pedidos anticipados en cafeterías escolares.`
 - Full description: ver `STORE_LISTING.md`.
 - Tags: elegir hasta 5 de las opciones reales de Play Console.
-- Screenshots: 6 generados externamente; pendientes de recepción/validación.
+- Screenshots: DESCARTADOS los screenshots de prueba anteriores. Pendiente subir los nuevos screenshots finales.
 
 ## App content — Privacy policy
 
-- Privacy policy URL: **PENDIENTE KAK-44**.
-- El borrador ya reconoce audiencia menor desde secundaria y Stripe, pero aún
-  faltan datos legales/retención/proveedores y URL pública.
+- Privacy policy URL: `https://app.vaiinilla.app/legal/privacidad/2026-07` (**CUBIERTO Y VERIFICADO EN VIVO**).
+- Devuelta por `/api/v1/publico/legal/vigente` y activa en web SPA.
 
 ## App content — Ads
 

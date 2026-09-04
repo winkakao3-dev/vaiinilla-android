@@ -474,13 +474,13 @@ Linear no se modificó.
 - Fecha de creación de la cuenta personal.
 - Estado de acceso a producción.
 - Cuenta y credentials de reviewer.
-- Política de privacidad pública.
+- Política de privacidad pública: RESUELTO (`https://app.vaiinilla.app/legal/privacidad/2026-07`).
 - Datos legales y retenciones.
 - Regiones y subprocesadores.
 - Cuenta Firebase descartable para E2E.
-- URL web externa de eliminación.
+- URL web externa de eliminación: RESUELTO (`https://app.vaiinilla.app/eliminar-cuenta`).
 - Clasificación financiera del saldo y recargas.
-- Seis screenshots finales ya generados externamente, pendientes de recibir/validar/integrar.
+- Screenshots para la ficha de la tienda: pendientes (screenshots automáticos anteriores descartados; a la espera de nuevos screenshots finales).
 - Cerrar `Shared`/retenciones/proveedores en Data Safety.
 - E2E Stripe Test Mode y decisión Test Mode vs Live Mode.
 

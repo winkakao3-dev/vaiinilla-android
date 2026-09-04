@@ -14,9 +14,9 @@ Este documento resume únicamente los pendientes vigentes para preparar una publ
 ## Mapeo Linear vigente
 
 - **KAK-46** — tracker maestro de pendientes de publicación Android.
-- **KAK-44** — completar datos legales y publicar Política de Privacidad.
+- **KAK-44** — **resuelto**: Política de privacidad activa y verificada en `https://app.vaiinilla.app/legal/privacidad/2026-07`.
 - **KAK-45** — **resuelto**: `VAIINILLA_API_BASE_URL` de producción configurada y verificada en GitHub.
-- **KAK-47** — publicar recurso web externo para eliminar cuenta.
+- **KAK-47** — **resuelto**: Recurso web externo activo y verificado en `https://app.vaiinilla.app/eliminar-cuenta`.
 - **KAK-48** — validar E2E real de eliminación de cuenta.
 - **KAK-49** — confirmar configuración, retención y restricciones de Firebase.
 - **KAK-50** — definir retención de logs, auditoría y backups del backend.
@@ -73,16 +73,16 @@ VAIINILLA_API_BASE_URL=https://vaiinillaback-development-3f6c.up.railway.app/api
 
 Por tanto KAK-45 ya no es un bloqueo.
 
-## KAK-47 — recurso web externo de eliminación
+## KAK-47 — recurso web externo de eliminación (RESUELTO)
 
 Google Play exige que una app que permite crear cuentas ofrezca una vía detectable de eliminación dentro de la app y también un recurso web externo.
 
-Estado actual:
+Estado actual: **RESUELTO Y VERIFICADO EN VIVO**.
 
-- el flujo dentro de Android existe;
-- todavía no existe una URL web pública confirmada para iniciar la solicitud fuera de la app;
-- el repositorio esperado `saul1217/vaiinilla-web` devuelve 404 con la conexión GitHub disponible, por lo que no puede editarse desde este agente actualmente;
-- cuando tengamos acceso al repo web, la página debe reutilizar el flujo de identidad/backend y no exponer Firebase Admin, service accounts ni secretos en navegador.
+- URL pública activa verificada (HTTP 200): `https://app.vaiinilla.app/eliminar-cuenta`
+- Frontend: Web SPA React en producción con formulario de autenticación e invocación segura de borrado.
+- Backend: Endpoint `DELETE /api/v1/identidad/cuenta` ejecutado exitosamente con confirmación 'ELIMINAR'.
+- Anonimiza datos personales, cancela membresías y elimina cuenta en Firebase Authentication preservando integridad contable.
 
 ## KAK-48 — E2E de eliminación bloqueado sólo por cuenta descartable
 
