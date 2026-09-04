@@ -25,6 +25,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -312,6 +314,20 @@ fun WalletAccountScreen(
                                 background = colors.coral,
                                 contentColor = colors.paper,
                             )
+                            val uriHandler = LocalUriHandler.current
+                            TextButton(
+                                onClick = {
+                                    uriHandler.openUri("https://app.vaiinilla.app/eliminar-cuenta")
+                                },
+                                modifier = Modifier.align(Alignment.CenterHorizontally),
+                            ) {
+                                Text(
+                                    text = "O solicita la eliminación desde la web",
+                                    color = colors.muted,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
                         }
                     }
                 } else {

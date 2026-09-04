@@ -108,15 +108,18 @@ if (hasPartialReleaseSigning) {
     )
 }
 
-val isReleaseTask = gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
-if (isReleaseTask && releaseApiBaseUrl.isBlank()) {
+val isProdReleaseTask =
+    gradle.startParameter.taskNames.any {
+        it.contains("Production", ignoreCase = true) && it.contains("Release", ignoreCase = true)
+    }
+if (isProdReleaseTask && releaseApiBaseUrl.isBlank()) {
     throw GradleException(
         "Release builds require -PvaiinillaApiBaseUrl or VAIINILLA_API_BASE_URL. " +
             "Do not ship the localhost.invalid fallback.",
     )
 }
 if (
-    isReleaseTask &&
+    isProdReleaseTask &&
     releaseApiBaseUrl.trimEnd('/') != productionApiBaseUrl.trimEnd('/')
 ) {
     throw GradleException(
@@ -155,7 +158,6 @@ android {
         versionCode = selectedVersionCode.toIntOrNull() ?: error("VAIINILLA_VERSION_CODE must be an integer")
         versionName = selectedVersionName
 
-        buildConfigField("String", "API_BASE_URL", "\"$selectedApiBaseUrl\"")
         // Defaults: release-safe. Debug buildType overrides below.
         buildConfigField("boolean", "SEED_AUTH_ENABLED", "false")
         buildConfigField("String", "SEED_PASSWORD_CLIENTE", "\"\"")
@@ -164,9 +166,32 @@ android {
         buildConfigField("String", "SEED_PASSWORD_MESERO", "\"\"")
     }
 
+    flavorDimensions += "environment"
+    productFlavors {
+        create("development") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            buildConfigField("String", "ENVIRONMENT_NAME", "\"development\"")
+            buildConfigField(
+                "String",
+                "API_BASE_URL",
+                "\"https://vaiinillaback-development.up.railway.app/api/v1/\"",
+            )
+        }
+        create("production") {
+            dimension = "environment"
+            buildConfigField("String", "ENVIRONMENT_NAME", "\"production\"")
+            val prodUrl = if (releaseApiBaseUrl.isNotBlank()) releaseApiBaseUrl else productionApiBaseUrl
+            buildConfigField(
+                "String",
+                "API_BASE_URL",
+                "\"$prodUrl\"",
+            )
+        }
+    }
+
     buildTypes {
         getByName("debug") {
-            buildConfigField("String", "API_BASE_URL", "\"$selectedDebugApiBaseUrl\"")
             buildConfigField("boolean", "SEED_AUTH_ENABLED", "true")
             buildConfigField(
                 "String",
@@ -216,7 +241,6 @@ android {
             initWith(getByName("release"))
             matchingFallbacks += listOf("release", "debug")
             signingConfig = signingConfigs.getByName("debug")
-            buildConfigField("String", "API_BASE_URL", "\"$selectedDebugApiBaseUrl\"")
             buildConfigField("boolean", "SEED_AUTH_ENABLED", "true")
             buildConfigField(
                 "String",

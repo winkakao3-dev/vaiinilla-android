@@ -63,8 +63,7 @@ fun StudentForgotPasswordScreen(
                         icon = Icons.Outlined.LockReset,
                         title = "Correo enviado",
                         message =
-                            "Si existe una cuenta con ese correo, recibirás instrucciones " +
-                                "para restablecer tu contraseña.",
+                            "Si la cuenta existe, enviaremos las instrucciones de recuperación.",
                         actionLabel = "Volver",
                         onAction = onBack,
                     )
@@ -83,9 +82,14 @@ fun StudentForgotPasswordScreen(
                 }
                 item {
                     EditorialAccentButton(
-                        text = "Enviar enlace",
+                        text =
+                            if (state.resendLockedUntilMs > System.currentTimeMillis()) {
+                                "Enviar enlace (espera)"
+                            } else {
+                                "Enviar enlace"
+                            },
                         onClick = onSendReset,
-                        enabled = !state.loading,
+                        enabled = !state.loading && state.resendLockedUntilMs <= System.currentTimeMillis(),
                     )
                 }
                 item {

@@ -410,6 +410,7 @@ class StudentAuthViewModel
                 _state.value = _state.value.copy(errorMessage = "Ingresa tu correo.")
                 return
             }
+            if (_state.value.resendLockedUntilMs > System.currentTimeMillis()) return
             _state.value = _state.value.copy(loading = true, errorMessage = null)
             launchTracked {
                 sendPasswordResetEmail(email).fold(
@@ -419,14 +420,26 @@ class StudentAuthViewModel
                                 loading = false,
                                 passwordResetSent = true,
                             )
+                        lockResend(60, errorMessage = null)
                         onSent()
                     },
                     onFailure = { error ->
-                        _state.value =
-                            _state.value.copy(
-                                loading = false,
-                                errorMessage = error.toUserFacingMessage(),
-                            )
+                        val limited = error as? ApiClientException
+                        val rateLimited =
+                            limited != null &&
+                                (
+                                    limited.httpStatus == 429 ||
+                                        limited.code.equals("RATE_LIMITED", ignoreCase = true)
+                                )
+                        if (rateLimited) {
+                            lockResend(limited.retryAfterSeconds ?: 60)
+                        } else {
+                            _state.value =
+                                _state.value.copy(
+                                    loading = false,
+                                    errorMessage = error.toUserFacingMessage(),
+                                )
+                        }
                     },
                 )
             }
@@ -563,18 +576,7 @@ class StudentAuthViewModel
         private suspend fun sendVerificationEmail(): Result<Unit> =
             authRepository.getIdToken(forceRefresh = true).fold(
                 onSuccess = { firebaseIdToken ->
-                    val remote = remoteAccessEmailApi.sendVerification(firebaseIdToken)
-                    val error = remote.exceptionOrNull()
-                    val apiError = error as? ApiClientException
-                    val shouldFallback =
-                        error != null &&
-                            (apiError == null || apiError.httpStatus >= 500)
-
-                    if (remote.isSuccess || !shouldFallback) {
-                        remote
-                    } else {
-                        authRepository.sendEmailVerification()
-                    }
+                    remoteAccessEmailApi.sendVerification(firebaseIdToken)
                 },
                 onFailure = { Result.failure(it) },
             )

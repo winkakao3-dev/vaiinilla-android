@@ -132,7 +132,7 @@ val OrderFlowUiState.isSelectedProductValid: Boolean
 val OrderFlowUiState.isOperationallyReady: Boolean
     get() =
         operationalStatus?.let { status ->
-            status.acceptingOrders && status.cashSessionOpen
+            status.acceptingOrders && status.cashSessionOpen && status.cashierOnline && status.kitchenOnline
         } == true
 
 val OrderFlowUiState.canSubmitCart: Boolean
@@ -168,7 +168,7 @@ fun OrderFlowUiState.hasSufficientBalance(walletBalance: Int): Boolean {
 }
 
 fun OperationalStatus.checkoutStaffBlocker(): String? {
-    if (acceptingOrders && cashSessionOpen) return null
+    if (acceptingOrders && cashSessionOpen && cashierOnline && kitchenOnline) return null
     if (!cashSessionOpen) {
         return "Caja no tiene sesión abierta. Entra a Caja y ábrela antes de confirmar."
     }
