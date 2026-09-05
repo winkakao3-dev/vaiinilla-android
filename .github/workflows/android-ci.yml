@@ -49,14 +49,14 @@ jobs:
         run: ./gradlew --no-daemon assembleDevDebug assembleProdDebug
 
       - name: Upload Dev Debug APK
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vaiinilla-dev-debug-apk
           path: app/build/outputs/apk/dev/debug/app-dev-debug.apk
           if-no-files-found: error
 
       - name: Upload Prod Debug APK
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vaiinilla-prod-debug-apk
           path: app/build/outputs/apk/prod/debug/app-prod-debug.apk
