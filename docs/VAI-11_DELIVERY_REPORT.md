@@ -8,7 +8,7 @@ Implementación Android de seguimiento del alumno y pantallas operativas (Caja, 
 
 - Video: `docs/evidence/VAI-11-e2e-remote.mp4`
 - Flujo grabado: Alumno crea pedido efectivo → Caja cobra → Cocina prepara → entrega → seguimiento refleja `entregado`
-- Backend: `https://vaiinillaback-development-3f6c.up.railway.app/api/v1/`
+- Backend: `https://vaiinillaback.up.railway.app/api/v1/`
 - PR: https://github.com/winkakao3-dev/vaiinilla-android/pull/3
 
 ## Alcance entregado

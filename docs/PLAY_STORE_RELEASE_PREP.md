@@ -64,7 +64,7 @@ Railway CLI confirmó que el environment `production` del proyecto `vainiilla-pr
 Dominio production demostrado:
 
 ```text
-https://vaiinillaback-development-3f6c.up.railway.app
+https://vaiinillaback.up.railway.app
 ```
 
 Aunque el hostname contiene `development`, Railway lo asigna inequívocamente al environment `production`. Se verificó:
@@ -77,7 +77,7 @@ GET /api/v1/  -> 200, api: vaiinilla, version: v1
 Repository Variable configurada y re-leída con coincidencia exacta:
 
 ```text
-VAIINILLA_API_BASE_URL=https://vaiinillaback-development-3f6c.up.railway.app/api/v1/
+VAIINILLA_API_BASE_URL=https://vaiinillaback.up.railway.app/api/v1/
 ```
 
 `app.vaiinilla.app` sigue siendo la superficie frontend y no la API base.

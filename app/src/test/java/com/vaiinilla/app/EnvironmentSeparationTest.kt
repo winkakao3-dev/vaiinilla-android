@@ -16,12 +16,12 @@ class EnvironmentSeparationTest {
         val rootDir = File(".").canonicalFile
         val projectDir = if (File(rootDir, "app").exists()) rootDir else rootDir.parentFile
 
-        val devGoogleServices = File(projectDir, "app/src/development/google-services.json")
-        val prodGoogleServices = File(projectDir, "app/src/production/google-services.json")
+        val devGoogleServices = File(projectDir, "app/src/dev/google-services.json")
+        val prodGoogleServices = File(projectDir, "app/src/prod/google-services.json")
         val rootGoogleServices = File(projectDir, "app/google-services.json")
 
-        assertTrue("app/src/development/google-services.json must exist", devGoogleServices.exists())
-        assertTrue("app/src/production/google-services.json must exist", prodGoogleServices.exists())
+        assertTrue("app/src/dev/google-services.json must exist", devGoogleServices.exists())
+        assertTrue("app/src/prod/google-services.json must exist", prodGoogleServices.exists())
         assertFalse(
             "app/google-services.json must NOT exist to prevent accidental fallback",
             rootGoogleServices.exists(),
@@ -33,8 +33,8 @@ class EnvironmentSeparationTest {
         val rootDir = File(".").canonicalFile
         val projectDir = if (File(rootDir, "app").exists()) rootDir else rootDir.parentFile
 
-        val devContent = File(projectDir, "app/src/development/google-services.json").readText()
-        val prodContent = File(projectDir, "app/src/production/google-services.json").readText()
+        val devContent = File(projectDir, "app/src/dev/google-services.json").readText()
+        val prodContent = File(projectDir, "app/src/prod/google-services.json").readText()
 
         assertTrue("Development Firebase project must be vaiinilla-b3a70", devContent.contains("vaiinilla-b3a70"))
         assertFalse("Development Firebase must not reference vaiinilla-produc", devContent.contains("vaiinilla-produc"))
@@ -48,7 +48,7 @@ class EnvironmentSeparationTest {
         val rootDir = File(".").canonicalFile
         val projectDir = if (File(rootDir, "app").exists()) rootDir else rootDir.parentFile
 
-        val devContent = File(projectDir, "app/src/development/google-services.json").readText()
+        val devContent = File(projectDir, "app/src/dev/google-services.json").readText()
         assertTrue(
             "Development google-services.json must support com.vaiinilla.app.dev",
             devContent.contains("com.vaiinilla.app.dev"),
@@ -60,7 +60,7 @@ class EnvironmentSeparationTest {
         val rootDir = File(".").canonicalFile
         val projectDir = if (File(rootDir, "app").exists()) rootDir else rootDir.parentFile
 
-        val prodContent = File(projectDir, "app/src/production/google-services.json").readText()
+        val prodContent = File(projectDir, "app/src/prod/google-services.json").readText()
         assertTrue(
             "Production google-services.json must support com.vaiinilla.app",
             prodContent.contains("com.vaiinilla.app"),
@@ -76,7 +76,7 @@ class EnvironmentSeparationTest {
         val rootDir = File(".").canonicalFile
         val projectDir = if (File(rootDir, "app").exists()) rootDir else rootDir.parentFile
 
-        val devStrings = File(projectDir, "app/src/development/res/values/strings.xml")
+        val devStrings = File(projectDir, "app/src/dev/res/values/strings.xml")
         assertTrue("Development strings.xml must exist", devStrings.exists())
         val content = devStrings.readText()
         assertTrue("Development app_name must be 'Vaiinilla Dev'", content.contains("Vaiinilla Dev"))

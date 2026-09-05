@@ -49,14 +49,14 @@ val selectedApiBaseUrl =
         "https://localhost.invalid/api/v1/",
     )
 
-// Debug/preview builds should be installable without requiring every developer
-// to create local.properties first. Release still requires an explicit URL.
-val selectedDebugApiBaseUrl =
-    readConfig(
-        "vaiinillaApiBaseUrl",
-        "VAIINILLA_API_BASE_URL",
-        "https://vaiinillaback-development-3f6c.up.railway.app/api/v1/",
-    )
+val devApiBaseUrl = "https://vaiinillaback-development.up.railway.app/api/v1/"
+val productionApiBaseUrl = "https://vaiinillaback.up.railway.app/api/v1/"
+
+val devWebUrl = "https://vaiinilla-web-git-develop-saul1217s-projects.vercel.app"
+val prodWebUrl = "https://app.vaiinilla.app"
+
+val devFirebaseProjectId = "vaiinilla-b3a70"
+val prodFirebaseProjectId = "vaiinilla-produc"
 
 val releaseApiBaseUrl =
     readConfig(
@@ -64,8 +64,6 @@ val releaseApiBaseUrl =
         "VAIINILLA_API_BASE_URL",
         "",
     )
-
-val productionApiBaseUrl = "https://vaiinillaback-development-3f6c.up.railway.app/api/v1/"
 
 val releaseStoreFile =
     readConfig(
@@ -110,7 +108,8 @@ if (hasPartialReleaseSigning) {
 
 val isProdReleaseTask =
     gradle.startParameter.taskNames.any {
-        it.contains("Production", ignoreCase = true) && it.contains("Release", ignoreCase = true)
+        (it.contains("Prod", ignoreCase = true) || it.contains("Production", ignoreCase = true)) &&
+            it.contains("Release", ignoreCase = true)
     }
 if (isProdReleaseTask && releaseApiBaseUrl.isBlank()) {
     throw GradleException(
@@ -168,25 +167,23 @@ android {
 
     flavorDimensions += "environment"
     productFlavors {
-        create("development") {
+        create("dev") {
             dimension = "environment"
             applicationIdSuffix = ".dev"
             buildConfigField("String", "ENVIRONMENT_NAME", "\"development\"")
-            buildConfigField(
-                "String",
-                "API_BASE_URL",
-                "\"https://vaiinillaback-development.up.railway.app/api/v1/\"",
-            )
+            buildConfigField("String", "API_BASE_URL", "\"$devApiBaseUrl\"")
+            buildConfigField("String", "WEB_URL", "\"$devWebUrl\"")
+            buildConfigField("String", "FIREBASE_PROJECT_ID", "\"$devFirebaseProjectId\"")
+            buildConfigField("boolean", "IS_PRODUCTION", "false")
         }
-        create("production") {
+        create("prod") {
             dimension = "environment"
             buildConfigField("String", "ENVIRONMENT_NAME", "\"production\"")
             val prodUrl = if (releaseApiBaseUrl.isNotBlank()) releaseApiBaseUrl else productionApiBaseUrl
-            buildConfigField(
-                "String",
-                "API_BASE_URL",
-                "\"$prodUrl\"",
-            )
+            buildConfigField("String", "API_BASE_URL", "\"$prodUrl\"")
+            buildConfigField("String", "WEB_URL", "\"$prodWebUrl\"")
+            buildConfigField("String", "FIREBASE_PROJECT_ID", "\"$prodFirebaseProjectId\"")
+            buildConfigField("boolean", "IS_PRODUCTION", "true")
         }
     }
 

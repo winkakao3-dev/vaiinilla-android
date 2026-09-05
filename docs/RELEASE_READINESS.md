@@ -54,7 +54,7 @@ Verificado desde Railway CLI y HTTP el 17 de agosto de 2026:
 - deployment SHA: `5d16aa171cfb8a489f7eb73e73f7f45fe2480fef`;
 - región: `us-east4-eqdc4a` / US East;
 - réplicas: `1`;
-- dominio público: `https://vaiinillaback-development-3f6c.up.railway.app`;
+- dominio público: `https://vaiinillaback.up.railway.app`;
 - custom domains: ninguno;
 - healthcheck: `/health`, timeout 30 s;
 - start command: `npm start`;
@@ -68,7 +68,7 @@ Aunque el hostname contiene `development`, Railway lo asigna inequívocamente al
 La Repository Variable quedó configurada y re-leída con coincidencia exacta:
 
 ```text
-VAIINILLA_API_BASE_URL=https://vaiinillaback-development-3f6c.up.railway.app/api/v1/
+VAIINILLA_API_BASE_URL=https://vaiinillaback.up.railway.app/api/v1/
 ```
 
 Por tanto KAK-45 ya no es un bloqueo.

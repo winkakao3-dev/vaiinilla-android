@@ -44,7 +44,7 @@ If the debug seed passwords are present in `local.properties`, the single-device
 
 ```bash
 # local.properties (do not commit)
-vaiinillaApiBaseUrl=https://vaiinillaback-development-3f6c.up.railway.app/api/v1/
+vaiinillaApiBaseUrl=https://vaiinillaback.up.railway.app/api/v1/
 vaiinillaSeedPasswordCliente=<rotated>
 vaiinillaSeedPasswordCajero=<rotated>
 vaiinillaSeedPasswordCocina=<rotated>

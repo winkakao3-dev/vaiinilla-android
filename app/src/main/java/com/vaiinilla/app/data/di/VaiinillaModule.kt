@@ -59,7 +59,16 @@ import javax.inject.Singleton
 object VaiinillaModule {
     @Provides
     @Singleton
-    fun provideEnvironment(): AppEnvironment = AppEnvironment(apiBaseUrl = BuildConfig.API_BASE_URL)
+    fun provideEnvironment(): AppEnvironment =
+        AppEnvironment(
+            environmentName = BuildConfig.ENVIRONMENT_NAME,
+            apiBaseUrl = BuildConfig.API_BASE_URL,
+            webUrl = BuildConfig.WEB_URL,
+            firebaseProjectId = BuildConfig.FIREBASE_PROJECT_ID,
+            isProduction = BuildConfig.IS_PRODUCTION,
+            versionName = BuildConfig.VERSION_NAME,
+            versionCode = BuildConfig.VERSION_CODE,
+        )
 
     @Provides
     @Singleton

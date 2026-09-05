@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      VAIINILLA_API_BASE_URL: ${{ vars.VAIINILLA_API_BASE_URL }}
+      VAIINILLA_API_BASE_URL: ${{ vars.VAIINILLA_API_BASE_URL || 'https://vaiinillaback.up.railway.app/api/v1/' }}
 
     steps:
       - name: Checkout
@@ -36,21 +36,28 @@ jobs:
       - name: App/backend regression gate
         run: ./scripts/check_app_backend_contract.sh
 
-      - name: Unit tests
-        run: ./gradlew --no-daemon testDebugUnitTest
+      - name: Unit tests (Dev & Prod)
+        run: ./gradlew --no-daemon testDevDebugUnitTest testProdDebugUnitTest
 
-      - name: Android lint
-        run: ./gradlew --no-daemon lintDebug
+      - name: Android lint (Prod)
+        run: ./gradlew --no-daemon lintProdDebug
 
       - name: ktlint
         run: ./gradlew --no-daemon ktlintCheck
 
-      - name: Debug build
-        run: ./gradlew --no-daemon assembleDebug
+      - name: Build Dev & Prod debug APKs
+        run: ./gradlew --no-daemon assembleDevDebug assembleProdDebug
 
-      - name: Upload debug APK
+      - name: Upload Dev Debug APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: vaiinilla-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: vaiinilla-dev-debug-apk
+          path: app/build/outputs/apk/dev/debug/app-dev-debug.apk
+          if-no-files-found: error
+
+      - name: Upload Prod Debug APK
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: vaiinilla-prod-debug-apk
+          path: app/build/outputs/apk/prod/debug/app-prod-debug.apk
           if-no-files-found: error

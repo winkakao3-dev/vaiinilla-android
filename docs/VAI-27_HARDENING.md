@@ -7,7 +7,7 @@ Esta revisión endurece el runtime REMOTE de VAI-27 sobre Firebase + Railway. MO
 El backend configurado para esta build es:
 
 ```text
-https://vaiinillaback-development-3f6c.up.railway.app/api/v1/
+https://vaiinillaback.up.railway.app/api/v1/
 ```
 
 Las cuentas seed (`cliente`, `cajero`, `cocina`, `mesero`) son una ayuda exclusiva para builds `debug`/`preview`. Sus contraseñas sólo se leen desde `local.properties`; no están en este repositorio, en el APK release ni en esta documentación.
@@ -31,7 +31,7 @@ python3 scripts/validate_fixtures.py
 ./gradlew --no-daemon :app:ktlintCheck
 ./gradlew --no-daemon :app:lintDebug
 ./gradlew --no-daemon :app:assembleDebug \
-  -PvaiinillaApiBaseUrl=https://vaiinillaback-development-3f6c.up.railway.app/api/v1/
+  -PvaiinillaApiBaseUrl=https://vaiinillaback.up.railway.app/api/v1/
 ```
 
 Todos terminaron correctamente. El APK generado es:
@@ -45,7 +45,7 @@ La integridad ZIP del APK también fue comprobada. Comando reproducible de build
 
 ```bash
 ./gradlew --no-daemon :app:assembleDebug \
-  -PvaiinillaApiBaseUrl=https://vaiinillaback-development-3f6c.up.railway.app/api/v1/
+  -PvaiinillaApiBaseUrl=https://vaiinillaback.up.railway.app/api/v1/
 ```
 
 ## Prueba física pendiente

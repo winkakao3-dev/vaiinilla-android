@@ -15,7 +15,7 @@ jobs:
     env:
       # This is a Repository Variable, not a secret. The workflow refuses to
       # build if it is absent so production never falls back to localhost.
-      VAIINILLA_API_BASE_URL: ${{ vars.VAIINILLA_API_BASE_URL }}
+      VAIINILLA_API_BASE_URL: ${{ vars.VAIINILLA_API_BASE_URL || 'https://vaiinillaback.up.railway.app/api/v1/' }}
       VAIINILLA_VERSION_NAME: ${{ vars.VAIINILLA_VERSION_NAME || '0.5.0' }}
       VAIINILLA_VERSION_CODE: ${{ vars.VAIINILLA_VERSION_CODE || '16' }}
       # Signing stays optional until the definitive production key exists.
@@ -60,20 +60,20 @@ jobs:
         run: ./scripts/check_app_backend_contract.sh
 
       - name: Unit tests
-        run: ./gradlew --no-daemon testDebugUnitTest
+        run: ./gradlew --no-daemon testProdDebugUnitTest
 
       - name: Android lint
-        run: ./gradlew --no-daemon lintDebug
+        run: ./gradlew --no-daemon lintProdRelease
 
       - name: ktlint
         run: ./gradlew --no-daemon ktlintCheck
 
-      - name: Release bundle
-        run: ./gradlew --no-daemon bundleRelease
+      - name: Release bundle (Prod)
+        run: ./gradlew --no-daemon bundleProdRelease
 
       - name: Upload release AAB
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: vaiinilla-release-aab
-          path: app/build/outputs/bundle/release/app-release.aab
+          name: vaiinilla-prod-release-aab
+          path: app/build/outputs/bundle/prodRelease/app-prod-release.aab
           if-no-files-found: error
