@@ -2,18 +2,19 @@ package com.vaiinilla.app.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,20 +24,24 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Lightbulb
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,16 +53,20 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.R
 import com.vaiinilla.app.domain.model.OperationalRole
 
 data class AssistantFaq(
     val id: String,
     val question: String,
-    val answer: String,
+    val stepTitle: String,
+    val stepInstruction: String,
     val targetHighlight: String? = null,
 )
 
@@ -70,36 +79,53 @@ fun VaiinillaAssistantOrb(
     var expanded by remember { mutableStateOf(false) }
     var selectedFaq by remember { mutableStateOf<AssistantFaq?>(null) }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "orb_ambient")
+    // Kinetic Sand Physics State:
+    // Sits peaceful at rest. Only reacts organically on interaction (clicks, questions, steps)
+    var kineticAngleTarget by remember { mutableFloatStateOf(0f) }
+    var kineticSquishTarget by remember { mutableFloatStateOf(1f) }
+    var clickCount by remember { mutableStateOf(0) }
 
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
+    fun triggerKineticReaction() {
+        clickCount++
+        // Gentle fluid shift (+- 24° to 30°), viscous motion
+        val delta = if (clickCount % 2 == 0) 28f else -28f
+        kineticAngleTarget += delta
+        kineticSquishTarget = 0.93f
+    }
+
+    val kineticRotation by animateFloatAsState(
+        targetValue = kineticAngleTarget,
         animationSpec =
-            infiniteRepeatable(
-                animation = tween(durationMillis = 6500, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart,
+            spring(
+                dampingRatio = 0.84f, // High damping: viscous settling like kinetic sand
+                stiffness = Spring.StiffnessVeryLow, // Slow, fluid movement
             ),
-        label = "orb_rotation",
+        label = "kinetic_sand_rotation",
     )
 
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.94f,
-        targetValue = 1.06f,
+    val kineticSquish by animateFloatAsState(
+        targetValue = kineticSquishTarget,
         animationSpec =
-            infiniteRepeatable(
-                animation = tween(durationMillis = 2200, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse,
+            spring(
+                dampingRatio = 0.78f,
+                stiffness = Spring.StiffnessLow,
             ),
-        label = "orb_pulse",
+        label = "kinetic_squish",
+        finishedListener = {
+            if (kineticSquishTarget != 1f) {
+                kineticSquishTarget = 1f
+            }
+        },
     )
 
-    val floatY by infiniteTransition.animateFloat(
-        initialValue = -3f,
-        targetValue = 3f,
+    // Gentle ambient floating offset (subtle breathing, not spinning)
+    val ambientTransition = rememberInfiniteTransition(label = "orb_ambient")
+    val floatY by ambientTransition.animateFloat(
+        initialValue = -2.5f,
+        targetValue = 2.5f,
         animationSpec =
             infiniteRepeatable(
-                animation = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
+                animation = tween(durationMillis = 2600, easing = FastOutSlowInEasing),
                 repeatMode = RepeatMode.Reverse,
             ),
         label = "orb_float",
@@ -113,28 +139,28 @@ fun VaiinillaAssistantOrb(
                         AssistantFaq(
                             id = "scan",
                             question = "¿Cómo entrego un pedido con QR?",
-                            answer =
-                                "Toca Escanear QR en la tarjeta del pedido. " +
-                                    "La app abrirá el escáner para confirmar el " +
-                                    "código del alumno y marcarlo entregado de inmediato.",
+                            stepTitle = "Escanear QR de alumno",
+                            stepInstruction =
+                                "Toca el botón 'Escanear QR' resaltado en verde en la tarjeta de la orden. " +
+                                    "Apunta la cámara al código que te muestre el alumno para validar la entrega al instante.",
                             targetHighlight = "scan_button",
                         ),
                         AssistantFaq(
-                            id = "pause_product",
-                            question = "¿Cómo pauso un producto agotado?",
-                            answer =
-                                "Usa el switch al lado de cada producto en la " +
-                                    "sección Productos. El cambio se refleja " +
-                                    "en tiempo real en la tienda del alumno.",
+                            id = "pause",
+                            question = "¿Cómo pausar un producto agotado?",
+                            stepTitle = "Pausar disponibilidad",
+                            stepInstruction =
+                                "Desactiva el interruptor verde resaltado junto al producto en la lista. " +
+                                    "Se ocultará de inmediato en la app para todos los alumnos.",
                             targetHighlight = "product_switch",
                         ),
                         AssistantFaq(
-                            id = "add_product",
-                            question = "¿Cómo agrego un nuevo producto?",
-                            answer =
-                                "Toca el botón circular + en el encabezado " +
-                                    "de Productos para abrir la ficha de creación " +
-                                    "con nombre, precio y foto.",
+                            id = "add",
+                            question = "¿Cómo agregar un nuevo producto?",
+                            stepTitle = "Nuevo producto al menú",
+                            stepInstruction =
+                                "Toca el botón circular (+) resaltado arriba a la derecha para subir la foto, " +
+                                    "poner el nombre y el precio del nuevo platillo o bebida.",
                             targetHighlight = "add_product",
                         ),
                     )
@@ -142,39 +168,24 @@ fun VaiinillaAssistantOrb(
                     listOf(
                         AssistantFaq(
                             id = "prep",
-                            question = "¿Cómo indico que empecé la comanda?",
-                            answer =
-                                "Toca el botón Preparando en el ticket activo. " +
-                                    "Esto actualiza el estado visible tanto para caja " +
-                                    "como en el seguimiento del alumno.",
+                            question = "¿Cómo tomo una comanda en preparación?",
+                            stepTitle = "Comenzar preparación",
+                            stepInstruction =
+                                "Toca 'Marcar en preparación' resaltado en la comanda. Esto avisa a caja y al alumno " +
+                                    "que sus alimentos ya están en la plancha.",
                             targetHighlight = "prep_button",
                         ),
                         AssistantFaq(
                             id = "ready",
-                            question = "¿Cómo aviso que ya está listo?",
-                            answer =
-                                "Cuando termines todos los productos de la comanda, " +
-                                    "pulsa Ya se preparó. El ticket pasará a estado Listo " +
-                                    "y se notificará a Caja para su entrega.",
+                            question = "¿Cómo aviso que la comida está lista?",
+                            stepTitle = "Notificar comanda lista",
+                            stepInstruction =
+                                "Toca 'Comanda lista' resaltado en verde lima. Se enviará una notificación al alumno " +
+                                    "para que pase inmediatamente a recoger su pedido.",
                             targetHighlight = "ready_button",
                         ),
-                        AssistantFaq(
-                            id = "queue",
-                            question = "¿Dónde veo las siguientes comandas?",
-                            answer =
-                                "En la sección Siguientes verás la cola ordenada con " +
-                                    "número de ticket, cantidad de productos y minutos transcurridos.",
-                            targetHighlight = "queue_section",
-                        ),
                     )
-                else ->
-                    listOf(
-                        AssistantFaq(
-                            id = "general",
-                            question = "¿Cómo funciona este modo?",
-                            answer = "Gestiona tus actividades operativas en tiempo real sin salir de tu turno.",
-                        ),
-                    )
+                else -> emptyList()
             }
         }
 
@@ -182,24 +193,27 @@ fun VaiinillaAssistantOrb(
         modifier = modifier,
         contentAlignment = Alignment.BottomEnd,
     ) {
-        // Chatbot Popup Card
+        // Floating Bubble / Clippy Mode Overlay
         AnimatedVisibility(
             visible = expanded,
-            enter = fadeIn(tween(250)) + slideInVertically(tween(250)) { it / 3 } + scaleIn(tween(250), 0.85f),
-            exit = fadeOut(tween(200)) + slideOutVertically(tween(200)) { it / 3 } + scaleOut(tween(200), 0.85f),
-            modifier = Modifier.padding(bottom = 76.dp),
+            enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.92f),
+            exit = fadeOut(tween(140)) + scaleOut(targetScale = 0.92f),
+            modifier =
+                Modifier
+                    .padding(bottom = 76.dp)
+                    .width(320.dp),
         ) {
             Surface(
-                modifier = Modifier.fillMaxWidth(0.88f),
-                shape = RoundedCornerShape(24.dp),
-                shadowElevation = 14.dp,
+                shape = RoundedCornerShape(26.dp),
+                shadowElevation = 18.dp,
                 color = Color(0xF7FFFEF9),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x24171816)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x2E171816)),
             ) {
                 Column(
                     modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
+                    // Header Row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -217,14 +231,15 @@ fun VaiinillaAssistantOrb(
                                         .background(Color(0xFF96C83F)),
                             )
                             Text(
-                                text = "Guía Vaiinilla",
-                                fontWeight = FontWeight.Bold,
+                                text = if (selectedFaq != null) "Guía en vivo" else "Asistente Vaiinilla",
+                                fontWeight = FontWeight.Black,
                                 fontSize = 15.sp,
                                 color = Color(0xFF171816),
                             )
                         }
                         IconButton(
                             onClick = {
+                                triggerKineticReaction()
                                 expanded = false
                                 selectedFaq = null
                                 onHighlightTarget(null)
@@ -240,40 +255,92 @@ fun VaiinillaAssistantOrb(
                         }
                     }
 
+                    // Clippy Step Guidance vs Question Selection
                     if (selectedFaq != null) {
                         val faq = selectedFaq!!
-                        Text(
-                            text = faq.question,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = Color(0xFF171816),
-                        )
-                        Text(
-                            text = faq.answer,
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp,
-                            color = Color(0xFF30332E),
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                        ) {
-                            Text(
-                                text = "Hacer otra pregunta",
-                                color = Color(0xFF304427),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            // Step Pill
+                            Box(
                                 modifier =
                                     Modifier
-                                        .clickable {
-                                            selectedFaq = null
-                                            onHighlightTarget(null)
-                                        }.padding(vertical = 4.dp),
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color(0x2696C83F))
+                                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                            ) {
+                                Text(
+                                    text = "🎯 ${faq.stepTitle}",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF2B4420),
+                                )
+                            }
+
+                            // Interactive instruction
+                            Text(
+                                text = faq.stepInstruction,
+                                fontSize = 13.sp,
+                                lineHeight = 19.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF222520),
                             )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = "‹ Ver preguntas",
+                                    color = Color(0xFF55594F),
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.sp,
+                                    modifier =
+                                        Modifier
+                                            .clickable {
+                                                triggerKineticReaction()
+                                                selectedFaq = null
+                                                onHighlightTarget(null)
+                                            }.padding(vertical = 6.dp, horizontal = 4.dp),
+                                )
+
+                                Surface(
+                                    shape = RoundedCornerShape(18.dp),
+                                    color = Color(0xFFB7DE63),
+                                    shadowElevation = 4.dp,
+                                    modifier =
+                                        Modifier
+                                            .height(36.dp)
+                                            .clickable {
+                                                triggerKineticReaction()
+                                                expanded = false
+                                                selectedFaq = null
+                                                onHighlightTarget(null)
+                                            },
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 14.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    ) {
+                                        Icon(
+                                            Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            tint = Color(0xFF171816),
+                                            modifier = Modifier.size(15.dp),
+                                        )
+                                        Text(
+                                            text = "¡Entendido!",
+                                            fontWeight = FontWeight.Black,
+                                            fontSize = 12.sp,
+                                            color = Color(0xFF171816),
+                                        )
+                                    }
+                                }
+                            }
                         }
                     } else {
                         Text(
-                            text = "¿En qué te puedo ayudar?",
+                            text = "¿En qué te puedo guiar?",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF73766D),
@@ -283,26 +350,37 @@ fun VaiinillaAssistantOrb(
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .clip(RoundedCornerShape(14.dp))
+                                        .clip(RoundedCornerShape(16.dp))
                                         .background(Color(0xFFF7F3E7))
                                         .clickable {
+                                            triggerKineticReaction()
                                             selectedFaq = faq
                                             onHighlightTarget(faq.targetHighlight)
                                         }.padding(horizontal = 12.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
-                                Icon(
-                                    Icons.Outlined.Lightbulb,
-                                    contentDescription = null,
-                                    tint = Color(0xFF96C83F),
-                                    modifier = Modifier.size(16.dp),
-                                )
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .size(28.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0x2696C83F)),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.Lightbulb,
+                                        contentDescription = null,
+                                        tint = Color(0xFF436B1E),
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
                                 Text(
                                     text = faq.question,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color(0xFF171816),
+                                    modifier = Modifier.weight(1f),
                                 )
                             }
                         }
@@ -311,20 +389,21 @@ fun VaiinillaAssistantOrb(
             }
         }
 
-        // Floating Animated Orb Button
+        // Floating Animated Orb Button with Kinetic Sand Physics
         Box(
             modifier =
                 Modifier
                     .offset { IntOffset(0, floatY.dp.roundToPx()) }
-                    .size(66.dp)
+                    .size(64.dp)
                     .clip(CircleShape)
-                    .background(Color(0x7AFFFEF9))
-                    .border(1.5.dp, Color(0xE6FFFFFF), CircleShape)
-                    .shadow(16.dp, CircleShape, spotColor = Color(0x30304427))
+                    .background(Color(0x33171816))
+                    .border(1.5.dp, Color(0x66B7DE63), CircleShape)
+                    .shadow(16.dp, CircleShape, spotColor = Color(0x402A3E1B))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                     ) {
+                        triggerKineticReaction()
                         expanded = !expanded
                         if (!expanded) {
                             selectedFaq = null
@@ -333,47 +412,38 @@ fun VaiinillaAssistantOrb(
                     },
             contentAlignment = Alignment.Center,
         ) {
-            // Ambient outer glow ring
+            // Ambient soft glow behind orb
+            Box(
+                modifier =
+                    Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x3396C83F)),
+            )
+
+            // Kinetic Sand Orb: Smooth rotation & squish reaction on interaction
+            Image(
+                painter = painterResource(id = R.drawable.vaiinilla_assistant_orb),
+                contentDescription = "Asistente Vaiinilla",
+                contentScale = ContentScale.Crop,
+                modifier =
+                    Modifier
+                        .size(54.dp)
+                        .rotate(kineticRotation)
+                        .scale(scaleX = 1f, scaleY = kineticSquish)
+                        .clip(CircleShape),
+            )
+
+            // Glass highlight lens
             Box(
                 modifier =
                     Modifier
                         .size(54.dp)
-                        .scale(pulseScale)
-                        .clip(CircleShape)
-                        .background(Color(0x33B7DE63)),
-            )
-
-            // Inner swirling multi-gradient core
-            Box(
-                modifier =
-                    Modifier
-                        .size(48.dp)
-                        .rotate(rotation)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.sweepGradient(
-                                listOf(
-                                    Color(0xFF304427),
-                                    Color(0xFF96C83F),
-                                    Color(0xFFF7F3E7),
-                                    Color(0xFFB7DE63),
-                                    Color(0xFFD7F49A),
-                                    Color(0xFF304427),
-                                ),
-                            ),
-                        ),
-            )
-
-            // Gloss highlight overlay
-            Box(
-                modifier =
-                    Modifier
-                        .size(40.dp)
                         .clip(CircleShape)
                         .background(
                             Brush.radialGradient(
                                 listOf(
-                                    Color(0x99FFFFFF),
+                                    Color(0x40FFFFFF),
                                     Color(0x00FFFFFF),
                                 ),
                             ),

@@ -4,6 +4,11 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -44,6 +49,7 @@ import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.UploadFile
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -224,6 +230,27 @@ fun CashierOperationalScreen(
     var addProductSheetOpen by remember { mutableStateOf(false) }
     var toastMessage by remember { mutableStateOf<String?>(null) }
     var highlightedTarget by remember { mutableStateOf<String?>(null) }
+    val highlightAnim = rememberInfiniteTransition(label = "cashier_highlight")
+    val highlightPulseWidth by highlightAnim.animateFloat(
+        initialValue = 2f,
+        targetValue = 3.5f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(650, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+        label = "cashier_highlight_width",
+    )
+    val highlightPulseAlpha by highlightAnim.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(650, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+        label = "cashier_highlight_alpha",
+    )
 
     val recentOrder = state.orders.firstOrNull()
     val products = state.catalog?.products.orEmpty()
@@ -456,8 +483,15 @@ fun CashierOperationalScreen(
                                 .fillMaxWidth()
                                 .shadow(12.dp, RoundedCornerShape(26.dp), spotColor = Color(0x1A171816))
                                 .border(
-                                    width = if (highlightScan) 2.5.dp else 1.dp,
-                                    color = if (highlightScan) colors.accentLime else colors.cardBorder,
+                                    width = if (highlightScan) highlightPulseWidth.dp else 1.dp,
+                                    color =
+                                        if (highlightScan) {
+                                            colors.accentLime.copy(
+                                                alpha = highlightPulseAlpha,
+                                            )
+                                        } else {
+                                            colors.cardBorder
+                                        },
                                     shape = RoundedCornerShape(26.dp),
                                 ),
                         shape = RoundedCornerShape(26.dp),
@@ -704,8 +738,15 @@ fun CashierOperationalScreen(
                                 .clip(CircleShape)
                                 .background(if (highlightAdd) colors.accentLime else colors.cardBackground)
                                 .border(
-                                    width = if (highlightAdd) 2.dp else 1.dp,
-                                    color = if (highlightAdd) colors.accentLime else colors.cardBorder,
+                                    width = if (highlightAdd) highlightPulseWidth.dp else 1.dp,
+                                    color =
+                                        if (highlightAdd) {
+                                            colors.accentLime.copy(
+                                                alpha = highlightPulseAlpha,
+                                            )
+                                        } else {
+                                            colors.cardBorder
+                                        },
                                     shape = CircleShape,
                                 ).shadow(8.dp, CircleShape, spotColor = Color(0x1F171816))
                                 .clickable {
@@ -791,7 +832,12 @@ fun CashierOperationalScreen(
                         modifier = Modifier.size(20.dp).clip(CircleShape).background(colors.accentLime),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text("✓", color = colors.accentInk, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = null,
+                            tint = colors.accentInk,
+                            modifier = Modifier.size(13.dp),
+                        )
                     }
                     Text(
                         toastMessage.orEmpty(),
@@ -932,7 +978,7 @@ private fun ProductRowCard(
                     Modifier
                         .clip(CircleShape)
                         .border(
-                            width = if (highlightSwitch) 2.dp else 0.dp,
+                            width = if (highlightSwitch) 2.5.dp else 0.dp,
                             color = if (highlightSwitch) colors.accentLime else Color.Transparent,
                             shape = CircleShape,
                         ).padding(4.dp),
@@ -970,6 +1016,27 @@ fun KitchenOperationalScreen(
     val haptics = rememberVaiinillaHaptics()
     var toastMessage by remember { mutableStateOf<String?>(null) }
     var highlightedTarget by remember { mutableStateOf<String?>(null) }
+    val highlightAnim = rememberInfiniteTransition(label = "kitchen_highlight")
+    val highlightPulseWidth by highlightAnim.animateFloat(
+        initialValue = 2f,
+        targetValue = 3.5f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(650, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+        label = "kitchen_highlight_width",
+    )
+    val highlightPulseAlpha by highlightAnim.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(650, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+        label = "kitchen_highlight_alpha",
+    )
 
     var selectedOrderId by remember { mutableStateOf<String?>(null) }
     val activeOrder =
@@ -1190,15 +1257,14 @@ fun KitchenOperationalScreen(
                                 }
 
                                 // Badge
-                                val badgeBg =
-                                    if (isReady) {
-                                        colors.accentLime
-                                    } else if (isPreparing) {
-                                        Color(0xFF334429)
-                                    } else {
-                                        colors.textPrimary
+                                val (badgeBg, badgeColor) =
+                                    when {
+                                        isReady -> colors.accentLime to colors.accentInk
+                                        isPreparing ->
+                                            (if (colors.isDark) Color(0xFF384B29) else Color(0xFF334429)) to
+                                                (if (colors.isDark) Color(0xFFD8F28A) else Color.White)
+                                        else -> colors.textPrimary to colors.background
                                     }
-                                val badgeColor = if (isReady) colors.accentInk else Color.White
                                 Box(
                                     modifier =
                                         Modifier
@@ -1310,7 +1376,15 @@ fun KitchenOperationalScreen(
                                             disabledContentColor = prepDisabledContent,
                                         ),
                                     shape = RoundedCornerShape(16.dp),
-                                    border = if (highlightPrep) BorderStroke(2.dp, colors.accentLime) else null,
+                                    border =
+                                        if (highlightPrep) {
+                                            BorderStroke(
+                                                highlightPulseWidth.dp,
+                                                colors.accentLime.copy(alpha = highlightPulseAlpha),
+                                            )
+                                        } else {
+                                            null
+                                        },
                                     modifier = Modifier.weight(1f).height(52.dp),
                                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
                                 ) {
@@ -1337,7 +1411,15 @@ fun KitchenOperationalScreen(
                                             disabledContentColor = colors.textMuted,
                                         ),
                                     shape = RoundedCornerShape(16.dp),
-                                    border = if (highlightReady) BorderStroke(2.dp, colors.accentLime) else null,
+                                    border =
+                                        if (highlightReady) {
+                                            BorderStroke(
+                                                highlightPulseWidth.dp,
+                                                colors.accentLime.copy(alpha = highlightPulseAlpha),
+                                            )
+                                        } else {
+                                            null
+                                        },
                                     modifier = Modifier.weight(1f).height(52.dp),
                                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
                                 ) {
@@ -1451,7 +1533,12 @@ fun KitchenOperationalScreen(
                         modifier = Modifier.size(20.dp).clip(CircleShape).background(colors.accentLime),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text("✓", color = colors.accentInk, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = null,
+                            tint = colors.accentInk,
+                            modifier = Modifier.size(13.dp),
+                        )
                     }
                     Text(
                         toastMessage.orEmpty(),
