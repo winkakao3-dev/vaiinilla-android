@@ -36,7 +36,6 @@ import com.vaiinilla.app.ui.components.prefetchProductImages
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
-import com.vaiinilla.app.ui.mode.UnifiedTestModeManager
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
@@ -419,38 +418,6 @@ fun AppNavHost(
             popEnterTransition = { studentTabSlideEnter(this) },
             popExitTransition = { studentTabSlideExit(this) },
         ) {
-            fun switchToTestRole(targetRole: OperationalRole) {
-                authorizedAccessViewModel.enterTestMode(targetRole) {
-                    operationalViewModel.setRole(targetRole)
-                    val targetRoute =
-                        when (targetRole) {
-                            OperationalRole.CLIENT -> {
-                                orderFlowViewModel.enterGuestVenue(UnifiedTestModeManager.testGuestVenue)
-                                Routes.CATALOG
-                            }
-                            OperationalRole.CASHIER -> {
-                                orderFlowViewModel.clearGuestVenue()
-                                Routes.CASHIER
-                            }
-                            OperationalRole.KITCHEN -> {
-                                orderFlowViewModel.clearGuestVenue()
-                                Routes.KITCHEN
-                            }
-                            OperationalRole.WAITER -> {
-                                orderFlowViewModel.clearGuestVenue()
-                                Routes.WAITER
-                            }
-                        }
-                    navController.navigate(targetRoute) {
-                        popUpTo(navController.graph.id) {
-                            inclusive = false
-                            saveState = false
-                        }
-                        launchSingleTop = true
-                    }
-                }
-            }
-
             composable(Routes.SPLASH) {
                 var preloadedDestination by remember { mutableStateOf<LaunchDestination?>(null) }
 
@@ -517,7 +484,6 @@ fun AppNavHost(
                     },
                     profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
                     onOpenAccount = { navController.navigate(Routes.WALLET_ACCOUNT) },
-                    onEnterTestMode = ::switchToTestRole,
                 )
 
                 if (qrScannerOpen) {
@@ -585,7 +551,6 @@ fun AppNavHost(
                             }
                         }
                     },
-                    onEnterTestMode = ::switchToTestRole,
                 )
             }
 
@@ -920,7 +885,6 @@ fun AppNavHost(
                         }
                     },
                     existingVerifiedSession = existingVerifiedSession,
-                    onEnterTestMode = ::switchToTestRole,
                 )
             }
 
@@ -1117,16 +1081,7 @@ fun AppNavHost(
                                 null
                             },
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
-                        onSwitchToRole = ::switchToTestRole,
-                        onToggleProductAvailable = { id, avail ->
-                            if (com.vaiinilla.app.ui.mode.UnifiedTestModeManager.isTestModeActive.value) {
-                                com.vaiinilla.app.ui.mode.UnifiedTestModeManager
-                                    .toggleProductAvailable(id, avail)
-                                operationalViewModel.refresh()
-                            } else {
-                                operationalViewModel.setProductAvailable(id, avail)
-                            }
-                        },
+                        onToggleProductAvailable = operationalViewModel::setProductAvailable,
                         onCreateCashierProduct = operationalViewModel::createCashierProduct,
                         onUploadCashierProductImage = operationalViewModel::uploadCashierProductImage,
                     )
@@ -1153,7 +1108,6 @@ fun AppNavHost(
                             } else {
                                 null
                             },
-                        onSwitchToRole = ::switchToTestRole,
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
                     )
                 }
@@ -1181,7 +1135,6 @@ fun AppNavHost(
                             } else {
                                 null
                             },
-                        onSwitchToRole = ::switchToTestRole,
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
                     )
                 }

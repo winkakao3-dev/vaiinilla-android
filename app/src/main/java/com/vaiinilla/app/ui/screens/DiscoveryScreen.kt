@@ -65,7 +65,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -93,7 +92,6 @@ fun DiscoveryScreen(
     onContinueSelected: () -> Unit,
     profileInitials: String = "?",
     onOpenAccount: () -> Unit = {},
-    onEnterTestMode: ((OperationalRole) -> Unit)? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -203,71 +201,6 @@ fun DiscoveryScreen(
                     }
                 }
 
-                if (onEnterTestMode != null) {
-                    item {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            color = Color(0xFFF7F3E7),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF96C83F)),
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                .size(8.dp)
-                                                .clip(CircleShape)
-                                                .background(Color(0xFF96C83F)),
-                                    )
-                                    Text(
-                                        text = "Modo Test: Tienda Demo",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
-                                        color = Color(0xFF171816),
-                                    )
-                                }
-                                Text(
-                                    text = "Prueba Caja, Cocina o Alumno sin esperar cuentas de backend:",
-                                    fontSize = 11.sp,
-                                    color = Color(0xFF73766D),
-                                )
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                ) {
-                                    TestModeChip(
-                                        title = "Caja",
-                                        background = Color(0xFF171816),
-                                        textColor = Color.White,
-                                        onClick = { onEnterTestMode(OperationalRole.CASHIER) },
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                    TestModeChip(
-                                        title = "Cocina",
-                                        background = Color(0xFFB7DE63),
-                                        textColor = Color(0xFF171816),
-                                        onClick = { onEnterTestMode(OperationalRole.KITCHEN) },
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                    TestModeChip(
-                                        title = "Alumno",
-                                        background = Color(0xFFEFEBDD),
-                                        textColor = Color(0xFF171816),
-                                        onClick = { onEnterTestMode(OperationalRole.CLIENT) },
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
                 item {
                     DiscoverySectionHeader(
                         title = if (state.selected != null) "¿Quieres cambiar?" else "Elige tu cafetería",
@@ -1379,32 +1312,6 @@ private fun DiscoveryScreenPreview() {
             onDismissSwitch = {},
             onContinueSelected = {},
             profileInitials = "DR",
-        )
-    }
-}
-
-@Composable
-private fun TestModeChip(
-    title: String,
-    background: Color,
-    textColor: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier =
-            modifier
-                .height(38.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(background)
-                .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = title,
-            color = textColor,
-            fontWeight = FontWeight.Bold,
-            fontSize = 12.sp,
         )
     }
 }

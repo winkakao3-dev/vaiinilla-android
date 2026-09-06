@@ -343,21 +343,4 @@ class AuthorizedAccessViewModel
                 },
             )
         }
-
-        fun enterTestMode(
-            role: OperationalRole,
-            onActivated: () -> Unit = {},
-        ) {
-            UnifiedTestModeManager.enableTestMode()
-            val context = UnifiedTestModeManager.createAuthorizedContext(role)
-            _state.value =
-                _state.value.copy(
-                    modes = UnifiedTestModeManager.getAuthorizedModes(),
-                    activeContext = context,
-                    loading = false,
-                    errorMessage = null,
-                    message = "Modo Test (${role.label}) activo.",
-                )
-            onActivated()
-        }
     }
