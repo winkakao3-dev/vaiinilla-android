@@ -422,24 +422,31 @@ fun AppNavHost(
             fun switchToTestRole(targetRole: OperationalRole) {
                 authorizedAccessViewModel.enterTestMode(targetRole) {
                     operationalViewModel.setRole(targetRole)
-                    if (targetRole == OperationalRole.CLIENT) {
-                        orderFlowViewModel.enterGuestVenue(UnifiedTestModeManager.testGuestVenue)
-                        navController.navigate(Routes.CATALOG) {
-                            popUpTo(Routes.DISCOVERY) { inclusive = false }
-                            launchSingleTop = true
-                        }
-                    } else {
-                        orderFlowViewModel.clearGuestVenue()
-                        val targetRoute =
-                            if (targetRole == OperationalRole.CASHIER) {
+                    val targetRoute =
+                        when (targetRole) {
+                            OperationalRole.CLIENT -> {
+                                orderFlowViewModel.enterGuestVenue(UnifiedTestModeManager.testGuestVenue)
+                                Routes.CATALOG
+                            }
+                            OperationalRole.CASHIER -> {
+                                orderFlowViewModel.clearGuestVenue()
                                 Routes.CASHIER
-                            } else {
+                            }
+                            OperationalRole.KITCHEN -> {
+                                orderFlowViewModel.clearGuestVenue()
                                 Routes.KITCHEN
                             }
-                        navController.navigate(targetRoute) {
-                            popUpTo(Routes.DISCOVERY) { inclusive = false }
-                            launchSingleTop = true
+                            OperationalRole.WAITER -> {
+                                orderFlowViewModel.clearGuestVenue()
+                                Routes.WAITER
+                            }
                         }
+                    navController.navigate(targetRoute) {
+                        popUpTo(navController.graph.id) {
+                            inclusive = false
+                            saveState = false
+                        }
+                        launchSingleTop = true
                     }
                 }
             }
@@ -913,6 +920,7 @@ fun AppNavHost(
                         }
                     },
                     existingVerifiedSession = existingVerifiedSession,
+                    onEnterTestMode = ::switchToTestRole,
                 )
             }
 

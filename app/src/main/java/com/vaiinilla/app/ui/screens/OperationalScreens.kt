@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -113,6 +114,7 @@ fun CashierOperationalScreen(
     var highlightedTarget by remember { mutableStateOf<String?>(null) }
     var addProductSheetOpen by remember { mutableStateOf(false) }
     var scanSheetOpen by remember { mutableStateOf(false) }
+    var roleSwitcherSheetOpen by remember { mutableStateOf(false) }
     var toastMessage by remember { mutableStateOf<String?>(null) }
 
     val recentOrder = state.orders.firstOrNull { it.summary.id == "order-047" } ?: state.orders.firstOrNull()
@@ -171,11 +173,7 @@ fun CashierOperationalScreen(
                                 .background(PaletteInk)
                                 .clickable {
                                     haptics.impact()
-                                    if (onSwitchToRole != null) {
-                                        onSwitchToRole(OperationalRole.KITCHEN)
-                                    } else {
-                                        onChangeMode?.invoke()
-                                    }
+                                    roleSwitcherSheetOpen = true
                                 },
                         contentAlignment = Alignment.Center,
                     ) {
@@ -540,6 +538,25 @@ fun CashierOperationalScreen(
                 },
             )
         }
+
+        if (roleSwitcherSheetOpen) {
+            OperationalRoleSwitcherSheet(
+                currentRole = OperationalRole.CASHIER,
+                onSelectRole = { role ->
+                    roleSwitcherSheetOpen = false
+                    if (onSwitchToRole != null) {
+                        onSwitchToRole(role)
+                    } else {
+                        onChangeMode?.invoke()
+                    }
+                },
+                onExit = {
+                    roleSwitcherSheetOpen = false
+                    onChangeMode?.invoke() ?: onBack()
+                },
+                onDismiss = { roleSwitcherSheetOpen = false },
+            )
+        }
     }
 }
 
@@ -640,6 +657,7 @@ fun KitchenOperationalScreen(
 ) {
     val haptics = rememberVaiinillaHaptics()
     var highlightedTarget by remember { mutableStateOf<String?>(null) }
+    var roleSwitcherSheetOpen by remember { mutableStateOf(false) }
     var toastMessage by remember { mutableStateOf<String?>(null) }
 
     val activeOrder = state.orders.firstOrNull { it.summary.id == "order-047" } ?: state.orders.firstOrNull()
@@ -699,11 +717,7 @@ fun KitchenOperationalScreen(
                                 .background(PaletteInk)
                                 .clickable {
                                     haptics.impact()
-                                    if (onSwitchToRole != null) {
-                                        onSwitchToRole(OperationalRole.CASHIER)
-                                    } else {
-                                        onChangeMode?.invoke()
-                                    }
+                                    roleSwitcherSheetOpen = true
                                 },
                         contentAlignment = Alignment.Center,
                     ) {
@@ -1117,6 +1131,25 @@ fun KitchenOperationalScreen(
                 }
             }
         }
+
+        if (roleSwitcherSheetOpen) {
+            OperationalRoleSwitcherSheet(
+                currentRole = OperationalRole.KITCHEN,
+                onSelectRole = { role ->
+                    roleSwitcherSheetOpen = false
+                    if (onSwitchToRole != null) {
+                        onSwitchToRole(role)
+                    } else {
+                        onChangeMode?.invoke()
+                    }
+                },
+                onExit = {
+                    roleSwitcherSheetOpen = false
+                    onChangeMode?.invoke() ?: onBack()
+                },
+                onDismiss = { roleSwitcherSheetOpen = false },
+            )
+        }
     }
 }
 
@@ -1437,6 +1470,142 @@ fun WaiterOperationalScreen(
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Modo Mesero", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = PaletteInk)
             Text("Entregas de pedidos en espacio", fontSize = 14.sp, color = PaletteMuted)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OperationalRoleSwitcherSheet(
+    currentRole: OperationalRole,
+    onSelectRole: (OperationalRole) -> Unit,
+    onExit: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = PaletteCream,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp, top = 8.dp)
+                    .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(PaletteLime3))
+                Text(
+                    text = "Cambiar de Modo (Test)",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = PaletteInk,
+                )
+            }
+            Text(
+                text = "Alterna entre los roles de la tienda demo en tiempo real:",
+                fontSize = 13.sp,
+                color = PaletteMuted,
+            )
+
+            RoleSwitchItem(
+                title = "Modo Caja",
+                description = "Cobro, escaneo QR y gestión del menú",
+                isSelected = currentRole == OperationalRole.CASHIER,
+                onClick = { onSelectRole(OperationalRole.CASHIER) },
+            )
+
+            RoleSwitchItem(
+                title = "Modo Cocina",
+                description = "Preparación de comandas y avance de tickets",
+                isSelected = currentRole == OperationalRole.KITCHEN,
+                onClick = { onSelectRole(OperationalRole.KITCHEN) },
+            )
+
+            RoleSwitchItem(
+                title = "Tienda (Alumno)",
+                description = "Haz pedidos en el catálogo para recibirlos en cocina y caja",
+                isSelected = currentRole == OperationalRole.CLIENT,
+                onClick = { onSelectRole(OperationalRole.CLIENT) },
+            )
+
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color(0x1A171816))
+                        .clickable(onClick = onExit)
+                        .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "Salir de Tienda Demo",
+                    color = PaletteInk,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RoleSwitchItem(
+    title: String,
+    description: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        color = if (isSelected) PaletteInk else PaletteCardBg,
+        border = BorderStroke(1.dp, if (isSelected) PaletteInk else PaletteCardBorder),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = if (isSelected) Color.White else PaletteInk,
+                )
+                Text(
+                    text = description,
+                    fontSize = 12.sp,
+                    color = if (isSelected) Color(0xFFB7DE63) else PaletteMuted,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+            if (isSelected) {
+                Box(
+                    modifier = Modifier.size(24.dp).clip(CircleShape).background(PaletteLime),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Outlined.Check,
+                        contentDescription = null,
+                        tint = PaletteInk,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
         }
     }
 }
