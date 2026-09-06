@@ -36,6 +36,7 @@ import com.vaiinilla.app.ui.components.prefetchProductImages
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
+import com.vaiinilla.app.ui.mode.UnifiedTestModeManager
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
@@ -418,6 +419,31 @@ fun AppNavHost(
             popEnterTransition = { studentTabSlideEnter(this) },
             popExitTransition = { studentTabSlideExit(this) },
         ) {
+            fun switchToTestRole(targetRole: OperationalRole) {
+                authorizedAccessViewModel.enterTestMode(targetRole) {
+                    operationalViewModel.setRole(targetRole)
+                    if (targetRole == OperationalRole.CLIENT) {
+                        orderFlowViewModel.enterGuestVenue(UnifiedTestModeManager.testGuestVenue)
+                        navController.navigate(Routes.CATALOG) {
+                            popUpTo(Routes.DISCOVERY) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    } else {
+                        orderFlowViewModel.clearGuestVenue()
+                        val targetRoute =
+                            if (targetRole == OperationalRole.CASHIER) {
+                                Routes.CASHIER
+                            } else {
+                                Routes.KITCHEN
+                            }
+                        navController.navigate(targetRoute) {
+                            popUpTo(Routes.DISCOVERY) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            }
+
             composable(Routes.SPLASH) {
                 var preloadedDestination by remember { mutableStateOf<LaunchDestination?>(null) }
 
@@ -484,6 +510,7 @@ fun AppNavHost(
                     },
                     profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
                     onOpenAccount = { navController.navigate(Routes.WALLET_ACCOUNT) },
+                    onEnterTestMode = ::switchToTestRole,
                 )
 
                 if (qrScannerOpen) {
@@ -551,6 +578,7 @@ fun AppNavHost(
                             }
                         }
                     },
+                    onEnterTestMode = ::switchToTestRole,
                 )
             }
 
@@ -1081,7 +1109,16 @@ fun AppNavHost(
                                 null
                             },
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
-                        onToggleProductAvailable = operationalViewModel::setProductAvailable,
+                        onSwitchToRole = ::switchToTestRole,
+                        onToggleProductAvailable = { id, avail ->
+                            if (com.vaiinilla.app.ui.mode.UnifiedTestModeManager.isTestModeActive.value) {
+                                com.vaiinilla.app.ui.mode.UnifiedTestModeManager
+                                    .toggleProductAvailable(id, avail)
+                                operationalViewModel.refresh()
+                            } else {
+                                operationalViewModel.setProductAvailable(id, avail)
+                            }
+                        },
                         onCreateCashierProduct = operationalViewModel::createCashierProduct,
                         onUploadCashierProductImage = operationalViewModel::uploadCashierProductImage,
                     )
@@ -1108,6 +1145,7 @@ fun AppNavHost(
                             } else {
                                 null
                             },
+                        onSwitchToRole = ::switchToTestRole,
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
                     )
                 }
@@ -1135,6 +1173,7 @@ fun AppNavHost(
                             } else {
                                 null
                             },
+                        onSwitchToRole = ::switchToTestRole,
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
                     )
                 }

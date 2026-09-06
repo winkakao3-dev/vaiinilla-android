@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -39,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -216,6 +219,7 @@ fun AuthorizedModeScreen(
     onSelectMode: (AuthorizedMode) -> Unit,
     onReturnToClient: () -> Unit,
     onSignOut: () -> Unit = {},
+    onEnterTestMode: ((OperationalRole) -> Unit)? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     val activeContext = state.activeContext
@@ -268,6 +272,56 @@ fun AuthorizedModeScreen(
         state.message?.let { message ->
             Text(message, color = colors.accent, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(10.dp))
+        }
+        if (onEnterTestMode != null) {
+            Spacer(Modifier.height(16.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFFF7F3E7),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF96C83F)),
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFF96C83F)))
+                        Text(
+                            "Modo Test (Tienda Unificada)",
+                            fontWeight = FontWeight.Black,
+                            fontSize = 15.sp,
+                            color = Color(0xFF171816),
+                        )
+                    }
+                    Text(
+                        "Accede directamente a Caja, Cocina o Alumno sobre una tienda de prueba sin requerir cuentas de backend:",
+                        fontSize = 12.sp,
+                        color = Color(0xFF73766D),
+                    )
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        EditorialPrimaryButton(
+                            text = "Caja",
+                            onClick = { onEnterTestMode(OperationalRole.CASHIER) },
+                            modifier = Modifier.weight(1f),
+                        )
+                        EditorialPrimaryButton(
+                            text = "Cocina",
+                            onClick = { onEnterTestMode(OperationalRole.KITCHEN) },
+                            background = colors.accent,
+                            contentColor = colors.accentInk,
+                            modifier = Modifier.weight(1f),
+                        )
+                        EditorialPrimaryButton(
+                            text = "Alumno",
+                            onClick = { onEnterTestMode(OperationalRole.CLIENT) },
+                            background = colors.paper,
+                            contentColor = colors.ink,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
         }
         Spacer(Modifier.height(14.dp))
         Text(

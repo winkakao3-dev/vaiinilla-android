@@ -26,6 +26,7 @@ import com.vaiinilla.app.domain.usecase.OpenCashSessionUseCase
 import com.vaiinilla.app.domain.usecase.TransitionOrderUseCase
 import com.vaiinilla.app.ui.discovery.QrPayload
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
+import com.vaiinilla.app.ui.mode.UnifiedTestModeManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -85,25 +86,40 @@ class OperationalViewModel
                 mutationJob?.cancel()
                 mutationJob = null
             }
+            val isTestMode = com.vaiinilla.app.ui.mode.UnifiedTestModeManager.isTestModeActive.value
             _uiState.value =
                 _uiState.value.copy(
                     role = role,
-                    orders = if (roleChanged) emptyList() else _uiState.value.orders,
+                    orders =
+                        if (isTestMode) {
+                            com.vaiinilla.app.ui.mode.UnifiedTestModeManager.ordersFlow.value
+                        } else if (roleChanged) {
+                            emptyList()
+                        } else {
+                            _uiState.value.orders
+                        },
                     latestClientOrder = if (roleChanged) null else _uiState.value.latestClientOrder,
                     menuOrder = if (roleChanged) null else _uiState.value.menuOrder,
                     selectedOrderId = null,
                     errorMessage = null,
-                    cashSessionOpen = null,
+                    cashSessionOpen = if (isTestMode) true else null,
                     walletClients = emptyList(),
                     walletSearchLoading = false,
                     walletReloadReceipt = null,
-                    catalog = null,
+                    catalog =
+                        if (isTestMode) {
+                            UnifiedTestModeManager.catalogFlow.value
+                        } else {
+                            null
+                        },
                 )
             pendingWalletReload = null
-            refreshCashSession()
-            refresh()
-            if (role == OperationalRole.CASHIER) refreshCatalog()
-            startPolling()
+            if (!isTestMode) {
+                refreshCashSession()
+                refresh()
+                if (role == OperationalRole.CASHIER) refreshCatalog()
+                startPolling()
+            }
         }
 
         fun clearRole() {
@@ -140,6 +156,16 @@ class OperationalViewModel
         }
 
         fun refresh() {
+            if (com.vaiinilla.app.ui.mode.UnifiedTestModeManager.isTestModeActive.value) {
+                _uiState.value =
+                    _uiState.value.copy(
+                        orders = com.vaiinilla.app.ui.mode.UnifiedTestModeManager.ordersFlow.value,
+                        catalog = com.vaiinilla.app.ui.mode.UnifiedTestModeManager.catalogFlow.value,
+                        cashSessionOpen = true,
+                        loading = false,
+                    )
+                return
+            }
             val role = _uiState.value.role ?: return
             val generation = roleGeneration
             _uiState.value = _uiState.value.copy(loading = true, errorMessage = null)
@@ -569,6 +595,11 @@ class OperationalViewModel
         }
 
         fun refreshCatalog() {
+            if (com.vaiinilla.app.ui.mode.UnifiedTestModeManager.isTestModeActive.value) {
+                _uiState.value =
+                    _uiState.value.copy(catalog = com.vaiinilla.app.ui.mode.UnifiedTestModeManager.catalogFlow.value)
+                return
+            }
             if (_uiState.value.role != OperationalRole.CASHIER) return
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }
