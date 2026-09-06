@@ -59,3 +59,37 @@ scp chatgpt-vps:/srv/chatgpt-workspace/vaiinilla-android/app/build/outputs/apk/p
 - JVM Heap: `-Xmx4096m -XX:+UseG1GC -XX:+ParallelRefProcEnabled`
 - Kotlin Daemon: `kotlin.daemon.jvmoptions=-Xmx2048m -XX:+UseG1GC`
 - Caché & Paralelismo: `org.gradle.daemon=true`, `org.gradle.parallel=true`, `org.gradle.caching=true`, `kotlin.incremental=true`, `ksp.incremental=true`.
+
+---
+
+## 📱 Flujo Multi-APK para Pruebas Simultáneas (Alumno, Caja y Cocina)
+
+Permite instalar las 3 variantes en el mismo dispositivo físico con diferentes package IDs:
+- Alumno: `com.vaiinilla.app.dev`
+- Caja: `com.vaiinilla.app.dev.caja`
+- Cocina: `com.vaiinilla.app.dev.cocina`
+
+### Script de compilación rápida de los 3 APKs:
+```bash
+./scripts/build_three_roles.sh
+```
+Los APKs resultantes se almacenan en `/srv/chatgpt-workspace/apk_staging/`:
+- `vaiinilla-dev-alumno.apk`
+- `vaiinilla-dev-caja.apk`
+- `vaiinilla-dev-cocina.apk`
+
+### Descarga e instalación en el Pixel conectado:
+```bash
+# En tu Mac:
+scp chatgpt-vps:/srv/chatgpt-workspace/apk_staging/vaiinilla-dev-*.apk ~/Downloads/
+adb install -r -d ~/Downloads/vaiinilla-dev-alumno.apk
+adb install -r -d ~/Downloads/vaiinilla-dev-caja.apk
+adb install -r -d ~/Downloads/vaiinilla-dev-cocina.apk
+```
+
+### ⚠️ Solución al problema de ADB "unauthorized" en Mac:
+Si ADB muestra `unauthorized` y el teléfono no muestra el aviso de permisos, suele deberse a un symlink roto en `~/.android`:
+```bash
+unlink ~/.android && mkdir -p ~/.android && chmod 700 ~/.android
+adb kill-server && adb start-server
+```
