@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -70,6 +71,7 @@ fun StripePaymentPendingScreen(
     retrying: Boolean,
     onRetry: () -> Unit,
     onRefresh: () -> Unit,
+    onReturnToCart: () -> Unit,
     onViewOrders: () -> Unit,
 ) {
     val reduceMotion = reducedMotion()
@@ -85,6 +87,9 @@ fun StripePaymentPendingScreen(
     val failed = phase == StripePaymentPhase.FAILED
     val canceled = phase == StripePaymentPhase.CANCELED
     val confirmed = phase == StripePaymentPhase.CONFIRMED
+    BackHandler(enabled = failed || canceled) {
+        if (!retrying) onReturnToCart()
+    }
     val status = order.payment?.status
     val title =
         when {
@@ -139,12 +144,15 @@ fun StripePaymentPendingScreen(
                 Modifier
                     .size(44.dp)
                     .border(1.dp, StripeLine, CircleShape)
-                    .physicalPress(onClick = onViewOrders),
+                    .physicalPress(
+                        enabled = !(failed || canceled) || !retrying,
+                        onClick = if (failed || canceled) onReturnToCart else onViewOrders,
+                    ),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Ver mis pedidos",
+                contentDescription = if (failed || canceled) "Volver al carrito" else "Ver mis pedidos",
                 tint = StripeInk,
             )
         }
@@ -295,6 +303,12 @@ fun StripePaymentPendingScreen(
                         onClick = onRetry,
                         enabled = !retrying,
                     )
+                    Spacer(Modifier.height(10.dp))
+                    StripeSecondaryAction(
+                        label = "Volver al carrito",
+                        onClick = onReturnToCart,
+                        enabled = !retrying,
+                    )
                 }
                 else -> {
                     StripeActionButton(
@@ -305,7 +319,7 @@ fun StripePaymentPendingScreen(
                 }
             }
             Spacer(Modifier.height(10.dp))
-            if (timedOut || failed || canceled) {
+            if (timedOut) {
                 StripeSecondaryAction(label = "Ver mis pedidos", onClick = onViewOrders)
             }
         }
@@ -342,6 +356,7 @@ private fun StripeActionButton(
 private fun StripeSecondaryAction(
     label: String,
     onClick: () -> Unit,
+    enabled: Boolean = true,
 ) {
     Surface(
         modifier =
@@ -349,7 +364,7 @@ private fun StripeSecondaryAction(
                 .fillMaxWidth()
                 .height(48.dp)
                 .border(1.dp, StripeLine, RoundedCornerShape(16.dp))
-                .physicalPress(onClick = onClick),
+                .physicalPress(enabled = enabled, onClick = onClick),
         color = Color.Transparent,
         shape = RoundedCornerShape(16.dp),
     ) {

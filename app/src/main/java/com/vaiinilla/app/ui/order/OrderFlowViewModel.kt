@@ -777,6 +777,145 @@ class OrderFlowViewModel
             currentStripeOrder()?.let(::resumeStripePaymentConfirmation)
         }
 
+        /**
+         * Opens the exact Stripe order that currently blocks checkout. The lock is
+         * never bypassed locally: GET /pedidos/{id} remains authoritative and the
+         * existing confirmation/retry flow decides what the user can do next.
+         */
+        fun resolvePendingStripePayment(onReady: () -> Unit) {
+            val current = _uiState.value
+            val orderId = current.stripePendingOrderId?.takeIf { it.isNotBlank() } ?: return
+            if (current.resolvingPendingStripePayment) return
+
+            _uiState.value =
+                current.copy(
+                    resolvingPendingStripePayment = true,
+                    createOrderError = null,
+                )
+            launchTracked {
+                withContext(Dispatchers.IO) { getOrder(orderId) }.fold(
+                    onSuccess = { order ->
+                        if (order.summary.paymentMethod != PaymentMethod.STRIPE) {
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    resolvingPendingStripePayment = false,
+                                    createOrderError =
+                                        "El pedido pendiente ya no corresponde a un pago Stripe. Actualiza Mis pedidos.",
+                                )
+                            return@fold
+                        }
+                        _uiState.value =
+                            _uiState.value.copy(
+                                resolvingPendingStripePayment = false,
+                                createdOrder = null,
+                                stripeObservedOrder = order,
+                                createOrderError = null,
+                            )
+                        resumeStripePaymentConfirmation(order)
+                        onReady()
+                    },
+                    onFailure = { error ->
+                        _uiState.value =
+                            _uiState.value.copy(
+                                resolvingPendingStripePayment = false,
+                                createOrderError =
+                                    error.toUserFacingMessage(
+                                        "No pudimos abrir tu pago pendiente. Intenta de nuevo.",
+                                    ),
+                            )
+                    },
+                )
+            }
+        }
+
+        fun returnFailedStripeOrderToCart(
+            order: OrderDetail,
+            onReady: () -> Unit,
+        ) {
+            val status = order.payment?.status
+            if (
+                order.summary.paymentMethod != PaymentMethod.STRIPE ||
+                status !in setOf(StripePaymentStatus.FAILED, StripePaymentStatus.CANCELED)
+            ) {
+                return
+            }
+
+            val current = _uiState.value
+            val productsById =
+                current.catalog
+                    ?.products
+                    .orEmpty()
+                    .associateBy { it.id }
+            var unavailableProducts = 0
+            var unavailableOptions = 0
+            val restored = mutableListOf<CartLine>()
+
+            order.items.forEach { item ->
+                val product = productsById[item.productId]
+                if (product == null || !product.available) {
+                    unavailableProducts += 1
+                    return@forEach
+                }
+                val validOptionIds =
+                    product.optionGroups
+                        .flatMap { group -> group.options }
+                        .mapTo(mutableSetOf()) { option -> option.id }
+                val requestedOptionIds = item.options.mapTo(linkedSetOf()) { option -> option.optionId }
+                unavailableOptions += requestedOptionIds.count { it !in validOptionIds }
+                val candidate =
+                    CartLine(
+                        product = product,
+                        quantity = item.quantity.coerceIn(1, 20),
+                        selectedOptionIds = requestedOptionIds.filterTo(linkedSetOf()) { it in validOptionIds },
+                    )
+                val existingIndex = restored.indexOfFirst { line -> line.key == candidate.key }
+                if (existingIndex >= 0) {
+                    val existing = restored[existingIndex]
+                    restored[existingIndex] =
+                        existing.copy(quantity = (existing.quantity + candidate.quantity).coerceAtMost(20))
+                } else {
+                    restored += candidate
+                }
+            }
+
+            stripeConfirmationJob?.cancel()
+            stripeConfirmationJob = null
+            stripeConfirmationOrderId = null
+            guestSessionStore.clearPendingStripeConfirmationOrderId(order.summary.id)
+            guestSessionStore.clearPendingStripeRetryIdempotency(order.summary.id)
+            pendingStripeRetryIdempotencyKey = null
+            pendingIdempotencyKey = null
+
+            val warning =
+                when {
+                    unavailableProducts > 0 ->
+                        "Algunos productos del pedido ya no están disponibles y no se restauraron."
+                    unavailableOptions > 0 ->
+                        "Algunas opciones del pedido cambiaron. Revisa el carrito antes de pagar."
+                    else -> null
+                }
+
+            _uiState.value =
+                current.copy(
+                    cartLines = restored,
+                    kitchenNotes = order.kitchenNotes,
+                    checkoutDestination = order.summary.destination,
+                    selectedSpaceId = order.summary.space?.id ?: 0,
+                    createdOrder = null,
+                    stripeObservedOrder = null,
+                    stripePendingOrderId = null,
+                    stripePaymentSession = null,
+                    stripePresentationKey = null,
+                    stripePaymentPhase = StripePaymentPhase.IDLE,
+                    stripePaymentMessage = null,
+                    retryingStripePayment = false,
+                    purchaseCelebration = null,
+                    createOrderError = warning,
+                )
+            persistCurrentCartIfNeeded()
+            onReady()
+        }
+
         fun retryStripePayment() {
             val order = currentStripeOrder() ?: return
             if (order.summary.paymentMethod != PaymentMethod.STRIPE || _uiState.value.retryingStripePayment) return

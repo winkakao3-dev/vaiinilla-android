@@ -758,6 +758,11 @@ fun AppNavHost(
                             orderFlowViewModel.submitOrder()
                         }
                     },
+                    onResolvePendingStripePayment = {
+                        orderFlowViewModel.resolvePendingStripePayment {
+                            navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
+                        }
+                    },
                     onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
                     onOpenWallet = { navController.navigateStudent(Routes.WALLET) },
                     guestAuthRequired = guestAuthRequired,
@@ -969,6 +974,15 @@ fun AppNavHost(
                     retryingStripePayment = orderState.retryingStripePayment,
                     onRetryStripePayment = orderFlowViewModel::retryStripePayment,
                     onRefreshStripePayment = orderFlowViewModel::refreshStripePaymentStatus,
+                    onReturnStripeToCart = { order ->
+                        orderFlowViewModel.returnFailedStripeOrderToCart(order) {
+                            val returnedToExistingCart =
+                                navController.popBackStack(Routes.CART, inclusive = false)
+                            if (!returnedToExistingCart) {
+                                navController.navigateStudent(Routes.CART)
+                            }
+                        }
+                    },
                     purchaseCelebration = orderState.purchaseCelebration,
                     onPurchaseCelebrationFinished = orderFlowViewModel::completePurchaseCelebration,
                     order = confirmationOrder,
@@ -1070,7 +1084,6 @@ fun AppNavHost(
                         onSearchWalletClients = operationalViewModel::searchWalletClients,
                         onOpenWalletUserQr = { walletUserQrOpen = true },
                         onReloadWallet = operationalViewModel::reloadWallet,
-                        onDeliver = { orderId, version -> operationalViewModel.deliver(orderId, version) },
                         onScanDeliver = { orderId, version ->
                             pendingPickupDelivery = PendingPickupDelivery(orderId, version)
                         },
@@ -1092,6 +1105,8 @@ fun AppNavHost(
                             )
                         },
                         onUploadCashierProductImage = operationalViewModel::uploadCashierProductImage,
+                        assistantUserKey =
+                            authorizedAccessState.activeContext?.membershipId ?: "cashier",
                     )
                 }
             }
@@ -1117,6 +1132,8 @@ fun AppNavHost(
                                 null
                             },
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
+                        assistantUserKey =
+                            authorizedAccessState.activeContext?.membershipId ?: "kitchen",
                     )
                 }
             }

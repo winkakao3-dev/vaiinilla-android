@@ -5,11 +5,6 @@ import android.widget.ImageView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -72,6 +67,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -91,9 +88,25 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_ADD_PRODUCT
+import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_CASHIER_ORDER_CARD
+import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_KITCHEN_CARD
+import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_OPEN_CASH
+import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_QR_SCAN
+import com.vaiinilla.app.ui.components.OperationalAssistantHost
+import com.vaiinilla.app.ui.components.OperationalAssistantPalette
 import com.vaiinilla.app.ui.components.ProductImage
-import com.vaiinilla.app.ui.components.VaiinillaAssistantOrb
+import com.vaiinilla.app.ui.components.VaiinillaAssistantButton
 import com.vaiinilla.app.ui.components.VaiinillaMark
+import com.vaiinilla.app.ui.components.assistantAnchor
+import com.vaiinilla.app.ui.components.assistantKitchenReadyAnchor
+import com.vaiinilla.app.ui.components.assistantKitchenStartAnchor
+import com.vaiinilla.app.ui.components.assistantProductSwitchAnchor
+import com.vaiinilla.app.ui.components.assistantQueueOrderAnchor
+import com.vaiinilla.app.ui.components.cashierAssistantGuides
+import com.vaiinilla.app.ui.components.kitchenAssistantGuides
+import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
+import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
@@ -197,7 +210,6 @@ fun CashierOperationalScreen(
     onBack: () -> Unit,
     onOpenCashSession: () -> Unit,
     onCollect: (orderId: String, amount: String, version: Int) -> Unit,
-    onDeliver: (orderId: String, version: Int) -> Unit,
     onScanDeliver: (orderId: String, version: Int) -> Unit = { _, _ -> },
     onSearchWalletClients: (String) -> Unit = {},
     onOpenWalletUserQr: () -> Unit = {},
@@ -208,6 +220,7 @@ fun CashierOperationalScreen(
     onCreateCashierProduct: (CatalogProductDraft, ByteArray?, String?, String?, (String?) -> Unit) -> Unit =
         { _, _, _, _, _ -> },
     onUploadCashierProductImage: (Int, ByteArray, String, String) -> Unit = { _, _, _, _ -> },
+    assistantUserKey: String = "cashier",
 ) {
     val colors = rememberOperationalColors()
     val themeMode = LocalVaiinillaThemeMode.current
@@ -215,8 +228,9 @@ fun CashierOperationalScreen(
     val haptics = rememberVaiinillaHaptics()
     var addProductSheetOpen by remember { mutableStateOf(false) }
     var toastMessage by remember { mutableStateOf<String?>(null) }
-    var highlightedTarget by remember { mutableStateOf<String?>(null) }
-    var assistantGuideActionSignal by remember { mutableIntStateOf(0) }
+    val assistantRegistry = rememberAssistantAnchorRegistry()
+    val assistantController = rememberOperationalAssistantController(assistantUserKey, OperationalRole.CASHIER)
+    val assistantFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(toastMessage) {
         if (toastMessage != null) {
@@ -225,27 +239,6 @@ fun CashierOperationalScreen(
         }
     }
     var assistantPulse by remember { mutableIntStateOf(0) }
-    val highlightAnim = rememberInfiniteTransition(label = "cashier_highlight")
-    val highlightPulseWidth by highlightAnim.animateFloat(
-        initialValue = 2f,
-        targetValue = 3.5f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(650, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-        label = "cashier_highlight_width",
-    )
-    val highlightPulseAlpha by highlightAnim.animateFloat(
-        initialValue = 0.6f,
-        targetValue = 1f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(650, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-        label = "cashier_highlight_alpha",
-    )
 
     val recentOrder = state.orders.firstOrNull()
     val products = state.catalog?.products.orEmpty()
@@ -255,6 +248,40 @@ fun CashierOperationalScreen(
         state.catalog?.categories?.isNotEmpty() == true &&
             restrictedMode != RestrictedMode.READ_ONLY &&
             !state.acting
+    val firstGuidableProductId = products.firstOrNull { it.available }?.id ?: products.firstOrNull()?.id
+    val cashierGuides =
+        cashierAssistantGuides(
+            readyOrderId = recentOrder?.takeIf { it.summary.state == OrderState.READY }?.summary?.id,
+            readyOrderFolio = recentOrder?.takeIf { it.summary.state == OrderState.READY }?.summary?.folio,
+            firstProductId = firstGuidableProductId,
+            cashSessionOpen = state.cashSessionOpen,
+            canCreateProduct = canCreateProduct,
+        )
+    val assistantPalette =
+        OperationalAssistantPalette(
+            background = colors.background,
+            surface = colors.cardBackground,
+            surface2 = colors.cardInner,
+            ink = colors.textPrimary,
+            muted = colors.textSecondary,
+            line = colors.cardBorder,
+            lime = colors.accentLime,
+            limeInk = colors.accentInk,
+            isDark = colors.isDark,
+        )
+    LaunchedEffect(state.cashSessionOpen) {
+        if (state.cashSessionOpen == true) {
+            assistantController.onStateChanged("caja-abierta")
+        }
+    }
+    LaunchedEffect(addProductSheetOpen) {
+        if (addProductSheetOpen) assistantController.onStateChanged("alta-producto-abierta")
+    }
+    LaunchedEffect(state.orders) {
+        state.orders
+            .filter { it.summary.state == OrderState.DELIVERED }
+            .forEach { order -> assistantController.onStateChanged("pedido-entregado:${order.summary.id}") }
+    }
 
     Box(
         modifier =
@@ -312,6 +339,20 @@ fun CashierOperationalScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
+                        if (assistantController.activeGuide == null) {
+                            VaiinillaAssistantButton(
+                                onClick = {
+                                    haptics.selection()
+                                    assistantController.open()
+                                },
+                                reactionSignal = assistantPulse,
+                                isDarkTheme = colors.isDark,
+                                hasPendingFirstSteps = false,
+                                modifier = Modifier.focusRequester(assistantFocusRequester),
+                                touchSize = 44.dp,
+                            )
+                        }
+
                         // Quick Theme Switcher Button
                         IconButton(
                             onClick = {
@@ -433,6 +474,7 @@ fun CashierOperationalScreen(
                                     onOpenCashSession()
                                 },
                                 enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
+                                modifier = Modifier.assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_OPEN_CASH),
                                 colors =
                                     ButtonDefaults.buttonColors(
                                         containerColor = colors.accentLime,
@@ -484,25 +526,14 @@ fun CashierOperationalScreen(
                 if (recentOrder != null) {
                     val isDelivered = recentOrder.summary.state == OrderState.DELIVERED
                     val isOrderReady = recentOrder.summary.state == OrderState.READY
-                    val highlightScan = highlightedTarget == "scan_button"
 
                     Surface(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
+                                .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_CASHIER_ORDER_CARD)
                                 .shadow(12.dp, RoundedCornerShape(26.dp), spotColor = Color(0x1A171816))
-                                .border(
-                                    width = if (highlightScan) highlightPulseWidth.dp else 1.dp,
-                                    color =
-                                        if (highlightScan) {
-                                            colors.accentLime.copy(
-                                                alpha = highlightPulseAlpha,
-                                            )
-                                        } else {
-                                            colors.cardBorder
-                                        },
-                                    shape = RoundedCornerShape(26.dp),
-                                ),
+                                .border(1.dp, colors.cardBorder, RoundedCornerShape(26.dp)),
                         shape = RoundedCornerShape(26.dp),
                         color = colors.cardBackground,
                     ) {
@@ -631,66 +662,43 @@ fun CashierOperationalScreen(
                                 )
                             }
 
-                            // Action Buttons
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            // La entrega para llevar exige el QR del alumno. No existe transición manual sin token.
+                            Button(
+                                onClick = {
+                                    haptics.impact()
+                                    onScanDeliver(recentOrder.summary.id, recentOrder.summary.version)
+                                },
+                                enabled =
+                                    isOrderReady &&
+                                        restrictedMode != RestrictedMode.READ_ONLY,
+                                colors =
+                                    ButtonDefaults.buttonColors(
+                                        containerColor = colors.textPrimary,
+                                        contentColor = colors.background,
+                                        disabledContainerColor = colors.cardInner,
+                                        disabledContentColor = colors.textMuted,
+                                    ),
+                                shape = RoundedCornerShape(16.dp),
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(52.dp)
+                                        .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_QR_SCAN),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
                             ) {
-                                Button(
-                                    onClick = {
-                                        haptics.impact()
-                                        onScanDeliver(recentOrder.summary.id, recentOrder.summary.version)
-                                        if (highlightedTarget == "scan_button") {
-                                            assistantGuideActionSignal += 1
-                                        }
-                                    },
-                                    enabled = !isDelivered && restrictedMode != RestrictedMode.READ_ONLY,
-                                    colors =
-                                        ButtonDefaults.buttonColors(
-                                            containerColor = colors.textPrimary,
-                                            contentColor = colors.background,
-                                            disabledContainerColor = colors.cardInner,
-                                            disabledContentColor = colors.textMuted,
-                                        ),
-                                    shape = RoundedCornerShape(16.dp),
-                                    modifier = Modifier.weight(1.18f).height(52.dp),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.QrCodeScanner,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(
-                                        "Escanear QR",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
-                                        maxLines = 1,
-                                        softWrap = false,
-                                    )
-                                }
-
-                                Button(
-                                    onClick = {
-                                        haptics.success()
-                                        onDeliver(recentOrder.summary.id, recentOrder.summary.version)
-                                        toastMessage = "Entregando comanda #${recentOrder.summary.folio}…"
-                                    },
-                                    enabled = !isDelivered && restrictedMode != RestrictedMode.READ_ONLY,
-                                    colors =
-                                        ButtonDefaults.buttonColors(
-                                            containerColor = colors.buttonSecondary,
-                                            contentColor = colors.buttonSecondaryInk,
-                                            disabledContainerColor = colors.cardInner,
-                                            disabledContentColor = colors.textMuted,
-                                        ),
-                                    shape = RoundedCornerShape(16.dp),
-                                    modifier = Modifier.weight(0.82f).height(52.dp),
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
-                                ) {
-                                    Text("Entregar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                }
+                                Icon(
+                                    imageVector = Icons.Outlined.QrCodeScanner,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    if (isOrderReady) "Escanear QR para entregar" else "Disponible cuando esté LISTO",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                )
                             }
                         }
                     }
@@ -747,39 +755,26 @@ fun CashierOperationalScreen(
                         )
                     }
 
-                    // Glass FAB for Add Product
-                    val highlightAdd = highlightedTarget == "add_product"
+                    // Add product
                     Box(
                         modifier =
                             Modifier
                                 .size(48.dp)
                                 .clip(CircleShape)
-                                .background(if (highlightAdd) colors.accentLime else colors.cardBackground)
-                                .border(
-                                    width = if (highlightAdd) highlightPulseWidth.dp else 1.dp,
-                                    color =
-                                        if (highlightAdd) {
-                                            colors.accentLime.copy(
-                                                alpha = highlightPulseAlpha,
-                                            )
-                                        } else {
-                                            colors.cardBorder
-                                        },
-                                    shape = CircleShape,
-                                ).shadow(8.dp, CircleShape, spotColor = Color(0x1F171816))
+                                .background(colors.cardBackground)
+                                .border(1.dp, colors.cardBorder, CircleShape)
+                                .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_ADD_PRODUCT)
+                                .shadow(8.dp, CircleShape, spotColor = Color(0x1F171816))
                                 .clickable(enabled = canCreateProduct) {
                                     haptics.impact()
                                     addProductSheetOpen = true
-                                    if (highlightedTarget == "add_product") {
-                                        assistantGuideActionSignal += 1
-                                    }
                                 },
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             Icons.Outlined.Add,
                             contentDescription = "Agregar producto",
-                            tint = if (highlightAdd) colors.accentInk else colors.textPrimary,
+                            tint = colors.textPrimary,
                             modifier = Modifier.size(22.dp),
                         )
                     }
@@ -791,15 +786,12 @@ fun CashierOperationalScreen(
                 items(products, key = { it.id }) { product ->
                     ProductRowCard(
                         product = product,
-                        highlightSwitch =
-                            highlightedTarget == "product_switch" && product.id == products.firstOrNull()?.id,
                         colors = colors,
+                        assistantRegistry = assistantRegistry,
                         onToggle = { isAvailable ->
                             haptics.selection()
                             onToggleProductAvailable(product.id, isAvailable)
-                            if (highlightedTarget == "product_switch" && product.id == products.firstOrNull()?.id) {
-                                assistantGuideActionSignal += 1
-                            }
+                            assistantController.onAnchorTapped(assistantProductSwitchAnchor(product.id))
                         },
                     )
                 }
@@ -874,38 +866,6 @@ fun CashierOperationalScreen(
             }
         }
 
-        // Floating Assistant Orb
-        VaiinillaAssistantOrb(
-            role = OperationalRole.CASHIER,
-            onHighlightTarget = { highlightedTarget = it },
-            reactionSignal = assistantPulse,
-            isDarkTheme = colors.isDark,
-            contextLabel =
-                recentOrder?.let { "#${it.summary.folio} activa · ${state.orders.size.coerceAtLeast(1)} pedidos" }
-                    ?: "Sin pedidos activos",
-            guideActionSignal = assistantGuideActionSignal,
-            onGuideAction = { target ->
-                when (target) {
-                    "scan_button" ->
-                        recentOrder?.let { order ->
-                            onScanDeliver(order.summary.id, order.summary.version)
-                            assistantGuideActionSignal += 1
-                        }
-                    "add_product" ->
-                        if (canCreateProduct) {
-                            addProductSheetOpen = true
-                            assistantGuideActionSignal += 1
-                        }
-                    "product_switch" ->
-                        products.firstOrNull()?.let { product ->
-                            onToggleProductAvailable(product.id, !product.available)
-                            assistantGuideActionSignal += 1
-                        }
-                }
-            },
-            modifier = Modifier.fillMaxSize(),
-        )
-
         // Sheet: Add Product
         if (addProductSheetOpen) {
             val categoryId =
@@ -946,14 +906,23 @@ fun CashierOperationalScreen(
                 )
             }
         }
+        OperationalAssistantHost(
+            controller = assistantController,
+            registry = assistantRegistry,
+            guides = cashierGuides,
+            manualTitle = "Manual de Caja",
+            palette = assistantPalette,
+            buttonFocusRequester = assistantFocusRequester,
+            modifier = Modifier.fillMaxSize(),
+        )
     }
 }
 
 @Composable
 private fun ProductRowCard(
     product: Product,
-    highlightSwitch: Boolean,
     colors: OperationalColors,
+    assistantRegistry: com.vaiinilla.app.ui.components.AssistantAnchorRegistry? = null,
     onToggle: (Boolean) -> Unit,
 ) {
     Surface(
@@ -1019,11 +988,12 @@ private fun ProductRowCard(
             Box(
                 modifier =
                     Modifier
-                        .clip(CircleShape)
-                        .border(
-                            width = if (highlightSwitch) 2.5.dp else 0.dp,
-                            color = if (highlightSwitch) colors.accentLime else Color.Transparent,
-                            shape = CircleShape,
+                        .then(
+                            if (assistantRegistry != null) {
+                                Modifier.assistantAnchor(assistantRegistry, assistantProductSwitchAnchor(product.id))
+                            } else {
+                                Modifier
+                            },
                         ).padding(4.dp),
             ) {
                 Switch(
@@ -1052,36 +1022,17 @@ fun KitchenOperationalScreen(
     onReady: (orderId: String, version: Int) -> Unit,
     onChangeMode: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
+    assistantUserKey: String = "kitchen",
 ) {
     val colors = rememberOperationalColors()
     val themeMode = LocalVaiinillaThemeMode.current
     val themeChanger = LocalVaiinillaThemeModeChanger.current
     val haptics = rememberVaiinillaHaptics()
     var toastMessage by remember { mutableStateOf<String?>(null) }
-    var highlightedTarget by remember { mutableStateOf<String?>(null) }
     var assistantPulse by remember { mutableIntStateOf(0) }
-    var assistantGuideActionSignal by remember { mutableIntStateOf(0) }
-    val highlightAnim = rememberInfiniteTransition(label = "kitchen_highlight")
-    val highlightPulseWidth by highlightAnim.animateFloat(
-        initialValue = 2f,
-        targetValue = 3.5f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(650, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-        label = "kitchen_highlight_width",
-    )
-    val highlightPulseAlpha by highlightAnim.animateFloat(
-        initialValue = 0.6f,
-        targetValue = 1f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(650, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-        label = "kitchen_highlight_alpha",
-    )
+    val assistantRegistry = rememberAssistantAnchorRegistry()
+    val assistantController = rememberOperationalAssistantController(assistantUserKey, OperationalRole.KITCHEN)
+    val assistantFocusRequester = remember { FocusRequester() }
 
     var selectedOrderId by remember { mutableStateOf<String?>(null) }
     val activeOrder =
@@ -1091,6 +1042,41 @@ fun KitchenOperationalScreen(
     val orderState = activeOrder?.summary?.state ?: OrderState.PAID
     val isPreparing = orderState == OrderState.PREPARING
     val isReady = orderState == OrderState.READY || orderState == OrderState.DELIVERED
+    val nextGuidableOrder = upcomingOrders.firstOrNull()
+    val kitchenGuides =
+        kitchenAssistantGuides(
+            orderId = activeOrder?.summary?.id,
+            orderFolio = activeOrder?.summary?.folio,
+            isPreparing = isPreparing,
+            isReady = isReady,
+            nextOrderId = nextGuidableOrder?.summary?.id,
+            nextOrderFolio = nextGuidableOrder?.summary?.folio,
+        )
+    val kitchenAssistantPalette =
+        OperationalAssistantPalette(
+            background = colors.background,
+            surface = colors.cardBackground,
+            surface2 = colors.cardInner,
+            ink = colors.textPrimary,
+            muted = colors.textSecondary,
+            line = colors.cardBorder,
+            lime = colors.accentLime,
+            limeInk = colors.accentInk,
+            isDark = colors.isDark,
+        )
+    LaunchedEffect(state.orders) {
+        state.orders.forEach { order ->
+            when (order.summary.state) {
+                OrderState.PREPARING -> {
+                    assistantController.onStateChanged("comanda-preparando:${order.summary.id}")
+                }
+                OrderState.READY, OrderState.DELIVERED -> {
+                    assistantController.onStateChanged("comanda-lista:${order.summary.id}")
+                }
+                else -> Unit
+            }
+        }
+    }
 
     Box(
         modifier =
@@ -1148,6 +1134,20 @@ fun KitchenOperationalScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
+                        if (assistantController.activeGuide == null) {
+                            VaiinillaAssistantButton(
+                                onClick = {
+                                    haptics.selection()
+                                    assistantController.open()
+                                },
+                                reactionSignal = assistantPulse,
+                                isDarkTheme = colors.isDark,
+                                hasPendingFirstSteps = false,
+                                modifier = Modifier.focusRequester(assistantFocusRequester),
+                                touchSize = 56.dp,
+                            )
+                        }
+
                         // Quick Theme Switcher Button
                         IconButton(
                             onClick = {
@@ -1277,6 +1277,7 @@ fun KitchenOperationalScreen(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
+                                .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_KITCHEN_CARD)
                                 .shadow(12.dp, RoundedCornerShape(26.dp), spotColor = Color(0x1A171816))
                                 .border(1.5.dp, cardBorder, RoundedCornerShape(26.dp)),
                         shape = RoundedCornerShape(26.dp),
@@ -1394,9 +1395,6 @@ fun KitchenOperationalScreen(
                             }
 
                             // Dual Action Buttons: Preparando / Ya se preparó
-                            val highlightPrep = highlightedTarget == "prep_button"
-                            val highlightReady = highlightedTarget == "ready_button"
-
                             val prepContainer =
                                 if (isPreparing) colors.textPrimary else colors.buttonSecondary
                             val prepContent =
@@ -1421,9 +1419,6 @@ fun KitchenOperationalScreen(
                                         haptics.impact()
                                         onStart(activeOrder.summary.id, activeOrder.summary.version)
                                         toastMessage = "Comanda #${activeOrder.summary.folio} en preparación"
-                                        if (highlightedTarget == "prep_button") {
-                                            assistantGuideActionSignal += 1
-                                        }
                                     },
                                     enabled = !isPreparing && !isReady && restrictedMode != RestrictedMode.READ_ONLY,
                                     colors =
@@ -1434,16 +1429,14 @@ fun KitchenOperationalScreen(
                                             disabledContentColor = prepDisabledContent,
                                         ),
                                     shape = RoundedCornerShape(16.dp),
-                                    border =
-                                        if (highlightPrep) {
-                                            BorderStroke(
-                                                highlightPulseWidth.dp,
-                                                colors.accentLime.copy(alpha = highlightPulseAlpha),
-                                            )
-                                        } else {
-                                            null
-                                        },
-                                    modifier = Modifier.weight(1f).height(52.dp),
+                                    modifier =
+                                        Modifier
+                                            .weight(1f)
+                                            .height(52.dp)
+                                            .assistantAnchor(
+                                                assistantRegistry,
+                                                assistantKitchenStartAnchor(activeOrder.summary.id),
+                                            ),
                                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
                                 ) {
                                     Text(
@@ -1459,11 +1452,8 @@ fun KitchenOperationalScreen(
                                         haptics.success()
                                         onReady(activeOrder.summary.id, activeOrder.summary.version)
                                         toastMessage = "Comanda #${activeOrder.summary.folio} lista"
-                                        if (highlightedTarget == "ready_button") {
-                                            assistantGuideActionSignal += 1
-                                        }
                                     },
-                                    enabled = !isReady && restrictedMode != RestrictedMode.READ_ONLY,
+                                    enabled = isPreparing && !isReady && restrictedMode != RestrictedMode.READ_ONLY,
                                     colors =
                                         ButtonDefaults.buttonColors(
                                             containerColor = readyContainer,
@@ -1472,16 +1462,14 @@ fun KitchenOperationalScreen(
                                             disabledContentColor = colors.textMuted,
                                         ),
                                     shape = RoundedCornerShape(16.dp),
-                                    border =
-                                        if (highlightReady) {
-                                            BorderStroke(
-                                                highlightPulseWidth.dp,
-                                                colors.accentLime.copy(alpha = highlightPulseAlpha),
-                                            )
-                                        } else {
-                                            null
-                                        },
-                                    modifier = Modifier.weight(1f).height(52.dp),
+                                    modifier =
+                                        Modifier
+                                            .weight(1f)
+                                            .height(52.dp)
+                                            .assistantAnchor(
+                                                assistantRegistry,
+                                                assistantKitchenReadyAnchor(activeOrder.summary.id),
+                                            ),
                                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
                                 ) {
                                     Text(
@@ -1564,10 +1552,12 @@ fun KitchenOperationalScreen(
                     subtitle = orderDest,
                     time = "En espera",
                     colors = colors,
+                    modifier = Modifier.assistantAnchor(assistantRegistry, assistantQueueOrderAnchor(order.summary.id)),
                     onClick = {
                         haptics.selection()
                         selectedOrderId = order.summary.id
                         toastMessage = "Comanda #${order.summary.folio} seleccionada"
+                        assistantController.onAnchorTapped(assistantQueueOrderAnchor(order.summary.id))
                     },
                 )
             }
@@ -1611,34 +1601,13 @@ fun KitchenOperationalScreen(
             }
         }
 
-        // Floating Assistant Orb
-        VaiinillaAssistantOrb(
-            role = OperationalRole.KITCHEN,
-            onHighlightTarget = { highlightedTarget = it },
-            reactionSignal = assistantPulse,
-            isDarkTheme = colors.isDark,
-            contextLabel =
-                activeOrder
-                    ?.let {
-                        "#${it.summary.folio} ${it.summary.state.label.lowercase()} · " +
-                            "${upcomingOrders.size} en espera"
-                    } ?: "Cocina al día",
-            guideActionSignal = assistantGuideActionSignal,
-            onGuideAction = { target ->
-                val order = activeOrder ?: return@VaiinillaAssistantOrb
-                when (target) {
-                    "prep_button" -> {
-                        onStart(order.summary.id, order.summary.version)
-                        toastMessage = "Comanda #${order.summary.folio} en preparación"
-                        assistantGuideActionSignal += 1
-                    }
-                    "ready_button" -> {
-                        onReady(order.summary.id, order.summary.version)
-                        toastMessage = "Comanda #${order.summary.folio} lista para entrega"
-                        assistantGuideActionSignal += 1
-                    }
-                }
-            },
+        OperationalAssistantHost(
+            controller = assistantController,
+            registry = assistantRegistry,
+            guides = kitchenGuides,
+            manualTitle = "Manual de Cocina",
+            palette = kitchenAssistantPalette,
+            buttonFocusRequester = assistantFocusRequester,
             modifier = Modifier.fillMaxSize(),
         )
     }
@@ -1651,11 +1620,12 @@ private fun QueueTicketRow(
     subtitle: String,
     time: String,
     colors: OperationalColors,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
 ) {
     Surface(
         modifier =
-            Modifier
+            modifier
                 .fillMaxWidth()
                 .border(1.dp, colors.cardBorder, RoundedCornerShape(20.dp))
                 .clickable(onClick = onClick),

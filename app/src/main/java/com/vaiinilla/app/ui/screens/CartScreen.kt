@@ -115,6 +115,7 @@ fun CartScreen(
     onSpaceChange: (Int) -> Unit = {},
     onPaymentChange: (PaymentMethod) -> Unit,
     onConfirm: () -> Unit,
+    onResolvePendingStripePayment: () -> Unit = {},
     onOpenTracking: () -> Unit = {},
     onOpenAssistant: () -> Unit = {},
     onOpenWallet: () -> Unit = {},
@@ -268,7 +269,7 @@ fun CartScreen(
                 val blockerMessage =
                     when {
                         state.hasUnresolvedStripePayment ->
-                            "Tienes un pago Stripe pendiente. Revisa Mis pedidos antes de crear otro pedido."
+                            "Tienes un pago Stripe pendiente. Resuélvelo antes de crear otro pedido para evitar cobros duplicados."
                         state.requiresOperationalReady && !guestAuthRequired && state.operationalStatus != null ->
                             state.operationalBlockerMessage
                         else -> null
@@ -276,7 +277,17 @@ fun CartScreen(
                 if (blockerMessage != null && blockerMessage != state.createOrderError) {
                     item {
                         Spacer(Modifier.height(12.dp))
-                        WarningBanner(message = blockerMessage)
+                        WarningBanner(
+                            message = blockerMessage,
+                            actionLabel = if (state.hasUnresolvedStripePayment) "Revisar pago pendiente" else null,
+                            actionLoading = state.resolvingPendingStripePayment,
+                            onAction =
+                                if (state.hasUnresolvedStripePayment) {
+                                    onResolvePendingStripePayment
+                                } else {
+                                    null
+                                },
+                        )
                     }
                 }
                 state.createOrderError?.let { error ->
@@ -301,17 +312,33 @@ fun CartScreen(
                             bottom = VaiinillaBottomNavClearance + 2.dp,
                         ),
             ) {
-                CheckoutDockButton(
-                    label = confirmLabel(guestAuthRequired),
-                    subtitle = "$productCountLabel · $destinationLabel",
-                    price = moneyLabel(state.cartPreviewTotal),
-                    enabled = canConfirm,
-                    loading = state.creatingOrder,
-                    onClick = {
-                        haptics.impact()
-                        paymentDialogOpen = true
-                    },
-                )
+                if (state.hasUnresolvedStripePayment) {
+                    CheckoutDockButton(
+                        label = "Continuar pago pendiente",
+                        subtitle = "Abre tu pedido anterior y revisa Stripe",
+                        price = "Abrir",
+                        enabled = !state.resolvingPendingStripePayment,
+                        loading = state.resolvingPendingStripePayment,
+                        loadingLabel = "Buscando tu pago",
+                        loadingSubtitle = "Consultando el pedido pendiente…",
+                        onClick = {
+                            haptics.impact()
+                            onResolvePendingStripePayment()
+                        },
+                    )
+                } else {
+                    CheckoutDockButton(
+                        label = confirmLabel(guestAuthRequired),
+                        subtitle = "$productCountLabel · $destinationLabel",
+                        price = moneyLabel(state.cartPreviewTotal),
+                        enabled = canConfirm,
+                        loading = state.creatingOrder,
+                        onClick = {
+                            haptics.impact()
+                            paymentDialogOpen = true
+                        },
+                    )
+                }
             }
         }
 
@@ -428,7 +455,7 @@ private fun PaymentMethodOverlay(
                 PaymentMethodCardOption(
                     icon = Icons.Outlined.CreditCard,
                     title = "Pago con Stripe",
-                    subtitle = "Tarjeta segura procesada por Stripe.",
+                    subtitle = "Tarjeta de débito o crédito · Pago seguro con Stripe.",
                     badgeText = "Stripe",
                     selected = selectedMethod == PaymentMethod.STRIPE,
                     enabled = !selectionLocked,
@@ -523,19 +550,19 @@ private fun PaymentMethodCardOption(
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = colors.ink,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    softWrap = false,
+                )
                 Row(
+                    modifier = Modifier.padding(top = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(
-                        text = title,
-                        color = colors.ink,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
                     Box(
                         modifier =
                             Modifier
@@ -553,14 +580,14 @@ private fun PaymentMethodCardOption(
                             softWrap = false,
                         )
                     }
+                    Text(
+                        text = subtitle,
+                        color = colors.muted,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
-                Text(
-                    text = subtitle,
-                    color = colors.muted,
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
             }
             Box(
                 modifier =
@@ -1042,6 +1069,8 @@ private fun CheckoutDockButton(
     price: String,
     enabled: Boolean,
     loading: Boolean,
+    loadingLabel: String = "Confirmando pedido",
+    loadingSubtitle: String = "Un momento…",
     onClick: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -1076,13 +1105,13 @@ private fun CheckoutDockButton(
                 if (loading) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Confirmando pedido",
+                            loadingLabel,
                             color = colors.accentInk,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
                         )
                         Text(
-                            "Un momento…",
+                            loadingSubtitle,
                             color = colors.accentInk.copy(alpha = 0.72f),
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 12.sp,
@@ -1225,14 +1254,63 @@ private fun SummaryRow(
 }
 
 @Composable
-private fun WarningBanner(message: String) {
+private fun WarningBanner(
+    message: String,
+    actionLabel: String? = null,
+    actionLoading: Boolean = false,
+    onAction: (() -> Unit)? = null,
+) {
     val colors = LocalVaiinillaColors.current
     Surface(
         color = colors.yolk.copy(alpha = 0.35f),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Text(message, color = colors.ink, modifier = Modifier.padding(14.dp))
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = message,
+                color = colors.ink,
+                fontSize = 14.sp,
+                lineHeight = 19.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (actionLabel != null && onAction != null) {
+                Surface(
+                    color = colors.ink,
+                    contentColor = colors.paper,
+                    shape = RoundedCornerShape(999.dp),
+                    modifier =
+                        Modifier.physicalPress(
+                            enabled = !actionLoading,
+                            scale = PhysicalPressScale.Small,
+                            onClick = onAction,
+                        ),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        if (actionLoading) {
+                            CircularProgressIndicator(
+                                color = colors.paper,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(14.dp),
+                            )
+                        }
+                        Text(
+                            text = if (actionLoading) "Abriendo pago…" else actionLabel,
+                            color = colors.paper,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

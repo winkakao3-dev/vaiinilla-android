@@ -36,6 +36,7 @@ data class OrderFlowUiState(
     val createdOrder: OrderDetail? = null,
     val stripeObservedOrder: OrderDetail? = null,
     val stripePendingOrderId: String? = null,
+    val resolvingPendingStripePayment: Boolean = false,
     val stripePaymentSession: StripePaymentSession? = null,
     val stripePresentationKey: String? = null,
     val stripePaymentPhase: StripePaymentPhase = StripePaymentPhase.IDLE,

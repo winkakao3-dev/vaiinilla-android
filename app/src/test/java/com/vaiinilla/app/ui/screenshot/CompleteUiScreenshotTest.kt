@@ -297,7 +297,6 @@ class CompleteUiScreenshotTest {
                 onBack = {},
                 onOpenCashSession = {},
                 onCollect = { _, _, _ -> },
-                onDeliver = { _, _ -> },
                 onChangeMode = {},
             )
         }
