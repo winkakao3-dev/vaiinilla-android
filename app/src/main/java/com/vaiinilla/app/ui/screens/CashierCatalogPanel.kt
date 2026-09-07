@@ -451,13 +451,13 @@ private fun createCaptureUri(context: android.content.Context): Uri {
     return FileProvider.getUriForFile(context, "${context.packageName}.product_photos", file)
 }
 
-private data class PreparedProductImage(
+internal data class PreparedProductImage(
     val bytes: ByteArray,
     val filename: String,
     val mimeType: String,
 )
 
-private fun prepareProductImage(
+internal fun prepareProductImage(
     context: android.content.Context,
     uri: Uri,
 ): PreparedProductImage? {

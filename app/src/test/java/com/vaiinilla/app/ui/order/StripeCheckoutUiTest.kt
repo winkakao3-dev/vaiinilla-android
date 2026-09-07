@@ -44,6 +44,52 @@ class StripeCheckoutUiTest {
     }
 
     @Test
+    fun `ready Stripe order hides pickup ticket while PaymentSheet is opening`() {
+        val order =
+            ScreenshotFixtures.sampleOrder(
+                state = OrderState.PENDING_PAYMENT,
+                paymentMethod = PaymentMethod.STRIPE,
+            )
+
+        composeTestRule.setContent {
+            VaiinillaTheme {
+                OrderConfirmationScreen(
+                    order = order,
+                    onReturnToMenu = {},
+                    stripePaymentPhase = StripePaymentPhase.READY,
+                    stripePaymentMessage = "Elige cómo pagar de forma segura.",
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Abriendo Stripe").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Seguir pedido").assertCountEquals(0)
+        composeTestRule.onAllNodesWithText("Pago pendiente").assertCountEquals(0)
+    }
+
+    @Test
+    fun `presenting Stripe order stays in payment UI until backend confirmation`() {
+        val order =
+            ScreenshotFixtures.sampleOrder(
+                state = OrderState.PENDING_PAYMENT,
+                paymentMethod = PaymentMethod.STRIPE,
+            )
+
+        composeTestRule.setContent {
+            VaiinillaTheme {
+                OrderConfirmationScreen(
+                    order = order,
+                    onReturnToMenu = {},
+                    stripePaymentPhase = StripePaymentPhase.PRESENTING,
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Confirma tu pago en Stripe").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Seguir pedido").assertCountEquals(0)
+    }
+
+    @Test
     fun `network uncertainty stays pending instead of showing false failure`() {
         val order =
             ScreenshotFixtures

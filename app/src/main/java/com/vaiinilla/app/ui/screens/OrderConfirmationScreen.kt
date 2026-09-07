@@ -113,16 +113,9 @@ fun OrderConfirmationScreen(
         val stripeOrder = order.summary.paymentMethod == PaymentMethod.STRIPE
         val stripeConfirmed = stripeOrder && order.isStripePaymentConfirmedByBackend()
         val stripeAwaitingConfirmation = stripeOrder && !stripeConfirmed
-        val stripeStatusScreen =
-            stripeOrder &&
-                stripePaymentPhase in
-                setOf(
-                    StripePaymentPhase.PROCESSING_CONFIRMATION,
-                    StripePaymentPhase.PENDING,
-                    StripePaymentPhase.TIMED_OUT,
-                    StripePaymentPhase.FAILED,
-                    StripePaymentPhase.CANCELED,
-                )
+        // Stripe orders must never expose the pickup QR before the backend
+        // confirms the payment. READY/PRESENTING are still part of checkout.
+        val stripeStatusScreen = stripeOrder && !stripeConfirmed
         if (stripeStatusScreen) {
             StripePaymentPendingScreen(
                 order = order,

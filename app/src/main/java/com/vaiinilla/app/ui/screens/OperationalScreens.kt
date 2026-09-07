@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.screens
 
 import android.net.Uri
+import android.widget.ImageView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -31,7 +32,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -62,7 +62,9 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -72,6 +74,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -80,7 +84,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.core.io.readBytesLimited
+import androidx.compose.ui.viewinterop.AndroidView
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.OperationalRole
@@ -95,26 +99,7 @@ import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
-
-/**
- * Preset photos available for quick product creation without camera.
- */
-data class PresetProductPhoto(
-    val id: String,
-    val name: String,
-    val imageUrl: String,
-)
-
-val PRESET_PRODUCT_PHOTOS =
-    listOf(
-        PresetProductPhoto("waffle", "Waffles", "waffle"),
-        PresetProductPhoto("burrito_norteno", "Burrito", "burrito_norteno"),
-        PresetProductPhoto("torta", "Torta", "torta"),
-        PresetProductPhoto("jamaica", "Agua de Jamaica", "jamaica"),
-        PresetProductPhoto("quesa", "Quesadilla", "quesa"),
-        PresetProductPhoto("fruta", "Vaso de fruta", "fruta"),
-        PresetProductPhoto("sincronizada_nortena", "Sincronizada", "sincronizada_nortena"),
-    )
+import kotlinx.coroutines.delay
 
 /**
  * Adaptive operational color tokens supporting Light, Dark, and pure-pitch AMOLED.
@@ -220,7 +205,8 @@ fun CashierOperationalScreen(
     onChangeMode: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
     onToggleProductAvailable: (productId: Int, available: Boolean) -> Unit = { _, _ -> },
-    onCreateCashierProduct: (CatalogProductDraft, ByteArray?, String?, String?) -> Unit = { _, _, _, _ -> },
+    onCreateCashierProduct: (CatalogProductDraft, ByteArray?, String?, String?, (String?) -> Unit) -> Unit =
+        { _, _, _, _, _ -> },
     onUploadCashierProductImage: (Int, ByteArray, String, String) -> Unit = { _, _, _, _ -> },
 ) {
     val colors = rememberOperationalColors()
@@ -230,6 +216,15 @@ fun CashierOperationalScreen(
     var addProductSheetOpen by remember { mutableStateOf(false) }
     var toastMessage by remember { mutableStateOf<String?>(null) }
     var highlightedTarget by remember { mutableStateOf<String?>(null) }
+    var assistantGuideActionSignal by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(toastMessage) {
+        if (toastMessage != null) {
+            delay(2_200)
+            toastMessage = null
+        }
+    }
+    var assistantPulse by remember { mutableIntStateOf(0) }
     val highlightAnim = rememberInfiniteTransition(label = "cashier_highlight")
     val highlightPulseWidth by highlightAnim.animateFloat(
         initialValue = 2f,
@@ -256,12 +251,26 @@ fun CashierOperationalScreen(
     val products = state.catalog?.products.orEmpty()
     val activeCount = products.count { it.available }
     val pausedCount = products.size - activeCount
+    val canCreateProduct =
+        state.catalog?.categories?.isNotEmpty() == true &&
+            restrictedMode != RestrictedMode.READ_ONLY &&
+            !state.acting
 
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(colors.background),
+                .background(colors.background)
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Final)
+                            if (event.changes.any { it.pressed && !it.previousPressed }) {
+                                assistantPulse += 1
+                            }
+                        }
+                    }
+                },
     ) {
         LazyColumn(
             modifier =
@@ -631,6 +640,9 @@ fun CashierOperationalScreen(
                                     onClick = {
                                         haptics.impact()
                                         onScanDeliver(recentOrder.summary.id, recentOrder.summary.version)
+                                        if (highlightedTarget == "scan_button") {
+                                            assistantGuideActionSignal += 1
+                                        }
                                     },
                                     enabled = !isDelivered && restrictedMode != RestrictedMode.READ_ONLY,
                                     colors =
@@ -641,8 +653,8 @@ fun CashierOperationalScreen(
                                             disabledContentColor = colors.textMuted,
                                         ),
                                     shape = RoundedCornerShape(16.dp),
-                                    modifier = Modifier.weight(1f).height(52.dp),
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                                    modifier = Modifier.weight(1.18f).height(52.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
                                 ) {
                                     Icon(
                                         imageVector = Icons.Outlined.QrCodeScanner,
@@ -650,7 +662,13 @@ fun CashierOperationalScreen(
                                         modifier = Modifier.size(18.dp),
                                     )
                                     Spacer(Modifier.width(8.dp))
-                                    Text("Escanear QR", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text(
+                                        "Escanear QR",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                    )
                                 }
 
                                 Button(
@@ -668,7 +686,7 @@ fun CashierOperationalScreen(
                                             disabledContentColor = colors.textMuted,
                                         ),
                                     shape = RoundedCornerShape(16.dp),
-                                    modifier = Modifier.weight(1f).height(52.dp),
+                                    modifier = Modifier.weight(0.82f).height(52.dp),
                                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
                                 ) {
                                     Text("Entregar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -749,9 +767,12 @@ fun CashierOperationalScreen(
                                         },
                                     shape = CircleShape,
                                 ).shadow(8.dp, CircleShape, spotColor = Color(0x1F171816))
-                                .clickable {
+                                .clickable(enabled = canCreateProduct) {
                                     haptics.impact()
                                     addProductSheetOpen = true
+                                    if (highlightedTarget == "add_product") {
+                                        assistantGuideActionSignal += 1
+                                    }
                                 },
                         contentAlignment = Alignment.Center,
                     ) {
@@ -770,11 +791,15 @@ fun CashierOperationalScreen(
                 items(products, key = { it.id }) { product ->
                     ProductRowCard(
                         product = product,
-                        highlightSwitch = highlightedTarget == "product_switch",
+                        highlightSwitch =
+                            highlightedTarget == "product_switch" && product.id == products.firstOrNull()?.id,
                         colors = colors,
                         onToggle = { isAvailable ->
                             haptics.selection()
                             onToggleProductAvailable(product.id, isAvailable)
+                            if (highlightedTarget == "product_switch" && product.id == products.firstOrNull()?.id) {
+                                assistantGuideActionSignal += 1
+                            }
                         },
                     )
                 }
@@ -853,55 +878,73 @@ fun CashierOperationalScreen(
         VaiinillaAssistantOrb(
             role = OperationalRole.CASHIER,
             onHighlightTarget = { highlightedTarget = it },
-            modifier =
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 20.dp, bottom = 28.dp),
+            reactionSignal = assistantPulse,
+            isDarkTheme = colors.isDark,
+            contextLabel =
+                recentOrder?.let { "#${it.summary.folio} activa · ${state.orders.size.coerceAtLeast(1)} pedidos" }
+                    ?: "Sin pedidos activos",
+            guideActionSignal = assistantGuideActionSignal,
+            onGuideAction = { target ->
+                when (target) {
+                    "scan_button" ->
+                        recentOrder?.let { order ->
+                            onScanDeliver(order.summary.id, order.summary.version)
+                            assistantGuideActionSignal += 1
+                        }
+                    "add_product" ->
+                        if (canCreateProduct) {
+                            addProductSheetOpen = true
+                            assistantGuideActionSignal += 1
+                        }
+                    "product_switch" ->
+                        products.firstOrNull()?.let { product ->
+                            onToggleProductAvailable(product.id, !product.available)
+                            assistantGuideActionSignal += 1
+                        }
+                }
+            },
+            modifier = Modifier.fillMaxSize(),
         )
 
         // Sheet: Add Product
         if (addProductSheetOpen) {
-            val context = LocalContext.current
-            AddProductSheet(
-                onDismiss = { addProductSheetOpen = false },
-                onAdd = { name, price, imageUri, station ->
-                    val draft =
-                        CatalogProductDraft(
-                            categoryId =
-                                state.catalog
-                                    ?.categories
-                                    ?.firstOrNull()
-                                    ?.id ?: 1,
-                            preparationStation = station,
-                            name = name,
-                            description = "",
-                            ingredients = "",
-                            allergens = "",
-                            estimatedTimeMinutes = 5,
-                            counterPrice = price.toString(),
-                            available = true,
-                        )
-                    var imageBytes: ByteArray? = null
-                    var imageFilename: String? = null
-                    var imageMime: String? = null
-                    val isFileUri =
-                        imageUri != null &&
-                            (imageUri.startsWith("content://") || imageUri.startsWith("file://"))
-                    if (isFileUri) {
-                        runCatching {
-                            val uri = Uri.parse(imageUri)
-                            context.contentResolver.openInputStream(uri)?.use { stream ->
-                                imageBytes = stream.readBytesLimited(5 * 1024 * 1024)
-                                imageFilename = "product_${System.currentTimeMillis()}.jpg"
-                                imageMime = "image/jpeg"
-                            }
+            val categoryId =
+                state.catalog
+                    ?.categories
+                    ?.firstOrNull()
+                    ?.id
+            if (categoryId != null) {
+                AddProductSheet(
+                    saving = state.acting,
+                    errorMessage = state.errorMessage,
+                    onDismiss = {
+                        if (!state.acting) addProductSheetOpen = false
+                    },
+                    onAdd = { name, price, imageBytes, imageFilename, imageMime, station ->
+                        val draft =
+                            CatalogProductDraft(
+                                categoryId = categoryId,
+                                preparationStation = station,
+                                name = name,
+                                description = "",
+                                ingredients = "",
+                                allergens = "",
+                                estimatedTimeMinutes = 5,
+                                counterPrice = "$price.00",
+                                available = true,
+                            )
+                        onCreateCashierProduct(
+                            draft,
+                            imageBytes,
+                            imageFilename,
+                            imageMime,
+                        ) { warning ->
+                            addProductSheetOpen = false
+                            toastMessage = warning ?: "$name registrado para el menú"
                         }
-                    }
-                    onCreateCashierProduct(draft, imageBytes, imageFilename, imageMime)
-                    addProductSheetOpen = false
-                    toastMessage = "$name registrado para el menú"
-                },
-            )
+                    },
+                )
+            }
         }
     }
 }
@@ -1016,6 +1059,8 @@ fun KitchenOperationalScreen(
     val haptics = rememberVaiinillaHaptics()
     var toastMessage by remember { mutableStateOf<String?>(null) }
     var highlightedTarget by remember { mutableStateOf<String?>(null) }
+    var assistantPulse by remember { mutableIntStateOf(0) }
+    var assistantGuideActionSignal by remember { mutableIntStateOf(0) }
     val highlightAnim = rememberInfiniteTransition(label = "kitchen_highlight")
     val highlightPulseWidth by highlightAnim.animateFloat(
         initialValue = 2f,
@@ -1051,7 +1096,17 @@ fun KitchenOperationalScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(colors.background),
+                .background(colors.background)
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Final)
+                            if (event.changes.any { it.pressed && !it.previousPressed }) {
+                                assistantPulse += 1
+                            }
+                        }
+                    }
+                },
     ) {
         LazyColumn(
             modifier =
@@ -1366,6 +1421,9 @@ fun KitchenOperationalScreen(
                                         haptics.impact()
                                         onStart(activeOrder.summary.id, activeOrder.summary.version)
                                         toastMessage = "Comanda #${activeOrder.summary.folio} en preparación"
+                                        if (highlightedTarget == "prep_button") {
+                                            assistantGuideActionSignal += 1
+                                        }
                                     },
                                     enabled = !isPreparing && !isReady && restrictedMode != RestrictedMode.READ_ONLY,
                                     colors =
@@ -1401,6 +1459,9 @@ fun KitchenOperationalScreen(
                                         haptics.success()
                                         onReady(activeOrder.summary.id, activeOrder.summary.version)
                                         toastMessage = "Comanda #${activeOrder.summary.folio} lista"
+                                        if (highlightedTarget == "ready_button") {
+                                            assistantGuideActionSignal += 1
+                                        }
                                     },
                                     enabled = !isReady && restrictedMode != RestrictedMode.READ_ONLY,
                                     colors =
@@ -1554,10 +1615,31 @@ fun KitchenOperationalScreen(
         VaiinillaAssistantOrb(
             role = OperationalRole.KITCHEN,
             onHighlightTarget = { highlightedTarget = it },
-            modifier =
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 20.dp, bottom = 28.dp),
+            reactionSignal = assistantPulse,
+            isDarkTheme = colors.isDark,
+            contextLabel =
+                activeOrder
+                    ?.let {
+                        "#${it.summary.folio} ${it.summary.state.label.lowercase()} · " +
+                            "${upcomingOrders.size} en espera"
+                    } ?: "Cocina al día",
+            guideActionSignal = assistantGuideActionSignal,
+            onGuideAction = { target ->
+                val order = activeOrder ?: return@VaiinillaAssistantOrb
+                when (target) {
+                    "prep_button" -> {
+                        onStart(order.summary.id, order.summary.version)
+                        toastMessage = "Comanda #${order.summary.folio} en preparación"
+                        assistantGuideActionSignal += 1
+                    }
+                    "ready_button" -> {
+                        onReady(order.summary.id, order.summary.version)
+                        toastMessage = "Comanda #${order.summary.folio} lista para entrega"
+                        assistantGuideActionSignal += 1
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxSize(),
         )
     }
 }
@@ -1632,14 +1714,29 @@ private fun QueueTicketRow(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddProductSheet(
+    saving: Boolean,
+    errorMessage: String?,
     onDismiss: () -> Unit,
-    onAdd: (name: String, price: Int, imageUri: String?, station: PreparationStation) -> Unit,
+    onAdd: (
+        name: String,
+        price: Int,
+        imageBytes: ByteArray?,
+        imageFilename: String?,
+        imageMime: String?,
+        station: PreparationStation,
+    ) -> Unit,
 ) {
     val colors = rememberOperationalColors()
     val haptics = rememberVaiinillaHaptics()
+    val context = LocalContext.current
     var name by remember { mutableStateOf("") }
     var priceStr by remember { mutableStateOf("") }
-    var selectedImageUrl by remember { mutableStateOf<String?>("waffle") }
+    var selectedImageUri by remember { mutableStateOf<String?>(null) }
+    var selectedImageBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var selectedImageFilename by remember { mutableStateOf<String?>(null) }
+    var selectedImageMime by remember { mutableStateOf<String?>(null) }
+    var imageError by remember { mutableStateOf<String?>(null) }
+    var submitted by remember { mutableStateOf(false) }
     var selectedStation by remember { mutableStateOf(PreparationStation.CASHIER) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -1647,13 +1744,27 @@ private fun AddProductSheet(
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.GetContent(),
         ) { uri: Uri? ->
-            if (uri != null) {
-                selectedImageUrl = uri.toString()
+            if (uri == null) return@rememberLauncherForActivityResult
+            imageError = null
+            selectedImageUri = null
+            selectedImageBytes = null
+            selectedImageFilename = null
+            selectedImageMime = null
+
+            val prepared = runCatching { prepareProductImage(context, uri) }.getOrNull()
+            if (prepared == null) {
+                imageError = "No se pudo preparar la foto. Prueba otra imagen de hasta 16 MB."
+                return@rememberLauncherForActivityResult
             }
+
+            selectedImageUri = uri.toString()
+            selectedImageBytes = prepared.bytes
+            selectedImageFilename = prepared.filename
+            selectedImageMime = prepared.mimeType
         }
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!saving) onDismiss() },
         sheetState = sheetState,
         containerColor = colors.background,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
@@ -1678,7 +1789,7 @@ private fun AddProductSheet(
                     fontSize = 22.sp,
                     color = colors.textPrimary,
                 )
-                IconButton(onClick = onDismiss) {
+                IconButton(onClick = onDismiss, enabled = !saving) {
                     Icon(Icons.Outlined.Close, contentDescription = "Cerrar", tint = colors.textPrimary)
                 }
             }
@@ -1706,11 +1817,17 @@ private fun AddProductSheet(
                             .border(1.5.dp, colors.cardBorder, RoundedCornerShape(18.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    val previewUrl = selectedImageUrl
-                    if (previewUrl != null) {
-                        ProductImage(
-                            imageUrl = previewUrl,
-                            contentDescription = name,
+                    val previewUri = selectedImageUri
+                    if (previewUri != null) {
+                        AndroidView(
+                            factory = { imageContext ->
+                                ImageView(imageContext).apply {
+                                    scaleType = ImageView.ScaleType.CENTER_CROP
+                                }
+                            },
+                            update = { imageView ->
+                                imageView.setImageURI(Uri.parse(previewUri))
+                            },
                             modifier = Modifier.fillMaxSize(),
                         )
                     } else {
@@ -1721,6 +1838,7 @@ private fun AddProductSheet(
                 // Pick from gallery button
                 Button(
                     onClick = { photoPicker.launch("image/*") },
+                    enabled = !saving,
                     colors =
                         ButtonDefaults.buttonColors(
                             containerColor = colors.cardBackground,
@@ -1741,79 +1859,12 @@ private fun AddProductSheet(
                 }
             }
 
-            // Quick Preset Photos
-            Text(
-                "O elige un preset rápido:",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = colors.textSecondary,
-            )
-
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(PRESET_PRODUCT_PHOTOS) { preset ->
-                    val isSelected = selectedImageUrl == preset.id || selectedImageUrl == preset.imageUrl
-                    val chipBg =
-                        if (isSelected) {
-                            colors.accentLime.copy(alpha = 0.25f)
-                        } else {
-                            colors.cardBackground
-                        }
-                    val chipBorderColor = if (isSelected) colors.accentLime else colors.cardBorder
-                    val chipBorderWidth = if (isSelected) 2.dp else 1.dp
-                    Surface(
-                        modifier =
-                            Modifier.clickable {
-                                haptics.selection()
-                                selectedImageUrl = preset.imageUrl
-                                if (name.isEmpty()) {
-                                    name = preset.name
-                                }
-                                val isKitchenStation =
-                                    preset.name in
-                                        listOf(
-                                            "Waffles",
-                                            "Burrito",
-                                            "Torta",
-                                            "Quesadilla",
-                                            "Sincronizada",
-                                        )
-                                selectedStation =
-                                    if (isKitchenStation) {
-                                        PreparationStation.KITCHEN
-                                    } else {
-                                        PreparationStation.CASHIER
-                                    }
-                            },
-                        shape = RoundedCornerShape(14.dp),
-                        color = chipBg,
-                        border = BorderStroke(width = chipBorderWidth, color = chipBorderColor),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .size(28.dp)
-                                        .clip(RoundedCornerShape(8.dp)),
-                            ) {
-                                ProductImage(
-                                    imageUrl = preset.imageUrl,
-                                    contentDescription = preset.name,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                            }
-                            Text(
-                                preset.name,
-                                fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = colors.textPrimary,
-                            )
-                        }
-                    }
-                }
+            if (imageError != null) {
+                Text(
+                    text = imageError.orEmpty(),
+                    fontSize = 12.sp,
+                    color = Color(0xFFD75A4A),
+                )
             }
 
             // Station Selector (Caja / Barra vs Cocina caliente)
@@ -1835,18 +1886,18 @@ private fun AddProductSheet(
                             selectedStation = PreparationStation.CASHIER
                         },
                     shape = RoundedCornerShape(14.dp),
-                    color = if (isCashier) colors.accentLime else colors.cardBackground,
-                    border = BorderStroke(1.dp, if (isCashier) colors.accentLime else colors.cardBorder),
+                    color = if (isCashier) Color(0xFF171816) else colors.cardBackground,
+                    border = BorderStroke(1.dp, if (isCashier) Color(0xFF171816) else colors.cardBorder),
                 ) {
                     Box(
                         modifier = Modifier.padding(vertical = 12.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            "☕ Barra / Bebidas",
+                            "Barra / Bebidas",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
-                            color = if (isCashier) colors.accentInk else colors.textPrimary,
+                            color = if (isCashier) Color(0xFFF7F3E7) else colors.textPrimary,
                         )
                     }
                 }
@@ -1858,18 +1909,18 @@ private fun AddProductSheet(
                             selectedStation = PreparationStation.KITCHEN
                         },
                     shape = RoundedCornerShape(14.dp),
-                    color = if (isKitchen) colors.accentLime else colors.cardBackground,
-                    border = BorderStroke(1.dp, if (isKitchen) colors.accentLime else colors.cardBorder),
+                    color = if (isKitchen) Color(0xFF171816) else colors.cardBackground,
+                    border = BorderStroke(1.dp, if (isKitchen) Color(0xFF171816) else colors.cardBorder),
                 ) {
                     Box(
                         modifier = Modifier.padding(vertical = 12.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            "🍳 Cocina caliente",
+                            "Cocina caliente",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
-                            color = if (isKitchen) colors.accentInk else colors.textPrimary,
+                            color = if (isKitchen) Color(0xFFF7F3E7) else colors.textPrimary,
                         )
                     }
                 }
@@ -1951,6 +2002,14 @@ private fun AddProductSheet(
                 )
             }
 
+            if (submitted && !errorMessage.isNullOrBlank()) {
+                Text(
+                    text = errorMessage,
+                    fontSize = 12.sp,
+                    color = Color(0xFFD75A4A),
+                )
+            }
+
             Spacer(Modifier.height(4.dp))
 
             // Save button
@@ -1958,10 +2017,18 @@ private fun AddProductSheet(
             Button(
                 onClick = {
                     haptics.impact()
-                    val price = priceStr.toIntOrNull() ?: 50
-                    onAdd(name.trim(), price, selectedImageUrl, selectedStation)
+                    submitted = true
+                    val price = priceStr.toIntOrNull() ?: return@Button
+                    onAdd(
+                        name.trim(),
+                        price,
+                        selectedImageBytes,
+                        selectedImageFilename,
+                        selectedImageMime,
+                        selectedStation,
+                    )
                 },
-                enabled = isValid,
+                enabled = isValid && !saving,
                 colors =
                     ButtonDefaults.buttonColors(
                         containerColor = colors.accentLime,
@@ -1977,7 +2044,7 @@ private fun AddProductSheet(
                 contentPadding = PaddingValues(vertical = 14.dp),
             ) {
                 Text(
-                    "Guardar producto",
+                    if (saving) "Guardando…" else "Guardar producto",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                     letterSpacing = 0.2.sp,

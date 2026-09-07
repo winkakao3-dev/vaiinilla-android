@@ -1082,7 +1082,15 @@ fun AppNavHost(
                             },
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
                         onToggleProductAvailable = operationalViewModel::setProductAvailable,
-                        onCreateCashierProduct = operationalViewModel::createCashierProduct,
+                        onCreateCashierProduct = { draft, bytes, filename, mime, onSuccess ->
+                            operationalViewModel.createCashierProduct(
+                                draft = draft,
+                                imageBytes = bytes,
+                                imageFilename = filename,
+                                imageMime = mime,
+                                onSuccess = onSuccess,
+                            )
+                        },
                         onUploadCashierProductImage = operationalViewModel::uploadCashierProductImage,
                     )
                 }

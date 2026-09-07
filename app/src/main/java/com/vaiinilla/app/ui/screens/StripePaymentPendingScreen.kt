@@ -73,7 +73,14 @@ fun StripePaymentPendingScreen(
     onViewOrders: () -> Unit,
 ) {
     val reduceMotion = reducedMotion()
-    val waiting = phase == StripePaymentPhase.PENDING || phase == StripePaymentPhase.PROCESSING_CONFIRMATION
+    val waiting =
+        phase in
+            setOf(
+                StripePaymentPhase.READY,
+                StripePaymentPhase.PRESENTING,
+                StripePaymentPhase.PENDING,
+                StripePaymentPhase.PROCESSING_CONFIRMATION,
+            )
     val timedOut = phase == StripePaymentPhase.TIMED_OUT
     val failed = phase == StripePaymentPhase.FAILED
     val canceled = phase == StripePaymentPhase.CANCELED
@@ -85,6 +92,8 @@ fun StripePaymentPendingScreen(
             failed -> "Pago no completado"
             canceled -> "Pago cancelado"
             timedOut -> "Seguimos confirmando tu pago"
+            phase == StripePaymentPhase.READY -> "Abriendo Stripe"
+            phase == StripePaymentPhase.PRESENTING -> "Confirma tu pago en Stripe"
             phase == StripePaymentPhase.PROCESSING_CONFIRMATION -> "Procesando compra"
             status == StripePaymentStatus.PROCESSING -> "Pago en proceso"
             status == StripePaymentStatus.REQUIRES_ACTION -> "Necesitamos completar una acción"
@@ -93,6 +102,8 @@ fun StripePaymentPendingScreen(
     val body =
         message
             ?: when {
+                phase == StripePaymentPhase.READY -> "Estamos preparando el pago seguro."
+                phase == StripePaymentPhase.PRESENTING -> "Termina el pago en la ventana de Stripe."
                 waiting -> "Estamos verificando el pago con Vaiinilla."
                 timedOut -> "El pago todavía no tiene una confirmación final."
                 failed -> "El backend confirmó que el pago no se completó."
@@ -148,7 +159,13 @@ fun StripePaymentPendingScreen(
                 label = "stripe-payment-status-transition",
             ) {
                 val displayedWaiting =
-                    it == StripePaymentPhase.PENDING || it == StripePaymentPhase.PROCESSING_CONFIRMATION
+                    it in
+                        setOf(
+                            StripePaymentPhase.READY,
+                            StripePaymentPhase.PRESENTING,
+                            StripePaymentPhase.PENDING,
+                            StripePaymentPhase.PROCESSING_CONFIRMATION,
+                        )
                 val displayedIcon =
                     when (it) {
                         StripePaymentPhase.CONFIRMED -> Icons.Outlined.CheckCircle
@@ -186,6 +203,8 @@ fun StripePaymentPendingScreen(
                         imageVector = displayedIcon,
                         contentDescription =
                             when (it) {
+                                StripePaymentPhase.READY -> "Abriendo Stripe"
+                                StripePaymentPhase.PRESENTING -> "Pago abierto en Stripe"
                                 StripePaymentPhase.PENDING,
                                 StripePaymentPhase.PROCESSING_CONFIRMATION,
                                 -> "Pago en verificación"

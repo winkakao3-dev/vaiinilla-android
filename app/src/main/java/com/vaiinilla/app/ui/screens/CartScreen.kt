@@ -368,7 +368,8 @@ private fun PaymentMethodOverlay(
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 22.dp)
-                    .padding(bottom = 36.dp)
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .padding(bottom = 22.dp)
                     .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -426,8 +427,8 @@ private fun PaymentMethodOverlay(
                 )
                 PaymentMethodCardOption(
                     icon = Icons.Outlined.CreditCard,
-                    title = "Pago desde la app",
-                    subtitle = "Pago seguro con tarjeta (Stripe).",
+                    title = "Pago con Stripe",
+                    subtitle = "Tarjeta segura procesada por Stripe.",
                     badgeText = "Stripe",
                     selected = selectedMethod == PaymentMethod.STRIPE,
                     enabled = !selectionLocked,
@@ -531,19 +532,25 @@ private fun PaymentMethodCardOption(
                         color = colors.ink,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
                     )
                     Box(
                         modifier =
                             Modifier
                                 .clip(CircleShape)
                                 .background(if (selected) colors.accent.copy(alpha = 0.22f) else colors.paper)
-                                .padding(horizontal = 8.dp, vertical = 2.dp),
+                                .padding(horizontal = 10.dp, vertical = 3.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = badgeText,
                             color = if (selected) colors.accentInk else colors.muted,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
                         )
                     }
                 }
@@ -585,7 +592,7 @@ private fun PaymentMethod?.paymentDialogLabel(): String =
     when (this) {
         PaymentMethod.CASH -> "pago en caja"
         PaymentMethod.BALANCE -> "Saldo Vaiinilla"
-        PaymentMethod.STRIPE -> "pago desde la app"
+        PaymentMethod.STRIPE -> "Stripe"
         null -> ""
     }
 

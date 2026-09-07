@@ -633,6 +633,7 @@ class OperationalViewModel
             imageBytes: ByteArray? = null,
             imageFilename: String? = null,
             imageMime: String? = null,
+            onSuccess: (String?) -> Unit = {},
         ) {
             if (imageBytes != null && imageBytes.size > MAX_PRODUCT_IMAGE_BYTES) {
                 _uiState.value =
@@ -656,6 +657,7 @@ class OperationalViewModel
                                 )
                             return@launch
                         }
+                var finalProduct = createdProduct
                 if (imageBytes != null && imageFilename != null && imageMime != null) {
                     val uploaded =
                         withContext(Dispatchers.IO) {
@@ -668,19 +670,39 @@ class OperationalViewModel
                             )
                         }
                     if (uploaded.isFailure) {
+                        val catalog = _uiState.value.catalog
+                        val warning =
+                            uploaded.exceptionOrNull().toUserFacingMessage(
+                                "El producto se creó, pero la foto no se subió.",
+                            )
                         _uiState.value =
                             _uiState.value.copy(
                                 acting = false,
-                                errorMessage =
-                                    uploaded.exceptionOrNull().toUserFacingMessage(
-                                        "El producto se creó, pero la foto no se subió.",
+                                catalog =
+                                    catalog?.copy(
+                                        products = catalog.products + createdProduct,
                                     ),
+                                errorMessage = null,
                             )
+                        onSuccess(warning)
                         refreshCatalog()
                         return@launch
                     }
+                    finalProduct = uploaded.getOrThrow()
                 }
-                _uiState.value = _uiState.value.copy(acting = false)
+                val catalog = _uiState.value.catalog
+                _uiState.value =
+                    _uiState.value.copy(
+                        acting = false,
+                        catalog =
+                            catalog?.copy(
+                                products =
+                                    catalog.products
+                                        .filterNot { product -> product.id == finalProduct.id } +
+                                        finalProduct,
+                            ),
+                    )
+                onSuccess(null)
                 refreshCatalog()
             }
         }
