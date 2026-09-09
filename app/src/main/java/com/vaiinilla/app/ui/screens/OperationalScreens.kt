@@ -110,8 +110,15 @@ import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
 import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.operational.OperationalUiState
+import com.vaiinilla.app.ui.theme.AccentInk
+import com.vaiinilla.app.ui.theme.Cream
+import com.vaiinilla.app.ui.theme.CreamDeep
+import com.vaiinilla.app.ui.theme.Ink
+import com.vaiinilla.app.ui.theme.Lime
+import com.vaiinilla.app.ui.theme.Line
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
+import com.vaiinilla.app.ui.theme.MutedInk
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.delay
 
@@ -184,20 +191,20 @@ fun rememberOperationalColors(): OperationalColors {
             )
         else ->
             OperationalColors(
-                background = Color(0xFFF7F3E7),
-                surfacePaper = Color(0xFFEFEBDD),
-                cardBackground = Color(0xFFFFFEF9),
-                cardBorder = Color(0x2E171816),
+                background = Cream,
+                surfacePaper = Cream,
+                cardBackground = CreamDeep,
+                cardBorder = Line,
                 cardInner = Color(0xFFEEE8D8),
-                textPrimary = Color(0xFF171816),
-                textSecondary = Color(0xFF73766D),
+                textPrimary = Ink,
+                textSecondary = MutedInk,
                 textMuted = Color(0xFF8E9087),
-                accentLime = Color(0xFFB7DE63),
-                accentInk = Color(0xFF171816),
+                accentLime = Lime,
+                accentInk = AccentInk,
                 pillBackground = Color(0xFFE8E3D2),
-                pillBorder = Color(0x1F171816),
+                pillBorder = Line,
                 buttonSecondary = Color(0xFFE4DFCE),
-                buttonSecondaryInk = Color(0xFF171816),
+                buttonSecondaryInk = Ink,
                 highlightBorder = Color(0xFF96C83F),
                 isDark = false,
             )
