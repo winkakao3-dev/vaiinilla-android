@@ -11,6 +11,7 @@ plugins {
     alias(libs.plugins.ktlint)
     alias(libs.plugins.roborazzi)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.crashlytics)
 }
 
 ktlint {
@@ -319,6 +320,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
+    implementation(libs.firebase.crashlytics)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
@@ -338,4 +340,5 @@ dependencies {
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    debugImplementation(libs.leakcanary.android)
 }
