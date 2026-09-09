@@ -14,7 +14,6 @@ import com.vaiinilla.app.domain.discovery.DiscoveryFailures
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.ContractRules
-import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -37,7 +36,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -443,14 +441,17 @@ class OrderFlowViewModel
             val state = _uiState.value
             val line = state.cartLines.firstOrNull { it.key == lineKey } ?: return
             val nextQuantity = line.quantity + delta
+            if (nextQuantity > 20) {
+                _uiState.value = state.copy(createOrderError = "La cantidad máxima por línea es 20.")
+                return
+            }
             val updated =
-                when {
-                    nextQuantity <= 0 -> state.cartLines.filterNot { it.key == lineKey }
-                    nextQuantity > 20 -> state.cartLines
-                    else ->
-                        state.cartLines.map { current ->
-                            if (current.key == lineKey) current.copy(quantity = nextQuantity) else current
-                        }
+                if (nextQuantity <= 0) {
+                    state.cartLines.filterNot { it.key == lineKey }
+                } else {
+                    state.cartLines.map { current ->
+                        if (current.key == lineKey) current.copy(quantity = nextQuantity) else current
+                    }
                 }
             pendingIdempotencyKey = null
             _uiState.value = state.copy(cartLines = updated, createOrderError = null)
@@ -599,12 +600,15 @@ class OrderFlowViewModel
                     )
                 val requestFingerprint = createOrderFingerprint(request)
                 val idempotencyKey =
-                    pendingIdempotencyKey
-                        ?: guestSessionStore.readPendingCreateIdempotency(requestFingerprint)
-                        ?: UUID.randomUUID().toString().also { generated ->
-                            pendingIdempotencyKey = generated
-                            guestSessionStore.savePendingCreateIdempotency(requestFingerprint, generated)
-                        }
+                    resolveIdempotencyKey(
+                        inMemoryKey = pendingIdempotencyKey,
+                        persistedKey = guestSessionStore.readPendingCreateIdempotency(requestFingerprint),
+                        generate = {
+                            UUID.randomUUID().toString().also { generated ->
+                                guestSessionStore.savePendingCreateIdempotency(requestFingerprint, generated)
+                            }
+                        },
+                    )
                 pendingIdempotencyKey = idempotencyKey
                 val result =
                     withContext(Dispatchers.IO) {
@@ -653,31 +657,6 @@ class OrderFlowViewModel
                     },
                 )
             }
-        }
-
-        private fun createOrderFingerprint(request: CreateOrderRequest): String {
-            val canonical =
-                buildString {
-                    append(request.paymentMethod.wireValue)
-                    append('|')
-                    append(request.destination.wireValue)
-                    append('|')
-                    append(request.spaceId ?: "null")
-                    append('|')
-                    append(request.kitchenNotes)
-                    request.items.forEach { item ->
-                        append('|')
-                        append(item.productId)
-                        append(':')
-                        append(item.quantity)
-                        append(':')
-                        append(item.optionIds.sorted().joinToString(","))
-                    }
-                }
-            return MessageDigest
-                .getInstance("SHA-256")
-                .digest(canonical.toByteArray(Charsets.UTF_8))
-                .joinToString("") { "%02x".format(it) }
         }
 
         private suspend fun refreshClientContext(venue: GuestVenueContext) {
@@ -928,12 +907,15 @@ class OrderFlowViewModel
             }
 
             val key =
-                pendingStripeRetryIdempotencyKey
-                    ?: guestSessionStore.readPendingStripeRetryIdempotency(order.summary.id)
-                    ?: UUID.randomUUID().toString().also { generated ->
-                        pendingStripeRetryIdempotencyKey = generated
-                        guestSessionStore.savePendingStripeRetryIdempotency(order.summary.id, generated)
-                    }
+                resolveIdempotencyKey(
+                    inMemoryKey = pendingStripeRetryIdempotencyKey,
+                    persistedKey = guestSessionStore.readPendingStripeRetryIdempotency(order.summary.id),
+                    generate = {
+                        UUID.randomUUID().toString().also { generated ->
+                            guestSessionStore.savePendingStripeRetryIdempotency(order.summary.id, generated)
+                        }
+                    },
+                )
             pendingStripeRetryIdempotencyKey = key
             _uiState.value =
                 _uiState.value.copy(
