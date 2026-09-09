@@ -157,6 +157,7 @@ android {
         targetSdk = 36
         versionCode = selectedVersionCode.toIntOrNull() ?: error("VAIINILLA_VERSION_CODE must be an integer")
         versionName = selectedVersionName
+        testInstrumentationRunner = "com.vaiinilla.app.HiltTestRunner"
 
         // Defaults: release-safe. Debug buildType overrides below.
         buildConfigField("boolean", "SEED_AUTH_ENABLED", "false")
@@ -341,4 +342,13 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.leakcanary.android)
+
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.hilt.android.testing)
+    kspAndroidTest(libs.hilt.compiler)
 }

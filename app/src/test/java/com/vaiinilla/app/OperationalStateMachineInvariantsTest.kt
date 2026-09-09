@@ -6,8 +6,8 @@ import com.vaiinilla.app.domain.model.CreateOrderItem
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
-import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -40,7 +40,8 @@ class OperationalStateMachineInvariantsTest {
 
         assertTrue(error is OrderRepositoryException)
         assertEquals("INVALID_TRANSITION", (error as OrderRepositoryException).code)
-        assertEquals(OrderState.PAID, repository.getOrder(paid.summary.id).getOrThrow().summary.state)
+        val unchanged = repository.getOrder(paid.summary.id).getOrThrow()
+        assertEquals(OrderState.PAID, unchanged.summary.state)
     }
 
     @Test
@@ -86,7 +87,8 @@ class OperationalStateMachineInvariantsTest {
 
         assertTrue(error is OrderRepositoryException)
         assertEquals("INVALID_PICKUP_TOKEN", (error as OrderRepositoryException).code)
-        assertEquals(OrderState.READY, repository.getOrder(ready.summary.id).getOrThrow().summary.state)
+        val unchanged = repository.getOrder(ready.summary.id).getOrThrow()
+        assertEquals(OrderState.READY, unchanged.summary.state)
     }
 
     @Test
