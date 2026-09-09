@@ -1,6 +1,7 @@
 package com.vaiinilla.app.data.guest
 
 import android.content.Context
+import androidx.core.content.edit
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.Product
@@ -66,43 +67,40 @@ class GuestSessionStore
         }
 
         fun saveVenue(context: GuestVenueContext) {
-            prefs
-                .edit()
-                .putString(KEY_ESTABLISHMENT_ID, context.establishment.id)
-                .putString(KEY_SLUG, context.establishment.slug)
-                .putString(KEY_NAME, context.establishment.name)
-                .putString(KEY_ID_LABEL, context.establishment.clientIdLabel)
-                .putBoolean(KEY_ID_REQUIRED, context.establishment.clientIdRequired)
-                .apply {
-                    val space = context.space
-                    if (space == null) {
-                        remove(KEY_SPACE_ID)
-                        remove(KEY_SPACE_NAME)
-                        remove(KEY_SPACE_TYPE)
-                    } else {
-                        putInt(KEY_SPACE_ID, space.id)
-                        putString(KEY_SPACE_NAME, space.name)
-                        putString(KEY_SPACE_TYPE, space.type)
-                    }
-                }.apply()
+            prefs.edit {
+                putString(KEY_ESTABLISHMENT_ID, context.establishment.id)
+                putString(KEY_SLUG, context.establishment.slug)
+                putString(KEY_NAME, context.establishment.name)
+                putString(KEY_ID_LABEL, context.establishment.clientIdLabel)
+                putBoolean(KEY_ID_REQUIRED, context.establishment.clientIdRequired)
+                val space = context.space
+                if (space == null) {
+                    remove(KEY_SPACE_ID)
+                    remove(KEY_SPACE_NAME)
+                    remove(KEY_SPACE_TYPE)
+                } else {
+                    putInt(KEY_SPACE_ID, space.id)
+                    putString(KEY_SPACE_NAME, space.name)
+                    putString(KEY_SPACE_TYPE, space.type)
+                }
+            }
         }
 
         fun clearVenue() {
-            prefs
-                .edit()
-                .remove(KEY_ESTABLISHMENT_ID)
-                .remove(KEY_SLUG)
-                .remove(KEY_NAME)
-                .remove(KEY_ID_LABEL)
-                .remove(KEY_ID_REQUIRED)
-                .remove(KEY_SPACE_ID)
-                .remove(KEY_SPACE_NAME)
-                .remove(KEY_SPACE_TYPE)
-                .apply()
+            prefs.edit {
+                remove(KEY_ESTABLISHMENT_ID)
+                remove(KEY_SLUG)
+                remove(KEY_NAME)
+                remove(KEY_ID_LABEL)
+                remove(KEY_ID_REQUIRED)
+                remove(KEY_SPACE_ID)
+                remove(KEY_SPACE_NAME)
+                remove(KEY_SPACE_TYPE)
+            }
         }
 
         fun clearAll() {
-            prefs.edit().clear().apply()
+            prefs.edit { clear() }
         }
 
         fun readPendingCreateIdempotency(fingerprint: String): String? {
@@ -115,19 +113,17 @@ class GuestSessionStore
             fingerprint: String,
             idempotencyKey: String,
         ) {
-            prefs
-                .edit()
-                .putString(KEY_CREATE_IDEMPOTENCY_FINGERPRINT, fingerprint)
-                .putString(KEY_CREATE_IDEMPOTENCY_KEY, idempotencyKey)
-                .apply()
+            prefs.edit {
+                putString(KEY_CREATE_IDEMPOTENCY_FINGERPRINT, fingerprint)
+                putString(KEY_CREATE_IDEMPOTENCY_KEY, idempotencyKey)
+            }
         }
 
         fun clearPendingCreateIdempotency() {
-            prefs
-                .edit()
-                .remove(KEY_CREATE_IDEMPOTENCY_FINGERPRINT)
-                .remove(KEY_CREATE_IDEMPOTENCY_KEY)
-                .apply()
+            prefs.edit {
+                remove(KEY_CREATE_IDEMPOTENCY_FINGERPRINT)
+                remove(KEY_CREATE_IDEMPOTENCY_KEY)
+            }
         }
 
         fun readPendingStripeRetryIdempotency(orderId: String): String? = prefs.getString("stripe_retry:$orderId", null)
@@ -136,23 +132,23 @@ class GuestSessionStore
             orderId: String,
             idempotencyKey: String,
         ) {
-            prefs.edit().putString("stripe_retry:$orderId", idempotencyKey).apply()
+            prefs.edit { putString("stripe_retry:$orderId", idempotencyKey) }
         }
 
         fun clearPendingStripeRetryIdempotency(orderId: String) {
-            prefs.edit().remove("stripe_retry:$orderId").apply()
+            prefs.edit { remove("stripe_retry:$orderId") }
         }
 
         fun readPendingStripeConfirmationOrderId(): String? =
             prefs.getString(KEY_PENDING_STRIPE_CONFIRMATION_ORDER_ID, null)
 
         fun savePendingStripeConfirmationOrderId(orderId: String) {
-            prefs.edit().putString(KEY_PENDING_STRIPE_CONFIRMATION_ORDER_ID, orderId).apply()
+            prefs.edit { putString(KEY_PENDING_STRIPE_CONFIRMATION_ORDER_ID, orderId) }
         }
 
         fun clearPendingStripeConfirmationOrderId(orderId: String) {
             if (readPendingStripeConfirmationOrderId() == orderId) {
-                prefs.edit().remove(KEY_PENDING_STRIPE_CONFIRMATION_ORDER_ID).apply()
+                prefs.edit { remove(KEY_PENDING_STRIPE_CONFIRMATION_ORDER_ID) }
             }
         }
 
@@ -179,14 +175,11 @@ class GuestSessionStore
                         selectedOptionIds = line.selectedOptionIds.sorted(),
                     )
                 }
-            prefs
-                .edit()
-                .putString(cartPrefKey(storageKey), json.encodeToString(snapshot))
-                .apply()
+            prefs.edit { putString(cartPrefKey(storageKey), json.encodeToString(snapshot)) }
         }
 
         fun clearCart(storageKey: String) {
-            prefs.edit().remove(cartPrefKey(storageKey)).apply()
+            prefs.edit { remove(cartPrefKey(storageKey)) }
         }
 
         fun restoreCartLines(

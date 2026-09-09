@@ -1,6 +1,7 @@
 package com.vaiinilla.app.data.auth.student
 
 import android.content.Context
+import androidx.core.content.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,15 +18,13 @@ class StudentAuthPreferences
         var enrolledEstablishmentId: String?
             get() = prefs.getString(KEY_ENROLLED_ESTABLISHMENT_ID, null)
             set(value) {
-                prefs
-                    .edit()
-                    .apply {
-                        if (value.isNullOrBlank()) {
-                            remove(KEY_ENROLLED_ESTABLISHMENT_ID)
-                        } else {
-                            putString(KEY_ENROLLED_ESTABLISHMENT_ID, value)
-                        }
-                    }.apply()
+                prefs.edit {
+                    if (value.isNullOrBlank()) {
+                        remove(KEY_ENROLLED_ESTABLISHMENT_ID)
+                    } else {
+                        putString(KEY_ENROLLED_ESTABLISHMENT_ID, value)
+                    }
+                }
             }
 
         val enrollmentComplete: Boolean
@@ -43,7 +42,7 @@ class StudentAuthPreferences
         }
 
         fun clear() {
-            prefs.edit().clear().apply()
+            prefs.edit { clear() }
         }
 
         private companion object {

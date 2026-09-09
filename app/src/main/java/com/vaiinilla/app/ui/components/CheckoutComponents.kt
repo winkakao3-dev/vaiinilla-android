@@ -51,8 +51,8 @@ import com.vaiinilla.app.ui.theme.Yolk
 fun OrderStateTrackingHero(
     state: OrderState,
     destination: OrderDestination,
-    spaceName: String? = null,
     modifier: Modifier = Modifier,
+    spaceName: String? = null,
 ) {
     val content = trackingHeroContent(state, destination, spaceName)
     Surface(
@@ -207,8 +207,8 @@ fun CheckoutDestinationPicker(
     selected: OrderDestination,
     selectedSpaceName: String,
     onSelect: (OrderDestination) -> Unit,
-    showInSpace: Boolean = true,
     modifier: Modifier = Modifier,
+    showInSpace: Boolean = true,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),

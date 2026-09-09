@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.core.content.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.security.KeyStore
 import javax.crypto.Cipher
@@ -33,14 +34,14 @@ class SharedPreferencesPickupTokenStore
                         init(Cipher.ENCRYPT_MODE, getOrCreateSecretKey())
                     }
                 val storageKey = storageKey(orderId)
-                preferences
-                    .edit()
-                    .putString("$storageKey.iv", Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
-                    .putString(
+                preferences.edit {
+                    putString("$storageKey.iv", Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
+                    putString(
                         "$storageKey.ciphertext",
                         Base64.encodeToString(cipher.doFinal(pickupToken.toByteArray(Charsets.UTF_8)), Base64.NO_WRAP),
-                    ).apply()
-                legacyPreferences.edit().remove(orderId).apply()
+                    )
+                }
+                legacyPreferences.edit { remove(orderId) }
             }
         }
 
@@ -72,8 +73,8 @@ class SharedPreferencesPickupTokenStore
         }
 
         override fun clear() {
-            preferences.edit().clear().apply()
-            legacyPreferences.edit().clear().apply()
+            preferences.edit { clear() }
+            legacyPreferences.edit { clear() }
         }
 
         private fun storageKey(orderId: String): String = "order_${orderId.replace(ORDER_KEY_PATTERN, "_")}"

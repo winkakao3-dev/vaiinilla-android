@@ -149,10 +149,10 @@ enum class StudentTab {
 fun VaiinillaBottomNav(
     activeTab: StudentTab,
     cartCount: Int,
-    hazeState: HazeState? = null,
     onTabSelected: (StudentTab) -> Unit,
-    onTabPreparing: (StudentTab) -> Unit = {},
     modifier: Modifier = Modifier,
+    hazeState: HazeState? = null,
+    onTabPreparing: (StudentTab) -> Unit = {},
     enableDrag: Boolean = false,
 ) {
     val context = LocalContext.current

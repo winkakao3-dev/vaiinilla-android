@@ -82,6 +82,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.net.toUri
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.OperationalRole
@@ -1796,7 +1797,7 @@ private fun AddProductSheet(
                                 }
                             },
                             update = { imageView ->
-                                imageView.setImageURI(Uri.parse(previewUri))
+                                imageView.setImageURI(previewUri.toUri())
                             },
                             modifier = Modifier.fillMaxSize(),
                         )

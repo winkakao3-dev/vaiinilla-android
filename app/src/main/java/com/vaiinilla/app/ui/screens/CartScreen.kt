@@ -885,9 +885,9 @@ private fun CartLineRow(
                     }.using(SizeTransform(clip = false))
                 },
                 label = "cart_item_price_ticker",
-            ) {
+            ) { animatedQuantity ->
                 Text(
-                    moneyLabel(Money.cartLinePreview(line)),
+                    moneyLabel(Money.cartLinePreview(line.copy(quantity = animatedQuantity))),
                     color = colors.ink,
                     fontSize = 20.sp,
                     lineHeight = 24.sp,

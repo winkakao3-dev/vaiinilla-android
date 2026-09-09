@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.theme
 
 import android.content.Context
+import androidx.core.content.edit
 
 object ThemePreferences {
     private const val PREFS_NAME = "vaiinilla_theme_prefs"
@@ -17,8 +18,6 @@ object ThemePreferences {
     ) {
         context.applicationContext
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_THEME, mode.storageKey)
-            .apply()
+            .edit { putString(KEY_THEME, mode.storageKey) }
     }
 }

@@ -1,6 +1,7 @@
 package com.vaiinilla.app.data.operational
 
 import android.content.Context
+import androidx.core.content.edit
 import com.vaiinilla.app.domain.repository.DeviceIdentity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.UUID
@@ -23,7 +24,7 @@ class AndroidDeviceIdentity
                 ?.trim()
                 ?.takeIf(String::isNotEmpty)
                 ?: "android-${UUID.randomUUID()}".also { generated ->
-                    preferences.edit().putString(KEY_DEVICE_ID, generated).apply()
+                    preferences.edit { putString(KEY_DEVICE_ID, generated) }
                 }
         }
 

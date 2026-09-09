@@ -66,6 +66,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -98,6 +99,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.edit
 import com.vaiinilla.app.domain.model.OperationalRole
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -254,11 +256,11 @@ internal class OperationalAssistantProgressStore(
     fun completedOnboarding(): Set<String> = preferences.getStringSet(key("onboarding"), emptySet()).orEmpty().toSet()
 
     fun saveCompletedGuides(value: Set<String>) {
-        preferences.edit().putStringSet(key("guides"), value).apply()
+        preferences.edit { putStringSet(key("guides"), value) }
     }
 
     fun saveCompletedOnboarding(value: Set<String>) {
-        preferences.edit().putStringSet(key("onboarding"), value).apply()
+        preferences.edit { putStringSet(key("onboarding"), value) }
     }
 }
 
@@ -1344,7 +1346,7 @@ private fun GuideOverlay(
     val pulseTransition = rememberInfiniteTransition(label = "assistant-guide-pulse")
     val ringAlpha by
         if (reduceMotion) {
-            remember { mutableStateOf(1f) }
+            remember { mutableFloatStateOf(1f) }
         } else {
             pulseTransition.animateFloat(
                 initialValue = 1f,

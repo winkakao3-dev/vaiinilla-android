@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -237,7 +238,7 @@ private fun CashierCreateProductForm(
     val context = LocalContext.current
     var name by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
-    var categoryId by remember { mutableStateOf(categories.first().id) }
+    var categoryId by remember { mutableIntStateOf(categories.first().id) }
     var station by remember { mutableStateOf(PreparationStation.KITCHEN) }
     var minutes by remember { mutableStateOf("8") }
     var pendingImage by remember { mutableStateOf<PreparedProductImage?>(null) }

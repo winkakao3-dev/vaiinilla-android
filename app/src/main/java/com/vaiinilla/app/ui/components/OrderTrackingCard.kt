@@ -209,10 +209,10 @@ fun OrderTrackingCard(
 @Composable
 fun OrderTrackingTimeline(
     current: OrderState,
+    modifier: Modifier = Modifier,
     destination: OrderDestination = OrderDestination.TAKE_AWAY,
     paymentMethod: PaymentMethod = PaymentMethod.CASH,
     paymentStatus: StripePaymentStatus? = null,
-    modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
     val view = LocalView.current

@@ -108,8 +108,8 @@ fun AuthSheetHeader(
     kicker: String,
     title: String,
     intro: String,
-    kickerIcon: ImageVector = Icons.Outlined.Lock,
     modifier: Modifier = Modifier,
+    kickerIcon: ImageVector = Icons.Outlined.Lock,
 ) {
     val colors = LocalVaiinillaColors.current
     Column(modifier = modifier.fillMaxWidth()) {
