@@ -186,7 +186,7 @@ fun rememberOperationalColors(): OperationalColors {
             OperationalColors(
                 background = Color(0xFFF7F3E7),
                 surfacePaper = Color(0xFFEFEBDD),
-                cardBackground = Color(0xB8FFFEF9),
+                cardBackground = Color(0xFFFFFEF9),
                 cardBorder = Color(0x2E171816),
                 cardInner = Color(0xFFEEE8D8),
                 textPrimary = Color(0xFF171816),
