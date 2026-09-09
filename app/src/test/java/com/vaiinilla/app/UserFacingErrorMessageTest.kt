@@ -1,5 +1,6 @@
 package com.vaiinilla.app
 
+import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -36,5 +37,32 @@ class UserFacingErrorMessageTest {
     @Test
     fun `uses fallback when error has no message`() {
         assertEquals("Fallback", IllegalStateException().toUserFacingMessage("Fallback"))
+    }
+
+    @Test
+    fun `hides raw server error codes for 5xx api failures`() {
+        val error =
+            ApiClientException(
+                code = "HTTP_503",
+                message = "La API respondió con código 503.",
+                httpStatus = 503,
+            )
+
+        assertEquals(
+            "Tuvimos un problema en el servidor. Intenta de nuevo en unos momentos.",
+            error.toUserFacingMessage("Fallback"),
+        )
+    }
+
+    @Test
+    fun `preserves a 4xx api message instead of the generic server error copy`() {
+        val error =
+            ApiClientException(
+                code = "VALIDATION",
+                message = "El código ya fue utilizado.",
+                httpStatus = 422,
+            )
+
+        assertEquals("El código ya fue utilizado.", error.toUserFacingMessage("Fallback"))
     }
 }

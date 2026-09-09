@@ -197,20 +197,43 @@ class HttpVaiinillaApiClient
             requireAuth: Boolean = true,
             allowSessionRefresh: Boolean = true,
             expectedStatus: Int? = null,
-        ): Result<String> =
-            runCatching {
-                executeOnce(
-                    method = method,
-                    path = path,
-                    query = query,
-                    body = body,
-                    headers = headers,
-                    accessToken = accessToken,
-                    requireAuth = requireAuth,
-                    allowSessionRefresh = allowSessionRefresh,
-                    expectedStatus = expectedStatus,
-                )
+        ): Result<String> {
+            var attemptIndex = 0
+            while (true) {
+                val result =
+                    runCatching {
+                        executeOnce(
+                            method = method,
+                            path = path,
+                            query = query,
+                            body = body,
+                            headers = headers,
+                            accessToken = accessToken,
+                            requireAuth = requireAuth,
+                            allowSessionRefresh = allowSessionRefresh,
+                            expectedStatus = expectedStatus,
+                        )
+                    }
+                val error = result.exceptionOrNull()
+                val canRetry =
+                    method == "GET" &&
+                        error != null &&
+                        attemptIndex < GetRequestRetryPolicy.MAX_ATTEMPTS - 1 &&
+                        GetRequestRetryPolicy.isTransient(error)
+                if (!canRetry) return result
+
+                val delayMs = GetRequestRetryPolicy.delayMillisFor(error!!, attemptIndex)
+                if (BuildConfig.DEBUG) {
+                    Log.w(
+                        TAG,
+                        "Retrying GET ${sanitizePathForLog(path)} in ${delayMs}ms " +
+                            "(attempt ${attemptIndex + 2}/${GetRequestRetryPolicy.MAX_ATTEMPTS})",
+                    )
+                }
+                Thread.sleep(delayMs)
+                attemptIndex++
             }
+        }
 
         private fun executeOnce(
             method: String,

@@ -30,6 +30,9 @@ fun Throwable?.toUserFacingMessage(fallback: String = DEFAULT_ERROR_MESSAGE): St
             "connection refused" in combinedMessage ->
             "No pudimos contactar al servidor. Inténtalo de nuevo en unos segundos."
 
+        causes.any { it is ApiClientException && it.httpStatus in 500..599 } ->
+            "Tuvimos un problema en el servidor. Intenta de nuevo en unos momentos."
+
         else -> message?.trim().takeUnless { it.isNullOrEmpty() } ?: fallback
     }
 }
