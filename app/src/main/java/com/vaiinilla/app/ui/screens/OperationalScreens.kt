@@ -41,6 +41,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Diamond
 import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.UploadFile
@@ -534,6 +535,11 @@ fun CashierOperationalScreen(
                 if (recentOrder != null) {
                     val isDelivered = recentOrder.summary.state == OrderState.DELIVERED
                     val isOrderReady = recentOrder.summary.state == OrderState.READY
+                    val isPendingPayment = recentOrder.summary.state == OrderState.PENDING_PAYMENT
+                    var cashReceivedInput by
+                        remember(recentOrder.summary.id) {
+                            mutableStateOf(recentOrder.summary.total)
+                        }
 
                     Surface(
                         modifier =
@@ -587,6 +593,8 @@ fun CashierOperationalScreen(
                                     Text(
                                         if (isDelivered) {
                                             "ENTREGADO"
+                                        } else if (isPendingPayment) {
+                                            "POR COBRAR"
                                         } else if (isOrderReady) {
                                             "LISTO"
                                         } else {
@@ -670,43 +678,128 @@ fun CashierOperationalScreen(
                                 )
                             }
 
-                            // La entrega para llevar exige el QR del alumno. No existe transición manual sin token.
-                            Button(
-                                onClick = {
-                                    haptics.impact()
-                                    onScanDeliver(recentOrder.summary.id, recentOrder.summary.version)
-                                },
-                                enabled =
-                                    isOrderReady &&
-                                        restrictedMode != RestrictedMode.READ_ONLY,
-                                colors =
-                                    ButtonDefaults.buttonColors(
-                                        containerColor = colors.textPrimary,
-                                        contentColor = colors.background,
-                                        disabledContainerColor = colors.cardInner,
-                                        disabledContentColor = colors.textMuted,
-                                    ),
-                                shape = RoundedCornerShape(16.dp),
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .height(52.dp)
-                                        .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_QR_SCAN),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.QrCodeScanner,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    if (isOrderReady) "Escanear QR para entregar" else "Disponible cuando esté LISTO",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                )
+                            if (isPendingPayment) {
+                                // Pedido pagado en efectivo: hay que cobrarlo antes de que exista
+                                // cualquier posibilidad de avanzarlo a cocina/entrega.
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text(
+                                            "Efectivo recibido ($)",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.textSecondary,
+                                        )
+                                        BasicTextField(
+                                            value = cashReceivedInput,
+                                            onValueChange = { raw ->
+                                                cashReceivedInput =
+                                                    raw.filter { it.isDigit() || it == '.' }
+                                            },
+                                            singleLine = true,
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                            enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
+                                            textStyle =
+                                                TextStyle(
+                                                    color = colors.textPrimary,
+                                                    fontSize = 15.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                ),
+                                            cursorBrush = SolidColor(colors.textPrimary),
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .height(50.dp)
+                                                    .clip(RoundedCornerShape(16.dp))
+                                                    .background(colors.cardBackground)
+                                                    .border(1.dp, colors.cardBorder, RoundedCornerShape(16.dp))
+                                                    .padding(horizontal = 14.dp),
+                                            decorationBox = { inner ->
+                                                Box(contentAlignment = Alignment.CenterStart) { inner() }
+                                            },
+                                        )
+                                    }
+                                    Button(
+                                        onClick = {
+                                            haptics.impact()
+                                            onCollect(
+                                                recentOrder.summary.id,
+                                                cashReceivedInput,
+                                                recentOrder.summary.version,
+                                            )
+                                        },
+                                        enabled =
+                                            cashReceivedInput.isNotBlank() &&
+                                                !state.acting &&
+                                                restrictedMode != RestrictedMode.READ_ONLY,
+                                        colors =
+                                            ButtonDefaults.buttonColors(
+                                                containerColor = colors.accentLime,
+                                                contentColor = colors.accentInk,
+                                                disabledContainerColor = colors.cardInner,
+                                                disabledContentColor = colors.textMuted,
+                                            ),
+                                        shape = RoundedCornerShape(16.dp),
+                                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Payments,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            "Cobrar $${recentOrder.summary.total}",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                        )
+                                    }
+                                }
+                            } else {
+                                // La entrega para llevar exige el QR del alumno. No existe transición manual sin token.
+                                Button(
+                                    onClick = {
+                                        haptics.impact()
+                                        onScanDeliver(recentOrder.summary.id, recentOrder.summary.version)
+                                    },
+                                    enabled =
+                                        isOrderReady &&
+                                            restrictedMode != RestrictedMode.READ_ONLY,
+                                    colors =
+                                        ButtonDefaults.buttonColors(
+                                            containerColor = colors.textPrimary,
+                                            contentColor = colors.background,
+                                            disabledContainerColor = colors.cardInner,
+                                            disabledContentColor = colors.textMuted,
+                                        ),
+                                    shape = RoundedCornerShape(16.dp),
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .height(52.dp)
+                                            .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_QR_SCAN),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.QrCodeScanner,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        if (isOrderReady) {
+                                            "Escanear QR para entregar"
+                                        } else {
+                                            "Disponible cuando esté LISTO"
+                                        },
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                    )
+                                }
                             }
                         }
                     }
