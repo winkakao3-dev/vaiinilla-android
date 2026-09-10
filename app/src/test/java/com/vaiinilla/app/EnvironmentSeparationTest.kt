@@ -72,14 +72,21 @@ class EnvironmentSeparationTest {
     }
 
     @Test
-    fun testDevelopmentAppNameStringOverride() {
+    fun testDevelopmentRoleAppNameLabels() {
         val rootDir = File(".").canonicalFile
         val projectDir = if (File(rootDir, "app").exists()) rootDir else rootDir.parentFile
 
-        val devStrings = File(projectDir, "app/src/dev/res/values/strings.xml")
-        assertTrue("Development strings.xml must exist", devStrings.exists())
-        val content = devStrings.readText()
-        assertTrue("Development app_name must be 'Vaiinilla Dev'", content.contains("Vaiinilla Dev"))
+        val expectedLabels =
+            mapOf(
+                "devAlumno" to "Vaiinilla (Alumno)",
+                "devCaja" to "Vaiinilla (Caja)",
+                "devCocina" to "Vaiinilla (Cocina)",
+            )
+        expectedLabels.forEach { (sourceSet, label) ->
+            val strings = File(projectDir, "app/src/$sourceSet/res/values/strings.xml")
+            assertTrue("$sourceSet strings.xml must exist", strings.exists())
+            assertTrue("$sourceSet app_name must be '$label'", strings.readText().contains(label))
+        }
     }
 
     @Test

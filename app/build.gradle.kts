@@ -167,7 +167,7 @@ android {
         buildConfigField("String", "SEED_PASSWORD_MESERO", "\"\"")
     }
 
-    flavorDimensions += "environment"
+    flavorDimensions += listOf("environment", "role")
     productFlavors {
         create("dev") {
             dimension = "environment"
@@ -186,6 +186,17 @@ android {
             buildConfigField("String", "WEB_URL", "\"$prodWebUrl\"")
             buildConfigField("String", "FIREBASE_PROJECT_ID", "\"$prodFirebaseProjectId\"")
             buildConfigField("boolean", "IS_PRODUCTION", "true")
+        }
+        create("alumno") {
+            dimension = "role"
+        }
+        create("caja") {
+            dimension = "role"
+            applicationIdSuffix = ".caja"
+        }
+        create("cocina") {
+            dimension = "role"
+            applicationIdSuffix = ".cocina"
         }
     }
 
@@ -289,6 +300,16 @@ android {
                 )
                 it.systemProperties["robolectric.pixelCopyRenderMode"] = "hardware"
             }
+        }
+    }
+}
+
+androidComponents {
+    beforeVariants(selector().all()) { variantBuilder ->
+        val isProd = variantBuilder.productFlavors.any { it.first == "environment" && it.second == "prod" }
+        val role = variantBuilder.productFlavors.firstOrNull { it.first == "role" }?.second
+        if (isProd && role != null && role != "alumno") {
+            variantBuilder.enable = false
         }
     }
 }

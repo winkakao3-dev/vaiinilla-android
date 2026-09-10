@@ -37,27 +37,30 @@ jobs:
         run: ./scripts/check_app_backend_contract.sh
 
       - name: Unit tests (Dev & Prod)
-        run: ./gradlew --no-daemon testDevDebugUnitTest testProdDebugUnitTest
+        run: ./gradlew --no-daemon testDevAlumnoDebugUnitTest testProdAlumnoDebugUnitTest
 
       - name: Android lint (Prod)
-        run: ./gradlew --no-daemon lintProdDebug
+        run: ./gradlew --no-daemon lintProdAlumnoDebug
 
       - name: ktlint
         run: ./gradlew --no-daemon ktlintCheck
 
       - name: Build Dev & Prod debug APKs
-        run: ./gradlew --no-daemon assembleDevDebug assembleProdDebug
+        run: ./gradlew --no-daemon assembleDevAlumnoDebug assembleDevCajaDebug assembleDevCocinaDebug assembleProdAlumnoDebug
 
-      - name: Upload Dev Debug APK
+      - name: Upload Dev Debug APKs
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: vaiinilla-dev-debug-apk
-          path: app/build/outputs/apk/dev/debug/app-dev-debug.apk
+          name: vaiinilla-dev-debug-apks
+          path: |
+            app/build/outputs/apk/devAlumno/debug/*.apk
+            app/build/outputs/apk/devCaja/debug/*.apk
+            app/build/outputs/apk/devCocina/debug/*.apk
           if-no-files-found: error
 
       - name: Upload Prod Debug APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: vaiinilla-prod-debug-apk
-          path: app/build/outputs/apk/prod/debug/app-prod-debug.apk
+          path: app/build/outputs/apk/prodAlumno/debug/*.apk
           if-no-files-found: error

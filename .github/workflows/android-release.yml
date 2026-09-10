@@ -60,20 +60,20 @@ jobs:
         run: ./scripts/check_app_backend_contract.sh
 
       - name: Unit tests
-        run: ./gradlew --no-daemon testProdDebugUnitTest
+        run: ./gradlew --no-daemon testProdAlumnoDebugUnitTest
 
       - name: Android lint
-        run: ./gradlew --no-daemon lintProdRelease
+        run: ./gradlew --no-daemon lintProdAlumnoRelease
 
       - name: ktlint
         run: ./gradlew --no-daemon ktlintCheck
 
       - name: Release bundle (Prod)
-        run: ./gradlew --no-daemon bundleProdRelease
+        run: ./gradlew --no-daemon bundleProdAlumnoRelease
 
       - name: Upload release AAB
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: vaiinilla-prod-release-aab
-          path: app/build/outputs/bundle/prodRelease/app-prod-release.aab
+          path: app/build/outputs/bundle/prodAlumnoRelease/*.aab
           if-no-files-found: error

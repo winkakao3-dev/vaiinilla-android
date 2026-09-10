@@ -26,7 +26,7 @@ fi
 
 echo "PASS: API base apta para dispositivo real: $api_url"
 echo "Running focused app/backend regression tests..."
-./gradlew --no-daemon testDevDebugUnitTest testProdDebugUnitTest \
+./gradlew --no-daemon testDevAlumnoDebugUnitTest testProdAlumnoDebugUnitTest \
   --tests 'com.vaiinilla.app.StudentAuthViewModelTest' \
   --tests 'com.vaiinilla.app.OrderUserDtoNullabilityTest' \
   --tests 'com.vaiinilla.app.OrderRepositorySelectionTest' \

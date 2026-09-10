@@ -202,10 +202,10 @@ Antes de considerar un cambio terminado:
 
 ```bash
 python3 scripts/validate_fixtures.py
-./gradlew --no-daemon testDebugUnitTest
-./gradlew --no-daemon lintDebug
+./gradlew --no-daemon testDevAlumnoDebugUnitTest testProdAlumnoDebugUnitTest
+./gradlew --no-daemon lintDevAlumnoDebug
 ./gradlew --no-daemon ktlintCheck
-./gradlew --no-daemon assembleDebug
+./gradlew --no-daemon assembleDevAlumnoDebug assembleDevCajaDebug assembleDevCocinaDebug
 ```
 
 La CI de GitHub ejecuta estas verificaciones en pull requests y pushes a `main`.
