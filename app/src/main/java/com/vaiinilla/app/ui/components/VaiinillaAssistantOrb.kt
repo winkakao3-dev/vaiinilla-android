@@ -16,6 +16,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -56,12 +57,15 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.R
 import com.vaiinilla.app.domain.model.OperationalRole
 import kotlin.math.cos
 import kotlin.math.sin
@@ -762,13 +766,13 @@ fun VaiinillaAssistantOrb(
                         },
                 contentAlignment = Alignment.Center,
             ) {
-                FluidOrbField(
-                    reactionEnergy = reactionEnergy,
-                    isDarkTheme = isDarkTheme,
+                Image(
+                    painter = painterResource(R.drawable.mascot_question),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
                     modifier =
                         Modifier
-                            .size(60.dp)
-                            .clip(CircleShape)
+                            .size(62.dp)
                             .scale(1f + reactionEnergy * 0.045f),
                 )
             }
@@ -869,13 +873,13 @@ fun VaiinillaAssistantButton(
                     .border(1.5.dp, Color(0xFFB7DE63).copy(alpha = hintAlpha), CircleShape),
             )
         }
-        FluidOrbField(
-            reactionEnergy = energy,
-            isDarkTheme = isDarkTheme,
+        Image(
+            painter = painterResource(R.drawable.mascot_question),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
             modifier =
                 Modifier
-                    .size(touchSize * 0.78f)
-                    .clip(CircleShape)
+                    .size(touchSize)
                     .scale(1f + energy * 0.04f),
         )
     }

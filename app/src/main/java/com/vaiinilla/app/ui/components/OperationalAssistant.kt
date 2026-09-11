@@ -16,6 +16,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -131,6 +132,9 @@ data class OperationalAssistantPalette(
     val limeInk: Color,
     val isDark: Boolean,
 )
+
+val OperationalAssistantPalette.accentText: Color
+    get() = if (isDark) lime else limeInk
 
 sealed interface AssistantAdvance {
     data object Tap : AssistantAdvance
@@ -517,6 +521,7 @@ private fun AssistantSheetContent(
     var query by remember { mutableStateOf("") }
     var selectedGuideId by remember { mutableStateOf<String?>(null) }
     var demoStepIndex by remember { mutableIntStateOf(0) }
+    var selectedSection by remember { mutableStateOf<String?>(null) }
     val selectedGuide = guides.firstOrNull { it.id == selectedGuideId }
 
     if (selectedGuide != null) {
@@ -555,7 +560,6 @@ private fun AssistantSheetContent(
                 guide.title.contains(normalizedQuery, ignoreCase = true) ||
                 guide.section.contains(normalizedQuery, ignoreCase = true)
         }
-    val groupedGuides = filteredGuides.groupBy { it.section }
 
     Column(modifier = modifier) {
         Row(
@@ -564,10 +568,18 @@ private fun AssistantSheetContent(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
+                    text = "PASO A PASO",
+                    color = palette.accentText,
+                    fontSize = 9.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.3.sp,
+                )
+                Text(
                     text = manualTitle,
                     color = palette.ink,
-                    fontSize = 19.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 2.dp),
                 )
                 Text(
                     text = "Procedimientos completos, aunque no haya una operación activa.",
@@ -590,28 +602,43 @@ private fun AssistantSheetContent(
                     .padding(top = 14.dp, bottom = 24.dp),
         ) {
             SearchField(value = query, onValueChange = { query = it }, palette = palette)
-            if (groupedGuides.isEmpty()) {
-                Text(
-                    "No encontramos esa pregunta en este manual.",
-                    color = palette.muted,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(vertical = 18.dp),
+            val sectionChips = guides.map { it.section }.distinct()
+            if (normalizedQuery.isBlank() && sectionChips.size > 1) {
+                AssistantSectionChips(
+                    sections = sectionChips,
+                    selectedSection = selectedSection,
+                    palette = palette,
+                    onSelect = { section ->
+                        selectedSection = if (selectedSection == section) null else section
+                    },
                 )
+            }
+            val visibleGuides =
+                filteredGuides.filter { guide ->
+                    normalizedQuery.isNotBlank() ||
+                        selectedSection == null ||
+                        guide.section == selectedSection
+                }
+            if (visibleGuides.isEmpty()) {
+                ManualEmptyState(palette = palette, query = normalizedQuery)
             } else {
-                groupedGuides.forEach { (section, sectionGuides) ->
-                    GroupLabel(section, palette)
-                    sectionGuides.forEach { guide ->
-                        AssistantTaskRow(
-                            guide = guide,
-                            palette = palette,
-                            onClick = {
-                                selectedGuideId = guide.id
-                                demoStepIndex = 0
-                            },
-                        )
-                        Spacer(Modifier.height(8.dp))
-                    }
-                    Spacer(Modifier.height(10.dp))
+                Text(
+                    "${visibleGuides.size} procedimientos",
+                    color = palette.muted,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                visibleGuides.forEach { guide ->
+                    AssistantTaskRow(
+                        guide = guide,
+                        palette = palette,
+                        onClick = {
+                            selectedGuideId = guide.id
+                            demoStepIndex = 0
+                        },
+                    )
+                    Spacer(Modifier.height(8.dp))
                 }
             }
         }
@@ -658,6 +685,24 @@ private fun ManualGuideDetail(
             }
         }
 
+        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 2.dp)) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(5.dp)
+                    .clip(CircleShape)
+                    .background(palette.line),
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth(fraction = (safeIndex + 1f) / guide.demoSteps.size.coerceAtLeast(1))
+                        .height(5.dp)
+                        .clip(CircleShape)
+                        .background(palette.lime),
+                )
+            }
+        }
+
         if (step != null) {
             key(safeIndex) {
                 AnimatedVisibility(
@@ -666,48 +711,53 @@ private fun ManualGuideDetail(
                 ) {
                     val animatedStep = guide.demoSteps[safeIndex]
                     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-                        ManualDemoStage(animatedStep.visual, palette)
-                        Spacer(Modifier.height(16.dp))
-                        Text(
-                            "PASO ${safeIndex + 1} DE ${guide.demoSteps.size}",
-                            color = palette.lime,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.1.sp,
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "PASO ${safeIndex + 1} DE ${guide.demoSteps.size} · ${guide.section.uppercase()}",
+                                color = palette.accentText,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.1.sp,
+                            )
+                            Spacer(Modifier.weight(1f))
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .clip(RoundedCornerShape(7.dp))
+                                        .background(palette.lime.copy(alpha = if (palette.isDark) 0.2f else 0.28f))
+                                        .padding(horizontal = 7.dp, vertical = 3.dp),
+                            ) {
+                                Text(
+                                    "DEMO",
+                                    color = palette.accentText,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    letterSpacing = 1.2.sp,
+                                )
+                            }
+                        }
                         Text(
                             animatedStep.title,
                             color = palette.ink,
-                            fontSize = 18.sp,
-                            lineHeight = 22.sp,
+                            fontSize = 19.sp,
+                            lineHeight = 23.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(top = 4.dp),
                         )
+                        Spacer(Modifier.height(12.dp))
+                        ManualDemoStage(animatedStep.visual, palette)
+                        Spacer(Modifier.height(12.dp))
                         Text(
                             animatedStep.body,
                             color = palette.muted,
                             fontSize = 13.sp,
                             lineHeight = 18.sp,
-                            modifier = Modifier.padding(top = 5.dp),
                         )
                     }
                 }
-            }
-        }
-
-        Spacer(Modifier.height(14.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(7.dp),
-        ) {
-            guide.demoSteps.forEachIndexed { index, _ ->
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .height(4.dp)
-                        .clip(CircleShape)
-                        .background(if (index <= safeIndex) palette.lime else palette.line),
-                )
             }
         }
 
@@ -753,15 +803,15 @@ private fun ManualGuideDetail(
                         .height(44.dp)
                         .clickable(onClick = onPractice),
                 shape = RoundedCornerShape(13.dp),
-                color = Color.Transparent,
-                border = androidx.compose.foundation.BorderStroke(1.dp, palette.line),
+                color = palette.lime.copy(alpha = if (palette.isDark) 0.16f else 0.22f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, palette.lime.copy(alpha = 0.55f)),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         "Practicar en esta pantalla",
-                        color = palette.ink,
+                        color = palette.accentText,
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
@@ -1099,6 +1149,80 @@ private fun DemoField(
 }
 
 @Composable
+private fun AssistantSectionChips(
+    sections: List<String>,
+    selectedSection: String?,
+    palette: OperationalAssistantPalette,
+    onSelect: (String) -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(bottom = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        sections.forEach { section ->
+            val selected = section == selectedSection
+            Surface(
+                modifier = Modifier.clickable { onSelect(section) },
+                shape = RoundedCornerShape(999.dp),
+                color = if (selected) palette.lime else palette.surface2,
+                border =
+                    if (selected) {
+                        null
+                    } else {
+                        androidx.compose.foundation.BorderStroke(1.dp, palette.line)
+                    },
+            ) {
+                Text(
+                    section,
+                    color = if (selected) palette.limeInk else palette.muted,
+                    fontSize = 12.sp,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ManualEmptyState(
+    palette: OperationalAssistantPalette,
+    query: String,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(palette.surface2)
+                .border(1.dp, palette.line, RoundedCornerShape(16.dp))
+                .padding(16.dp),
+    ) {
+        Text(
+            "Sin resultados en el manual",
+            color = palette.ink,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            if (query.isBlank()) {
+                "Todavía no hay procedimientos en esta sección."
+            } else {
+                "No encontramos \u201C$query\u201D. Prueba con otra palabra o revisa la sección."
+            },
+            color = palette.muted,
+            fontSize = 12.5.sp,
+            lineHeight = 17.sp,
+            modifier = Modifier.padding(top = 5.dp),
+        )
+    }
+}
+
+@Composable
 private fun SearchField(
     value: String,
     onValueChange: (String) -> Unit,
@@ -1108,10 +1232,10 @@ private fun SearchField(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .height(46.dp)
-                .clip(RoundedCornerShape(13.dp))
+                .height(50.dp)
+                .clip(RoundedCornerShape(14.dp))
                 .background(palette.surface2)
-                .border(1.dp, palette.line, RoundedCornerShape(13.dp))
+                .border(1.dp, palette.line, RoundedCornerShape(14.dp))
                 .padding(horizontal = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -1135,20 +1259,6 @@ private fun SearchField(
 }
 
 @Composable
-private fun GroupLabel(
-    text: String,
-    palette: OperationalAssistantPalette,
-) {
-    Text(
-        text = text,
-        color = palette.muted,
-        fontSize = 12.sp,
-        fontWeight = FontWeight.Medium,
-        modifier = Modifier.padding(bottom = 8.dp),
-    )
-}
-
-@Composable
 private fun AssistantTaskRow(
     guide: OperationalAssistantGuide,
     palette: OperationalAssistantPalette,
@@ -1158,34 +1268,44 @@ private fun AssistantTaskRow(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .heightIn(min = 58.dp)
+                .heightIn(min = 64.dp)
                 .clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         color = palette.surface2,
-        border = androidx.compose.foundation.BorderStroke(1.dp, palette.line.copy(alpha = 0.55f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, palette.line),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = 13.dp, vertical = 13.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(
-                guide.icon,
-                contentDescription = null,
-                tint = palette.ink,
-                modifier = Modifier.size(20.dp),
-            )
+            Box(
+                modifier =
+                    Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(palette.background)
+                        .border(1.dp, palette.line, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    guide.icon,
+                    contentDescription = null,
+                    tint = palette.ink,
+                    modifier = Modifier.size(19.dp),
+                )
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     guide.title,
                     color = palette.ink,
-                    fontSize = 14.sp,
-                    lineHeight = 18.sp,
-                    fontWeight = FontWeight.Medium,
+                    fontSize = 14.5.sp,
+                    lineHeight = 19.sp,
+                    fontWeight = FontWeight.Bold,
                 )
                 Text(
                     text = "${guide.demoSteps.size} pasos · Ver demostración",
-                    color = palette.lime,
+                    color = palette.accentText,
                     fontSize = 11.sp,
                     lineHeight = 15.sp,
                     fontWeight = FontWeight.Bold,
