@@ -36,12 +36,12 @@ class AlumnoScreenshotTest {
     val composeTestRule = createComposeRule()
 
     @Test
-    fun `01_welcome`() {
+    fun `01_auth_landing`() {
         composeTestRule.setContent {
             ScreenshotTheme {
                 StudentAuthLandingScreen(
                     state = StudentAuthUiState(),
-                    onBack = {},
+                    onBack = null,
                     onRegister = {},
                     onLogin = {},
                     onExplore = {},
@@ -49,7 +49,7 @@ class AlumnoScreenshotTest {
             }
         }
         composeTestRule.waitForIdle()
-        composeTestRule.onRoot().captureRoboImage("01_welcome.png")
+        composeTestRule.onRoot().captureRoboImage("01_auth_landing.png")
     }
 
     @Test
