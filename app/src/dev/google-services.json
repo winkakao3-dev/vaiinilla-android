@@ -43,13 +43,21 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:697485438624:android:4ea7499636c7157b97a3c5",
+        "mobilesdk_app_id": "1:697485438624:android:3ec322652bcf498697a3c5",
         "android_client_info": {
           "package_name": "com.vaiinilla.app.dev"
         }
       },
       "oauth_client": [
         {
+          "client_id": "697485438624-p995aiqsp057eophhr0fireuspb5pmt3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vaiinilla.app.dev",
+            "certificate_hash": "1e57527a828e03cc3dd86a02252390a7a8e961d4"
+          }
+        },
+        {
           "client_id": "697485438624-6i7o7q74il519m5i9tju6kmij6cr5a59.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -79,13 +87,21 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:697485438624:android:4ea7499636c7157b97a3c5",
+        "mobilesdk_app_id": "1:697485438624:android:3ec322652bcf498697a3c5",
         "android_client_info": {
           "package_name": "com.vaiinilla.app.dev.caja"
         }
       },
       "oauth_client": [
         {
+          "client_id": "697485438624-p995aiqsp057eophhr0fireuspb5pmt3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vaiinilla.app.dev.caja",
+            "certificate_hash": "1e57527a828e03cc3dd86a02252390a7a8e961d4"
+          }
+        },
+        {
           "client_id": "697485438624-6i7o7q74il519m5i9tju6kmij6cr5a59.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -115,12 +131,20 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:697485438624:android:4ea7499636c7157b97a3c5",
+        "mobilesdk_app_id": "1:697485438624:android:3ec322652bcf498697a3c5",
         "android_client_info": {
           "package_name": "com.vaiinilla.app.dev.cocina"
         }
       },
       "oauth_client": [
+        {
+          "client_id": "697485438624-p995aiqsp057eophhr0fireuspb5pmt3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vaiinilla.app.dev.cocina",
+            "certificate_hash": "1e57527a828e03cc3dd86a02252390a7a8e961d4"
+          }
+        },
         {
           "client_id": "697485438624-6i7o7q74il519m5i9tju6kmij6cr5a59.apps.googleusercontent.com",
           "client_type": 3
