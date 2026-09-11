@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -199,12 +198,20 @@ fun DiscoveryScreen(
                 }
                 state.suspendedMessage?.let { message ->
                     item {
-                        VenueNoticeCard(message = message, tone = colors.coral, modifier = Modifier.padding(top = 14.dp))
+                        VenueNoticeCard(
+                            message = message,
+                            tone = colors.coral,
+                            modifier = Modifier.padding(top = 14.dp),
+                        )
                     }
                 }
                 state.errorMessage?.let { message ->
                     item {
-                        VenueNoticeCard(message = message, tone = colors.coral, modifier = Modifier.padding(top = 14.dp))
+                        VenueNoticeCard(
+                            message = message,
+                            tone = colors.coral,
+                            modifier = Modifier.padding(top = 14.dp),
+                        )
                     }
                 }
                 if (state.loading && state.establishments.isEmpty()) {
@@ -608,8 +615,7 @@ private fun VenueDock(
                         } else {
                             Modifier
                         },
-                    )
-                    .padding(horizontal = 20.dp),
+                    ).padding(horizontal = 20.dp),
             contentAlignment = Alignment.Center,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {

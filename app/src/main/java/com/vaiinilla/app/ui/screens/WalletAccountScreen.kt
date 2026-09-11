@@ -50,6 +50,7 @@ import com.vaiinilla.app.ui.components.AuthAccessField
 import com.vaiinilla.app.ui.components.AuthAccessFieldKind
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialPrimaryButton
+import com.vaiinilla.app.ui.components.TotpMfaChallengeForm
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.components.WalletScreenShell
 import com.vaiinilla.app.ui.components.WalletSubflowTopBar
@@ -80,6 +81,9 @@ fun WalletAccountScreen(
     onConfirmAccountDeletion: () -> Unit = {},
     onCancelAccountDeletion: () -> Unit = {},
     onSubmitAccountDeletionPassword: (String) -> Unit = {},
+    onAccountDeletionMfaCodeChange: (String) -> Unit = {},
+    onAccountDeletionMfaFactorSelected: (String) -> Unit = {},
+    onSubmitAccountDeletionMfa: () -> Unit = {},
     onRetryAccountDeletion: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
@@ -364,6 +368,15 @@ fun WalletAccountScreen(
                     onSubmit = onSubmitAccountDeletionPassword,
                     onDismiss = onCancelAccountDeletion,
                 )
+            is AccountDeletionStatus.MfaChallenge ->
+                AccountDeletionMfaDialog(
+                    status = status,
+                    errorMessage = accountDeletionState.errorMessage,
+                    onCodeChange = onAccountDeletionMfaCodeChange,
+                    onFactorSelected = onAccountDeletionMfaFactorSelected,
+                    onSubmit = onSubmitAccountDeletionMfa,
+                    onDismiss = onCancelAccountDeletion,
+                )
             AccountDeletionStatus.Deleting -> AccountDeletionProgressDialog()
             is AccountDeletionStatus.RecoverableError ->
                 AccountDeletionErrorDialog(
@@ -461,6 +474,41 @@ private fun AccountDeletionReauthenticationDialog(
                     enabled = !busy,
                     background = colors.paper2,
                     contentColor = colors.ink,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountDeletionMfaDialog(
+    status: AccountDeletionStatus.MfaChallenge,
+    errorMessage: String?,
+    onCodeChange: (String) -> Unit,
+    onFactorSelected: (String) -> Unit,
+    onSubmit: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Dialog(
+        onDismissRequest = { if (!status.busy) onDismiss() },
+        properties = DialogProperties(dismissOnBackPress = !status.busy, dismissOnClickOutside = !status.busy),
+    ) {
+        Surface(color = colors.paper, shape = RoundedCornerShape(28.dp)) {
+            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Confirma tu identidad", color = colors.ink, fontSize = 20.sp, fontWeight = FontWeight.Black)
+                TotpMfaChallengeForm(
+                    factors = status.challenge.factors,
+                    selectedFactorUid = status.factorUid,
+                    code = status.code,
+                    loading = status.busy,
+                    errorMessage = errorMessage,
+                    onFactorSelected = onFactorSelected,
+                    onCodeChange = onCodeChange,
+                    onSubmit = onSubmit,
+                    onCancel = onDismiss,
+                    submitBackground = colors.coral,
+                    submitContentColor = colors.paper,
                 )
             }
         }

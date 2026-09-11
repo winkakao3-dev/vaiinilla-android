@@ -5,8 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.auth.StudentSessionCleanup
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.data.auth.student.StudentAuthMfaChallengeExpiredException
+import com.vaiinilla.app.data.auth.student.StudentAuthMfaRequiredException
 import com.vaiinilla.app.data.auth.student.StudentAuthUserNotFoundException
 import com.vaiinilla.app.domain.account.AccountDeletionRepository
+import com.vaiinilla.app.domain.auth.student.StudentAuthMfaOperation
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -32,6 +35,9 @@ class AccountDeletionViewModel
         }
 
         fun cancel() {
+            (_state.value.status as? AccountDeletionStatus.MfaChallenge)?.let { status ->
+                authRepository.cancelMfa(status.challenge.id)
+            }
             idempotencyKey = null
             _state.value = AccountDeletionUiState()
         }
@@ -68,11 +74,107 @@ class AccountDeletionViewModel
                     onFailure = { error ->
                         if (error is StudentAuthUserNotFoundException) {
                             invalidateLocalSession(onSessionInvalidated)
+                        } else if (error is StudentAuthMfaRequiredException) {
+                            _state.value =
+                                AccountDeletionUiState(
+                                    status =
+                                        AccountDeletionStatus.MfaChallenge(
+                                            challenge = error.challenge,
+                                            factorUid =
+                                                error.challenge.factors
+                                                    .firstOrNull()
+                                                    ?.uid,
+                                        ),
+                                )
                         } else {
                             _state.value =
                                 AccountDeletionUiState(
                                     status = AccountDeletionStatus.Reauthentication(),
                                     errorMessage = error.toUserFacingMessage("No pudimos confirmar tu contraseña."),
+                                )
+                        }
+                    },
+                )
+            }
+        }
+
+        fun updateMfaCode(value: String) {
+            val status = _state.value.status as? AccountDeletionStatus.MfaChallenge ?: return
+            _state.value =
+                _state.value.copy(
+                    status = status.copy(code = value.filter(Char::isDigit).take(6)),
+                    errorMessage = null,
+                )
+        }
+
+        fun selectMfaFactor(factorUid: String) {
+            val status = _state.value.status as? AccountDeletionStatus.MfaChallenge ?: return
+            if (status.challenge.factors.none { it.uid == factorUid }) return
+            _state.value =
+                _state.value.copy(
+                    status = status.copy(factorUid = factorUid),
+                    errorMessage = null,
+                )
+        }
+
+        fun submitMfaCode(
+            onDeleted: () -> Unit = {},
+            onSessionInvalidated: () -> Unit = {},
+        ) {
+            val status = _state.value.status as? AccountDeletionStatus.MfaChallenge ?: return
+            if (status.busy) return
+            val factorUid =
+                status.factorUid
+                    ?: status.challenge.factors
+                        .firstOrNull()
+                        ?.uid
+            if (factorUid == null) {
+                _state.value =
+                    _state.value.copy(
+                        errorMessage = "No encontramos un método de autenticación disponible.",
+                    )
+                return
+            }
+            if (status.code.length != 6) {
+                _state.value = _state.value.copy(errorMessage = "Ingresa el código de 6 dígitos.")
+                return
+            }
+            val key = idempotencyKey ?: return
+            _state.value = _state.value.copy(status = status.copy(busy = true), errorMessage = null)
+            viewModelScope.launch {
+                authRepository.resolveMfa(status.challenge.id, factorUid, status.code).fold(
+                    onSuccess = { resolution ->
+                        if (resolution.operation != StudentAuthMfaOperation.REAUTHENTICATION) {
+                            _state.value =
+                                AccountDeletionUiState(
+                                    status = AccountDeletionStatus.Reauthentication(),
+                                    errorMessage = "La confirmación de identidad ya no es válida.",
+                                )
+                            return@fold
+                        }
+                        _state.value = AccountDeletionUiState(status = AccountDeletionStatus.Deleting)
+                        deleteWithToken(
+                            idempotencyKey = key,
+                            onDeleted = onDeleted,
+                            onSessionInvalidated = onSessionInvalidated,
+                        )
+                    },
+                    onFailure = { error ->
+                        if (error is StudentAuthMfaChallengeExpiredException) {
+                            authRepository.cancelMfa(status.challenge.id)
+                            _state.value =
+                                AccountDeletionUiState(
+                                    status = AccountDeletionStatus.Reauthentication(),
+                                    errorMessage = error.message,
+                                )
+                        } else {
+                            _state.value =
+                                _state.value.copy(
+                                    status = status.copy(busy = false),
+                                    errorMessage =
+                                        error.toUserFacingMessage(
+                                            "El código no es válido. Revisa tu aplicación autenticadora e inténtalo de nuevo.",
+                                        ),
                                 )
                         }
                     },
@@ -173,4 +275,11 @@ class AccountDeletionViewModel
                     "El servidor no pudo completar la eliminación. Tu sesión sigue activa; inténtalo de nuevo."
                 else -> error.toUserFacingMessage()
             }
+
+        override fun onCleared() {
+            (_state.value.status as? AccountDeletionStatus.MfaChallenge)?.let { status ->
+                authRepository.cancelMfa(status.challenge.id)
+            }
+            super.onCleared()
+        }
     }

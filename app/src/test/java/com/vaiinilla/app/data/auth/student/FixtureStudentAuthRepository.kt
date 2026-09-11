@@ -1,6 +1,8 @@
 package com.vaiinilla.app.data.auth.student
 
 import com.vaiinilla.app.core.security.SecureSessionStore
+import com.vaiinilla.app.domain.auth.student.StudentAuthMfaChallenge
+import com.vaiinilla.app.domain.auth.student.StudentAuthMfaResolution
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthSession
 import java.util.UUID
@@ -17,6 +19,12 @@ class FixtureStudentAuthRepository
     ) : StudentAuthRepository {
         private val accounts = ConcurrentHashMap<String, FixtureAccount>()
         private var currentUid: String? = null
+        var signInMfaChallenge: StudentAuthMfaChallenge? = null
+        var mfaResolution: Result<StudentAuthMfaResolution>? = null
+        var resolveMfaCalls: Int = 0
+            private set
+        var cancelMfaCalls: Int = 0
+            private set
 
         override fun peekSession(): StudentAuthSession? {
             val uid = currentUid ?: return null
@@ -65,8 +73,23 @@ class FixtureStudentAuthRepository
                     accounts.values.firstOrNull { it.email == normalized && it.password == password }
                         ?: throw IllegalStateException("Correo o contraseña incorrectos.")
                 currentUid = account.uid
+                signInMfaChallenge?.let { throw StudentAuthMfaRequiredException(it) }
                 account.toSession()
             }
+
+        override suspend fun resolveMfa(
+            challengeId: String,
+            factorUid: String,
+            code: String,
+        ): Result<StudentAuthMfaResolution> {
+            resolveMfaCalls++
+            return mfaResolution
+                ?: Result.failure(IllegalStateException("MFA de prueba no configurado."))
+        }
+
+        override fun cancelMfa(challengeId: String) {
+            cancelMfaCalls++
+        }
 
         var verificationEmailCalls: Int = 0
             private set

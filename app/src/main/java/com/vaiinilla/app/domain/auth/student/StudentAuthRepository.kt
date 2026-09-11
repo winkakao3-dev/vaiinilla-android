@@ -27,5 +27,14 @@ interface StudentAuthRepository {
     suspend fun reauthenticateWithPassword(password: String): Result<Unit> =
         Result.failure(UnsupportedOperationException("Reautenticación no soportada por este proveedor."))
 
+    suspend fun resolveMfa(
+        challengeId: String,
+        factorUid: String,
+        code: String,
+    ): Result<StudentAuthMfaResolution> =
+        Result.failure(UnsupportedOperationException("MFA no soportado por este proveedor."))
+
+    fun cancelMfa(challengeId: String) = Unit
+
     suspend fun signOut()
 }

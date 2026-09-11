@@ -12,6 +12,7 @@ import com.vaiinilla.app.ui.components.AuthAccessField
 import com.vaiinilla.app.ui.components.AuthAccessFieldKind
 import com.vaiinilla.app.ui.components.AuthAccessScaffold
 import com.vaiinilla.app.ui.components.AuthInkSubmitButton
+import com.vaiinilla.app.ui.components.TotpMfaChallengeForm
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
@@ -25,9 +26,42 @@ fun StudentLoginScreen(
     onLogin: () -> Unit,
     onForgotPassword: () -> Unit,
     onRegister: () -> Unit,
+    onMfaCodeChange: (String) -> Unit = {},
+    onMfaFactorSelected: (String) -> Unit = {},
+    onSubmitMfa: () -> Unit = {},
+    onCancelMfa: () -> Unit = {},
     showBack: Boolean = true,
     existingVerifiedSession: Boolean = false,
 ) {
+    val mfaChallenge = state.mfaChallenge
+    if (mfaChallenge != null) {
+        AuthAccessScaffold(
+            kicker = "Verificación adicional",
+            title = "Confirma tu identidad.",
+            intro = "Tu cuenta tiene activada la autenticación en dos pasos.",
+            loading = state.loading,
+            hintPrefix = null,
+            hintAction = null,
+            onHintAction = null,
+            privacyUrl = state.privacyUrl,
+            termsUrl = state.termsUrl,
+            showBack = showBack,
+            onBack = onCancelMfa,
+        ) {
+            TotpMfaChallengeForm(
+                factors = mfaChallenge.factors,
+                selectedFactorUid = state.mfaFactorUid,
+                code = state.mfaCode,
+                loading = state.loading,
+                errorMessage = state.errorMessage,
+                onFactorSelected = onMfaFactorSelected,
+                onCodeChange = onMfaCodeChange,
+                onSubmit = onSubmitMfa,
+                onCancel = onCancelMfa,
+            )
+        }
+        return
+    }
     AuthAccessScaffold(
         kicker = if (existingVerifiedSession) "Vincular comedor" else "Acceso de estudiante",
         title = if (existingVerifiedSession) "Completa tu acceso." else "Qué bueno verte de nuevo.",

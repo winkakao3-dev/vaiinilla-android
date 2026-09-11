@@ -7,9 +7,14 @@ import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.security.PickupTokenStore
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.account.RemoteAccountDeletionRepository
+import com.vaiinilla.app.data.auth.student.StudentAuthMfaRequiredException
 import com.vaiinilla.app.data.auth.student.StudentAuthUserNotFoundException
 import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.domain.account.AccountDeletionRepository
+import com.vaiinilla.app.domain.auth.student.StudentAuthMfaChallenge
+import com.vaiinilla.app.domain.auth.student.StudentAuthMfaFactor
+import com.vaiinilla.app.domain.auth.student.StudentAuthMfaOperation
+import com.vaiinilla.app.domain.auth.student.StudentAuthMfaResolution
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthSession
 import com.vaiinilla.app.ui.account.AccountDeletionStatus
@@ -165,6 +170,39 @@ class AccountDeletionViewModelTest {
         }
 
     @Test
+    fun `reauthentication MFA resumes deletion with the same idempotency key`() =
+        runTest {
+            val challenge =
+                StudentAuthMfaChallenge(
+                    id = "reauth-mfa",
+                    operation = StudentAuthMfaOperation.REAUTHENTICATION,
+                    factors = listOf(StudentAuthMfaFactor(uid = "totp-1", displayName = null)),
+                )
+            auth.reauthenticationResult = Result.failure(StudentAuthMfaRequiredException(challenge))
+            auth.mfaResolution =
+                Result.success(
+                    StudentAuthMfaResolution(
+                        operation = StudentAuthMfaOperation.REAUTHENTICATION,
+                        session = auth.peekSession(),
+                    ),
+                )
+
+            viewModel.requestConfirmation()
+            viewModel.confirm()
+            viewModel.submitPassword("secret")
+            advanceUntilIdle()
+
+            assertTrue(viewModel.state.value.status is AccountDeletionStatus.MfaChallenge)
+            viewModel.updateMfaCode("123456")
+            viewModel.submitMfaCode()
+            advanceUntilIdle()
+
+            assertEquals(1, auth.resolveMfaCalls)
+            assertEquals(1, deletion.calls)
+            assertEquals(AccountDeletionStatus.Success, viewModel.state.value.status)
+        }
+
+    @Test
     fun `sends Firebase ID token instead of Vaiinilla JWT`() =
         runTest {
             viewModel.beginAndSubmit()
@@ -306,6 +344,8 @@ class AccountDeletionViewModelTest {
         var signOutCalls = 0
         var reauthenticationCalls = 0
         var reauthenticationResult: Result<Unit> = Result.success(Unit)
+        var mfaResolution: Result<com.vaiinilla.app.domain.auth.student.StudentAuthMfaResolution>? = null
+        var resolveMfaCalls = 0
         var tokenResult: Result<String> = Result.success("firebase-id-token")
 
         override fun peekSession(): StudentAuthSession? =
@@ -331,6 +371,15 @@ class AccountDeletionViewModelTest {
         override suspend fun reauthenticateWithPassword(password: String): Result<Unit> {
             reauthenticationCalls += 1
             return reauthenticationResult
+        }
+
+        override suspend fun resolveMfa(
+            challengeId: String,
+            factorUid: String,
+            code: String,
+        ): Result<com.vaiinilla.app.domain.auth.student.StudentAuthMfaResolution> {
+            resolveMfaCalls += 1
+            return mfaResolution ?: Result.failure(IllegalStateException("MFA no configurado."))
         }
 
         override suspend fun signOut() {

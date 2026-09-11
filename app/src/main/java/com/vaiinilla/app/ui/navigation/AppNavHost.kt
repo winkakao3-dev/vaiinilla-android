@@ -42,7 +42,6 @@ import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
-import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.isEstablishmentSwitch
@@ -70,6 +69,7 @@ import com.vaiinilla.app.ui.screens.WalletAddCardScreen
 import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
 import com.vaiinilla.app.ui.screens.WalletPaymentMethodsScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.wallet.WalletViewModel
 import com.vaiinilla.app.ui.wallet.rememberWalletUiState
 import kotlinx.coroutines.delay
@@ -740,6 +740,16 @@ fun AppNavHost(
                             onSessionInvalidated = { finishAccountSession() },
                         )
                     },
+                    onAccountDeletionMfaCodeChange = accountDeletionViewModel::updateMfaCode,
+                    onAccountDeletionMfaFactorSelected = accountDeletionViewModel::selectMfaFactor,
+                    onSubmitAccountDeletionMfa = {
+                        accountDeletionViewModel.submitMfaCode(
+                            onDeleted = {
+                                finishAccountSession("Tu cuenta fue eliminada correctamente")
+                            },
+                            onSessionInvalidated = { finishAccountSession() },
+                        )
+                    },
                     onRetryAccountDeletion = {
                         accountDeletionViewModel.retry(
                             onDeleted = {
@@ -919,6 +929,10 @@ fun AppNavHost(
                             launchSingleTop = true
                         }
                     },
+                    onMfaCodeChange = studentAuthViewModel::updateMfaCode,
+                    onMfaFactorSelected = studentAuthViewModel::selectMfaFactor,
+                    onSubmitMfa = studentAuthViewModel::submitMfaCode,
+                    onCancelMfa = studentAuthViewModel::cancelMfa,
                     existingVerifiedSession = existingVerifiedSession,
                 )
             }
