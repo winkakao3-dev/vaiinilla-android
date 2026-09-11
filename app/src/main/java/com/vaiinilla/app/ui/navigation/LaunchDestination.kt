@@ -8,6 +8,8 @@ sealed class LaunchDestination {
 
     data object Discovery : LaunchDestination()
 
+    data object Catalog : LaunchDestination()
+
     data object StaffModes : LaunchDestination()
 }
 
@@ -15,17 +17,20 @@ fun resolveLaunchDestination(
     pendingEstablishmentSlug: String?,
     session: StudentAuthSession?,
     hasStaffModes: Boolean,
+    hasSavedVenue: Boolean,
 ): LaunchDestination {
     if (!pendingEstablishmentSlug.isNullOrBlank()) return LaunchDestination.Discovery
-    if (session == null) return LaunchDestination.Login
+    if (session == null && !hasSavedVenue) return LaunchDestination.Login
     if (hasStaffModes) return LaunchDestination.StaffModes
-    return LaunchDestination.Discovery
+    if (!hasSavedVenue) return LaunchDestination.Discovery
+    return LaunchDestination.Catalog
 }
 
 fun LaunchDestination.toRoute(): String =
     when (this) {
-        LaunchDestination.Login -> Routes.authLoginRoute(Routes.DISCOVERY)
+        LaunchDestination.Login -> Routes.authLandingRoute(Routes.DISCOVERY)
         LaunchDestination.Discovery -> Routes.DISCOVERY
+        LaunchDestination.Catalog -> Routes.CATALOG
         LaunchDestination.StaffModes -> Routes.STAFF_MODES
     }
 

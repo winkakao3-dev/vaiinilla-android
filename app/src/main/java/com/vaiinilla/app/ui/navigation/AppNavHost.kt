@@ -8,12 +8,16 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -38,6 +42,7 @@ import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.isEstablishmentSwitch
@@ -53,7 +58,6 @@ import com.vaiinilla.app.ui.screens.InvitationAcceptanceScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
-import com.vaiinilla.app.ui.screens.SplashScreen
 import com.vaiinilla.app.ui.screens.StudentAuthLandingScreen
 import com.vaiinilla.app.ui.screens.StudentForgotPasswordScreen
 import com.vaiinilla.app.ui.screens.StudentLoginScreen
@@ -323,12 +327,14 @@ fun AppNavHost(
                             authorizedAccessViewModel.state.value.modes
                                 .map { it.role },
                         ),
+                    hasSavedVenue = studentAuthViewModel.state.value.guestVenue != null,
                 )
             val route =
                 when (destination) {
                     LaunchDestination.Login,
                     LaunchDestination.Discovery,
                     -> Routes.DISCOVERY
+                    LaunchDestination.Catalog -> Routes.CATALOG
                     LaunchDestination.StaffModes -> Routes.STAFF_MODES
                 }
             navController.navigate(route) {
@@ -419,43 +425,49 @@ fun AppNavHost(
             popExitTransition = { studentTabSlideExit(this) },
         ) {
             composable(Routes.SPLASH) {
-                var preloadedDestination by remember { mutableStateOf<LaunchDestination?>(null) }
-
                 LaunchedEffect(Unit) {
                     authorizedAccessViewModel.refreshCurrentSession()
                     studentAuthViewModel.refreshGuestVenue()
                     discoveryViewModel.search("")
-                    if (orderState.guestVenue != null) {
+                    val savedVenue = studentAuthViewModel.state.value.guestVenue
+                    if (savedVenue != null && orderState.guestVenue == null) {
+                        orderFlowViewModel.enterGuestVenue(savedVenue)
+                    } else if (orderState.guestVenue != null) {
                         orderFlowViewModel.refresh()
                     }
-                    authorizedAccessViewModel.refreshModes(force = true) {
-                        preloadedDestination =
+                    val session = authorizedAccessViewModel.state.value.session
+                    if (session == null) {
+                        navigateLaunchDestination(
                             resolveLaunchDestination(
                                 pendingEstablishmentSlug = pendingEstablishmentSlug,
-                                session = authorizedAccessViewModel.state.value.session,
-                                hasStaffModes =
-                                    hasStaffLaunchModes(
-                                        authorizedAccessViewModel.state.value.modes
-                                            .map { it.role },
-                                    ),
+                                session = null,
+                                hasStaffModes = false,
+                                hasSavedVenue = savedVenue != null,
+                            ),
+                        )
+                    } else {
+                        authorizedAccessViewModel.refreshModes(force = true) {
+                            navigateLaunchDestination(
+                                resolveLaunchDestination(
+                                    pendingEstablishmentSlug = pendingEstablishmentSlug,
+                                    session = authorizedAccessViewModel.state.value.session,
+                                    hasStaffModes =
+                                        hasStaffLaunchModes(
+                                            authorizedAccessViewModel.state.value.modes
+                                                .map { it.role },
+                                        ),
+                                    hasSavedVenue = studentAuthViewModel.state.value.guestVenue != null,
+                                ),
                             )
+                        }
                     }
                 }
 
-                SplashScreen(
-                    onFinished = {
-                        val destination =
-                            preloadedDestination ?: resolveLaunchDestination(
-                                pendingEstablishmentSlug = pendingEstablishmentSlug,
-                                session = authorizedAccessViewModel.state.value.session,
-                                hasStaffModes =
-                                    hasStaffLaunchModes(
-                                        authorizedAccessViewModel.state.value.modes
-                                            .map { it.role },
-                                    ),
-                            )
-                        navigateLaunchDestination(destination)
-                    },
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .background(LocalVaiinillaColors.current.paper),
                 )
             }
 
@@ -484,6 +496,12 @@ fun AppNavHost(
                     },
                     profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
                     onOpenAccount = { navController.navigate(Routes.WALLET_ACCOUNT) },
+                    onBack =
+                        if (navController.previousBackStackEntry != null) {
+                            { navController.popBackStack() }
+                        } else {
+                            null
+                        },
                 )
 
                 if (qrScannerOpen) {
@@ -768,6 +786,8 @@ fun AppNavHost(
                     guestAuthRequired = guestAuthRequired,
                     profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
                     onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
+                    isRefreshing = orderState.refreshing,
+                    onRefresh = orderFlowViewModel::refreshOperationalStatus,
                 )
             }
 
@@ -778,7 +798,12 @@ fun AppNavHost(
                 val returnRoute = entry.arguments?.getString("returnRoute") ?: Routes.CART
                 StudentAuthLandingScreen(
                     state = studentAuthState,
-                    onBack = { navController.popBackStack() },
+                    onBack =
+                        if (navController.previousBackStackEntry != null) {
+                            { navController.popBackStack() }
+                        } else {
+                            null
+                        },
                     onRegister = {
                         navController.navigate(Routes.authRegisterRoute(returnRoute)) {
                             launchSingleTop = true
@@ -786,6 +811,11 @@ fun AppNavHost(
                     },
                     onLogin = {
                         navController.navigate(Routes.authLoginRoute(returnRoute)) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onExplore = {
+                        navController.navigate(Routes.DISCOVERY) {
                             launchSingleTop = true
                         }
                     },
