@@ -11,7 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      VAIINILLA_API_BASE_URL: ${{ vars.VAIINILLA_API_BASE_URL || 'https://vaiinillaback.up.railway.app/api/v1/' }}
+      # Pull-request checks must use the current Development API explicitly;
+      # this prevents a stale repository variable from routing CI to a retired
+      # Railway hostname. Main still uses the configured production endpoint.
+      VAIINILLA_API_BASE_URL: ${{ github.event_name == 'pull_request' && 'https://vaiinillaback-development.up.railway.app/api/v1/' || vars.VAIINILLA_API_BASE_URL || 'https://vaiinillaback.up.railway.app/api/v1/' }}
 
     steps:
       - name: Checkout
