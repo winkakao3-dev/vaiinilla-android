@@ -16,9 +16,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.credentials.exceptions.GetCredentialException
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
@@ -30,6 +32,9 @@ import androidx.navigation.navArgument
 import com.stripe.android.PaymentConfiguration
 import com.stripe.android.paymentsheet.PaymentSheet
 import com.stripe.android.paymentsheet.PaymentSheetResult
+import com.vaiinilla.app.R
+import com.vaiinilla.app.data.auth.student.GoogleSignInHelper
+import com.vaiinilla.app.data.auth.student.GoogleSignInUnavailableException
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.PaymentMethod
@@ -42,7 +47,6 @@ import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
-import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.isEstablishmentSwitch
@@ -70,10 +74,12 @@ import com.vaiinilla.app.ui.screens.WalletAddCardScreen
 import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
 import com.vaiinilla.app.ui.screens.WalletPaymentMethodsScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.wallet.WalletViewModel
 import com.vaiinilla.app.ui.wallet.rememberWalletUiState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 private data class PendingPickupDelivery(
     val orderId: String,
@@ -796,6 +802,8 @@ fun AppNavHost(
                 arguments = listOf(authReturnArg),
             ) { entry ->
                 val returnRoute = entry.arguments?.getString("returnRoute") ?: Routes.CART
+                val context = LocalContext.current
+                val coroutineScope = rememberCoroutineScope()
                 StudentAuthLandingScreen(
                     state = studentAuthState,
                     onBack =
@@ -812,6 +820,37 @@ fun AppNavHost(
                     onLogin = {
                         navController.navigate(Routes.authLoginRoute(returnRoute)) {
                             launchSingleTop = true
+                        }
+                    },
+                    onGoogleSignIn = {
+                        coroutineScope.launch {
+                            val webClientId = context.getString(R.string.default_web_client_id)
+                            val idToken =
+                                try {
+                                    GoogleSignInHelper.requestIdToken(
+                                        context = context,
+                                        webClientId = webClientId,
+                                    )
+                                } catch (error: GetCredentialException) {
+                                    null
+                                } catch (error: GoogleSignInUnavailableException) {
+                                    null
+                                }
+                            if (idToken == null) {
+                                studentAuthViewModel.reportError(
+                                    "No se pudo iniciar sesión con Google. Inténtalo de nuevo.",
+                                )
+                                return@launch
+                            }
+                            studentAuthViewModel.loginWithGoogle(idToken) { authenticated ->
+                                if (authenticated) {
+                                    finishStudentAuth(returnRoute)
+                                } else {
+                                    navController.navigate(Routes.authVerifyRoute(returnRoute)) {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            }
                         }
                     },
                     onExplore = {

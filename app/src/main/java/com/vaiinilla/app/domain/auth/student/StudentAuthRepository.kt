@@ -17,6 +17,10 @@ interface StudentAuthRepository {
         password: String,
     ): Result<StudentAuthSession>
 
+    /** Exchanges a Google ID token (from Credential Manager) for a Firebase session. */
+    suspend fun signInWithGoogleIdToken(idToken: String): Result<StudentAuthSession> =
+        Result.failure(UnsupportedOperationException("Inicio con Google no soportado por este proveedor."))
+
     suspend fun sendEmailVerification(): Result<Unit> =
         Result.failure(UnsupportedOperationException("Verificación de correo no soportada por este proveedor."))
 

@@ -3,6 +3,7 @@ package com.vaiinilla.app.data.auth.student
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
@@ -70,6 +71,20 @@ class FirebaseStudentAuthRepository
                     auth.signInWithEmailAndPassword(email.trim().lowercase(), password).await()
                     val user = auth.currentUser ?: throw IllegalStateException("No se pudo iniciar sesión.")
                     user.reload().await()
+                    sessionStore.clear()
+                    user.toSession()
+                }.recoverCatching { error ->
+                    throw IllegalStateException(firebaseAuthUserMessage(error))
+                }
+            }
+
+        override suspend fun signInWithGoogleIdToken(idToken: String): Result<StudentAuthSession> =
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    require(idToken.isNotBlank()) { "Token de Google inválido." }
+                    val credential = GoogleAuthProvider.getCredential(idToken, null)
+                    auth.signInWithCredential(credential).await()
+                    val user = auth.currentUser ?: throw IllegalStateException("No se pudo iniciar sesión con Google.")
                     sessionStore.clear()
                     user.toSession()
                 }.recoverCatching { error ->

@@ -218,6 +218,10 @@ class StudentAuthViewModel
             _state.value = _state.value.copy(privacyAccepted = accepted, errorMessage = null)
         }
 
+        fun reportError(message: String) {
+            _state.value = _state.value.copy(loading = false, errorMessage = message)
+        }
+
         fun clearError() {
             _state.value = _state.value.copy(errorMessage = null)
         }
@@ -312,6 +316,33 @@ class StudentAuthViewModel
                         } else {
                             onSuccess(true)
                         }
+                    },
+                    onFailure = { error ->
+                        _state.value =
+                            _state.value.copy(
+                                loading = false,
+                                errorMessage = error.toUserFacingMessage(),
+                            )
+                    },
+                )
+            }
+        }
+
+        /** Called once the UI already has a Google ID token from Credential Manager. */
+        fun loginWithGoogle(
+            idToken: String,
+            onSuccess: (Boolean) -> Unit,
+        ) {
+            if (_state.value.loading) return
+            _state.value = _state.value.copy(loading = true, errorMessage = null)
+            launchTracked {
+                authRepository.signInWithGoogleIdToken(idToken).fold(
+                    onSuccess = { session ->
+                        _state.value = _state.value.copy(loading = false, session = session)
+                        completeEnrollment(
+                            onSuccess = { onSuccess(true) },
+                            onNeedsVerify = { onSuccess(false) },
+                        )
                     },
                     onFailure = { error ->
                         _state.value =

@@ -8,7 +8,10 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,12 +20,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,12 +42,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -52,9 +58,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.R
 import com.vaiinilla.app.ui.auth.student.StudentAuthUiState
 import com.vaiinilla.app.ui.components.EditorialAccentButton
-import com.vaiinilla.app.ui.components.EditorialPrimaryButton
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
@@ -213,6 +219,7 @@ fun StudentAuthLandingScreen(
     onBack: (() -> Unit)?,
     onRegister: () -> Unit,
     onLogin: () -> Unit,
+    onGoogleSignIn: () -> Unit,
     onExplore: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -406,18 +413,43 @@ fun StudentAuthLandingScreen(
                             .padding(start = 24.dp, end = 24.dp, bottom = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(9.dp),
                 ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(9.dp),
+                    ) {
+                        AuthPillButton(
+                            onClick = onLogin,
+                            modifier = Modifier.weight(1f),
+                            enabled = !state.loading,
+                            background = colors.paper2,
+                            border = colors.line,
+                        ) {
+                            Text(
+                                "Ya tengo cuenta",
+                                color = colors.ink,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 13.sp,
+                                maxLines = 1,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                        GooglePillSignInButton(
+                            onClick = onGoogleSignIn,
+                            modifier = Modifier.weight(1f),
+                            enabled = !state.loading,
+                            background = colors.paper2,
+                            border = colors.line,
+                        )
+                    }
                     EditorialAccentButton(
-                        text = "Comenzar",
+                        text = "Crear cuenta",
                         onClick = onRegister,
                         enabled = !state.loading,
                     )
-                    EditorialPrimaryButton(
-                        text = "Ya tengo una cuenta",
-                        onClick = onLogin,
-                        enabled = !state.loading,
-                        background = colors.paper2,
-                        contentColor = colors.ink,
-                    )
+                    state.errorMessage?.let { error ->
+                        Spacer(Modifier.height(2.dp))
+                        AuthErrorBanner(error)
+                    }
                     TextButton(
                         onClick = onExplore,
                         enabled = !state.loading,
@@ -456,6 +488,56 @@ fun StudentAuthLandingScreen(
     }
 }
 
+/** Compact pill matching EditorialPrimaryButton's shape/height, tighter padding for a half-width slot. */
+@Composable
+private fun AuthPillButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean,
+    background: Color,
+    border: Color,
+    content: @Composable () -> Unit,
+) {
+    val shape = RoundedCornerShape(18.dp)
+    Box(
+        modifier =
+            modifier
+                .heightIn(min = 52.dp)
+                .clip(shape)
+                .background(background)
+                .border(1.dp, border, shape)
+                .clickable(enabled = enabled, onClick = onClick)
+                .padding(horizontal = 6.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
+    }
+}
+
+/** Icon-only "Sign in with Google" pill, sized to match EditorialPrimaryButton. */
+@Composable
+private fun GooglePillSignInButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean,
+    background: Color,
+    border: Color,
+) {
+    AuthPillButton(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        background = background,
+        border = border,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.ic_google_logo),
+            contentDescription = "Continuar con Google",
+            modifier = Modifier.size(22.dp),
+        )
+    }
+}
+
 @Preview(name = "Bienvenida v2", showBackground = true, widthDp = 411, heightDp = 891)
 @Composable
 private fun StudentAuthLandingScreenPreview() {
@@ -465,6 +547,7 @@ private fun StudentAuthLandingScreenPreview() {
             onBack = null,
             onRegister = {},
             onLogin = {},
+            onGoogleSignIn = {},
             onExplore = {},
         )
     }
