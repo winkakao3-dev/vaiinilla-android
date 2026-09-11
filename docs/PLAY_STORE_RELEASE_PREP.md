@@ -57,9 +57,9 @@ Google Play exige que una app que permite crear cuentas ofrezca:
 
 ## 4. Endpoint Android de producción
 
-Estado: **resuelto — KAK-45**.
+Estado: **parcialmente resuelto — KAK-45**.
 
-Railway CLI confirmó que el environment `production` del proyecto `vainiilla-pruebas` ejecuta el servicio `vaiinilla_back` desde `saul1217/vaiinilla_back` / `main`, deployment `5d16aa171cfb8a489f7eb73e73f7f45fe2480fef`.
+Railway CLI confirmó que el environment `production` del proyecto `vaiinilla` ejecuta el servicio `vaiinilla_back` desde `saul1217/vaiinilla_back` / `main`. El endpoint responde correctamente; el SHA y las variables deben verificarse antes de publicar.
 
 Dominio production demostrado:
 
@@ -82,20 +82,23 @@ VAIINILLA_API_BASE_URL=https://vaiinillaback.up.railway.app/api/v1/
 
 `app.vaiinilla.app` sigue siendo la superficie frontend y no la API base.
 
+El workflow de release exige que la variable de repositorio exista con ese valor exacto. El acceso actual no permite confirmar todavía la configuración de GitHub, por lo que este gate permanece abierto.
+
 ## 5. Firebase
 
 Estado repo: **auditado parcialmente — KAK-49**.
 
 Confirmado:
 
-- Firebase project id: `vaiinilla-b3a70`.
+- Firebase project id del archivo Android actualmente versionado: `vaiinilla-b3a70` (desarrollo).
 - Android package: `com.vaiinilla.app`.
 - Gradle incluye Firebase Authentication.
 - No aparecen dependencias Firebase Analytics, Crashlytics, Messaging ni Storage en el cliente actual.
 
 Pendiente en consola:
 
-- confirmar que ése es el proyecto definitivo de producción;
+- registrar/confirmar el proyecto Android de producción `vaiinilla-produc`;
+- descargar y colocar el `google-services.json` oficial de producción;
 - revisar restricciones de la API key cliente;
 - comprobar servicios habilitados realmente;
 - confirmar retención/configuración de Firebase Authentication;

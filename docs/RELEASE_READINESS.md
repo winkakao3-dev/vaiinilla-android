@@ -15,7 +15,7 @@ Este documento resume únicamente los pendientes vigentes para preparar una publ
 
 - **KAK-46** — tracker maestro de pendientes de publicación Android.
 - **KAK-44** — **resuelto**: Política de privacidad activa y verificada en `https://app.vaiinilla.app/legal/privacidad/2026-07`.
-- **KAK-45** — **resuelto**: `VAIINILLA_API_BASE_URL` de producción configurada y verificada en GitHub.
+- **KAK-45** — **pendiente de verificación**: el workflow exige `VAIINILLA_API_BASE_URL` de producción, pero el acceso actual no permite confirmar la variable en GitHub.
 - **KAK-47** — **resuelto**: Recurso web externo activo y verificado en `https://app.vaiinilla.app/eliminar-cuenta`.
 - **KAK-48** — validar E2E real de eliminación de cuenta.
 - **KAK-49** — confirmar configuración, retención y restricciones de Firebase.
@@ -43,15 +43,15 @@ Referencia operativa adicional: `docs/PLAY_STORE_RELEASE_PREP.md`.
 - Logging Android revisado: método, path y status HTTP; multipart añade tamaño en bytes. No se registran cuerpos de respuesta ni `Authorization` en el cliente HTTP actual.
 - Firebase Android confirmado contra `google-services.json`: proyecto `vaiinilla-b3a70`, paquete `com.vaiinilla.app`. La presencia del bucket en la configuración no implica por sí sola uso de Firebase Storage; no existe dependencia de Firebase Storage en `app/build.gradle.kts`.
 
-## KAK-45 — endpoint de producción confirmado y configurado
+## KAK-45 — endpoint de producción confirmado; variable de release pendiente
 
 Verificado desde Railway CLI y HTTP el 17 de agosto de 2026:
 
-- proyecto Railway: `vainiilla-pruebas`;
+- proyecto Railway: `vaiinilla`;
 - environment: `production`;
 - servicio: `vaiinilla_back`;
 - source: `saul1217/vaiinilla_back` / `main`;
-- deployment SHA: `5d16aa171cfb8a489f7eb73e73f7f45fe2480fef`;
+- deployment SHA actual: `abfff27a1d9bed98c274df9d179cdad9549fb0bd`;
 - región: `us-east4-eqdc4a` / US East;
 - réplicas: `1`;
 - dominio público: `https://vaiinillaback.up.railway.app`;
@@ -65,13 +65,7 @@ Aunque el hostname contiene `development`, Railway lo asigna inequívocamente al
 - `GET /health` → `200`;
 - `GET /api/v1/` → `200`, `api: vaiinilla`, `version: v1`.
 
-La Repository Variable quedó configurada y re-leída con coincidencia exacta:
-
-```text
-VAIINILLA_API_BASE_URL=https://vaiinillaback.up.railway.app/api/v1/
-```
-
-Por tanto KAK-45 ya no es un bloqueo.
+El endpoint productivo está confirmado y responde correctamente, pero KAK-45 no se considera cerrado hasta verificar en GitHub que la variable exista con ese valor exacto. El workflow de release la rechaza si falta o apunta a desarrollo.
 
 ## KAK-47 — recurso web externo de eliminación (RESUELTO)
 
@@ -94,7 +88,7 @@ El siguiente E2E debe usar exclusivamente una cuenta creada para prueba; no usar
 
 Confirmado desde el código Android:
 
-- proyecto Firebase: `vaiinilla-b3a70`;
+- proyecto Firebase del archivo Android actualmente versionado: `vaiinilla-b3a70` (desarrollo);
 - paquete Android: `com.vaiinilla.app`;
 - dependencia Firebase usada por la app: Authentication;
 - no se encontraron dependencias de Analytics, Crashlytics, Messaging ni Firebase Storage en la configuración Gradle actual;
@@ -102,7 +96,8 @@ Confirmado desde el código Android:
 
 Sigue requiriendo acceso a Firebase/Google Cloud Console para verificar:
 
-- proyecto exacto que se considera producción;
+- proyecto exacto que se considera producción para Android;
+- archivo oficial `google-services.json` del proyecto productivo `vaiinilla-produc`;
 - restricciones reales de la API key;
 - servicios habilitados en consola;
 - configuración/retención aplicable de Authentication;
