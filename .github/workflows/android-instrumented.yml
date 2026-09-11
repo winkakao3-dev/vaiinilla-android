@@ -46,7 +46,11 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
-          script: ./gradlew --no-daemon connectedDevDebugAndroidTest
+          script: >-
+            ./gradlew --no-daemon
+            connectedDevAlumnoDebugAndroidTest
+            connectedDevCajaDebugAndroidTest
+            connectedDevCocinaDebugAndroidTest
 
       - name: Upload instrumented test report
         if: always()
