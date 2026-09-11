@@ -12,7 +12,7 @@ import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
-import com.vaiinilla.app.ui.screens.SplashScreen
+import com.vaiinilla.app.ui.screens.StudentAuthLandingScreen
 import com.vaiinilla.app.ui.screens.StudentTrackingScreen
 import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
@@ -35,14 +35,20 @@ class AlumnoScreenshotTest {
     val composeTestRule = createComposeRule()
 
     @Test
-    fun `01_splash`() {
+    fun `01_auth_landing`() {
         composeTestRule.setContent {
             ScreenshotTheme {
-                SplashScreen(onFinished = {})
+                StudentAuthLandingScreen(
+                    state = com.vaiinilla.app.ui.auth.student.StudentAuthUiState(),
+                    onBack = null,
+                    onRegister = {},
+                    onLogin = {},
+                    onExplore = {},
+                )
             }
         }
         composeTestRule.waitForIdle()
-        composeTestRule.onRoot().captureRoboImage("01_splash.png")
+        composeTestRule.onRoot().captureRoboImage("01_auth_landing.png")
     }
 
     @Test

@@ -83,6 +83,7 @@ class CompleteUiScreenshotTest {
                 onBack = {},
                 onRegister = {},
                 onLogin = {},
+                onExplore = {},
             )
         }
     }

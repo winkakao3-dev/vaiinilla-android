@@ -24,6 +24,7 @@ class LaunchDestinationTest {
                 pendingEstablishmentSlug = "ca",
                 session = null,
                 hasStaffModes = false,
+                hasSavedVenue = false,
             ),
         )
     }
@@ -36,6 +37,7 @@ class LaunchDestinationTest {
                 pendingEstablishmentSlug = null,
                 session = null,
                 hasStaffModes = true,
+                hasSavedVenue = false,
             ),
         )
     }
@@ -48,6 +50,7 @@ class LaunchDestinationTest {
                 pendingEstablishmentSlug = " ",
                 session = session,
                 hasStaffModes = true,
+                hasSavedVenue = false,
             ),
         )
     }
@@ -60,6 +63,7 @@ class LaunchDestinationTest {
                 pendingEstablishmentSlug = null,
                 session = session,
                 hasStaffModes = false,
+                hasSavedVenue = false,
             ),
         )
     }
