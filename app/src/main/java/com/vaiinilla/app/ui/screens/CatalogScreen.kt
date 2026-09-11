@@ -12,6 +12,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -40,6 +41,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -479,20 +481,31 @@ private fun CatalogHeader(
                 )
                 if (venue != null) {
                     val spaceLabel = venue.space?.let { "${it.name} · ${it.type}" }
-                    Text(
-                        text = spaceLabel ?: venue.establishment.name,
-                        color = colors.muted,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 2.dp),
-                    )
-                }
-            }
-            if (venue != null) {
-                TextButton(onClick = onChangeVenue) {
-                    Text("Cambiar", color = colors.muted, fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier =
+                            Modifier
+                                .padding(top = 2.dp)
+                                .clip(RoundedCornerShape(999.dp))
+                                .clickable(onClick = onChangeVenue)
+                                .padding(end = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = spaceLabel ?: venue.establishment.name,
+                            color = colors.muted,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        Icon(
+                            Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = "Cambiar de cafetería",
+                            tint = colors.muted,
+                            modifier = Modifier.size(15.dp),
+                        )
+                    }
                 }
             }
             val cartScale by animateFloatAsState(

@@ -13,33 +13,36 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.automirrored.outlined.Notes
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material.icons.outlined.Tag
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,12 +51,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
@@ -67,9 +70,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
-import com.vaiinilla.app.ui.components.PhysicalPressScale
-import com.vaiinilla.app.ui.components.VaiinillaMark
-import com.vaiinilla.app.ui.components.VenueCardSkeleton
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.discovery.DiscoveryUiState
@@ -78,7 +78,6 @@ import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiscoveryScreen(
     state: DiscoveryUiState,
@@ -92,30 +91,25 @@ fun DiscoveryScreen(
     onContinueSelected: () -> Unit,
     profileInitials: String = "?",
     onOpenAccount: () -> Unit = {},
+    onBack: (() -> Unit)? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
     val focusManager = LocalFocusManager.current
     var codeSheetOpen by remember { mutableStateOf(false) }
     var tokenError by remember { mutableStateOf(false) }
-    BackHandler(enabled = state.pendingSwitch != null) {
-        onDismissSwitch()
-    }
-    BackHandler(enabled = state.pendingSwitch == null && codeSheetOpen) {
-        codeSheetOpen = false
-    }
-    var showAllVenues by remember { mutableStateOf(false) }
+    var pendingSelection by remember { mutableStateOf<PublicEstablishment?>(null) }
+    var dockHeightPx by remember { mutableStateOf(0) }
+    val dockHeight = with(LocalDensity.current) { dockHeightPx.toDp() }
 
-    val selectedId = state.selected?.establishment?.id
-    val cafeCount = state.establishments.size
-    val showVenueResults = showAllVenues || state.query.isNotBlank()
-    val quickVenues =
-        buildList {
-            state.selected?.establishment?.let(::add)
-            state.establishments.forEach { establishment ->
-                if (none { it.id == establishment.id }) add(establishment)
-            }
-        }.take(2)
+    BackHandler(enabled = state.pendingSwitch != null) { onDismissSwitch() }
+    BackHandler(enabled = state.pendingSwitch == null && codeSheetOpen) { codeSheetOpen = false }
+
+    val activeId = state.selected?.establishment?.id
+    val selection =
+        pendingSelection
+            ?: state.selected?.establishment
+            ?: state.establishments.firstOrNull()
 
     Box(
         modifier =
@@ -126,265 +120,181 @@ fun DiscoveryScreen(
                     detectTapGestures(onTap = { focusManager.clearFocus() })
                 },
     ) {
-        PullToRefreshBox(
-            isRefreshing = state.loading,
-            onRefresh = {
-                haptics.impact()
-                onQueryChange(state.query)
-            },
-            modifier = Modifier.fillMaxSize(),
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding(),
         ) {
-            LazyColumn(
+            Row(
                 modifier =
                     Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding(),
-                contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 30.dp),
-                verticalArrangement = Arrangement.spacedBy(0.dp),
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (onBack != null) {
+                    IconButton(
+                        onClick = {
+                            haptics.click()
+                            onBack()
+                        },
+                    ) {
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
+                    }
+                } else {
+                    Spacer(Modifier.width(8.dp))
+                }
+                Spacer(Modifier.weight(1f))
+            }
+
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                contentPadding =
+                    PaddingValues(
+                        start = 20.dp,
+                        end = 20.dp,
+                        top = 4.dp,
+                        bottom = if (dockHeightPx > 0) dockHeight + 26.dp else 216.dp,
+                    ),
             ) {
                 item {
-                    DiscoveryBrandRow(
-                        initials = profileInitials,
-                        onOpenAccount = onOpenAccount,
+                    Text(
+                        "LOCALIZACIÓN",
+                        color = if (colors.isDark) colors.accent else colors.accentInk,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.8.sp,
+                        modifier = Modifier.padding(top = 16.dp),
                     )
-                }
-                item {
-                    Column(
-                        modifier =
-                            Modifier
-                                .padding(horizontal = 2.dp)
-                                .padding(bottom = 20.dp),
-                    ) {
-                        Text(
-                            "ANTES DE PEDIR",
-                            color = colors.accentInk.copy(alpha = if (colors.isDark) 0.88f else 0.78f),
-                            fontSize = 11.sp,
-                            lineHeight = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 2.2.sp,
-                        )
-                        Text(
-                            "¿Dónde comes hoy?",
-                            color = colors.ink,
-                            fontSize = 36.sp,
-                            lineHeight = 40.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = (-1.9).sp,
-                            modifier = Modifier.padding(top = 7.dp, bottom = 7.dp),
-                        )
-                        Text(
-                            if (state.selected != null) {
-                                "Continúa en tu cafetería activa o cambia de espacio cuando lo necesites."
-                            } else {
-                                "Elige tu cafetería o entra con el QR o código de tu espacio."
-                            },
-                            color = colors.muted,
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                }
-
-                state.selected?.let { selected ->
-                    item {
-                        ActiveVenueCard(
-                            name = selected.establishment.name,
-                            clientIdLabel = selected.establishment.clientIdLabel,
-                            clientIdRequired = selected.establishment.clientIdRequired,
-                            onContinue = {
-                                haptics.impact()
-                                onContinueSelected()
-                            },
-                            modifier = Modifier.padding(bottom = 18.dp),
-                        )
-                    }
-                }
-
-                item {
-                    DiscoverySectionHeader(
-                        title = if (state.selected != null) "¿Quieres cambiar?" else "Elige tu cafetería",
-                        meta = "Elige cómo",
-                        modifier = Modifier.padding(bottom = 10.dp),
+                    Text(
+                        "¿Dónde comes hoy?",
+                        color = colors.ink,
+                        fontFamily = VaiinillaSerif,
+                        fontSize = 38.sp,
+                        lineHeight = 42.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = (-0.6).sp,
+                        modifier = Modifier.padding(top = 6.dp, bottom = 8.dp),
+                    )
+                    Text(
+                        if (state.selected != null) {
+                            "Cambia cuando quieras o entra con el QR de tu mesa."
+                        } else {
+                            "Elige tu cafetería para mostrarte el menú correcto y los tiempos exactos de barra."
+                        },
+                        color = colors.muted,
+                        fontSize = 13.5.sp,
+                        lineHeight = 19.sp,
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
                 item {
                     DiscoverySearchField(
                         value = state.query,
-                        onValueChange = { query ->
-                            showAllVenues = query.isNotBlank()
-                            onQueryChange(query)
-                        },
-                        modifier = Modifier.padding(bottom = 10.dp),
+                        onValueChange = onQueryChange,
+                        modifier = Modifier.padding(top = 18.dp),
                     )
                 }
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 18.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        QuickAccessCard(
-                            modifier = Modifier.weight(1f),
-                            ink = true,
-                            icon = Icons.Outlined.QrCodeScanner,
-                            title = "Escanear QR",
-                            subtitle = "Del comedor o mesa",
-                            onClick = {
-                                haptics.click()
-                                onOpenQrScanner()
-                            },
+                state.suspendedMessage?.let { message ->
+                    item {
+                        VenueNoticeCard(message = message, tone = colors.coral, modifier = Modifier.padding(top = 14.dp))
+                    }
+                }
+                state.errorMessage?.let { message ->
+                    item {
+                        VenueNoticeCard(message = message, tone = colors.coral, modifier = Modifier.padding(top = 14.dp))
+                    }
+                }
+                if (state.loading && state.establishments.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 28.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator(color = colors.accent)
+                        }
+                    }
+                } else if (state.establishments.isEmpty()) {
+                    item {
+                        VenueEmptyState(
+                            query = state.query,
+                            onClearQuery = { onQueryChange("") },
+                            onOpenQrScanner = onOpenQrScanner,
                         )
-                        QuickAccessCard(
-                            modifier = Modifier.weight(1f),
-                            ink = false,
-                            icon = Icons.AutoMirrored.Outlined.Notes,
-                            title = "Usar código",
-                            subtitle = "Token del espacio",
+                    }
+                } else {
+                    val recommended = state.establishments.first()
+                    val others = state.establishments.filterNot { it.id == recommended.id }
+                    item {
+                        SectionHeading(
+                            label = "RECOMENDADA PARA TI",
+                            modifier = Modifier.padding(top = 26.dp),
+                        )
+                    }
+                    item {
+                        RecommendedVenueCard(
+                            establishment = recommended,
+                            selected = selection?.id == recommended.id,
+                            active = activeId == recommended.id,
                             onClick = {
                                 haptics.selection()
-                                tokenError = false
-                                codeSheetOpen = true
+                                pendingSelection = recommended
                             },
                         )
                     }
-                }
-
-                if (state.suspendedMessage != null) {
-                    item {
-                        DiscoveryInlineMessage(
-                            message = state.suspendedMessage,
-                            error = true,
-                            modifier = Modifier.padding(bottom = 12.dp),
-                        )
-                    }
-                }
-                if (state.errorMessage != null && state.query.isBlank()) {
-                    item {
-                        DiscoveryInlineMessage(
-                            message = state.errorMessage,
-                            error = true,
-                            modifier = Modifier.padding(bottom = 12.dp),
-                        )
-                    }
-                }
-
-                if (quickVenues.isNotEmpty() && state.query.isBlank()) {
-                    item {
-                        DiscoverySectionHeader(
-                            title = "Acceso rápido",
-                            meta = if (quickVenues.size == 1) "1 cafetería" else "${quickVenues.size} cafeterías",
-                            modifier = Modifier.padding(bottom = 10.dp),
-                        )
-                    }
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            quickVenues.forEach { establishment ->
-                                CompactVenueCard(
-                                    establishment = establishment,
-                                    selected = establishment.id == selectedId,
-                                    onClick = {
-                                        haptics.click()
-                                        if (establishment.id == selectedId) {
-                                            onContinueSelected()
-                                        } else {
-                                            onSelectEstablishment(establishment)
-                                        }
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                            if (quickVenues.size == 1) {
-                                Box(modifier = Modifier.weight(1f))
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    AllVenuesToggle(
-                        count = cafeCount,
-                        expanded = showVenueResults,
-                        loading = state.loading,
-                        onClick = {
-                            haptics.selection()
-                            focusManager.clearFocus()
-                            if (state.query.isNotBlank()) {
-                                onQueryChange("")
-                                showAllVenues = false
-                            } else {
-                                showAllVenues = !showAllVenues
-                            }
-                        },
-                        modifier = Modifier.padding(bottom = if (showVenueResults) 14.dp else 0.dp),
-                    )
-                }
-
-                if (showVenueResults) {
-                    if (state.loading && state.establishments.isEmpty()) {
-                        items(3) {
-                            VenueCardSkeleton(modifier = Modifier.padding(bottom = 10.dp))
-                        }
-                    } else if (!state.loading && state.establishments.isEmpty()) {
+                    if (others.isNotEmpty()) {
                         item {
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                color = colors.paper2,
-                                shape = RoundedCornerShape(24.dp),
-                            ) {
-                                Text(
-                                    "No encontramos una cafetería con ese nombre.",
-                                    color = colors.muted,
-                                    fontSize = 14.sp,
-                                    lineHeight = 20.sp,
-                                    modifier = Modifier.padding(22.dp),
-                                )
-                            }
+                            SectionHeading(
+                                label = "OTRAS SEDES DISPONIBLES",
+                                trailing = "${others.size} activas",
+                                modifier = Modifier.padding(top = 22.dp, bottom = 2.dp),
+                            )
                         }
-                    } else {
-                        items(state.establishments, key = { it.id }) { establishment ->
-                            EstablishmentCard(
+                        items(others, key = { it.id }) { establishment ->
+                            VenueSelectRow(
                                 establishment = establishment,
-                                selected = establishment.id == selectedId,
+                                selected = selection?.id == establishment.id,
+                                active = activeId == establishment.id,
                                 onClick = {
-                                    haptics.click()
-                                    if (establishment.id == selectedId) {
-                                        onContinueSelected()
-                                    } else {
-                                        onSelectEstablishment(establishment)
-                                    }
+                                    haptics.selection()
+                                    pendingSelection = establishment
                                 },
-                                modifier = Modifier.padding(bottom = 10.dp),
                             )
                         }
                     }
                 }
+                item {
+                    QuickAccessCard(
+                        onOpenQrScanner = onOpenQrScanner,
+                        onUseCode = {
+                            haptics.click()
+                            codeSheetOpen = true
+                        },
+                        modifier = Modifier.padding(top = 22.dp),
+                    )
+                }
             }
         }
 
-        if (codeSheetOpen) {
-            SpaceCodeSheet(
-                token = state.spaceTokenInput,
-                resolving = state.resolving,
-                showError = tokenError,
-                onTokenChange = {
-                    tokenError = false
-                    onSpaceTokenChange(it)
-                },
-                onCancel = { codeSheetOpen = false },
-                onResolve = {
-                    if (state.spaceTokenInput.isBlank()) {
-                        tokenError = true
-                    } else {
-                        tokenError = false
-                        codeSheetOpen = false
-                        onResolveSpace()
-                    }
-                },
-            )
-        }
+        VenueDock(
+            selection = selection,
+            isActive = selection != null && selection.id == activeId,
+            onContinue = {
+                val target = selection ?: return@VenueDock
+                haptics.click()
+                if (target.id != activeId) {
+                    onSelectEstablishment(target)
+                } else {
+                    onContinueSelected()
+                }
+            },
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .onSizeChanged { dockHeightPx = it.height },
+        )
 
         if (state.pendingSwitch != null) {
             Box(
@@ -406,132 +316,65 @@ fun DiscoveryScreen(
                 )
             }
         }
-    }
-}
 
-@Composable
-private fun DiscoveryBrandRow(
-    initials: String,
-    onOpenAccount: () -> Unit,
-) {
-    val colors = LocalVaiinillaColors.current
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        VaiinillaMark(
-            modifier = Modifier.size(36.dp),
-        )
-        Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-            Text("Vaiinilla", color = colors.ink, fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold)
-            Text(
-                "Comedor conectado",
-                color = colors.muted,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                fontWeight = FontWeight.SemiBold,
+        if (codeSheetOpen) {
+            SpaceCodeSheet(
+                token = state.spaceTokenInput,
+                resolving = state.resolving,
+                showError = tokenError,
+                onTokenChange = {
+                    tokenError = false
+                    onSpaceTokenChange(it)
+                },
+                onCancel = { codeSheetOpen = false },
+                onResolve = {
+                    if (state.spaceTokenInput.isBlank()) {
+                        tokenError = true
+                    } else {
+                        codeSheetOpen = false
+                        onResolveSpace()
+                    }
+                },
             )
         }
-        Box(
-            modifier =
-                Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(colors.paper2)
-                    .physicalPress(scale = PhysicalPressScale.Small, onClick = onOpenAccount),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(initials, color = colors.ink, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-        }
     }
 }
 
 @Composable
-private fun ActiveVenueCard(
-    name: String,
-    clientIdLabel: String,
-    clientIdRequired: Boolean,
-    onContinue: () -> Unit,
+private fun SectionHeading(
+    label: String,
+    trailing: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
-    Box(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .height(190.dp)
-                .clip(RoundedCornerShape(28.dp))
-                .background(colors.accent),
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        repeat(2) { index ->
-            Box(
-                modifier =
-                    Modifier
-                        .align(Alignment.CenterEnd)
-                        .offset(x = (58 + index * 34).dp, y = (-20 + index * 54).dp)
-                        .size(width = 190.dp, height = 30.dp)
-                        .rotate(-24f)
-                        .background(colors.accentInk.copy(alpha = 0.06f)),
-            )
-        }
-        Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                    Surface(
-                        color = colors.accentInk.copy(alpha = 0.06f),
-                        shape = RoundedCornerShape(99.dp),
-                    ) {
-                        Text(
-                            "CAFETERÍA ACTIVA",
-                            color = colors.accentInk.copy(alpha = 0.78f),
-                            fontSize = 10.sp,
-                            lineHeight = 13.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.5.sp,
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                        )
-                    }
-                    Text(
-                        name,
-                        color = colors.accentInk,
-                        fontSize = 30.sp,
-                        lineHeight = 34.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-1.2).sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 7.dp),
-                    )
-                    Text(
-                        "$clientIdLabel ${if (clientIdRequired) "requerida" else "opcional"}",
-                        color = colors.accentInk.copy(alpha = 0.78f),
-                        fontSize = 13.sp,
-                        lineHeight = 17.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(top = 2.dp),
-                    )
-                }
-            }
-            ContinueInkButton(
-                label = "Seguir al menú",
-                subtitle = "Entrar a $name",
-                onClick = onContinue,
+        Text(
+            label,
+            color = colors.muted,
+            fontSize = 10.5.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 1.6.sp,
+        )
+        Spacer(Modifier.weight(1f))
+        if (trailing != null) {
+            Text(
+                trailing,
+                color = colors.muted,
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.SemiBold,
             )
         }
     }
 }
 
 @Composable
-private fun ContinueInkButton(
-    label: String,
-    subtitle: String,
+private fun RecommendedVenueCard(
+    establishment: PublicEstablishment,
+    selected: Boolean,
+    active: Boolean,
     onClick: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -539,93 +382,438 @@ private fun ContinueInkButton(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .height(62.dp)
-                .clip(RoundedCornerShape(19.dp))
-                .background(colors.ink)
-                .physicalPress(onClick = onClick)
-                .padding(start = 14.dp, end = 10.dp),
+                .padding(top = 10.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(colors.paper2)
+                .clickable(onClick = onClick)
+                .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier =
                 Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(13.dp))
-                    .background(Color.White.copy(alpha = 0.10f)),
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(colors.paper),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 Icons.Outlined.Storefront,
                 contentDescription = null,
-                tint = colors.paper,
-                modifier = Modifier.size(19.dp),
+                tint = colors.ink2,
+                modifier = Modifier.size(30.dp),
             )
         }
-        Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
+        Column(modifier = Modifier.padding(start = 14.dp).weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    establishment.name,
+                    color = colors.ink,
+                    fontSize = 18.sp,
+                    lineHeight = 22.sp,
+                    fontWeight = FontWeight.Black,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (active) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .padding(start = 7.dp)
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(colors.accent),
+                    )
+                }
+            }
             Text(
-                label,
-                color = colors.paper,
-                fontSize = 16.sp,
-                lineHeight = 20.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                subtitle,
-                color = colors.paper.copy(alpha = 0.68f),
-                fontSize = 11.sp,
-                lineHeight = 15.sp,
+                if (establishment.clientIdRequired) {
+                    "${establishment.clientIdLabel} requerida"
+                } else {
+                    "Acceso libre"
+                },
+                color = colors.muted,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
                 fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 1.dp),
+                modifier = Modifier.padding(top = 3.dp),
             )
         }
         Box(
             modifier =
                 Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(13.dp))
-                    .background(Color.White.copy(alpha = 0.10f)),
+                    .padding(start = 10.dp)
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(if (selected) colors.accent else Color.Transparent)
+                    .border(1.6.dp, if (selected) colors.accent else colors.line, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                Icons.AutoMirrored.Outlined.ArrowForward,
-                contentDescription = null,
-                tint = colors.paper,
-                modifier = Modifier.size(18.dp),
-            )
+            if (selected) {
+                Icon(
+                    Icons.Rounded.Check,
+                    contentDescription = null,
+                    tint = colors.accentInk,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun DiscoverySectionHeader(
-    title: String,
-    meta: String,
+private fun VenueSelectRow(
+    establishment: PublicEstablishment,
+    selected: Boolean,
+    active: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(colors.paper2)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(colors.paper),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Outlined.Storefront,
+                contentDescription = null,
+                tint = colors.ink2,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+        Column(modifier = Modifier.padding(start = 14.dp).weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    establishment.name,
+                    color = colors.ink,
+                    fontSize = 16.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (active) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .padding(start = 7.dp)
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(colors.accent),
+                    )
+                }
+            }
+            Text(
+                if (establishment.clientIdRequired) {
+                    "${establishment.clientIdLabel} requerida"
+                } else {
+                    "Acceso libre"
+                },
+                color = colors.muted,
+                fontSize = 12.5.sp,
+                lineHeight = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        Box(
+            modifier =
+                Modifier
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(if (selected) colors.accent else Color.Transparent)
+                    .border(1.6.dp, if (selected) colors.accent else colors.line, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (selected) {
+                Icon(
+                    Icons.Rounded.Check,
+                    contentDescription = null,
+                    tint = colors.accentInk,
+                    modifier = Modifier.size(15.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VenueDock(
+    selection: PublicEstablishment?,
+    isActive: Boolean,
+    onContinue: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, bottom = 14.dp)
+                .clip(RoundedCornerShape(26.dp))
+                .background(colors.ink)
+                .padding(start = 18.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                when {
+                    selection == null -> "ELIGE UNA CAFETERÍA"
+                    isActive -> "CAFETERÍA ACTIVA"
+                    else -> "SELECCIONADO"
+                },
+                color = colors.paper.copy(alpha = 0.65f),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 1.6.sp,
+            )
+            Text(
+                selection?.name ?: "—",
+                color = colors.paper,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        Box(
+            modifier =
+                Modifier
+                    .padding(start = 12.dp)
+                    .height(50.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(colors.accent)
+                    .alpha(if (selection == null) 0.5f else 1f)
+                    .then(
+                        if (selection != null) {
+                            Modifier.physicalPress(onClick = onContinue)
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .padding(horizontal = 20.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Continuar",
+                    color = colors.accentInk,
+                    fontSize = 14.5.sp,
+                    fontWeight = FontWeight.Black,
+                )
+                Icon(
+                    Icons.AutoMirrored.Rounded.ArrowForward,
+                    contentDescription = null,
+                    tint = colors.accentInk,
+                    modifier = Modifier.padding(start = 7.dp).size(18.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickAccessCard(
+    onOpenQrScanner: () -> Unit,
+    onUseCode: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(colors.paper2)
+                .border(1.dp, colors.line, RoundedCornerShape(20.dp))
+                .padding(16.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Outlined.Bolt,
+                contentDescription = null,
+                tint = if (colors.isDark) colors.accent else colors.accentInk,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                "ACCESO RÁPIDO EN MESA",
+                color = colors.ink,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 1.4.sp,
+                modifier = Modifier.padding(start = 6.dp),
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .height(50.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(colors.paper)
+                        .border(1.dp, colors.line, RoundedCornerShape(16.dp))
+                        .physicalPress(onClick = onOpenQrScanner),
+                contentAlignment = Alignment.Center,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Outlined.QrCodeScanner,
+                        contentDescription = null,
+                        tint = colors.ink,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        "Escanear QR",
+                        color = colors.ink,
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.padding(start = 7.dp),
+                    )
+                }
+            }
+            Box(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .height(50.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(colors.paper)
+                        .border(1.dp, colors.line, RoundedCornerShape(16.dp))
+                        .physicalPress(onClick = onUseCode),
+                contentAlignment = Alignment.Center,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Outlined.Tag,
+                        contentDescription = null,
+                        tint = colors.ink,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        "Usar código",
+                        color = colors.ink,
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.padding(start = 7.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VenueEmptyState(
+    query: String,
+    onClearQuery: () -> Unit,
+    onOpenQrScanner: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(colors.paper2)
+                .border(1.dp, colors.line, RoundedCornerShape(20.dp))
+                .padding(18.dp),
     ) {
         Text(
-            title,
+            "Sin coincidencias",
             color = colors.ink,
-            fontSize = 17.sp,
-            lineHeight = 22.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = (-0.25).sp,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Black,
         )
         Text(
-            meta,
+            if (query.isBlank()) {
+                "Todavía no hay cafeterías disponibles. Intenta de nuevo en un momento."
+            } else {
+                "No encontramos “$query”. Revisa la escritura o usa el QR de tu mesa."
+            },
             color = colors.muted,
-            fontSize = 11.sp,
-            lineHeight = 15.sp,
+            fontSize = 12.5.sp,
+            lineHeight = 18.sp,
             fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(top = 6.dp),
         )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            if (query.isNotBlank()) {
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .height(46.dp)
+                            .clip(RoundedCornerShape(15.dp))
+                            .background(colors.paper)
+                            .border(1.dp, colors.line, RoundedCornerShape(15.dp))
+                            .physicalPress(onClick = onClearQuery),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("Limpiar búsqueda", color = colors.ink, fontSize = 13.sp, fontWeight = FontWeight.Black)
+                }
+            }
+            Box(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .height(46.dp)
+                        .clip(RoundedCornerShape(15.dp))
+                        .background(colors.accent)
+                        .physicalPress(onClick = onOpenQrScanner),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("Escanear QR", color = colors.accentInk, fontSize = 13.sp, fontWeight = FontWeight.Black)
+            }
+        }
     }
+}
+
+@Composable
+private fun VenueNoticeCard(
+    message: String,
+    tone: Color,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    Text(
+        message,
+        color = colors.ink,
+        fontSize = 12.5.sp,
+        lineHeight = 18.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(tone.copy(alpha = 0.14f))
+                .border(1.dp, tone.copy(alpha = 0.45f), RoundedCornerShape(16.dp))
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+    )
 }
 
 @Composable
@@ -639,66 +827,50 @@ private fun DiscoverySearchField(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(68.dp)
-                .clip(RoundedCornerShape(21.dp))
+                .height(60.dp)
+                .clip(RoundedCornerShape(20.dp))
                 .background(colors.paper2)
-                .border(1.dp, colors.line, RoundedCornerShape(21.dp))
+                .border(1.dp, colors.line, RoundedCornerShape(20.dp))
                 .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
+        Icon(
+            Icons.Outlined.Search,
+            contentDescription = null,
+            tint = colors.ink2,
+            modifier = Modifier.size(21.dp),
+        )
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
             modifier =
                 Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(colors.accent),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.Outlined.Search,
-                contentDescription = null,
-                tint = colors.accentInk,
-                modifier = Modifier.size(21.dp),
-            )
-        }
-        Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Buscar cafetería" },
-                singleLine = true,
-                textStyle =
-                    TextStyle(
-                        color = colors.ink,
-                        fontSize = 15.sp,
-                        lineHeight = 19.sp,
-                        fontWeight = FontWeight.Bold,
-                    ),
-                cursorBrush = SolidColor(colors.ink),
-                decorationBox = { input ->
-                    Box {
-                        if (value.isBlank()) {
-                            Text(
-                                "Buscar otra cafetería",
-                                color = colors.ink,
-                                fontSize = 15.sp,
-                                lineHeight = 19.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                        input()
+                    .padding(start = 11.dp)
+                    .weight(1f)
+                    .semantics { contentDescription = "Buscar cafetería, facultad o campus" },
+            singleLine = true,
+            textStyle =
+                TextStyle(
+                    color = colors.ink,
+                    fontSize = 15.sp,
+                    lineHeight = 19.sp,
+                    fontWeight = FontWeight.Bold,
+                ),
+            cursorBrush = SolidColor(colors.ink),
+            decorationBox = { input ->
+                Box {
+                    if (value.isBlank()) {
+                        Text(
+                            "Buscar cafetería, facultad o campus…",
+                            color = colors.muted,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
                     }
-                },
-            )
-            Text(
-                if (value.isBlank()) "Escribe el nombre del espacio" else "Buscando coincidencias",
-                color = colors.muted,
-                fontSize = 11.sp,
-                lineHeight = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-        }
+                    input()
+                }
+            },
+        )
         if (value.isNotBlank()) {
             Box(
                 modifier =
@@ -716,402 +888,6 @@ private fun DiscoverySearchField(
                     modifier = Modifier.size(16.dp),
                 )
             }
-        } else {
-            Icon(
-                Icons.AutoMirrored.Outlined.ArrowForward,
-                contentDescription = null,
-                tint = colors.ink,
-                modifier = Modifier.size(18.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun QuickAccessCard(
-    modifier: Modifier,
-    ink: Boolean,
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit,
-) {
-    val colors = LocalVaiinillaColors.current
-    val background = if (ink) colors.ink else colors.paper2
-    val foreground = if (ink) colors.paper else colors.ink
-    val iconBadgeBackground = if (ink) colors.accent else colors.paper
-    val iconTint = if (ink) colors.accentInk else colors.ink
-
-    Column(
-        modifier =
-            modifier
-                .heightIn(min = 124.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(background)
-                .then(
-                    if (!ink) Modifier.border(1.dp, colors.line, RoundedCornerShape(24.dp)) else Modifier,
-                ).physicalPress(onClick = onClick)
-                .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(iconBadgeBackground),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(21.dp))
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    title,
-                    color = foreground,
-                    fontSize = 14.sp,
-                    lineHeight = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    subtitle,
-                    color = foreground.copy(alpha = 0.66f),
-                    fontSize = 10.sp,
-                    lineHeight = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(top = 2.dp),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Box(
-                modifier =
-                    Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(11.dp))
-                        .background(if (ink) Color.White.copy(alpha = 0.10f) else colors.paper),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Outlined.ArrowForward,
-                    contentDescription = null,
-                    tint = foreground,
-                    modifier = Modifier.size(15.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun CompactVenueCard(
-    establishment: PublicEstablishment,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalVaiinillaColors.current
-    val background =
-        if (selected) {
-            colors.accent.copy(alpha = if (colors.isDark) 0.18f else 0.28f)
-        } else {
-            colors.paper2
-        }
-    Box(
-        modifier =
-            modifier
-                .height(100.dp)
-                .clip(RoundedCornerShape(22.dp))
-                .background(background)
-                .border(
-                    1.dp,
-                    if (selected) colors.accent.copy(alpha = 0.55f) else colors.line,
-                    RoundedCornerShape(22.dp),
-                ).physicalPress(onClick = onClick)
-                .padding(12.dp),
-    ) {
-        if (selected) {
-            Box(
-                modifier =
-                    Modifier
-                        .align(Alignment.CenterEnd)
-                        .offset(x = 42.dp, y = (-10).dp)
-                        .size(width = 120.dp, height = 24.dp)
-                        .rotate(-24f)
-                        .background(colors.accentInk.copy(alpha = 0.05f)),
-            )
-        }
-        Box(
-            modifier =
-                Modifier
-                    .align(Alignment.TopStart)
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(11.dp))
-                    .background(colors.paper),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.Outlined.Storefront,
-                contentDescription = null,
-                tint = colors.ink,
-                modifier = Modifier.size(18.dp),
-            )
-        }
-        Column(modifier = Modifier.align(Alignment.BottomStart).padding(end = 32.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    establishment.name,
-                    color = colors.ink,
-                    fontSize = 14.sp,
-                    lineHeight = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (selected) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .padding(start = 5.dp)
-                                .size(7.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF72A52A)),
-                    )
-                }
-            }
-            Text(
-                if (selected) {
-                    "Activa ahora"
-                } else if (establishment.clientIdRequired) {
-                    "${establishment.clientIdLabel} requerida"
-                } else {
-                    "${establishment.clientIdLabel} opcional"
-                },
-                color = colors.muted,
-                fontSize = 10.sp,
-                lineHeight = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-        }
-        Box(
-            modifier =
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(30.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(colors.paper),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.AutoMirrored.Outlined.ArrowForward,
-                contentDescription = null,
-                tint = colors.ink,
-                modifier = Modifier.size(14.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun AllVenuesToggle(
-    count: Int,
-    expanded: Boolean,
-    loading: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalVaiinillaColors.current
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .height(58.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .border(1.dp, colors.line, RoundedCornerShape(20.dp))
-                .physicalPress(onClick = onClick)
-                .semantics(mergeDescendants = true) {
-                    contentDescription = if (expanded) "Ocultar cafeterías" else "Ver todas las cafeterías"
-                }.padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(11.dp))
-                    .background(colors.accent),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.Outlined.Storefront,
-                contentDescription = null,
-                tint = colors.accentInk,
-                modifier = Modifier.size(18.dp),
-            )
-        }
-        Text(
-            if (expanded) "Ocultar cafeterías" else "Ver todas las cafeterías",
-            color = colors.ink,
-            fontSize = 14.sp,
-            lineHeight = 18.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 11.dp).weight(1f),
-        )
-        if (loading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
-                color = colors.ink,
-                strokeWidth = 2.dp,
-            )
-        } else {
-            Text(
-                if (count == 1) "1 disponible" else "$count disponibles",
-                color = colors.muted,
-                fontSize = 10.sp,
-                lineHeight = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-        Icon(
-            Icons.AutoMirrored.Outlined.ArrowForward,
-            contentDescription = null,
-            tint = colors.ink,
-            modifier = Modifier.padding(start = 8.dp).size(16.dp),
-        )
-    }
-}
-
-@Composable
-private fun DiscoveryInlineMessage(
-    message: String,
-    error: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalVaiinillaColors.current
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = if (error) colors.coral.copy(alpha = 0.12f) else colors.paper2,
-        shape = RoundedCornerShape(16.dp),
-    ) {
-        Text(
-            message,
-            color = if (error) colors.coral else colors.ink,
-            fontSize = 12.sp,
-            lineHeight = 17.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 13.dp, vertical = 11.dp),
-        )
-    }
-}
-
-@Composable
-private fun EstablishmentCard(
-    establishment: PublicEstablishment,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalVaiinillaColors.current
-    val meta =
-        if (establishment.clientIdRequired) {
-            "${establishment.clientIdLabel} requerida al pedir"
-        } else {
-            "${establishment.clientIdLabel} opcional"
-        }
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .height(82.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(
-                    if (selected) {
-                        colors.accent.copy(alpha = if (colors.isDark) 0.16f else 0.24f)
-                    } else {
-                        colors.paper2
-                    },
-                ).then(
-                    if (selected) {
-                        Modifier.border(2.dp, colors.accent.copy(alpha = 0.45f), RoundedCornerShape(24.dp))
-                    } else {
-                        Modifier
-                    },
-                ).physicalPress(onClick = onClick)
-                .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(54.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(colors.paper),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.Outlined.Storefront,
-                contentDescription = null,
-                tint = colors.ink,
-                modifier = Modifier.size(25.dp),
-            )
-        }
-        Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    establishment.name,
-                    color = colors.ink,
-                    fontSize = 16.sp,
-                    lineHeight = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                if (selected) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .padding(start = 7.dp)
-                                .size(7.dp)
-                                .clip(CircleShape)
-                                .background(colors.accent),
-                    )
-                }
-            }
-            Text(
-                meta,
-                color = colors.muted,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        }
-        Box(
-            modifier =
-                Modifier
-                    .size(32.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(colors.paper),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.AutoMirrored.Outlined.ArrowForward,
-                contentDescription = null,
-                tint = colors.ink,
-                modifier = Modifier.size(15.dp),
-            )
         }
     }
 }
@@ -1291,19 +1067,12 @@ private fun SpaceCodeSheet(
     }
 }
 
-@Preview(name = "Descubrir cafetería", showBackground = true, widthDp = 411, heightDp = 891)
+@Preview(name = "Elegir cafetería", showBackground = true, widthDp = 411, heightDp = 891)
 @Composable
 private fun DiscoveryScreenPreview() {
     VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
         DiscoveryScreen(
-            state =
-                DiscoveryUiState(
-                    establishments =
-                        listOf(
-                            PublicEstablishment("1", "saulP1", "saulp1", "Matrícula", true),
-                            PublicEstablishment("2", "America", "america", "Matrícula", true),
-                        ),
-                ),
+            state = DiscoveryUiState(),
             onQueryChange = {},
             onSpaceTokenChange = {},
             onSelectEstablishment = {},
@@ -1311,7 +1080,6 @@ private fun DiscoveryScreenPreview() {
             onConfirmSwitch = {},
             onDismissSwitch = {},
             onContinueSelected = {},
-            profileInitials = "DR",
         )
     }
 }
