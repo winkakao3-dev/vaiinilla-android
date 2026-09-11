@@ -5,6 +5,7 @@ import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.core.auth.ActiveSessionRefresher
 import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.security.SecureSessionStore
+import com.vaiinilla.app.data.cache.RemoteResponseCache
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
@@ -21,8 +22,21 @@ class HttpVaiinillaApiClient
         private val sessionStore: SecureSessionStore,
         private val responseParser: ApiResponseParser,
         private val sessionRefresher: ActiveSessionRefresher,
+        private val responseCache: RemoteResponseCache,
     ) : VaiinillaApiClient {
         override val baseUrl: String = environment.apiBaseUrl
+
+        private val cacheableGetPaths = setOf("wallets/me", "pedidos")
+
+        override fun readCachedGet(
+            path: String,
+            query: Map<String, String>,
+        ): String? =
+            if (path in cacheableGetPaths) {
+                responseCache.read(path, query)
+            } else {
+                null
+            }
 
         override fun get(
             path: String,
@@ -214,6 +228,18 @@ class HttpVaiinillaApiClient
                             expectedStatus = expectedStatus,
                         )
                     }
+                if (result.isSuccess) {
+                    val cachedBody = result.getOrNull()
+                    if (
+                        cachedBody != null &&
+                            method == "GET" &&
+                            requireAuth &&
+                            accessToken == null &&
+                            path in cacheableGetPaths
+                    ) {
+                        responseCache.write(path, query, cachedBody)
+                    }
+                }
                 val error = result.exceptionOrNull()
                 val canRetry =
                     method == "GET" &&

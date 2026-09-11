@@ -26,22 +26,27 @@ class RemoteWalletRepository(
         }
 
     override fun getMyWallet(): Result<WalletData> =
+        apiClient.get("wallets/me").mapCatching(::parseMyWallet).mapApiErrors()
+
+    override fun cachedMyWallet(): WalletData? =
         apiClient
-            .get("wallets/me")
-            .mapCatching { raw ->
-                val envelope = json.decodeFromString<WalletEnvelopeDto>(raw)
-                require(envelope.error == null) { "La respuesta de wallet contiene error." }
-                val wallet = envelope.data.wallet.toDomain()
-                WalletData(
-                    wallet =
-                        if (wallet.userId.isNullOrBlank()) {
-                            wallet.copy(userId = envelope.data.cliente.userId)
-                        } else {
-                            wallet
-                        },
-                    movements = envelope.data.movimientos.map(WalletMovementDto::toDomain),
-                )
-            }.mapApiErrors()
+            .readCachedGet("wallets/me")
+            ?.let { raw -> runCatching { parseMyWallet(raw) }.getOrNull() }
+
+    private fun parseMyWallet(raw: String): WalletData {
+        val envelope = json.decodeFromString<WalletEnvelopeDto>(raw)
+        require(envelope.error == null) { "La respuesta de wallet contiene error." }
+        val wallet = envelope.data.wallet.toDomain()
+        return WalletData(
+            wallet =
+                if (wallet.userId.isNullOrBlank()) {
+                    wallet.copy(userId = envelope.data.cliente.userId)
+                } else {
+                    wallet
+                },
+            movements = envelope.data.movimientos.map(WalletMovementDto::toDomain),
+        )
+    }
 
     override fun searchClients(query: String): Result<List<WalletClient>> =
         apiClient

@@ -20,6 +20,9 @@ interface OrderRepository {
         updatedSince: String? = null,
     ): Result<List<OrderDetail>>
 
+    /** Last successfully fetched client order list, when one was cached. */
+    fun cachedClientOrders(): List<OrderDetail>? = null
+
     fun retryStripePayment(
         orderId: String,
         idempotencyKey: String,

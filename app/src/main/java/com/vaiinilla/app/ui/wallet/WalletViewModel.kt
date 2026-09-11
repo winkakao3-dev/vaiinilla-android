@@ -32,7 +32,8 @@ class WalletViewModel
 
         fun refresh() {
             if (_state.value.loading) return
-            _state.value = _state.value.copy(loading = true, error = null)
+            val cached = _state.value.data ?: repository.cachedMyWallet()
+            _state.value = _state.value.copy(loading = true, data = cached, error = null)
             refreshJob?.cancel()
             refreshJob =
                 viewModelScope.launch {

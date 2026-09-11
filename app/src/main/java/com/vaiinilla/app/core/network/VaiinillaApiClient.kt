@@ -8,6 +8,12 @@ interface VaiinillaApiClient {
         query: Map<String, String> = emptyMap(),
     ): Result<String>
 
+    /** Last successful GET body for [path], scoped to the active session. */
+    fun readCachedGet(
+        path: String,
+        query: Map<String, String> = emptyMap(),
+    ): String? = null
+
     fun post(
         path: String,
         body: String,

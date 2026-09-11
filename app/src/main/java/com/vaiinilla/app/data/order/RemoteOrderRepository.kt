@@ -46,12 +46,16 @@ class RemoteOrderRepository(
             buildMap {
                 updatedSince?.let { put("actualizado_desde", it) }
             }
-        return apiClient
-            .get("pedidos", query)
-            .mapCatching { contractJson.parseOrderList(it) }
-            .mapCatching { orders -> orders.map(pickupTokenStore::attach) }
-            .mapApiErrors()
+        return apiClient.get("pedidos", query).mapCatching(::parseOrderList).mapApiErrors()
     }
+
+    override fun cachedClientOrders(): List<OrderDetail>? =
+        apiClient
+            .readCachedGet("pedidos")
+            ?.let { raw -> runCatching { parseOrderList(raw) }.getOrNull() }
+
+    private fun parseOrderList(raw: String): List<OrderDetail> =
+        contractJson.parseOrderList(raw).map(pickupTokenStore::attach)
 
     override fun retryStripePayment(
         orderId: String,

@@ -34,7 +34,6 @@ import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -56,6 +55,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
+import com.vaiinilla.app.ui.components.SkeletonBlock
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -291,9 +291,14 @@ private fun WalletBalanceHero(
             }
 
             remoteState.loading -> {
-                CircularProgressIndicator(
-                    color = colors.accent,
-                    modifier = Modifier.size(32.dp),
+                SkeletonBlock(
+                    modifier = Modifier.size(width = 150.dp, height = 44.dp),
+                    corner = 14.dp,
+                )
+                Spacer(Modifier.height(10.dp))
+                SkeletonBlock(
+                    modifier = Modifier.size(width = 96.dp, height = 14.dp),
+                    corner = 7.dp,
                 )
             }
 

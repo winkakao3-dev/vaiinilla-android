@@ -16,6 +16,8 @@ class ListOrdersUseCase
             role: OperationalRole,
             updatedSince: String? = null,
         ): Result<List<OrderDetail>> = repository.listOrders(role, updatedSince)
+
+        fun cachedClientOrders(): List<OrderDetail>? = repository.cachedClientOrders()
     }
 
 class GetOrderUseCase

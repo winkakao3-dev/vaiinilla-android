@@ -142,6 +142,29 @@ class OperationalViewModel
         fun refresh() {
             val role = _uiState.value.role ?: return
             val generation = roleGeneration
+            if (role == OperationalRole.CLIENT && _uiState.value.orders.isEmpty()) {
+                listOrders.cachedClientOrders()?.let { cached ->
+                    if (generation == roleGeneration && _uiState.value.role == role) {
+                        val visible =
+                            filterDismissedClientOrders(
+                                role = role,
+                                orders = cached,
+                                dismissedOrderIds = dismissedClientOrderIds,
+                            )
+                        if (visible.isNotEmpty()) {
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    orders = visible.sortedByDescending { it.summary.updatedAt },
+                                    latestClientOrder =
+                                        resolveLatestClientOrder(
+                                            previous = _uiState.value.latestClientOrder,
+                                            incoming = cached,
+                                        ),
+                                )
+                        }
+                    }
+                }
+            }
             _uiState.value = _uiState.value.copy(loading = true, errorMessage = null)
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { listOrders(role, lastUpdatedSince) }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -44,6 +45,7 @@ import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.ui.components.EmptyState
+import com.vaiinilla.app.ui.components.SkeletonBlock
 import com.vaiinilla.app.ui.components.OrderDetailSummary
 import com.vaiinilla.app.ui.components.OrderTrackingCard
 import com.vaiinilla.app.ui.components.OrderTrackingTimeline
@@ -120,6 +122,9 @@ fun StudentTrackingScreen(
                 }
 
                 when {
+                    state.orders.isEmpty() && state.loading -> {
+                        items(3) { OrderTrackingSkeleton() }
+                    }
                     state.orders.isEmpty() -> {
                         item {
                             EmptyState(
@@ -193,6 +198,30 @@ fun StudentTrackingScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun OrderTrackingSkeleton() {
+    val colors = LocalVaiinillaColors.current
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = colors.paper2,
+        shape = RoundedCornerShape(24.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                SkeletonBlock(modifier = Modifier.size(width = 64.dp, height = 22.dp), corner = 11.dp)
+                SkeletonBlock(modifier = Modifier.size(width = 74.dp, height = 22.dp), corner = 11.dp)
+            }
+            SkeletonBlock(modifier = Modifier.fillMaxWidth(0.7f).height(18.dp), corner = 9.dp)
+            SkeletonBlock(modifier = Modifier.fillMaxWidth(0.45f).height(14.dp), corner = 7.dp)
+            SkeletonBlock(modifier = Modifier.fillMaxWidth(0.55f).height(44.dp), corner = 14.dp)
         }
     }
 }
