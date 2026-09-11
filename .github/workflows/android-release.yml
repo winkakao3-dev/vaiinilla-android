@@ -44,6 +44,12 @@ jobs:
           echo "Set the VAIINILLA_API_BASE_URL repository variable before running release CI." >&2
           exit 1
 
+      - name: Require production backend endpoint
+        if: env.VAIINILLA_API_BASE_URL != 'https://vaiinillaback.up.railway.app/api/v1/'
+        run: |
+          echo "VAIINILLA_API_BASE_URL must target the Railway production backend." >&2
+          exit 1
+
       - name: Prepare optional release signing
         if: env.ANDROID_KEYSTORE_BASE64 != ''
         run: |
