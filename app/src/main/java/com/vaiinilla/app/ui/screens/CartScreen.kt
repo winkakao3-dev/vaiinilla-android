@@ -55,6 +55,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -105,6 +106,7 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartScreen(
     state: OrderFlowUiState,
@@ -122,6 +124,8 @@ fun CartScreen(
     guestAuthRequired: Boolean = false,
     profileInitials: String = "?",
     onOpenAccount: () -> Unit = {},
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -161,7 +165,9 @@ fun CartScreen(
             "${state.cartLines.size} productos"
         }
 
-    Box(
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
         modifier =
             Modifier
                 .fillMaxSize()

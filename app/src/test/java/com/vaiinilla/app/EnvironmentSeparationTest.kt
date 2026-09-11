@@ -90,6 +90,22 @@ class EnvironmentSeparationTest {
     }
 
     @Test
+    fun testCheckoutBlockerDoesNotExposeStaffRoles() {
+        val blocked =
+            OperationalStatus(
+                acceptingOrders = true,
+                cashSessionOpen = false,
+                cashierOnline = false,
+                kitchenOnline = false,
+                estimatedTimeMinutes = 10,
+                consultedAt = "2026-08-12T00:00:00.000Z",
+            )
+        val message = blocked.checkoutStaffBlocker()!!
+        assertFalse(message.contains("Caja") || message.contains("Cocina"))
+        assertTrue(message.contains("no está abierto"))
+    }
+
+    @Test
     fun testOperationalReadyRequiresAllFourConditions() {
         val fullStatus =
             OperationalStatus(
@@ -108,12 +124,12 @@ class EnvironmentSeparationTest {
         // Cashier offline
         val noCashierState = OrderFlowUiState(operationalStatus = fullStatus.copy(cashierOnline = false))
         assertFalse(noCashierState.isOperationallyReady)
-        assertTrue(fullStatus.copy(cashierOnline = false).checkoutStaffBlocker()!!.contains("Caja no está en línea"))
+        assertTrue(fullStatus.copy(cashierOnline = false).checkoutStaffBlocker()!!.contains("no está abierto"))
 
         // Kitchen offline
         val noKitchenState = OrderFlowUiState(operationalStatus = fullStatus.copy(kitchenOnline = false))
         assertFalse(noKitchenState.isOperationallyReady)
-        assertTrue(fullStatus.copy(kitchenOnline = false).checkoutStaffBlocker()!!.contains("Cocina no está en línea"))
+        assertTrue(fullStatus.copy(kitchenOnline = false).checkoutStaffBlocker()!!.contains("no está abierto"))
 
         // Both offline
         val bothOfflineState =
@@ -125,14 +141,14 @@ class EnvironmentSeparationTest {
                     cashierOnline = false,
                     kitchenOnline = false,
                 ).checkoutStaffBlocker()!!
-                .contains("Caja y Cocina no están en línea"),
+                .contains("no está abierto"),
         )
 
         // Cash session closed
         val closedCashState = OrderFlowUiState(operationalStatus = fullStatus.copy(cashSessionOpen = false))
         assertFalse(closedCashState.isOperationallyReady)
         assertTrue(
-            fullStatus.copy(cashSessionOpen = false).checkoutStaffBlocker()!!.contains("Caja no tiene sesión abierta"),
+            fullStatus.copy(cashSessionOpen = false).checkoutStaffBlocker()!!.contains("no está abierto"),
         )
 
         // Not accepting orders

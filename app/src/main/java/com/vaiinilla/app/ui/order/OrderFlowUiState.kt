@@ -18,6 +18,7 @@ import com.vaiinilla.app.ui.assistant.AssistantChatMessage
 
 data class OrderFlowUiState(
     val loading: Boolean = true,
+    val refreshing: Boolean = false,
     val catalog: Catalog? = null,
     val operationalStatus: OperationalStatus? = null,
     val errorMessage: String? = null,
@@ -168,20 +169,13 @@ fun OrderFlowUiState.hasSufficientBalance(walletBalance: Int): Boolean {
     return walletBalance >= total
 }
 
+/** Client-facing copy: never expose which staff devices are online. */
+const val ESTABLISHMENT_CLOSED_MESSAGE =
+    "El establecimiento no está abierto en este momento. Verifica que esté abierto y desliza hacia abajo para actualizar."
+
 fun OperationalStatus.checkoutStaffBlocker(): String? {
     if (acceptingOrders && cashSessionOpen && cashierOnline && kitchenOnline) return null
-    if (!cashSessionOpen) {
-        return "Caja no tiene sesión abierta. Entra a Caja y ábrela antes de confirmar."
-    }
-    return when {
-        !cashierOnline && !kitchenOnline ->
-            "Caja y Cocina no están en línea. Tienen que quedar abiertas en otros dispositivos (o en la web) mientras pides como alumno."
-        !cashierOnline ->
-            "Caja no está en línea. Déjala abierta en otro dispositivo o en la web."
-        !kitchenOnline ->
-            "Cocina no está en línea. Déjala abierta en otro dispositivo o en la web."
-        else -> "El establecimiento no está recibiendo pedidos en este momento."
-    }
+    return ESTABLISHMENT_CLOSED_MESSAGE
 }
 
 val OrderFlowUiState.operationalBlockerMessage: String?

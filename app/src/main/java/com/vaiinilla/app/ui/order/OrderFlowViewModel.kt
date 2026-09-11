@@ -260,6 +260,32 @@ class OrderFlowViewModel
             }
         }
 
+        /**
+         * Re-checks operational availability on demand so a client can retry as soon as
+         * staff reconnects, without closing and reopening the app.
+         */
+        fun refreshOperationalStatus() {
+            if (_uiState.value.refreshing) return
+            _uiState.value = _uiState.value.copy(refreshing = true)
+            launchTracked {
+                val current = _uiState.value
+                var statusResult = withContext(Dispatchers.IO) { getOperationalStatus() }
+                if (
+                    statusResult.isFailure &&
+                    current.guestVenue?.establishment?.clientIdRequired == false
+                ) {
+                    current.guestVenue?.let { refreshClientContext(it) }
+                    statusResult = withContext(Dispatchers.IO) { getOperationalStatus() }
+                }
+                _uiState.value =
+                    _uiState.value.copy(
+                        refreshing = false,
+                        operationalStatus =
+                            statusResult.getOrNull() ?: _uiState.value.operationalStatus,
+                    )
+            }
+        }
+
         /** Persists guest cart before leaving for auth. Venue/cart keys stay in GuestSessionStore. */
         fun prepareForGuestAuth() {
             persistCurrentCartIfNeeded()
@@ -547,7 +573,7 @@ class OrderFlowViewModel
                 if (staffPresenceResult.isFailure) {
                     val reason =
                         staffPresenceResult.exceptionOrNull().toUserFacingMessage(
-                            "No se pudo avisar a Caja y Cocina.",
+                            "Intenta de nuevo en unos minutos.",
                         )
                     _uiState.value =
                         current.copy(

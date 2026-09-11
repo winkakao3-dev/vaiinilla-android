@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -28,7 +29,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -176,38 +180,52 @@ fun OrderConfirmationScreen(
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                 )
             }
-            Spacer(Modifier.height(12.dp))
-            Text(
-                text = if (cashPending || stripeAwaitingConfirmation) "Pago pendiente" else "Pedido confirmado",
-                color = TicketMuted2,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Black,
-                letterSpacing = 2.sp,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = confirmationTicketTitle(order),
-                color = TicketInk,
-                fontSize = 34.sp,
-                fontWeight = FontWeight.Black,
-                lineHeight = 34.sp,
-                letterSpacing = (-1.4).sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text =
-                    when {
-                        stripeAwaitingConfirmation -> stripePaymentMessage ?: "Esperando confirmación segura del pago."
-                        cashPending -> "Muéstralo en Caja para pagar."
-                        else -> "Tu pedido ya está en marcha."
-                    },
-                color = TicketMuted,
-                fontSize = 14.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Spacer(Modifier.height(22.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                PaymentMascotSticker(
+                    orderId = order.summary.id,
+                    modifier = Modifier.size(104.dp),
+                )
+                Spacer(Modifier.width(18.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (cashPending || stripeAwaitingConfirmation) "Pago pendiente" else "Pedido confirmado",
+                        color = TicketMuted2,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 2.sp,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = confirmationTicketTitle(order),
+                        color = TicketInk,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Black,
+                        lineHeight = 34.sp,
+                        letterSpacing = (-1.4).sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text =
+                            when {
+                                stripeAwaitingConfirmation ->
+                                    stripePaymentMessage
+                                        ?: "Esperando confirmación segura del pago."
+                                cashPending -> "Muéstralo en Caja para pagar."
+                                else -> "Tu pedido ya está en marcha."
+                            },
+                        color = TicketMuted,
+                        fontSize = 14.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
             Box(
                 modifier =
                     Modifier
@@ -359,6 +377,22 @@ fun OrderConfirmationScreen(
             }
         }
     }
+}
+
+@Composable
+private fun PaymentMascotSticker(
+    orderId: String,
+    modifier: Modifier = Modifier,
+) {
+    Image(
+        painter = painterResource(TicketMascotCatalog.drawableFor(orderId)),
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(24.dp))
+                .border(1.dp, TicketLineSoft, RoundedCornerShape(24.dp)),
+    )
 }
 
 @Composable
