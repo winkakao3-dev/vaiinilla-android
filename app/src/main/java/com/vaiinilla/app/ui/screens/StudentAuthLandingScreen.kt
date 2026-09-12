@@ -239,8 +239,7 @@ private fun WelcomeMascotStage(
                             scaleY = scale
                             shape = CircleShape
                             clip = true
-                        }
-                        .border(
+                        }.border(
                             1.dp,
                             colors.paper.copy(alpha = if (colors.isDark) 0.58f else 0.82f),
                             CircleShape,

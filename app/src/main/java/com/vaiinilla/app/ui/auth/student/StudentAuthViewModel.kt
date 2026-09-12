@@ -507,6 +507,7 @@ class StudentAuthViewModel
         private fun clearMfaChallenge() {
             _state.value.mfaChallenge?.let { challenge -> authRepository.cancelMfa(challenge.id) }
         }
+
         fun resendVerification() {
             val current = _state.value
             if (current.loading) return

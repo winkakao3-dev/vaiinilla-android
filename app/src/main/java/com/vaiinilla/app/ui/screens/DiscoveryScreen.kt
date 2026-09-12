@@ -78,9 +78,9 @@ import com.vaiinilla.app.ui.discovery.DiscoveryUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
-import kotlin.math.roundToInt
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @Composable
 fun DiscoveryScreen(
@@ -612,8 +612,7 @@ private fun VenueDock(
                             newSize.width -
                                 with(density) { (thumbSize + trackPadding * 2).toPx() }
                         ).coerceAtLeast(0f)
-                }
-                .semantics { contentDescription = "Desliza para continuar" }
+                }.semantics { contentDescription = "Desliza para continuar" }
                 .then(
                     if (enabled) {
                         Modifier.pointerInput(maxDragPx) {
@@ -668,8 +667,7 @@ private fun VenueDock(
                     } else {
                         Modifier
                     },
-                )
-                .padding(horizontal = 8.dp, vertical = 10.dp),
+                ).padding(horizontal = 8.dp, vertical = 10.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
         val visibleDragX = if (isDragging) directDragX else dragX.value
