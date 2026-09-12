@@ -72,6 +72,6 @@ class CartCompactLayoutTest {
         composeTestRule.onNodeWithText("¿Cómo quieres pagar?").assertIsDisplayed()
         composeTestRule.onNodeWithText("Pago en caja").assertIsDisplayed()
         composeTestRule.onNodeWithText("Saldo Vaiinilla").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Pago desde la app").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Pago con Stripe").assertIsDisplayed()
     }
 }

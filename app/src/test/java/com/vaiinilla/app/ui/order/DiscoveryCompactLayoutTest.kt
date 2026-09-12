@@ -6,9 +6,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.Density
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.PublicEstablishment
@@ -58,7 +56,7 @@ class DiscoveryCompactLayoutTest {
         )
 
     @Test
-    fun `discovery keeps full list collapsed until explicitly requested`() {
+    fun `discovery shows recommended card and every other venue`() {
         composeTestRule.setContent {
             ScreenshotTheme {
                 DiscoveryScreen(
@@ -80,15 +78,15 @@ class DiscoveryCompactLayoutTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Seguir al menú").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Buscar otra cafetería").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Escanear QR").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Usar código").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Ver todas las cafeterías").assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("Cafetería Sur").assertCountEquals(0)
-
-        composeTestRule.onNodeWithContentDescription("Ver todas las cafeterías").performClick()
-        composeTestRule.onNodeWithText("Ocultar cafeterías").assertIsDisplayed()
+        composeTestRule.onNodeWithText("¿Dónde comes hoy?").assertIsDisplayed()
+        composeTestRule.onNodeWithText("RECOMENDADA PARA TI").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("saulP1").assertCountEquals(2)
+        composeTestRule.onAllNodesWithText("OTRAS SEDES DISPONIBLES").assertCountEquals(1)
+        composeTestRule.onAllNodesWithText("America").assertCountEquals(1)
+        composeTestRule.onAllNodesWithText("Cafetería Sur").assertCountEquals(1)
+        composeTestRule.onAllNodesWithText("Escanear QR").assertCountEquals(1)
+        composeTestRule.onAllNodesWithText("Usar código").assertCountEquals(1)
+        composeTestRule.onNodeWithText("CAFETERÍA ACTIVA").assertIsDisplayed()
     }
 
     @Test
@@ -119,9 +117,8 @@ class DiscoveryCompactLayoutTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Escanear QR").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Del comedor o mesa").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Usar código").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Token del espacio").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("ACCESO RÁPIDO EN MESA").assertCountEquals(1)
+        composeTestRule.onAllNodesWithText("Escanear QR").assertCountEquals(1)
+        composeTestRule.onAllNodesWithText("Usar código").assertCountEquals(1)
     }
 }

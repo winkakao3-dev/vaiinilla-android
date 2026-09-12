@@ -62,7 +62,7 @@ class PaymentOverlayScreenshotTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Pagar").performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Pago desde la app").performClick()
+        composeTestRule.onNodeWithText("Pago con Stripe").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onRoot().captureRoboImage(name)
     }
