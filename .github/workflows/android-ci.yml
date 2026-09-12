@@ -72,3 +72,18 @@ jobs:
           name: vaiinilla-prod-debug-apk
           path: app/build/outputs/apk/prodAlumno/debug/*.apk
           if-no-files-found: error
+
+      - name: Install Firebase CLI
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: npm install -g firebase-tools
+
+      - name: Distribute Dev APKs to testers
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          RELEASE_NOTES: "main ${{ github.sha }}"
+          TESTERS: ${{ vars.APP_DISTRIBUTION_TESTERS }}
+        run: |
+          firebase appdistribution:distribute app/build/outputs/apk/devAlumno/debug/app-dev-alumno-debug.apk --app 1:697485438624:android:3ec322652bcf498697a3c5 --testers "$TESTERS" --release-notes "$RELEASE_NOTES"
+          firebase appdistribution:distribute app/build/outputs/apk/devCaja/debug/app-dev-caja-debug.apk --app 1:697485438624:android:5dcd5db4c451685797a3c5 --testers "$TESTERS" --release-notes "$RELEASE_NOTES"
+          firebase appdistribution:distribute app/build/outputs/apk/devCocina/debug/app-dev-cocina-debug.apk --app 1:697485438624:android:90c75e108b95232c97a3c5 --testers "$TESTERS" --release-notes "$RELEASE_NOTES"
