@@ -2,10 +2,12 @@ package com.vaiinilla.app.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +47,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -76,6 +79,8 @@ import com.vaiinilla.app.ui.discovery.DiscoveryUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
+import kotlin.math.roundToInt
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 @Composable
@@ -130,7 +135,7 @@ fun DiscoveryScreen(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(52.dp)
+                        .height(48.dp)
                         .padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -147,6 +152,20 @@ fun DiscoveryScreen(
                     Spacer(Modifier.width(8.dp))
                 }
                 Spacer(Modifier.weight(1f))
+                Box(
+                    modifier =
+                        Modifier
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(15.dp))
+                            .background(colors.ink)
+                            .clickable {
+                                haptics.click()
+                                onOpenAccount()
+                            },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(profileInitials, color = colors.paper, fontWeight = FontWeight.Black)
+                }
             }
 
             LazyColumn(
@@ -155,7 +174,7 @@ fun DiscoveryScreen(
                     PaddingValues(
                         start = 20.dp,
                         end = 20.dp,
-                        top = 4.dp,
+                        top = 0.dp,
                         bottom = if (dockHeightPx > 0) dockHeight + 26.dp else 216.dp,
                     ),
             ) {
@@ -166,7 +185,7 @@ fun DiscoveryScreen(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.ExtraBold,
                         letterSpacing = 1.8.sp,
-                        modifier = Modifier.padding(top = 16.dp),
+                        modifier = Modifier.padding(top = 6.dp),
                     )
                     Text(
                         "¿Dónde comes hoy?",
@@ -561,7 +580,18 @@ private fun VenueDock(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
-    Row(
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
+    val enabled = selection != null
+    val thumbSize = 50.dp
+    val trackPadding = 8.dp
+    val dragX = remember { Animatable(0f) }
+    var directDragX by remember { mutableFloatStateOf(0f) }
+    var isDragging by remember { mutableStateOf(false) }
+    var motionJob by remember { mutableStateOf<Job?>(null) }
+    var maxDragPx by remember { mutableStateOf(0f) }
+
+    Box(
         modifier =
             modifier
                 .fillMaxWidth()
@@ -569,10 +599,83 @@ private fun VenueDock(
                 .padding(start = 16.dp, end = 16.dp, bottom = 14.dp)
                 .clip(RoundedCornerShape(26.dp))
                 .background(colors.ink)
-                .padding(start = 18.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
+                .onSizeChanged { newSize ->
+                    maxDragPx =
+                        (
+                            newSize.width -
+                                with(density) { (thumbSize + trackPadding * 2).toPx() }
+                        ).coerceAtLeast(0f)
+                }
+                .semantics { contentDescription = "Desliza para continuar" }
+                .then(
+                    if (enabled) {
+                        Modifier.pointerInput(maxDragPx) {
+                            detectHorizontalDragGestures(
+                                onDragStart = {
+                                    motionJob?.cancel()
+                                    directDragX = dragX.value.coerceIn(0f, maxDragPx)
+                                    isDragging = true
+                                },
+                                onDragEnd = {
+                                    val releaseX = directDragX.coerceIn(0f, maxDragPx)
+                                    motionJob?.cancel()
+                                    motionJob =
+                                        scope.launch {
+                                            dragX.snapTo(releaseX)
+                                            isDragging = false
+                                            if (releaseX >= maxDragPx * 0.7f) {
+                                                dragX.animateTo(
+                                                    maxDragPx,
+                                                    spring(stiffness = Spring.StiffnessMedium),
+                                                )
+                                                onContinue()
+                                                dragX.snapTo(0f)
+                                            } else {
+                                                dragX.animateTo(
+                                                    0f,
+                                                    spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                                                )
+                                            }
+                                        }
+                                },
+                                onDragCancel = {
+                                    val releaseX = directDragX.coerceIn(0f, maxDragPx)
+                                    motionJob?.cancel()
+                                    motionJob =
+                                        scope.launch {
+                                            dragX.snapTo(releaseX)
+                                            isDragging = false
+                                            dragX.animateTo(
+                                                0f,
+                                                spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                                            )
+                                        }
+                                },
+                            ) { change, dragAmount ->
+                                change.consume()
+                                directDragX =
+                                    (directDragX + dragAmount)
+                                        .coerceIn(0f, maxDragPx)
+                            }
+                        }
+                    } else {
+                        Modifier
+                    },
+                )
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+        contentAlignment = Alignment.CenterStart,
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        val visibleDragX = if (isDragging) directDragX else dragX.value
+        val labelAlpha =
+            (1f - (visibleDragX / maxDragPx.coerceAtLeast(1f)) * 1.4f).coerceIn(0f, 1f)
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = thumbSize)
+                    .alpha(labelAlpha),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             Text(
                 when {
                     selection == null -> "ELIGE UNA CAFETERÍA"
@@ -597,35 +700,19 @@ private fun VenueDock(
         Box(
             modifier =
                 Modifier
-                    .padding(start = 12.dp)
-                    .height(50.dp)
+                    .offset { IntOffset(visibleDragX.roundToInt(), 0) }
+                    .size(thumbSize)
                     .clip(RoundedCornerShape(18.dp))
                     .background(colors.accent)
-                    .alpha(if (selection == null) 0.5f else 1f)
-                    .then(
-                        if (selection != null) {
-                            Modifier.physicalPress(onClick = onContinue)
-                        } else {
-                            Modifier
-                        },
-                    )
-                    .padding(horizontal = 20.dp),
+                    .alpha(if (enabled) 1f else 0.5f),
             contentAlignment = Alignment.Center,
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "Continuar",
-                    color = colors.accentInk,
-                    fontSize = 14.5.sp,
-                    fontWeight = FontWeight.Black,
-                )
-                Icon(
-                    Icons.AutoMirrored.Rounded.ArrowForward,
-                    contentDescription = null,
-                    tint = colors.accentInk,
-                    modifier = Modifier.padding(start = 7.dp).size(18.dp),
-                )
-            }
+            Icon(
+                Icons.AutoMirrored.Rounded.ArrowForward,
+                contentDescription = null,
+                tint = colors.accentInk,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }

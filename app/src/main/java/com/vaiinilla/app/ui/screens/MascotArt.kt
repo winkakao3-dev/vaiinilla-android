@@ -104,12 +104,18 @@ fun VaiinillaMascot(
     paperColor: Color,
     accentColor: Color,
     inkColor: Color,
+    reduceMotion: Boolean = false,
     shadowColor: Color = Color(0x1C000000),
 ) {
     val appear = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
-        delay(delayMs)
-        appear.animateTo(1f, spring(dampingRatio = 0.58f, stiffness = 240f))
+    LaunchedEffect(delayMs, reduceMotion) {
+        if (reduceMotion) {
+            appear.snapTo(1f)
+        } else {
+            appear.snapTo(0f)
+            delay(delayMs)
+            appear.animateTo(1f, spring(dampingRatio = 0.58f, stiffness = 240f))
+        }
     }
     val idle = rememberInfiniteTransition(label = "mascot_idle")
     val breathe by
@@ -154,6 +160,10 @@ fun VaiinillaMascot(
             label = "blink",
         )
 
+    val resolvedBreathe = if (reduceMotion) 1f else breathe
+    val resolvedSway = if (reduceMotion) 0f else sway
+    val resolvedBlink = if (reduceMotion) 1f else blink
+
     Canvas(
         modifier = modifier,
     ) {
@@ -163,8 +173,8 @@ fun VaiinillaMascot(
         withTransform({
             scale(alpha, alpha, pivot = Offset(50f * s, 82f * s))
             translate(0f, (1f - alpha) * -26f * s)
-            rotate(sway, pivot = Offset(50f * s, 82f * s))
-            scale(1f, breathe, pivot = Offset(50f * s, 82f * s))
+            rotate(resolvedSway, pivot = Offset(50f * s, 82f * s))
+            scale(1f, resolvedBreathe, pivot = Offset(50f * s, 82f * s))
         }) {
             withTransform({ scale(s, s, pivot = Offset.Zero) }) {
                 withTransform({ translate(0f, 1.5f) }) {
@@ -179,12 +189,12 @@ fun VaiinillaMascot(
                 drawPath(MASCOT_BAR_TOP, accentColor)
                 drawPath(MASCOT_BAR_BOTTOM, accentColor)
                 withTransform({
-                    scale(1f, blink, pivot = Offset(40.1f, 52.5f))
+                    scale(1f, resolvedBlink, pivot = Offset(40.1f, 52.5f))
                 }) {
                     drawPath(MASCOT_EYE_LEFT, inkColor)
                 }
                 withTransform({
-                    scale(1f, blink, pivot = Offset(59.9f, 52.5f))
+                    scale(1f, resolvedBlink, pivot = Offset(59.9f, 52.5f))
                 }) {
                     drawPath(MASCOT_EYE_RIGHT, inkColor)
                 }
@@ -268,8 +278,15 @@ fun FloatingGlyph(
     phase: Float,
     amplitudeDp: Float,
     durationMs: Int,
+    reduceMotion: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    if (reduceMotion) {
+        Canvas(modifier = modifier) {
+            drawVaiinillaGlyph(kind, color, accent)
+        }
+        return
+    }
     val transition = rememberInfiniteTransition(label = "glyph_$kind")
     val float by
         transition.animateFloat(

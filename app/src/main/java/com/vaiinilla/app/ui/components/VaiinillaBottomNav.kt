@@ -128,11 +128,7 @@ private val NavPillSpring =
         stiffness = 310f,
     )
 
-private val NavTapMotion =
-    tween<Float>(
-        durationMillis = 220,
-        easing = NavMotionEase,
-    )
+private fun navTapDurationMs(distance: Float): Int = (220f + 50f * (distance - 1f).coerceAtLeast(0f)).roundToInt()
 
 /** Content clearance: dock + float gap + breathing room (excludes system inset). */
 val VaiinillaBottomNavClearance: Dp = NavDockHeight + NavDockGapAboveSafeArea + 16.dp
@@ -208,6 +204,8 @@ fun VaiinillaBottomNav(
     var isDragging by remember { mutableStateOf(false) }
     var optimisticTargetIndex by remember { mutableStateOf<Int?>(null) }
     var motionJob by remember { mutableStateOf<Job?>(null) }
+    var travelOrigin by remember { mutableFloatStateOf(Float.NaN) }
+    var travelTarget by remember { mutableFloatStateOf(Float.NaN) }
     val onTabSelectedLatest by rememberUpdatedState(onTabSelected)
     val onTabPreparingLatest by rememberUpdatedState(onTabPreparing)
     val activeTabLatest by rememberUpdatedState(activeTab)
@@ -226,12 +224,16 @@ fun VaiinillaBottomNav(
         motionJob?.cancel()
         motionJob = null
         if (reducedMotion) {
+            travelOrigin = Float.NaN
             indexAnim.snapTo(activeIndex.toFloat())
         } else {
+            travelOrigin = indexAnim.value
+            travelTarget = activeIndex.toFloat()
             indexAnim.animateTo(
                 targetValue = activeIndex.toFloat(),
                 animationSpec = NavPillSpring,
             )
+            travelOrigin = Float.NaN
         }
         StudentNavPillMotion.index = indexAnim.value
         StudentNavPillMotion.lastTab = activeTab
@@ -292,7 +294,15 @@ fun VaiinillaBottomNav(
                 val visualIndex = if (isDragging) dragIndex else indexAnim.value
                 val boundedVisualIndex = visualIndex.coerceIn(0f, lastIndex)
                 val segmentProgress = boundedVisualIndex - floor(boundedVisualIndex)
-                val stretchProgress = sin(PI.toFloat() * segmentProgress).coerceIn(0f, 1f)
+                val travelSpan = travelTarget - travelOrigin
+                val traveling = !isDragging && !travelOrigin.isNaN() && abs(travelSpan) > 0.001f
+                val stretchProgress =
+                    if (traveling) {
+                        val journey = ((boundedVisualIndex - travelOrigin) / travelSpan).coerceIn(0f, 1f)
+                        sin(PI.toFloat() * journey).coerceIn(0f, 1f)
+                    } else {
+                        sin(PI.toFloat() * segmentProgress).coerceIn(0f, 1f)
+                    }
                 val stretchWidth = itemWidth * (0.72f * stretchProgress)
                 val pillWidth = basePillWidth + stretchWidth
                 val pillWidthPx = with(density) { pillWidth.toPx() }
@@ -304,6 +314,7 @@ fun VaiinillaBottomNav(
                                     motionJob?.cancel()
                                     motionJob = null
                                     optimisticTargetIndex = null
+                                    travelOrigin = Float.NaN
                                     // Freeze the visible position into synchronous drag state.
                                     // This avoids launching one coroutine per pointer movement.
                                     dragIndex = indexAnim.value.coerceIn(0f, lastIndex)
@@ -325,9 +336,6 @@ fun VaiinillaBottomNav(
                                     // Snap navigation and pill from the exact same resolved slot.
                                     // Keep drag rendering active until Animatable is seeded from the
                                     // release position, preventing a one-frame jump back to the old tab.
-                                    if (tab != activeTabLatest) {
-                                        onTabSelectedLatest(tab)
-                                    }
                                     motionJob?.cancel()
                                     motionJob =
                                         scope.launch {
@@ -337,9 +345,22 @@ fun VaiinillaBottomNav(
                                                 delay(24)
                                                 onTabPreparingLatest(tab)
                                             }
-                                            indexAnim.animateTo(targetIndex, NavPillSpring)
+                                            if (reducedMotion) {
+                                                travelOrigin = Float.NaN
+                                                indexAnim.snapTo(targetIndex)
+                                            } else {
+                                                travelOrigin = releaseIndex
+                                                travelTarget = targetIndex
+                                                indexAnim.animateTo(targetIndex, NavPillSpring)
+                                                travelOrigin = Float.NaN
+                                            }
                                             StudentNavPillMotion.index = targetIndex
                                             StudentNavPillMotion.lastTab = tab
+                                            if (tab != activeTabLatest) {
+                                                onTabSelectedLatest(tab)
+                                            } else {
+                                                optimisticTargetIndex = null
+                                            }
                                         }
                                 },
                                 onDragCancel = {
@@ -350,7 +371,10 @@ fun VaiinillaBottomNav(
                                         scope.launch {
                                             indexAnim.snapTo(releaseIndex)
                                             isDragging = false
+                                            travelOrigin = releaseIndex
+                                            travelTarget = targetIndex
                                             indexAnim.animateTo(targetIndex, NavPillSpring)
+                                            travelOrigin = Float.NaN
                                         }
                                 },
                             )
@@ -408,9 +432,6 @@ fun VaiinillaBottomNav(
                                     optimisticTargetIndex = targetIndex
                                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     val selectedTab = entry.tab
-                                    if (selectedTab != activeTabLatest) {
-                                        onTabSelectedLatest(selectedTab)
-                                    }
                                     motionJob?.cancel()
                                     motionJob =
                                         scope.launch {
@@ -419,12 +440,30 @@ fun VaiinillaBottomNav(
                                                 onTabPreparingLatest(selectedTab)
                                             }
                                             if (reducedMotion) {
+                                                travelOrigin = Float.NaN
                                                 indexAnim.snapTo(targetValue)
                                             } else {
-                                                indexAnim.animateTo(targetValue, NavTapMotion)
+                                                travelOrigin = indexAnim.value
+                                                travelTarget = targetValue
+                                                indexAnim.animateTo(
+                                                    targetValue,
+                                                    tween(
+                                                        durationMillis =
+                                                            navTapDurationMs(
+                                                                abs(targetValue - indexAnim.value),
+                                                            ),
+                                                        easing = NavMotionEase,
+                                                    ),
+                                                )
+                                                travelOrigin = Float.NaN
                                             }
                                             StudentNavPillMotion.index = targetValue
                                             StudentNavPillMotion.lastTab = selectedTab
+                                            if (selectedTab != activeTabLatest) {
+                                                onTabSelectedLatest(selectedTab)
+                                            } else {
+                                                optimisticTargetIndex = null
+                                            }
                                         }
                                 },
                             )
