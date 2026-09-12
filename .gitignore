@@ -30,3 +30,6 @@ references/
 # Android signing material must remain outside the repository.
 *.jks
 *.keystore
+
+# Shared debug keystore for QA (CI/VPS signatures must match)
+!keystores/debug.keystore
