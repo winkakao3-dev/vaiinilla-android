@@ -101,7 +101,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.edit
-import com.vaiinilla.app.ui.screens.VaiinillaSerif
 import com.vaiinilla.app.domain.model.OperationalRole
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -578,7 +577,6 @@ private fun AssistantSheetContent(
                 Text(
                     text = manualTitle,
                     color = palette.ink,
-                    fontFamily = VaiinillaSerif,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.5).sp,
@@ -676,7 +674,6 @@ private fun ManualGuideDetail(
                 Text(
                     guide.title,
                     color = palette.ink,
-                    fontFamily = VaiinillaSerif,
                     fontSize = 17.sp,
                     lineHeight = 20.sp,
                     fontWeight = FontWeight.Bold,
@@ -746,8 +743,7 @@ private fun ManualGuideDetail(
                         Text(
                             animatedStep.title,
                             color = palette.ink,
-                            fontFamily = VaiinillaSerif,
-                            fontSize = 22.sp,
+                                    fontSize = 22.sp,
                             lineHeight = 26.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = (-0.3).sp,

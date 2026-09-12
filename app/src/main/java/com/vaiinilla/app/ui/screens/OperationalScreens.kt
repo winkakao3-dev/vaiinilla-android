@@ -69,14 +69,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -243,6 +247,13 @@ fun CashierOperationalScreen(
     val haptics = rememberVaiinillaHaptics()
     var addProductSheetOpen by remember { mutableStateOf(false) }
     var toastMessage by remember { mutableStateOf<String?>(null) }
+    var tick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1_000)
+            tick += 1
+        }
+    }
     val assistantRegistry = rememberAssistantAnchorRegistry()
     val assistantController = rememberOperationalAssistantController(assistantUserKey, OperationalRole.CASHIER)
     val assistantFocusRequester = remember { FocusRequester() }
@@ -505,8 +516,9 @@ fun CashierOperationalScreen(
             }
 
             // Pedido reciente section header
-            item {
-                Row(
+            if (recentOrder == null) {
+                item {
+                    Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Bottom,
@@ -517,22 +529,14 @@ fun CashierOperationalScreen(
                         fontSize = 20.sp,
                         color = colors.textPrimary,
                     )
-                    val recentStatus =
-                        if (recentOrder != null) {
-                            if (recentOrder.summary.state == OrderState.DELIVERED) {
-                                "Completado"
-                            } else {
-                                "Por entregar"
-                            }
-                        } else {
-                            "Al día"
-                        }
+                    val recentStatus = "Al día"
                     Text(
                         text = recentStatus,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.textSecondary,
                     )
+                    }
                 }
             }
 
@@ -546,192 +550,137 @@ fun CashierOperationalScreen(
                         remember(recentOrder.summary.id) {
                             mutableStateOf(recentOrder.summary.total)
                         }
-
-                    Surface(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_CASHIER_ORDER_CARD)
-                                .shadow(12.dp, RoundedCornerShape(26.dp), spotColor = Color(0x1A171816))
-                                .border(1.dp, colors.cardBorder, RoundedCornerShape(26.dp)),
-                        shape = RoundedCornerShape(26.dp),
-                        color = colors.cardBackground,
-                    ) {
-                        Column(modifier = Modifier.padding(18.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.Top,
-                            ) {
-                                Column {
-                                    Text(
-                                        "PEDIDO MÁS RECIENTE",
-                                        color = colors.textSecondary,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = 1.5.sp,
-                                    )
-                                    Text(
-                                        "#${recentOrder.summary.folio}",
-                                        fontFamily = VaiinillaSerif,
-                                        fontSize = 46.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = (-1.5).sp,
-                                        color = colors.textPrimary,
-                                        modifier = Modifier.offset(y = (-2).dp),
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Surface(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_CASHIER_ORDER_CARD),
+                            shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
+                            color = TicketPaper,
+                            shadowElevation = 10.dp,
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.Top,
+                                ) {
+                                    Column {
+                                        Text(
+                                            "PEDIDO · ${elapsedShort(recentOrder.summary.createdAt, tick).uppercase()}",
+                                            color = TicketMuted,
+                                            fontSize = 9.5.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            letterSpacing = 1.6.sp,
+                                        )
+                                        Text(
+                                            "#${recentOrder.summary.folio}",
+                                            fontSize = 46.sp,
+                                            fontWeight = FontWeight.Black,
+                                            letterSpacing = (-1.5).sp,
+                                            color = TicketInk,
+                                        )
+                                    }
+                                    StampLabel(
+                                        text =
+                                            if (isDelivered) {
+                                                "ENTREGADO"
+                                            } else if (isPendingPayment) {
+                                                "POR COBRAR"
+                                            } else if (isOrderReady) {
+                                                "LISTO"
+                                            } else {
+                                                "EN ESPERA"
+                                            },
+                                        live = !isDelivered,
                                     )
                                 }
-                                // Status Pill
-                                val pillBg = if (isDelivered) colors.cardInner else colors.accentLime
-                                val pillColor = if (isDelivered) colors.textSecondary else colors.accentInk
+
+                                Column(modifier = Modifier.padding(top = 8.dp)) {
+                                    recentOrder.items.forEach { item ->
+                                        ReceiptLine(
+                                            quantity = item.quantity,
+                                            name = item.productName,
+                                            detail =
+                                                item.options
+                                                    .joinToString(" · ") { it.name }
+                                                    .ifEmpty { null },
+                                            price = "$${item.unitDigitalPrice}",
+                                        )
+                                    }
+                                }
+
+                                TicketPerf()
+
                                 Row(
-                                    modifier =
-                                        Modifier
-                                            .clip(CircleShape)
-                                            .background(pillBg)
-                                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.Bottom,
                                 ) {
-                                    Box(
+                                    Text(
+                                        "TOTAL",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        letterSpacing = 1.4.sp,
+                                        color = TicketMuted,
+                                    )
+                                    Text(
+                                        "$${recentOrder.summary.total}",
+                                        fontSize = 28.sp,
+                                        fontWeight = FontWeight.Black,
+                                        letterSpacing = (-1).sp,
+                                        color = TicketInk,
+                                    )
+                                }
+
+                                if (isPendingPayment) {
+                                    // Pedido pagado en efectivo: hay que cobrarlo antes de que exista
+                                    // cualquier posibilidad de avanzarlo a cocina/entrega.
+                                    BasicTextField(
+                                        value = cashReceivedInput,
+                                        onValueChange = { raw ->
+                                            cashReceivedInput =
+                                                raw.filter { it.isDigit() || it == '.' }
+                                        },
+                                        singleLine = true,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                        enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
+                                        textStyle =
+                                            TextStyle(
+                                                color = TicketInk,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                            ),
+                                        cursorBrush = SolidColor(TicketInk),
                                         modifier =
                                             Modifier
-                                                .size(7.dp)
-                                                .clip(CircleShape)
-                                                .background(pillColor),
-                                    )
-                                    Text(
-                                        if (isDelivered) {
-                                            "ENTREGADO"
-                                        } else if (isPendingPayment) {
-                                            "POR COBRAR"
-                                        } else if (isOrderReady) {
-                                            "LISTO"
-                                        } else {
-                                            "EN ESPERA"
-                                        },
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = pillColor,
-                                    )
-                                }
-                            }
-
-                            // Order Items List
-                            Column(
-                                modifier = Modifier.padding(vertical = 16.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                recentOrder.items.forEach { item ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.Top,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    ) {
-                                        Box(
-                                            modifier =
-                                                Modifier
-                                                    .size(28.dp)
-                                                    .clip(RoundedCornerShape(8.dp))
-                                                    .background(colors.cardInner),
-                                            contentAlignment = Alignment.Center,
-                                        ) {
-                                            Text(
-                                                "${item.quantity}",
-                                                fontWeight = FontWeight.Black,
-                                                fontSize = 13.sp,
-                                                color = colors.textPrimary,
-                                            )
-                                        }
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                item.productName,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 14.sp,
-                                                color = colors.textPrimary,
-                                            )
-                                            if (item.options.isNotEmpty()) {
-                                                Text(
-                                                    item.options.joinToString(" · ") { it.name },
-                                                    color = colors.textSecondary,
-                                                    fontSize = 12.sp,
-                                                )
+                                                .fillMaxWidth()
+                                                .padding(top = 12.dp)
+                                                .height(46.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(TicketInk.copy(alpha = 0.05f))
+                                                .border(1.dp, TicketLine, RoundedCornerShape(12.dp)),
+                                        decorationBox = { inner ->
+                                            Box(
+                                                modifier =
+                                                    Modifier
+                                                        .fillMaxSize()
+                                                        .padding(horizontal = 14.dp),
+                                                contentAlignment = Alignment.CenterStart,
+                                            ) {
+                                                if (cashReceivedInput.isEmpty()) {
+                                                    Text(
+                                                        "Efectivo recibido · $${recentOrder.summary.total}",
+                                                        color = TicketMuted,
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                    )
+                                                }
+                                                inner()
                                             }
-                                        }
-                                        Text(
-                                            "$${item.unitDigitalPrice}",
-                                            color = colors.textPrimary,
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Bold,
-                                        )
-                                    }
-                                }
-                            }
-
-                            TicketDivider(colors)
-
-                            // Meta Summary
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    "Total comanda",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = colors.textSecondary,
-                                )
-                                Text(
-                                    "$${recentOrder.summary.total}",
-                                    fontFamily = VaiinillaSerif,
-                                    fontSize = 26.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = (-0.5).sp,
-                                    color = colors.textPrimary,
-                                )
-                            }
-
-                            if (isPendingPayment) {
-                                // Pedido pagado en efectivo: hay que cobrarlo antes de que exista
-                                // cualquier posibilidad de avanzarlo a cocina/entrega.
-                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(
-                                            "Efectivo recibido ($)",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = colors.textSecondary,
-                                        )
-                                        BasicTextField(
-                                            value = cashReceivedInput,
-                                            onValueChange = { raw ->
-                                                cashReceivedInput =
-                                                    raw.filter { it.isDigit() || it == '.' }
-                                            },
-                                            singleLine = true,
-                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                            enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
-                                            textStyle =
-                                                TextStyle(
-                                                    color = colors.textPrimary,
-                                                    fontSize = 15.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                ),
-                                            cursorBrush = SolidColor(colors.textPrimary),
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .height(50.dp)
-                                                    .clip(RoundedCornerShape(16.dp))
-                                                    .background(colors.cardBackground)
-                                                    .border(1.dp, colors.cardBorder, RoundedCornerShape(16.dp))
-                                                    .padding(horizontal = 14.dp),
-                                            decorationBox = { inner ->
-                                                Box(contentAlignment = Alignment.CenterStart) { inner() }
-                                            },
-                                        )
-                                    }
+                                        },
+                                    )
                                     Button(
                                         onClick = {
                                             haptics.impact()
@@ -749,12 +698,16 @@ fun CashierOperationalScreen(
                                             ButtonDefaults.buttonColors(
                                                 containerColor = colors.accentLime,
                                                 contentColor = colors.accentInk,
-                                                disabledContainerColor = colors.cardInner,
-                                                disabledContentColor = colors.textMuted,
+                                                disabledContainerColor = TicketLine,
+                                                disabledContentColor = TicketMuted,
                                             ),
-                                        shape = RoundedCornerShape(16.dp),
-                                        modifier = Modifier.fillMaxWidth().height(52.dp),
-                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                                        shape = RoundedCornerShape(14.dp),
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 10.dp)
+                                                .height(50.dp),
+                                        contentPadding = PaddingValues(horizontal = 14.dp),
                                     ) {
                                         Icon(
                                             imageVector = Icons.Outlined.Payments,
@@ -765,57 +718,59 @@ fun CashierOperationalScreen(
                                         Text(
                                             "Cobrar $${recentOrder.summary.total}",
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp,
+                                            fontSize = 14.sp,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                        )
+                                    }
+                                } else {
+                                    // La entrega para llevar exige el QR del alumno. No existe transición manual sin token.
+                                    Button(
+                                        onClick = {
+                                            haptics.impact()
+                                            onScanDeliver(recentOrder.summary.id, recentOrder.summary.version)
+                                        },
+                                        enabled =
+                                            isOrderReady &&
+                                                restrictedMode != RestrictedMode.READ_ONLY,
+                                        colors =
+                                            ButtonDefaults.buttonColors(
+                                                containerColor = TicketInk,
+                                                contentColor = TicketPaper,
+                                                disabledContainerColor = TicketLine,
+                                                disabledContentColor = TicketMuted,
+                                            ),
+                                        shape = RoundedCornerShape(14.dp),
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 12.dp)
+                                                .height(50.dp)
+                                                .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_QR_SCAN),
+                                        contentPadding = PaddingValues(horizontal = 14.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.QrCodeScanner,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            if (isOrderReady) {
+                                                "Escanear QR para entregar"
+                                            } else {
+                                                "Disponible cuando esté LISTO"
+                                            },
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp,
                                             maxLines = 1,
                                             softWrap = false,
                                         )
                                     }
                                 }
-                            } else {
-                                // La entrega para llevar exige el QR del alumno. No existe transición manual sin token.
-                                Button(
-                                    onClick = {
-                                        haptics.impact()
-                                        onScanDeliver(recentOrder.summary.id, recentOrder.summary.version)
-                                    },
-                                    enabled =
-                                        isOrderReady &&
-                                            restrictedMode != RestrictedMode.READ_ONLY,
-                                    colors =
-                                        ButtonDefaults.buttonColors(
-                                            containerColor = colors.textPrimary,
-                                            contentColor = colors.background,
-                                            disabledContainerColor = colors.cardInner,
-                                            disabledContentColor = colors.textMuted,
-                                        ),
-                                    shape = RoundedCornerShape(16.dp),
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .height(52.dp)
-                                            .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_QR_SCAN),
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.QrCodeScanner,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(
-                                        if (isOrderReady) {
-                                            "Escanear QR para entregar"
-                                        } else {
-                                            "Disponible cuando esté LISTO"
-                                        },
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
-                                        maxLines = 1,
-                                        softWrap = false,
-                                    )
-                                }
                             }
                         }
+                        TicketZigzag()
                     }
                 } else {
                     Surface(
@@ -898,17 +853,28 @@ fun CashierOperationalScreen(
 
             // Products List
             if (products.isNotEmpty()) {
-                items(products, key = { it.id }) { product ->
-                    ProductRowCard(
-                        product = product,
-                        colors = colors,
-                        assistantRegistry = assistantRegistry,
-                        onToggle = { isAvailable ->
-                            haptics.selection()
-                            onToggleProductAvailable(product.id, isAvailable)
-                            assistantController.onAnchorTapped(assistantProductSwitchAnchor(product.id))
-                        },
-                    )
+                items(products.chunked(2), key = { it.first().id }) { pair ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        pair.forEach { product ->
+                            ProductGridCard(
+                                product = product,
+                                colors = colors,
+                                assistantRegistry = assistantRegistry,
+                                modifier = Modifier.weight(1f),
+                                onToggle = { isAvailable ->
+                                    haptics.selection()
+                                    onToggleProductAvailable(product.id, isAvailable)
+                                    assistantController.onAnchorTapped(assistantProductSwitchAnchor(product.id))
+                                },
+                            )
+                        }
+                        if (pair.size == 1) {
+                            Spacer(Modifier.weight(1f))
+                        }
+                    }
                 }
             } else {
                 item {
@@ -1033,6 +999,123 @@ fun CashierOperationalScreen(
     }
 }
 
+private val TicketPaper = Color(0xFFF5ECDA)
+private val TicketInk = Color(0xFF1D1C18)
+private val TicketMuted = Color(0xFF6B6656)
+private val TicketLine = Color(0xFFD8CDB4)
+private val StampGreen = Color(0xFF5A7A1E)
+
+private fun elapsedSinceMs(iso: String): Long? =
+    runCatching {
+        java.time.Duration.between(java.time.Instant.parse(iso), java.time.Instant.now()).toMillis()
+    }.getOrNull()
+
+private fun elapsedShort(iso: String, tick: Int): String {
+    tick.hashCode()
+    val ms = elapsedSinceMs(iso) ?: return "recién"
+    return when {
+        ms < 60_000 -> "ahora"
+        ms < 3_600_000 -> "hace ${ms / 60_000} min"
+        ms < 86_400_000 -> "hace ${ms / 3_600_000} h"
+        else -> "hace ${ms / 86_400_000} d"
+    }
+}
+
+private fun formatTimer(ms: Long?): String =
+    ms?.let { "%d:%02d".format(it / 60_000, (it % 60_000) / 1_000) } ?: "--:--"
+
+@Composable
+private fun TicketZigzag() {
+    Canvas(modifier = Modifier.fillMaxWidth().height(11.dp)) {
+        val tooth = 14.dp.toPx()
+        val path = Path()
+        path.moveTo(0f, 0f)
+        path.lineTo(size.width, 0f)
+        var x = size.width
+        while (x >= tooth) {
+            path.lineTo(x - tooth / 2f, size.height)
+            path.lineTo(x - tooth, 0f)
+            x -= tooth
+        }
+        path.lineTo(0f, 0f)
+        path.close()
+        withTransform({ translate(0f, 3.5f) }) {
+            drawPath(path, Color(0x33000000))
+        }
+        drawPath(path, TicketPaper)
+    }
+}
+
+@Composable
+private fun TicketPerf() {
+    Canvas(modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp).height(2.dp)) {
+        drawLine(
+            color = TicketLine,
+            start = Offset(0f, size.height / 2),
+            end = Offset(size.width, size.height / 2),
+            strokeWidth = 2.dp.toPx(),
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(9f, 8f)),
+        )
+    }
+}
+
+@Composable
+private fun StampLabel(text: String, live: Boolean) {
+    Box(
+        modifier =
+            Modifier
+                .rotate(4f)
+                .clip(RoundedCornerShape(8.dp))
+                .border(2.dp, if (live) StampGreen else TicketMuted, RoundedCornerShape(8.dp))
+                .padding(horizontal = 10.dp, vertical = 4.dp),
+    ) {
+        Text(
+            text,
+            fontSize = 9.5.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 1.3.sp,
+            color = if (live) StampGreen else TicketMuted,
+        )
+    }
+}
+
+@Composable
+private fun ReceiptLine(quantity: Int, name: String, detail: String?, price: String) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.Top) {
+        Text("$quantity", fontWeight = FontWeight.Black, fontSize = 13.5.sp, color = TicketInk)
+        Spacer(Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    name,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.5.sp,
+                    color = TicketInk,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                Canvas(
+                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp).height(2.dp),
+                ) {
+                    drawLine(
+                        color = TicketLine,
+                        start = Offset(0f, size.height / 2),
+                        end = Offset(size.width, size.height / 2),
+                        strokeWidth = 1.6.dp.toPx(),
+                        cap = StrokeCap.Round,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(0.5f, 7f)),
+                    )
+                }
+                Text(price, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TicketInk)
+            }
+            if (detail != null) {
+                Text(detail, color = TicketMuted, fontSize = 11.5.sp, modifier = Modifier.padding(top = 1.dp))
+            }
+        }
+    }
+}
+
 @Composable
 private fun TicketDivider(colors: OperationalColors) {
     Box(modifier = Modifier.fillMaxWidth().height(18.dp), contentAlignment = Alignment.Center) {
@@ -1070,36 +1153,26 @@ private fun TicketDivider(colors: OperationalColors) {
 }
 
 @Composable
-private fun ProductRowCard(
+private fun ProductGridCard(
     product: Product,
     colors: OperationalColors,
     assistantRegistry: com.vaiinilla.app.ui.components.AssistantAnchorRegistry? = null,
+    modifier: Modifier = Modifier,
     onToggle: (Boolean) -> Unit,
 ) {
     Surface(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .border(1.dp, colors.cardBorder, RoundedCornerShape(22.dp)),
-        shape = RoundedCornerShape(22.dp),
+        modifier = modifier.border(1.dp, colors.cardBorder, RoundedCornerShape(18.dp)),
+        shape = RoundedCornerShape(18.dp),
         color = colors.cardBackground,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.weight(1f),
-            ) {
-                // Product Thumbnail
+        Column(modifier = Modifier.padding(10.dp)) {
+            Box {
                 Box(
                     modifier =
                         Modifier
-                            .size(52.dp)
-                            .clip(RoundedCornerShape(16.dp))
+                            .fillMaxWidth()
+                            .height(62.dp)
+                            .clip(RoundedCornerShape(12.dp))
                             .background(colors.cardInner),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -1109,56 +1182,76 @@ private fun ProductRowCard(
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
-
-                val stationLabel =
-                    if (product.preparationStation == PreparationStation.KITCHEN) {
-                        "Cocina"
-                    } else {
-                        "Barra"
-                    }
-
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        product.name,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = colors.textPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        "$${product.digitalPrice} · $stationLabel",
-                        fontSize = 12.sp,
-                        color = colors.textSecondary,
-                        fontWeight = FontWeight.Medium,
+                Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .size(30.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (product.available) colors.accentLime else colors.cardBackground,
+                            ).then(
+                                if (assistantRegistry != null) {
+                                    Modifier.assistantAnchor(
+                                        assistantRegistry,
+                                        assistantProductSwitchAnchor(product.id),
+                                    )
+                                } else {
+                                    Modifier
+                                },
+                            ).clickable { onToggle(!product.available) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector =
+                            if (product.available) Icons.Rounded.Check else Icons.Outlined.Close,
+                        contentDescription =
+                            if (product.available) "Disponible" else "Pausado",
+                        tint = if (product.available) colors.accentInk else colors.textMuted,
+                        modifier = Modifier.size(16.dp),
                     )
                 }
             }
-
-            // Switch Availability
-            Box(
-                modifier =
-                    Modifier
-                        .then(
-                            if (assistantRegistry != null) {
-                                Modifier.assistantAnchor(assistantRegistry, assistantProductSwitchAnchor(product.id))
-                            } else {
-                                Modifier
-                            },
-                        ).padding(4.dp),
+            Text(
+                product.name,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.5.sp,
+                color = colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 5.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Switch(
-                    checked = product.available,
-                    onCheckedChange = onToggle,
-                    colors =
-                        SwitchDefaults.colors(
-                            checkedThumbColor = colors.background,
-                            checkedTrackColor = colors.accentLime,
-                            uncheckedThumbColor = colors.textMuted,
-                            uncheckedTrackColor = colors.cardInner,
-                            uncheckedBorderColor = colors.cardBorder,
-                        ),
+                Text(
+                    "$${product.digitalPrice}",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = if (colors.isDark) colors.accentLime else colors.highlightBorder,
                 )
+                Box(
+                    modifier =
+                        Modifier
+                            .clip(CircleShape)
+                            .background(colors.cardInner)
+                            .padding(horizontal = 7.dp, vertical = 3.dp),
+                ) {
+                    Text(
+                        if (product.preparationStation == PreparationStation.KITCHEN) {
+                            "COCINA"
+                        } else {
+                            "BARRA"
+                        },
+                        fontSize = 8.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.6.sp,
+                        color = colors.textSecondary,
+                    )
+                }
             }
         }
     }
@@ -1386,8 +1479,9 @@ fun KitchenOperationalScreen(
             }
 
             // En preparación Section Label
-            item {
-                Row(
+            if (activeOrder == null) {
+                item {
+                    Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Bottom,
@@ -1398,242 +1492,183 @@ fun KitchenOperationalScreen(
                         fontSize = 20.sp,
                         color = colors.textPrimary,
                     )
-                    val prepStatus =
-                        if (activeOrder != null) {
-                            if (isReady) {
-                                "Lista para recoger"
-                            } else if (isPreparing) {
-                                "Preparación iniciada"
-                            } else {
-                                "Comanda #${activeOrder.summary.folio}"
-                            }
-                        } else {
-                            "Al día"
-                        }
+                    val prepStatus = "Al día"
                     Text(
                         text = prepStatus,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.textSecondary,
                     )
+                    }
                 }
             }
 
             // Kitchen Hero Ticket Card or Empty State
             item {
                 if (activeOrder != null) {
-                    val cardBorder = if (isReady) colors.accentLime else colors.cardBorder
-
-                    Surface(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_KITCHEN_CARD)
-                                .shadow(12.dp, RoundedCornerShape(26.dp), spotColor = Color(0x1A171816))
-                                .border(1.5.dp, cardBorder, RoundedCornerShape(26.dp)),
-                        shape = RoundedCornerShape(26.dp),
-                        color = colors.cardBackground,
-                    ) {
-                        Column(modifier = Modifier.padding(18.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.Top,
-                            ) {
-                                Column {
-                                    Text(
-                                        "#${activeOrder.summary.folio}",
-                                        fontFamily = VaiinillaSerif,
-                                        fontSize = 48.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = (-1.5).sp,
-                                        color = colors.textPrimary,
-                                    )
-                                    val destName =
-                                        if (activeOrder.summary.destination.name == "TAKE_AWAY") {
-                                            "llevar"
-                                        } else {
-                                            "mesa/barra"
-                                        }
-                                    Text(
-                                        text = "Comanda para $destName",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.textSecondary,
-                                        modifier = Modifier.padding(top = 2.dp),
-                                    )
-                                }
-
-                                // Badge
-                                val (badgeBg, badgeColor) =
-                                    when {
-                                        isReady -> colors.accentLime to colors.accentInk
-                                        isPreparing ->
-                                            (if (colors.isDark) Color(0xFF384B29) else Color(0xFF334429)) to
-                                                (if (colors.isDark) Color(0xFFD8F28A) else Color.White)
-                                        else -> colors.textPrimary to colors.background
-                                    }
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .clip(CircleShape)
-                                            .background(badgeBg)
-                                            .padding(horizontal = 14.dp, vertical = 7.dp),
+                    val destLabel =
+                        if (activeOrder.summary.destination.name == "TAKE_AWAY") {
+                            "PARA LLEVAR"
+                        } else {
+                            "COMER AQUÍ"
+                        }
+                    val stateLabel =
+                        if (isReady) {
+                            "LISTA"
+                        } else if (isPreparing) {
+                            "EN PREPARACIÓN"
+                        } else {
+                            "NUEVA"
+                        }
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Surface(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_KITCHEN_CARD),
+                            shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
+                            color = TicketPaper,
+                            shadowElevation = 10.dp,
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.Top,
                                 ) {
-                                    Text(
-                                        if (isReady) {
-                                            "Lista"
-                                        } else if (isPreparing) {
-                                            "Preparando"
-                                        } else {
-                                            "Nueva"
-                                        },
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = badgeColor,
-                                    )
-                                }
-                            }
-
-                            // Items list
-                            Column(
-                                modifier = Modifier.padding(vertical = 16.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                activeOrder.items.forEach { item ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.Top,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    ) {
-                                        Box(
-                                            modifier =
-                                                Modifier
-                                                    .size(28.dp)
-                                                    .clip(RoundedCornerShape(8.dp))
-                                                    .background(colors.cardInner),
-                                            contentAlignment = Alignment.Center,
+                                    Column {
+                                        Text(
+                                            "$stateLabel · $destLabel",
+                                            color = TicketMuted,
+                                            fontSize = 9.5.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            letterSpacing = 1.6.sp,
+                                        )
+                                        Text(
+                                            "#${activeOrder.summary.folio}",
+                                            fontSize = 48.sp,
+                                            fontWeight = FontWeight.Black,
+                                            letterSpacing = (-1.5).sp,
+                                            color = TicketInk,
+                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.Bottom,
+                                            modifier = Modifier.padding(top = 2.dp),
                                         ) {
                                             Text(
-                                                "${item.quantity}",
+                                                formatTimer(elapsedSinceMs(activeOrder.summary.createdAt)),
+                                                fontSize = 19.sp,
                                                 fontWeight = FontWeight.Black,
-                                                fontSize = 13.sp,
-                                                color = colors.textPrimary,
+                                                color = TicketInk,
                                             )
-                                        }
-                                        Column(modifier = Modifier.weight(1f)) {
                                             Text(
-                                                item.productName,
+                                                "  en cocina",
+                                                fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                fontSize = 14.sp,
-                                                color = colors.textPrimary,
+                                                color = TicketMuted,
                                             )
-                                            if (item.options.isNotEmpty()) {
-                                                Text(
-                                                    item.options.joinToString(" · ") { it.name },
-                                                    color = colors.textSecondary,
-                                                    fontSize = 12.sp,
-                                                )
-                                            }
                                         }
-                                        Text(
-                                            "$${item.unitDigitalPrice}",
-                                            color = colors.textPrimary,
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Bold,
+                                    }
+                                    StampLabel(
+                                        text =
+                                            if (isReady) {
+                                                "Lista"
+                                            } else if (isPreparing) {
+                                                "Preparando"
+                                            } else {
+                                                "Nueva"
+                                            },
+                                        live = !isReady,
+                                    )
+                                }
+
+                                TicketPerf()
+
+                                Column {
+                                    activeOrder.items.forEach { item ->
+                                        ReceiptLine(
+                                            quantity = item.quantity,
+                                            name = item.productName,
+                                            detail =
+                                                item.options
+                                                    .joinToString(" · ") { it.name }
+                                                    .ifEmpty { null },
+                                            price = "$${item.unitDigitalPrice}",
                                         )
                                     }
                                 }
-                            }
 
-                            TicketDivider(colors)
-
-                            // Dual Action Buttons: Preparando / Ya se preparó
-                            val prepContainer =
-                                if (isPreparing) colors.textPrimary else colors.buttonSecondary
-                            val prepContent =
-                                if (isPreparing) colors.background else colors.buttonSecondaryInk
-                            val prepDisabledBg =
-                                if (isPreparing) colors.textPrimary else colors.cardBorder
-                            val prepDisabledContent =
-                                if (isPreparing) colors.background else colors.textMuted
-
-                            val readyContainer =
-                                if (isReady) colors.cardInner else colors.accentLime
-                            val readyContent =
-                                if (isReady) colors.textMuted else colors.accentInk
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                // Button: Preparando
+                                // Una sola acción: la que aplica según el estado real.
                                 Button(
                                     onClick = {
-                                        haptics.impact()
-                                        onStart(activeOrder.summary.id, activeOrder.summary.version)
-                                        toastMessage = "Comanda #${activeOrder.summary.folio} en preparación"
+                                        if (isPreparing) {
+                                            haptics.success()
+                                            onReady(activeOrder.summary.id, activeOrder.summary.version)
+                                            toastMessage = "Comanda #${activeOrder.summary.folio} lista"
+                                        } else {
+                                            haptics.impact()
+                                            onStart(activeOrder.summary.id, activeOrder.summary.version)
+                                            toastMessage = "Comanda #${activeOrder.summary.folio} en preparación"
+                                        }
                                     },
-                                    enabled = !isPreparing && !isReady && restrictedMode != RestrictedMode.READ_ONLY,
+                                    enabled = !isReady && restrictedMode != RestrictedMode.READ_ONLY,
                                     colors =
                                         ButtonDefaults.buttonColors(
-                                            containerColor = prepContainer,
-                                            contentColor = prepContent,
-                                            disabledContainerColor = prepDisabledBg,
-                                            disabledContentColor = prepDisabledContent,
+                                            containerColor = colors.accentLime,
+                                            contentColor = colors.accentInk,
+                                            disabledContainerColor = TicketLine,
+                                            disabledContentColor = TicketMuted,
                                         ),
-                                    shape = RoundedCornerShape(16.dp),
+                                    shape = RoundedCornerShape(14.dp),
                                     modifier =
                                         Modifier
-                                            .weight(1f)
-                                            .height(52.dp)
+                                            .fillMaxWidth()
+                                            .padding(top = 12.dp)
+                                            .height(50.dp)
                                             .assistantAnchor(
                                                 assistantRegistry,
-                                                assistantKitchenStartAnchor(activeOrder.summary.id),
+                                                if (isPreparing) {
+                                                    assistantKitchenReadyAnchor(activeOrder.summary.id)
+                                                } else {
+                                                    assistantKitchenStartAnchor(activeOrder.summary.id)
+                                                },
                                             ),
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                                    contentPadding = PaddingValues(horizontal = 14.dp),
                                 ) {
                                     Text(
-                                        text = if (isPreparing) "Preparando..." else "Preparando",
+                                        text =
+                                            if (isReady) {
+                                                "Lista para recoger"
+                                            } else if (isPreparing) {
+                                                "Marcar lista"
+                                            } else {
+                                                "Empezar a preparar"
+                                            },
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp,
                                     )
                                 }
 
-                                // Button: Ya se preparó
-                                Button(
-                                    onClick = {
-                                        haptics.success()
-                                        onReady(activeOrder.summary.id, activeOrder.summary.version)
-                                        toastMessage = "Comanda #${activeOrder.summary.folio} lista"
-                                    },
-                                    enabled = isPreparing && !isReady && restrictedMode != RestrictedMode.READ_ONLY,
-                                    colors =
-                                        ButtonDefaults.buttonColors(
-                                            containerColor = readyContainer,
-                                            contentColor = readyContent,
-                                            disabledContainerColor = colors.cardInner,
-                                            disabledContentColor = colors.textMuted,
-                                        ),
-                                    shape = RoundedCornerShape(16.dp),
-                                    modifier =
-                                        Modifier
-                                            .weight(1f)
-                                            .height(52.dp)
-                                            .assistantAnchor(
-                                                assistantRegistry,
-                                                assistantKitchenReadyAnchor(activeOrder.summary.id),
-                                            ),
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
-                                ) {
+                                upcomingOrders.firstOrNull()?.let { next ->
+                                    val nextDest =
+                                        if (next.summary.destination.name == "TAKE_AWAY") {
+                                            "PARA LLEVAR"
+                                        } else {
+                                            "COMER AQUÍ"
+                                        }
                                     Text(
-                                        text = if (isReady) "¡Listo!" else "Ya se preparó",
-                                        fontWeight = FontWeight.Black,
-                                        fontSize = 14.sp,
+                                        "SIGUIENTE: #${next.summary.folio} · $nextDest",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.8.sp,
+                                        color = TicketMuted,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                                     )
                                 }
                             }
                         }
+                        TicketZigzag()
                     }
                 } else {
                     Surface(
@@ -1674,7 +1709,7 @@ fun KitchenOperationalScreen(
                     verticalAlignment = Alignment.Bottom,
                 ) {
                     Text(
-                        "Siguientes",
+                        "En fila",
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
                         color = colors.textPrimary,
@@ -1802,8 +1837,7 @@ private fun QueueTicketRow(
                 Text(
                     folio,
                     color = colors.background,
-                    fontFamily = VaiinillaSerif,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Black,
                     fontSize = 15.sp,
                 )
             }
@@ -1942,77 +1976,74 @@ private fun AddProductSheet(
                 }
             }
 
-            // Photo Preview & Picker
-            Text(
-                "Foto del producto",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = colors.textSecondary,
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            // Photo drop-zone
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(112.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(colors.cardBackground)
+                        .clickable(enabled = !saving) { photoPicker.launch("image/*") },
+                contentAlignment = Alignment.Center,
             ) {
-                // Selected image preview
-                Box(
-                    modifier =
-                        Modifier
-                            .size(84.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(colors.cardBackground),
-                    contentAlignment = Alignment.Center,
-                ) {
+                val previewUri = selectedImageUri
+                if (previewUri != null) {
+                    AndroidView(
+                        factory = { imageContext ->
+                            ImageView(imageContext).apply {
+                                scaleType = ImageView.ScaleType.CENTER_CROP
+                            }
+                        },
+                        update = { imageView ->
+                            imageView.setImageURI(previewUri.toUri())
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    Box(
+                        modifier =
+                            Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .background(Color(0x99000000))
+                                .padding(vertical = 6.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text("Toca para cambiar la foto", fontSize = 11.sp, color = Color.White)
+                    }
+                } else {
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         drawRoundRect(
                             color = colors.cardBorder,
-                            style = Stroke(
-                                width = 1.5.dp.toPx(),
-                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 7f)),
-                            ),
+                            style =
+                                Stroke(
+                                    width = 1.5.dp.toPx(),
+                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 7f)),
+                                ),
                             cornerRadius = CornerRadius(20.dp.toPx()),
                         )
                     }
-                    val previewUri = selectedImageUri
-                    if (previewUri != null) {
-                        AndroidView(
-                            factory = { imageContext ->
-                                ImageView(imageContext).apply {
-                                    scaleType = ImageView.ScaleType.CENTER_CROP
-                                }
-                            },
-                            update = { imageView ->
-                                imageView.setImageURI(previewUri.toUri())
-                            },
-                            modifier = Modifier.fillMaxSize(),
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Outlined.PhotoCamera,
+                            contentDescription = null,
+                            tint = colors.textMuted,
+                            modifier = Modifier.size(26.dp),
                         )
-                    } else {
-                        Icon(Icons.Outlined.PhotoCamera, contentDescription = null, tint = colors.textMuted)
+                        Text(
+                            "Foto del producto",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textPrimary,
+                            modifier = Modifier.padding(top = 5.dp),
+                        )
+                        Text(
+                            "Toca para elegir de galería · opcional",
+                            fontSize = 10.5.sp,
+                            color = colors.textMuted,
+                            modifier = Modifier.padding(top = 1.dp),
+                        )
                     }
-                }
-
-                // Pick from gallery button
-                Button(
-                    onClick = { photoPicker.launch("image/*") },
-                    enabled = !saving,
-                    colors =
-                        ButtonDefaults.buttonColors(
-                            containerColor = colors.cardBackground,
-                            contentColor = colors.textPrimary,
-                        ),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, colors.cardBorder),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                    modifier = Modifier.weight(1f).height(48.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.UploadFile,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Elegir de galería", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -2024,89 +2055,71 @@ private fun AddProductSheet(
                 )
             }
 
-            // Station Selector (Caja / Barra vs Cocina caliente)
-            Text(
-                "Estación de preparación",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = colors.textSecondary,
-            )
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val isCashier = selectedStation == PreparationStation.CASHIER
-                val isKitchen = selectedStation == PreparationStation.KITCHEN
-
-                Surface(
-                    modifier =
-                        Modifier.weight(1f).clickable {
-                            haptics.selection()
-                            selectedStation = PreparationStation.CASHIER
-                        },
-                    shape = RoundedCornerShape(14.dp),
-                    color = if (isCashier) Color(0xFF171816) else colors.cardBackground,
-                    border = BorderStroke(1.dp, if (isCashier) Color(0xFF171816) else colors.cardBorder),
-                ) {
+            // Station segmented control
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(CircleShape)
+                        .background(colors.cardInner)
+                        .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                listOf(
+                    PreparationStation.CASHIER to "Barra / Bebidas",
+                    PreparationStation.KITCHEN to "Cocina caliente",
+                ).forEach { (station, label) ->
+                    val selected = selectedStation == station
                     Box(
-                        modifier = Modifier.padding(vertical = 12.dp),
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .clip(CircleShape)
+                                .background(if (selected) colors.accentLime else Color.Transparent)
+                                .clickable(enabled = !saving) {
+                                    haptics.selection()
+                                    selectedStation = station
+                                }.padding(vertical = 11.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            "Barra / Bebidas",
-                            fontWeight = FontWeight.Bold,
+                            label,
                             fontSize = 13.sp,
-                            color = if (isCashier) Color(0xFFF7F3E7) else colors.textPrimary,
-                        )
-                    }
-                }
-
-                Surface(
-                    modifier =
-                        Modifier.weight(1f).clickable {
-                            haptics.selection()
-                            selectedStation = PreparationStation.KITCHEN
-                        },
-                    shape = RoundedCornerShape(14.dp),
-                    color = if (isKitchen) Color(0xFF171816) else colors.cardBackground,
-                    border = BorderStroke(1.dp, if (isKitchen) Color(0xFF171816) else colors.cardBorder),
-                ) {
-                    Box(
-                        modifier = Modifier.padding(vertical = 12.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            "Cocina caliente",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            color = if (isKitchen) Color(0xFFF7F3E7) else colors.textPrimary,
+                            color = if (selected) colors.accentInk else colors.textSecondary,
                         )
                     }
                 }
             }
 
             // Name input
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Nombre", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
-                BasicTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    singleLine = true,
-                    textStyle =
-                        TextStyle(
-                            color = colors.textPrimary,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        ),
-                    cursorBrush = SolidColor(colors.textPrimary),
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(colors.cardBackground)
-                            .border(1.dp, colors.cardBorder, RoundedCornerShape(16.dp))
-                            .padding(horizontal = 14.dp),
-                    decorationBox = { inner ->
-                        Box(contentAlignment = Alignment.CenterStart) {
+            BasicTextField(
+                value = name,
+                onValueChange = { name = it },
+                singleLine = true,
+                textStyle =
+                    TextStyle(
+                        color = colors.textPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                cursorBrush = SolidColor(colors.textPrimary),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(colors.cardInner)
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                decorationBox = { inner ->
+                    Column {
+                        Text(
+                            "NOMBRE",
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.sp,
+                            color = colors.textMuted,
+                        )
+                        Box {
                             if (name.isEmpty()) {
                                 Text(
                                     "Ej. Matcha frío con avena",
@@ -2116,48 +2129,47 @@ private fun AddProductSheet(
                             }
                             inner()
                         }
-                    },
-                )
-            }
+                    }
+                },
+            )
 
             // Price input
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = "Precio ($)",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textSecondary,
-                )
-                BasicTextField(
-                    value = priceStr,
-                    onValueChange = { priceStr = it.filter { char -> char.isDigit() } },
-                    singleLine = true,
-                    textStyle =
-                        TextStyle(
-                            color = colors.textPrimary,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        ),
-                    cursorBrush = SolidColor(colors.textPrimary),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(colors.cardBackground)
-                            .border(1.dp, colors.cardBorder, RoundedCornerShape(16.dp))
-                            .padding(horizontal = 14.dp),
-                    decorationBox = { inner ->
-                        Box(contentAlignment = Alignment.CenterStart) {
+            BasicTextField(
+                value = priceStr,
+                onValueChange = { priceStr = it.filter { char -> char.isDigit() } },
+                singleLine = true,
+                textStyle =
+                    TextStyle(
+                        color = colors.textPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                cursorBrush = SolidColor(colors.textPrimary),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(colors.cardInner)
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                decorationBox = { inner ->
+                    Column {
+                        Text(
+                            "PRECIO ($)",
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.sp,
+                            color = colors.textMuted,
+                        )
+                        Box {
                             if (priceStr.isEmpty()) {
                                 Text("Ej. 65", color = colors.textMuted, fontSize = 15.sp)
                             }
                             inner()
                         }
-                    },
-                )
-            }
+                    }
+                },
+            )
 
             if (submitted && !errorMessage.isNullOrBlank()) {
                 Text(
@@ -2193,11 +2205,11 @@ private fun AddProductSheet(
                         disabledContainerColor = colors.cardBorder,
                         disabledContentColor = colors.textMuted,
                     ),
-                shape = RoundedCornerShape(18.dp),
+                shape = CircleShape,
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(52.dp),
+                        .height(54.dp),
                 contentPadding = PaddingValues(vertical = 14.dp),
             ) {
                 Text(
