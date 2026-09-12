@@ -1,0 +1,63 @@
+name: QA Express APKs
+
+# Fast path for QA: builds the three dev APKs and ships them to Firebase App
+# Distribution without running tests/lint. Use it when you need a build on the
+# phone in ~5-6 minutes. The full `Android CI` gate still runs on every push.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch o commit a compilar (default: main)"
+        required: false
+        default: "main"
+        type: string
+
+jobs:
+  express:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VAIINILLA_API_BASE_URL: ${{ vars.VAIINILLA_API_BASE_URL || 'https://vaiinillaback.up.railway.app/api/v1/' }}
+      GRADLE_REMOTE_CACHE_URL: ${{ vars.GRADLE_REMOTE_CACHE_URL }}
+      GRADLE_REMOTE_CACHE_USER: ${{ secrets.GRADLE_REMOTE_CACHE_USER }}
+      GRADLE_REMOTE_CACHE_PASSWORD: ${{ secrets.GRADLE_REMOTE_CACHE_PASSWORD }}
+      GRADLE_REMOTE_CACHE_PUSH: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Build Dev debug APKs (express)
+        run: ./gradlew --no-daemon assembleDevAlumnoDebug assembleDevCajaDebug assembleDevCocinaDebug
+
+      - name: Upload Dev Debug APKs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: vaiinilla-dev-debug-apks-express
+          path: |
+            app/build/outputs/apk/devAlumno/debug/*.apk
+            app/build/outputs/apk/devCaja/debug/*.apk
+            app/build/outputs/apk/devCocina/debug/*.apk
+          if-no-files-found: error
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Distribute Dev APKs to testers
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          RELEASE_NOTES: "express ${{ inputs.ref }} ${{ github.sha }}"
+          TESTERS: ${{ vars.APP_DISTRIBUTION_TESTERS }}
+        run: |
+          firebase appdistribution:distribute app/build/outputs/apk/devAlumno/debug/app-dev-alumno-debug.apk --app 1:697485438624:android:3ec322652bcf498697a3c5 --testers "$TESTERS" --release-notes "$RELEASE_NOTES"
+          firebase appdistribution:distribute app/build/outputs/apk/devCaja/debug/app-dev-caja-debug.apk --app 1:697485438624:android:5dcd5db4c451685797a3c5 --testers "$TESTERS" --release-notes "$RELEASE_NOTES"
+          firebase appdistribution:distribute app/build/outputs/apk/devCocina/debug/app-dev-cocina-debug.apk --app 1:697485438624:android:90c75e108b95232c97a3c5 --testers "$TESTERS" --release-notes "$RELEASE_NOTES"
