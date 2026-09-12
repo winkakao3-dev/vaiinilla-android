@@ -20,6 +20,7 @@ import com.vaiinilla.app.domain.model.OrderState
  * Sound and vibration come from the channel defaults (system notification sound).
  */
 object OrderAdvanceNotifier {
+    const val EXTRA_ORDER_ID = "order_id"
     private const val CHANNEL_ID = "order_tracking"
 
     fun ensureChannel(context: Context) {
@@ -68,6 +69,7 @@ object OrderAdvanceNotifier {
                 context,
                 0,
                 Intent(context, MainActivity::class.java)
+                    .putExtra(EXTRA_ORDER_ID, orderId)
                     .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
@@ -110,6 +112,7 @@ object OrderAdvanceNotifier {
                 context,
                 0,
                 Intent(context, MainActivity::class.java)
+                    .putExtra(EXTRA_ORDER_ID, orderId)
                     .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )

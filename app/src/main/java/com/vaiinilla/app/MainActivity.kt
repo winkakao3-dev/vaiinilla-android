@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.rememberNavController
+import com.vaiinilla.app.core.notifications.OrderAdvanceNotifier
 import com.vaiinilla.app.ui.navigation.AppNavHost
 import com.vaiinilla.app.ui.theme.ThemePreferences
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
@@ -22,6 +23,7 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private var pendingEstablishmentSlug by mutableStateOf<String?>(null)
     private var pendingInvitationToken by mutableStateOf<String?>(null)
+    private var pendingOrderId by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,6 +85,8 @@ class MainActivity : ComponentActivity() {
                     pendingInvitationToken = pendingInvitationToken,
                     onDeepLinkConsumed = { pendingEstablishmentSlug = null },
                     onInvitationConsumed = { pendingInvitationToken = null },
+                    pendingOrderId = pendingOrderId,
+                    onOrderConsumed = { pendingOrderId = null },
                 )
             }
         }
@@ -97,6 +101,7 @@ class MainActivity : ComponentActivity() {
     private fun captureDeepLink(source: Intent?) {
         pendingEstablishmentSlug = establishmentSlugFrom(source)
         pendingInvitationToken = invitationTokenFrom(source)
+        source?.getStringExtra(OrderAdvanceNotifier.EXTRA_ORDER_ID)?.let { pendingOrderId = it }
         // Do not retain invitation tokens in the Activity intent after capture.
         source?.data = null
     }

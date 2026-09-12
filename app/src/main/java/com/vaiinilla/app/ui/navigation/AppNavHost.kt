@@ -91,8 +91,10 @@ fun AppNavHost(
     navController: NavHostController,
     pendingEstablishmentSlug: String? = null,
     pendingInvitationToken: String? = null,
+    pendingOrderId: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
     onInvitationConsumed: () -> Unit = {},
+    onOrderConsumed: () -> Unit = {},
 ) {
     val orderFlowViewModel: OrderFlowViewModel = viewModel()
     val operationalViewModel: OperationalViewModel = viewModel()
@@ -184,6 +186,30 @@ fun AppNavHost(
             !OrderAdvanceNotifier.canPost(appContext)
         ) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    // Tap en notificación push/local: abrir el checklist de ese pedido.
+    // Alumno -> STUDENT_TRACKING con la orden seleccionada; staff -> solo la
+    // selecciona en su cola (su pantalla ya está fija). Sin sesión se consume
+    // sin acción: el login seguirá su flujo normal.
+    LaunchedEffect(pendingOrderId, studentAuthState.session?.uid, operationalState.role) {
+        val orderId = pendingOrderId ?: return@LaunchedEffect
+        when {
+            studentAuthState.session != null -> {
+                if (operationalState.role != OperationalRole.CLIENT) {
+                    operationalViewModel.setRole(OperationalRole.CLIENT)
+                }
+                operationalViewModel.refreshOrder(orderId)
+                operationalViewModel.selectOrder(orderId)
+                navController.navigateStudent(Routes.STUDENT_TRACKING)
+                onOrderConsumed()
+            }
+            operationalState.role != null -> {
+                operationalViewModel.selectOrder(orderId)
+                onOrderConsumed()
+            }
+            studentAuthState.session == null && !studentAuthState.loading -> onOrderConsumed()
         }
     }
 
