@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -70,7 +72,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -559,16 +565,20 @@ fun CashierOperationalScreen(
                             ) {
                                 Column {
                                     Text(
-                                        "Pedido más reciente",
+                                        "PEDIDO MÁS RECIENTE",
                                         color = colors.textSecondary,
-                                        fontSize = 12.sp,
+                                        fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
+                                        letterSpacing = 1.5.sp,
                                     )
                                     Text(
                                         "#${recentOrder.summary.folio}",
-                                        fontSize = 28.sp,
-                                        fontWeight = FontWeight.Black,
+                                        fontFamily = VaiinillaSerif,
+                                        fontSize = 46.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = (-1.5).sp,
                                         color = colors.textPrimary,
+                                        modifier = Modifier.offset(y = (-2).dp),
                                     )
                                 }
                                 // Status Pill
@@ -658,6 +668,8 @@ fun CashierOperationalScreen(
                                 }
                             }
 
+                            TicketDivider(colors)
+
                             // Meta Summary
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
@@ -672,8 +684,10 @@ fun CashierOperationalScreen(
                                 )
                                 Text(
                                     "$${recentOrder.summary.total}",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Black,
+                                    fontFamily = VaiinillaSerif,
+                                    fontSize = 26.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = (-0.5).sp,
                                     color = colors.textPrimary,
                                 )
                             }
@@ -1016,6 +1030,42 @@ fun CashierOperationalScreen(
             buttonFocusRequester = assistantFocusRequester,
             modifier = Modifier.fillMaxSize(),
         )
+    }
+}
+
+@Composable
+private fun TicketDivider(colors: OperationalColors) {
+    Box(modifier = Modifier.fillMaxWidth().height(18.dp), contentAlignment = Alignment.Center) {
+        Canvas(modifier = Modifier.fillMaxWidth().height(1.5.dp)) {
+            drawLine(
+                color = colors.cardBorder,
+                start = Offset(0f, size.height / 2),
+                end = Offset(size.width, size.height / 2),
+                strokeWidth = 1.5.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(9f, 8f)),
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .offset(x = (-26).dp)
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(colors.background),
+            )
+            Box(
+                modifier =
+                    Modifier
+                        .offset(x = 26.dp)
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(colors.background),
+            )
+        }
     }
 }
 
@@ -1393,9 +1443,10 @@ fun KitchenOperationalScreen(
                                 Column {
                                     Text(
                                         "#${activeOrder.summary.folio}",
-                                        fontSize = 34.sp,
-                                        fontWeight = FontWeight.Black,
-                                        letterSpacing = (-1.dp).value.sp,
+                                        fontFamily = VaiinillaSerif,
+                                        fontSize = 48.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = (-1.5).sp,
                                         color = colors.textPrimary,
                                     )
                                     val destName =
@@ -1494,6 +1545,8 @@ fun KitchenOperationalScreen(
                                     }
                                 }
                             }
+
+                            TicketDivider(colors)
 
                             // Dual Action Buttons: Preparando / Ya se preparó
                             val prepContainer =
@@ -1749,7 +1802,8 @@ private fun QueueTicketRow(
                 Text(
                     folio,
                     color = colors.background,
-                    fontWeight = FontWeight.Black,
+                    fontFamily = VaiinillaSerif,
+                    fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                 )
             }
@@ -1771,12 +1825,21 @@ private fun QueueTicketRow(
                 )
             }
 
-            Text(
-                time,
-                color = colors.textSecondary,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-            )
+            Box(
+                modifier =
+                    Modifier
+                        .clip(CircleShape)
+                        .background(colors.pillBackground)
+                        .border(1.dp, colors.pillBorder, CircleShape)
+                        .padding(horizontal = 10.dp, vertical = 5.dp),
+            ) {
+                Text(
+                    time,
+                    color = colors.textSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
     }
 }
@@ -1860,8 +1923,22 @@ private fun AddProductSheet(
                     fontSize = 22.sp,
                     color = colors.textPrimary,
                 )
-                IconButton(onClick = onDismiss, enabled = !saving) {
-                    Icon(Icons.Outlined.Close, contentDescription = "Cerrar", tint = colors.textPrimary)
+                Box(
+                    modifier =
+                        Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(colors.cardBackground)
+                            .border(1.dp, colors.cardBorder, CircleShape)
+                            .clickable(enabled = !saving) { onDismiss() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Outlined.Close,
+                        contentDescription = "Cerrar",
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(16.dp),
+                    )
                 }
             }
 
@@ -1882,12 +1959,21 @@ private fun AddProductSheet(
                 Box(
                     modifier =
                         Modifier
-                            .size(76.dp)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(colors.cardBackground)
-                            .border(1.5.dp, colors.cardBorder, RoundedCornerShape(18.dp)),
+                            .size(84.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(colors.cardBackground),
                     contentAlignment = Alignment.Center,
                 ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        drawRoundRect(
+                            color = colors.cardBorder,
+                            style = Stroke(
+                                width = 1.5.dp.toPx(),
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 7f)),
+                            ),
+                            cornerRadius = CornerRadius(20.dp.toPx()),
+                        )
+                    }
                     val previewUri = selectedImageUri
                     if (previewUri != null) {
                         AndroidView(
