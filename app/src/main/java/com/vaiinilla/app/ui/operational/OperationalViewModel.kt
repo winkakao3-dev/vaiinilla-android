@@ -167,11 +167,20 @@ class OperationalViewModel
             }
             _uiState.value = _uiState.value.copy(loading = true, errorMessage = null)
             viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { listOrders(role, lastUpdatedSince) }
+                // Client orders always fetch the full list (like iOS): the delta can miss
+                // transitions that don't bump updatedAt. Staff keeps the delta.
+                val since = if (role == OperationalRole.CLIENT) null else lastUpdatedSince
+                val result = withContext(Dispatchers.IO) { listOrders(role, since) }
                 if (generation != roleGeneration || _uiState.value.role != role) return@launch
                 result.fold(
                     onSuccess = { orders ->
-                        val merged = mergeOrders(_uiState.value.orders, orders)
+                        // Full-list fetch for CLIENT replaces state (iOS parity); staff merges deltas.
+                            val merged =
+                                if (role == OperationalRole.CLIENT) {
+                                    orders
+                                } else {
+                                    mergeOrders(_uiState.value.orders, orders)
+                                }
                         val latestClientOrder =
                             if (role == OperationalRole.CLIENT) {
                                 resolveLatestClientOrder(
