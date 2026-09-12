@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "1063589785442-fae1uta28447k2on79fcrb63vnl164hc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vaiinilla.app",
+            "certificate_hash": "1e57527a828e03cc3dd86a02252390a7a8e961d4"
+          }
+        },
+        {
           "client_id": "1063589785442-jr46q61ji1q7h0omdsf8cpsug4qu5fqp.apps.googleusercontent.com",
           "client_type": 3
         }
