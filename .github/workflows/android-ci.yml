@@ -15,6 +15,11 @@ jobs:
       # this prevents a stale repository variable from routing CI to a retired
       # Railway hostname. Main still uses the configured production endpoint.
       VAIINILLA_API_BASE_URL: ${{ github.event_name == 'pull_request' && 'https://vaiinillaback-development.up.railway.app/api/v1/' || vars.VAIINILLA_API_BASE_URL || 'https://vaiinillaback.up.railway.app/api/v1/' }}
+      # Shared remote build cache (build-cache-node on VPS behind Caddy TLS).
+      GRADLE_REMOTE_CACHE_URL: ${{ vars.GRADLE_REMOTE_CACHE_URL }}
+      GRADLE_REMOTE_CACHE_USER: ${{ secrets.GRADLE_REMOTE_CACHE_USER }}
+      GRADLE_REMOTE_CACHE_PASSWORD: ${{ secrets.GRADLE_REMOTE_CACHE_PASSWORD }}
+      GRADLE_REMOTE_CACHE_PUSH: "true"
 
     steps:
       - name: Checkout
