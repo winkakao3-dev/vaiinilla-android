@@ -23,9 +23,9 @@ gh run download "$RUN_ID" --repo "$REPO" -n vaiinilla-dev-debug-apks -D "$WORK"
 
 adb connect "$DEVICE" >/dev/null
 declare -A PKGS=(
-  [app-dev-alumno-debug.apk]=com.vaiinilla.app.dev
-  [app-dev-caja-debug.apk]=com.vaiinilla.app.dev.caja
-  [app-dev-cocina-debug.apk]=com.vaiinilla.app.dev.cocina
+  [devAlumno/debug/app-dev-alumno-debug.apk]=com.vaiinilla.app.dev
+  [devCaja/debug/app-dev-caja-debug.apk]=com.vaiinilla.app.dev.caja
+  [devCocina/debug/app-dev-cocina-debug.apk]=com.vaiinilla.app.dev.cocina
 )
 for apk in "${!PKGS[@]}"; do
   echo "Installing $apk -> ${PKGS[$apk]}"

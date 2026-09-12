@@ -200,6 +200,17 @@ android {
         }
     }
 
+    signingConfigs {
+        named("debug") {
+            // Shared debug keystore so CI artifacts and VPS builds install over
+            // each other on QA devices (identical signature, no reinstalls).
+            storeFile = rootProject.file("keystores/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         getByName("debug") {
             buildConfigField("boolean", "SEED_AUTH_ENABLED", "true")
