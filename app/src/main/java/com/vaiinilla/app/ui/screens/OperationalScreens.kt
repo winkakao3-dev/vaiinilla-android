@@ -262,7 +262,18 @@ fun CashierOperationalScreen(
     }
     var assistantPulse by remember { mutableIntStateOf(0) }
 
-    val recentOrder = state.orders.firstOrNull()
+    // Caja solo actúa sobre pedidos por cobrar o listos para entregar; el resto es de cocina.
+    var selectedCashierOrderId by remember { mutableStateOf<String?>(null) }
+    val actionableCashierOrders =
+        state.orders.filter {
+            it.summary.state == OrderState.PENDING_PAYMENT || it.summary.state == OrderState.READY
+        }
+    val recentOrder =
+        actionableCashierOrders.firstOrNull { it.summary.id == selectedCashierOrderId }
+            ?: actionableCashierOrders.firstOrNull()
+            ?: state.orders.firstOrNull()
+    val queuedCashierOrders =
+        actionableCashierOrders.filterNot { it.summary.id == recentOrder?.summary?.id }
     val products = state.catalog?.products.orEmpty()
     val activeCount = products.count { it.available }
     val pausedCount = products.size - activeCount
@@ -796,6 +807,58 @@ fun CashierOperationalScreen(
                             )
                         }
                     }
+                }
+            }
+
+            // Pending-in-caja queue: every other order awaiting payment or pickup.
+            if (queuedCashierOrders.isNotEmpty()) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom,
+                    ) {
+                        Text(
+                            "Pendientes en caja",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                            color = colors.textPrimary,
+                        )
+                        Text(
+                            "${queuedCashierOrders.size} pedidos",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textSecondary,
+                        )
+                    }
+                }
+                items(queuedCashierOrders, key = { it.summary.id }) { order ->
+                    val queueTitle =
+                        order.items
+                            .joinToString(" · ") { "${it.quantity}x ${it.productName}" }
+                            .ifEmpty { "Productos del menú" }
+                    QueueTicketRow(
+                        folio = "#${order.summary.folio}",
+                        title = queueTitle,
+                        subtitle =
+                            if (order.summary.destination.name == "TAKE_AWAY") {
+                                "Para llevar"
+                            } else {
+                                "Comer aquí"
+                            },
+                        time =
+                            if (order.summary.state == OrderState.PENDING_PAYMENT) {
+                                "Por cobrar"
+                            } else {
+                                "Por entregar"
+                            },
+                        colors = colors,
+                        onClick = {
+                            haptics.selection()
+                            selectedCashierOrderId = order.summary.id
+                            toastMessage = "Pedido #${order.summary.folio} seleccionado"
+                        },
+                    )
                 }
             }
 
