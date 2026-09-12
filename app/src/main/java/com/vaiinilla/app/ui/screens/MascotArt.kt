@@ -108,6 +108,7 @@ fun VaiinillaMascot(
     inkColor: Color,
     reduceMotion: Boolean = false,
     shadowColor: Color = Color(0x1C000000),
+    wave: Boolean = false,
 ) {
     val appear = remember { Animatable(0f) }
     LaunchedEffect(delayMs, reduceMotion) {
@@ -162,6 +163,51 @@ fun VaiinillaMascot(
             label = "blink",
         )
 
+    val waveAngle by
+        idle.animateFloat(
+            initialValue = 0f,
+            targetValue = 0f,
+            animationSpec =
+                infiniteRepeatable(
+                    animation =
+                        keyframes {
+                            durationMillis = 7000
+                            0f at 0
+                            (-110f) at 400 using FastOutSlowInEasing
+                            (-125f) at 650 using LinearEasing
+                            (-95f) at 900 using LinearEasing
+                            (-125f) at 1150 using LinearEasing
+                            (-95f) at 1400 using LinearEasing
+                            (-110f) at 1600 using LinearEasing
+                            0f at 2000 using FastOutSlowInEasing
+                            0f at 7000
+                        },
+                    repeatMode = RepeatMode.Restart,
+                ),
+            label = "wave_angle",
+        )
+    val waveExtend by
+        idle.animateFloat(
+            initialValue = 1f,
+            targetValue = 1f,
+            animationSpec =
+                infiniteRepeatable(
+                    animation =
+                        keyframes {
+                            durationMillis = 7000
+                            1f at 0
+                            1.85f at 400 using FastOutSlowInEasing
+                            1.85f at 1600
+                            1f at 2000 using FastOutSlowInEasing
+                            1f at 7000
+                        },
+                    repeatMode = RepeatMode.Restart,
+                ),
+            label = "wave_extend",
+        )
+
+    val resolvedWaveAngle = if (reduceMotion || !wave) 0f else waveAngle
+    val resolvedWaveExtend = if (reduceMotion || !wave) 1f else waveExtend
     val resolvedBreathe = if (reduceMotion) 1f else breathe
     val resolvedSway = if (reduceMotion) 0f else sway
     val resolvedBlink = if (reduceMotion) 1f else blink
@@ -183,7 +229,12 @@ fun VaiinillaMascot(
                     drawPath(MASCOT_BODY, shadowColor)
                 }
                 drawPath(MASCOT_ARM_LEFT, paperColor, style = Stroke(7f, cap = StrokeCap.Round))
-                drawPath(MASCOT_ARM_RIGHT, paperColor, style = Stroke(7f, cap = StrokeCap.Round))
+                withTransform({
+                    rotate(resolvedWaveAngle, pivot = Offset(75.9f, 52.5f))
+                    scale(resolvedWaveExtend, resolvedWaveExtend, pivot = Offset(75.9f, 52.5f))
+                }) {
+                    drawPath(MASCOT_ARM_RIGHT, paperColor, style = Stroke(7f, cap = StrokeCap.Round))
+                }
                 drawPath(MASCOT_LEG_LEFT, paperColor, style = Stroke(11.7f, cap = StrokeCap.Round))
                 drawPath(MASCOT_LEG_RIGHT, paperColor, style = Stroke(11.7f, cap = StrokeCap.Round))
                 drawPath(MASCOT_BODY, paperColor)

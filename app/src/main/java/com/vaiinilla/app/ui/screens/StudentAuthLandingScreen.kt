@@ -253,7 +253,7 @@ private fun WelcomeMascotStage(
                     .offset(y = if (compact) (-4).dp else (-8).dp)
                     .size(mascotSize + 18.dp)
                     .clip(CircleShape)
-                    .background(colors.accent.copy(alpha = if (colors.isDark) 0.055f else 0.075f)),
+                    .background(if (colors.isDark) colors.accent.copy(alpha = 0.10f) else colors.accentInk),
         )
         VaiinillaMascot(
             modifier =
