@@ -1900,16 +1900,18 @@ private fun QueueTicketRow(
             Box(
                 modifier =
                     Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(colors.textPrimary),
+                        .defaultMinSize(minWidth = 56.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(colors.textPrimary)
+                        .padding(horizontal = 8.dp, vertical = 12.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     folio,
                     color = colors.background,
                     fontWeight = FontWeight.Black,
-                    fontSize = 15.sp,
+                    fontSize = 19.sp,
+                    letterSpacing = 0.5.sp,
                 )
             }
 
