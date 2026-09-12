@@ -1,10 +1,12 @@
 package com.vaiinilla.app.ui.operational
 
+import android.app.Application
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.core.notifications.DeviceTokenRegistrar
 import com.vaiinilla.app.data.order.DismissedClientOrdersStore
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.ContractRules
@@ -54,6 +56,8 @@ class OperationalViewModel
         private val walletRepository: WalletRepository,
         private val catalogRepository: CatalogRepository,
         private val dismissedClientOrdersStore: DismissedClientOrdersStore,
+        private val deviceTokenRegistrar: DeviceTokenRegistrar,
+        private val app: Application,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(OperationalUiState())
         val uiState: State<OperationalUiState> = _uiState
@@ -110,6 +114,9 @@ class OperationalViewModel
             refresh()
             if (role == OperationalRole.CASHIER) refreshCatalog()
             startPolling()
+            // Registra el token FCM apenas hay contexto: cliente recibe avances
+            // de su pedido y staff recibe alertas de su establecimiento.
+            deviceTokenRegistrar.register(app)
         }
 
         fun clearRole() {

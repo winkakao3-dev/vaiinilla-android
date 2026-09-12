@@ -58,6 +58,7 @@ roborazzi-junit-rule = { module = "io.github.takahirom.roborazzi:roborazzi-junit
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-auth = { module = "com.google.firebase:firebase-auth-ktx" }
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics-ktx" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging-ktx" }
 leakcanary-android = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakcanary" }
 kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutinesPlayServices" }
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraX" }

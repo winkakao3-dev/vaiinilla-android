@@ -37,6 +37,61 @@ object OrderAdvanceNotifier {
         }
     }
 
+    private const val STAFF_CHANNEL_ID = "staff_orders"
+
+    private fun ensureStaffChannel(context: Context) {
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        if (manager.getNotificationChannel(STAFF_CHANNEL_ID) == null) {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    STAFF_CHANNEL_ID,
+                    "Pedidos del establecimiento",
+                    NotificationManager.IMPORTANCE_HIGH,
+                ).apply {
+                    description = "Avisos de comandas nuevas para caja, cocina y meseros"
+                },
+            )
+        }
+    }
+
+    /** Posts a staff-facing heads-up (nueva comanda en cocina, pedido por cobrar, etc.). */
+    fun notifyStaff(
+        context: Context,
+        orderId: String,
+        folio: Int,
+        alert: String,
+    ) {
+        if (!canPost(context)) return
+        ensureStaffChannel(context)
+        val launchIntent =
+            PendingIntent.getActivity(
+                context,
+                0,
+                Intent(context, MainActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+        val (title, text) =
+            when (alert) {
+                "por_cobrar" -> "Pedido #$folio por cobrar" to "Entro un pedido en efectivo."
+                "nueva_comanda" -> "Nueva comanda #$folio" to "Cocina: pedido cobrado listo para preparar."
+                "listo_mesero" -> "Pedido #$folio listo" to "Entregar al espacio del alumno."
+                else -> "Pedido #$folio" to "El pedido cambio de estado."
+            }
+        val notification =
+            NotificationCompat
+                .Builder(context, STAFF_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_order_notification)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setAutoCancel(true)
+                .setContentIntent(launchIntent)
+                .setCategory(NotificationCompat.CATEGORY_STATUS)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .build()
+        NotificationManagerCompat.from(context).notify("staff:$orderId:$alert".hashCode(), notification)
+    }
+
     fun canPost(context: Context): Boolean =
         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
