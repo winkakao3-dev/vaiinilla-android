@@ -232,10 +232,10 @@ class HttpVaiinillaApiClient
                     val cachedBody = result.getOrNull()
                     if (
                         cachedBody != null &&
-                            method == "GET" &&
-                            requireAuth &&
-                            accessToken == null &&
-                            path in cacheableGetPaths
+                        method == "GET" &&
+                        requireAuth &&
+                        accessToken == null &&
+                        path in cacheableGetPaths
                     ) {
                         responseCache.write(path, query, cachedBody)
                     }

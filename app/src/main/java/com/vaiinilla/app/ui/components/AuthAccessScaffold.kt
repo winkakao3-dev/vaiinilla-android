@@ -605,6 +605,7 @@ enum class AuthAccessFieldKind(
 ) {
     Email(Icons.Outlined.Email, KeyboardType.Email),
     Password(Icons.Outlined.Lock, KeyboardType.Password),
+    OneTimeCode(Icons.Outlined.Lock, KeyboardType.NumberPassword),
     Person(Icons.Outlined.Person, KeyboardType.Text),
     Id(Icons.Outlined.Badge, KeyboardType.Text),
 }

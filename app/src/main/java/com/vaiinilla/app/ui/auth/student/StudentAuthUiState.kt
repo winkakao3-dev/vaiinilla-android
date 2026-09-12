@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.auth.student
 
+import com.vaiinilla.app.domain.auth.student.StudentAuthMfaChallenge
 import com.vaiinilla.app.domain.auth.student.StudentAuthSession
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import java.time.Instant
@@ -30,4 +31,7 @@ data class StudentAuthUiState(
     val clientIdLabel: String = "Identificador",
     val clientIdRequired: Boolean = false,
     val resendLockedUntilMs: Long = 0L,
+    val mfaChallenge: StudentAuthMfaChallenge? = null,
+    val mfaCode: String = "",
+    val mfaFactorUid: String? = null,
 )

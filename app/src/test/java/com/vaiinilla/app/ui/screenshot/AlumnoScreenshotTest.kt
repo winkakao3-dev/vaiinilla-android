@@ -6,13 +6,14 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.ui.auth.student.StudentAuthUiState
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
-import com.vaiinilla.app.ui.screens.SplashScreen
+import com.vaiinilla.app.ui.screens.StudentAuthLandingScreen
 import com.vaiinilla.app.ui.screens.StudentTrackingScreen
 import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
@@ -35,14 +36,21 @@ class AlumnoScreenshotTest {
     val composeTestRule = createComposeRule()
 
     @Test
-    fun `01_splash`() {
+    fun `01_auth_landing`() {
         composeTestRule.setContent {
             ScreenshotTheme {
-                SplashScreen(onFinished = {})
+                StudentAuthLandingScreen(
+                    state = StudentAuthUiState(),
+                    onBack = null,
+                    onRegister = {},
+                    onLogin = {},
+                    onGoogleSignIn = {},
+                    onExplore = {},
+                )
             }
         }
         composeTestRule.waitForIdle()
-        composeTestRule.onRoot().captureRoboImage("01_splash.png")
+        composeTestRule.onRoot().captureRoboImage("01_auth_landing.png")
     }
 
     @Test

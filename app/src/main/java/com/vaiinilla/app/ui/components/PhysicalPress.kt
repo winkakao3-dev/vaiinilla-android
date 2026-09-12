@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -54,13 +55,15 @@ fun Modifier.physicalPress(
             label = "physical-press-scale",
         )
         this
-            .semantics {
+            .semantics(mergeDescendants = true) {
                 if (enabled) {
                     role = Role.Button
                     onClick {
                         onClick()
                         true
                     }
+                } else {
+                    disabled()
                 }
             }.graphicsLayer {
                 scaleX = animatedScale

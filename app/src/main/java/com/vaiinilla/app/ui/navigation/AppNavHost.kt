@@ -740,6 +740,16 @@ fun AppNavHost(
                             onSessionInvalidated = { finishAccountSession() },
                         )
                     },
+                    onAccountDeletionMfaCodeChange = accountDeletionViewModel::updateMfaCode,
+                    onAccountDeletionMfaFactorSelected = accountDeletionViewModel::selectMfaFactor,
+                    onSubmitAccountDeletionMfa = {
+                        accountDeletionViewModel.submitMfaCode(
+                            onDeleted = {
+                                finishAccountSession("Tu cuenta fue eliminada correctamente")
+                            },
+                            onSessionInvalidated = { finishAccountSession() },
+                        )
+                    },
                     onRetryAccountDeletion = {
                         accountDeletionViewModel.retry(
                             onDeleted = {
@@ -952,6 +962,10 @@ fun AppNavHost(
                             launchSingleTop = true
                         }
                     },
+                    onMfaCodeChange = studentAuthViewModel::updateMfaCode,
+                    onMfaFactorSelected = studentAuthViewModel::selectMfaFactor,
+                    onSubmitMfa = studentAuthViewModel::submitMfaCode,
+                    onCancelMfa = studentAuthViewModel::cancelMfa,
                     existingVerifiedSession = existingVerifiedSession,
                 )
             }

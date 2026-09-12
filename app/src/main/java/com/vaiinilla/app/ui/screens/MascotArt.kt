@@ -25,12 +25,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.PathParser
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.R
 import kotlinx.coroutines.delay
 
@@ -84,8 +84,10 @@ private val MASCOT_BODY =
             "77.9 39.5L77.9 67.3Q77.9 72.5 72.7 72.5L27.3 72.5Q22.1 72.5 22.1 67.3L22.1 25.9Q22.1 20.7 23.7 18.9Z",
     )
 private val MASCOT_FOLD = pathOf("M59.9 20.7L59.9 33.1Q59.9 38.7 65.49 38.7L77.9 38.7Z")
-private val MASCOT_BAR_TOP = pathOf("M30 29.1a1.8 1.8 0 0 1 1.8-1.8h19.21a1.8 1.8 0 0 1 0 3.6H31.8A1.8 1.8 0 0 1 30 29.1Z")
-private val MASCOT_BAR_BOTTOM = pathOf("M29.85 36.15a1.65 1.65 0 0 1 1.65-1.65h12.09a1.65 1.65 0 0 1 0 3.3H31.5a1.65 1.65 0 0 1-1.65-1.65Z")
+private val MASCOT_BAR_TOP =
+    pathOf("M30 29.1a1.8 1.8 0 0 1 1.8-1.8h19.21a1.8 1.8 0 0 1 0 3.6H31.8A1.8 1.8 0 0 1 30 29.1Z")
+private val MASCOT_BAR_BOTTOM =
+    pathOf("M29.85 36.15a1.65 1.65 0 0 1 1.65-1.65h12.09a1.65 1.65 0 0 1 0 3.3H31.5a1.65 1.65 0 0 1-1.65-1.65Z")
 private val MASCOT_EYE_LEFT =
     pathOf(
         "M43.1 52.5C43.1 56.54 42.35 57.9 40.1 57.9C37.85 57.9 37.1 56.54 37.1 52.5C37.1 48.46 " +
@@ -205,7 +207,8 @@ fun VaiinillaMascot(
 
 enum class VaiinillaGlyphKind { Cup, Leaf, Bean, Spark, Cube, Note }
 
-private val GLYPH_CUP_BODY = pathOf("M22 34h44a6 6 0 0 1 6 6v12a24 24 0 0 1-24 24H40a24 24 0 0 1-24-24V40a6 6 0 0 1 6-6Z")
+private val GLYPH_CUP_BODY =
+    pathOf("M22 34h44a6 6 0 0 1 6 6v12a24 24 0 0 1-24 24H40a24 24 0 0 1-24-24V40a6 6 0 0 1 6-6Z")
 private val GLYPH_CUP_HANDLE = pathOf("M72 42h8a10 10 0 0 1 0 20h-6")
 private val GLYPH_CUP_STEAM = pathOf("M28 24c0-5 5-6 5-11M46 24c0-5 5-6 5-11M64 24c0-5 5-6 5-11")
 private val GLYPH_LEAF_BODY = pathOf("M24 76C24 40 44 22 80 20c2 38-16 58-56 56Z")
@@ -213,7 +216,8 @@ private val GLYPH_LEAF_VEIN = pathOf("M30 70c14-14 28-26 44-42")
 private val GLYPH_BEAN_BODY = pathOf("M50 20a22 30 0 1 0 0 60a22 30 0 1 0 0-60Z")
 private val GLYPH_BEAN_VEIN = pathOf("M40 30c12 10 8 30 20 40")
 private val GLYPH_SPARK = pathOf("M50 14c4 18 14 28 32 32-18 4-28 14-32 32-4-18-14-28-32-32 18-4 28-14 32-32Z")
-private val GLYPH_CUBE = pathOf("M36 24h28a12 12 0 0 1 12 12v28a12 12 0 0 1-12 12H36a12 12 0 0 1-12-12V36a12 12 0 0 1 12-12Z")
+private val GLYPH_CUBE =
+    pathOf("M36 24h28a12 12 0 0 1 12 12v28a12 12 0 0 1-12 12H36a12 12 0 0 1-12-12V36a12 12 0 0 1 12-12Z")
 private val GLYPH_CUBE_CROSS = pathOf("M24 44h52M44 24v52")
 private val GLYPH_NOTE_BODY =
     pathOf(
@@ -230,6 +234,7 @@ fun DrawScope.drawVaiinillaGlyph(
 ) {
     val s = size.minDimension / 100f
     val w = 6.5f * strokeScale
+
     fun str(path: Path) = drawPath(path, color, style = Stroke(w, cap = StrokeCap.Round))
     withTransform({ scale(s, s, pivot = Offset.Zero) }) {
         when (kind) {

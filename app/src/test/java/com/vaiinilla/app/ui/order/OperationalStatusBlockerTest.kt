@@ -3,7 +3,6 @@ package com.vaiinilla.app.ui.order
 import com.vaiinilla.app.domain.model.OperationalStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class OperationalStatusBlockerTest {
@@ -27,11 +26,17 @@ class OperationalStatusBlockerTest {
     }
 
     @Test
-    fun `names which station is offline`() {
-        assertTrue(status(cashier = false, kitchen = true).checkoutStaffBlocker()!!.contains("Caja"))
-        assertTrue(status(cashier = true, kitchen = false).checkoutStaffBlocker()!!.contains("Cocina"))
+    fun `uses neutral establishment copy when operations are unavailable`() {
         assertEquals(
-            "Caja y Cocina no están en línea. Tienen que quedar abiertas en otros dispositivos (o en la web) mientras pides como alumno.",
+            ESTABLISHMENT_CLOSED_MESSAGE,
+            status(cashier = false, kitchen = true).checkoutStaffBlocker(),
+        )
+        assertEquals(
+            ESTABLISHMENT_CLOSED_MESSAGE,
+            status(cashier = true, kitchen = false).checkoutStaffBlocker(),
+        )
+        assertEquals(
+            ESTABLISHMENT_CLOSED_MESSAGE,
             status(cashier = false, kitchen = false).checkoutStaffBlocker(),
         )
     }

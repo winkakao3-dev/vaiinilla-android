@@ -12,8 +12,11 @@ import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.auth.ContextoExchanger
 import com.vaiinilla.app.data.auth.student.AccessEmailApi
 import com.vaiinilla.app.data.auth.student.StudentAuthEmailExistsException
+import com.vaiinilla.app.data.auth.student.StudentAuthMfaChallengeExpiredException
+import com.vaiinilla.app.data.auth.student.StudentAuthMfaRequiredException
 import com.vaiinilla.app.data.auth.student.StudentAuthPreferences
 import com.vaiinilla.app.data.guest.GuestSessionStore
+import com.vaiinilla.app.domain.auth.student.StudentAuthMfaOperation
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRequest
@@ -52,6 +55,8 @@ class StudentAuthViewModel
         val state: State<StudentAuthUiState> = _state
         private val activeJobs = mutableSetOf<Job>()
         private var contextBootstrapJob: Job? = null
+        private var pendingLoginSuccess: ((Boolean) -> Unit)? = null
+        private var pendingLoginBootstrapClientContext = false
 
         init {
             refreshGuestVenue()
@@ -76,7 +81,10 @@ class StudentAuthViewModel
         }
 
         fun signOut(onDone: () -> Unit = {}) {
+            clearMfaChallenge()
             cancelActiveJobs()
+            pendingLoginSuccess = null
+            pendingLoginBootstrapClientContext = false
             launchTracked {
                 withContext(Dispatchers.IO) { sessionCleanup.clear() }
                 _state.value = StudentAuthUiState()
@@ -86,7 +94,10 @@ class StudentAuthViewModel
         }
 
         fun markSessionCleared(noticeMessage: String? = null) {
+            clearMfaChallenge()
             cancelActiveJobs()
+            pendingLoginSuccess = null
+            pendingLoginBootstrapClientContext = false
             _state.value = StudentAuthUiState(noticeMessage = noticeMessage)
             refreshGuestVenue()
         }
@@ -205,6 +216,111 @@ class StudentAuthViewModel
             _state.value = _state.value.copy(contextualId = value, errorMessage = null)
         }
 
+        fun updateMfaCode(value: String) {
+            _state.value =
+                _state.value.copy(
+                    mfaCode = value.filter(Char::isDigit).take(6),
+                    errorMessage = null,
+                )
+        }
+
+        fun selectMfaFactor(factorUid: String) {
+            val challenge = _state.value.mfaChallenge ?: return
+            if (challenge.factors.none { it.uid == factorUid }) return
+            _state.value = _state.value.copy(mfaFactorUid = factorUid, errorMessage = null)
+        }
+
+        fun cancelMfa() {
+            clearMfaChallenge()
+            pendingLoginSuccess = null
+            _state.value =
+                _state.value.copy(
+                    loading = false,
+                    errorMessage = null,
+                    mfaChallenge = null,
+                    mfaCode = "",
+                    mfaFactorUid = null,
+                )
+        }
+
+        fun submitMfaCode() {
+            val current = _state.value
+            val challenge = current.mfaChallenge ?: return
+            if (current.loading) return
+            val factorUid = current.mfaFactorUid ?: challenge.factors.firstOrNull()?.uid
+            if (factorUid == null) {
+                _state.value = current.copy(errorMessage = "No encontramos un método de autenticación disponible.")
+                return
+            }
+            if (current.mfaCode.length != 6) {
+                _state.value = current.copy(errorMessage = "Ingresa el código de 6 dígitos.")
+                return
+            }
+            _state.value = current.copy(loading = true, errorMessage = null)
+            launchTracked {
+                authRepository.resolveMfa(challenge.id, factorUid, current.mfaCode).fold(
+                    onSuccess = { resolution ->
+                        if (resolution.operation != StudentAuthMfaOperation.LOGIN) {
+                            _state.value =
+                                _state.value.copy(
+                                    loading = false,
+                                    errorMessage = "El desafío de autenticación ya no es válido.",
+                                )
+                            return@fold
+                        }
+                        val session = resolution.session ?: authRepository.peekSession()
+                        if (session == null) {
+                            _state.value =
+                                _state.value.copy(
+                                    loading = false,
+                                    mfaChallenge = null,
+                                    mfaCode = "",
+                                    mfaFactorUid = null,
+                                    errorMessage = "No se pudo recuperar tu sesión. Inténtalo nuevamente.",
+                                )
+                            pendingLoginSuccess = null
+                            pendingLoginBootstrapClientContext = false
+                            return@fold
+                        }
+                        _state.value =
+                            _state.value.copy(
+                                loading = false,
+                                session = session,
+                                mfaChallenge = null,
+                                mfaCode = "",
+                                mfaFactorUid = null,
+                                errorMessage = null,
+                            )
+                        continueAfterLogin(session, pendingLoginBootstrapClientContext)
+                    },
+                    onFailure = { error ->
+                        if (error is StudentAuthMfaChallengeExpiredException) {
+                            authRepository.cancelMfa(challenge.id)
+                            pendingLoginSuccess = null
+                            pendingLoginBootstrapClientContext = false
+                            _state.value =
+                                _state.value.copy(
+                                    loading = false,
+                                    mfaChallenge = null,
+                                    mfaCode = "",
+                                    mfaFactorUid = null,
+                                    errorMessage = error.message,
+                                )
+                        } else {
+                            _state.value =
+                                _state.value.copy(
+                                    loading = false,
+                                    errorMessage =
+                                        error.toUserFacingMessage(
+                                            "El código no es válido. Revisa tu aplicación autenticadora e inténtalo de nuevo.",
+                                        ),
+                                )
+                        }
+                    },
+                )
+            }
+        }
+
         fun updateTermsAccepted(accepted: Boolean) {
             _state.value =
                 _state.value.copy(
@@ -295,34 +411,39 @@ class StudentAuthViewModel
                     )
                 return
             }
+            pendingLoginSuccess = onSuccess
+            pendingLoginBootstrapClientContext = bootstrapClientContext
             _state.value = current.copy(loading = true, errorMessage = null)
             launchTracked {
                 val email = current.email.trim().lowercase()
                 _state.value = _state.value.copy(email = email)
                 authRepository.signIn(email, current.password).fold(
                     onSuccess = { session ->
-                        _state.value =
-                            _state.value.copy(
-                                loading = false,
-                                session = session,
-                            )
-                        if (!session.emailVerified) {
-                            onSuccess(false)
-                        } else if (bootstrapClientContext) {
-                            completeEnrollment(
-                                onSuccess = { onSuccess(true) },
-                                onNeedsVerify = { onSuccess(false) },
-                            )
-                        } else {
-                            onSuccess(true)
-                        }
+                        continueAfterLogin(session, bootstrapClientContext)
                     },
                     onFailure = { error ->
-                        _state.value =
-                            _state.value.copy(
-                                loading = false,
-                                errorMessage = error.toUserFacingMessage(),
-                            )
+                        if (error is StudentAuthMfaRequiredException) {
+                            _state.value =
+                                _state.value.copy(
+                                    loading = false,
+                                    errorMessage = null,
+                                    mfaChallenge = error.challenge,
+                                    mfaCode = "",
+                                    mfaFactorUid =
+                                        error.challenge.factors
+                                            .firstOrNull()
+                                            ?.uid,
+                                    password = "",
+                                )
+                        } else {
+                            pendingLoginSuccess = null
+                            pendingLoginBootstrapClientContext = false
+                            _state.value =
+                                _state.value.copy(
+                                    loading = false,
+                                    errorMessage = error.toUserFacingMessage(),
+                                )
+                        }
                     },
                 )
             }
@@ -334,17 +455,17 @@ class StudentAuthViewModel
             onSuccess: (Boolean) -> Unit,
         ) {
             if (_state.value.loading) return
+            pendingLoginSuccess = onSuccess
+            pendingLoginBootstrapClientContext = true
             _state.value = _state.value.copy(loading = true, errorMessage = null)
             launchTracked {
                 authRepository.signInWithGoogleIdToken(idToken).fold(
                     onSuccess = { session ->
-                        _state.value = _state.value.copy(loading = false, session = session)
-                        completeEnrollment(
-                            onSuccess = { onSuccess(true) },
-                            onNeedsVerify = { onSuccess(false) },
-                        )
+                        continueAfterLogin(session, bootstrapClientContext = true)
                     },
                     onFailure = { error ->
+                        pendingLoginSuccess = null
+                        pendingLoginBootstrapClientContext = false
                         _state.value =
                             _state.value.copy(
                                 loading = false,
@@ -355,6 +476,37 @@ class StudentAuthViewModel
             }
         }
 
+        private fun continueAfterLogin(
+            session: com.vaiinilla.app.domain.auth.student.StudentAuthSession,
+            bootstrapClientContext: Boolean,
+        ) {
+            _state.value =
+                _state.value.copy(
+                    loading = false,
+                    session = session,
+                )
+            if (!session.emailVerified) {
+                notifyLoginSuccess(false)
+            } else if (bootstrapClientContext) {
+                completeEnrollment(
+                    onSuccess = { notifyLoginSuccess(true) },
+                    onNeedsVerify = { notifyLoginSuccess(false) },
+                )
+            } else {
+                notifyLoginSuccess(true)
+            }
+        }
+
+        private fun notifyLoginSuccess(enrolled: Boolean) {
+            val callback = pendingLoginSuccess ?: return
+            pendingLoginSuccess = null
+            pendingLoginBootstrapClientContext = false
+            callback(enrolled)
+        }
+
+        private fun clearMfaChallenge() {
+            _state.value.mfaChallenge?.let { challenge -> authRepository.cancelMfa(challenge.id) }
+        }
         fun resendVerification() {
             val current = _state.value
             if (current.loading) return
@@ -752,5 +904,12 @@ class StudentAuthViewModel
             activeJobs += job
             job.start()
             return job
+        }
+
+        override fun onCleared() {
+            clearMfaChallenge()
+            pendingLoginSuccess = null
+            pendingLoginBootstrapClientContext = false
+            super.onCleared()
         }
     }

@@ -13,6 +13,10 @@ import com.vaiinilla.app.data.auth.student.StudentAuthPreferences
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.discovery.FixtureDiscoveryRepository
 import com.vaiinilla.app.data.guest.GuestSessionStore
+import com.vaiinilla.app.domain.auth.student.StudentAuthMfaChallenge
+import com.vaiinilla.app.domain.auth.student.StudentAuthMfaFactor
+import com.vaiinilla.app.domain.auth.student.StudentAuthMfaOperation
+import com.vaiinilla.app.domain.auth.student.StudentAuthMfaResolution
 import com.vaiinilla.app.domain.auth.student.StudentAuthSession
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRequest
@@ -35,9 +39,12 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -553,6 +560,104 @@ class StudentAuthViewModelTest {
                 vm.state.value.errorMessage
                     ?.contains("matrícula", ignoreCase = true) == true,
             )
+        }
+
+    @Test
+    fun `login pauses for TOTP and resumes enrollment after successful challenge`() =
+        runTest {
+            authRepository.signUp("mfa@test.com", "secret1", "Ana")
+            authRepository.markCurrentEmailVerified()
+            val session = authRepository.reloadSession().getOrThrow()!!
+            val challenge =
+                StudentAuthMfaChallenge(
+                    id = "mfa-challenge",
+                    operation = StudentAuthMfaOperation.LOGIN,
+                    factors = listOf(StudentAuthMfaFactor(uid = "totp-1", displayName = "Mi autenticador")),
+                )
+            authRepository.signInMfaChallenge = challenge
+            authRepository.mfaResolution =
+                Result.success(
+                    StudentAuthMfaResolution(
+                        operation = StudentAuthMfaOperation.LOGIN,
+                        session = session,
+                    ),
+                )
+            viewModel.updateEmail("mfa@test.com")
+            viewModel.updatePassword("secret1")
+            var enrolled = false
+            val enrollmentCompleted = CompletableDeferred<Boolean>()
+
+            blockContextExchange = true
+            viewModel.login {
+                enrolled = it
+                enrollmentCompleted.complete(it)
+            }
+            advanceUntilIdle()
+
+            assertEquals(challenge, viewModel.state.value.mfaChallenge)
+            assertFalse(enrolled)
+            viewModel.updateMfaCode("123456")
+            viewModel.submitMfaCode()
+            contextExchangeStarted.await()
+            allowContextExchange.complete(Unit)
+            advanceUntilIdle()
+            assertTrue(
+                withContext(Dispatchers.Default.limitedParallelism(1)) {
+                    withTimeout(5_000) { enrollmentCompleted.await() }
+                },
+            )
+
+            assertNull(viewModel.state.value.mfaChallenge)
+            assertTrue(enrolled)
+            assertEquals(1, authRepository.resolveMfaCalls)
+        }
+
+    @Test
+    fun `invalid MFA input does not resolve the challenge`() =
+        runTest {
+            val challenge =
+                StudentAuthMfaChallenge(
+                    id = "mfa-challenge",
+                    operation = StudentAuthMfaOperation.LOGIN,
+                    factors = listOf(StudentAuthMfaFactor(uid = "totp-1", displayName = null)),
+                )
+            authRepository.signUp("mfa-invalid@test.com", "secret1", "Ana")
+            authRepository.signInMfaChallenge = challenge
+            viewModel.updateEmail("mfa-invalid@test.com")
+            viewModel.updatePassword("secret1")
+            viewModel.login {}
+            advanceUntilIdle()
+
+            viewModel.updateMfaCode("12a")
+            viewModel.submitMfaCode()
+
+            assertEquals(0, authRepository.resolveMfaCalls)
+            assertTrue(
+                viewModel.state.value.errorMessage
+                    ?.contains("6 dígitos") == true,
+            )
+        }
+
+    @Test
+    fun `cancelling MFA clears the pending challenge`() =
+        runTest {
+            val challenge =
+                StudentAuthMfaChallenge(
+                    id = "mfa-challenge",
+                    operation = StudentAuthMfaOperation.LOGIN,
+                    factors = listOf(StudentAuthMfaFactor(uid = "totp-1", displayName = null)),
+                )
+            authRepository.signUp("mfa-cancel@test.com", "secret1", "Ana")
+            authRepository.signInMfaChallenge = challenge
+            viewModel.updateEmail("mfa-cancel@test.com")
+            viewModel.updatePassword("secret1")
+            viewModel.login {}
+            advanceUntilIdle()
+
+            viewModel.cancelMfa()
+
+            assertNull(viewModel.state.value.mfaChallenge)
+            assertEquals(1, authRepository.cancelMfaCalls)
         }
 }
 
