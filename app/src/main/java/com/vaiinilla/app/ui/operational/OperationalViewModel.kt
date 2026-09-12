@@ -30,6 +30,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -63,6 +65,9 @@ class OperationalViewModel
         private var pendingWalletReload: PendingWalletReload? = null
         private var walletSearchJob: Job? = null
         private var mutationJob: Job? = null
+        private val _orderAdvanceEvents = MutableSharedFlow<OrderAdvance>(extraBufferCapacity = 8)
+        val orderAdvanceEvents: SharedFlow<OrderAdvance> = _orderAdvanceEvents
+        private var clientTrackingBaselineReady = false
         private val heartbeatCoordinator =
             OperationalHeartbeatCoordinator(
                 scope = viewModelScope,
@@ -84,6 +89,7 @@ class OperationalViewModel
                 walletSearchJob = null
                 mutationJob?.cancel()
                 mutationJob = null
+                clientTrackingBaselineReady = false
             }
             _uiState.value =
                 _uiState.value.copy(
@@ -117,6 +123,7 @@ class OperationalViewModel
             heartbeatCoordinator.stop()
             lastUpdatedSince = null
             pendingWalletReload = null
+            clientTrackingBaselineReady = false
             _uiState.value = OperationalUiState()
         }
 
@@ -174,13 +181,19 @@ class OperationalViewModel
                 if (generation != roleGeneration || _uiState.value.role != role) return@launch
                 result.fold(
                     onSuccess = { orders ->
+                        if (role == OperationalRole.CLIENT) {
+                            emitClientOrderAdvances(
+                                previous = _uiState.value.orders,
+                                incoming = orders,
+                            )
+                        }
                         // Full-list fetch for CLIENT replaces state (iOS parity); staff merges deltas.
-                            val merged =
-                                if (role == OperationalRole.CLIENT) {
-                                    orders
-                                } else {
-                                    mergeOrders(_uiState.value.orders, orders)
-                                }
+                        val merged =
+                            if (role == OperationalRole.CLIENT) {
+                                orders
+                            } else {
+                                mergeOrders(_uiState.value.orders, orders)
+                            }
                         val latestClientOrder =
                             if (role == OperationalRole.CLIENT) {
                                 resolveLatestClientOrder(
@@ -219,6 +232,36 @@ class OperationalViewModel
                     },
                 )
             }
+        }
+
+        /**
+         * Emits one event per client order whose state moved forward in the tracking flow
+         * (or into a terminal state) since the previous visible list. The first successful
+         * sync only seeds the baseline so reopening the app never replays old transitions.
+         */
+        private fun emitClientOrderAdvances(
+            previous: List<OrderDetail>,
+            incoming: List<OrderDetail>,
+        ) {
+            if (clientTrackingBaselineReady) {
+                val previousStates = previous.associate { it.summary.id to it.summary.state }
+                incoming.forEach { order ->
+                    val before = previousStates[order.summary.id] ?: return@forEach
+                    val after = order.summary.state
+                    val advanced = after.trackingIndex > before.trackingIndex
+                    val resolvedTerminal = after.isTerminalWithoutDelivery && before != after
+                    if (before != after && (advanced || resolvedTerminal)) {
+                        _orderAdvanceEvents.tryEmit(
+                            OrderAdvance(
+                                orderId = order.summary.id,
+                                folio = order.summary.folio,
+                                newState = after,
+                            ),
+                        )
+                    }
+                }
+            }
+            clientTrackingBaselineReady = true
         }
 
         fun refreshOrder(orderId: String) {
@@ -849,3 +892,10 @@ internal fun filterDismissedClientOrders(
     } else {
         orders
     }
+
+/** A client order moved forward in the tracking flow; surfaced as a system notification. */
+data class OrderAdvance(
+    val orderId: String,
+    val folio: Int,
+    val newState: OrderState,
+)

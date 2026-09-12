@@ -8,10 +8,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -46,7 +45,6 @@ import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.QrCodeScanner
-import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -55,8 +53,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -78,10 +74,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -519,23 +515,23 @@ fun CashierOperationalScreen(
             if (recentOrder == null) {
                 item {
                     Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom,
-                ) {
-                    Text(
-                        "Pedido reciente",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
-                        color = colors.textPrimary,
-                    )
-                    val recentStatus = "Al día"
-                    Text(
-                        text = recentStatus,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textSecondary,
-                    )
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom,
+                    ) {
+                        Text(
+                            "Pedido reciente",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                            color = colors.textPrimary,
+                        )
+                        val recentStatus = "Al día"
+                        Text(
+                            text = recentStatus,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textSecondary,
+                        )
                     }
                 }
             }
@@ -1007,10 +1003,15 @@ private val StampGreen = Color(0xFF5A7A1E)
 
 private fun elapsedSinceMs(iso: String): Long? =
     runCatching {
-        java.time.Duration.between(java.time.Instant.parse(iso), java.time.Instant.now()).toMillis()
+        java.time.Duration
+            .between(java.time.Instant.parse(iso), java.time.Instant.now())
+            .toMillis()
     }.getOrNull()
 
-private fun elapsedShort(iso: String, tick: Int): String {
+private fun elapsedShort(
+    iso: String,
+    tick: Int,
+): String {
     tick.hashCode()
     val ms = elapsedSinceMs(iso) ?: return "recién"
     return when {
@@ -1021,8 +1022,7 @@ private fun elapsedShort(iso: String, tick: Int): String {
     }
 }
 
-private fun formatTimer(ms: Long?): String =
-    ms?.let { "%d:%02d".format(it / 60_000, (it % 60_000) / 1_000) } ?: "--:--"
+private fun formatTimer(ms: Long?): String = ms?.let { "%d:%02d".format(it / 60_000, (it % 60_000) / 1_000) } ?: "--:--"
 
 @Composable
 private fun TicketZigzag() {
@@ -1060,7 +1060,10 @@ private fun TicketPerf() {
 }
 
 @Composable
-private fun StampLabel(text: String, live: Boolean) {
+private fun StampLabel(
+    text: String,
+    live: Boolean,
+) {
     Box(
         modifier =
             Modifier
@@ -1080,7 +1083,12 @@ private fun StampLabel(text: String, live: Boolean) {
 }
 
 @Composable
-private fun ReceiptLine(quantity: Int, name: String, detail: String?, price: String) {
+private fun ReceiptLine(
+    quantity: Int,
+    name: String,
+    detail: String?,
+    price: String,
+) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.Top) {
         Text("$quantity", fontWeight = FontWeight.Black, fontSize = 13.5.sp, color = TicketInk)
         Spacer(Modifier.width(8.dp))
@@ -1482,23 +1490,23 @@ fun KitchenOperationalScreen(
             if (activeOrder == null) {
                 item {
                     Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom,
-                ) {
-                    Text(
-                        "En preparación",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
-                        color = colors.textPrimary,
-                    )
-                    val prepStatus = "Al día"
-                    Text(
-                        text = prepStatus,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textSecondary,
-                    )
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom,
+                    ) {
+                        Text(
+                            "En preparación",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                            color = colors.textPrimary,
+                        )
+                        val prepStatus = "Al día"
+                        Text(
+                            text = prepStatus,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textSecondary,
+                        )
                     }
                 }
             }

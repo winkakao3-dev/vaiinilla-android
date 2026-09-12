@@ -743,7 +743,7 @@ private fun ManualGuideDetail(
                         Text(
                             animatedStep.title,
                             color = palette.ink,
-                                    fontSize = 22.sp,
+                            fontSize = 22.sp,
                             lineHeight = 26.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = (-0.3).sp,

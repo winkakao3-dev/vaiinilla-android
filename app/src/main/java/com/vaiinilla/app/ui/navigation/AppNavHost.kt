@@ -1,6 +1,10 @@
 package com.vaiinilla.app.ui.navigation
 
+import android.Manifest
+import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.background
@@ -28,6 +32,7 @@ import com.stripe.android.PaymentConfiguration
 import com.stripe.android.paymentsheet.PaymentSheet
 import com.stripe.android.paymentsheet.PaymentSheetResult
 import com.vaiinilla.app.R
+import com.vaiinilla.app.core.notifications.OrderAdvanceNotifier
 import com.vaiinilla.app.data.auth.student.GoogleSignInHelper
 import com.vaiinilla.app.data.auth.student.GoogleSignInUnavailableException
 import com.vaiinilla.app.domain.model.GuestVenueContext
@@ -156,6 +161,29 @@ fun AppNavHost(
             operationalState.role == null
         ) {
             operationalViewModel.setRole(OperationalRole.CLIENT)
+        }
+    }
+
+    val appContext = LocalContext.current
+    LaunchedEffect(Unit) {
+        operationalViewModel.orderAdvanceEvents.collect { event ->
+            OrderAdvanceNotifier.notify(
+                context = appContext,
+                orderId = event.orderId,
+                folio = event.folio,
+                newState = event.newState,
+            )
+        }
+    }
+    val notificationPermissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    LaunchedEffect(operationalState.role) {
+        if (
+            operationalState.role == OperationalRole.CLIENT &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !OrderAdvanceNotifier.canPost(appContext)
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
