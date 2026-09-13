@@ -8,6 +8,7 @@ import com.vaiinilla.app.core.auth.StudentSessionCleanup
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.auth.ContextoExchanger
 import com.vaiinilla.app.data.auth.student.AccessEmailApi
@@ -120,7 +121,7 @@ class StudentAuthViewModel
                 launchTracked {
                     val result =
                         withContext(Dispatchers.IO) {
-                            runCatching {
+                            runCatchingCancellable {
                                 val clientIdLabel = venue.establishment.clientIdLabel.lowercase()
                                 val clientIdentifier =
                                     if (venue.establishment.clientIdRequired) {
@@ -655,7 +656,7 @@ class StudentAuthViewModel
                 launchTracked {
                     val result =
                         withContext(Dispatchers.IO) {
-                            runCatching {
+                            runCatchingCancellable {
                                 val firebaseToken =
                                     authRepository.getIdToken(forceRefresh = true).getOrThrow()
                                 enrollmentRepository
@@ -804,7 +805,7 @@ class StudentAuthViewModel
             launchTracked {
                 val result =
                     withContext(Dispatchers.IO) {
-                        runCatching {
+                        runCatchingCancellable {
                             val firebaseToken = authRepository.getIdToken(forceRefresh = true).getOrThrow()
                             enrollmentRepository
                                 .enroll(

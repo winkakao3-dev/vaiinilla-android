@@ -1,6 +1,7 @@
 package com.vaiinilla.app.core.notifications
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -21,6 +22,7 @@ import com.vaiinilla.app.domain.model.OrderState
  */
 object OrderAdvanceNotifier {
     const val EXTRA_ORDER_ID = "order_id"
+    const val EXTRA_NOTIFICATION_TARGET = "notification_target"
     private const val CHANNEL_ID = "order_tracking"
 
     fun ensureChannel(context: Context) {
@@ -56,6 +58,7 @@ object OrderAdvanceNotifier {
     }
 
     /** Posts a staff-facing heads-up (nueva comanda en cocina, pedido por cobrar, etc.). */
+    @SuppressLint("MissingPermission")
     fun notifyStaff(
         context: Context,
         orderId: String,
@@ -64,15 +67,7 @@ object OrderAdvanceNotifier {
     ) {
         if (!canPost(context)) return
         ensureStaffChannel(context)
-        val launchIntent =
-            PendingIntent.getActivity(
-                context,
-                0,
-                Intent(context, MainActivity::class.java)
-                    .putExtra(EXTRA_ORDER_ID, orderId)
-                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            )
+        val launchIntent = orderLaunchIntent(context, orderId, OrderNotificationTarget.STAFF)
         val (title, text) =
             when (alert) {
                 "por_cobrar" -> "Pedido #$folio por cobrar" to "Entro un pedido en efectivo."
@@ -99,6 +94,7 @@ object OrderAdvanceNotifier {
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
 
+    @SuppressLint("MissingPermission")
     fun notify(
         context: Context,
         orderId: String,
@@ -107,15 +103,7 @@ object OrderAdvanceNotifier {
     ) {
         if (!canPost(context)) return
         ensureChannel(context)
-        val launchIntent =
-            PendingIntent.getActivity(
-                context,
-                0,
-                Intent(context, MainActivity::class.java)
-                    .putExtra(EXTRA_ORDER_ID, orderId)
-                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            )
+        val launchIntent = orderLaunchIntent(context, orderId, OrderNotificationTarget.CLIENT)
         val notification =
             NotificationCompat
                 .Builder(context, CHANNEL_ID)
@@ -128,6 +116,29 @@ object OrderAdvanceNotifier {
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .build()
         NotificationManagerCompat.from(context).notify(orderId.hashCode(), notification)
+    }
+
+    internal fun notificationRequestCode(
+        orderId: String,
+        target: OrderNotificationTarget,
+    ): Int = 31 * orderId.hashCode() + target.ordinal
+
+    private fun orderLaunchIntent(
+        context: Context,
+        orderId: String,
+        target: OrderNotificationTarget,
+    ): PendingIntent {
+        val requestCode = notificationRequestCode(orderId, target)
+        return PendingIntent.getActivity(
+            context,
+            requestCode,
+            Intent(context, MainActivity::class.java)
+                .setAction("${context.packageName}.order.${target.wireValue}.$requestCode")
+                .putExtra(EXTRA_ORDER_ID, orderId)
+                .putExtra(EXTRA_NOTIFICATION_TARGET, target.wireValue)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
     }
 
     private fun messageFor(state: OrderState): String =

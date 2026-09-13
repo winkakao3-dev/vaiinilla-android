@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.auth.StudentSessionCleanup
 import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.MutationIdempotency
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.data.auth.student.StudentAuthMfaChallengeExpiredException
 import com.vaiinilla.app.data.auth.student.StudentAuthMfaRequiredException
@@ -44,7 +45,12 @@ class AccountDeletionViewModel
 
         fun confirm() {
             if (_state.value.status != AccountDeletionStatus.Confirmation) return
-            idempotencyKey = UUID.randomUUID().toString()
+            // Clave determinista por cuenta: si el proceso muere a mitad del flujo,
+            // el reintento tras reiniciar reutiliza la misma Idempotency-Key y el
+            // servidor devuelve el resultado original en vez de un segundo DELETE.
+            idempotencyKey =
+                authRepository.peekSession()?.uid?.let(MutationIdempotency::accountDeletion)
+                    ?: UUID.randomUUID().toString()
             _state.value = AccountDeletionUiState(status = AccountDeletionStatus.Reauthentication())
         }
 

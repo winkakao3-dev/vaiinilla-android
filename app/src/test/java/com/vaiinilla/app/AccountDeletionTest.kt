@@ -3,6 +3,7 @@ package com.vaiinilla.app
 import com.vaiinilla.app.core.auth.StudentSessionCleanup
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.MutationIdempotency
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.security.PickupTokenStore
 import com.vaiinilla.app.core.security.SecureSessionStore
@@ -37,7 +38,6 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.net.SocketTimeoutException
-import java.util.UUID
 import javax.inject.Provider
 
 class RemoteAccountDeletionRepositoryTest {
@@ -213,14 +213,13 @@ class AccountDeletionViewModelTest {
         }
 
     @Test
-    fun `creates UUID v4 idempotency key`() =
+    fun `derives a stable per-account idempotency key`() =
         runTest {
             viewModel.beginAndSubmit()
             advanceUntilIdle()
 
             val key = deletion.keys.single()
-            assertEquals(4, UUID.fromString(key).version())
-            assertEquals(2, UUID.fromString(key).variant())
+            assertEquals(MutationIdempotency.accountDeletion("uid"), key)
         }
 
     @Test

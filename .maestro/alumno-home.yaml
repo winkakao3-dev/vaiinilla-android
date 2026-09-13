@@ -1,0 +1,44 @@
+appId: ${APP_ID}
+---
+# Smoke autenticado de Alumno: recorre las 4 tabs sin tocar datos ni pagos.
+# Requiere sesión activa. Si la cuenta tiene modos de personal, entra como alumno.
+- launchApp:
+    clearState: false
+
+- runFlow:
+    when:
+      visible:
+        text: "Cómo vas a entrar\\."
+    commands:
+      - tapOn: "Entrar como alumno"
+
+- extendedWaitUntil:
+    visible: "¿Qué se te antoja\\?|Menú de hoy|Menú de Vaiinilla"
+    timeout: 20000
+
+- assertVisible:
+    text: "^Menú$"
+
+- tapOn:
+    text: "^Pedidos$"
+- extendedWaitUntil:
+    visible: "Mis pedidos"
+    timeout: 10000
+
+- tapOn:
+    text: "^Cartera$"
+- extendedWaitUntil:
+    visible: "Cartera|Saldo Vaiinilla|Reintentar"
+    timeout: 10000
+
+- tapOn:
+    text: "^Carrito$"
+- extendedWaitUntil:
+    visible: "Tu pedido"
+    timeout: 10000
+
+- tapOn:
+    text: "^Menú$"
+- extendedWaitUntil:
+    visible: "¿Qué se te antoja\\?|Menú de hoy|Menú de Vaiinilla"
+    timeout: 10000

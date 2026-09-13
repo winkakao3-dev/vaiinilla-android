@@ -28,7 +28,7 @@ Los gates Gradle/lint/ktlint/bundle ya fueron ejecutados en terminal/local harne
 
 - `applicationId`: `com.vaiinilla.app`.
 - `targetSdk`: 36 y `compileSdk`: 36. Google Play exigirá API 36 para nuevas apps y actualizaciones móviles a partir del 31 de agosto de 2026, por lo que el proyecto ya está configurado al nivel requerido.
-- El cliente Android usa Firebase Authentication. La auditoría de dependencias actual no encontró Firebase Analytics, Crashlytics ni Messaging.
+- El cliente Android usa Firebase Authentication, Crashlytics y Messaging. La auditoría de dependencias actual no encontró Firebase Analytics ni Firebase Storage.
 - El workflow `Android Release Readiness` ya impide construir release sin `VAIINILLA_API_BASE_URL` explícita.
 - El mismo workflow soporta signing opcional mediante `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` y `ANDROID_KEY_PASSWORD`.
 
@@ -90,8 +90,8 @@ Confirmado desde el código Android:
 
 - proyecto Firebase del archivo Android actualmente versionado: `vaiinilla-b3a70` (desarrollo);
 - paquete Android: `com.vaiinilla.app`;
-- dependencia Firebase usada por la app: Authentication;
-- no se encontraron dependencias de Analytics, Crashlytics, Messaging ni Firebase Storage en la configuración Gradle actual;
+- dependencias Firebase usadas por la app: Authentication, Crashlytics y Messaging;
+- no se encontraron dependencias de Analytics ni Firebase Storage en la configuración Gradle actual;
 - existe una API key cliente en `google-services.json`, como es normal en Firebase Android.
 
 Sigue requiriendo acceso a Firebase/Google Cloud Console para verificar:
@@ -195,5 +195,8 @@ Pendiente de terminal posterior: E2E de eliminación con una cuenta Firebase de 
 ## Fuera de este estado por ahora
 
 - Las antiguas “entregas” e IDs de tareas no se usan para decidir qué falta hoy.
-- Stripe/tarjetas no están habilitados actualmente en Android. Si fueran requisito para la primera publicación, debe ser una decisión explícita de producto.
+- Stripe está integrado en Android con un guard por flavor: los builds `dev` sólo aceptan `pk_test_` y los builds `prod` sólo aceptan `pk_live_` (`OrderContractMapper.toStripeSession`). El backend de producción debe activar llaves live para que el pago con tarjeta funcione en la app publicada; publicar con pagos en vivo sigue siendo una decisión explícita de producto.
+- Las recargas de wallet en efectivo persisten su `Idempotency-Key` por contexto de cajero antes del POST y la reconcilian al reactivar el modo Caja (`PendingWalletReloadStore`); un proceso muerto a mitad del cobro ya no puede abonar dos veces ni perder el comprobante.
+- Las transiciones operativas (`transiciones`, `cobros-efectivo`) y las altas de imagen de producto usan `Idempotency-Key` deterministas derivadas de la identidad lógica de la operación (`MutationIdempotency`): reintentar tras una respuesta perdida replay limpio en vez de conflicto de versión. `openCashSession` y `createProduct` re-leen el estado real tras un fallo, así la UI converge aunque la respuesta se haya perdido.
+- La eliminación de cuenta deriva su `Idempotency-Key` del uid de Firebase (`MutationIdempotency.accountDeletion`): si la app muere a mitad del flujo, el reintento reutiliza la misma clave y el servidor devuelve el resultado original.
 - La preparación detallada de formularios Google Play/App Content/Data Safety sigue aparcada hasta que se retome explícitamente; este documento sólo mantiene los prerrequisitos técnicos y legales necesarios para que esa etapa no empiece con información falsa.

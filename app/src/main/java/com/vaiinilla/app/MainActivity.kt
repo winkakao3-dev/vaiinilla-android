@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.rememberNavController
 import com.vaiinilla.app.core.notifications.OrderAdvanceNotifier
+import com.vaiinilla.app.core.notifications.OrderNotificationTarget
 import com.vaiinilla.app.ui.navigation.AppNavHost
 import com.vaiinilla.app.ui.theme.ThemePreferences
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
@@ -24,6 +25,7 @@ class MainActivity : ComponentActivity() {
     private var pendingEstablishmentSlug by mutableStateOf<String?>(null)
     private var pendingInvitationToken by mutableStateOf<String?>(null)
     private var pendingOrderId by mutableStateOf<String?>(null)
+    private var pendingOrderTarget by mutableStateOf<OrderNotificationTarget?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -86,7 +88,11 @@ class MainActivity : ComponentActivity() {
                     onDeepLinkConsumed = { pendingEstablishmentSlug = null },
                     onInvitationConsumed = { pendingInvitationToken = null },
                     pendingOrderId = pendingOrderId,
-                    onOrderConsumed = { pendingOrderId = null },
+                    pendingOrderTarget = pendingOrderTarget,
+                    onOrderConsumed = {
+                        pendingOrderId = null
+                        pendingOrderTarget = null
+                    },
                 )
             }
         }
@@ -101,12 +107,26 @@ class MainActivity : ComponentActivity() {
     private fun captureDeepLink(source: Intent?) {
         pendingEstablishmentSlug = establishmentSlugFrom(source)
         pendingInvitationToken = invitationTokenFrom(source)
-        source?.getStringExtra(OrderAdvanceNotifier.EXTRA_ORDER_ID)?.let { pendingOrderId = it }
+        orderIdFrom(source)?.let {
+            pendingOrderId = it
+            pendingOrderTarget =
+                OrderNotificationTarget.fromWireValue(
+                    source?.getStringExtra(OrderAdvanceNotifier.EXTRA_NOTIFICATION_TARGET),
+                )
+        }
+        source?.removeExtra(OrderAdvanceNotifier.EXTRA_ORDER_ID)
+        source?.removeExtra(OrderAdvanceNotifier.EXTRA_NOTIFICATION_TARGET)
         // Do not retain invitation tokens in the Activity intent after capture.
         source?.data = null
     }
 
     companion object {
+        fun orderIdFrom(intent: Intent?): String? =
+            intent
+                ?.getStringExtra(OrderAdvanceNotifier.EXTRA_ORDER_ID)
+                ?.trim()
+                ?.takeIf { it.length in 1..100 && ORDER_ID.matches(it) }
+
         fun establishmentSlugFrom(intent: Intent?): String? {
             val data = intent?.data ?: return null
             return establishmentSlugFrom(data)
@@ -145,6 +165,7 @@ class MainActivity : ComponentActivity() {
 
         private val APP_HOSTS = setOf("vaiinilla.app", "www.vaiinilla.app")
         private val ESTABLISHMENT_SLUG = Regex("[A-Za-z0-9][A-Za-z0-9_-]*")
+        private val ORDER_ID = Regex("[A-Za-z0-9_-]+")
         private const val MAX_ESTABLISHMENT_SLUG_LENGTH = 100
         private const val MAX_INVITATION_TOKEN_LENGTH = 4_096
     }

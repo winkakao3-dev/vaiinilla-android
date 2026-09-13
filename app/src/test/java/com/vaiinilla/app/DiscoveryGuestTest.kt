@@ -1,6 +1,8 @@
 package com.vaiinilla.app
 
+import android.content.Intent
 import android.net.Uri
+import com.vaiinilla.app.core.notifications.OrderAdvanceNotifier
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.discovery.FixtureDiscoveryRepository
 import com.vaiinilla.app.data.guest.GuestCartLineSnapshot
@@ -105,6 +107,24 @@ class GuestSessionAndDeepLinkTest {
                 Uri.parse("https://vaiinilla.app/invitaciones/aceptar?token=$oversized"),
             ),
         )
+    }
+
+    @Test
+    fun `orderIdFrom accepts safe ids and rejects path-like input`() {
+        fun intentWith(orderId: String): Intent = Intent().putExtra(OrderAdvanceNotifier.EXTRA_ORDER_ID, orderId)
+
+        assertEquals(
+            "9f4e5d6c-7a8b-4c2d-9e1f-0a1b2c3d4e5f",
+            MainActivity.orderIdFrom(intentWith("9f4e5d6c-7a8b-4c2d-9e1f-0a1b2c3d4e5f")),
+        )
+        assertEquals("abc_123-XYZ", MainActivity.orderIdFrom(intentWith("abc_123-XYZ")))
+        assertNull(MainActivity.orderIdFrom(intentWith("a/b")))
+        assertNull(MainActivity.orderIdFrom(intentWith("a b")))
+        assertNull(MainActivity.orderIdFrom(intentWith("")))
+        assertNull(MainActivity.orderIdFrom(intentWith("   ")))
+        assertNull(MainActivity.orderIdFrom(intentWith("a".repeat(101))))
+        assertNull(MainActivity.orderIdFrom(Intent()))
+        assertNull(MainActivity.orderIdFrom(null))
     }
 
     @Test

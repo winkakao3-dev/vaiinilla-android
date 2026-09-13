@@ -21,8 +21,8 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        // Si no hay sesión activa el POST falla y el próximo login lo reintenta.
-        tokenRegistrar.registerToken(applicationContext, token)
+        // Si no hay sesión activa se omite; el registro se reintenta al activarse un contexto.
+        tokenRegistrar.registerToken(token)
     }
 
     override fun onMessageReceived(message: RemoteMessage) {

@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.order
 
+import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.domain.model.CreateOrderItem
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -89,7 +90,9 @@ fun OrderPaymentDto.toDomain(): OrderPayment =
 fun OrderPaymentDto.toStripeSession(): StripePaymentSession {
     val secret = requireNotNull(clientSecret) { "Stripe response missing client_secret" }
     val key = requireNotNull(publishableKey) { "Stripe response missing publishable_key" }
-    require(key.startsWith("pk_test_")) { "Stripe publishable_key must be Test Mode for this build." }
+    val expectedPrefix = if (BuildConfig.IS_PRODUCTION) "pk_live_" else "pk_test_"
+    val expectedMode = if (BuildConfig.IS_PRODUCTION) "Live" else "Test"
+    require(key.startsWith(expectedPrefix)) { "Stripe publishable_key must be $expectedMode Mode for this build." }
     return StripePaymentSession(
         paymentAttemptId = paymentAttemptId,
         paymentIntentId = paymentIntentId,

@@ -20,6 +20,12 @@ import org.junit.Test
 class StripeOrderContractTest {
     private val json = OrderContractJson()
 
+    // La llave válida depende del flavor: dev solo acepta pk_test_, prod solo pk_live_.
+    private val stripePublishableKey =
+        if (BuildConfig.IS_PRODUCTION) "pk_live_51Vaiinilla" else "pk_test_51Vaiinilla"
+    private val otherModePublishableKey =
+        if (BuildConfig.IS_PRODUCTION) "pk_test_51Vaiinilla" else "pk_live_51Vaiinilla"
+
     @Test
     fun `stripe request uses exact wire value and never sends trusted money fields`() {
         val raw = json.encodeCreateRequest(stripeRequest())
@@ -45,7 +51,7 @@ class StripeOrderContractTest {
         assertEquals("acct_test_establecimiento_001", created.order.payment?.stripeAccountId)
         assertNotNull(created.stripeSession)
         assertEquals("pi_test_001_secret_test", created.stripeSession?.clientSecret)
-        assertEquals("pk_test_51Vaiinilla", created.stripeSession?.publishableKey)
+        assertEquals(stripePublishableKey, created.stripeSession?.publishableKey)
     }
 
     @Test
@@ -72,10 +78,11 @@ class StripeOrderContractTest {
     }
 
     @Test
-    fun `live publishable key is rejected before PaymentSheet`() {
-        val liveEnvelope = stripeCreatedEnvelope().replace("pk_test_51Vaiinilla", "pk_live_51Vaiinilla")
+    fun `mismatched publishable key is rejected before PaymentSheet`() {
+        // Dev exige pk_test_ y prod exige pk_live_: ninguna variante acepta la llave del otro modo.
+        val mismatched = stripeCreatedEnvelope().replace(stripePublishableKey, otherModePublishableKey)
 
-        val result = runCatching { json.parseCreatedOrder(liveEnvelope) }
+        val result = runCatching { json.parseCreatedOrder(mismatched) }
 
         assertTrue(result.isFailure)
         assertTrue(
@@ -83,8 +90,15 @@ class StripeOrderContractTest {
                 .exceptionOrNull()
                 ?.message
                 .orEmpty()
-                .contains("Test Mode"),
+                .contains("Mode for this build"),
         )
+    }
+
+    @Test
+    fun `matching publishable key is accepted for the build environment`() {
+        val result = runCatching { json.parseCreatedOrder(stripeCreatedEnvelope()) }
+
+        assertTrue(result.isSuccess)
     }
 
     @Test
@@ -130,7 +144,7 @@ class StripeOrderContractTest {
                 """
                 ,
                 "client_secret": "pi_test_001_secret_test",
-                "publishable_key": "pk_test_51Vaiinilla"
+                "publishable_key": "$stripePublishableKey"
                 """.trimIndent()
             } else {
                 ""
@@ -199,7 +213,7 @@ class StripeOrderContractTest {
               "payment_intent_id": "pi_test_001",
               "client_secret": "pi_test_001_secret_test",
               "stripe_account_id": "acct_test_establecimiento_001",
-              "publishable_key": "pk_test_51Vaiinilla",
+              "publishable_key": "$stripePublishableKey",
               "payment_status": "fallido"
             }
           },

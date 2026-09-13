@@ -1,5 +1,6 @@
 package com.vaiinilla.app.core.auth
 
+import com.vaiinilla.app.core.notifications.DeviceTokenRegistrar
 import com.vaiinilla.app.core.security.PickupTokenStore
 import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
@@ -15,8 +16,10 @@ class StudentSessionCleanup
         private val guestSessionStore: GuestSessionStore,
         private val pickupTokenStore: PickupTokenStore,
         private val refreshCoordinator: VaiinillaJwtRefreshCoordinator,
+        private val deviceTokenRegistrar: DeviceTokenRegistrar? = null,
     ) {
         suspend fun clear() {
+            deviceTokenRegistrar?.clearRegistration()
             refreshCoordinator.clearSession()
             authRepository.signOut()
             guestSessionStore.clearAll()

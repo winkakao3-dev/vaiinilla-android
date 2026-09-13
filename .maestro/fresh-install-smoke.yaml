@@ -1,0 +1,9 @@
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Vaiinilla."
+    timeout: 15000
+- assertVisible: "Crear cuenta"
+- assertVisible: "Iniciar sesión"

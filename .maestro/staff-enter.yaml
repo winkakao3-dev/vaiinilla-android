@@ -1,0 +1,22 @@
+appId: ${APP_ID}
+---
+# Smoke autenticado de staff: entra al modo operativo disponible (Caja/Cocina/Mesero)
+# y verifica que cargue la pantalla operativa. Solo lectura: no cobra, no prepara,
+# no cambia estados de pedidos.
+- launchApp:
+    clearState: false
+
+- runFlow:
+    when:
+      visible:
+        text: "Cómo vas a entrar\\."
+    commands:
+      - tapOn:
+          text: "(Entrar|Continuar) como (Caja|Cocina|Mesero)"
+
+- extendedWaitUntil:
+    visible: "Caja en control\\.|COMANDAS EN VIVO|Modo Mesero|TURNO DE HOY"
+    timeout: 25000
+
+- assertVisible:
+    text: "Caja en control\\.|COMANDAS EN VIVO|Modo Mesero|TURNO DE HOY|En fila|Pedido reciente"

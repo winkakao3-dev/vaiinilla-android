@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.auth.ContextoExchanger
 import com.vaiinilla.app.data.guest.GuestSessionStore
@@ -686,7 +687,7 @@ class OrderFlowViewModel
         }
 
         private suspend fun refreshClientContext(venue: GuestVenueContext) {
-            runCatching {
+            runCatchingCancellable {
                 val firebaseToken = studentAuthRepository.getIdToken(forceRefresh = true).getOrThrow()
                 val context =
                     contextoExchange.exchange(

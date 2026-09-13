@@ -212,6 +212,25 @@ La CI de GitHub ejecuta estas verificaciones en pull requests y pushes a `main`.
 
 Para cambios de UI también se espera verificación visual con Roborazzi y, cuando el comportamiento dependa de gestos, cámara, navegación o integración real, prueba en dispositivo Android.
 
+### QA física segura
+
+Toolchain físico (Maestro, scrcpy, adb) vive en `/Volumes/CODIGO/Android`:
+
+```bash
+source /Volumes/CODIGO/Android/env.sh
+./scripts/device-qa-safe.sh
+./scripts/device-qa-safe.sh --skip-build
+./scripts/run-maestro-smoke.sh
+./scripts/run-maestro-authenticated.sh
+scrcpy
+```
+
+`device-qa-safe.sh` instala las tres variantes dev con `install -r` (preserva datos), lanza cada paquete en frío y guarda evidencia (screenshots, logcat, permisos) en `/Volumes/CODIGO/Android/QA/Vaiinilla/<UTC timestamp>/`. `run-maestro-smoke.sh` ejecuta `.maestro/launch-smoke.yaml` contra los tres paquetes dev; el flujo solo lanza cada app sin tocar ni limpiar estado, así que es seguro con sesiones activas. Con `--fresh` corre `.maestro/fresh-install-smoke.yaml`, que además aserta la pantalla de bienvenida sin autenticar — usarlo sólo cuando las apps ya están deslogueadas.
+
+`run-maestro-authenticated.sh` requiere sesiones activas: `.maestro/alumno-home.yaml` recorre las cuatro tabs de Alumno (Menú, Pedidos, Cartera, Carrito) y `.maestro/staff-enter.yaml` entra al modo operativo disponible en Caja y Cocina y verifica que cargue la pantalla operativa. Ambos son de sólo lectura: no crean pedidos, no cobran, no limpian estado. Si la cuenta tiene modos de personal, el flujo de Alumno entra por "¿Entrar como alumno?"; el de staff toca la tarjeta "Entrar como …" que exista. Guarda screenshots, permisos y logs de registro FCM por paquete en el directorio de evidencia.
+
+La instrumentación de Gradle (`connected*AndroidTest`) nunca debe correr en un teléfono con datos persistentes: en QA física observada su limpieza desinstaló los paquetes dev. Usar siempre un destino desechable (emulador o dispositivo de laboratorio) para instrumentación.
+
 ## Estructura del repositorio
 
 ```text

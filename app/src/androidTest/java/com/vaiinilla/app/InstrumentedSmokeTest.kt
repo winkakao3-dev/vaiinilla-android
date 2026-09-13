@@ -17,6 +17,6 @@ class InstrumentedSmokeTest {
     @Test
     fun runsOnTheTargetAppPackage() {
         val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.vaiinilla.app", targetContext.packageName.removeSuffix(".dev"))
+        assertEquals(BuildConfig.APPLICATION_ID, targetContext.packageName)
     }
 }

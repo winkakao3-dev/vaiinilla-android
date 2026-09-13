@@ -1,13 +1,16 @@
 package com.vaiinilla.app.ui.operational
 
-import android.app.Application
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.MutationIdempotency
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.notifications.DeviceTokenRegistrar
+import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.data.order.DismissedClientOrdersStore
+import com.vaiinilla.app.data.wallet.PendingWalletReload
+import com.vaiinilla.app.data.wallet.PendingWalletReloadStore
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.OperationalRole
@@ -21,6 +24,7 @@ import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
 import com.vaiinilla.app.domain.repository.DeviceIdentity
 import com.vaiinilla.app.domain.repository.WalletRepository
+import com.vaiinilla.app.domain.repository.WalletRepositoryException
 import com.vaiinilla.app.domain.usecase.CollectCashUseCase
 import com.vaiinilla.app.domain.usecase.GetOrderUseCase
 import com.vaiinilla.app.domain.usecase.ListOrdersUseCase
@@ -57,7 +61,7 @@ class OperationalViewModel
         private val catalogRepository: CatalogRepository,
         private val dismissedClientOrdersStore: DismissedClientOrdersStore,
         private val deviceTokenRegistrar: DeviceTokenRegistrar,
-        private val app: Application,
+        private val pendingWalletReloadStore: PendingWalletReloadStore,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(OperationalUiState())
         val uiState: State<OperationalUiState> = _uiState
@@ -112,11 +116,14 @@ class OperationalViewModel
             pendingWalletReload = null
             refreshCashSession()
             refresh()
-            if (role == OperationalRole.CASHIER) refreshCatalog()
+            if (role == OperationalRole.CASHIER) {
+                refreshCatalog()
+                reconcilePendingWalletReload()
+            }
             startPolling()
             // Registra el token FCM apenas hay contexto: cliente recibe avances
             // de su pedido y staff recibe alertas de su establecimiento.
-            deviceTokenRegistrar.register(app)
+            deviceTokenRegistrar.register()
         }
 
         fun clearRole() {
@@ -323,10 +330,18 @@ class OperationalViewModel
                         .onSuccess {
                             _uiState.value = _uiState.value.copy(acting = false, cashSessionOpen = true)
                         }.onFailure { error ->
+                            // Si el POST llegó pero la respuesta se perdió, la sesión ya
+                            // existe: releer el estado real evita que un reintento manual
+                            // abra una segunda sesión o muestre un error espurio.
+                            val alreadyOpen =
+                                withContext(Dispatchers.IO) {
+                                    cashSessionRepository.hasActiveSession().getOrDefault(false)
+                                }
                             _uiState.value =
                                 _uiState.value.copy(
                                     acting = false,
-                                    errorMessage = error.toUserFacingMessage(),
+                                    cashSessionOpen = if (alreadyOpen) true else _uiState.value.cashSessionOpen,
+                                    errorMessage = if (alreadyOpen) null else error.toUserFacingMessage(),
                                 )
                         }
                 }
@@ -439,14 +454,29 @@ class OperationalViewModel
                     )
                 return
             }
+            val stored = pendingWalletReloadStore.read()
+            if (stored != null && (stored.userId != userId || stored.amount != normalizedAmount)) {
+                _uiState.value =
+                    _uiState.value.copy(
+                        errorMessage =
+                            "Hay una recarga anterior sin confirmar. " +
+                                "Reintenta con el mismo cliente y monto (\$${stored.amount}) para confirmarla sin duplicarla.",
+                    )
+                return
+            }
             val attempt =
-                pendingWalletReload
-                    ?.takeIf { it.userId == userId && it.amount == normalizedAmount }
+                stored
                     ?: PendingWalletReload(
                         userId = userId,
                         amount = normalizedAmount,
                         idempotencyKey = UUID.randomUUID().toString(),
-                    ).also { pendingWalletReload = it }
+                        storedAtEpochMs = System.currentTimeMillis(),
+                    ).also {
+                        // Persistir ANTES del POST: si el proceso muere tras el abono,
+                        // la misma Idempotency-Key sobrevive y el retry confirma.
+                        pendingWalletReloadStore.write(it)
+                        pendingWalletReload = it
+                    }
             val generation = roleGeneration
             _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
             mutationJob =
@@ -459,6 +489,7 @@ class OperationalViewModel
                     result
                         .onSuccess { receipt ->
                             pendingWalletReload = null
+                            pendingWalletReloadStore.clear()
                             _uiState.value =
                                 _uiState.value.copy(
                                     acting = false,
@@ -466,6 +497,11 @@ class OperationalViewModel
                                     errorMessage = null,
                                 )
                         }.onFailure { error ->
+                            if (isDefinitiveWalletReloadFailure(error)) {
+                                // El servidor procesó y rechazó la recarga: nada quedó abonado.
+                                pendingWalletReload = null
+                                pendingWalletReloadStore.clear()
+                            }
                             _uiState.value =
                                 _uiState.value.copy(
                                     acting = false,
@@ -473,6 +509,49 @@ class OperationalViewModel
                                 )
                         }
                 }
+        }
+
+        /**
+         * Reintenta una recarga que quedó persistida porque el proceso murió a mitad
+         * del POST. El replay usa la MISMA Idempotency-Key, así que es seguro: si el
+         * servidor ya la aplicó devuelve el comprobante, y si nunca llegó la completa
+         * ahora. Solo corre bajo el mismo contexto JWT (cajero + establecimiento).
+         */
+        private fun reconcilePendingWalletReload() {
+            val pending = pendingWalletReloadStore.read() ?: return
+            pendingWalletReload = pending
+            val generation = roleGeneration
+            viewModelScope.launch {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        walletRepository.reloadCash(pending.userId, pending.amount, pending.idempotencyKey)
+                    }
+                if (generation != roleGeneration) return@launch
+                result
+                    .onSuccess { receipt ->
+                        pendingWalletReload = null
+                        pendingWalletReloadStore.clear()
+                        if (_uiState.value.role == OperationalRole.CASHIER) {
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    walletReloadReceipt = receipt,
+                                    errorMessage = null,
+                                )
+                        }
+                    }.onFailure { error ->
+                        if (isDefinitiveWalletReloadFailure(error)) {
+                            pendingWalletReload = null
+                            pendingWalletReloadStore.clear()
+                        } else if (_uiState.value.role == OperationalRole.CASHIER) {
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    errorMessage =
+                                        "Hay una recarga pendiente de confirmar. " +
+                                            "Reintenta con el mismo cliente y monto (\$${pending.amount}).",
+                                )
+                        }
+                    }
+            }
         }
 
         fun collectCash(
@@ -485,7 +564,7 @@ class OperationalViewModel
                     orderId = orderId,
                     amountReceived = amountReceived,
                     expectedVersion = expectedVersion,
-                    idempotencyKey = UUID.randomUUID().toString(),
+                    idempotencyKey = MutationIdempotency.cashCollection(orderId, amountReceived, expectedVersion),
                 ).getOrThrow()
             }
         }
@@ -499,7 +578,13 @@ class OperationalViewModel
                     orderId = orderId,
                     targetState = OrderState.PREPARING,
                     expectedVersion = expectedVersion,
-                    idempotencyKey = UUID.randomUUID().toString(),
+                    idempotencyKey =
+                        MutationIdempotency.orderTransition(
+                            orderId,
+                            OrderState.PREPARING.wireValue,
+                            expectedVersion,
+                            pickupToken = null,
+                        ),
                 ).getOrThrow()
             }
         }
@@ -513,7 +598,13 @@ class OperationalViewModel
                     orderId = orderId,
                     targetState = OrderState.READY,
                     expectedVersion = expectedVersion,
-                    idempotencyKey = UUID.randomUUID().toString(),
+                    idempotencyKey =
+                        MutationIdempotency.orderTransition(
+                            orderId,
+                            OrderState.READY.wireValue,
+                            expectedVersion,
+                            pickupToken = null,
+                        ),
                 ).getOrThrow()
             }
         }
@@ -535,7 +626,13 @@ class OperationalViewModel
                     orderId = orderId,
                     targetState = OrderState.DELIVERED,
                     expectedVersion = expectedVersion,
-                    idempotencyKey = UUID.randomUUID().toString(),
+                    idempotencyKey =
+                        MutationIdempotency.orderTransition(
+                            orderId,
+                            OrderState.DELIVERED.wireValue,
+                            expectedVersion,
+                            pickupToken,
+                        ),
                     pickupToken = pickupToken,
                 ).getOrThrow()
             }
@@ -588,7 +685,7 @@ class OperationalViewModel
             _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
             mutationJob =
                 viewModelScope.launch {
-                    val result = runCatching { withContext(Dispatchers.IO) { block() } }
+                    val result = runCatchingCancellable { withContext(Dispatchers.IO) { block() } }
                     if (generation != roleGeneration || _uiState.value.role != role) return@launch
                     result
                         .onSuccess { order ->
@@ -737,6 +834,9 @@ class OperationalViewModel
                                     acting = false,
                                     errorMessage = error.toUserFacingMessage("No se pudo crear el producto."),
                                 )
+                            // Si el POST llegó pero la respuesta se perdió, el producto ya
+                            // existe: el refresh lo muestra en lugar de dejar un duplicado.
+                            refreshCatalog()
                             return@launch
                         }
                 var finalProduct = createdProduct
@@ -748,7 +848,7 @@ class OperationalViewModel
                                 bytes = imageBytes,
                                 filename = imageFilename,
                                 mimeType = imageMime,
-                                idempotencyKey = UUID.randomUUID().toString(),
+                                idempotencyKey = MutationIdempotency.productImage(createdProduct.id, imageBytes),
                             )
                         }
                     if (uploaded.isFailure) {
@@ -810,7 +910,7 @@ class OperationalViewModel
                             bytes = bytes,
                             filename = filename,
                             mimeType = mimeType,
-                            idempotencyKey = UUID.randomUUID().toString(),
+                            idempotencyKey = MutationIdempotency.productImage(productId, bytes),
                         )
                     }
                 result.fold(
@@ -871,11 +971,13 @@ class OperationalViewModel
         }
     }
 
-private data class PendingWalletReload(
-    val userId: String,
-    val amount: String,
-    val idempotencyKey: String,
-)
+/**
+ * Una recarga rechazada por el servidor (4xx) nunca abonó saldo: el registro
+ * pendiente se puede descartar. Errores de red/timeout/5xx son ambiguos — el
+ * POST pudo haber llegado — así que el registro se conserva para el replay.
+ */
+internal fun isDefinitiveWalletReloadFailure(error: Throwable): Boolean =
+    (error as? WalletRepositoryException)?.httpStatus in 400..499
 
 internal fun resolveLatestClientOrder(
     previous: OrderDetail?,

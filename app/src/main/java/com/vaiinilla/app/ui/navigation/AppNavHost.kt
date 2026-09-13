@@ -33,6 +33,7 @@ import com.stripe.android.paymentsheet.PaymentSheet
 import com.stripe.android.paymentsheet.PaymentSheetResult
 import com.vaiinilla.app.R
 import com.vaiinilla.app.core.notifications.OrderAdvanceNotifier
+import com.vaiinilla.app.core.notifications.OrderNotificationTarget
 import com.vaiinilla.app.data.auth.student.GoogleSignInHelper
 import com.vaiinilla.app.data.auth.student.GoogleSignInUnavailableException
 import com.vaiinilla.app.domain.model.GuestVenueContext
@@ -92,6 +93,7 @@ fun AppNavHost(
     pendingEstablishmentSlug: String? = null,
     pendingInvitationToken: String? = null,
     pendingOrderId: String? = null,
+    pendingOrderTarget: OrderNotificationTarget? = null,
     onDeepLinkConsumed: () -> Unit = {},
     onInvitationConsumed: () -> Unit = {},
     onOrderConsumed: () -> Unit = {},
@@ -181,7 +183,7 @@ fun AppNavHost(
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     LaunchedEffect(operationalState.role) {
         if (
-            operationalState.role == OperationalRole.CLIENT &&
+            operationalState.role != null &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             !OrderAdvanceNotifier.canPost(appContext)
         ) {
@@ -189,27 +191,68 @@ fun AppNavHost(
         }
     }
 
-    // Tap en notificación push/local: abrir el checklist de ese pedido.
-    // Alumno -> STUDENT_TRACKING con la orden seleccionada; staff -> solo la
-    // selecciona en su cola (su pantalla ya está fija). Sin sesión se consume
-    // sin acción: el login seguirá su flujo normal.
-    LaunchedEffect(pendingOrderId, studentAuthState.session?.uid, operationalState.role) {
-        val orderId = pendingOrderId ?: return@LaunchedEffect
-        when {
-            studentAuthState.session != null -> {
-                if (operationalState.role != OperationalRole.CLIENT) {
-                    operationalViewModel.setRole(OperationalRole.CLIENT)
+    // Tap en notificación push/local: objetivo cliente -> STUDENT_TRACKING con
+    // la orden seleccionada; staff con rol activo -> solo la selecciona en su
+    // cola; staff autenticado sin rol activo -> espera la selección de modo.
+    // Intents antiguos sin objetivo se tratan como cliente.
+    var clientSwitchAttemptedFor by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(
+        pendingOrderId,
+        pendingOrderTarget,
+        studentAuthState.session?.uid,
+        studentAuthState.loading,
+        operationalState.role,
+        authorizedAccessState.loading,
+        authorizedAccessState.modes,
+    ) {
+        val orderId =
+            pendingOrderId ?: run {
+                clientSwitchAttemptedFor = null
+                return@LaunchedEffect
+            }
+        val target = pendingOrderTarget ?: OrderNotificationTarget.CLIENT
+
+        fun openClientOrder() {
+            if (operationalState.role != OperationalRole.CLIENT) {
+                operationalViewModel.setRole(OperationalRole.CLIENT)
+            }
+            operationalViewModel.refreshOrder(orderId)
+            operationalViewModel.selectOrder(orderId)
+            navController.navigateStudent(Routes.STUDENT_TRACKING)
+            onOrderConsumed()
+        }
+
+        when (
+            resolveOrderNotificationAction(
+                target = target,
+                hasStudentSession = studentAuthState.session != null,
+                studentAuthLoading = studentAuthState.loading,
+                operationalRole = operationalState.role,
+                accessLoading = authorizedAccessState.loading,
+                hasStaffModes = authorizedAccessState.modes.any { it.role != OperationalRole.CLIENT },
+            )
+        ) {
+            OrderNotificationAction.OPEN_CLIENT_ORDER -> openClientOrder()
+            OrderNotificationAction.SWITCH_TO_CLIENT_ORDER -> {
+                if (clientSwitchAttemptedFor == orderId) {
+                    onOrderConsumed()
+                } else {
+                    clientSwitchAttemptedFor = orderId
+                    authorizedAccessViewModel.returnToClient { openClientOrder() }
                 }
+            }
+            OrderNotificationAction.SELECT_STAFF_ORDER -> {
                 operationalViewModel.refreshOrder(orderId)
                 operationalViewModel.selectOrder(orderId)
-                navController.navigateStudent(Routes.STUDENT_TRACKING)
                 onOrderConsumed()
             }
-            operationalState.role != null -> {
-                operationalViewModel.selectOrder(orderId)
-                onOrderConsumed()
+            OrderNotificationAction.OPEN_STAFF_MODES -> {
+                if (navController.currentDestination?.route != Routes.STAFF_MODES) {
+                    navController.navigate(Routes.STAFF_MODES) { launchSingleTop = true }
+                }
             }
-            studentAuthState.session == null && !studentAuthState.loading -> onOrderConsumed()
+            OrderNotificationAction.WAIT -> Unit
+            OrderNotificationAction.DISCARD -> onOrderConsumed()
         }
     }
 
