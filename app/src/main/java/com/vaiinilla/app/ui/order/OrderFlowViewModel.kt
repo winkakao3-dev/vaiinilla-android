@@ -191,7 +191,7 @@ class OrderFlowViewModel
                             catalog = effectiveCatalog,
                             operationalStatus = null,
                             cartLines = nextCart,
-                            errorMessage = if (effectiveCatalog == null) failure?.message else null,
+                            errorMessage = if (effectiveCatalog == null) failure?.toUserFacingMessage() else null,
                             guestVenueSuspended = suspended,
                             guestVenue = resolvedVenue,
                         )
@@ -247,9 +247,7 @@ class OrderFlowViewModel
                         catalogDeferred.await() to statusDeferred.await()
                     }
                 val failure = catalogResult.exceptionOrNull() ?: statusResult.exceptionOrNull()
-                val errorMessage =
-                    failure?.message
-                        ?: failure?.javaClass?.simpleName?.let { "Error de red: $it" }
+                val errorMessage = failure?.toUserFacingMessage()
 
                 _uiState.value =
                     previous.copy(
