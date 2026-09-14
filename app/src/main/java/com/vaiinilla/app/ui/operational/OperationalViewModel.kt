@@ -13,6 +13,7 @@ import com.vaiinilla.app.data.wallet.PendingWalletReload
 import com.vaiinilla.app.data.wallet.PendingWalletReloadStore
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.ContractRules
+import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -76,6 +77,8 @@ class OperationalViewModel
         private val _orderAdvanceEvents = MutableSharedFlow<OrderAdvance>(extraBufferCapacity = 8)
         val orderAdvanceEvents: SharedFlow<OrderAdvance> = _orderAdvanceEvents
         private var clientTrackingBaselineReady = false
+        private var mutationErrorVisible = false
+        private var errorClearJob: Job? = null
         private val heartbeatCoordinator =
             OperationalHeartbeatCoordinator(
                 scope = viewModelScope,
@@ -98,6 +101,9 @@ class OperationalViewModel
                 mutationJob?.cancel()
                 mutationJob = null
                 clientTrackingBaselineReady = false
+                errorClearJob?.cancel()
+                errorClearJob = null
+                mutationErrorVisible = false
             }
             _uiState.value =
                 _uiState.value.copy(
@@ -138,11 +144,15 @@ class OperationalViewModel
             lastUpdatedSince = null
             pendingWalletReload = null
             clientTrackingBaselineReady = false
+            mutationErrorVisible = false
+            errorClearJob?.cancel()
+            errorClearJob = null
             _uiState.value = OperationalUiState()
         }
 
         fun selectOrder(orderId: String?) {
-            _uiState.value = _uiState.value.copy(selectedOrderId = orderId, errorMessage = null)
+            dismissMutationError()
+            _uiState.value = _uiState.value.copy(selectedOrderId = orderId)
         }
 
         fun dismissClientOrder(orderId: String) {
@@ -186,7 +196,11 @@ class OperationalViewModel
                     }
                 }
             }
-            _uiState.value = _uiState.value.copy(loading = true, errorMessage = null)
+            _uiState.value =
+                _uiState.value.copy(
+                    loading = true,
+                    errorMessage = _uiState.value.errorMessage.takeIf { mutationErrorVisible },
+                )
             viewModelScope.launch {
                 // Client orders always fetch the full list (like iOS): the delta can miss
                 // transitions that don't bump updatedAt. Staff keeps the delta.
@@ -234,10 +248,12 @@ class OperationalViewModel
                                 latestClientOrder = latestClientOrder,
                                 menuOrder = visibleLatestMenuOrder(latestClientOrder, dismissedClientOrderIds),
                                 lastSyncedAt = newest,
-                                errorMessage = null,
+                                errorMessage =
+                                    _uiState.value.errorMessage.takeIf { mutationErrorVisible },
                             )
                     },
                     onFailure = { error ->
+                        mutationErrorVisible = false
                         _uiState.value =
                             _uiState.value.copy(
                                 loading = false,
@@ -318,6 +334,7 @@ class OperationalViewModel
         fun openCashRegister(initialAmount: String = "500.00") {
             if (_uiState.value.role != OperationalRole.CASHIER || _uiState.value.acting) return
             val generation = roleGeneration
+            mutationErrorVisible = false
             _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
             mutationJob =
                 viewModelScope.launch {
@@ -341,8 +358,10 @@ class OperationalViewModel
                                 _uiState.value.copy(
                                     acting = false,
                                     cashSessionOpen = if (alreadyOpen) true else _uiState.value.cashSessionOpen,
-                                    errorMessage = if (alreadyOpen) null else error.toUserFacingMessage(),
                                 )
+                            if (!alreadyOpen) {
+                                showMutationError(error.toUserFacingMessage())
+                            }
                         }
                 }
         }
@@ -353,22 +372,17 @@ class OperationalViewModel
                 QrPayloadParser
                     .parse(rawValue)
                     .getOrElse { error ->
-                        _uiState.value =
-                            _uiState.value.copy(
-                                errorMessage = error.toUserFacingMessage("No se pudo leer el QR."),
-                            )
+                        showMutationError(error.toUserFacingMessage("No se pudo leer el QR."))
                         return
                     }
             val userId = (payload as? QrPayload.User)?.userId
             if (userId == null) {
-                _uiState.value =
-                    _uiState.value.copy(
-                        errorMessage = "Ese QR no es de un alumno. Pide el código de su cuenta.",
-                    )
+                showMutationError("Ese QR no es de un alumno. Pide el código de su cuenta.")
                 return
             }
             walletSearchJob?.cancel()
             val generation = roleGeneration
+            mutationErrorVisible = false
             _uiState.value = _uiState.value.copy(walletSearchLoading = true, errorMessage = null)
             walletSearchJob =
                 viewModelScope.launch {
@@ -403,12 +417,13 @@ class OperationalViewModel
                     _uiState.value.copy(
                         walletClients = emptyList(),
                         walletSearchLoading = false,
-                        errorMessage = "Escribe al menos 2 caracteres para buscar un cliente.",
                     )
+                showMutationError("Escribe al menos 2 caracteres para buscar un cliente.")
                 return
             }
             walletSearchJob?.cancel()
             val generation = roleGeneration
+            mutationErrorVisible = false
             _uiState.value = _uiState.value.copy(walletSearchLoading = true, errorMessage = null)
             walletSearchJob =
                 viewModelScope.launch {
@@ -426,8 +441,8 @@ class OperationalViewModel
                                 _uiState.value.copy(
                                     walletClients = emptyList(),
                                     walletSearchLoading = false,
-                                    errorMessage = error.toUserFacingMessage("No se pudieron buscar clientes."),
                                 )
+                            showMutationError(error.toUserFacingMessage("No se pudieron buscar clientes."))
                         }
                 }
         }
@@ -448,20 +463,15 @@ class OperationalViewModel
                 ContractRules.isValidMoney(normalizedAmount) &&
                     runCatching { BigDecimal(normalizedAmount) > BigDecimal.ZERO }.getOrDefault(false)
             if (!validAmount) {
-                _uiState.value =
-                    _uiState.value.copy(
-                        errorMessage = "El monto debe ser positivo y tener dos decimales (ej. 100.00).",
-                    )
+                showMutationError("El monto debe ser positivo y tener dos decimales (ej. 100.00).")
                 return
             }
             val stored = pendingWalletReloadStore.read()
             if (stored != null && (stored.userId != userId || stored.amount != normalizedAmount)) {
-                _uiState.value =
-                    _uiState.value.copy(
-                        errorMessage =
-                            "Hay una recarga anterior sin confirmar. " +
-                                "Reintenta con el mismo cliente y monto (\$${stored.amount}) para confirmarla sin duplicarla.",
-                    )
+                showMutationError(
+                    "Hay una recarga anterior sin confirmar. " +
+                        "Reintenta con el mismo cliente y monto (\$${stored.amount}) para confirmarla sin duplicarla.",
+                )
                 return
             }
             val attempt =
@@ -478,6 +488,7 @@ class OperationalViewModel
                         pendingWalletReload = it
                     }
             val generation = roleGeneration
+            mutationErrorVisible = false
             _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
             mutationJob =
                 viewModelScope.launch {
@@ -503,10 +514,8 @@ class OperationalViewModel
                                 pendingWalletReloadStore.clear()
                             }
                             _uiState.value =
-                                _uiState.value.copy(
-                                    acting = false,
-                                    errorMessage = error.toUserFacingMessage("No se pudo registrar la recarga."),
-                                )
+                                _uiState.value.copy(acting = false)
+                            showMutationError(error.toUserFacingMessage("No se pudo registrar la recarga."))
                         }
                 }
         }
@@ -543,12 +552,10 @@ class OperationalViewModel
                             pendingWalletReload = null
                             pendingWalletReloadStore.clear()
                         } else if (_uiState.value.role == OperationalRole.CASHIER) {
-                            _uiState.value =
-                                _uiState.value.copy(
-                                    errorMessage =
-                                        "Hay una recarga pendiente de confirmar. " +
-                                            "Reintenta con el mismo cliente y monto (\$${pending.amount}).",
-                                )
+                            showMutationError(
+                                "Hay una recarga pendiente de confirmar. " +
+                                    "Reintenta con el mismo cliente y monto (\$${pending.amount}).",
+                            )
                         }
                     }
             }
@@ -559,30 +566,97 @@ class OperationalViewModel
             amountReceived: String,
             expectedVersion: Int,
         ) {
-            performMutation {
-                collectCash(
-                    orderId = orderId,
-                    amountReceived = amountReceived,
-                    expectedVersion = expectedVersion,
-                    idempotencyKey = MutationIdempotency.cashCollection(orderId, amountReceived, expectedVersion),
-                ).getOrThrow()
+            val role = _uiState.value.role ?: return
+            // El ticket pudo abrirse hace varios ciclos de polling: cobrar con la
+            // versión que el servidor tiene ahora, no con la del render viejo.
+            val freshest = _uiState.value.orders.firstOrNull { it.summary.id == orderId }
+            val version = freshest?.summary?.version ?: expectedVersion
+            val normalizedAmount = amountReceived.trim()
+            val received =
+                normalizedAmount
+                    .takeIf { ContractRules.isValidMoney(it) }
+                    ?.let { runCatching { BigDecimal(it) }.getOrNull() }
+            if (received == null) {
+                showMutationError("Escribe el efectivo recibido con dos decimales (ej. 100.00).")
+                return
+            }
+            val total = freshest?.summary?.total?.let { runCatching { Money.parse(it) }.getOrNull() }
+            if (total != null && received < total) {
+                showMutationError("El efectivo recibido no cubre el total del pedido (\$${freshest.summary.total}).")
+                return
+            }
+            val generation = roleGeneration
+            mutationErrorVisible = false
+            _uiState.value =
+                _uiState.value.copy(acting = true, errorMessage = null, cashChangeNotice = null)
+            mutationJob =
+                viewModelScope.launch {
+                    val result =
+                        withContext(Dispatchers.IO) {
+                            collectCash(
+                                orderId = orderId,
+                                amountReceived = normalizedAmount,
+                                expectedVersion = version,
+                                idempotencyKey =
+                                    MutationIdempotency.cashCollection(orderId, normalizedAmount, version),
+                            )
+                        }
+                    if (generation != roleGeneration || _uiState.value.role != role) return@launch
+                    result
+                        .onSuccess { receipt ->
+                            val updated =
+                                _uiState.value.orders
+                                    .filterNot { it.summary.id == receipt.order.summary.id } + receipt.order
+                            val change = runCatching { Money.parse(receipt.change) }.getOrNull()
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    acting = false,
+                                    orders = updated.sortedByDescending { it.summary.updatedAt },
+                                    selectedOrderId = receipt.order.summary.id,
+                                    cashChangeNotice =
+                                        if (change != null && change > BigDecimal.ZERO) {
+                                            "Cobro confirmado · Cambio: \$${receipt.change}"
+                                        } else {
+                                            "Cobro confirmado"
+                                        },
+                                )
+                        }.onFailure { error ->
+                            _uiState.value = _uiState.value.copy(acting = false)
+                            showMutationError(error.toUserFacingMessage())
+                        }
+                }
+        }
+
+        fun consumeCashChangeNotice() {
+            if (_uiState.value.cashChangeNotice != null) {
+                _uiState.value = _uiState.value.copy(cashChangeNotice = null)
             }
         }
+
+        private fun freshVersion(
+            orderId: String,
+            fallback: Int,
+        ): Int =
+            _uiState.value.orders
+                .firstOrNull { it.summary.id == orderId }
+                ?.summary
+                ?.version ?: fallback
 
         fun startKitchen(
             orderId: String,
             expectedVersion: Int,
         ) {
+            val version = freshVersion(orderId, expectedVersion)
             performMutation {
                 transitionOrder(
                     orderId = orderId,
                     targetState = OrderState.PREPARING,
-                    expectedVersion = expectedVersion,
+                    expectedVersion = version,
                     idempotencyKey =
                         MutationIdempotency.orderTransition(
                             orderId,
                             OrderState.PREPARING.wireValue,
-                            expectedVersion,
+                            version,
                             pickupToken = null,
                         ),
                 ).getOrThrow()
@@ -593,16 +667,17 @@ class OperationalViewModel
             orderId: String,
             expectedVersion: Int,
         ) {
+            val version = freshVersion(orderId, expectedVersion)
             performMutation {
                 transitionOrder(
                     orderId = orderId,
                     targetState = OrderState.READY,
-                    expectedVersion = expectedVersion,
+                    expectedVersion = version,
                     idempotencyKey =
                         MutationIdempotency.orderTransition(
                             orderId,
                             OrderState.READY.wireValue,
-                            expectedVersion,
+                            version,
                             pickupToken = null,
                         ),
                 ).getOrThrow()
@@ -614,23 +689,39 @@ class OperationalViewModel
             expectedVersion: Int,
             scannedPickupToken: String? = null,
         ) {
+            // Si el escáner leyó el QR equivocado (cuenta del alumno o del
+            // establecimiento), avisar en vez de mandar un token que el
+            // servidor va a rechazar y que el polling borraría del banner.
+            scannedPickupToken?.trim()?.takeIf(String::isNotEmpty)?.let { scanned ->
+                when (QrPayloadParser.parse(scanned).getOrNull()) {
+                    is QrPayload.User -> {
+                        showMutationError("Ese QR es la cuenta del alumno, no su pedido. Pide el QR de recogida.")
+                        return
+                    }
+                    is QrPayload.Establishment -> {
+                        showMutationError("Ese QR es del establecimiento, no de un pedido.")
+                        return
+                    }
+                    else -> Unit
+                }
+            }
+            val freshest = _uiState.value.orders.firstOrNull { it.summary.id == orderId }
+            val version = freshest?.summary?.version ?: expectedVersion
             val pickupToken =
                 scannedPickupToken
                     ?.trim()
                     ?.takeIf(String::isNotEmpty)
-                    ?: _uiState.value.orders
-                        .firstOrNull { it.summary.id == orderId }
-                        ?.pickupToken
+                    ?: freshest?.pickupToken
             performMutation {
                 transitionOrder(
                     orderId = orderId,
                     targetState = OrderState.DELIVERED,
-                    expectedVersion = expectedVersion,
+                    expectedVersion = version,
                     idempotencyKey =
                         MutationIdempotency.orderTransition(
                             orderId,
                             OrderState.DELIVERED.wireValue,
-                            expectedVersion,
+                            version,
                             pickupToken,
                         ),
                     pickupToken = pickupToken,
@@ -670,6 +761,7 @@ class OperationalViewModel
                     .onSuccess { open ->
                         _uiState.value = _uiState.value.copy(cashSessionOpen = open)
                     }.onFailure { error ->
+                        mutationErrorVisible = false
                         _uiState.value =
                             _uiState.value.copy(
                                 errorMessage = error.toUserFacingMessage(),
@@ -682,6 +774,7 @@ class OperationalViewModel
             if (_uiState.value.acting) return
             val role = _uiState.value.role ?: return
             val generation = roleGeneration
+            mutationErrorVisible = false
             _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
             mutationJob =
                 viewModelScope.launch {
@@ -699,13 +792,40 @@ class OperationalViewModel
                                     selectedOrderId = order.summary.id,
                                 )
                         }.onFailure { error ->
-                            _uiState.value =
-                                _uiState.value.copy(
-                                    acting = false,
-                                    errorMessage = error.toUserFacingMessage(),
-                                )
+                            _uiState.value = _uiState.value.copy(acting = false)
+                            showMutationError(error.toUserFacingMessage())
                         }
                 }
+        }
+
+        /**
+         * Errores de acciones del usuario (cobrar, entregar, recargar) deben
+         * sobrevivir al polling de 5s: si el refresh limpia errorMessage en su
+         * siguiente ciclo, un cobro rechazado se ve como "no pasó nada". Los
+         * errores de mutación quedan visibles ~9s; los errores de sync siguen
+         * siendo transitorios y el próximo poll exitoso los limpia.
+         */
+        private fun showMutationError(message: String) {
+            mutationErrorVisible = true
+            errorClearJob?.cancel()
+            errorClearJob =
+                viewModelScope.launch {
+                    delay(MUTATION_ERROR_VISIBLE_MS)
+                    if (mutationErrorVisible) {
+                        mutationErrorVisible = false
+                        _uiState.value = _uiState.value.copy(errorMessage = null)
+                    }
+                }
+            _uiState.value = _uiState.value.copy(errorMessage = message)
+        }
+
+        private fun dismissMutationError() {
+            mutationErrorVisible = false
+            errorClearJob?.cancel()
+            errorClearJob = null
+            if (_uiState.value.errorMessage != null) {
+                _uiState.value = _uiState.value.copy(errorMessage = null)
+            }
         }
 
         private fun mergeOrders(
@@ -755,9 +875,14 @@ class OperationalViewModel
                     _uiState.value.copy(
                         catalog = result.getOrNull(),
                         errorMessage =
-                            result.exceptionOrNull().toUserFacingMessage(
-                                _uiState.value.errorMessage ?: "No se pudo cargar el catálogo.",
-                            ),
+                            when {
+                                mutationErrorVisible -> _uiState.value.errorMessage
+                                result.isFailure ->
+                                    result.exceptionOrNull().toUserFacingMessage(
+                                        _uiState.value.errorMessage ?: "No se pudo cargar el catálogo.",
+                                    )
+                                else -> null
+                            },
                     )
             }
         }
@@ -767,6 +892,7 @@ class OperationalViewModel
             available: Boolean,
         ) {
             if (_uiState.value.acting) return
+            mutationErrorVisible = false
             _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
             viewModelScope.launch {
                 val result =
@@ -793,14 +919,12 @@ class OperationalViewModel
                             )
                     },
                     onFailure = { error ->
-                        _uiState.value =
-                            _uiState.value.copy(
-                                acting = false,
-                                errorMessage =
-                                    error.toUserFacingMessage(
-                                        "No se pudo actualizar la disponibilidad (producto $productId).",
-                                    ),
-                            )
+                        _uiState.value = _uiState.value.copy(acting = false)
+                        showMutationError(
+                            error.toUserFacingMessage(
+                                "No se pudo actualizar la disponibilidad (producto $productId).",
+                            ),
+                        )
                         refreshCatalog()
                     },
                 )
@@ -815,11 +939,11 @@ class OperationalViewModel
             onSuccess: (String?) -> Unit = {},
         ) {
             if (imageBytes != null && imageBytes.size > MAX_PRODUCT_IMAGE_BYTES) {
-                _uiState.value =
-                    _uiState.value.copy(errorMessage = "La foto no puede pesar más de 5 MB.")
+                showMutationError("La foto no puede pesar más de 5 MB.")
                 return
             }
             if (_uiState.value.acting) return
+            mutationErrorVisible = false
             _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
             viewModelScope.launch {
                 val created =
@@ -829,11 +953,8 @@ class OperationalViewModel
                 val createdProduct =
                     created
                         .getOrElse { error ->
-                            _uiState.value =
-                                _uiState.value.copy(
-                                    acting = false,
-                                    errorMessage = error.toUserFacingMessage("No se pudo crear el producto."),
-                                )
+                            _uiState.value = _uiState.value.copy(acting = false)
+                            showMutationError(error.toUserFacingMessage("No se pudo crear el producto."))
                             // Si el POST llegó pero la respuesta se perdió, el producto ya
                             // existe: el refresh lo muestra en lugar de dejar un duplicado.
                             refreshCatalog()
@@ -896,11 +1017,11 @@ class OperationalViewModel
             mimeType: String,
         ) {
             if (bytes.size > MAX_PRODUCT_IMAGE_BYTES) {
-                _uiState.value =
-                    _uiState.value.copy(errorMessage = "La foto no puede pesar más de 5 MB.")
+                showMutationError("La foto no puede pesar más de 5 MB.")
                 return
             }
             if (_uiState.value.acting) return
+            mutationErrorVisible = false
             _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
             viewModelScope.launch {
                 val result =
@@ -929,12 +1050,10 @@ class OperationalViewModel
                             )
                     },
                     onFailure = { error ->
-                        _uiState.value =
-                            _uiState.value.copy(
-                                acting = false,
-                                errorMessage =
-                                    error.toUserFacingMessage("No se pudo subir la foto (producto $productId)."),
-                            )
+                        _uiState.value = _uiState.value.copy(acting = false)
+                        showMutationError(
+                            error.toUserFacingMessage("No se pudo subir la foto (producto $productId)."),
+                        )
                     },
                 )
             }
@@ -958,6 +1077,7 @@ class OperationalViewModel
                     acting = false,
                     errorMessage = null,
                 )
+            mutationErrorVisible = false
         }
 
         override fun onCleared() {
@@ -967,6 +1087,7 @@ class OperationalViewModel
 
         private companion object {
             const val POLL_INTERVAL_MS = 5_000L
+            const val MUTATION_ERROR_VISIBLE_MS = 9_000L
             const val MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024
         }
     }

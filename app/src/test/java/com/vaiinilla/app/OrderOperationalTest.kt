@@ -31,6 +31,7 @@ class OrderOperationalTest {
                     expectedVersion = order.summary.version,
                     idempotencyKey = UUID.randomUUID().toString(),
                 ).getOrThrow()
+                .order
 
         assertEquals(OrderState.PAID, paid.summary.state)
         assertEquals(2, paid.summary.version)
@@ -48,6 +49,7 @@ class OrderOperationalTest {
                     created.summary.version,
                     UUID.randomUUID().toString(),
                 ).getOrThrow()
+                .order
 
         val preparing =
             repository
@@ -92,6 +94,7 @@ class OrderOperationalTest {
                     created.summary.version,
                     UUID.randomUUID().toString(),
                 ).getOrThrow()
+                .order
         val preparing =
             repository
                 .transition(

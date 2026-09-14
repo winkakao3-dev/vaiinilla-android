@@ -139,6 +139,7 @@ class OperationalStateMachineInvariantsTest {
                     expectedVersion = created.summary.version,
                     idempotencyKey = UUID.randomUUID().toString(),
                 ).getOrThrow()
+                .order
         }
 
     private fun createReadyKitchenOrder(repository: FixtureOrderRepository) =

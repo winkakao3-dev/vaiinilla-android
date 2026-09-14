@@ -1,6 +1,5 @@
 package com.vaiinilla.app.core.network
 
-import com.vaiinilla.app.core.security.JwtContextScope
 import java.security.MessageDigest
 
 /**
@@ -43,11 +42,17 @@ internal object MutationIdempotency {
     private fun derive(
         operation: String,
         vararg parts: String?,
-    ): String =
-        "mk_" +
-            JwtContextScope.sha256(
-                (listOf(operation) + parts.map { it ?: "null" }).joinToString("|"),
-            )
+    ): String {
+        // El backend valida Idempotency-Key como UUID. Se deriva igual que en
+        // iOS: primeros 16 bytes del SHA-256 del string canónico formateados
+        // como UUID — así la misma operación lógica produce la misma llave en
+        // ambas plataformas.
+        val canonical = (listOf(operation) + parts.map { it ?: "null" }).joinToString("|")
+        val digest = MessageDigest.getInstance("SHA-256").digest(canonical.toByteArray(Charsets.UTF_8))
+        val hex = digest.copyOfRange(0, 16).joinToString("") { "%02x".format(it) }
+        return "${hex.substring(0, 8)}-${hex.substring(8, 12)}-" +
+            "${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}"
+    }
 
     private fun sha256Bytes(value: ByteArray): String =
         MessageDigest

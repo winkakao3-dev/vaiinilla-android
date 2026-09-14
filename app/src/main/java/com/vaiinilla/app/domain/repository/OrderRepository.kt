@@ -1,5 +1,6 @@
 package com.vaiinilla.app.domain.repository
 
+import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.CreatedOrder
 import com.vaiinilla.app.domain.model.OperationalRole
@@ -33,7 +34,7 @@ interface OrderRepository {
         amountReceived: String,
         expectedVersion: Int,
         idempotencyKey: String,
-    ): Result<OrderDetail>
+    ): Result<CashCollectionResult>
 
     fun transition(
         orderId: String,

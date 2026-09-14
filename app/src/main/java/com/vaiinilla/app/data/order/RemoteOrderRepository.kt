@@ -3,6 +3,7 @@ package com.vaiinilla.app.data.order
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.security.PickupTokenStore
+import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.CreatedOrder
 import com.vaiinilla.app.domain.model.OperationalRole
@@ -73,7 +74,7 @@ class RemoteOrderRepository(
         amountReceived: String,
         expectedVersion: Int,
         idempotencyKey: String,
-    ): Result<OrderDetail> {
+    ): Result<CashCollectionResult> {
         val cachedToken = pickupTokenStore.read(orderId)
         return apiClient
             .post(
@@ -85,8 +86,16 @@ class RemoteOrderRepository(
                     ),
                 headers = mapOf("Idempotency-Key" to idempotencyKey),
             ).mapCatching { contractJson.parseCashCollection(it) }
-            .mapCatching { pickupTokenStore.attach(it.copy(pickupToken = it.pickupToken ?: cachedToken)) }
-            .mapApiErrors()
+            .mapCatching { result ->
+                result.copy(
+                    order =
+                        pickupTokenStore.attach(
+                            result.order.copy(
+                                pickupToken = result.order.pickupToken ?: cachedToken,
+                            ),
+                        ),
+                )
+            }.mapApiErrors()
     }
 
     override fun transition(

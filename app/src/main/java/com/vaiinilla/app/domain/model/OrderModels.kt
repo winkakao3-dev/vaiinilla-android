@@ -74,6 +74,12 @@ data class OrderSummary(
     val updatedAt: String,
 )
 
+data class CashCollectionResult(
+    val order: OrderDetail,
+    val amountReceived: String,
+    val change: String,
+)
+
 data class OrderPayment(
     val paymentAttemptId: String,
     val paymentIntentId: String,

@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.order
 
+import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.CreatedOrder
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -87,10 +88,14 @@ class OrderContractJson
             return envelope.data.payment.toStripeSession()
         }
 
-        fun parseCashCollection(raw: String): OrderDetail {
+        fun parseCashCollection(raw: String): CashCollectionResult {
             val envelope = json.decodeFromString<CashCollectionEnvelopeDto>(raw)
             requireEnvelopeSuccess(envelope.error)
-            return envelope.data.order.toDomain()
+            return CashCollectionResult(
+                order = envelope.data.order.toDomain(),
+                amountReceived = envelope.data.amountReceived,
+                change = envelope.data.change,
+            )
         }
 
         fun parseCashSession(raw: String): CashSessionDto? {

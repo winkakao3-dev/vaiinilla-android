@@ -306,6 +306,9 @@ class HttpVaiinillaApiClient
                 val raw = readBody(connection, status)
                 if (BuildConfig.DEBUG) {
                     Log.w(TAG, "$method ${sanitizePathForLog(path)} -> $status")
+                    if (status !in 200..299) {
+                        Log.w(TAG, "$method ${sanitizePathForLog(path)} error: ${raw.take(600)}")
+                    }
                 }
                 if (status == expectedStatus || (expectedStatus == null && status in 200..299)) {
                     return raw

@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,6 +22,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -131,6 +135,18 @@ fun AppNavHost(
         if (urls.isNotEmpty()) prefetchProductImages(urls)
     }
 
+    // Volver del background refresca el saldo: la recarga la hace Caja desde
+    // otro dispositivo y no llega ningún evento push de wallet.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) walletViewModel.refreshIfStale()
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     // Keep wallet data warm while the authenticated client shell is active so opening
     // Cartera does not spend its first visible frames waiting on the network.
     LaunchedEffect(
@@ -141,10 +157,9 @@ fun AppNavHost(
         if (
             studentAuthState.session?.emailVerified == true &&
             orderState.guestVenue != null &&
-            studentAuthViewModel.isReadyForCheckout() &&
-            walletRemoteState.data == null
+            studentAuthViewModel.isReadyForCheckout()
         ) {
-            walletViewModel.refresh()
+            walletViewModel.refreshIfStale()
         }
     }
 
@@ -501,15 +516,21 @@ fun AppNavHost(
                 StudentTab.WALLET -> {
                     if (
                         studentAuthState.session?.emailVerified == true &&
-                        studentAuthViewModel.isReadyForCheckout() &&
-                        walletRemoteState.data == null &&
-                        !walletRemoteState.loading
+                        studentAuthViewModel.isReadyForCheckout()
                     ) {
-                        walletViewModel.refresh()
+                        walletViewModel.refreshIfStale()
                     }
                 }
 
-                StudentTab.CART, StudentTab.ASSISTANT -> Unit
+                StudentTab.CART -> {
+                    // El saldo decide si "Saldo Vaiinilla" alcanza para pagar:
+                    // no debe quedar congelado desde la primera carga.
+                    if (studentAuthState.session?.emailVerified == true) {
+                        walletViewModel.refreshIfStale()
+                    }
+                }
+
+                StudentTab.ASSISTANT -> Unit
             }
         },
         catalogDetailOpen = orderState.selectedProductId != null,
@@ -743,6 +764,14 @@ fun AppNavHost(
                         onReady = walletViewModel::refresh,
                         onNeedsAuth = { navigateStudentAuth(Routes.WALLET) },
                     )
+                }
+                // Con Cartera visible el saldo se mueve por recargas en Caja:
+                // sondeo ligero mientras la pantalla siga en composición.
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        walletViewModel.refresh()
+                        delay(WALLET_VISIBLE_REFRESH_MS)
+                    }
                 }
                 WalletScreen(
                     remoteState = walletRemoteState,
@@ -1259,6 +1288,7 @@ fun AppNavHost(
                         onSearchWalletClients = operationalViewModel::searchWalletClients,
                         onOpenWalletUserQr = { walletUserQrOpen = true },
                         onReloadWallet = operationalViewModel::reloadWallet,
+                        onCashChangeNoticed = operationalViewModel::consumeCashChangeNotice,
                         onScanDeliver = { orderId, version ->
                             pendingPickupDelivery = PendingPickupDelivery(orderId, version)
                         },
@@ -1377,6 +1407,7 @@ fun AppNavHost(
 }
 
 private const val AUTHORIZED_ACCESS_SYNC_INTERVAL_MS = 30_000L
+private const val WALLET_VISIBLE_REFRESH_MS = 8_000L
 
 private fun NavHostController.navigateStudent(route: String) {
     navigate(route) {

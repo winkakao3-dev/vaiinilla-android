@@ -29,6 +29,7 @@ class WalletViewModel
         private val _state = MutableStateFlow(WalletRemoteUiState())
         val state: StateFlow<WalletRemoteUiState> = _state.asStateFlow()
         private var refreshJob: Job? = null
+        private var lastLoadedAtMs: Long = 0L
 
         fun refresh() {
             if (_state.value.loading) return
@@ -40,7 +41,10 @@ class WalletViewModel
                     val result = withContext(Dispatchers.IO) { repository.getMyWallet() }
                     _state.value =
                         result.fold(
-                            onSuccess = { WalletRemoteUiState(data = it) },
+                            onSuccess = {
+                                lastLoadedAtMs = System.currentTimeMillis()
+                                WalletRemoteUiState(data = it)
+                            },
                             onFailure = {
                                 WalletRemoteUiState(
                                     error =
@@ -51,9 +55,25 @@ class WalletViewModel
                 }
         }
 
+        /**
+         * El saldo cambia por actores externos (recarga en Caja, pago en línea):
+         * cargarlo una sola vez por sesión lo dejaba obsoleto hasta reiniciar la
+         * app. Se reconsulta cuando el dato visible ya tiene edad.
+         */
+        fun refreshIfStale(maxAgeMs: Long = STALE_AFTER_MS) {
+            val hasData = _state.value.data != null
+            if (hasData && System.currentTimeMillis() - lastLoadedAtMs < maxAgeMs) return
+            refresh()
+        }
+
         fun clearForSessionTermination() {
             refreshJob?.cancel()
             refreshJob = null
+            lastLoadedAtMs = 0L
             _state.value = WalletRemoteUiState()
+        }
+
+        private companion object {
+            const val STALE_AFTER_MS = 20_000L
         }
     }

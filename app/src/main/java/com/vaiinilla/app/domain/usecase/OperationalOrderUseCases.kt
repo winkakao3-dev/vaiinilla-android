@@ -1,5 +1,6 @@
 package com.vaiinilla.app.domain.usecase
 
+import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
@@ -49,7 +50,7 @@ class CollectCashUseCase
             amountReceived: String,
             expectedVersion: Int,
             idempotencyKey: String,
-        ): Result<OrderDetail> =
+        ): Result<CashCollectionResult> =
             repository.collectCash(
                 orderId = orderId,
                 amountReceived = amountReceived,

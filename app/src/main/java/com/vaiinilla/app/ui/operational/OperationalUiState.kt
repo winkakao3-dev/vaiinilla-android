@@ -22,6 +22,7 @@ data class OperationalUiState(
     val walletSearchLoading: Boolean = false,
     val walletReloadReceipt: WalletReloadReceipt? = null,
     val catalog: Catalog? = null,
+    val cashChangeNotice: String? = null,
 ) {
     val selectedOrder: OrderDetail?
         get() = orders.firstOrNull { it.summary.id == selectedOrderId }

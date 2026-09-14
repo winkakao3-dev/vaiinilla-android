@@ -62,7 +62,11 @@ class MutationIdempotencyTest {
     }
 
     @Test
-    fun `keys carry the mutation namespace prefix`() {
-        assertTrue(MutationIdempotency.cashCollection("o", "1.00", 1).startsWith("mk_"))
+    fun `keys are valid uuids — the backend requires it`() {
+        val uuidPattern = Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+        assertTrue(uuidPattern.matches(MutationIdempotency.cashCollection("o", "1.00", 1)))
+        assertTrue(uuidPattern.matches(MutationIdempotency.orderTransition("o", "listo", 1, null)))
+        assertTrue(uuidPattern.matches(MutationIdempotency.accountDeletion("uid")))
     }
 }

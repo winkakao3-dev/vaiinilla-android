@@ -2,6 +2,7 @@ package com.vaiinilla.app.data.order
 
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.fixture.FixtureSource
+import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.CreatedOrder
@@ -27,7 +28,7 @@ class FixtureOrderRepository(
 ) : OrderRepository {
     private val ordersById = linkedMapOf<String, OrderDetail>()
     private val createRequestsByKey = linkedMapOf<String, StoredCreateRequest>()
-    private val mutationResultsByKey = linkedMapOf<String, OrderDetail>()
+    private val mutationResultsByKey = linkedMapOf<String, Any>()
 
     @Synchronized
     override fun createOrder(
@@ -191,7 +192,7 @@ class FixtureOrderRepository(
         amountReceived: String,
         expectedVersion: Int,
         idempotencyKey: String,
-    ): Result<OrderDetail> =
+    ): Result<CashCollectionResult> =
         runMutation(idempotencyKey) {
             requireUuid(idempotencyKey)
             if (!ContractRules.isValidMoney(amountReceived)) {
@@ -218,7 +219,11 @@ class FixtureOrderRepository(
                     paid.withState(OrderState.READY, paid.summary.version + 1, timestamp)
                 }
             persist(next)
-            next
+            CashCollectionResult(
+                order = next,
+                amountReceived = amountReceived,
+                change = Money.format(Money.parse(amountReceived) - Money.parse(order.summary.total)),
+            )
         }
 
     @Synchronized
@@ -260,14 +265,15 @@ class FixtureOrderRepository(
             next
         }
 
-    private fun runMutation(
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> runMutation(
         idempotencyKey: String,
-        block: () -> OrderDetail,
-    ): Result<OrderDetail> =
+        block: () -> T,
+    ): Result<T> =
         runCatching {
-            mutationResultsByKey[idempotencyKey]?.let { return@runCatching it }
+            (mutationResultsByKey[idempotencyKey] as? T)?.let { return@runCatching it }
             val result = block()
-            mutationResultsByKey[idempotencyKey] = result
+            mutationResultsByKey[idempotencyKey] = result as Any
             result
         }
 

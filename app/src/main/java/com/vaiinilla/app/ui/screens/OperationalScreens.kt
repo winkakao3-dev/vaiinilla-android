@@ -230,6 +230,7 @@ fun CashierOperationalScreen(
     onSearchWalletClients: (String) -> Unit = {},
     onOpenWalletUserQr: () -> Unit = {},
     onReloadWallet: (userId: String, amount: String) -> Unit = { _, _ -> },
+    onCashChangeNoticed: () -> Unit = {},
     onChangeMode: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
     onToggleProductAvailable: (productId: Int, available: Boolean) -> Unit = { _, _ -> },
@@ -259,6 +260,14 @@ fun CashierOperationalScreen(
         if (toastMessage != null) {
             delay(2_200)
             toastMessage = null
+        }
+    }
+    // El cambio del cobro lo calcula el servidor; se muestra como aviso porque
+    // el cajero lo necesita mientras cuenta el efectivo.
+    LaunchedEffect(state.cashChangeNotice) {
+        state.cashChangeNotice?.let {
+            toastMessage = it
+            onCashChangeNoticed()
         }
     }
     var assistantPulse by remember { mutableIntStateOf(0) }
