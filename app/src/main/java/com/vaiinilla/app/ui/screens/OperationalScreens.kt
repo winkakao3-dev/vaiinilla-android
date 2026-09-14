@@ -265,6 +265,12 @@ fun CashierOperationalScreen(
 
     // Caja solo actúa sobre pedidos por cobrar o listos para entregar; el resto es de cocina.
     var selectedCashierOrderId by remember { mutableStateOf<String?>(null) }
+    var walletSearch by remember { mutableStateOf("") }
+    var walletAmount by remember { mutableStateOf("") }
+    val canReloadWallet =
+        state.cashSessionOpen == true &&
+            !state.acting &&
+            restrictedMode != RestrictedMode.READ_ONLY
     val actionableCashierOrders =
         state.orders.filter {
             it.summary.state == OrderState.PENDING_PAYMENT || it.summary.state == OrderState.READY
@@ -860,6 +866,272 @@ fun CashierOperationalScreen(
                             toastMessage = "Pedido #${order.summary.folio} seleccionado"
                         },
                     )
+                }
+            }
+
+            // Recargas de saldo: buscar cliente, escribir monto y registrar el efectivo.
+            item {
+                Surface(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, colors.cardBorder, RoundedCornerShape(26.dp)),
+                    shape = RoundedCornerShape(26.dp),
+                    color = colors.cardBackground,
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Recargar saldo",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    color = colors.textPrimary,
+                                )
+                                Text(
+                                    "Busca al cliente o escanea el QR de su cuenta.",
+                                    fontSize = 12.sp,
+                                    color = colors.textSecondary,
+                                )
+                            }
+                            IconButton(
+                                onClick = {
+                                    haptics.impact()
+                                    onOpenWalletUserQr()
+                                },
+                                enabled = restrictedMode != RestrictedMode.READ_ONLY,
+                                modifier =
+                                    Modifier
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(colors.cardInner)
+                                        .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp)),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.QrCodeScanner,
+                                    contentDescription = "Escanear QR del cliente",
+                                    tint = colors.textPrimary,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            BasicTextField(
+                                value = walletSearch,
+                                onValueChange = { walletSearch = it },
+                                singleLine = true,
+                                enabled = !state.walletSearchLoading,
+                                textStyle =
+                                    TextStyle(
+                                        color = colors.textPrimary,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                    ),
+                                cursorBrush = SolidColor(colors.textPrimary),
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .height(46.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(colors.cardInner)
+                                        .border(1.dp, colors.cardBorder, RoundedCornerShape(12.dp)),
+                                decorationBox = { inner ->
+                                    Box(
+                                        modifier =
+                                            Modifier
+                                                .fillMaxSize()
+                                                .padding(horizontal = 14.dp),
+                                        contentAlignment = Alignment.CenterStart,
+                                    ) {
+                                        if (walletSearch.isEmpty()) {
+                                            Text(
+                                                "Nombre o identificador",
+                                                color = colors.textSecondary,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                            )
+                                        }
+                                        inner()
+                                    }
+                                },
+                            )
+                            Button(
+                                onClick = {
+                                    haptics.selection()
+                                    onSearchWalletClients(walletSearch)
+                                },
+                                enabled = !state.walletSearchLoading && walletSearch.trim().length >= 2,
+                                colors =
+                                    ButtonDefaults.buttonColors(
+                                        containerColor = colors.cardInner,
+                                        contentColor = colors.textPrimary,
+                                    ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.height(46.dp),
+                            ) {
+                                Text(
+                                    if (state.walletSearchLoading) "Buscando…" else "Buscar",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                )
+                            }
+                        }
+
+                        BasicTextField(
+                            value = walletAmount,
+                            onValueChange = { raw -> walletAmount = raw.filter { it.isDigit() || it == '.' } },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            enabled = canReloadWallet,
+                            textStyle =
+                                TextStyle(
+                                    color = colors.textPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                ),
+                            cursorBrush = SolidColor(colors.textPrimary),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp)
+                                    .height(46.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(colors.cardInner)
+                                    .border(1.dp, colors.cardBorder, RoundedCornerShape(12.dp)),
+                            decorationBox = { inner ->
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 14.dp),
+                                    contentAlignment = Alignment.CenterStart,
+                                ) {
+                                    if (walletAmount.isEmpty()) {
+                                        Text(
+                                            "Monto en efectivo · ej. 100.00",
+                                            color = colors.textSecondary,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                        )
+                                    }
+                                    inner()
+                                }
+                            },
+                        )
+
+                        if (state.walletClients.isEmpty() &&
+                            walletSearch.trim().length >= 2 &&
+                            !state.walletSearchLoading
+                        ) {
+                            Text(
+                                "Sin clientes coincidentes en este establecimiento.",
+                                fontSize = 12.sp,
+                                color = colors.textSecondary,
+                                modifier = Modifier.padding(top = 10.dp),
+                            )
+                        }
+                        state.walletClients.forEach { client ->
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 10.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(colors.cardInner)
+                                        .border(1.dp, colors.cardBorder, RoundedCornerShape(16.dp))
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        client.name,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = colors.textPrimary,
+                                    )
+                                    client.contextualId?.let { identifier ->
+                                        Text(
+                                            identifier,
+                                            fontSize = 12.sp,
+                                            color = colors.textSecondary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.width(10.dp))
+                                Button(
+                                    onClick = {
+                                        haptics.impact()
+                                        onReloadWallet(client.userId, walletAmount)
+                                    },
+                                    enabled = canReloadWallet && walletAmount.isNotBlank(),
+                                    colors =
+                                        ButtonDefaults.buttonColors(
+                                            containerColor = colors.accentLime,
+                                            contentColor = colors.accentInk,
+                                            disabledContainerColor = colors.cardBorder,
+                                            disabledContentColor = colors.textSecondary,
+                                        ),
+                                    shape = RoundedCornerShape(12.dp),
+                                ) {
+                                    Text(
+                                        "Abonar",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                    )
+                                }
+                            }
+                        }
+
+                        state.walletReloadReceipt?.let { receipt ->
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 10.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(colors.accentLime.copy(alpha = 0.18f))
+                                        .border(
+                                            1.dp,
+                                            colors.accentLime.copy(alpha = 0.5f),
+                                            RoundedCornerShape(16.dp),
+                                        ).padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Check,
+                                    contentDescription = null,
+                                    tint = colors.textPrimary,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Column {
+                                    Text(
+                                        "Recarga registrada",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = colors.textPrimary,
+                                    )
+                                    Text(
+                                        "Saldo: $${receipt.previousBalance} + $${receipt.amount} = $${receipt.newBalance}",
+                                        fontSize = 12.sp,
+                                        color = colors.textSecondary,
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
