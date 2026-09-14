@@ -23,6 +23,7 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private var pendingEstablishmentSlug by mutableStateOf<String?>(null)
+    private var pendingSpaceToken by mutableStateOf<String?>(null)
     private var pendingInvitationToken by mutableStateOf<String?>(null)
     private var pendingOrderId by mutableStateOf<String?>(null)
     private var pendingOrderTarget by mutableStateOf<OrderNotificationTarget?>(null)
@@ -84,8 +85,10 @@ class MainActivity : ComponentActivity() {
                 AppNavHost(
                     navController = rememberNavController(),
                     pendingEstablishmentSlug = pendingEstablishmentSlug,
+                    pendingSpaceToken = pendingSpaceToken,
                     pendingInvitationToken = pendingInvitationToken,
                     onDeepLinkConsumed = { pendingEstablishmentSlug = null },
+                    onSpaceLinkConsumed = { pendingSpaceToken = null },
                     onInvitationConsumed = { pendingInvitationToken = null },
                     pendingOrderId = pendingOrderId,
                     pendingOrderTarget = pendingOrderTarget,
@@ -106,6 +109,7 @@ class MainActivity : ComponentActivity() {
 
     private fun captureDeepLink(source: Intent?) {
         pendingEstablishmentSlug = establishmentSlugFrom(source)
+        pendingSpaceToken = spaceTokenFrom(source)
         pendingInvitationToken = invitationTokenFrom(source)
         orderIdFrom(source)?.let {
             pendingOrderId = it
@@ -141,6 +145,30 @@ class MainActivity : ComponentActivity() {
                 .takeIf { it.length in 1..MAX_ESTABLISHMENT_SLUG_LENGTH && ESTABLISHMENT_SLUG.matches(it) }
         }
 
+        fun spaceTokenFrom(intent: Intent?): String? {
+            val data = intent?.data ?: return null
+            return spaceTokenFrom(data)
+        }
+
+        fun spaceTokenFrom(uri: Uri): String? {
+            if (!isTrustedAppUri(uri)) return null
+            val segments = uri.pathSegments
+            if (segments.size != 3 || segments[1] != "m") return null
+            val slug = segments[0].trim()
+            if (
+                slug.length !in 1..MAX_ESTABLISHMENT_SLUG_LENGTH ||
+                !ESTABLISHMENT_SLUG.matches(slug) ||
+                slug in RESERVED_PATH_ROOTS
+            ) {
+                return null
+            }
+            return segments[2]
+                .trim()
+                .takeIf { token ->
+                    token.length in 1..MAX_SPACE_TOKEN_LENGTH && token.none(Char::isWhitespace)
+                }
+        }
+
         fun invitationTokenFrom(intent: Intent?): String? {
             val data = intent?.data ?: return null
             return invitationTokenFrom(data)
@@ -166,7 +194,9 @@ class MainActivity : ComponentActivity() {
         private val APP_HOSTS = setOf("vaiinilla.app", "www.vaiinilla.app")
         private val ESTABLISHMENT_SLUG = Regex("[A-Za-z0-9][A-Za-z0-9_-]*")
         private val ORDER_ID = Regex("[A-Za-z0-9_-]+")
+        private val RESERVED_PATH_ROOTS = setOf("e", "u", "invitaciones")
         private const val MAX_ESTABLISHMENT_SLUG_LENGTH = 100
         private const val MAX_INVITATION_TOKEN_LENGTH = 4_096
+        private const val MAX_SPACE_TOKEN_LENGTH = 256
     }
 }

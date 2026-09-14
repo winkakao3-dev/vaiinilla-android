@@ -95,10 +95,12 @@ private data class PendingPickupDelivery(
 fun AppNavHost(
     navController: NavHostController,
     pendingEstablishmentSlug: String? = null,
+    pendingSpaceToken: String? = null,
     pendingInvitationToken: String? = null,
     pendingOrderId: String? = null,
     pendingOrderTarget: OrderNotificationTarget? = null,
     onDeepLinkConsumed: () -> Unit = {},
+    onSpaceLinkConsumed: () -> Unit = {},
     onInvitationConsumed: () -> Unit = {},
     onOrderConsumed: () -> Unit = {},
 ) {
@@ -291,6 +293,15 @@ fun AppNavHost(
                 enterVenueAndOpenCatalog(venue)
             },
             onFinished = onDeepLinkConsumed,
+        )
+    }
+    LaunchedEffect(pendingSpaceToken) {
+        val token = pendingSpaceToken?.trim().orEmpty()
+        if (token.isEmpty()) return@LaunchedEffect
+        discoveryViewModel.updateSpaceToken(token)
+        discoveryViewModel.resolveSpaceToken(
+            onEntered = ::enterVenueAndOpenCatalog,
+            onFinished = onSpaceLinkConsumed,
         )
     }
     var qrScannerOpen by remember { mutableStateOf(false) }

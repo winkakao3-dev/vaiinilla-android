@@ -165,10 +165,14 @@ class GuestDiscoveryViewModel
             tryEnter(next, onEntered)
         }
 
-        fun resolveSpaceToken(onEntered: (GuestVenueContext) -> Unit) {
+        fun resolveSpaceToken(
+            onEntered: (GuestVenueContext) -> Unit,
+            onFinished: () -> Unit = {},
+        ) {
             val token = _state.value.spaceTokenInput.trim()
             if (token.isEmpty()) {
                 _state.value = _state.value.copy(errorMessage = "Pega el token del QR de espacio.")
+                onFinished()
                 return
             }
             _state.value = _state.value.copy(resolving = true, errorMessage = null, suspendedMessage = null)
@@ -187,6 +191,7 @@ class GuestDiscoveryViewModel
                             ),
                             onEntered,
                         )
+                        onFinished()
                     },
                     onFailure = { error ->
                         _state.value =
@@ -194,6 +199,7 @@ class GuestDiscoveryViewModel
                                 resolving = false,
                                 errorMessage = error.toUserFacingMessage("No se pudo resolver el espacio."),
                             )
+                        onFinished()
                     },
                 )
             }

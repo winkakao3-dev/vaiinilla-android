@@ -110,6 +110,36 @@ class GuestSessionAndDeepLinkTest {
     }
 
     @Test
+    fun `parses table QR token from app link`() {
+        assertEquals(
+            "qr-espacio-a-mesa-4",
+            MainActivity.spaceTokenFrom(
+                Uri.parse("https://vaiinilla.app/demo-a/m/qr-espacio-a-mesa-4"),
+            ),
+        )
+        assertEquals(
+            "qr-espacio-a-mesa-4",
+            MainActivity.spaceTokenFrom(
+                Uri.parse("https://www.vaiinilla.app/demo-a/m/qr-espacio-a-mesa-4"),
+            ),
+        )
+        assertNull(
+            MainActivity.spaceTokenFrom(
+                Uri.parse("https://evil.example/demo-a/m/qr-espacio-a-mesa-4"),
+            ),
+        )
+        assertNull(
+            MainActivity.spaceTokenFrom(Uri.parse("https://vaiinilla.app/demo-a/m")),
+        )
+        assertNull(
+            MainActivity.spaceTokenFrom(Uri.parse("https://vaiinilla.app/e/m/tok")),
+        )
+        assertNull(
+            MainActivity.spaceTokenFrom(Uri.parse("http://vaiinilla.app/demo-a/m/tok")),
+        )
+    }
+
+    @Test
     fun `orderIdFrom accepts safe ids and rejects path-like input`() {
         fun intentWith(orderId: String): Intent = Intent().putExtra(OrderAdvanceNotifier.EXTRA_ORDER_ID, orderId)
 
