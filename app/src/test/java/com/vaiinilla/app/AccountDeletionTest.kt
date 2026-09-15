@@ -127,7 +127,7 @@ class AccountDeletionViewModelTest {
                         override fun read(orderId: String): String? = null
                     },
                 refreshCoordinator = refreshCoordinator,
-            )
+            ).also { it.cleanupDispatcher = dispatcher }
         viewModel = AccountDeletionViewModel(auth, deletion, cleanup)
     }
 

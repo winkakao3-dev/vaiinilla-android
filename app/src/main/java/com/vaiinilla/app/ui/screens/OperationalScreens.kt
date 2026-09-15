@@ -245,7 +245,30 @@ fun CashierOperationalScreen(
     val haptics = rememberVaiinillaHaptics()
     var addProductSheetOpen by remember { mutableStateOf(false) }
     var toastMessage by remember { mutableStateOf<String?>(null) }
+    var imageEditProductId by remember { mutableStateOf<Int?>(null) }
     var tick by remember { mutableIntStateOf(0) }
+    val context = LocalContext.current
+    // La foto de un producto existente se reemplaza aquí: el alta lleva su propia
+    // selección de imagen dentro del sheet.
+    val productImagePicker =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent(),
+        ) { uri: Uri? ->
+            val productId = imageEditProductId
+            imageEditProductId = null
+            if (uri == null || productId == null) return@rememberLauncherForActivityResult
+            val prepared = runCatching { prepareProductImage(context, uri) }.getOrNull()
+            if (prepared == null) {
+                toastMessage = "No se pudo preparar la foto. Prueba otra imagen de hasta 16 MB."
+            } else {
+                onUploadCashierProductImage(
+                    productId,
+                    prepared.bytes,
+                    prepared.filename,
+                    prepared.mimeType,
+                )
+            }
+        }
     LaunchedEffect(Unit) {
         while (true) {
             delay(1_000)
@@ -1205,6 +1228,15 @@ fun CashierOperationalScreen(
                                 colors = colors,
                                 assistantRegistry = assistantRegistry,
                                 modifier = Modifier.weight(1f),
+                                onEditImage =
+                                    if (restrictedMode != RestrictedMode.READ_ONLY && !state.acting) {
+                                        {
+                                            imageEditProductId = product.id
+                                            productImagePicker.launch("image/*")
+                                        }
+                                    } else {
+                                        null
+                                    },
                                 onToggle = { isAvailable ->
                                     haptics.selection()
                                     onToggleProductAvailable(product.id, isAvailable)
@@ -1511,6 +1543,7 @@ private fun ProductGridCard(
     colors: OperationalColors,
     assistantRegistry: com.vaiinilla.app.ui.components.AssistantAnchorRegistry? = null,
     modifier: Modifier = Modifier,
+    onEditImage: (() -> Unit)? = null,
     onToggle: (Boolean) -> Unit,
 ) {
     Surface(
@@ -1534,6 +1567,27 @@ private fun ProductGridCard(
                         contentDescription = product.name,
                         modifier = Modifier.fillMaxSize(),
                     )
+                }
+                if (onEditImage != null) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopStart)
+                                .padding(6.dp)
+                                .size(30.dp)
+                                .clip(CircleShape)
+                                .background(colors.cardBackground)
+                                .border(1.dp, colors.cardBorder, CircleShape)
+                                .clickable { onEditImage() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.PhotoCamera,
+                            contentDescription = "Cambiar foto de ${product.name}",
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
                 }
                 Box(
                     modifier =
@@ -2574,30 +2628,6 @@ private fun AddProductSheet(
                     letterSpacing = 0.2.sp,
                 )
             }
-        }
-    }
-}
-
-@Composable
-fun WaiterOperationalScreen(
-    state: OperationalUiState,
-    onBack: () -> Unit,
-    onDeliver: (orderId: String, version: Int) -> Unit,
-    onScanDeliver: (orderId: String, version: Int) -> Unit = { _, _ -> },
-    onChangeMode: (() -> Unit)? = null,
-    restrictedMode: RestrictedMode? = null,
-) {
-    val colors = rememberOperationalColors()
-    Box(
-        modifier = Modifier.fillMaxSize().background(colors.background),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text("Modo Mesero", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = colors.textPrimary)
-            Text("Entregas de pedidos en espacio", fontSize = 14.sp, color = colors.textSecondary)
         }
     }
 }

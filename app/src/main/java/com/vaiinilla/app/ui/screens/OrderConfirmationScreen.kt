@@ -355,24 +355,49 @@ fun OrderConfirmationScreen(
                 }
             }
             Spacer(Modifier.height(10.dp))
-            Surface(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(46.dp)
-                        .border(1.5.dp, TicketLineSoft, RoundedCornerShape(16.dp))
-                        .physicalPress(onClick = onReturnToMenu),
-                color = Color.Transparent,
-                shape = RoundedCornerShape(16.dp),
-                shadowElevation = 0.dp,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        "Volver al menú",
-                        color = TicketInk,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 15.sp,
-                    )
+                Surface(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .height(46.dp)
+                            .border(1.5.dp, TicketLineSoft, RoundedCornerShape(16.dp))
+                            .physicalPress(onClick = onViewSticker),
+                    color = Color.Transparent,
+                    shape = RoundedCornerShape(16.dp),
+                    shadowElevation = 0.dp,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            "Ver sticker",
+                            color = TicketInk,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 15.sp,
+                        )
+                    }
+                }
+                Surface(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .height(46.dp)
+                            .border(1.5.dp, TicketLineSoft, RoundedCornerShape(16.dp))
+                            .physicalPress(onClick = onReturnToMenu),
+                    color = Color.Transparent,
+                    shape = RoundedCornerShape(16.dp),
+                    shadowElevation = 0.dp,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            "Volver al menú",
+                            color = TicketInk,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 15.sp,
+                        )
+                    }
                 }
             }
         }

@@ -1,6 +1,7 @@
 package com.vaiinilla.app.data.mode
 
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
+import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.data.auth.SesionesContextoDataDto
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthSession
@@ -128,7 +129,7 @@ class RemoteAuthorizedAccessRepository
             token: String,
             session: StudentAuthSession,
         ): Result<AuthorizedMode> =
-            runCatching {
+            runCatchingCancellable {
                 require(session.emailVerified) {
                     "Verifica tu correo antes de aceptar la invitación."
                 }
@@ -174,7 +175,7 @@ class RemoteAuthorizedAccessRepository
             }
 
         override suspend fun authorizedModes(session: StudentAuthSession): Result<List<AuthorizedMode>> =
-            runCatching {
+            runCatchingCancellable {
                 require(session.emailVerified) {
                     "Verifica tu correo antes de consultar tus accesos."
                 }
@@ -191,7 +192,7 @@ class RemoteAuthorizedAccessRepository
             mode: AuthorizedMode,
             session: StudentAuthSession,
         ): Result<AuthorizedModeContext> =
-            runCatching {
+            runCatchingCancellable {
                 require(session.emailVerified) {
                     "Verifica tu correo antes de cambiar de modo."
                 }
@@ -271,7 +272,9 @@ class RemoteAuthorizedAccessRepository
                 OperationalRole.CLIENT.wireValue -> OperationalRole.CLIENT
                 OperationalRole.CASHIER.wireValue -> OperationalRole.CASHIER
                 OperationalRole.KITCHEN.wireValue -> OperationalRole.KITCHEN
-                OperationalRole.WAITER.wireValue -> OperationalRole.WAITER
+                // Mesero no es un modo de este cliente: la entrega en espacio la
+                // cubren Caja/Cocina con el QR de recogida del alumno.
+                OperationalRole.WAITER.wireValue -> null
                 // Administración remains intentionally outside the Android client.
                 "admin" -> null
                 else -> null

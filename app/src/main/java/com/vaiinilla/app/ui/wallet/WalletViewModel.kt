@@ -2,6 +2,7 @@ package com.vaiinilla.app.ui.wallet
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.model.WalletData
 import com.vaiinilla.app.domain.repository.WalletRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -48,7 +49,7 @@ class WalletViewModel
                             onFailure = {
                                 WalletRemoteUiState(
                                     error =
-                                        it.message ?: "No se pudo consultar la wallet.",
+                                        it.toUserFacingMessage("No se pudo consultar la wallet."),
                                 )
                             },
                         )

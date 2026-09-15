@@ -208,7 +208,7 @@ class StudentAuthViewModelTest {
                             override fun read(orderId: String): String? = null
                         },
                         refreshCoordinator,
-                    ),
+                    ).also { it.cleanupDispatcher = testDispatcher },
             )
     }
 
@@ -452,7 +452,7 @@ class StudentAuthViewModelTest {
                                 override fun read(orderId: String): String? = null
                             },
                             refreshCoordinator,
-                        ),
+                        ).also { it.cleanupDispatcher = testDispatcher },
                 )
 
             freshTokenSaved.await()
@@ -547,7 +547,7 @@ class StudentAuthViewModelTest {
                                 override fun read(orderId: String): String? = null
                             },
                             refreshCoordinator,
-                        ),
+                        ).also { it.cleanupDispatcher = testDispatcher },
                 )
             vm.refreshGuestVenue()
             vm.updateEmail("ana@test.com")

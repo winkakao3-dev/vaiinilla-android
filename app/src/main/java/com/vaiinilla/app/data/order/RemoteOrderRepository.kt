@@ -122,7 +122,8 @@ class RemoteOrderRepository(
             onFailure = { error ->
                 Result.failure(
                     when (error) {
-                        is ApiClientException -> OrderRepositoryException(error.code, error.message ?: error.code)
+                        is ApiClientException ->
+                            OrderRepositoryException(error.code, error.message ?: error.code, error)
                         is OrderRepositoryException -> error
                         else -> error
                     },

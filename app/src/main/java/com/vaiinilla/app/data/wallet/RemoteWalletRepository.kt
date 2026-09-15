@@ -80,7 +80,12 @@ class RemoteWalletRepository(
                 Result.failure(
                     when (error) {
                         is ApiClientException ->
-                            WalletRepositoryException(error.code, error.message ?: error.code, error.httpStatus)
+                            WalletRepositoryException(
+                                error.code,
+                                error.message ?: error.code,
+                                error.httpStatus,
+                                error,
+                            )
                         is WalletRepositoryException -> error
                         else -> error
                     },

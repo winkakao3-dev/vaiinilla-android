@@ -73,7 +73,6 @@ import com.vaiinilla.app.ui.screens.StudentLoginScreen
 import com.vaiinilla.app.ui.screens.StudentRegisterScreen
 import com.vaiinilla.app.ui.screens.StudentTrackingScreen
 import com.vaiinilla.app.ui.screens.StudentVerifyEmailScreen
-import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
 import com.vaiinilla.app.ui.screens.WalletAccountScreen
 import com.vaiinilla.app.ui.screens.WalletAddCardScreen
 import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
@@ -329,7 +328,9 @@ fun AppNavHost(
             when (modeRole) {
                 OperationalRole.CASHIER -> Routes.CASHIER
                 OperationalRole.KITCHEN -> Routes.KITCHEN
-                OperationalRole.WAITER -> Routes.WAITER
+                // Mesero no se ofrece como modo: la entrega en espacio la hacen
+                // Caja/Cocina. Si un contexto viejo revive como mesero, cae a Alumno.
+                OperationalRole.WAITER -> Routes.CATALOG
                 OperationalRole.CLIENT -> Routes.CATALOG
             }
         if (modeRole == OperationalRole.CLIENT) {
@@ -929,8 +930,7 @@ fun AppNavHost(
                             navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
                         }
                     },
-                    onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                    onOpenWallet = { navController.navigateStudent(Routes.WALLET) },
+                    walletBalance = walletRemoteState.data?.wallet?.visibleBalance,
                     guestAuthRequired = guestAuthRequired,
                     profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
                     onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
@@ -1222,6 +1222,11 @@ fun AppNavHost(
                             navController.navigateStudent(Routes.STUDENT_TRACKING)
                         }
                     },
+                    onViewSticker = {
+                        navController.navigate(Routes.receiptStickerRoute()) {
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
 
@@ -1350,33 +1355,6 @@ fun AppNavHost(
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "kitchen",
-                    )
-                }
-            }
-
-            composable(Routes.WAITER) {
-                val authorizedWaiter = authorizedAccessState.activeContext?.role == OperationalRole.WAITER
-                LaunchedEffect(authorizedWaiter) {
-                    if (!authorizedWaiter) {
-                        returnToModes(navController, operationalViewModel)()
-                    }
-                }
-                if (authorizedWaiter) {
-                    OperationalPresenceLifecycle(OperationalRole.WAITER, operationalViewModel)
-                    WaiterOperationalScreen(
-                        state = operationalState,
-                        onBack = returnToModes(navController, operationalViewModel),
-                        onDeliver = { orderId, version -> operationalViewModel.deliver(orderId, version) },
-                        onScanDeliver = { orderId, version ->
-                            pendingPickupDelivery = PendingPickupDelivery(orderId, version)
-                        },
-                        onChangeMode =
-                            if (authorizedAccessState.hasMultipleModes) {
-                                returnToModes(navController, operationalViewModel)
-                            } else {
-                                null
-                            },
-                        restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
                     )
                 }
             }

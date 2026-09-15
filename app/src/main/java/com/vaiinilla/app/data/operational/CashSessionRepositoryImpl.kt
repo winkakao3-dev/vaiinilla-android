@@ -36,7 +36,8 @@ class RemoteCashSessionRepository(
             onFailure = { error ->
                 Result.failure(
                     when (error) {
-                        is ApiClientException -> OrderRepositoryException(error.code, error.message ?: error.code)
+                        is ApiClientException ->
+                            OrderRepositoryException(error.code, error.message ?: error.code, error)
                         else -> error
                     },
                 )

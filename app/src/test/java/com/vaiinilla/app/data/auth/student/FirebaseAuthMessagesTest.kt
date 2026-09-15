@@ -13,8 +13,22 @@ class FirebaseAuthMessagesTest {
     @Test
     fun `unknown errors keep a generic Spanish fallback`() {
         assertEquals(
-            "No se pudo completar la autenticación.",
+            "No se pudo completar la autenticación. Inténtalo de nuevo.",
             firebaseAuthUserMessage(IllegalStateException("")),
+        )
+    }
+
+    @Test
+    fun `unmapped firebase codes never leak English internals`() {
+        val error =
+            FirebaseAuthException(
+                "ERROR_INTERNAL_ERROR",
+                "An internal error has occurred. [ ID token expired ]",
+            )
+
+        assertEquals(
+            "No se pudo completar la autenticación. Inténtalo de nuevo.",
+            firebaseAuthUserMessage(error),
         )
     }
 

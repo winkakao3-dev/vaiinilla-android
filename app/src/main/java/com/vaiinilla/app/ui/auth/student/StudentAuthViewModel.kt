@@ -112,8 +112,8 @@ class StudentAuthViewModel
 
             // A persisted JWT cannot refresh after a process restart until this coordinator
             // is rebuilt. Never let checkout trust a token without its refresh callback.
-            sessionStore.clear()
             refreshCoordinator.clearSession()
+            sessionStore.clear()
             _state.value = _state.value.copy(enrollmentComplete = false)
 
             contextBootstrapJob?.cancel()

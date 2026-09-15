@@ -99,6 +99,7 @@ import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.canCreateOrder
 import com.vaiinilla.app.ui.order.cartPreviewTotal
 import com.vaiinilla.app.ui.order.hasUnresolvedStripePayment
+import com.vaiinilla.app.ui.order.isBalancePaymentAffordable
 import com.vaiinilla.app.ui.order.operationalBlockerMessage
 import com.vaiinilla.app.ui.order.requiresOperationalReady
 import com.vaiinilla.app.ui.order.selectedSpaceName
@@ -118,9 +119,7 @@ fun CartScreen(
     onPaymentChange: (PaymentMethod) -> Unit,
     onConfirm: () -> Unit,
     onResolvePendingStripePayment: () -> Unit = {},
-    onOpenTracking: () -> Unit = {},
-    onOpenAssistant: () -> Unit = {},
-    onOpenWallet: () -> Unit = {},
+    walletBalance: String? = null,
     guestAuthRequired: Boolean = false,
     profileInitials: String = "?",
     onOpenAccount: () -> Unit = {},
@@ -350,6 +349,8 @@ fun CartScreen(
 
         if (paymentDialogOpen) {
             PaymentMethodOverlay(
+                balanceAffordable = state.isBalancePaymentAffordable(walletBalance),
+                walletBalance = walletBalance,
                 onDismiss = { paymentDialogOpen = false },
                 onSelect = { method ->
                     paymentDialogOpen = false
@@ -365,6 +366,8 @@ fun CartScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PaymentMethodOverlay(
+    balanceAffordable: Boolean,
+    walletBalance: String?,
     onDismiss: () -> Unit,
     onSelect: (PaymentMethod) -> Unit,
 ) {
@@ -452,10 +455,15 @@ private fun PaymentMethodOverlay(
                 PaymentMethodCardOption(
                     icon = Icons.Outlined.AccountBalanceWallet,
                     title = "Saldo Vaiinilla",
-                    subtitle = "Usa el saldo disponible de tu cuenta.",
+                    subtitle =
+                        if (balanceAffordable) {
+                            "Usa el saldo disponible de tu cuenta."
+                        } else {
+                            "Saldo insuficiente · Disponible: $${walletBalance.orEmpty()}"
+                        },
                     badgeText = "Saldo",
                     selected = selectedMethod == PaymentMethod.BALANCE,
-                    enabled = !selectionLocked,
+                    enabled = !selectionLocked && balanceAffordable,
                     onClick = { selectedMethod = PaymentMethod.BALANCE },
                 )
                 PaymentMethodCardOption(

@@ -163,10 +163,14 @@ val OrderFlowUiState.checkoutSpaceId: Int?
 val OrderFlowUiState.selectedSpaceName: String
     get() = guestVenue?.space?.name ?: "Escanea el QR de tu mesa"
 
-fun OrderFlowUiState.hasSufficientBalance(walletBalance: Int): Boolean {
-    if (checkoutPayment != PaymentMethod.BALANCE) return true
-    val total = Money.parse(cartPreviewTotal).toInt()
-    return walletBalance >= total
+/**
+ * Whether the known wallet balance can cover the cart. Unknown or unparsable
+ * values stay affordable: the backend remains the authoritative check.
+ */
+fun OrderFlowUiState.isBalancePaymentAffordable(walletBalance: String?): Boolean {
+    val balance = walletBalance?.let { runCatching { Money.parse(it) }.getOrNull() } ?: return true
+    val total = runCatching { Money.parse(cartPreviewTotal) }.getOrNull() ?: return true
+    return balance >= total
 }
 
 /** Client-facing copy: never expose which staff devices are online. */

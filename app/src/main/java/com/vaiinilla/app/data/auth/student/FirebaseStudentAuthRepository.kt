@@ -8,6 +8,8 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.MultiFactorResolver
 import com.google.firebase.auth.TotpMultiFactorGenerator
 import com.google.firebase.auth.UserProfileChangeRequest
+import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
+import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.domain.auth.student.StudentAuthMfaChallenge
 import com.vaiinilla.app.domain.auth.student.StudentAuthMfaFactor
@@ -29,6 +31,7 @@ class FirebaseStudentAuthRepository
     constructor(
         private val sessionStore: SecureSessionStore,
         private val preferences: StudentAuthPreferences,
+        private val refreshCoordinator: VaiinillaJwtRefreshCoordinator,
     ) : StudentAuthRepository {
         private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
         private val pendingMfa = ConcurrentHashMap<String, PendingMfa>()
@@ -48,13 +51,14 @@ class FirebaseStudentAuthRepository
             displayName: String,
         ): Result<StudentAuthSession> =
             withContext(Dispatchers.IO) {
-                runCatching {
+                runCatchingCancellable {
                     preferences.clear()
                     val result =
                         auth.createUserWithEmailAndPassword(email.trim().lowercase(), password).await()
                     val user =
                         result.user
                             ?: throw IllegalStateException("No se pudo crear la cuenta.")
+                    refreshCoordinator.clearSession()
                     sessionStore.clear()
                     user
                         .updateProfile(
@@ -80,10 +84,11 @@ class FirebaseStudentAuthRepository
             password: String,
         ): Result<StudentAuthSession> =
             withContext(Dispatchers.IO) {
-                runCatching {
+                runCatchingCancellable {
                     auth.signInWithEmailAndPassword(email.trim().lowercase(), password).await()
                     val user = auth.currentUser ?: throw IllegalStateException("No se pudo iniciar sesión.")
                     user.reload().await()
+                    refreshCoordinator.clearSession()
                     sessionStore.clear()
                     user.toSession()
                 }.recoverCatching { error ->
@@ -103,11 +108,12 @@ class FirebaseStudentAuthRepository
 
         override suspend fun signInWithGoogleIdToken(idToken: String): Result<StudentAuthSession> =
             withContext(Dispatchers.IO) {
-                runCatching {
+                runCatchingCancellable {
                     require(idToken.isNotBlank()) { "Token de Google inválido." }
                     val credential = GoogleAuthProvider.getCredential(idToken, null)
                     auth.signInWithCredential(credential).await()
                     val user = auth.currentUser ?: throw IllegalStateException("No se pudo iniciar sesión con Google.")
+                    refreshCoordinator.clearSession()
                     sessionStore.clear()
                     user.toSession()
                 }.recoverCatching { error ->
@@ -117,7 +123,7 @@ class FirebaseStudentAuthRepository
 
         override suspend fun sendEmailVerification(): Result<Unit> =
             withContext(Dispatchers.IO) {
-                runCatching {
+                runCatchingCancellable {
                     val user = auth.currentUser ?: throw IllegalStateException("No hay sesión activa.")
                     user.sendEmailVerification().await()
                     Unit
@@ -126,8 +132,8 @@ class FirebaseStudentAuthRepository
 
         override suspend fun reloadSession(): Result<StudentAuthSession?> =
             withContext(Dispatchers.IO) {
-                runCatching {
-                    val user = auth.currentUser ?: return@runCatching null
+                runCatchingCancellable {
+                    val user = auth.currentUser ?: return@runCatchingCancellable null
                     user.reload().await()
                     user.toSession()
                 }
@@ -135,7 +141,7 @@ class FirebaseStudentAuthRepository
 
         override suspend fun getIdToken(forceRefresh: Boolean): Result<String> =
             withContext(Dispatchers.IO) {
-                runCatching {
+                runCatchingCancellable {
                     auth.currentUser
                         ?.getIdToken(forceRefresh)
                         ?.await()
@@ -152,7 +158,7 @@ class FirebaseStudentAuthRepository
 
         override suspend fun reauthenticateWithPassword(password: String): Result<Unit> =
             withContext(Dispatchers.IO) {
-                runCatching {
+                runCatchingCancellable {
                     require(password.isNotEmpty()) { "Ingresa tu contraseña para continuar." }
                     val user = auth.currentUser ?: throw IllegalStateException("No hay una sesión activa.")
                     val email =
@@ -210,7 +216,7 @@ class FirebaseStudentAuthRepository
                 val pending =
                     pendingMfa[challengeId]
                         ?: return@withContext Result.failure(StudentAuthMfaChallengeExpiredException())
-                runCatching {
+                runCatchingCancellable {
                     val normalizedCode = code.trim()
                     require(normalizedCode.length == 6 && normalizedCode.all(Char::isDigit)) {
                         "El código debe tener 6 dígitos."
@@ -237,6 +243,7 @@ class FirebaseStudentAuthRepository
                     user.reload().await()
                     pendingMfa.remove(challengeId)
                     if (pending.challenge.operation == StudentAuthMfaOperation.LOGIN) {
+                        refreshCoordinator.clearSession()
                         sessionStore.clear()
                     }
                     StudentAuthMfaResolution(
@@ -262,6 +269,7 @@ class FirebaseStudentAuthRepository
                 pendingMfa.clear()
                 auth.signOut()
                 preferences.clear()
+                refreshCoordinator.clearSession()
                 sessionStore.clear()
             }
         }

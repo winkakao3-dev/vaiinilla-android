@@ -43,6 +43,21 @@ class RemoteAuthorizedAccessRepositoryTest {
         }
 
     @Test
+    fun `remote access list omits waiter memberships`() =
+        runTest {
+            val api = RecordingAuthorizedAccessApi()
+            api.accessResponse = accessResponseWithWaiter()
+            val repository = remoteRepository(api)
+
+            val modes = repository.authorizedModes(session).getOrThrow()
+
+            assertEquals(
+                listOf(OperationalRole.CLIENT, OperationalRole.CASHIER, OperationalRole.KITCHEN),
+                modes.map { it.role },
+            )
+        }
+
+    @Test
     fun `remote activation validates membership and stores canonical context`() =
         runTest {
             val api = RecordingAuthorizedAccessApi()
@@ -200,6 +215,26 @@ class RemoteAuthorizedAccessRepositoryTest {
           "error": null
         }
         """.trimIndent()
+
+    private fun accessResponseWithWaiter(): String =
+        accessResponse().replace(
+            """
+            {
+              "membresia_id": "membership-admin",
+            """.trimIndent(),
+            """
+            {
+              "membresia_id": "membership-waiter",
+              "establecimiento": {"id": "establishment-a", "nombre": "Cafetería", "slug": "cafeteria"},
+              "rol": "mesero",
+              "identificador_cliente": null,
+              "estado_establecimiento": "activo",
+              "cierre_operativo_disponible": false
+            },
+            {
+              "membresia_id": "membership-admin",
+            """.trimIndent(),
+        )
 
     private fun contextResponse(
         membershipId: String,

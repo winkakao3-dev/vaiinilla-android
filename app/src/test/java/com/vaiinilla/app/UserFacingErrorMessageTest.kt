@@ -2,6 +2,8 @@ package com.vaiinilla.app
 
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.domain.repository.OrderRepositoryException
+import kotlinx.serialization.SerializationException
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.net.SocketTimeoutException
@@ -64,5 +66,48 @@ class UserFacingErrorMessageTest {
             )
 
         assertEquals("El código ya fue utilizado.", error.toUserFacingMessage("Fallback"))
+    }
+
+    @Test
+    fun `hides raw server codes even when wrapped in a repository exception`() {
+        val apiError =
+            ApiClientException(
+                code = "HTTP_503",
+                message = "La API respondió con código 503.",
+                httpStatus = 503,
+            )
+        val wrapped = OrderRepositoryException(apiError.code, apiError.message!!, apiError)
+
+        assertEquals(
+            "Tuvimos un problema en el servidor. Intenta de nuevo en unos momentos.",
+            wrapped.toUserFacingMessage("Fallback"),
+        )
+    }
+
+    @Test
+    fun `hides raw json decoding internals`() {
+        val error =
+            SerializationException(
+                "Unexpected JSON token at offset 142: Expected '{' but found 'n' instead",
+            )
+
+        assertEquals(
+            "Recibimos una respuesta que esta versión no entiende. Actualiza la app e inténtalo de nuevo.",
+            error.toUserFacingMessage("Fallback"),
+        )
+    }
+
+    @Test
+    fun `hides json decoding internals nested inside another failure`() {
+        val error =
+            IllegalStateException(
+                "Fallo al cargar pedidos",
+                SerializationException("Unexpected JSON token at offset 9: bad"),
+            )
+
+        assertEquals(
+            "Recibimos una respuesta que esta versión no entiende. Actualiza la app e inténtalo de nuevo.",
+            error.toUserFacingMessage("Fallback"),
+        )
     }
 }

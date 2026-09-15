@@ -45,14 +45,16 @@ class StaffPresenceCoordinator
 
             var sent = 0
             var failed = 0
-            var lastError: String? = null
+            var lastError: Throwable? = null
 
             for ((role, deviceId) in staffRoles) {
                 val tokenResult = runBlocking { seedAuthRepository.ensureRoleJwtForHeartbeat(role) }
                 val token = tokenResult.getOrNull()?.trim().orEmpty()
                 if (token.isEmpty()) {
                     failed++
-                    lastError = tokenResult.exceptionOrNull()?.message ?: "missing_token_${role.name}"
+                    lastError =
+                        tokenResult.exceptionOrNull()
+                            ?: IllegalStateException("missing_token_${role.name}")
                     continue
                 }
 
@@ -71,7 +73,7 @@ class StaffPresenceCoordinator
                         onSuccess = { sent++ },
                         onFailure = { error ->
                             failed++
-                            lastError = error.message ?: error.javaClass.simpleName
+                            lastError = error
                         },
                     )
             }
@@ -79,7 +81,9 @@ class StaffPresenceCoordinator
             return if (sent > 0) {
                 Result.success(Unit)
             } else {
-                Result.failure(IllegalStateException(lastError ?: "No se pudo avisar a Caja o Cocina."))
+                Result.failure(
+                    IllegalStateException("No se pudo avisar a Caja o Cocina.", lastError),
+                )
             }
         }
     }

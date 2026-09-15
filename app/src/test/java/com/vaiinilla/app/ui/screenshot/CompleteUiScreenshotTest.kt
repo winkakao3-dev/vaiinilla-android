@@ -9,7 +9,6 @@ import com.vaiinilla.app.domain.mode.AuthorizedInvitation
 import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.mode.AuthorizedModeContext
 import com.vaiinilla.app.domain.model.OperationalRole
-import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.auth.student.StudentAuthUiState
@@ -30,7 +29,6 @@ import com.vaiinilla.app.ui.screens.StudentLoginScreen
 import com.vaiinilla.app.ui.screens.StudentRegisterScreen
 import com.vaiinilla.app.ui.screens.StudentTrackingScreen
 import com.vaiinilla.app.ui.screens.StudentVerifyEmailScreen
-import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
 import com.vaiinilla.app.ui.screens.WalletAccountScreen
 import com.vaiinilla.app.ui.screens.WalletAddCardScreen
 import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
@@ -321,23 +319,6 @@ class CompleteUiScreenshotTest {
                 onBack = {},
                 onStart = { _, _ -> },
                 onReady = { _, _ -> },
-                onChangeMode = {},
-            )
-        }
-    }
-
-    @Test
-    fun `44_waiter`() {
-        val ready =
-            ScreenshotFixtures.sampleOrder(
-                state = OrderState.READY,
-                destination = OrderDestination.IN_SPACE,
-            )
-        capture("44_waiter.png") {
-            WaiterOperationalScreen(
-                state = OperationalUiState(role = OperationalRole.WAITER, orders = listOf(ready)),
-                onBack = {},
-                onDeliver = { _, _ -> },
                 onChangeMode = {},
             )
         }

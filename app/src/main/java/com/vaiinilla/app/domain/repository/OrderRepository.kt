@@ -48,4 +48,5 @@ interface OrderRepository {
 class OrderRepositoryException(
     val code: String,
     message: String,
-) : IllegalStateException(message)
+    cause: Throwable? = null,
+) : IllegalStateException(message, cause)

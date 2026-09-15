@@ -403,12 +403,6 @@ private fun AuthorizedModeScreenPreview() {
                                 establishmentName = "Cafetería central",
                                 membershipId = "m2",
                             ),
-                            AuthorizedMode(
-                                role = OperationalRole.WAITER,
-                                establishmentId = "e1",
-                                establishmentName = "Cafetería central",
-                                membershipId = "m3",
-                            ),
                         ),
                 ),
             onBack = {},

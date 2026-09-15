@@ -5,6 +5,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
+import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.core.security.SeedJwtCache
 import com.vaiinilla.app.domain.auth.SeedAccounts
@@ -37,7 +38,7 @@ class FirebaseSeedAuthRepository
 
         suspend fun authenticateRole(role: OperationalRole): Result<Unit> =
             withContext(Dispatchers.IO) {
-                runCatching {
+                runCatchingCancellable {
                     requireSeedAuthAllowed()
                     signInAndExchange(role, forceRefresh = false)
                     Unit
@@ -52,7 +53,7 @@ class FirebaseSeedAuthRepository
                 if (!forceRefresh) {
                     seedJwtCache.get(role)?.let { return@withContext Result.success(it) }
                 }
-                runCatching {
+                runCatchingCancellable {
                     requireSeedAuthAllowed()
                     signInAndExchange(role, forceRefresh).accessToken
                 }
@@ -70,7 +71,7 @@ class FirebaseSeedAuthRepository
                 if (!forceRefresh) {
                     seedJwtCache.get(role)?.let { return@withContext Result.success(it) }
                 }
-                runCatching {
+                runCatchingCancellable {
                     requireSeedAuthAllowed()
                     signInAndExchange(
                         role = role,
@@ -82,7 +83,7 @@ class FirebaseSeedAuthRepository
 
         suspend fun restoreActiveRole(role: OperationalRole): Result<Unit> =
             withContext(Dispatchers.IO) {
-                runCatching {
+                runCatchingCancellable {
                     requireSeedAuthAllowed()
                     val cached = seedJwtCache.get(role)
                     if (cached != null) {
@@ -111,7 +112,7 @@ class FirebaseSeedAuthRepository
 
         fun refreshRoleSession(role: OperationalRole): Result<Unit> =
             runBlocking {
-                runCatching {
+                runCatchingCancellable {
                     signInAndExchange(role, forceRefresh = true)
                 }.map { }
             }

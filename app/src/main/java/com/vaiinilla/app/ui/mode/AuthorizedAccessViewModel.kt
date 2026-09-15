@@ -226,7 +226,10 @@ class AuthorizedAccessViewModel
             }
             val clientMode = _state.value.modes.firstOrNull { it.role == OperationalRole.CLIENT }
             if (clientMode == null) {
-                sessionStore.clear()
+                viewModelScope.launch(Dispatchers.IO) {
+                    refreshCoordinator.clearSession()
+                    sessionStore.clear()
+                }
                 _state.value =
                     _state.value.copy(
                         loading = false,
@@ -306,7 +309,10 @@ class AuthorizedAccessViewModel
             }
             val session = authRepository.peekSession()
             if (session == null || _state.value.modes.none { it.role == OperationalRole.CLIENT }) {
-                sessionStore.clear()
+                viewModelScope.launch(Dispatchers.IO) {
+                    refreshCoordinator.clearSession()
+                    sessionStore.clear()
+                }
                 _state.value =
                     _state.value.copy(
                         loading = false,

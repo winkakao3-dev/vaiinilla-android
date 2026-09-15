@@ -45,10 +45,15 @@ class VaiinillaJwtRefreshCoordinator
         }
 
         fun clearSession() {
-            sessionGeneration.incrementAndGet()
-            activeRole.set(null)
-            activeRefresh.set(null)
+            // El callback de refresh corre dentro de refreshLock (incluido su
+            // saveAccessToken). Esperar el lock aquí ordena el logout DESPUÉS de
+            // cualquier refresh en vuelo: el token que acabe de escribirse queda
+            // borrado por el sessionStore.clear() posterior del llamador, en vez
+            // de resucitar una sesión ya cerrada.
             refreshLock.withLock {
+                sessionGeneration.incrementAndGet()
+                activeRole.set(null)
+                activeRefresh.set(null)
                 lastSuccessfulRefreshNanos = Long.MIN_VALUE
             }
             refreshJob?.cancel()

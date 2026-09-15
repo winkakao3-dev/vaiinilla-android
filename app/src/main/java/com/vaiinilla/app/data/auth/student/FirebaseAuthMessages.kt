@@ -28,7 +28,8 @@ fun firebaseAuthUserMessage(error: Throwable): String {
         "ERROR_USER_NOT_FOUND",
         ->
             "Correo o contraseña incorrectos."
-        else ->
-            error.message?.takeIf { it.isNotBlank() } ?: "No se pudo completar la autenticación."
+        // Códigos de Firebase no mapeados traen texto técnico en inglés:
+        // nunca se muestran al usuario.
+        else -> "No se pudo completar la autenticación. Inténtalo de nuevo."
     }
 }

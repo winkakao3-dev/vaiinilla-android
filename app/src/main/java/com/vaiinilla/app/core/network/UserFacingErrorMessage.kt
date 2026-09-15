@@ -1,5 +1,6 @@
 package com.vaiinilla.app.core.network
 
+import kotlinx.serialization.SerializationException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
@@ -32,6 +33,11 @@ fun Throwable?.toUserFacingMessage(fallback: String = DEFAULT_ERROR_MESSAGE): St
 
         causes.any { it is ApiClientException && it.httpStatus in 500..599 } ->
             "Tuvimos un problema en el servidor. Intenta de nuevo en unos momentos."
+
+        // Un cuerpo JSON que no cumple el contrato revienta con offsets y tokens
+        // internos ("Unexpected JSON token at offset …"): nunca llegan al usuario.
+        causes.any { it is SerializationException } ->
+            "Recibimos una respuesta que esta versión no entiende. Actualiza la app e inténtalo de nuevo."
 
         else -> message?.trim().takeUnless { it.isNullOrEmpty() } ?: fallback
     }

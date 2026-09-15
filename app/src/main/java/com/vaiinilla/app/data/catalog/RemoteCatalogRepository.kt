@@ -75,7 +75,8 @@ class RemoteCatalogRepository(
             onFailure = { error ->
                 Result.failure(
                     when (error) {
-                        is ApiClientException -> CatalogRepositoryException(error.code, error.message ?: error.code)
+                        is ApiClientException ->
+                            CatalogRepositoryException(error.code, error.message ?: error.code, error)
                         is CatalogRepositoryException -> error
                         else -> error
                     },

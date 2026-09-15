@@ -23,4 +23,5 @@ class WalletRepositoryException(
     val code: String,
     message: String,
     val httpStatus: Int? = null,
-) : IllegalStateException(message)
+    cause: Throwable? = null,
+) : IllegalStateException(message, cause)
