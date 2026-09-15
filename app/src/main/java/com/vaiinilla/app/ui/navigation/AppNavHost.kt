@@ -516,6 +516,11 @@ fun AppNavHost(
                 }
 
                 StudentTab.ORDERS -> {
+                    // El catálogo también lo necesitan las cards de pedidos
+                    // para resolver producto_id → imagen_url en los thumbnails.
+                    if (orderState.catalog == null && !orderState.loading) {
+                        orderFlowViewModel.refresh()
+                    }
                     if (!orderFlowViewModel.requiresStudentAuth()) {
                         if (operationalState.role != OperationalRole.CLIENT) {
                             operationalViewModel.setRole(OperationalRole.CLIENT)

@@ -2,8 +2,15 @@ package com.vaiinilla.app.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +23,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -45,6 +53,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -55,8 +64,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -73,12 +85,14 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
 import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.discovery.DiscoveryUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -589,135 +603,357 @@ private fun VenueDock(
     val colors = LocalVaiinillaColors.current
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
+    val haptics = rememberVaiinillaHaptics()
+    val reduceMotion = reducedMotion()
     val enabled = selection != null
-    val thumbSize = 50.dp
-    val trackPadding = 8.dp
+    val knobSize = 62.dp
+    val trackPadding = 9.dp
     val dragX = remember { Animatable(0f) }
     var directDragX by remember { mutableFloatStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
+    var isDone by remember { mutableStateOf(false) }
+    var showTip by remember { mutableStateOf(false) }
     var motionJob by remember { mutableStateOf<Job?>(null) }
     var maxDragPx by remember { mutableStateOf(0f) }
+    var labelWidthPx by remember { mutableStateOf(0f) }
+    var trackHeightPx by remember { mutableStateOf(0f) }
 
-    Box(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(start = 16.dp, end = 16.dp, bottom = 14.dp)
-                .clip(RoundedCornerShape(26.dp))
-                .background(colors.ink)
-                .onSizeChanged { newSize ->
-                    maxDragPx =
-                        (
-                            newSize.width -
-                                with(density) { (thumbSize + trackPadding * 2).toPx() }
-                        ).coerceAtLeast(0f)
-                }.semantics { contentDescription = "Desliza para continuar" }
-                .then(
-                    if (enabled) {
-                        Modifier.pointerInput(maxDragPx) {
-                            detectHorizontalDragGestures(
-                                onDragStart = {
-                                    motionJob?.cancel()
-                                    directDragX = dragX.value.coerceIn(0f, maxDragPx)
-                                    isDragging = true
-                                },
-                                onDragEnd = {
-                                    val releaseX = directDragX.coerceIn(0f, maxDragPx)
-                                    motionJob?.cancel()
-                                    motionJob =
-                                        scope.launch {
-                                            dragX.snapTo(releaseX)
-                                            isDragging = false
-                                            if (releaseX >= maxDragPx * 0.7f) {
-                                                dragX.animateTo(
-                                                    maxDragPx,
-                                                    spring(stiffness = Spring.StiffnessMedium),
-                                                )
-                                                onContinue()
-                                                dragX.snapTo(0f)
-                                            } else {
-                                                dragX.animateTo(
-                                                    0f,
-                                                    spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                                                )
-                                            }
-                                        }
-                                },
-                                onDragCancel = {
-                                    val releaseX = directDragX.coerceIn(0f, maxDragPx)
-                                    motionJob?.cancel()
-                                    motionJob =
-                                        scope.launch {
-                                            dragX.snapTo(releaseX)
-                                            isDragging = false
-                                            dragX.animateTo(
-                                                0f,
-                                                spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                                            )
-                                        }
-                                },
-                            ) { change, dragAmount ->
-                                change.consume()
-                                directDragX =
-                                    (directDragX + dragAmount)
-                                        .coerceIn(0f, maxDragPx)
-                            }
-                        }
-                    } else {
-                        Modifier
+    LaunchedEffect(showTip) {
+        if (showTip) {
+            delay(1600)
+            showTip = false
+        }
+    }
+
+    // Knob "nudge" cada ~3.4s mientras está armado — enseña el gesto.
+    val idleMotion = rememberInfiniteTransition(label = "dock-idle")
+    val nudge by idleMotion.animateFloat(
+        initialValue = 0f,
+        targetValue = 0f,
+        animationSpec =
+            infiniteRepeatable(
+                animation =
+                    keyframes {
+                        durationMillis = 3400
+                        0f at 0
+                        0f at 2448
+                        13f at 2720
+                        9f at 3060
+                        0f at 3400
                     },
-                ).padding(horizontal = 8.dp, vertical = 10.dp),
-        contentAlignment = Alignment.CenterStart,
+                repeatMode = RepeatMode.Restart,
+            ),
+        label = "dock-nudge",
+    )
+
+    // Shimmer que recorre el label (herencia del "slide to unlock").
+    val sheen by idleMotion.animateFloat(
+        initialValue = -0.4f,
+        targetValue = 1.4f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(2900, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)),
+                repeatMode = RepeatMode.Restart,
+            ),
+        label = "dock-sheen",
+    )
+    val shimmerBrush =
+        if (enabled && !isDone && !reduceMotion && labelWidthPx > 0f) {
+            Brush.linearGradient(
+                colors =
+                    listOf(
+                        colors.ink.copy(alpha = 0.42f),
+                        colors.ink,
+                        colors.ink.copy(alpha = 0.42f),
+                    ),
+                start = Offset(sheen * labelWidthPx - labelWidthPx * 0.35f, 0f),
+                end = Offset(sheen * labelWidthPx + labelWidthPx * 0.35f, 0f),
+            )
+        } else {
+            null
+        }
+
+    // Chevrons ››› con pulso escalonado.
+    val chevPulse =
+        List(3) { i ->
+            idleMotion.animateFloat(
+                initialValue = 0.14f,
+                targetValue = 0.65f,
+                animationSpec =
+                    infiniteRepeatable(
+                        animation = tween(1700, delayMillis = i * 180),
+                        repeatMode = RepeatMode.Reverse,
+                    ),
+                label = "dock-chev-$i",
+            )
+        }
+
+    // Anillo expansivo al confirmar.
+    val ringProgress = remember { Animatable(0f) }
+    LaunchedEffect(isDone) {
+        if (isDone) {
+            ringProgress.snapTo(0f)
+            ringProgress.animateTo(1f, tween(800, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)))
+        }
+    }
+
+    fun settleKnob(
+        target: Float,
+        onArrive: (() -> Unit)? = null,
     ) {
-        val visibleDragX = if (isDragging) directDragX else dragX.value
-        val labelAlpha =
-            (1f - (visibleDragX / maxDragPx.coerceAtLeast(1f)) * 1.4f).coerceIn(0f, 1f)
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(start = thumbSize)
-                    .alpha(labelAlpha),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                when {
-                    selection == null -> "ELIGE UNA CAFETERÍA"
-                    isActive -> "CAFETERÍA ACTIVA"
-                    else -> "SELECCIONADO"
-                },
-                color = colors.paper.copy(alpha = 0.65f),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 1.6.sp,
-            )
-            Text(
-                selection?.name ?: "—",
-                color = colors.paper,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Black,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 2.dp),
-            )
+        motionJob?.cancel()
+        motionJob =
+            scope.launch {
+                dragX.snapTo(target)
+                isDragging = false
+                if (target >= maxDragPx * 0.72f) {
+                    haptics.click()
+                    dragX.animateTo(
+                        maxDragPx,
+                        spring(stiffness = Spring.StiffnessMedium),
+                    )
+                    isDone = true
+                    delay(if (reduceMotion) 120 else 650)
+                    onContinue()
+                    isDone = false
+                    dragX.snapTo(0f)
+                } else {
+                    dragX.animateTo(
+                        0f,
+                        spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                    )
+                }
+            }
+    }
+
+    Column(modifier = modifier.fillMaxWidth().navigationBarsPadding()) {
+        if (showTip) {
+            Row(
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(bottom = 10.dp)
+                        .clip(RoundedCornerShape(99.dp))
+                        .background(colors.ink)
+                        .padding(horizontal = 13.dp, vertical = 7.dp),
+            ) {
+                Text(
+                    "Desliza → no toques",
+                    color = colors.accent2,
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
         Box(
             modifier =
                 Modifier
-                    .offset { IntOffset(visibleDragX.roundToInt(), 0) }
-                    .size(thumbSize)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(colors.accent)
-                    .alpha(if (enabled) 1f else 0.5f),
-            contentAlignment = Alignment.Center,
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 14.dp)
+                    .height(80.dp)
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(
+                        if (enabled) colors.paper2 else colors.paper2.copy(alpha = 0.6f),
+                    ).border(1.dp, colors.line, RoundedCornerShape(26.dp))
+                    .onSizeChanged { newSize ->
+                        trackHeightPx = newSize.height.toFloat()
+                        maxDragPx =
+                            (
+                                newSize.width -
+                                    with(density) { (knobSize + trackPadding * 2).toPx() }
+                            ).coerceAtLeast(0f)
+                    }.semantics { contentDescription = "Desliza para continuar" }
+                    .pointerInput(maxDragPx, enabled) {
+                        detectTapGestures {
+                            if (!isDone) showTip = true
+                        }
+                    }.then(
+                        if (enabled && !isDone) {
+                            Modifier.pointerInput(maxDragPx) {
+                                detectHorizontalDragGestures(
+                                    onDragStart = {
+                                        motionJob?.cancel()
+                                        showTip = false
+                                        directDragX = dragX.value.coerceIn(0f, maxDragPx)
+                                        isDragging = true
+                                    },
+                                    onDragEnd = {
+                                        val releaseX = directDragX.coerceIn(0f, maxDragPx)
+                                        settleKnob(releaseX)
+                                    },
+                                    onDragCancel = {
+                                        val releaseX = directDragX.coerceIn(0f, maxDragPx)
+                                        settleKnob(0f)
+                                    },
+                                ) { change, dragAmount ->
+                                    change.consume()
+                                    directDragX =
+                                        (directDragX + dragAmount)
+                                            .coerceIn(0f, maxDragPx)
+                                }
+                            }
+                        } else {
+                            Modifier
+                        },
+                    ),
+            contentAlignment = Alignment.CenterStart,
         ) {
-            Icon(
-                Icons.AutoMirrored.Rounded.ArrowForward,
-                contentDescription = null,
-                tint = colors.accentInk,
-                modifier = Modifier.size(18.dp),
+            val knobPx = with(density) { knobSize.toPx() }
+            val padPx = with(density) { trackPadding.toPx() }
+            val nudgePx = with(density) { nudge.dp.toPx() }
+            val baseX = if (isDragging) directDragX else dragX.value
+            val canNudge = enabled && !isDragging && !isDone && !reduceMotion
+            val knobX = baseX + if (canNudge) nudgePx else 0f
+            val progress = (baseX / maxDragPx.coerceAtLeast(1f)).coerceIn(0f, 1f)
+
+            // Relleno lima que crece bajo el knob.
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxHeight()
+                        .width(
+                            with(density) {
+                                (knobX + knobPx + padPx).toDp()
+                            },
+                        ).clip(RoundedCornerShape(26.dp))
+                        .background(
+                            if (enabled) {
+                                Brush.horizontalGradient(
+                                    listOf(colors.accent2, colors.accent),
+                                )
+                            } else {
+                                SolidColor(colors.line)
+                            },
+                        ),
             )
+
+            // Label con shimmer.
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = knobSize + trackPadding + 18.dp, end = 58.dp)
+                        .onSizeChanged { labelWidthPx = it.width.toFloat() }
+                        .alpha(
+                            if (isDone) {
+                                1f
+                            } else {
+                                (1f - progress * 1.8f).coerceIn(0f, 1f)
+                            },
+                        ),
+            ) {
+                val eyebrow =
+                    when {
+                        selection == null -> "ELIGE UNA CAFETERÍA"
+                        isDone -> "CAFETERÍA ACTIVA"
+                        progress >= 0.72f -> "SUELTA PARA CONFIRMAR"
+                        isActive -> "DESLIZA PARA ENTRAR"
+                        else -> "DESLIZA PARA ACTIVAR"
+                    }
+                if (shimmerBrush != null) {
+                    Text(
+                        eyebrow,
+                        style = TextStyle(brush = shimmerBrush),
+                        fontSize = 9.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 2.2.sp,
+                    )
+                    Text(
+                        selection?.name ?: "—",
+                        style = TextStyle(brush = shimmerBrush),
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = (-0.4).sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 1.dp),
+                    )
+                } else {
+                    Text(
+                        eyebrow,
+                        color = colors.ink.copy(alpha = 0.55f),
+                        fontSize = 9.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 2.2.sp,
+                    )
+                    Text(
+                        selection?.name ?: "—",
+                        color = colors.ink,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = (-0.4).sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 1.dp),
+                    )
+                }
+            }
+
+            // Chevrons ››› corriendo a la derecha.
+            if (enabled && !isDone && !reduceMotion) {
+                Row(
+                    modifier =
+                        Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = 18.dp),
+                ) {
+                    chevPulse.forEach { pulse ->
+                        Text(
+                            "›",
+                            color = colors.ink.copy(alpha = pulse.value),
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                        )
+                    }
+                }
+            }
+
+            // Anillo expansivo al confirmar.
+            if (isDone) {
+                val ringScale = 0.9f + ringProgress.value * 1.5f
+                Box(
+                    modifier =
+                        Modifier
+                            .offset { IntOffset(padPx.roundToInt(), 0) }
+                            .align(Alignment.CenterStart)
+                            .padding(start = 0.dp)
+                            .size(knobSize)
+                            .graphicsLayer {
+                                scaleX = ringScale
+                                scaleY = ringScale
+                                alpha = (0.9f * (1f - ringProgress.value))
+                            }.border(
+                                2.5.dp,
+                                colors.accent,
+                                RoundedCornerShape(22.dp),
+                            ),
+                )
+            }
+
+            // Flecha sobre el fill lima (sin cuadro propio).
+            Box(
+                modifier =
+                    Modifier
+                        .offset { IntOffset((knobX + padPx).roundToInt(), 0) }
+                        .size(knobSize),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (isDone) {
+                    Icon(
+                        Icons.Rounded.Check,
+                        contentDescription = null,
+                        tint = colors.accentInk,
+                        modifier = Modifier.size(26.dp),
+                    )
+                } else {
+                    Icon(
+                        Icons.AutoMirrored.Rounded.ArrowForward,
+                        contentDescription = null,
+                        tint = if (enabled) colors.accentInk else colors.muted,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
         }
     }
 }

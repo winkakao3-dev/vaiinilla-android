@@ -23,6 +23,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -102,7 +105,7 @@ private val timelineSteps =
         },
         TimelineStep(OrderState.READY, { _, _ -> "LISTO" }) { destination, _, _ ->
             if (destination == OrderDestination.IN_SPACE) {
-                "El mesero lo llevará a tu mesa."
+                "El personal lo llevará a tu mesa."
             } else {
                 "Recógelo en la barra."
             }
@@ -112,8 +115,31 @@ private val timelineSteps =
         },
     )
 
-private fun destinationDisplayLabel(order: OrderDetail): String =
+internal fun destinationDisplayLabel(order: OrderDetail): String =
     order.summary.space?.name ?: order.summary.destination.label
+
+internal fun trackingStepTitle(
+    state: OrderState,
+    paymentMethod: PaymentMethod,
+    paymentStatus: StripePaymentStatus?,
+): String =
+    timelineSteps
+        .firstOrNull { it.state == state }
+        ?.title
+        ?.invoke(paymentMethod, paymentStatus)
+        ?: state.label.uppercase()
+
+internal fun trackingStepDescription(
+    state: OrderState,
+    destination: OrderDestination,
+    paymentMethod: PaymentMethod,
+    paymentStatus: StripePaymentStatus?,
+): String =
+    timelineSteps
+        .firstOrNull { it.state == state }
+        ?.description
+        ?.invoke(destination, paymentMethod, paymentStatus)
+        ?: state.label
 
 @Composable
 fun OrderTrackingCard(
@@ -321,7 +347,12 @@ private fun TimelineRow(
                     contentAlignment = Alignment.Center,
                 ) {
                     if (isDone || isCurrent) {
-                        Text("✓", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                        Icon(
+                            Icons.Outlined.Check,
+                            contentDescription = null,
+                            tint = colors.ink,
+                            modifier = Modifier.size(15.dp),
+                        )
                     } else {
                         Text(
                             stepNumber.toString(),
