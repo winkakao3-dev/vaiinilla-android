@@ -9,6 +9,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -1444,25 +1445,32 @@ private fun GuideOverlay(
                 bottom = bounds.bottom - rootBounds.top + pad,
             )
         }
-    val duration = if (reduceMotion) 0 else 280
+    val holeSpec =
+        if (reduceMotion) {
+            tween<Float>(0)
+        } else {
+            // One shared spring on all four edges so the spotlight tracks its new target as a single
+            // moving rectangle instead of four independently-timed tweens that can desync at corners.
+            spring(dampingRatio = 0.72f, stiffness = 380f)
+        }
     val left by animateFloatAsState(
         rawBounds?.left ?: 0f,
-        tween(duration, easing = FastOutSlowInEasing),
+        holeSpec,
         label = "assistant-hole-left",
     )
     val top by animateFloatAsState(
         rawBounds?.top ?: 0f,
-        tween(duration, easing = FastOutSlowInEasing),
+        holeSpec,
         label = "assistant-hole-top",
     )
     val right by animateFloatAsState(
         rawBounds?.right ?: 0f,
-        tween(duration, easing = FastOutSlowInEasing),
+        holeSpec,
         label = "assistant-hole-right",
     )
     val bottom by animateFloatAsState(
         rawBounds?.bottom ?: 0f,
-        tween(duration, easing = FastOutSlowInEasing),
+        holeSpec,
         label = "assistant-hole-bottom",
     )
     val pulseTransition = rememberInfiniteTransition(label = "assistant-guide-pulse")
@@ -1509,25 +1517,30 @@ private fun GuideOverlay(
         }
 
         if (rawBounds != null && rootBounds.height > 0f) {
-            val hole = Rect(left, top, right, bottom)
-            val bubbleHeightPx = with(density) { 76.dp.toPx() }
-            val bottomBarPx = with(density) { 82.dp.toPx() }
-            val marginPx = with(density) { 14.dp.toPx() }
-            val belowTop = hole.bottom + marginPx
-            val placeAbove = belowTop + bubbleHeightPx > rootBounds.height - bottomBarPx
-            val bubbleTop =
-                if (placeAbove) {
-                    (hole.top - bubbleHeightPx - marginPx).coerceAtLeast(with(density) { 18.dp.toPx() })
-                } else {
-                    belowTop
-                }
             Surface(
                 modifier =
                     Modifier
                         .padding(horizontal = 20.dp)
                         .fillMaxWidth()
-                        .offset { IntOffset(0, bubbleTop.roundToInt()) }
-                        .semantics {
+                        .offset {
+                            // Computed inside the layout-phase lambda (not the composable body) so the
+                            // spotlight's per-frame spring animation only triggers relayout, not a full
+                            // recomposition of this bubble's Surface/Column/Text subtree every frame.
+                            val hole = Rect(left, top, right, bottom)
+                            val bubbleHeightPx = with(density) { 76.dp.toPx() }
+                            val bottomBarPx = with(density) { 82.dp.toPx() }
+                            val marginPx = with(density) { 14.dp.toPx() }
+                            val belowTop = hole.bottom + marginPx
+                            val placeAbove = belowTop + bubbleHeightPx > rootBounds.height - bottomBarPx
+                            val bubbleTop =
+                                if (placeAbove) {
+                                    (hole.top - bubbleHeightPx - marginPx)
+                                        .coerceAtLeast(with(density) { 18.dp.toPx() })
+                                } else {
+                                    belowTop
+                                }
+                            IntOffset(0, bubbleTop.roundToInt())
+                        }.semantics {
                             liveRegion = LiveRegionMode.Polite
                             contentDescription = "Paso ${stepIndex + 1} de ${guide.steps.size}. ${step.text}"
                         },

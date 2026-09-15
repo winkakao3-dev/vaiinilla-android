@@ -8,6 +8,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -498,7 +499,7 @@ fun AuthAccessField(
     val isPassword = kind == AuthAccessFieldKind.Password
     val lift by animateDpAsState(
         targetValue = if (focused) (-1).dp else 0.dp,
-        animationSpec = tween(200, easing = AuthEase),
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 500f),
         label = "fieldLift",
     )
     Column(modifier = modifier.fillMaxWidth()) {
@@ -622,12 +623,12 @@ fun AuthInkSubmitButton(
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (pressed && enabled) 0.98f else 1f,
-        animationSpec = tween(180, easing = AuthEase),
+        animationSpec = if (pressed && enabled) tween(70) else spring(dampingRatio = 0.45f, stiffness = 650f),
         label = "submitScale",
     )
     val arrowShift by animateDpAsState(
         targetValue = if (pressed && enabled) 4.dp else 0.dp,
-        animationSpec = tween(180, easing = AuthEase),
+        animationSpec = if (pressed && enabled) tween(70) else spring(dampingRatio = 0.45f, stiffness = 650f),
         label = "submitArrow",
     )
     val pane =
@@ -730,7 +731,7 @@ private fun AuthRevealButton(
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (pressed) 0.96f else 1f,
-        animationSpec = tween(180, easing = AuthEase),
+        animationSpec = if (pressed) tween(70) else spring(dampingRatio = 0.42f, stiffness = 700f),
         label = "revealScale",
     )
     Box(
@@ -769,7 +770,7 @@ private fun AuthPressIcon(
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (pressed) 0.96f else 1f,
-        animationSpec = tween(180, easing = AuthEase),
+        animationSpec = if (pressed) tween(70) else spring(dampingRatio = 0.42f, stiffness = 700f),
         label = "backScale",
     )
     Box(

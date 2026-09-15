@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.getValue
@@ -46,11 +47,11 @@ fun Modifier.physicalPress(
                 if (reducedMotion()) {
                     tween(durationMillis = 0)
                 } else if (pressed) {
-                    tween(durationMillis = 90)
-                } else if (scale == PhysicalPressScale.Nav) {
-                    tween(durationMillis = 120)
+                    // Press-down stays a quick tween: the finger is already there, no bounce needed on the way in.
+                    tween(durationMillis = 70)
                 } else {
-                    tween(durationMillis = 240)
+                    // Release springs back so the surface feels physical instead of snapping linearly to rest.
+                    spring(dampingRatio = 0.42f, stiffness = 700f)
                 },
             label = "physical-press-scale",
         )

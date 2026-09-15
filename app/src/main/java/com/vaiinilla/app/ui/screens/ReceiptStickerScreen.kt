@@ -110,7 +110,7 @@ fun ReceiptStickerScreen(
 
     val enterScale by animateFloatAsState(
         targetValue = if (entered) 1f else 0.96f,
-        animationSpec = if (reducedMotion) tween(0) else tween(220),
+        animationSpec = if (reducedMotion) tween(0) else spring(dampingRatio = 0.68f, stiffness = 340f),
         label = "sticker-enter-scale",
     )
     val enterAlpha by animateFloatAsState(

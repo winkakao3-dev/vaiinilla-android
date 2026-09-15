@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.screens
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -353,7 +354,8 @@ private fun ChatBubble(
     var visible by remember(message) { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (visible || reduceMotion) 1f else 0.94f,
-        animationSpec = tween(durationMillis = if (reduceMotion) 0 else 180),
+        animationSpec =
+            if (reduceMotion) tween(0) else spring(dampingRatio = 0.62f, stiffness = 380f),
         label = "chat-bubble-scale",
     )
     val alpha by animateFloatAsState(

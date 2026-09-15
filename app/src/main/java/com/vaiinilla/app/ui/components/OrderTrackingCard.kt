@@ -8,6 +8,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -304,7 +305,15 @@ private fun TimelineRow(
     )
     val checkScale by animateFloatAsState(
         targetValue = if (isDone || isCurrent) 1f else 0.72f,
-        animationSpec = floatSpec,
+        animationSpec =
+            if (reduceMotion) {
+                floatSpec
+            } else {
+                spring(
+                    dampingRatio = 0.5f,
+                    stiffness = 380f,
+                )
+            },
         label = "track-check",
     )
     val infinite = rememberInfiniteTransition(label = "track-halo")
