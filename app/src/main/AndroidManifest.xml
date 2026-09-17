@@ -10,6 +10,7 @@
     <application
         android:name=".VaiinillaApplication"
         android:allowBackup="false"
+        android:enableOnBackInvokedCallback="true"
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_app_mark"

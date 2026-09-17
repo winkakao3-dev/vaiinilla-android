@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.RepeatMode
@@ -94,6 +95,7 @@ import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
 
 @Composable
@@ -121,7 +123,6 @@ fun DiscoveryScreen(
     val dockHeight = with(LocalDensity.current) { dockHeightPx.toDp() }
 
     BackHandler(enabled = state.pendingSwitch != null) { onDismissSwitch() }
-    BackHandler(enabled = state.pendingSwitch == null && codeSheetOpen) { codeSheetOpen = false }
 
     val activeId = state.selected?.establishment?.id
     val selection =
@@ -1235,11 +1236,36 @@ private fun SpaceCodeSheet(
     val density = LocalDensity.current
     val dismissThresholdPx = with(density) { 90.dp.toPx() }
 
+    // Preview del back predictivo, igual que la ficha de producto: la hoja sigue
+    // al dedo y el scrim se abre para asomar discovery; al soltar se cierra.
+    var backProgress by remember { mutableFloatStateOf(0f) }
+    var backSettleJob by remember { mutableStateOf<Job?>(null) }
+    val backShiftPx = with(density) { 200.dp.toPx() }
+    PredictiveBackHandler(enabled = true) { events ->
+        backSettleJob?.cancel()
+        try {
+            events.collect { event ->
+                backProgress = event.progress
+            }
+            backProgress = 0f
+            onCancel()
+        } catch (e: CancellationException) {
+            backSettleJob =
+                coroutineScope.launch {
+                    Animatable(backProgress).animateTo(
+                        targetValue = 0f,
+                        animationSpec = spring(dampingRatio = 0.8f, stiffness = 600f),
+                    ) { backProgress = value }
+                }
+            throw e
+        }
+    }
+
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.54f))
+                .background(Color.Black.copy(alpha = (0.54f * (1f - backProgress * 0.9f)).coerceIn(0f, 1f)))
                 .clickable(onClick = onCancel),
     ) {
         Column(
@@ -1248,7 +1274,7 @@ private fun SpaceCodeSheet(
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .offset {
-                        IntOffset(0, dragOffsetY.value.toInt())
+                        IntOffset(0, (dragOffsetY.value + backShiftPx * backProgress).toInt())
                     }.clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
                     .background(colors.paper)
                     .clickable(enabled = false) {}

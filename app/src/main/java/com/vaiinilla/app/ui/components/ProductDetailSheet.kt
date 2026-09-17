@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.components
 
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
@@ -30,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -88,6 +90,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -95,7 +98,10 @@ import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.ProductOption
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
+import kotlin.math.roundToInt
 
 @Composable
 fun ProductDetailSheet(
@@ -130,6 +136,33 @@ fun ProductDetailSheet(
         if (!dismissing) {
             dismissing = true
             visibility.targetState = false
+        }
+    }
+
+    // Preview del back predictivo: mientras se arrastra desde el borde la ficha
+    // sigue al dedo y el scrim se abre para asomar el catalogo detras. Al soltar
+    // se cierra con la animacion de salida normal; al cancelar vuelve con spring.
+    val scope = rememberCoroutineScope()
+    var backProgress by remember { mutableFloatStateOf(0f) }
+    var backSettleJob by remember { mutableStateOf<Job?>(null) }
+    val backShiftPx = with(density) { 220.dp.toPx() }
+    PredictiveBackHandler(enabled = true) { events ->
+        backSettleJob?.cancel()
+        try {
+            events.collect { event ->
+                backProgress = if (reduceMotion) 0f else event.progress
+            }
+            backProgress = 0f
+            requestDismiss()
+        } catch (e: CancellationException) {
+            backSettleJob =
+                scope.launch {
+                    Animatable(backProgress).animateTo(
+                        targetValue = 0f,
+                        animationSpec = spring(dampingRatio = 0.8f, stiffness = 600f),
+                    ) { backProgress = value }
+                }
+            throw e
         }
     }
 
@@ -225,7 +258,7 @@ fun ProductDetailSheet(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = scrimAlpha))
+                .background(Color.Black.copy(alpha = (scrimAlpha * (1f - backProgress * 0.9f)).coerceIn(0f, 1f)))
                 .clickable(onClick = ::requestDismiss),
         contentAlignment = Alignment.BottomCenter,
     ) {
@@ -239,6 +272,7 @@ fun ProductDetailSheet(
                             WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
                         ),
                     ).padding(top = 8.dp)
+                    .offset { IntOffset(0, (backShiftPx * backProgress).roundToInt()) }
                     .align(Alignment.BottomCenter),
             enter = enter,
             exit = exit,

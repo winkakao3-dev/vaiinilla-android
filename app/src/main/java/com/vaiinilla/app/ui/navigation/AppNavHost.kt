@@ -2,11 +2,15 @@ package com.vaiinilla.app.ui.navigation
 
 import android.Manifest
 import android.os.Build
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -89,6 +93,9 @@ private data class PendingPickupDelivery(
     val orderId: String,
     val expectedVersion: Int,
 )
+
+private const val POP_ANIMATION_MILLIS = 300
+private const val POP_ENTER_INITIAL_SCALE = 0.92f
 
 @Composable
 fun AppNavHost(
@@ -557,8 +564,22 @@ fun AppNavHost(
             startDestination = Routes.SPLASH,
             enterTransition = { EnterTransition.None },
             exitTransition = { ExitTransition.None },
-            popEnterTransition = { EnterTransition.None },
-            popExitTransition = { ExitTransition.None },
+            // Las transiciones de ida quedan instantaneas a proposito; solo el pop
+            // necesita movimiento para que el back predictivo tenga algo que
+            // previsualizar mientras se arrastra desde el borde.
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(POP_ANIMATION_MILLIS)) +
+                    scaleIn(
+                        initialScale = POP_ENTER_INITIAL_SCALE,
+                        animationSpec = tween(POP_ANIMATION_MILLIS),
+                    )
+            },
+            popExitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = tween(POP_ANIMATION_MILLIS),
+                ) + fadeOut(animationSpec = tween(POP_ANIMATION_MILLIS))
+            },
         ) {
             composable(Routes.SPLASH) {
                 LaunchedEffect(Unit) {
@@ -1366,9 +1387,9 @@ fun AppNavHost(
         }
     }
 
-    BackHandler(enabled = orderState.selectedProductId != null) {
-        orderFlowViewModel.closeProduct()
-    }
+    // La ficha de producto maneja su propio back predictivo dentro de
+    // ProductDetailSheet; no registrar otro BackHandler aqui porque le
+    // ganaria por orden de composicion y mataria el preview.
 
     if (walletUserQrOpen) {
         QrScannerDialog(

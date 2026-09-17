@@ -1,10 +1,12 @@
 package com.vaiinilla.app.ui.screens
 
-import androidx.activity.compose.BackHandler
+import androidx.activity.BackEventCompat
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
@@ -34,6 +36,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -59,7 +62,10 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -70,12 +76,14 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -114,6 +122,10 @@ import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -140,11 +152,36 @@ fun StudentTrackingScreen(
 
     val selected = state.selectedOrder
     var showAllPast by rememberSaveable { mutableStateOf(false) }
-    BackHandler(enabled = selected != null) {
-        onBackFromSelectedOrder()
-    }
     val colors = LocalVaiinillaColors.current
     val reduceMotion = reducedMotion()
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    // Preview del back predictivo en el detalle: el contenido sigue al dedo
+    // hacia el borde de origen y se atenua; al soltar vuelve a la lista.
+    var detailBackProgress by remember { mutableFloatStateOf(0f) }
+    var detailBackSign by remember { mutableFloatStateOf(1f) }
+    var detailBackSettleJob by remember { mutableStateOf<Job?>(null) }
+    val detailBackShiftPx = with(density) { 120.dp.toPx() }
+    PredictiveBackHandler(enabled = selected != null) { events ->
+        detailBackSettleJob?.cancel()
+        try {
+            events.collect { event ->
+                detailBackSign = if (event.swipeEdge == BackEventCompat.EDGE_LEFT) 1f else -1f
+                detailBackProgress = if (reduceMotion) 0f else event.progress
+            }
+            detailBackProgress = 0f
+            onBackFromSelectedOrder()
+        } catch (e: CancellationException) {
+            detailBackSettleJob =
+                scope.launch {
+                    Animatable(detailBackProgress).animateTo(
+                        targetValue = 0f,
+                        animationSpec = spring(dampingRatio = 0.8f, stiffness = 600f),
+                    ) { detailBackProgress = value }
+                }
+            throw e
+        }
+    }
     Box(
         modifier =
             Modifier
@@ -161,7 +198,17 @@ fun StudentTrackingScreen(
         ) {
             AnimatedContent(
                 targetState = selected?.summary?.id,
-                modifier = Modifier.fillMaxSize(),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .offset {
+                            IntOffset(
+                                (detailBackShiftPx * detailBackSign * detailBackProgress).roundToInt(),
+                                0,
+                            )
+                        }.graphicsLayer {
+                            alpha = 1f - detailBackProgress * 0.12f
+                        },
                 transitionSpec = {
                     if (reduceMotion) {
                         fadeIn(animationSpec = tween(0)) togetherWith fadeOut(animationSpec = tween(0))
