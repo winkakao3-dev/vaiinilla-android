@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -40,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -147,6 +149,7 @@ fun OrderTrackingCard(
     order: OrderDetail,
     modifier: Modifier = Modifier,
     showEyebrow: Boolean = true,
+    leadingImageUrl: String? = null,
     onClick: (() -> Unit)? = null,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -174,11 +177,14 @@ fun OrderTrackingCard(
         color = cardBg,
         shape = RoundedCornerShape(26.dp),
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top,
+        Row(
+            modifier = Modifier.padding(18.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Column {
                     if (showEyebrow) {
@@ -198,6 +204,57 @@ fun OrderTrackingCard(
                         modifier = Modifier.padding(top = if (showEyebrow) 4.dp else 0.dp),
                     )
                 }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(moneyLabel(order.summary.total), color = cardText.copy(alpha = 0.82f), fontSize = 13.sp)
+                    Text(destinationDisplayLabel(order), color = cardText.copy(alpha = 0.82f), fontSize = 13.sp)
+                }
+                Text(
+                    paymentMethodLabel(order.summary.paymentMethod),
+                    color = cardText.copy(alpha = 0.82f),
+                    fontSize = 13.sp,
+                )
+            }
+
+            if (leadingImageUrl != null) {
+                Column(
+                    horizontalAlignment = Alignment.End,
+                ) {
+                    Surface(
+                        color = badgeBg,
+                        shape = RoundedCornerShape(11.dp),
+                    ) {
+                        Text(
+                            text =
+                                order.summary.state.label
+                                    .uppercase(),
+                            color = if (isReady) colors.accentInk else Color(0xFF171812),
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 0.55.sp,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                            maxLines = 1,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(7.dp))
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(104.dp)
+                                .clip(RoundedCornerShape(22.dp))
+                                .background(Color.White.copy(alpha = 0.08f)),
+                    ) {
+                        ProductImage(
+                            imageUrl = leadingImageUrl,
+                            contentDescription = "Producto del pedido",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                        )
+                    }
+                }
+            } else {
                 Surface(
                     color = badgeBg,
                     shape = RoundedCornerShape(12.dp),
@@ -213,21 +270,6 @@ fun OrderTrackingCard(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                     )
                 }
-            }
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Text(moneyLabel(order.summary.total), color = cardText.copy(alpha = 0.82f), fontSize = 13.sp)
-                Text(destinationDisplayLabel(order), color = cardText.copy(alpha = 0.82f), fontSize = 13.sp)
-                Text(
-                    paymentMethodLabel(order.summary.paymentMethod),
-                    color = cardText.copy(alpha = 0.82f),
-                    fontSize = 13.sp,
-                )
             }
         }
     }

@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
@@ -16,6 +17,11 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -138,6 +144,7 @@ fun StudentTrackingScreen(
         onBackFromSelectedOrder()
     }
     val colors = LocalVaiinillaColors.current
+    val reduceMotion = reducedMotion()
     Box(
         modifier =
             Modifier
@@ -152,155 +159,217 @@ fun StudentTrackingScreen(
             },
             modifier = Modifier.fillMaxSize(),
         ) {
-            LazyColumn(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding(),
-                contentPadding =
-                    PaddingValues(
-                        start = 20.dp,
-                        end = 20.dp,
-                        top = 18.dp,
-                        bottom = VaiinillaBottomNavClearance + 48.dp,
-                    ),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                item {
-                    Column {
-                        Text("Mis pedidos", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 28.sp)
-                        orderState.guestVenue?.establishment?.name?.let { venueName ->
-                            Text(
-                                venueName,
-                                color = colors.muted,
-                                fontSize = 13.sp,
-                                modifier = Modifier.padding(top = 2.dp),
+            AnimatedContent(
+                targetState = selected?.summary?.id,
+                modifier = Modifier.fillMaxSize(),
+                transitionSpec = {
+                    if (reduceMotion) {
+                        fadeIn(animationSpec = tween(0)) togetherWith fadeOut(animationSpec = tween(0))
+                    } else if (targetState != null) {
+                        (
+                            slideInVertically(
+                                animationSpec = spring(dampingRatio = 0.82f, stiffness = 430f),
+                                initialOffsetY = { height -> height / 12 },
+                            ) +
+                                fadeIn(animationSpec = tween(durationMillis = 190)) +
+                                scaleIn(
+                                    initialScale = 0.985f,
+                                    animationSpec = spring(dampingRatio = 0.78f, stiffness = 520f),
+                                )
+                        ) togetherWith
+                            (
+                                slideOutVertically(
+                                    animationSpec = tween(durationMillis = 150),
+                                    targetOffsetY = { height -> -height / 22 },
+                                ) +
+                                    fadeOut(animationSpec = tween(durationMillis = 125)) +
+                                    scaleOut(targetScale = 0.992f, animationSpec = tween(durationMillis = 150))
                             )
+                    } else {
+                        (
+                            slideInVertically(
+                                animationSpec = spring(dampingRatio = 0.84f, stiffness = 440f),
+                                initialOffsetY = { height -> -height / 18 },
+                            ) +
+                                fadeIn(animationSpec = tween(durationMillis = 190)) +
+                                scaleIn(
+                                    initialScale = 0.992f,
+                                    animationSpec = spring(dampingRatio = 0.8f, stiffness = 520f),
+                                )
+                        ) togetherWith
+                            (
+                                slideOutVertically(
+                                    animationSpec = tween(durationMillis = 145),
+                                    targetOffsetY = { height -> height / 14 },
+                                ) +
+                                    fadeOut(animationSpec = tween(durationMillis = 120)) +
+                                    scaleOut(targetScale = 0.985f, animationSpec = tween(durationMillis = 145))
+                            )
+                    }
+                },
+                label = "orders-overview-detail",
+            ) { animatedSelectedId ->
+                val animatedSelected =
+                    animatedSelectedId?.let { id ->
+                        state.orders.firstOrNull { it.summary.id == id }
+                            ?: selected?.takeIf { it.summary.id == id }
+                    }
+                LazyColumn(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .statusBarsPadding(),
+                    contentPadding =
+                        PaddingValues(
+                            start = 20.dp,
+                            end = 20.dp,
+                            top = 18.dp,
+                            bottom = VaiinillaBottomNavClearance + 48.dp,
+                        ),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    item {
+                        Column {
+                            Text("Mis pedidos", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 28.sp)
+                            orderState.guestVenue?.establishment?.name?.let { venueName ->
+                                Text(
+                                    venueName,
+                                    color = colors.muted,
+                                    fontSize = 13.sp,
+                                    modifier = Modifier.padding(top = 2.dp),
+                                )
+                            }
                         }
                     }
-                }
 
-                when {
-                    state.orders.isEmpty() && state.loading -> {
-                        items(3) { OrderTrackingSkeleton() }
-                    }
-                    state.orders.isEmpty() -> {
-                        item {
-                            EmptyState(
-                                icon = Icons.Outlined.ReceiptLong,
-                                title = "Sin pedidos activos",
-                                message = "Cuando confirmes uno aparecerá aquí.",
-                                actionLabel = "Pedir algo",
-                                onAction = onOpenCatalog,
-                            )
+                    when {
+                        state.orders.isEmpty() && state.loading -> {
+                            items(3) { OrderTrackingSkeleton() }
                         }
-                    }
-                    selected != null -> {
-                        item(key = "selected-${selected.summary.id}") {
-                            SwipeToDeleteOrder(
-                                orderFolio = selected.summary.folio.toString(),
-                                onDelete = { onDeleteOrder(selected.summary.id) },
-                            ) {
-                                OrderTrackingCard(order = selected, showEyebrow = true)
+                        state.orders.isEmpty() -> {
+                            item {
+                                EmptyState(
+                                    icon = Icons.Outlined.ReceiptLong,
+                                    title = "Sin pedidos activos",
+                                    message = "Cuando confirmes uno aparecerá aquí.",
+                                    actionLabel = "Pedir algo",
+                                    onAction = onOpenCatalog,
+                                )
                             }
                         }
-                        item {
-                            TrackingSectionHead()
-                        }
-                        item {
-                            OrderTrackingTimeline(
-                                current = selected.summary.state,
-                                destination = selected.summary.destination,
-                                paymentMethod = selected.summary.paymentMethod,
-                                paymentStatus = selected.payment?.status,
-                            )
-                        }
-                        if (selected.summary.state == OrderState.READY) {
-                            item { PickupCodeCard(selected) }
-                        }
-                        item {
-                            Text("Resumen", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
-                        }
-                        item {
-                            OrderDetailSummary(order = selected)
-                        }
-                        item {
-                            Button(
-                                onClick = onViewReceipt,
-                                modifier = Modifier.fillMaxWidth(),
-                                shape =
-                                    androidx.compose.foundation.shape
-                                        .RoundedCornerShape(18.dp),
-                                colors =
-                                    ButtonDefaults.buttonColors(
-                                        containerColor = colors.paper2,
-                                        contentColor = colors.ink,
-                                    ),
-                            ) {
-                                Text("Ver recibo", fontWeight = FontWeight.Black)
-                            }
-                        }
-                    }
-                    else -> {
-                        val activeOrders = state.orders.filter { !it.summary.state.isPast }
-                        val pastOrders = state.orders.filter { it.summary.state.isPast }
-                        if (activeOrders.isNotEmpty()) {
-                            item(key = "section-active") { OrdersSectionLabel("EN CURSO") }
-                            items(activeOrders, key = { it.summary.id }) { order ->
+                        animatedSelected != null -> {
+                            item(key = "selected-${animatedSelected.summary.id}") {
                                 SwipeToDeleteOrder(
-                                    orderFolio = order.summary.folio.toString(),
-                                    onDelete = { onDeleteOrder(order.summary.id) },
+                                    orderFolio = animatedSelected.summary.folio.toString(),
+                                    onDelete = { onDeleteOrder(animatedSelected.summary.id) },
                                 ) {
-                                    ActiveOrderCard(
-                                        order = order,
+                                    OrderTrackingCard(
+                                        order = animatedSelected,
+                                        showEyebrow = true,
                                         leadingImageUrl =
-                                            itemImageUrls(order, orderState.catalog)
+                                            itemImageUrls(animatedSelected, orderState.catalog)
                                                 .firstOrNull { it != null },
-                                        onOpenFull = { onSelectOrder(order.summary.id) },
                                     )
+                                }
+                            }
+                            item {
+                                TrackingSectionHead()
+                            }
+                            item {
+                                OrderTrackingTimeline(
+                                    current = animatedSelected.summary.state,
+                                    destination = animatedSelected.summary.destination,
+                                    paymentMethod = animatedSelected.summary.paymentMethod,
+                                    paymentStatus = animatedSelected.payment?.status,
+                                )
+                            }
+                            if (animatedSelected.summary.state == OrderState.READY) {
+                                item { PickupCodeCard(animatedSelected) }
+                            }
+                            item {
+                                Text("Resumen", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                            }
+                            item {
+                                OrderDetailSummary(order = animatedSelected)
+                            }
+                            item {
+                                Button(
+                                    onClick = onViewReceipt,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape =
+                                        androidx.compose.foundation.shape
+                                            .RoundedCornerShape(18.dp),
+                                    colors =
+                                        ButtonDefaults.buttonColors(
+                                            containerColor = colors.paper2,
+                                            contentColor = colors.ink,
+                                        ),
+                                ) {
+                                    Text("Ver recibo", fontWeight = FontWeight.Black)
                                 }
                             }
                         }
-                        if (pastOrders.isNotEmpty()) {
-                            item(key = "section-past") { OrdersSectionLabel("ANTERIORES") }
-                            items(pastOrders.take(3), key = { it.summary.id }) { order ->
-                                SwipeToDeleteOrder(
-                                    orderFolio = order.summary.folio.toString(),
-                                    onDelete = { onDeleteOrder(order.summary.id) },
-                                ) {
-                                    PastOrderRow(
-                                        order = order,
-                                        imageUrls = itemImageUrls(order, orderState.catalog),
-                                        onClick = { onSelectOrder(order.summary.id) },
-                                    )
-                                }
-                            }
-                            if (showAllPast) {
-                                items(pastOrders.drop(3), key = { it.summary.id }) { order ->
-                                    Box(modifier = Modifier.animateItem()) {
-                                        SwipeToDeleteOrder(
-                                            orderFolio = order.summary.folio.toString(),
-                                            onDelete = { onDeleteOrder(order.summary.id) },
-                                        ) {
-                                            PastOrderRow(
-                                                order = order,
-                                                imageUrls = itemImageUrls(order, orderState.catalog),
-                                                onClick = { onSelectOrder(order.summary.id) },
-                                            )
-                                        }
+                        else -> {
+                            val activeOrders = state.orders.filter { !it.summary.state.isPast }
+                            val pastOrders = state.orders.filter { it.summary.state.isPast }
+                            if (activeOrders.isNotEmpty()) {
+                                item(key = "section-active") { OrdersSectionLabel("EN CURSO") }
+                                items(activeOrders, key = { it.summary.id }) { order ->
+                                    SwipeToDeleteOrder(
+                                        orderFolio = order.summary.folio.toString(),
+                                        onDelete = { onDeleteOrder(order.summary.id) },
+                                    ) {
+                                        ActiveOrderCard(
+                                            order = order,
+                                            leadingImageUrl =
+                                                itemImageUrls(order, orderState.catalog)
+                                                    .firstOrNull { it != null },
+                                            onOpenFull = { onSelectOrder(order.summary.id) },
+                                        )
                                     }
                                 }
                             }
-                            if (pastOrders.size > 3) {
-                                item(key = "section-past-more") {
-                                    ShowMorePastOrdersButton(
-                                        hiddenCount = pastOrders.size - 3,
-                                        expanded = showAllPast,
-                                        onClick = {
-                                            haptics.impact()
-                                            showAllPast = !showAllPast
-                                        },
-                                    )
+                            if (pastOrders.isNotEmpty()) {
+                                item(key = "section-past") { OrdersSectionLabel("ANTERIORES") }
+                                items(pastOrders.take(3), key = { it.summary.id }) { order ->
+                                    SwipeToDeleteOrder(
+                                        orderFolio = order.summary.folio.toString(),
+                                        onDelete = { onDeleteOrder(order.summary.id) },
+                                    ) {
+                                        PastOrderRow(
+                                            order = order,
+                                            imageUrls = itemImageUrls(order, orderState.catalog),
+                                            onClick = { onSelectOrder(order.summary.id) },
+                                        )
+                                    }
+                                }
+                                if (showAllPast) {
+                                    items(pastOrders.drop(3), key = { it.summary.id }) { order ->
+                                        Box(modifier = Modifier.animateItem()) {
+                                            SwipeToDeleteOrder(
+                                                orderFolio = order.summary.folio.toString(),
+                                                onDelete = { onDeleteOrder(order.summary.id) },
+                                            ) {
+                                                PastOrderRow(
+                                                    order = order,
+                                                    imageUrls = itemImageUrls(order, orderState.catalog),
+                                                    onClick = { onSelectOrder(order.summary.id) },
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                if (pastOrders.size > 3) {
+                                    item(key = "section-past-more") {
+                                        ShowMorePastOrdersButton(
+                                            hiddenCount = pastOrders.size - 3,
+                                            expanded = showAllPast,
+                                            onClick = {
+                                                haptics.impact()
+                                                showAllPast = !showAllPast
+                                            },
+                                        )
+                                    }
                                 }
                             }
                         }
