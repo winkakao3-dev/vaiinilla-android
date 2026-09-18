@@ -86,7 +86,7 @@ class DiscoveryCompactLayoutTest {
         composeTestRule.onAllNodesWithText("Cafetería Sur").assertCountEquals(1)
         composeTestRule.onAllNodesWithText("Escanear QR").assertCountEquals(1)
         composeTestRule.onAllNodesWithText("Usar código").assertCountEquals(1)
-        composeTestRule.onNodeWithText("CAFETERÍA ACTIVA").assertIsDisplayed()
+        composeTestRule.onNodeWithText("DESLIZA PARA ENTRAR").assertIsDisplayed()
     }
 
     @Test

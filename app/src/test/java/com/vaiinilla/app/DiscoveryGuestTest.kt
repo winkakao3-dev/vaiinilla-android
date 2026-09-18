@@ -77,7 +77,10 @@ class GuestSessionAndDeepLinkTest {
             "cafeteria-centro",
             MainActivity.establishmentSlugFrom(Uri.parse("https://www.vaiinilla.app/e/cafeteria-centro")),
         )
-        assertNull(MainActivity.establishmentSlugFrom(Uri.parse("https://vaiinilla.app/other")))
+        assertEquals("other", MainActivity.establishmentSlugFrom(Uri.parse("https://vaiinilla.app/other")))
+        assertNull(MainActivity.establishmentSlugFrom(Uri.parse("https://vaiinilla.app/u")))
+        assertNull(MainActivity.establishmentSlugFrom(Uri.parse("https://vaiinilla.app/e")))
+        assertNull(MainActivity.establishmentSlugFrom(Uri.parse("https://vaiinilla.app/invitaciones")))
         assertNull(MainActivity.establishmentSlugFrom(Uri.parse("http://vaiinilla.app/e/cafeteria-centro")))
         assertNull(MainActivity.establishmentSlugFrom(Uri.parse("https://vaiinilla.app/e/cafeteria-centro/extra")))
         assertNull(MainActivity.establishmentSlugFrom(Uri.parse("https://user@vaiinilla.app/e/cafeteria-centro")))

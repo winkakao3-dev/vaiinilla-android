@@ -141,7 +141,8 @@ val seedPasswordMesero =
 val releaseVersionProps =
     rootProject.file("version.properties").let { propsFile ->
         if (propsFile.exists()) {
-            propsFile.readLines()
+            propsFile
+                .readLines()
                 .filter { it.contains("=") && !it.trimStart().startsWith("#") }
                 .associate { it.substringBefore("=").trim() to it.substringAfter("=").trim() }
         } else {
@@ -409,17 +410,23 @@ tasks.register("bumpReleaseVersionCode") {
     doLast {
         val lines = if (propsFile.exists()) propsFile.readLines() else emptyList()
         val current =
-            lines.firstOrNull { it.trimStart().startsWith("vaiinilla.versionCode=") }
-                ?.substringAfter("=")?.trim()?.toIntOrNull() ?: 16
+            lines
+                .firstOrNull { it.trimStart().startsWith("vaiinilla.versionCode=") }
+                ?.substringAfter("=")
+                ?.trim()
+                ?.toIntOrNull() ?: 16
         val next = current + 1
         val updated =
             lines.map {
                 if (it.trimStart().startsWith("vaiinilla.versionCode=")) "vaiinilla.versionCode=$next" else it
             }
-        propsFile.writeText(
-            (if (lines.any { it.trimStart().startsWith("vaiinilla.versionCode=") }) updated else lines + "vaiinilla.versionCode=$next")
-                .joinToString("\n") + "\n",
-        )
+        val finalLines =
+            if (lines.any { it.trimStart().startsWith("vaiinilla.versionCode=") }) {
+                updated
+            } else {
+                lines + "vaiinilla.versionCode=$next"
+            }
+        propsFile.writeText(finalLines.joinToString("\n") + "\n")
         println("vaiinilla.versionCode -> $next")
     }
 }

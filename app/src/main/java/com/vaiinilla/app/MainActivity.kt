@@ -139,10 +139,17 @@ class MainActivity : ComponentActivity() {
         fun establishmentSlugFrom(uri: Uri): String? {
             if (!isTrustedAppUri(uri)) return null
             val segments = uri.pathSegments
-            if (segments.size != 2 || segments[0] != "e") return null
-            return segments[1]
-                .trim()
-                .takeIf { it.length in 1..MAX_ESTABLISHMENT_SLUG_LENGTH && ESTABLISHMENT_SLUG.matches(it) }
+            val slug =
+                when {
+                    segments.size == 1 -> segments[0]
+                    segments.size == 2 && segments[0] == "e" -> segments[1]
+                    else -> return null
+                }.trim()
+            return slug.takeIf {
+                it.length in 1..MAX_ESTABLISHMENT_SLUG_LENGTH &&
+                    ESTABLISHMENT_SLUG.matches(it) &&
+                    it !in RESERVED_PATH_ROOTS
+            }
         }
 
         fun spaceTokenFrom(intent: Intent?): String? {

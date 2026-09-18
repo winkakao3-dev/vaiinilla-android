@@ -25,6 +25,34 @@ class QrPayloadParserTest {
     }
 
     @Test
+    fun `bare establishment slug URL becomes public slug`() {
+        assertEquals(
+            QrPayload.Establishment("cafeteria-centro"),
+            QrPayloadParser.parse("https://vaiinilla.app/cafeteria-centro").getOrThrow(),
+        )
+        assertEquals(
+            QrPayload.Establishment("cafeteria-centro"),
+            QrPayloadParser.parse("https://www.vaiinilla.app/cafeteria-centro").getOrThrow(),
+        )
+    }
+
+    @Test
+    fun `bare reserved root never becomes establishment slug`() {
+        assertEquals(
+            QrPayload.SpaceToken("https://vaiinilla.app/u"),
+            QrPayloadParser.parse("https://vaiinilla.app/u").getOrThrow(),
+        )
+    }
+
+    @Test
+    fun `bare slug with invalid characters falls back to opaque token`() {
+        assertEquals(
+            QrPayload.SpaceToken("https://vaiinilla.app/cafe!rio"),
+            QrPayloadParser.parse("https://vaiinilla.app/cafe!rio").getOrThrow(),
+        )
+    }
+
+    @Test
     fun `table QR URL becomes space token`() {
         assertEquals(
             QrPayload.SpaceToken("qr-espacio-a-mesa-4"),

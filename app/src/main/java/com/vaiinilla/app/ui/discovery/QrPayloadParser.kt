@@ -65,6 +65,16 @@ object QrPayloadParser {
             if (isHttpsAppHost && segments.first() == "u") {
                 return@runCatching QrPayload.User(segments.last())
             }
+            if (isHttpsHost && segments.size == 1) {
+                val slug = segments[0]
+                val validSlug =
+                    slug.length in 1..MAX_SPACE_SLUG_LENGTH &&
+                        spaceSlug.matches(slug) &&
+                        slug !in reservedSpaceSlugs
+                if (validSlug) {
+                    return@runCatching QrPayload.Establishment(slug)
+                }
+            }
             if (isHttpsHost && segments.size == 3 && segments[1] == "m") {
                 val slug = segments[0]
                 val token = segments[2]
