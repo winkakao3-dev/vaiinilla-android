@@ -21,6 +21,7 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.StripePaymentStatus
+import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
 import com.vaiinilla.app.domain.usecase.CreateRemoteOrderUseCase
@@ -843,7 +844,65 @@ class OrderFlowViewModel
             ) {
                 return
             }
+            restoreStripeOrderToCart(order, onReady)
+        }
 
+        /**
+         * Escape hatch para un pago Stripe que queda atascado en confirmación:
+         * el contrato no expone una cancelación para el alumno (`transiciones`
+         * es solo staff), así que el abandono es local. El pedido sigue en el
+         * servidor; si el pago se confirma después aparece en Mis pedidos — el
+         * diálogo de confirmación lo advierte antes de salir. Si el backend ya
+         * resolvió el pago, se respeta ese resultado en vez de abandonar.
+         */
+        fun abandonStripePaymentToCart(
+            order: OrderDetail,
+            onReady: () -> Unit,
+        ) {
+            if (
+                order.summary.paymentMethod != PaymentMethod.STRIPE ||
+                _uiState.value.resolvingPendingStripePayment
+            ) {
+                return
+            }
+            _uiState.value = _uiState.value.copy(resolvingPendingStripePayment = true)
+            launchTracked {
+                withContext(Dispatchers.IO) { getOrder(order.summary.id) }.fold(
+                    onSuccess = { latest ->
+                        _uiState.value = _uiState.value.copy(resolvingPendingStripePayment = false)
+                        val status = latest.payment?.status
+                        when {
+                            status in setOf(StripePaymentStatus.FAILED, StripePaymentStatus.CANCELED) ->
+                                restoreStripeOrderToCart(latest, onReady)
+                            latest.isStripePaymentConfirmedByBackend() -> {
+                                updateStripeOrderState(
+                                    order = latest,
+                                    phase = StripePaymentPhase.CONFIRMED,
+                                    message = "Pago confirmado por Vaiinilla.",
+                                )
+                                onReady()
+                            }
+                            else -> restoreStripeOrderToCart(latest, onReady)
+                        }
+                    },
+                    onFailure = { error ->
+                        _uiState.value =
+                            _uiState.value.copy(
+                                resolvingPendingStripePayment = false,
+                                stripePaymentMessage =
+                                    error.toUserFacingMessage(
+                                        "No pudimos verificar el pago. Intenta de nuevo.",
+                                    ),
+                            )
+                    },
+                )
+            }
+        }
+
+        private fun restoreStripeOrderToCart(
+            order: OrderDetail,
+            onReady: () -> Unit,
+        ) {
             val current = _uiState.value
             val productsById =
                 current.catalog

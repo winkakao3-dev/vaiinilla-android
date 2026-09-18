@@ -94,6 +94,8 @@ fun OrderConfirmationScreen(
     onRetryStripePayment: () -> Unit = {},
     onRefreshStripePayment: () -> Unit = {},
     onReturnStripeToCart: (OrderDetail) -> Unit = {},
+    abandoningStripePayment: Boolean = false,
+    onAbandonStripePayment: (OrderDetail) -> Unit = {},
     purchaseCelebration: PurchaseCelebration? = null,
     onPurchaseCelebrationFinished: (String) -> Unit = {},
     screenshotPrinted: Boolean = false,
@@ -131,6 +133,8 @@ fun OrderConfirmationScreen(
                 onRefresh = onRefreshStripePayment,
                 onReturnToCart = { onReturnStripeToCart(order) },
                 onViewOrders = onViewTracking,
+                abandoning = abandoningStripePayment,
+                onAbandon = { onAbandonStripePayment(order) },
             )
             return@Box
         }

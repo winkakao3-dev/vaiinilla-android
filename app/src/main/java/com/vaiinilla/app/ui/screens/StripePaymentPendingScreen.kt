@@ -36,7 +36,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -73,7 +75,10 @@ fun StripePaymentPendingScreen(
     onRefresh: () -> Unit,
     onReturnToCart: () -> Unit,
     onViewOrders: () -> Unit,
+    abandoning: Boolean = false,
+    onAbandon: () -> Unit = {},
 ) {
+    var abandonConfirmOpen by remember { mutableStateOf(false) }
     val reduceMotion = reducedMotion()
     val waiting =
         phase in
@@ -129,198 +134,265 @@ fun StripePaymentPendingScreen(
             )
         }
 
-    Column(
+    Box(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(StripeBg)
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
+                .background(StripeBg),
     ) {
-        Box(
+        Column(
             modifier =
                 Modifier
-                    .size(44.dp)
-                    .border(1.dp, StripeLine, CircleShape)
-                    .physicalPress(
-                        enabled = !(failed || canceled) || !retrying,
-                        onClick = if (failed || canceled) onReturnToCart else onViewOrders,
-                    ),
-            contentAlignment = Alignment.Center,
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = if (failed || canceled) "Volver al carrito" else "Ver mis pedidos",
-                tint = StripeInk,
-            )
-        }
-
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Crossfade(
-                targetState = phase,
-                animationSpec = tween(durationMillis = if (reduceMotion) 0 else 180),
-                label = "stripe-payment-status-transition",
+            Box(
+                modifier =
+                    Modifier
+                        .size(44.dp)
+                        .border(1.dp, StripeLine, CircleShape)
+                        .physicalPress(
+                            enabled = !(failed || canceled) || !retrying,
+                            onClick = if (failed || canceled) onReturnToCart else onViewOrders,
+                        ),
+                contentAlignment = Alignment.Center,
             ) {
-                val displayedWaiting =
-                    it in
-                        setOf(
-                            StripePaymentPhase.READY,
-                            StripePaymentPhase.PRESENTING,
-                            StripePaymentPhase.PENDING,
-                            StripePaymentPhase.PROCESSING_CONFIRMATION,
-                        )
-                val displayedIcon =
-                    when (it) {
-                        StripePaymentPhase.CONFIRMED -> Icons.Outlined.CheckCircle
-                        StripePaymentPhase.FAILED -> Icons.Outlined.ErrorOutline
-                        StripePaymentPhase.CANCELED -> Icons.Outlined.Cancel
-                        StripePaymentPhase.TIMED_OUT -> Icons.Outlined.Refresh
-                        else -> Icons.Outlined.Sync
-                    }
-                val displayedTint =
-                    when (it) {
-                        StripePaymentPhase.FAILED,
-                        StripePaymentPhase.CANCELED,
-                        -> StripeCoral
-                        else -> StripeLime
-                    }
-                Box(
-                    modifier =
-                        Modifier
-                            .size(112.dp)
-                            .graphicsLayer {
-                                val displayedPulse = if (displayedWaiting) pulse else 1f
-                                scaleX = displayedPulse
-                                scaleY = displayedPulse
-                            }.background(StripePanel, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (displayedWaiting) {
-                        CircularProgressIndicator(
-                            color = displayedTint,
-                            strokeWidth = 3.dp,
-                            modifier = Modifier.size(96.dp),
-                        )
-                    }
-                    Icon(
-                        imageVector = displayedIcon,
-                        contentDescription =
-                            when (it) {
-                                StripePaymentPhase.READY -> "Abriendo Stripe"
-                                StripePaymentPhase.PRESENTING -> "Pago abierto en Stripe"
-                                StripePaymentPhase.PENDING,
-                                StripePaymentPhase.PROCESSING_CONFIRMATION,
-                                -> "Pago en verificación"
-                                StripePaymentPhase.CONFIRMED -> "Pago confirmado"
-                                StripePaymentPhase.FAILED -> "Pago no completado"
-                                StripePaymentPhase.CANCELED -> "Pago cancelado"
-                                else -> "Estado del pago"
-                            },
-                        tint = displayedTint,
-                        modifier = Modifier.size(62.dp),
-                    )
-                }
-            }
-            Spacer(Modifier.height(28.dp))
-            Text(
-                text = title,
-                color = StripeInk,
-                fontSize = 28.sp,
-                lineHeight = 32.sp,
-                fontWeight = FontWeight.Black,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.semantics { heading() },
-            )
-            Spacer(Modifier.height(10.dp))
-            Text(
-                text = body,
-                color = StripeMuted,
-                fontSize = 15.sp,
-                lineHeight = 21.sp,
-                textAlign = TextAlign.Center,
-            )
-            if (waiting) {
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    text = "No cierres la app mientras confirmamos.",
-                    color = StripeMuted.copy(alpha = 0.78f),
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Center,
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = if (failed || canceled) "Volver al carrito" else "Ver mis pedidos",
+                    tint = StripeInk,
                 )
             }
-            Spacer(Modifier.height(24.dp))
-            Surface(
+
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                color = StripePanel,
-                shape = RoundedCornerShape(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                Crossfade(
+                    targetState = phase,
+                    animationSpec = tween(durationMillis = if (reduceMotion) 0 else 180),
+                    label = "stripe-payment-status-transition",
                 ) {
-                    Column {
-                        Text(
-                            "Total a pagar",
-                            color = StripeMuted,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
+                    val displayedWaiting =
+                        it in
+                            setOf(
+                                StripePaymentPhase.READY,
+                                StripePaymentPhase.PRESENTING,
+                                StripePaymentPhase.PENDING,
+                                StripePaymentPhase.PROCESSING_CONFIRMATION,
+                            )
+                    val displayedIcon =
+                        when (it) {
+                            StripePaymentPhase.CONFIRMED -> Icons.Outlined.CheckCircle
+                            StripePaymentPhase.FAILED -> Icons.Outlined.ErrorOutline
+                            StripePaymentPhase.CANCELED -> Icons.Outlined.Cancel
+                            StripePaymentPhase.TIMED_OUT -> Icons.Outlined.Refresh
+                            else -> Icons.Outlined.Sync
+                        }
+                    val displayedTint =
+                        when (it) {
+                            StripePaymentPhase.FAILED,
+                            StripePaymentPhase.CANCELED,
+                            -> StripeCoral
+                            else -> StripeLime
+                        }
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(112.dp)
+                                .graphicsLayer {
+                                    val displayedPulse = if (displayedWaiting) pulse else 1f
+                                    scaleX = displayedPulse
+                                    scaleY = displayedPulse
+                                }.background(StripePanel, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (displayedWaiting) {
+                            CircularProgressIndicator(
+                                color = displayedTint,
+                                strokeWidth = 3.dp,
+                                modifier = Modifier.size(96.dp),
+                            )
+                        }
+                        Icon(
+                            imageVector = displayedIcon,
+                            contentDescription =
+                                when (it) {
+                                    StripePaymentPhase.READY -> "Abriendo Stripe"
+                                    StripePaymentPhase.PRESENTING -> "Pago abierto en Stripe"
+                                    StripePaymentPhase.PENDING,
+                                    StripePaymentPhase.PROCESSING_CONFIRMATION,
+                                    -> "Pago en verificación"
+                                    StripePaymentPhase.CONFIRMED -> "Pago confirmado"
+                                    StripePaymentPhase.FAILED -> "Pago no completado"
+                                    StripePaymentPhase.CANCELED -> "Pago cancelado"
+                                    else -> "Estado del pago"
+                                },
+                            tint = displayedTint,
+                            modifier = Modifier.size(62.dp),
                         )
+                    }
+                }
+                Spacer(Modifier.height(28.dp))
+                Text(
+                    text = title,
+                    color = StripeInk,
+                    fontSize = 28.sp,
+                    lineHeight = 32.sp,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.semantics { heading() },
+                )
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = body,
+                    color = StripeMuted,
+                    fontSize = 15.sp,
+                    lineHeight = 21.sp,
+                    textAlign = TextAlign.Center,
+                )
+                if (waiting) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = "No cierres la app mientras confirmamos.",
+                        color = StripeMuted.copy(alpha = 0.78f),
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+                Spacer(Modifier.height(24.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = StripePanel,
+                    shape = RoundedCornerShape(20.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column {
+                            Text(
+                                "Total a pagar",
+                                color = StripeMuted,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                "Pedido #${order.summary.folio}",
+                                color = StripeInk,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Black,
+                            )
+                        }
                         Text(
-                            "Pedido #${order.summary.folio}",
+                            moneyLabel(order.summary.total),
                             color = StripeInk,
-                            fontSize = 14.sp,
+                            fontSize = 24.sp,
                             fontWeight = FontWeight.Black,
                         )
                     }
-                    Text(
-                        moneyLabel(order.summary.total),
-                        color = StripeInk,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Black,
+                }
+            }
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                when {
+                    timedOut -> {
+                        StripeActionButton(
+                            label = "Actualizar estado",
+                            onClick = onRefresh,
+                            enabled = !abandoning,
+                        )
+                    }
+                    failed || canceled -> {
+                        StripeActionButton(
+                            label = if (retrying) "Preparando pago…" else "Reintentar pago",
+                            onClick = onRetry,
+                            enabled = !retrying,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        StripeSecondaryAction(
+                            label = "Volver al carrito",
+                            onClick = onReturnToCart,
+                            enabled = !retrying,
+                        )
+                    }
+                    else -> {
+                        StripeActionButton(
+                            label = "Ver mis pedidos",
+                            onClick = onViewOrders,
+                            enabled = !abandoning,
+                        )
+                    }
+                }
+                if (timedOut) {
+                    Spacer(Modifier.height(10.dp))
+                    StripeSecondaryAction(
+                        label = "Ver mis pedidos",
+                        onClick = onViewOrders,
+                        enabled = !abandoning,
+                    )
+                }
+                if (waiting || timedOut) {
+                    Spacer(Modifier.height(10.dp))
+                    StripeSecondaryAction(
+                        label = if (abandoning) "Cancelando…" else "Cancelar pago",
+                        onClick = { abandonConfirmOpen = true },
+                        enabled = !abandoning,
                     )
                 }
             }
         }
 
-        Column(modifier = Modifier.fillMaxWidth()) {
-            when {
-                timedOut -> {
-                    StripeActionButton(
-                        label = "Actualizar estado",
-                        onClick = onRefresh,
-                        enabled = true,
-                    )
+        if (abandonConfirmOpen) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.62f))
+                        .physicalPress(onClick = { abandonConfirmOpen = false })
+                        .padding(24.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Surface(
+                    color = StripePanel,
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            "¿Salir de este pago?",
+                            color = StripeInk,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "El pedido #${order.summary.folio} queda guardado. " +
+                                "Si Stripe confirma el pago después, aparecerá en Mis pedidos.",
+                            color = StripeMuted,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp,
+                        )
+                        Spacer(Modifier.height(18.dp))
+                        StripeActionButton(
+                            label = "Salir y volver al carrito",
+                            onClick = {
+                                abandonConfirmOpen = false
+                                onAbandon()
+                            },
+                            enabled = true,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        StripeSecondaryAction(
+                            label = "Seguir esperando",
+                            onClick = { abandonConfirmOpen = false },
+                        )
+                    }
                 }
-                failed || canceled -> {
-                    StripeActionButton(
-                        label = if (retrying) "Preparando pago…" else "Reintentar pago",
-                        onClick = onRetry,
-                        enabled = !retrying,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    StripeSecondaryAction(
-                        label = "Volver al carrito",
-                        onClick = onReturnToCart,
-                        enabled = !retrying,
-                    )
-                }
-                else -> {
-                    StripeActionButton(
-                        label = "Ver mis pedidos",
-                        onClick = onViewOrders,
-                        enabled = true,
-                    )
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-            if (timedOut) {
-                StripeSecondaryAction(label = "Ver mis pedidos", onClick = onViewOrders)
             }
         }
     }
