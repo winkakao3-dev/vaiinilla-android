@@ -62,8 +62,8 @@ class EnvironmentSeparationTest {
 
         val prodContent = File(projectDir, "app/src/prod/google-services.json").readText()
         assertTrue(
-            "Production google-services.json must support com.vaiinilla.app",
-            prodContent.contains("com.vaiinilla.app"),
+            "Production google-services.json must support vaiinilla.innovapro.app",
+            prodContent.contains("vaiinilla.innovapro.app"),
         )
         assertFalse(
             "Production google-services.json must not have dev suffix",

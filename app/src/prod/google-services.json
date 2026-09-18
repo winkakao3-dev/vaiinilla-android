@@ -56,6 +56,58 @@
           ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1063589785442:android:7a2678ecdf3bf1a855463b",
+        "android_client_info": {
+          "package_name": "vaiinilla.innovapro.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1063589785442-dk5i60elp3ns3l0mdi9gemmt0mvm34sk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "vaiinilla.innovapro.app",
+            "certificate_hash": "fe6f079c664be73abb44aea0e252ea98b79d99e7"
+          }
+        },
+        {
+          "client_id": "1063589785442-gjqi2q9t99tfsrlhnag57jbqtij1qaan.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "vaiinilla.innovapro.app",
+            "certificate_hash": "707190db0a625ef7d2f9969da1149e6f80acef43"
+          }
+        },
+        {
+          "client_id": "1063589785442-jr46q61ji1q7h0omdsf8cpsug4qu5fqp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8-IkBXV9M67ZlmvEJazmUmx6AgL31Xrk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1063589785442-jr46q61ji1q7h0omdsf8cpsug4qu5fqp.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1063589785442-ij78mqsi8gch66eboc2v95eltqtvp51k.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.innovapro.vaiinilla"
+              }
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"

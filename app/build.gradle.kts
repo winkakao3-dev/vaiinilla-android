@@ -138,13 +138,25 @@ val seedPasswordCocina =
 val seedPasswordMesero =
     readConfig("vaiinillaSeedPasswordMesero", "VAIINILLA_SEED_PASSWORD_MESERO", "")
 
+val releaseVersionProps =
+    rootProject.file("version.properties").let { propsFile ->
+        if (propsFile.exists()) {
+            propsFile.readLines()
+                .filter { it.contains("=") && !it.trimStart().startsWith("#") }
+                .associate { it.substringBefore("=").trim() to it.substringAfter("=").trim() }
+        } else {
+            emptyMap()
+        }
+    }
 val selectedVersionCode =
     providers.gradleProperty("vaiinillaVersionCode").orNull
         ?: providers.environmentVariable("VAIINILLA_VERSION_CODE").orNull
+        ?: releaseVersionProps["vaiinilla.versionCode"]
         ?: "16"
 val selectedVersionName =
     providers.gradleProperty("vaiinillaVersionName").orNull
         ?: providers.environmentVariable("VAIINILLA_VERSION_NAME").orNull
+        ?: releaseVersionProps["vaiinilla.versionName"]
         ?: "0.5.0"
 
 android {
@@ -180,6 +192,7 @@ android {
         }
         create("prod") {
             dimension = "environment"
+            applicationId = "vaiinilla.innovapro.app"
             buildConfigField("String", "ENVIRONMENT_NAME", "\"production\"")
             val prodUrl = if (releaseApiBaseUrl.isNotBlank()) releaseApiBaseUrl else productionApiBaseUrl
             buildConfigField("String", "API_BASE_URL", "\"$prodUrl\"")
@@ -387,4 +400,26 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.hilt.android.testing)
     kspAndroidTest(libs.hilt.compiler)
+}
+
+tasks.register("bumpReleaseVersionCode") {
+    description = "Increments vaiinilla.versionCode in version.properties for the next release build."
+    group = "release"
+    val propsFile = rootProject.file("version.properties")
+    doLast {
+        val lines = if (propsFile.exists()) propsFile.readLines() else emptyList()
+        val current =
+            lines.firstOrNull { it.trimStart().startsWith("vaiinilla.versionCode=") }
+                ?.substringAfter("=")?.trim()?.toIntOrNull() ?: 16
+        val next = current + 1
+        val updated =
+            lines.map {
+                if (it.trimStart().startsWith("vaiinilla.versionCode=")) "vaiinilla.versionCode=$next" else it
+            }
+        propsFile.writeText(
+            (if (lines.any { it.trimStart().startsWith("vaiinilla.versionCode=") }) updated else lines + "vaiinilla.versionCode=$next")
+                .joinToString("\n") + "\n",
+        )
+        println("vaiinilla.versionCode -> $next")
+    }
 }
