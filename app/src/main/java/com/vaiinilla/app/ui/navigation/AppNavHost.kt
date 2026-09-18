@@ -46,6 +46,7 @@ import com.vaiinilla.app.data.auth.student.GoogleSignInHelper
 import com.vaiinilla.app.data.auth.student.GoogleSignInUnavailableException
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.account.AccountDeletionViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
@@ -552,6 +553,15 @@ fun AppNavHost(
                     if (studentAuthState.session?.emailVerified == true) {
                         walletViewModel.refreshIfStale()
                     }
+                    // El vacío muestra "Pedidos anteriores": si el usuario entra
+                    // a Carrito antes que a Pedidos, las órdenes aún no cargan.
+                    if (!orderFlowViewModel.requiresStudentAuth()) {
+                        if (operationalState.role != OperationalRole.CLIENT) {
+                            operationalViewModel.setRole(OperationalRole.CLIENT)
+                        } else if (operationalState.orders.isEmpty() && !operationalState.loading) {
+                            operationalViewModel.refresh()
+                        }
+                    }
                 }
 
                 StudentTab.ASSISTANT -> Unit
@@ -962,6 +972,16 @@ fun AppNavHost(
                     onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
                     isRefreshing = orderState.refreshing,
                     onRefresh = orderFlowViewModel::refreshOperationalStatus,
+                    recentOrders =
+                        operationalState.orders
+                            .filter {
+                                it.summary.state == OrderState.DELIVERED ||
+                                    it.summary.state.isTerminalWithoutDelivery
+                            }.take(3),
+                    onSelectOrder = { orderId ->
+                        operationalViewModel.selectOrder(orderId)
+                        navController.navigateStudent(Routes.STUDENT_TRACKING)
+                    },
                 )
             }
 
@@ -1217,6 +1237,16 @@ fun AppNavHost(
                     onRefreshStripePayment = orderFlowViewModel::refreshStripePaymentStatus,
                     onReturnStripeToCart = { order ->
                         orderFlowViewModel.returnFailedStripeOrderToCart(order) {
+                            val returnedToExistingCart =
+                                navController.popBackStack(Routes.CART, inclusive = false)
+                            if (!returnedToExistingCart) {
+                                navController.navigateStudent(Routes.CART)
+                            }
+                        }
+                    },
+                    abandoningStripePayment = orderState.resolvingPendingStripePayment,
+                    onAbandonStripePayment = { order ->
+                        orderFlowViewModel.abandonStripePaymentToCart(order) {
                             val returnedToExistingCart =
                                 navController.popBackStack(Routes.CART, inclusive = false)
                             if (!returnedToExistingCart) {

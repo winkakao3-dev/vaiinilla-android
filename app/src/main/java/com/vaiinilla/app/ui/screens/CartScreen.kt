@@ -1,9 +1,15 @@
 package com.vaiinilla.app.ui.screens
 
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.EaseInOutSine
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,6 +17,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -40,15 +47,17 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Payments
-import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -67,8 +76,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -76,19 +88,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.R
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDestination
+import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.components.CheckoutDestinationPicker
 import com.vaiinilla.app.ui.components.CheckoutSpaceOption
 import com.vaiinilla.app.ui.components.CheckoutSpacePicker
-import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
@@ -125,6 +138,8 @@ fun CartScreen(
     onOpenAccount: () -> Unit = {},
     isRefreshing: Boolean = false,
     onRefresh: () -> Unit = {},
+    recentOrders: List<OrderDetail> = emptyList(),
+    onSelectOrder: (String) -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -218,7 +233,7 @@ fun CartScreen(
             }
 
             if (state.cartLines.isEmpty()) {
-                item { EmptyCart(onMenu) }
+                item { EmptyCart(onMenu, recentOrders, onSelectOrder) }
             } else {
                 item {
                     CartSectionHead("Pedido", productCountLabel)
@@ -1341,14 +1356,223 @@ private fun ErrorBanner(message: String) {
 }
 
 @Composable
-private fun EmptyCart(onMenu: () -> Unit) {
-    EmptyState(
-        icon = Icons.Outlined.ShoppingCart,
-        title = "Tu pedido está vacío",
-        message = "Agrega algo del menú para empezar.",
-        actionLabel = "Ver menú",
-        onAction = onMenu,
+private fun EmptyCart(
+    onMenu: () -> Unit,
+    recentOrders: List<OrderDetail>,
+    onSelectOrder: (String) -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        EmptyCartMascotScene()
+        Text(
+            "¿Qué se te antoja?",
+            color = colors.ink,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Black,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            "Pide algo del menú y aparece aquí.",
+            color = colors.muted,
+            fontSize = 16.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        Button(
+            onClick = onMenu,
+            colors =
+                ButtonDefaults.buttonColors(
+                    containerColor = colors.accent,
+                    contentColor = colors.accentInk,
+                ),
+            modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+            shape = RoundedCornerShape(18.dp),
+        ) {
+            Text("Ver menú", fontWeight = FontWeight.Black)
+        }
+
+        if (recentOrders.isNotEmpty()) {
+            Text(
+                "PEDIDOS ANTERIORES",
+                color = colors.muted,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.2.sp,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 28.dp, bottom = 10.dp),
+            )
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = colors.paper2,
+                shape = RoundedCornerShape(20.dp),
+            ) {
+                Column {
+                    recentOrders.forEachIndexed { index, order ->
+                        RecentOrderRow(
+                            order = order,
+                            onClick = { onSelectOrder(order.summary.id) },
+                        )
+                        if (index != recentOrders.lastIndex) {
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(colors.line),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentOrderRow(
+    order: OrderDetail,
+    onClick: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    val summary = order.summary
+    val itemsLabel =
+        order.items.joinToString(" · ") { item -> "${item.quantity}× ${item.productName}" }
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .physicalPress(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                itemsLabel,
+                color = colors.ink,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                "#${summary.folio} · ${summary.state.label}",
+                color = colors.muted,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 3.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            moneyLabel(summary.total),
+            color = colors.ink,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Black,
+            maxLines = 1,
+            modifier = Modifier.padding(start = 12.dp),
+        )
+        Icon(
+            imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+            contentDescription = null,
+            tint = colors.muted,
+            modifier = Modifier.padding(start = 4.dp).size(20.dp),
+        )
+    }
+}
+
+// La mascota decidiendo qué pedir: el `?` lima flota suave y los glyphs
+// orbitan como en el asistente. Reduce Motion deja la escena estática.
+@Composable
+private fun EmptyCartMascotScene() {
+    val colors = LocalVaiinillaColors.current
+    val reduceMotion = rememberCartReduceMotion()
+    Box(
+        modifier = Modifier.fillMaxWidth().height(252.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        FloatingGlyph(
+            kind = VaiinillaGlyphKind.Note,
+            color = colors.muted,
+            accent = colors.accent,
+            sizeDp = 32.dp,
+            phase = 0.15f,
+            amplitudeDp = 7f,
+            durationMs = 7600,
+            reduceMotion = reduceMotion,
+            modifier = Modifier.align(Alignment.TopStart).padding(start = 26.dp, top = 34.dp),
+        )
+        FloatingGlyph(
+            kind = VaiinillaGlyphKind.Cup,
+            color = colors.muted,
+            accent = colors.accent,
+            sizeDp = 28.dp,
+            phase = 0.55f,
+            amplitudeDp = 6f,
+            durationMs = 6800,
+            reduceMotion = reduceMotion,
+            modifier = Modifier.align(Alignment.TopEnd).padding(end = 22.dp, top = 48.dp),
+        )
+        FloatingGlyph(
+            kind = VaiinillaGlyphKind.Spark,
+            color = colors.muted,
+            accent = colors.accent,
+            sizeDp = 19.dp,
+            phase = 0.85f,
+            amplitudeDp = 5f,
+            durationMs = 6000,
+            reduceMotion = reduceMotion,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 40.dp, bottom = 26.dp),
+        )
+        EmptyCartMascotFigure(reduceMotion)
+    }
+}
+
+@Composable
+private fun EmptyCartMascotFigure(reduceMotion: Boolean) {
+    if (reduceMotion) {
+        Image(
+            painter = painterResource(R.drawable.mascot_question),
+            contentDescription = null,
+            modifier = Modifier.size(216.dp),
+        )
+        return
+    }
+    val transition = rememberInfiniteTransition(label = "emptyCartMascot")
+    val bob by
+        transition.animateFloat(
+            initialValue = -4f,
+            targetValue = 4f,
+            animationSpec =
+                infiniteRepeatable(
+                    animation = tween(1600, easing = EaseInOutSine),
+                    repeatMode = RepeatMode.Reverse,
+                ),
+            label = "emptyCartMascotBob",
+        )
+    Image(
+        painter = painterResource(R.drawable.mascot_question),
+        contentDescription = null,
+        modifier =
+            Modifier.size(216.dp).graphicsLayer {
+                translationY = bob.dp.toPx()
+            },
     )
+}
+
+@Composable
+private fun rememberCartReduceMotion(): Boolean {
+    val context = LocalContext.current
+    return remember(context) {
+        Settings.Global.getFloat(
+            context.contentResolver,
+            Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f,
+        ) < 0.01f
+    }
 }
 
 internal fun shouldShowCheckoutDock(

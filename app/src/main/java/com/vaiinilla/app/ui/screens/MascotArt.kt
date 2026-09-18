@@ -11,6 +11,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -338,7 +339,7 @@ fun FloatingGlyph(
     modifier: Modifier = Modifier,
 ) {
     if (reduceMotion) {
-        Canvas(modifier = modifier) {
+        Canvas(modifier = modifier.size(sizeDp)) {
             drawVaiinillaGlyph(kind, color, accent)
         }
         return
@@ -363,7 +364,7 @@ fun FloatingGlyph(
 
     Canvas(
         modifier =
-            modifier.graphicsLayer(
+            modifier.size(sizeDp).graphicsLayer(
                 translationX = dx,
                 translationY = dy,
                 rotationZ = rot,

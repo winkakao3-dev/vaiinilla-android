@@ -159,6 +159,8 @@ class AlumnoScreenshotTest {
                         onDestinationChange = {},
                         onPaymentChange = {},
                         onConfirm = {},
+                        recentOrders = samplePastOrders(),
+                        onSelectOrder = {},
                     )
                 }
             }
@@ -427,4 +429,35 @@ class AlumnoScreenshotTest {
         composeTestRule.waitForIdle()
         composeTestRule.onRoot().captureRoboImage("22_confirm_saldo.png")
     }
+
+    @Test
+    fun `23_cart_empty_dark`() {
+        val state = ScreenshotFixtures.emptyCartState()
+        composeTestRule.setContent {
+            ScreenshotTheme(mode = VaiinillaThemeMode.Dark) {
+                ScreenshotWithStudentNav(activeTab = StudentTab.CART, cartCount = 0) {
+                    CartScreen(
+                        state = state,
+                        onMenu = {},
+                        onQuantityChange = { _, _ -> },
+                        onNotesChange = {},
+                        onDestinationChange = {},
+                        onPaymentChange = {},
+                        onConfirm = {},
+                        recentOrders = samplePastOrders(),
+                        onSelectOrder = {},
+                    )
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onRoot().captureRoboImage("23_cart_empty_dark.png")
+    }
 }
+
+private fun samplePastOrders() =
+    listOf(1041, 1036, 1029).map { folio ->
+        ScreenshotFixtures.sampleOrder(state = OrderState.DELIVERED).let { order ->
+            order.copy(summary = order.summary.copy(id = "order-$folio", folio = folio))
+        }
+    }
