@@ -47,6 +47,7 @@ class StripePaymentScreenshotTest {
                 stripePaymentPhase = StripePaymentPhase.PENDING,
                 stripePaymentMessage = "Estamos verificando el pago con Vaiinilla.",
                 onViewTracking = {},
+                abandonVisibleAfterMs = Long.MAX_VALUE,
             )
         }
     }

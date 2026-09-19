@@ -155,6 +155,39 @@ class StripeCheckoutUiTest {
         composeTestRule.onNodeWithText("Procesando compra").assertIsDisplayed()
         composeTestRule.onAllNodesWithText("Reintentar pago").assertCountEquals(0)
         composeTestRule.onAllNodesWithText("Pasa a Caja").assertCountEquals(0)
+        composeTestRule.onAllNodesWithText("Cancelar pedido").assertCountEquals(0)
+    }
+
+    @Test
+    fun `stuck Stripe can show cancel immediately when abandon delay is zero`() {
+        val order =
+            ScreenshotFixtures
+                .sampleOrder(
+                    state = OrderState.PENDING_PAYMENT,
+                    paymentMethod = PaymentMethod.STRIPE,
+                ).copy(
+                    payment =
+                        OrderPayment(
+                            paymentAttemptId = "attempt-1",
+                            paymentIntentId = "pi_test_001",
+                            stripeAccountId = "acct_test_001",
+                            status = StripePaymentStatus.PROCESSING,
+                        ),
+                )
+
+        composeTestRule.setContent {
+            VaiinillaTheme {
+                OrderConfirmationScreen(
+                    order = order,
+                    onReturnToMenu = {},
+                    stripePaymentPhase = StripePaymentPhase.PROCESSING_CONFIRMATION,
+                    abandonVisibleAfterMs = 0L,
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Procesando compra").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Cancelar pedido").assertExists()
     }
 
     @Test

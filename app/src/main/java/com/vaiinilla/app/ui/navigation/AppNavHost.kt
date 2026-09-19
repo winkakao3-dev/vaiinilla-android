@@ -1278,11 +1278,6 @@ fun AppNavHost(
                             navController.navigateStudent(Routes.STUDENT_TRACKING)
                         }
                     },
-                    onViewSticker = {
-                        navController.navigate(Routes.receiptStickerRoute()) {
-                            launchSingleTop = true
-                        }
-                    },
                 )
             }
 

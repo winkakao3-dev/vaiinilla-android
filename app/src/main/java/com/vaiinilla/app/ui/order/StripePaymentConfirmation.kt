@@ -6,8 +6,15 @@ import kotlinx.coroutines.delay
 
 internal const val STRIPE_CONFIRMATION_POLL_INTERVAL_MS = 3_000L
 internal const val STRIPE_CONFIRMATION_TIMEOUT_MS = 90_000L
+internal const val STRIPE_ABANDON_VISIBLE_AFTER_MS = 15_000L
 internal val STRIPE_CONFIRMATION_MAX_POLLS: Int =
     ((STRIPE_CONFIRMATION_TIMEOUT_MS / STRIPE_CONFIRMATION_POLL_INTERVAL_MS) + 1).toInt()
+
+internal fun canShowStripeAbandon(
+    elapsedMs: Long,
+    isStuck: Boolean,
+    visibleAfterMs: Long = STRIPE_ABANDON_VISIBLE_AFTER_MS,
+): Boolean = isStuck && elapsedMs >= visibleAfterMs
 
 internal data class StripePaymentPollResult(
     val order: OrderDetail?,

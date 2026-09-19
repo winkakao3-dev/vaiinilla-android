@@ -5,33 +5,30 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.click
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.auth.student.StudentAuthUiState
 import com.vaiinilla.app.ui.components.StudentTab
+import com.vaiinilla.app.ui.screens.ArcadeEngine
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
+import com.vaiinilla.app.ui.screens.BrincaGame
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
-import com.vaiinilla.app.ui.screens.RunnerGame
-import com.vaiinilla.app.ui.screens.RunnerObstacle
-import com.vaiinilla.app.ui.screens.RunnerStatus
 import com.vaiinilla.app.ui.screens.StudentAuthLandingScreen
 import com.vaiinilla.app.ui.screens.StudentTrackingScreen
-import com.vaiinilla.app.ui.screens.VaiinillaGlyphKind
-import com.vaiinilla.app.ui.screens.WaitingRunnerCard
+import com.vaiinilla.app.ui.screens.WaitingArcadeCard
 import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
-import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -346,7 +343,7 @@ class AlumnoScreenshotTest {
         composeTestRule.onRoot().captureRoboImage("17a_waiting_runner_idle.png")
 
         composeTestRule.mainClock.autoAdvance = false
-        composeTestRule.onNodeWithTag("waiting-runner").performTouchInput {
+        composeTestRule.onNodeWithTag("waiting-arcade").performTouchInput {
             click(Offset(120f, 40f))
         }
         composeTestRule.mainClock.advanceTimeBy(3000)
@@ -356,15 +353,17 @@ class AlumnoScreenshotTest {
 
     @Test
     fun `17c_waiting_runner_running`() {
-        val game = RunnerGame()
-        game.tap()
-        repeat(20) { game.step(0.016f) }
-        game.obstacles += RunnerObstacle(x = 210f, side = 34f, kind = VaiinillaGlyphKind.Cup)
+        val engine = ArcadeEngine()
+        engine.width = 330f
+        engine.height = 250f
+        engine.primary()
+        repeat(20) { engine.step(0.016f) }
+        (engine.game as BrincaGame).obstacles += BrincaGame.Ob(x = 210f, w = 18f, h = 36f)
         composeTestRule.mainClock.autoAdvance = false
         composeTestRule.setContent {
             ScreenshotTheme {
                 Box(modifier = Modifier.padding(20.dp)) {
-                    WaitingRunnerCard(game)
+                    WaitingArcadeCard(engine)
                 }
             }
         }

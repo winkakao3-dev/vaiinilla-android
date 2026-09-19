@@ -116,6 +116,16 @@ class StripePaymentConfirmationTest {
         assertEquals(3_000L, STRIPE_CONFIRMATION_POLL_INTERVAL_MS)
         assertEquals(90_000L, STRIPE_CONFIRMATION_TIMEOUT_MS)
         assertEquals(31, STRIPE_CONFIRMATION_MAX_POLLS)
+        assertEquals(15_000L, STRIPE_ABANDON_VISIBLE_AFTER_MS)
+    }
+
+    @Test
+    fun `cancel appears only after Stripe stays stuck`() {
+        assertFalse(canShowStripeAbandon(elapsedMs = 0L, isStuck = true))
+        assertFalse(canShowStripeAbandon(elapsedMs = 14_999L, isStuck = true))
+        assertTrue(canShowStripeAbandon(elapsedMs = 15_000L, isStuck = true))
+        assertFalse(canShowStripeAbandon(elapsedMs = 15_000L, isStuck = false))
+        assertTrue(canShowStripeAbandon(elapsedMs = 0L, isStuck = true, visibleAfterMs = 0L))
     }
 
     private fun stripeOrder(

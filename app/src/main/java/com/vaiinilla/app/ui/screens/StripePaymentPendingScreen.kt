@@ -21,8 +21,10 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Cancel
@@ -35,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,7 +57,10 @@ import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
+import com.vaiinilla.app.ui.order.STRIPE_ABANDON_VISIBLE_AFTER_MS
 import com.vaiinilla.app.ui.order.StripePaymentPhase
+import com.vaiinilla.app.ui.order.canShowStripeAbandon
+import kotlinx.coroutines.delay
 
 private val StripeBg = Color(0xFF0D0D0D)
 private val StripeInk = Color(0xFFF3EFE4)
@@ -77,8 +83,10 @@ fun StripePaymentPendingScreen(
     onViewOrders: () -> Unit,
     abandoning: Boolean = false,
     onAbandon: () -> Unit = {},
+    abandonVisibleAfterMs: Long = STRIPE_ABANDON_VISIBLE_AFTER_MS,
 ) {
     var abandonConfirmOpen by remember { mutableStateOf(false) }
+    var abandonElapsedMs by remember { mutableStateOf(0L) }
     val reduceMotion = reducedMotion()
     val waiting =
         phase in
@@ -89,6 +97,23 @@ fun StripePaymentPendingScreen(
                 StripePaymentPhase.PROCESSING_CONFIRMATION,
             )
     val timedOut = phase == StripePaymentPhase.TIMED_OUT
+    val stripeStuck = waiting || timedOut
+    LaunchedEffect(stripeStuck, abandonVisibleAfterMs) {
+        abandonElapsedMs = 0L
+        if (!stripeStuck) return@LaunchedEffect
+        if (abandonVisibleAfterMs <= 0L) {
+            abandonElapsedMs = 0L
+            return@LaunchedEffect
+        }
+        delay(abandonVisibleAfterMs)
+        abandonElapsedMs = abandonVisibleAfterMs
+    }
+    val showAbandon =
+        canShowStripeAbandon(
+            elapsedMs = if (abandonVisibleAfterMs <= 0L) 0L else abandonElapsedMs,
+            isStuck = stripeStuck,
+            visibleAfterMs = abandonVisibleAfterMs,
+        )
     val failed = phase == StripePaymentPhase.FAILED
     val canceled = phase == StripePaymentPhase.CANCELED
     val confirmed = phase == StripePaymentPhase.CONFIRMED
@@ -147,7 +172,6 @@ fun StripePaymentPendingScreen(
                     .statusBarsPadding()
                     .navigationBarsPadding()
                     .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Box(
                 modifier =
@@ -168,8 +192,13 @@ fun StripePaymentPendingScreen(
             }
 
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
             ) {
                 Crossfade(
                     targetState = phase,
@@ -336,10 +365,10 @@ fun StripePaymentPendingScreen(
                         enabled = !abandoning,
                     )
                 }
-                if (waiting || timedOut) {
+                if (showAbandon) {
                     Spacer(Modifier.height(10.dp))
                     StripeSecondaryAction(
-                        label = if (abandoning) "Cancelando…" else "Cancelar pago",
+                        label = if (abandoning) "Cancelando…" else "Cancelar pedido",
                         onClick = { abandonConfirmOpen = true },
                         enabled = !abandoning,
                     )

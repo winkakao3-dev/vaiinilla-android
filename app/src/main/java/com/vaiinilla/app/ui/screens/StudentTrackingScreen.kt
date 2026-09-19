@@ -8,12 +8,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -32,7 +28,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -49,10 +44,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Restaurant
+import androidx.compose.material.icons.outlined.Verified
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -76,6 +75,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
@@ -377,7 +377,7 @@ fun StudentTrackingScreen(
                                     }
                                     if (index == 0) {
                                         Spacer(modifier = Modifier.height(16.dp))
-                                        WaitingRunnerCard()
+                                        WaitingArcadeCard()
                                     }
                                 }
                             }
@@ -886,66 +886,72 @@ private fun OrderProgressBar(
     val reduceMotion = reducedMotion()
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        OrderState.trackingFlow.forEachIndexed { index, _ ->
-            val fillFraction by animateFloatAsState(
-                targetValue = if (index <= currentIndex) 1f else 0f,
-                animationSpec =
-                    tween(
-                        durationMillis = if (reduceMotion) 0 else 420,
-                        delayMillis = if (reduceMotion) 0 else index * 60,
-                        easing = CardTrackEase,
-                    ),
-                label = "order-progress-fill",
-            )
+        OrderState.trackingFlow.forEachIndexed { index, state ->
+            val isDone = index < currentIndex
             val isCurrent = index == currentIndex
-            val isPending = index > currentIndex
-            val infinite = rememberInfiniteTransition(label = "order-progress-pulse")
-            val pulse by infinite.animateFloat(
-                initialValue = 0.55f,
-                targetValue = 1f,
-                animationSpec =
-                    infiniteRepeatable(
-                        animation = tween(800, easing = CardTrackEase),
-                        repeatMode = RepeatMode.Reverse,
-                    ),
-                label = "order-progress-pulse-alpha",
-            )
-            val pendingPulse by infinite.animateFloat(
-                initialValue = 0.16f,
-                targetValue = 0.32f,
-                animationSpec =
-                    infiniteRepeatable(
-                        animation = tween(1600, delayMillis = index * 180, easing = CardTrackEase),
-                        repeatMode = RepeatMode.Reverse,
-                    ),
-                label = "order-progress-pending-alpha",
-            )
-            val segmentAlpha = if (isCurrent && !reduceMotion) pulse else 1f
-            val trackAlpha = if (isPending && !reduceMotion) pendingPulse else 0.22f
+            val nodeFill =
+                when {
+                    isCurrent -> colors.accent2
+                    isDone -> colors.accent
+                    else -> Color.White.copy(alpha = 0.14f)
+                }
+            val iconTint =
+                if (isDone || isCurrent) {
+                    colors.accentInk
+                } else {
+                    OrderTrackingCardText.copy(alpha = 0.42f)
+                }
             Box(
                 modifier =
                     Modifier
-                        .weight(1f)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(Color.White.copy(alpha = trackAlpha)),
+                        .size(22.dp)
+                        .clip(CircleShape)
+                        .background(nodeFill),
+                contentAlignment = Alignment.Center,
             ) {
+                Icon(
+                    imageVector = state.trackingIcon,
+                    contentDescription = state.label,
+                    tint = iconTint,
+                    modifier = Modifier.size(12.dp),
+                )
+            }
+            if (index < OrderState.trackingFlow.lastIndex) {
+                val railFill by animateColorAsState(
+                    targetValue = if (index < currentIndex) colors.accent else Color.White.copy(alpha = 0.22f),
+                    animationSpec =
+                        tween(
+                            durationMillis = if (reduceMotion) 0 else 420,
+                            delayMillis = if (reduceMotion) 0 else index * 60,
+                            easing = CardTrackEase,
+                        ),
+                    label = "order-progress-rail",
+                )
                 Box(
                     modifier =
                         Modifier
-                            .fillMaxWidth(fillFraction)
-                            .fillMaxHeight()
-                            .graphicsLayer { alpha = segmentAlpha }
-                            .background(
-                                if (isCurrent) colors.accent2 else colors.accent,
-                            ),
+                            .weight(1f)
+                            .height(2.dp)
+                            .clip(RoundedCornerShape(1.dp))
+                            .background(railFill),
                 )
             }
         }
     }
 }
+
+private val OrderState.trackingIcon: ImageVector
+    get() =
+        when (this) {
+            OrderState.PENDING_PAYMENT -> Icons.AutoMirrored.Outlined.ReceiptLong
+            OrderState.PAID -> Icons.Outlined.CheckCircle
+            OrderState.PREPARING -> Icons.Outlined.Restaurant
+            OrderState.READY -> Icons.Outlined.Notifications
+            OrderState.DELIVERED -> Icons.Outlined.Verified
+            else -> Icons.Outlined.Check
+        }
 
 @Composable
 private fun CompactTrackingSteps(

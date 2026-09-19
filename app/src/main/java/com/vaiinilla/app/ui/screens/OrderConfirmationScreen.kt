@@ -52,6 +52,7 @@ import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.order.PurchaseCelebration
+import com.vaiinilla.app.ui.order.STRIPE_ABANDON_VISIBLE_AFTER_MS
 import com.vaiinilla.app.ui.order.StripePaymentPhase
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 
@@ -87,7 +88,6 @@ fun OrderConfirmationScreen(
     order: OrderDetail?,
     onReturnToMenu: () -> Unit,
     onViewTracking: () -> Unit = {},
-    onViewSticker: () -> Unit = {},
     stripePaymentPhase: StripePaymentPhase = StripePaymentPhase.IDLE,
     stripePaymentMessage: String? = null,
     retryingStripePayment: Boolean = false,
@@ -96,6 +96,7 @@ fun OrderConfirmationScreen(
     onReturnStripeToCart: (OrderDetail) -> Unit = {},
     abandoningStripePayment: Boolean = false,
     onAbandonStripePayment: (OrderDetail) -> Unit = {},
+    abandonVisibleAfterMs: Long = STRIPE_ABANDON_VISIBLE_AFTER_MS,
     purchaseCelebration: PurchaseCelebration? = null,
     onPurchaseCelebrationFinished: (String) -> Unit = {},
     screenshotPrinted: Boolean = false,
@@ -135,6 +136,7 @@ fun OrderConfirmationScreen(
                 onViewOrders = onViewTracking,
                 abandoning = abandoningStripePayment,
                 onAbandon = { onAbandonStripePayment(order) },
+                abandonVisibleAfterMs = abandonVisibleAfterMs,
             )
             return@Box
         }
@@ -359,49 +361,24 @@ fun OrderConfirmationScreen(
                 }
             }
             Spacer(Modifier.height(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            Surface(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(46.dp)
+                        .border(1.5.dp, TicketLineSoft, RoundedCornerShape(16.dp))
+                        .physicalPress(onClick = onReturnToMenu),
+                color = Color.Transparent,
+                shape = RoundedCornerShape(16.dp),
+                shadowElevation = 0.dp,
             ) {
-                Surface(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .height(46.dp)
-                            .border(1.5.dp, TicketLineSoft, RoundedCornerShape(16.dp))
-                            .physicalPress(onClick = onViewSticker),
-                    color = Color.Transparent,
-                    shape = RoundedCornerShape(16.dp),
-                    shadowElevation = 0.dp,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            "Ver sticker",
-                            color = TicketInk,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 15.sp,
-                        )
-                    }
-                }
-                Surface(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .height(46.dp)
-                            .border(1.5.dp, TicketLineSoft, RoundedCornerShape(16.dp))
-                            .physicalPress(onClick = onReturnToMenu),
-                    color = Color.Transparent,
-                    shape = RoundedCornerShape(16.dp),
-                    shadowElevation = 0.dp,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            "Volver al menú",
-                            color = TicketInk,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 15.sp,
-                        )
-                    }
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        "Volver al menú",
+                        color = TicketInk,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 15.sp,
+                    )
                 }
             }
         }
