@@ -1261,6 +1261,7 @@ fun AppNavHost(
                         if (isFreshConfirmation) {
                             orderFlowViewModel.clearCreatedOrder()
                         }
+                        operationalViewModel.selectOrder(null)
                         navController.navigate(Routes.CATALOG) {
                             popUpTo(Routes.CATALOG) { inclusive = true }
                             launchSingleTop = true
@@ -1268,10 +1269,7 @@ fun AppNavHost(
                     },
                     onViewTracking = {
                         operationalViewModel.setRole(OperationalRole.CLIENT)
-                        confirmationOrder
-                            ?.summary
-                            ?.id
-                            ?.let(operationalViewModel::selectOrder)
+                        operationalViewModel.selectOrder(null)
                         val returnedToExistingTracking =
                             navController.popBackStack(Routes.STUDENT_TRACKING, inclusive = false)
                         if (!returnedToExistingTracking) {

@@ -10,14 +10,23 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -31,12 +40,17 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
@@ -265,34 +279,100 @@ private fun CameraQrPreview(
         }
     }
 
+    val colors = LocalVaiinillaColors.current
+    val infiniteTransition = rememberInfiniteTransition(label = "scanner-laser")
+    val laserFraction by infiniteTransition.animateFloat(
+        initialValue = 0.05f,
+        targetValue = 0.95f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(1800),
+                repeatMode = RepeatMode.Reverse,
+            ),
+        label = "laser-offset",
+    )
+
     Box(modifier = Modifier.fillMaxSize()) {
         androidx.compose.ui.viewinterop.AndroidView(
             factory = { previewView },
             modifier = Modifier.fillMaxSize(),
         )
         Box(
-            modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.26f)),
+            modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)),
             contentAlignment = Alignment.Center,
         ) {
-            Surface(
-                modifier = Modifier.fillMaxWidth(0.78f),
-                shape = RoundedCornerShape(28.dp),
-                color = Color.Transparent,
-                border = androidx.compose.foundation.BorderStroke(2.dp, Color.White),
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth(0.78f)
+                        .height(260.dp)
+                        .clip(RoundedCornerShape(26.dp))
+                        .border(1.5.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(26.dp)),
             ) {
-                Box(modifier = Modifier.padding(vertical = 110.dp))
+                // Animated laser line
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp)
+                            .offset(y = 260.dp * laserFraction)
+                            .height(2.5.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(colors.accent),
+                )
+
+                // Tip badge
+                Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 12.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.65f))
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                ) {
+                    Text(
+                        "Buscando código QR de mesa…",
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
             }
         }
         Row(
-            modifier = Modifier.fillMaxWidth().padding(24.dp),
-            horizontalArrangement = Arrangement.End,
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 24.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            Text(
+                "Escanea el QR de tu mesa",
+                color = Color.White,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+            )
             EditorialAccentButton(text = "Cerrar", onClick = onClose)
         }
         Text(
-            helperText,
-            color = Color.White,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 42.dp),
+            if (helperText == "Apunta al QR del comedor o de la mesa") {
+                "Apunta la cámara al centro de mesa para abrir la carta y ordenar directamente sin moverte."
+            } else {
+                helperText
+            },
+            color = Color.White.copy(alpha = 0.78f),
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 42.dp),
         )
     }
 }

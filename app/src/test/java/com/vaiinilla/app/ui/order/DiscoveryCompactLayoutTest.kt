@@ -80,7 +80,7 @@ class DiscoveryCompactLayoutTest {
 
         composeTestRule.onNodeWithText("¿Dónde comes hoy?").assertIsDisplayed()
         composeTestRule.onNodeWithText("RECOMENDADA PARA TI").assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("saulP1").assertCountEquals(2)
+        composeTestRule.onAllNodesWithText("saulP1").assertCountEquals(1)
         composeTestRule.onAllNodesWithText("OTRAS SEDES DISPONIBLES").assertCountEquals(1)
         composeTestRule.onAllNodesWithText("America").assertCountEquals(1)
         composeTestRule.onAllNodesWithText("Cafetería Sur").assertCountEquals(1)

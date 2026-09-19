@@ -18,12 +18,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -57,6 +59,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -119,15 +122,29 @@ fun DiscoveryScreen(
     var codeSheetOpen by remember { mutableStateOf(false) }
     var tokenError by remember { mutableStateOf(false) }
     var pendingSelection by remember { mutableStateOf<PublicEstablishment?>(null) }
+    var selectedFilter by remember { mutableStateOf(VenueFilter.ALL) }
+    var dockPulseCount by remember { mutableIntStateOf(0) }
     var dockHeightPx by remember { mutableStateOf(0) }
     val dockHeight = with(LocalDensity.current) { dockHeightPx.toDp() }
 
     BackHandler(enabled = state.pendingSwitch != null) { onDismissSwitch() }
 
+    val filteredEstablishments =
+        remember(state.establishments, selectedFilter) {
+            state.establishments.filter { est ->
+                when (selectedFilter) {
+                    VenueFilter.ALL, VenueFilter.OPEN -> true
+                    VenueFilter.FREE -> !est.clientIdRequired
+                    VenueFilter.ID_REQUIRED -> est.clientIdRequired
+                }
+            }
+        }
+
     val activeId = state.selected?.establishment?.id
     val selection =
         pendingSelection
             ?: state.selected?.establishment
+            ?: filteredEstablishments.firstOrNull()
             ?: state.establishments.firstOrNull()
 
     Box(
@@ -204,12 +221,11 @@ fun DiscoveryScreen(
                     Text(
                         "¿Dónde comes hoy?",
                         color = colors.ink,
-                        fontFamily = VaiinillaSerif,
-                        fontSize = 38.sp,
-                        lineHeight = 42.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 34.sp,
+                        lineHeight = 38.sp,
+                        fontWeight = FontWeight.Bold,
                         letterSpacing = (-0.6).sp,
-                        modifier = Modifier.padding(top = 6.dp, bottom = 8.dp),
+                        modifier = Modifier.padding(top = 6.dp, bottom = 6.dp),
                     )
                     Text(
                         if (state.selected != null) {
@@ -228,6 +244,13 @@ fun DiscoveryScreen(
                         value = state.query,
                         onValueChange = onQueryChange,
                         modifier = Modifier.padding(top = 18.dp),
+                    )
+                }
+                item {
+                    FilterChipsBar(
+                        selectedFilter = selectedFilter,
+                        onSelectFilter = { selectedFilter = it },
+                        modifier = Modifier.padding(top = 12.dp),
                     )
                 }
                 state.suspendedMessage?.let { message ->
@@ -265,13 +288,33 @@ fun DiscoveryScreen(
                             onOpenQrScanner = onOpenQrScanner,
                         )
                     }
+                } else if (filteredEstablishments.isEmpty()) {
+                    item {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 18.dp)
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(colors.paper2)
+                                    .padding(24.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                "No hay cafeterías disponibles para este filtro.",
+                                color = colors.muted,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
                 } else {
-                    val recommended = state.establishments.first()
-                    val others = state.establishments.filterNot { it.id == recommended.id }
+                    val recommended = filteredEstablishments.first()
+                    val others = filteredEstablishments.filterNot { it.id == recommended.id }
                     item {
                         SectionHeading(
                             label = "RECOMENDADA PARA TI",
-                            modifier = Modifier.padding(top = 26.dp),
+                            modifier = Modifier.padding(top = 20.dp),
                         )
                     }
                     item {
@@ -282,6 +325,7 @@ fun DiscoveryScreen(
                             onClick = {
                                 haptics.selection()
                                 pendingSelection = recommended
+                                dockPulseCount++
                             },
                         )
                     }
@@ -290,7 +334,7 @@ fun DiscoveryScreen(
                             SectionHeading(
                                 label = "OTRAS SEDES DISPONIBLES",
                                 trailing = "${others.size} activas",
-                                modifier = Modifier.padding(top = 22.dp, bottom = 2.dp),
+                                modifier = Modifier.padding(top = 20.dp, bottom = 2.dp),
                             )
                         }
                         items(others, key = { it.id }) { establishment ->
@@ -301,6 +345,7 @@ fun DiscoveryScreen(
                                 onClick = {
                                     haptics.selection()
                                     pendingSelection = establishment
+                                    dockPulseCount++
                                 },
                             )
                         }
@@ -322,6 +367,7 @@ fun DiscoveryScreen(
         VenueDock(
             selection = selection,
             isActive = selection != null && selection.id == activeId,
+            dockPulseCount = dockPulseCount,
             onContinue = {
                 val target = selection ?: return@VenueDock
                 haptics.click()
@@ -411,6 +457,101 @@ private fun SectionHeading(
     }
 }
 
+enum class VenueFilter(val label: String) {
+    ALL("Todas"),
+    OPEN("Abiertas ahora"),
+    FREE("Acceso libre"),
+    ID_REQUIRED("Con matrícula"),
+}
+
+@Composable
+private fun FilterChipsBar(
+    selectedFilter: VenueFilter,
+    onSelectFilter: (VenueFilter) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        VenueFilter.entries.forEach { filter ->
+            val isSelected = filter == selectedFilter
+            Row(
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isSelected) colors.ink else colors.paper2)
+                        .then(
+                            if (!isSelected) {
+                                Modifier.border(1.dp, colors.line, RoundedCornerShape(12.dp))
+                            } else {
+                                Modifier
+                            },
+                        )
+                        .clickable {
+                            haptics.selection()
+                            onSelectFilter(filter)
+                        }
+                        .padding(horizontal = 13.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                if (filter == VenueFilter.OPEN) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(colors.accent),
+                    )
+                }
+                Text(
+                    filter.label,
+                    color = if (isSelected) colors.paper else colors.ink,
+                    fontSize = 12.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CheckDot(
+    selected: Boolean,
+    size: androidx.compose.ui.unit.Dp = 26.dp,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    Box(
+        modifier =
+            modifier
+                .size(size)
+                .clip(CircleShape)
+                .background(if (selected) colors.accent else Color.Transparent)
+                .border(
+                    1.6.dp,
+                    if (selected) colors.accent else colors.line,
+                    CircleShape,
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) {
+            Icon(
+                Icons.Rounded.Check,
+                contentDescription = null,
+                tint = colors.accentInk,
+                modifier = Modifier.size(size * 0.55f),
+            )
+        }
+    }
+}
+
 @Composable
 private fun RecommendedVenueCard(
     establishment: PublicEstablishment,
@@ -419,114 +560,33 @@ private fun RecommendedVenueCard(
     onClick: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(top = 10.dp)
-                .clip(RoundedCornerShape(22.dp))
-                .background(colors.paper2)
-                .clickable(onClick = onClick)
-                .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(72.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(colors.paper),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.Outlined.Storefront,
-                contentDescription = null,
-                tint = colors.ink2,
-                modifier = Modifier.size(30.dp),
-            )
+    val meta =
+        if (establishment.clientIdRequired) {
+            "${establishment.clientIdLabel} requerida"
+        } else {
+            "Acceso libre"
         }
-        Column(modifier = Modifier.padding(start = 14.dp).weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    establishment.name,
-                    color = colors.ink,
-                    fontSize = 18.sp,
-                    lineHeight = 22.sp,
-                    fontWeight = FontWeight.Black,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                if (active) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .padding(start = 7.dp)
-                                .size(7.dp)
-                                .clip(CircleShape)
-                                .background(colors.accent),
-                    )
-                }
-            }
-            Text(
-                if (establishment.clientIdRequired) {
-                    "${establishment.clientIdLabel} requerida"
-                } else {
-                    "Acceso libre"
-                },
-                color = colors.muted,
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 3.dp),
-            )
-        }
-        Box(
-            modifier =
-                Modifier
-                    .padding(start = 10.dp)
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(if (selected) colors.accent else Color.Transparent)
-                    .border(1.6.dp, if (selected) colors.accent else colors.line, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (selected) {
-                Icon(
-                    Icons.Rounded.Check,
-                    contentDescription = null,
-                    tint = colors.accentInk,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun VenueSelectRow(
-    establishment: PublicEstablishment,
-    selected: Boolean,
-    active: Boolean,
-    onClick: () -> Unit,
-) {
-    val colors = LocalVaiinillaColors.current
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp)
                 .clip(RoundedCornerShape(20.dp))
-                .background(colors.paper2)
-                .clickable(onClick = onClick)
-                .padding(horizontal = 14.dp, vertical = 14.dp),
+                .background(if (selected) (if (colors.isDark) colors.paper2 else Color.White) else colors.paper2)
+                .border(
+                    width = if (selected) 2.dp else 1.dp,
+                    color = if (selected) colors.ink else colors.line,
+                    shape = RoundedCornerShape(20.dp),
+                )
+                .physicalPress(onClick = onClick)
+                .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier =
                 Modifier
                     .size(52.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(15.dp))
                     .background(colors.paper),
             contentAlignment = Alignment.Center,
         ) {
@@ -537,14 +597,17 @@ private fun VenueSelectRow(
                 modifier = Modifier.size(24.dp),
             )
         }
-        Column(modifier = Modifier.padding(start = 14.dp).weight(1f)) {
+        Column(
+            modifier = Modifier.padding(start = 13.dp).weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     establishment.name,
                     color = colors.ink,
-                    fontSize = 16.sp,
-                    lineHeight = 20.sp,
-                    fontWeight = FontWeight.Black,
+                    fontSize = 16.5.sp,
+                    lineHeight = 21.sp,
+                    fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
@@ -560,37 +623,147 @@ private fun VenueSelectRow(
                     )
                 }
             }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    meta,
+                    color = colors.ink2,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(colors.paper)
+                            .padding(horizontal = 7.dp, vertical = 3.dp),
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    Text("🚶", fontSize = 11.sp)
+                    Text(
+                        "3 min",
+                        color = colors.muted,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
             Text(
-                if (establishment.clientIdRequired) {
-                    "${establishment.clientIdLabel} requerida"
-                } else {
-                    "Acceso libre"
-                },
+                "Menú del día · Terraza disponible",
                 color = colors.muted,
-                fontSize = 12.5.sp,
-                lineHeight = 17.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 2.dp),
+                fontSize = 11.sp,
             )
         }
+        CheckDot(
+            selected = selected,
+            size = 26.dp,
+            modifier = Modifier.padding(start = 10.dp),
+        )
+    }
+}
+
+@Composable
+private fun VenueSelectRow(
+    establishment: PublicEstablishment,
+    selected: Boolean,
+    active: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    val meta =
+        if (establishment.clientIdRequired) {
+            "${establishment.clientIdLabel} requerida"
+        } else {
+            "Acceso libre"
+        }
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(if (selected) (if (colors.isDark) colors.paper2 else Color.White) else colors.paper2)
+                .border(
+                    width = if (selected) 2.dp else 1.dp,
+                    color = if (selected) colors.ink else colors.line,
+                    shape = RoundedCornerShape(20.dp),
+                )
+                .physicalPress(onClick = onClick)
+                .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Box(
             modifier =
                 Modifier
-                    .size(26.dp)
-                    .clip(CircleShape)
-                    .background(if (selected) colors.accent else Color.Transparent)
-                    .border(1.6.dp, if (selected) colors.accent else colors.line, CircleShape),
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(colors.paper),
             contentAlignment = Alignment.Center,
         ) {
-            if (selected) {
-                Icon(
-                    Icons.Rounded.Check,
-                    contentDescription = null,
-                    tint = colors.accentInk,
-                    modifier = Modifier.size(15.dp),
+            Icon(
+                Icons.Outlined.Storefront,
+                contentDescription = null,
+                tint = colors.ink2,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        Column(
+            modifier = Modifier.padding(start = 13.dp).weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    establishment.name,
+                    color = colors.ink,
+                    fontSize = 15.5.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (active) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .padding(start = 7.dp)
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(colors.accent),
+                    )
+                }
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    meta,
+                    color = colors.ink2,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(colors.paper)
+                            .padding(horizontal = 7.dp, vertical = 2.5.dp),
+                )
+                Text(
+                    "Campus",
+                    color = colors.muted,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
                 )
             }
         }
+        CheckDot(
+            selected = selected,
+            size = 26.dp,
+            modifier = Modifier.padding(start = 10.dp),
+        )
     }
 }
 
@@ -598,6 +771,7 @@ private fun VenueSelectRow(
 private fun VenueDock(
     selection: PublicEstablishment?,
     isActive: Boolean,
+    dockPulseCount: Int = 0,
     onContinue: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -607,8 +781,8 @@ private fun VenueDock(
     val haptics = rememberVaiinillaHaptics()
     val reduceMotion = reducedMotion()
     val enabled = selection != null
-    val knobSize = 62.dp
-    val trackPadding = 9.dp
+    val knobSize = 56.dp
+    val trackPadding = 4.dp
     val dragX = remember { Animatable(0f) }
     var directDragX by remember { mutableFloatStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
@@ -618,6 +792,15 @@ private fun VenueDock(
     var maxDragPx by remember { mutableStateOf(0f) }
     var labelWidthPx by remember { mutableStateOf(0f) }
     var trackHeightPx by remember { mutableStateOf(0f) }
+
+    // Pulse animation on venue card selection (1.02x scale for 150ms)
+    val dockScale = remember { Animatable(1f) }
+    LaunchedEffect(dockPulseCount) {
+        if (dockPulseCount > 0) {
+            dockScale.animateTo(1.02f, tween(80, easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)))
+            dockScale.animateTo(1f, tween(120, easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)))
+        }
+    }
 
     LaunchedEffect(showTip) {
         if (showTip) {
@@ -638,56 +821,14 @@ private fun VenueDock(
                         durationMillis = 3400
                         0f at 0
                         0f at 2448
-                        13f at 2720
-                        9f at 3060
+                        8f at 2720
+                        6f at 3060
                         0f at 3400
                     },
                 repeatMode = RepeatMode.Restart,
             ),
         label = "dock-nudge",
     )
-
-    // Shimmer que recorre el label (herencia del "slide to unlock").
-    val sheen by idleMotion.animateFloat(
-        initialValue = -0.4f,
-        targetValue = 1.4f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(2900, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)),
-                repeatMode = RepeatMode.Restart,
-            ),
-        label = "dock-sheen",
-    )
-    val shimmerBrush =
-        if (enabled && !isDone && !reduceMotion && labelWidthPx > 0f) {
-            Brush.linearGradient(
-                colors =
-                    listOf(
-                        colors.ink.copy(alpha = 0.42f),
-                        colors.ink,
-                        colors.ink.copy(alpha = 0.42f),
-                    ),
-                start = Offset(sheen * labelWidthPx - labelWidthPx * 0.35f, 0f),
-                end = Offset(sheen * labelWidthPx + labelWidthPx * 0.35f, 0f),
-            )
-        } else {
-            null
-        }
-
-    // Chevrons ››› con pulso escalonado.
-    val chevPulse =
-        List(3) { i ->
-            idleMotion.animateFloat(
-                initialValue = 0.14f,
-                targetValue = 0.65f,
-                animationSpec =
-                    infiniteRepeatable(
-                        animation = tween(1700, delayMillis = i * 180),
-                        repeatMode = RepeatMode.Reverse,
-                    ),
-                label = "dock-chev-$i",
-            )
-        }
 
     // Anillo expansivo al confirmar.
     val ringProgress = remember { Animatable(0f) }
@@ -707,14 +848,14 @@ private fun VenueDock(
             scope.launch {
                 dragX.snapTo(target)
                 isDragging = false
-                if (target >= maxDragPx * 0.72f) {
+                if (target >= maxDragPx * 0.70f) {
                     haptics.click()
                     dragX.animateTo(
                         maxDragPx,
                         spring(stiffness = Spring.StiffnessMedium),
                     )
                     isDone = true
-                    delay(if (reduceMotion) 120 else 650)
+                    delay(if (reduceMotion) 120 else 550)
                     onContinue()
                     isDone = false
                     dragX.snapTo(0f)
@@ -727,232 +868,228 @@ private fun VenueDock(
             }
     }
 
-    Column(modifier = modifier.fillMaxWidth().navigationBarsPadding()) {
-        if (showTip) {
-            Row(
-                modifier =
-                    Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(bottom = 10.dp)
-                        .clip(RoundedCornerShape(99.dp))
-                        .background(colors.ink)
-                        .padding(horizontal = 13.dp, vertical = 7.dp),
-            ) {
-                Text(
-                    "Desliza → no toques",
-                    color = colors.accent2,
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-        }
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 14.dp)
-                    .height(80.dp)
-                    .clip(RoundedCornerShape(26.dp))
-                    .background(
-                        if (enabled) colors.paper2 else colors.paper2.copy(alpha = 0.6f),
-                    ).border(1.dp, colors.line, RoundedCornerShape(26.dp))
-                    .onSizeChanged { newSize ->
-                        trackHeightPx = newSize.height.toFloat()
-                        maxDragPx =
-                            (
-                                newSize.width -
-                                    with(density) { (knobSize + trackPadding * 2).toPx() }
-                            ).coerceAtLeast(0f)
-                    }.semantics { contentDescription = "Desliza para continuar" }
-                    .pointerInput(maxDragPx, enabled) {
-                        detectTapGestures {
-                            if (!isDone) showTip = true
-                        }
-                    }.then(
-                        if (enabled && !isDone) {
-                            Modifier.pointerInput(maxDragPx) {
-                                detectHorizontalDragGestures(
-                                    onDragStart = {
-                                        motionJob?.cancel()
-                                        showTip = false
-                                        directDragX = dragX.value.coerceIn(0f, maxDragPx)
-                                        isDragging = true
-                                    },
-                                    onDragEnd = {
-                                        val releaseX = directDragX.coerceIn(0f, maxDragPx)
-                                        settleKnob(releaseX)
-                                    },
-                                    onDragCancel = {
-                                        val releaseX = directDragX.coerceIn(0f, maxDragPx)
-                                        settleKnob(0f)
-                                    },
-                                ) { change, dragAmount ->
-                                    change.consume()
-                                    directDragX =
-                                        (directDragX + dragAmount)
-                                            .coerceIn(0f, maxDragPx)
-                                }
-                            }
-                        } else {
-                            Modifier
-                        },
+    Box(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.verticalGradient(
+                        0f to colors.paper.copy(alpha = 0f),
+                        0.3f to colors.paper.copy(alpha = 0.95f),
+                        1f to colors.paper,
                     ),
-            contentAlignment = Alignment.CenterStart,
+                )
+                .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 12.dp)
+                .navigationBarsPadding(),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            val knobPx = with(density) { knobSize.toPx() }
-            val padPx = with(density) { trackPadding.toPx() }
-            val nudgePx = with(density) { nudge.dp.toPx() }
-            val baseX = if (isDragging) directDragX else dragX.value
-            val canNudge = enabled && !isDragging && !isDone && !reduceMotion
-            val knobX = baseX + if (canNudge) nudgePx else 0f
-            val progress = (baseX / maxDragPx.coerceAtLeast(1f)).coerceIn(0f, 1f)
-
-            // Relleno lima que crece bajo el knob.
+            if (showTip) {
+                Row(
+                    modifier =
+                        Modifier
+                            .padding(bottom = 8.dp)
+                            .clip(RoundedCornerShape(99.dp))
+                            .background(colors.ink)
+                            .padding(horizontal = 13.dp, vertical = 7.dp),
+                ) {
+                    Text(
+                        "Desliza → no toques",
+                        color = colors.accent2,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
             Box(
                 modifier =
                     Modifier
-                        .fillMaxHeight()
-                        .width(
-                            with(density) {
-                                (knobX + knobPx + padPx).toDp()
-                            },
-                        ).clip(RoundedCornerShape(26.dp))
-                        .background(
-                            if (enabled) {
-                                Brush.horizontalGradient(
-                                    listOf(colors.accent2, colors.accent),
-                                )
-                            } else {
-                                SolidColor(colors.line)
-                            },
-                        ),
-            )
-
-            // Label con shimmer.
-            Column(
-                modifier =
-                    Modifier
                         .fillMaxWidth()
-                        .padding(start = knobSize + trackPadding + 18.dp, end = 58.dp)
-                        .onSizeChanged { labelWidthPx = it.width.toFloat() }
-                        .alpha(
-                            if (isDone) {
-                                1f
+                        .height(64.dp)
+                        .graphicsLayer {
+                            scaleX = dockScale.value
+                            scaleY = dockScale.value
+                        }
+                        .clip(RoundedCornerShape(32.dp))
+                        .background(colors.paper2)
+                        .border(1.dp, colors.line, RoundedCornerShape(32.dp))
+                        .onSizeChanged { newSize ->
+                            trackHeightPx = newSize.height.toFloat()
+                            maxDragPx =
+                                (
+                                    newSize.width -
+                                        with(density) { (knobSize + trackPadding * 2).toPx() }
+                                ).coerceAtLeast(0f)
+                        }
+                        .semantics { contentDescription = "Desliza para entrar" }
+                        .pointerInput(maxDragPx, enabled) {
+                            detectTapGestures {
+                                if (!isDone) showTip = true
+                            }
+                        }
+                        .then(
+                            if (enabled && !isDone) {
+                                Modifier.pointerInput(maxDragPx) {
+                                    detectHorizontalDragGestures(
+                                        onDragStart = {
+                                            motionJob?.cancel()
+                                            showTip = false
+                                            directDragX = dragX.value.coerceIn(0f, maxDragPx)
+                                            isDragging = true
+                                        },
+                                        onDragEnd = {
+                                            val releaseX = directDragX.coerceIn(0f, maxDragPx)
+                                            settleKnob(releaseX)
+                                        },
+                                        onDragCancel = {
+                                            val releaseX = directDragX.coerceIn(0f, maxDragPx)
+                                            settleKnob(0f)
+                                        },
+                                    ) { change, dragAmount ->
+                                        change.consume()
+                                        directDragX =
+                                            (directDragX + dragAmount)
+                                                .coerceIn(0f, maxDragPx)
+                                    }
+                                }
                             } else {
-                                (1f - progress * 1.8f).coerceIn(0f, 1f)
+                                Modifier
                             },
                         ),
+                contentAlignment = Alignment.CenterStart,
             ) {
+                val knobPx = with(density) { knobSize.toPx() }
+                val padPx = with(density) { trackPadding.toPx() }
+                val nudgePx = with(density) { nudge.dp.toPx() }
+                val baseX = if (isDragging) directDragX else dragX.value
+                val canNudge = enabled && !isDragging && !isDone && !reduceMotion
+                val knobX = baseX + if (canNudge) nudgePx else 0f
+                val progress = (baseX / maxDragPx.coerceAtLeast(1f)).coerceIn(0f, 1f)
+
+                // Relleno lima que crece bajo el knob (empieza en 64dp)
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxHeight()
+                            .width(
+                                with(density) {
+                                    (knobX + knobPx + padPx * 2).toDp()
+                                },
+                            )
+                            .clip(RoundedCornerShape(32.dp))
+                            .background(
+                                if (enabled) {
+                                    Brush.horizontalGradient(
+                                        listOf(colors.accent2, colors.accent),
+                                    )
+                                } else {
+                                    SolidColor(colors.line)
+                                }
+                            ),
+                )
+
+                // Dynamic label matching prototype (two-line centered)
                 val eyebrow =
                     when {
                         selection == null -> "ELIGE UNA CAFETERÍA"
                         isDone -> "CAFETERÍA ACTIVA"
-                        progress >= 0.72f -> "SUELTA PARA CONFIRMAR"
-                        isActive -> "DESLIZA PARA ENTRAR"
-                        else -> "DESLIZA PARA ACTIVAR"
+                        progress >= 0.70f -> "SUELTA PARA ENTRAR"
+                        else -> "DESLIZA PARA ENTRAR"
                     }
-                if (shimmerBrush != null) {
-                    Text(
-                        eyebrow,
-                        style = TextStyle(brush = shimmerBrush),
-                        fontSize = 9.5.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 2.2.sp,
-                    )
-                    Text(
-                        selection?.name ?: "—",
-                        style = TextStyle(brush = shimmerBrush),
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = (-0.4).sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 1.dp),
-                    )
-                } else {
-                    Text(
-                        eyebrow,
-                        color = colors.ink.copy(alpha = 0.55f),
-                        fontSize = 9.5.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 2.2.sp,
-                    )
-                    Text(
-                        selection?.name ?: "—",
-                        color = colors.ink,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = (-0.4).sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 1.dp),
-                    )
-                }
-            }
 
-            // Chevrons ››› corriendo a la derecha.
-            if (enabled && !isDone && !reduceMotion) {
-                Row(
+                Column(
                     modifier =
                         Modifier
-                            .align(Alignment.CenterEnd)
-                            .padding(end = 18.dp),
+                            .fillMaxWidth()
+                            .padding(start = 54.dp, end = 24.dp)
+                            .alpha(
+                                if (isDone) {
+                                    1f
+                                } else {
+                                    (1f - (progress / 0.8f)).coerceIn(0f, 1f)
+                                },
+                            ),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
                 ) {
-                    chevPulse.forEach { pulse ->
+                    Text(
+                        eyebrow,
+                        color = colors.muted,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.2.sp,
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(top = 1.dp),
+                    ) {
                         Text(
-                            "›",
-                            color = colors.ink.copy(alpha = pulse.value),
-                            fontSize = 22.sp,
+                            (selection?.name ?: "—").uppercase(),
+                            color = colors.ink,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.5.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "›››",
+                            color = colors.muted,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-1).sp,
                         )
                     }
                 }
-            }
 
-            // Anillo expansivo al confirmar.
-            if (isDone) {
-                val ringScale = 0.9f + ringProgress.value * 1.5f
+                // Anillo expansivo al confirmar.
+                if (isDone) {
+                    val ringScale = 0.9f + ringProgress.value * 1.5f
+                    Box(
+                        modifier =
+                            Modifier
+                                .offset { IntOffset(padPx.roundToInt(), 0) }
+                                .size(knobSize)
+                                .graphicsLayer {
+                                    scaleX = ringScale
+                                    scaleY = ringScale
+                                    alpha = (0.9f * (1f - ringProgress.value))
+                                }
+                                .border(
+                                    2.5.dp,
+                                    colors.accent,
+                                    CircleShape,
+                                ),
+                    )
+                }
+
+                // Flecha sobre el fill lima (sin bola propia enfrente, perfectamente centrada).
                 Box(
                     modifier =
                         Modifier
-                            .offset { IntOffset(padPx.roundToInt(), 0) }
-                            .align(Alignment.CenterStart)
-                            .padding(start = 0.dp)
-                            .size(knobSize)
-                            .graphicsLayer {
-                                scaleX = ringScale
-                                scaleY = ringScale
-                                alpha = (0.9f * (1f - ringProgress.value))
-                            }.border(
-                                2.5.dp,
-                                colors.accent,
-                                RoundedCornerShape(22.dp),
-                            ),
-                )
-            }
-
-            // Flecha sobre el fill lima (sin cuadro propio).
-            Box(
-                modifier =
-                    Modifier
-                        .offset { IntOffset((knobX + padPx).roundToInt(), 0) }
-                        .size(knobSize),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (isDone) {
-                    Icon(
-                        Icons.Rounded.Check,
-                        contentDescription = null,
-                        tint = colors.accentInk,
-                        modifier = Modifier.size(26.dp),
-                    )
-                } else {
-                    Icon(
-                        Icons.AutoMirrored.Rounded.ArrowForward,
-                        contentDescription = null,
-                        tint = if (enabled) colors.accentInk else colors.muted,
-                        modifier = Modifier.size(22.dp),
-                    )
+                            .offset { IntOffset((knobX + padPx).roundToInt(), 0) }
+                            .size(knobSize),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (isDone) {
+                        Icon(
+                            Icons.Rounded.Check,
+                            contentDescription = null,
+                            tint = colors.ink,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    } else {
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowForward,
+                            contentDescription = null,
+                            tint = colors.ink,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
                 }
             }
         }
@@ -970,55 +1107,58 @@ private fun QuickAccessCard(
         modifier =
             modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
+                .clip(RoundedCornerShape(22.dp))
                 .background(colors.paper2)
-                .border(1.dp, colors.line, RoundedCornerShape(20.dp))
                 .padding(16.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             Icon(
                 Icons.Outlined.Bolt,
                 contentDescription = null,
-                tint = if (colors.isDark) colors.accent else colors.accentInk,
-                modifier = Modifier.size(18.dp),
+                tint = colors.accent,
+                modifier = Modifier.size(16.dp),
             )
             Text(
                 "ACCESO RÁPIDO EN MESA",
-                color = colors.ink,
+                color = colors.muted,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 1.4.sp,
-                modifier = Modifier.padding(start = 6.dp),
+                letterSpacing = 1.3.sp,
             )
         }
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Box(
                 modifier =
                     Modifier
                         .weight(1f)
-                        .height(50.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(14.dp))
                         .background(colors.paper)
-                        .border(1.dp, colors.line, RoundedCornerShape(16.dp))
+                        .border(1.dp, colors.line, RoundedCornerShape(14.dp))
                         .physicalPress(onClick = onOpenQrScanner),
                 contentAlignment = Alignment.Center,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Icon(
                         Icons.Outlined.QrCodeScanner,
                         contentDescription = null,
                         tint = colors.ink,
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(16.dp),
                     )
                     Text(
                         "Escanear QR",
                         color = colors.ink,
-                        fontSize = 13.5.sp,
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.padding(start = 7.dp),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
@@ -1026,26 +1166,28 @@ private fun QuickAccessCard(
                 modifier =
                     Modifier
                         .weight(1f)
-                        .height(50.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(14.dp))
                         .background(colors.paper)
-                        .border(1.dp, colors.line, RoundedCornerShape(16.dp))
+                        .border(1.dp, colors.line, RoundedCornerShape(14.dp))
                         .physicalPress(onClick = onUseCode),
                 contentAlignment = Alignment.Center,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Icon(
                         Icons.Outlined.Tag,
                         contentDescription = null,
                         tint = colors.ink,
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(16.dp),
                     )
                     Text(
                         "Usar código",
                         color = colors.ink,
-                        fontSize = 13.5.sp,
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.padding(start = 7.dp),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
@@ -1329,93 +1471,232 @@ private fun SpaceCodeSheet(
                 )
             }
             Text(
-                "Código del espacio",
+                "Ingresa el código de mesa",
                 color = colors.ink,
-                fontSize = 24.sp,
-                lineHeight = 32.sp,
+                fontSize = 22.sp,
+                lineHeight = 28.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 16.dp),
+                modifier = Modifier.padding(top = 14.dp),
             )
             Text(
-                "Escribe el token que aparece junto al QR del comedor, mesa o cancha.",
+                "Escribe los dígitos que aparecen en el tent card de tu mesa.",
                 color = colors.muted,
                 fontSize = 13.sp,
-                lineHeight = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 7.dp, bottom = 18.dp),
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
             )
-            BasicTextField(
-                value = token,
-                onValueChange = onTokenChange,
-                singleLine = true,
-                textStyle = TextStyle(color = colors.ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
-                cursorBrush = SolidColor(colors.ink),
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(58.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(colors.paper2)
-                        .border(1.dp, colors.line, RoundedCornerShape(18.dp))
-                        .padding(horizontal = 16.dp),
-                decorationBox = { input ->
-                    Box(contentAlignment = Alignment.CenterStart) {
-                        if (token.isBlank()) {
-                            Text("Ej. patio norte 04", color = colors.muted, fontSize = 16.sp)
+
+            // Slot display
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    for (index in 0 until 3) {
+                        val char =
+                            when {
+                                index < token.length -> token[index].toString()
+                                index == token.length -> "•"
+                                else -> ""
+                            }
+                        val isFilled = index < token.length
+                        val isCurrent = index == token.length
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(width = 50.dp, height = 58.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(
+                                        if (isFilled) {
+                                            if (colors.isDark) colors.paper2 else Color.White
+                                        } else {
+                                            colors.paper2
+                                        },
+                                    )
+                                    .border(
+                                        width = if (isFilled || isCurrent) 2.dp else 1.dp,
+                                        color = if (isFilled) colors.ink else if (isCurrent) colors.accent else colors.line,
+                                        shape = RoundedCornerShape(14.dp),
+                                    ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                char,
+                                color = colors.ink,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Black,
+                            )
                         }
-                        input()
                     }
-                },
-            )
+                }
+            }
+
             if (showError) {
                 Text(
                     "Escribe un código para continuar.",
                     color = colors.coral,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(top = 9.dp, start = 3.dp),
+                    modifier = Modifier.padding(top = 8.dp, start = 4.dp),
                 )
             }
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+
+            val canResolve = token.isNotBlank() && !resolving
+            val haptics = rememberVaiinillaHaptics()
+
+            // Keypad 3x4
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(width = 96.dp, height = 54.dp)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(colors.paper2)
-                            .physicalPress(onClick = onCancel),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("Cancelar", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.ink)
+                listOf(
+                    listOf("1", "2", "3"),
+                    listOf("4", "5", "6"),
+                    listOf("7", "8", "9"),
+                ).forEach { rowKeys ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        rowKeys.forEach { digit ->
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .height(46.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(colors.paper2)
+                                        .physicalPress {
+                                            haptics.click()
+                                            if (token.length < 8) onTokenChange(token + digit)
+                                        },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    digit,
+                                    color = colors.ink,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                        }
+                    }
                 }
-                Box(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .height(54.dp)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(colors.accent)
-                            .physicalPress(enabled = !resolving, onClick = onResolve),
-                    contentAlignment = Alignment.Center,
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    if (resolving) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(22.dp),
-                            strokeWidth = 2.dp,
-                            color = colors.accentInk,
-                        )
-                    } else {
+                    // Borrar / Clear
+                    Box(
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .height(46.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(colors.paper2)
+                                .physicalPress {
+                                    haptics.click()
+                                    if (token.isNotEmpty()) onTokenChange(token.dropLast(1))
+                                },
+                        contentAlignment = Alignment.Center,
+                    ) {
                         Text(
-                            "Resolver espacio",
+                            "BORRAR",
+                            color = colors.muted,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
+                        )
+                    }
+                    // "0"
+                    Box(
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .height(46.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(colors.paper2)
+                                .physicalPress {
+                                    haptics.click()
+                                    if (token.length < 8) onTokenChange(token + "0")
+                                },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            "0",
+                            color = colors.ink,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    // OK / Listo
+                    Box(
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .height(46.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(colors.accent)
+                                .physicalPress(enabled = canResolve) {
+                                    haptics.click()
+                                    if (canResolve) onResolve()
+                                },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            "LISTO",
                             color = colors.accentInk,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                 }
+            }
+
+            // Confirmar y sentarme
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .height(50.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(if (canResolve) colors.ink else colors.ink.copy(alpha = 0.4f))
+                        .physicalPress(enabled = canResolve, onClick = onResolve),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (resolving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = colors.paper,
+                    )
+                } else {
+                    Text(
+                        "Confirmar y sentarme",
+                        color = colors.paper,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClick = onCancel)
+                        .padding(vertical = 6.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "Cancelar",
+                    color = colors.muted,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
         }
     }
