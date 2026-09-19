@@ -1,7 +1,15 @@
 package com.vaiinilla.app.ui.screenshot
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.click
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performTouchInput
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
@@ -13,11 +21,17 @@ import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
+import com.vaiinilla.app.ui.screens.RunnerGame
+import com.vaiinilla.app.ui.screens.RunnerObstacle
+import com.vaiinilla.app.ui.screens.RunnerStatus
 import com.vaiinilla.app.ui.screens.StudentAuthLandingScreen
 import com.vaiinilla.app.ui.screens.StudentTrackingScreen
+import com.vaiinilla.app.ui.screens.VaiinillaGlyphKind
+import com.vaiinilla.app.ui.screens.WaitingRunnerCard
 import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -308,7 +322,58 @@ class AlumnoScreenshotTest {
     }
 
     @Test
-    fun `17_wallet_add_money`() {
+    fun `17_waiting_runner`() {
+        val order = ScreenshotFixtures.sampleOrder(state = OrderState.PREPARING)
+        val orderState = ScreenshotFixtures.catalogLoadedState()
+        val trackingState = ScreenshotFixtures.trackingState(order, selected = false)
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                ScreenshotWithStudentNav(activeTab = StudentTab.ORDERS, cartCount = 0) {
+                    StudentTrackingScreen(
+                        state = trackingState,
+                        orderState = orderState,
+                        onMenu = {},
+                        onAssistant = {},
+                        onWallet = {},
+                        onCart = {},
+                        onOpenCatalog = {},
+                        onSelectOrder = {},
+                    )
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onRoot().captureRoboImage("17a_waiting_runner_idle.png")
+
+        composeTestRule.mainClock.autoAdvance = false
+        composeTestRule.onNodeWithTag("waiting-runner").performTouchInput {
+            click(Offset(120f, 40f))
+        }
+        composeTestRule.mainClock.advanceTimeBy(3000)
+        composeTestRule.waitForIdle()
+        composeTestRule.onRoot().captureRoboImage("17b_waiting_runner_run.png")
+    }
+
+    @Test
+    fun `17c_waiting_runner_running`() {
+        val game = RunnerGame()
+        game.tap()
+        repeat(20) { game.step(0.016f) }
+        game.obstacles += RunnerObstacle(x = 210f, side = 34f, kind = VaiinillaGlyphKind.Cup)
+        composeTestRule.mainClock.autoAdvance = false
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                Box(modifier = Modifier.padding(20.dp)) {
+                    WaitingRunnerCard(game)
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onRoot().captureRoboImage("17c_waiting_runner_running.png")
+    }
+
+    @Test
+    fun `18_wallet_add_money`() {
         composeTestRule.setContent {
             ScreenshotTheme {
                 WalletAddMoneyScreen(

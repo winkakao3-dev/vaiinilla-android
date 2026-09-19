@@ -257,6 +257,68 @@ fun VaiinillaMascot(
     }
 }
 
+fun DrawScope.drawVaiinillaMascotRunner(
+    boxPx: Float,
+    paperColor: Color,
+    accentColor: Color,
+    inkColor: Color,
+    runPhase: Float,
+    airborne: Boolean,
+    leanDegrees: Float = 0f,
+) {
+    val s = boxPx / 100f
+    withTransform({
+        scale(s, s, pivot = Offset.Zero)
+        rotate(leanDegrees, pivot = Offset(50f * s, 82f * s))
+    }) {
+        val swing = kotlin.math.sin(runPhase)
+        val leftFoot =
+            if (airborne) {
+                Offset(36.5f, 72.4f)
+            } else {
+                Offset(39.75f + swing * 5.2f, 77.65f - kotlin.math.max(0f, -swing) * 4.6f)
+            }
+        val rightFoot =
+            if (airborne) {
+                Offset(63.5f, 71.4f)
+            } else {
+                Offset(60.25f - swing * 5.2f, 77.65f - kotlin.math.max(0f, swing) * 4.6f)
+            }
+        val armAngle = if (airborne) -46f else swing * 30f
+        withTransform({ rotate(-armAngle, pivot = Offset(24.1f, 52.5f)) }) {
+            drawPath(MASCOT_ARM_LEFT, paperColor, style = Stroke(7f, cap = StrokeCap.Round))
+        }
+        withTransform({ rotate(armAngle, pivot = Offset(75.9f, 52.5f)) }) {
+            drawPath(MASCOT_ARM_RIGHT, paperColor, style = Stroke(7f, cap = StrokeCap.Round))
+        }
+        drawLine(
+            paperColor,
+            Offset(39.75f, 70.5f),
+            leftFoot,
+            strokeWidth = 11.7f,
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            paperColor,
+            Offset(60.25f, 70.5f),
+            rightFoot,
+            strokeWidth = 11.7f,
+            cap = StrokeCap.Round,
+        )
+        drawPath(MASCOT_BODY, paperColor)
+        drawPath(MASCOT_FOLD, accentColor)
+        drawPath(MASCOT_BAR_TOP, accentColor)
+        drawPath(MASCOT_BAR_BOTTOM, accentColor)
+        val eyeScale = if (airborne) 1.14f else 1f
+        withTransform({ scale(1f, eyeScale, pivot = Offset(40.1f, 52.5f)) }) {
+            drawPath(MASCOT_EYE_LEFT, inkColor)
+        }
+        withTransform({ scale(1f, eyeScale, pivot = Offset(59.9f, 52.5f)) }) {
+            drawPath(MASCOT_EYE_RIGHT, inkColor)
+        }
+    }
+}
+
 enum class VaiinillaGlyphKind { Cup, Leaf, Bean, Spark, Cube, Note }
 
 private val GLYPH_CUP_BODY =
@@ -285,10 +347,21 @@ fun DrawScope.drawVaiinillaGlyph(
     strokeScale: Float = 1f,
 ) {
     val s = size.minDimension / 100f
+    withTransform({ scale(s, s, pivot = Offset.Zero) }) {
+        drawVaiinillaGlyphUnits(kind, color, accent, strokeScale)
+    }
+}
+
+fun DrawScope.drawVaiinillaGlyphUnits(
+    kind: VaiinillaGlyphKind,
+    color: Color,
+    accent: Color,
+    strokeScale: Float = 1f,
+) {
     val w = 6.5f * strokeScale
 
     fun str(path: Path) = drawPath(path, color, style = Stroke(w, cap = StrokeCap.Round))
-    withTransform({ scale(s, s, pivot = Offset.Zero) }) {
+    run {
         when (kind) {
             VaiinillaGlyphKind.Cup -> {
                 str(GLYPH_CUP_BODY)
