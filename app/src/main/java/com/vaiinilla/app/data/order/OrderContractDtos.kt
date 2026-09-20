@@ -109,6 +109,10 @@ data class OrderPaymentDto(
     @SerialName("payment_status") val paymentStatus: String,
     @SerialName("client_secret") val clientSecret: String? = null,
     @SerialName("publishable_key") val publishableKey: String? = null,
+    @SerialName("amount_cents") val amountCents: Long? = null,
+    @SerialName("currency") val currency: String? = null,
+    @SerialName("pricing_policy_version") val pricingPolicyVersion: String? = null,
+    @SerialName("application_fee_cents") val applicationFeeCents: Long? = null,
 )
 
 @Serializable

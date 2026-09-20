@@ -102,6 +102,71 @@ class StripeOrderContractTest {
     }
 
     @Test
+    fun `backend amount_cents and pricing metadata are exposed without local recalculation`() {
+        val envelope =
+            stripeCreatedEnvelope()
+                .replace(
+                    "\"payment_status\": \"pendiente_pago\"",
+                    """
+                    "payment_status": "pendiente_pago",
+                    "amount_cents": 6200,
+                    "currency": "mxn",
+                    "pricing_policy_version": "2026-09-01",
+                    "application_fee_cents": 310
+                    """.trimIndent(),
+                )
+
+        val created = json.parseCreatedOrder(envelope)
+
+        assertEquals(6200L, created.stripeSession?.amountCents)
+        assertEquals("mxn", created.stripeSession?.currency)
+        assertEquals("2026-09-01", created.stripeSession?.pricingPolicyVersion)
+        assertEquals(310L, created.stripeSession?.applicationFeeCents)
+    }
+
+    @Test
+    fun `mismatched amount_cents blocks the payment before PaymentSheet`() {
+        val envelope =
+            stripeCreatedEnvelope()
+                .replace(
+                    "\"payment_status\": \"pendiente_pago\"",
+                    "\"payment_status\": \"pendiente_pago\", \"amount_cents\": 9999, \"currency\": \"mxn\"",
+                )
+
+        val result = runCatching { json.parseCreatedOrder(envelope) }
+
+        assertTrue(result.isFailure)
+        assertTrue(
+            result
+                .exceptionOrNull()
+                ?.message
+                .orEmpty()
+                .contains("does not match"),
+        )
+    }
+
+    @Test
+    fun `non-mxn currency blocks the payment before PaymentSheet`() {
+        val envelope =
+            stripeCreatedEnvelope()
+                .replace(
+                    "\"payment_status\": \"pendiente_pago\"",
+                    "\"payment_status\": \"pendiente_pago\", \"amount_cents\": 6200, \"currency\": \"usd\"",
+                )
+
+        val result = runCatching { json.parseCreatedOrder(envelope) }
+
+        assertTrue(result.isFailure)
+        assertTrue(
+            result
+                .exceptionOrNull()
+                ?.message
+                .orEmpty()
+                .contains("must be mxn"),
+        )
+    }
+
+    @Test
     fun `all terminal order states from new contract are represented`() {
         assertEquals(OrderState.CANCELED, OrderState.fromWireValue("cancelado"))
         assertEquals(OrderState.NOT_PICKED_UP, OrderState.fromWireValue("no_recogido"))

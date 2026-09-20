@@ -95,6 +95,10 @@ data class StripePaymentSession(
     val stripeAccountId: String,
     val publishableKey: String,
     val status: StripePaymentStatus,
+    val amountCents: Long? = null,
+    val currency: String? = null,
+    val pricingPolicyVersion: String? = null,
+    val applicationFeeCents: Long? = null,
 )
 
 data class OrderUser(

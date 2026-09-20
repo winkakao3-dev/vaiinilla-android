@@ -87,12 +87,20 @@ fun OrderPaymentDto.toDomain(): OrderPayment =
         status = StripePaymentStatus.fromWireValue(paymentStatus),
     )
 
-fun OrderPaymentDto.toStripeSession(): StripePaymentSession {
+fun OrderPaymentDto.toStripeSession(expectedTotalCents: Long? = null): StripePaymentSession {
     val secret = requireNotNull(clientSecret) { "Stripe response missing client_secret" }
     val key = requireNotNull(publishableKey) { "Stripe response missing publishable_key" }
     val expectedPrefix = if (BuildConfig.IS_PRODUCTION) "pk_live_" else "pk_test_"
     val expectedMode = if (BuildConfig.IS_PRODUCTION) "Live" else "Test"
     require(key.startsWith(expectedPrefix)) { "Stripe publishable_key must be $expectedMode Mode for this build." }
+    currency?.let {
+        require(it.equals("mxn", ignoreCase = true)) { "Stripe currency must be mxn, got $it." }
+    }
+    if (amountCents != null && expectedTotalCents != null) {
+        require(amountCents == expectedTotalCents) {
+            "Stripe amount_cents ($amountCents) does not match the order total ($expectedTotalCents)."
+        }
+    }
     return StripePaymentSession(
         paymentAttemptId = paymentAttemptId,
         paymentIntentId = paymentIntentId,
@@ -100,5 +108,17 @@ fun OrderPaymentDto.toStripeSession(): StripePaymentSession {
         stripeAccountId = stripeAccountId,
         publishableKey = key,
         status = StripePaymentStatus.fromWireValue(paymentStatus),
+        amountCents = amountCents,
+        currency = currency,
+        pricingPolicyVersion = pricingPolicyVersion,
+        applicationFeeCents = applicationFeeCents,
     )
 }
+
+internal fun orderTotalToCents(total: String): Long? =
+    total
+        .trim()
+        .toBigDecimalOrNull()
+        ?.movePointRight(2)
+        ?.setScale(0)
+        ?.toLong()

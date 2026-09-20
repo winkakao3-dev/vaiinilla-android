@@ -63,7 +63,8 @@ class OrderContractJson
             val order = envelope.data.toDomain()
             val session =
                 if (order.summary.paymentMethod == PaymentMethod.STRIPE) {
-                    requireNotNull(envelope.data.payment) { "Stripe order missing pago" }.toStripeSession()
+                    requireNotNull(envelope.data.payment) { "Stripe order missing pago" }
+                        .toStripeSession(expectedTotalCents = orderTotalToCents(envelope.data.total))
                 } else {
                     null
                 }
