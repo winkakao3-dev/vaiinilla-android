@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,6 +37,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -68,7 +68,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -457,7 +456,9 @@ private fun SectionHeading(
     }
 }
 
-enum class VenueFilter(val label: String) {
+enum class VenueFilter(
+    val label: String,
+) {
     ALL("Todas"),
     OPEN("Abiertas ahora"),
     FREE("Acceso libre"),
@@ -492,12 +493,10 @@ private fun FilterChipsBar(
                             } else {
                                 Modifier
                             },
-                        )
-                        .clickable {
+                        ).clickable {
                             haptics.selection()
                             onSelectFilter(filter)
-                        }
-                        .padding(horizontal = 13.dp, vertical = 7.dp),
+                        }.padding(horizontal = 13.dp, vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
             ) {
@@ -577,8 +576,7 @@ private fun RecommendedVenueCard(
                     width = if (selected) 2.dp else 1.dp,
                     color = if (selected) colors.ink else colors.line,
                     shape = RoundedCornerShape(20.dp),
-                )
-                .physicalPress(onClick = onClick)
+                ).physicalPress(onClick = onClick)
                 .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -690,8 +688,7 @@ private fun VenueSelectRow(
                     width = if (selected) 2.dp else 1.dp,
                     color = if (selected) colors.ink else colors.line,
                     shape = RoundedCornerShape(20.dp),
-                )
-                .physicalPress(onClick = onClick)
+                ).physicalPress(onClick = onClick)
                 .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -878,8 +875,7 @@ private fun VenueDock(
                         0.3f to colors.paper.copy(alpha = 0.95f),
                         1f to colors.paper,
                     ),
-                )
-                .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 12.dp)
+                ).padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 12.dp)
                 .navigationBarsPadding(),
     ) {
         Column(
@@ -911,8 +907,7 @@ private fun VenueDock(
                         .graphicsLayer {
                             scaleX = dockScale.value
                             scaleY = dockScale.value
-                        }
-                        .clip(RoundedCornerShape(32.dp))
+                        }.clip(RoundedCornerShape(32.dp))
                         .background(colors.paper2)
                         .border(1.dp, colors.line, RoundedCornerShape(32.dp))
                         .onSizeChanged { newSize ->
@@ -922,14 +917,12 @@ private fun VenueDock(
                                     newSize.width -
                                         with(density) { (knobSize + trackPadding * 2).toPx() }
                                 ).coerceAtLeast(0f)
-                        }
-                        .semantics { contentDescription = "Desliza para entrar" }
+                        }.semantics { contentDescription = "Desliza para entrar" }
                         .pointerInput(maxDragPx, enabled) {
                             detectTapGestures {
                                 if (!isDone) showTip = true
                             }
-                        }
-                        .then(
+                        }.then(
                             if (enabled && !isDone) {
                                 Modifier.pointerInput(maxDragPx) {
                                     detectHorizontalDragGestures(
@@ -977,8 +970,7 @@ private fun VenueDock(
                                 with(density) {
                                     (knobX + knobPx + padPx * 2).toDp()
                                 },
-                            )
-                            .clip(RoundedCornerShape(32.dp))
+                            ).clip(RoundedCornerShape(32.dp))
                             .background(
                                 if (enabled) {
                                     Brush.horizontalGradient(
@@ -986,7 +978,7 @@ private fun VenueDock(
                                     )
                                 } else {
                                     SolidColor(colors.line)
-                                }
+                                },
                             ),
                 )
 
@@ -1058,8 +1050,7 @@ private fun VenueDock(
                                     scaleX = ringScale
                                     scaleY = ringScale
                                     alpha = (0.9f * (1f - ringProgress.value))
-                                }
-                                .border(
+                                }.border(
                                     2.5.dp,
                                     colors.accent,
                                     CircleShape,
@@ -1513,10 +1504,16 @@ private fun SpaceCodeSheet(
                                         } else {
                                             colors.paper2
                                         },
-                                    )
-                                    .border(
+                                    ).border(
                                         width = if (isFilled || isCurrent) 2.dp else 1.dp,
-                                        color = if (isFilled) colors.ink else if (isCurrent) colors.accent else colors.line,
+                                        color =
+                                            if (isFilled) {
+                                                colors.ink
+                                            } else if (isCurrent) {
+                                                colors.accent
+                                            } else {
+                                                colors.line
+                                            },
                                         shape = RoundedCornerShape(14.dp),
                                     ),
                             contentAlignment = Alignment.Center,
