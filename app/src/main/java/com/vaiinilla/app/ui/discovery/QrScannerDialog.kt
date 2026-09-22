@@ -26,12 +26,11 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,6 +49,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -57,6 +58,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
@@ -92,6 +95,8 @@ fun QrScannerDialog(
         if (!permissionGranted) permissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
+    val systemBars = rememberHostSystemBars()
+
     Dialog(
         onDismissRequest = onClose,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
@@ -103,17 +108,15 @@ fun QrScannerDialog(
                     onPayload = onPayload,
                     onCameraError = { cameraError = it },
                     helperText = helperText,
+                    systemBars = systemBars,
                 )
             } else if (permissionGranted && cameraError != null) {
                 Column(
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .windowInsetsPadding(
-                                WindowInsets.safeDrawing.only(
-                                    WindowInsetsSides.Top + WindowInsetsSides.Bottom,
-                                ),
-                            ).padding(24.dp),
+                            .windowInsetsPadding(systemBars)
+                            .padding(24.dp),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
@@ -141,11 +144,8 @@ fun QrScannerDialog(
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .windowInsetsPadding(
-                                WindowInsets.safeDrawing.only(
-                                    WindowInsetsSides.Top + WindowInsetsSides.Bottom,
-                                ),
-                            ).padding(24.dp),
+                            .windowInsetsPadding(systemBars)
+                            .padding(24.dp),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
@@ -180,6 +180,7 @@ private fun CameraQrPreview(
     onPayload: (String) -> Unit,
     onCameraError: (String) -> Unit,
     helperText: String,
+    systemBars: WindowInsets,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -365,7 +366,7 @@ private fun CameraQrPreview(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .statusBarsPadding()
+                    .windowInsetsPadding(systemBars.only(WindowInsetsSides.Top))
                     .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
@@ -393,9 +394,37 @@ private fun CameraQrPreview(
                 Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .navigationBarsPadding()
+                    .windowInsetsPadding(systemBars.only(WindowInsetsSides.Bottom))
                     .padding(horizontal = 24.dp)
                     .padding(bottom = 24.dp),
         )
     }
+}
+
+/**
+ * The scanner is a full-screen Dialog, which lives in its own window. On some
+ * OEM builds (One UI) that window reports zero system-bar insets, so the close
+ * button slid under the status bar. The host activity's raw insets are always
+ * right, so take the larger of the two.
+ */
+@Composable
+private fun rememberHostSystemBars(): WindowInsets {
+    val hostView = LocalView.current
+    val density = LocalDensity.current
+    val hostBars =
+        remember(hostView, density) {
+            val bars =
+                ViewCompat
+                    .getRootWindowInsets(hostView)
+                    ?.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            with(density) {
+                WindowInsets(
+                    top = (bars?.top ?: 0).toDp(),
+                    bottom = (bars?.bottom ?: 0).toDp(),
+                )
+            }
+        }
+    return WindowInsets.safeDrawing
+        .only(WindowInsetsSides.Top + WindowInsetsSides.Bottom)
+        .union(hostBars)
 }
