@@ -111,12 +111,11 @@ class MainActivity : ComponentActivity() {
         pendingEstablishmentSlug = establishmentSlugFrom(source)
         pendingSpaceToken = spaceTokenFrom(source)
         pendingInvitationToken = invitationTokenFrom(source)
-        orderIdFrom(source)?.let {
-            pendingOrderId = it
-            pendingOrderTarget =
-                OrderNotificationTarget.fromWireValue(
-                    source?.getStringExtra(OrderAdvanceNotifier.EXTRA_NOTIFICATION_TARGET),
-                )
+        val orderId = orderIdFrom(source)
+        val targetExtra = source?.getStringExtra(OrderAdvanceNotifier.EXTRA_NOTIFICATION_TARGET)
+        if (orderId != null || targetExtra != null) {
+            pendingOrderId = orderId
+            pendingOrderTarget = OrderNotificationTarget.fromWireValue(targetExtra)
         }
         source?.removeExtra(OrderAdvanceNotifier.EXTRA_ORDER_ID)
         source?.removeExtra(OrderAdvanceNotifier.EXTRA_NOTIFICATION_TARGET)

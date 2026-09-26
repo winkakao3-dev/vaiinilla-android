@@ -79,4 +79,12 @@ class OrderNotificationTest {
         )
         assertNotEquals(baseMarker, deviceRegistrationMarker(base, "fcm-2"))
     }
+
+    @Test
+    fun `table call notification body follows the reason`() {
+        assertEquals("Pide cubiertos o servilletas", OrderAdvanceNotifier.tableCallText("utensilios"))
+        assertEquals("Algo está mal con su pedido", OrderAdvanceNotifier.tableCallText("problema"))
+        assertEquals("Necesita atención", OrderAdvanceNotifier.tableCallText("atencion"))
+        assertEquals("Necesita atención", OrderAdvanceNotifier.tableCallText(null))
+    }
 }

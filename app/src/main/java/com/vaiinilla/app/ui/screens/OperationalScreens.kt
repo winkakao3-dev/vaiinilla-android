@@ -1378,7 +1378,7 @@ private val TicketMuted = Color(0xFF6B6656)
 private val TicketLine = Color(0xFFD8CDB4)
 private val StampGreen = Color(0xFF5A7A1E)
 
-private fun elapsedSinceMs(iso: String): Long? =
+internal fun elapsedSinceMs(iso: String): Long? =
     runCatching {
         java.time.Duration
             .between(java.time.Instant.parse(iso), java.time.Instant.now())

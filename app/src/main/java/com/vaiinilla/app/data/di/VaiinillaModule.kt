@@ -29,6 +29,8 @@ import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessRepository
 import com.vaiinilla.app.data.operational.AndroidDeviceIdentity
 import com.vaiinilla.app.data.operational.RemoteCashSessionRepository
 import com.vaiinilla.app.data.operational.RemoteDeviceHeartbeatRepository
+import com.vaiinilla.app.data.operational.RemoteWaiterRepository
+import com.vaiinilla.app.data.operational.WaiterContractJson
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.data.order.RemoteOrderRepository
 import com.vaiinilla.app.data.wallet.RemoteWalletRepository
@@ -42,6 +44,7 @@ import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
 import com.vaiinilla.app.domain.repository.DeviceIdentity
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.repository.OrderRepository
+import com.vaiinilla.app.domain.repository.WaiterRepository
 import com.vaiinilla.app.domain.repository.WalletRepository
 import dagger.Module
 import dagger.Provides
@@ -122,6 +125,14 @@ object VaiinillaModule {
         apiClient: VaiinillaApiClient,
         orderContractJson: OrderContractJson,
     ): CashSessionRepository = RemoteCashSessionRepository(apiClient, orderContractJson)
+
+    @Provides
+    @Singleton
+    fun provideWaiterRepository(
+        apiClient: VaiinillaApiClient,
+        waiterContractJson: WaiterContractJson,
+        orderContractJson: OrderContractJson,
+    ): WaiterRepository = RemoteWaiterRepository(apiClient, waiterContractJson, orderContractJson)
 
     @Provides
     @Singleton

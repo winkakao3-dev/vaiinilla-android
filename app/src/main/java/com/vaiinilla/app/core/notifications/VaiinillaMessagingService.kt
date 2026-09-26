@@ -31,6 +31,7 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
         when (data["type"]) {
             "order_state" -> notifyOrderState(data)
             "staff_alert" -> notifyStaffAlert(data)
+            "mesero_en_camino" -> notifyCallerOnTheWay(data)
         }
     }
 
@@ -50,10 +51,29 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
     }
 
     private fun notifyStaffAlert(data: Map<String, String>) {
+        val alert = data["alert"] ?: return
+        if (alert == "llamada_mesa") {
+            val callId = data["llamada_id"] ?: data["llamadaId"] ?: return
+            OrderAdvanceNotifier.notifyTableCall(
+                context = applicationContext,
+                callId = callId,
+                spaceName = data["espacio_nombre"] ?: data["espacioNombre"].orEmpty(),
+                reason = data["motivo"],
+            )
+            return
+        }
         val orderId = data["orderId"] ?: return
         val folio = data["folio"]?.toIntOrNull() ?: return
-        val alert = data["alert"] ?: return
         OrderAdvanceNotifier.notifyStaff(applicationContext, orderId, folio, alert)
+    }
+
+    private fun notifyCallerOnTheWay(data: Map<String, String>) {
+        val callId = data["llamada_id"] ?: data["llamadaId"] ?: "mesero"
+        OrderAdvanceNotifier.notifyCallerOnTheWay(
+            context = applicationContext,
+            callId = callId,
+            waiterName = data["mesero_nombre"] ?: data["meseroNombre"],
+        )
     }
 
     private companion object {

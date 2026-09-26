@@ -48,6 +48,8 @@ import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.repository.TableCall
+import com.vaiinilla.app.domain.repository.canCallWaiter
 import com.vaiinilla.app.ui.account.AccountDeletionViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.components.StudentTab
@@ -57,6 +59,7 @@ import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
+import com.vaiinilla.app.ui.operational.WaiterViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.isEstablishmentSwitch
@@ -78,6 +81,7 @@ import com.vaiinilla.app.ui.screens.StudentLoginScreen
 import com.vaiinilla.app.ui.screens.StudentRegisterScreen
 import com.vaiinilla.app.ui.screens.StudentTrackingScreen
 import com.vaiinilla.app.ui.screens.StudentVerifyEmailScreen
+import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
 import com.vaiinilla.app.ui.screens.WalletAccountScreen
 import com.vaiinilla.app.ui.screens.WalletAddCardScreen
 import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
@@ -113,6 +117,7 @@ fun AppNavHost(
 ) {
     val orderFlowViewModel: OrderFlowViewModel = viewModel()
     val operationalViewModel: OperationalViewModel = viewModel()
+    val waiterViewModel: WaiterViewModel = viewModel()
     val studentAuthViewModel: StudentAuthViewModel = viewModel()
     val authorizedAccessViewModel: AuthorizedAccessViewModel = viewModel()
     val discoveryViewModel: GuestDiscoveryViewModel = viewModel()
@@ -120,6 +125,7 @@ fun AppNavHost(
     val accountDeletionViewModel: AccountDeletionViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
+    val waiterState by waiterViewModel.uiState
     val studentAuthState by studentAuthViewModel.state
     val authorizedAccessState by authorizedAccessViewModel.state
     val discoveryState by discoveryViewModel.state
@@ -229,12 +235,19 @@ fun AppNavHost(
         authorizedAccessState.loading,
         authorizedAccessState.modes,
     ) {
-        val orderId =
-            pendingOrderId ?: run {
-                clientSwitchAttemptedFor = null
-                return@LaunchedEffect
-            }
         val target = pendingOrderTarget ?: OrderNotificationTarget.CLIENT
+        val orderId = pendingOrderId
+        if (orderId == null) {
+            clientSwitchAttemptedFor = null
+            // Aviso de personal sin pedido (llamada de mesa): abrir la consola de modos.
+            if (target == OrderNotificationTarget.STAFF) {
+                if (navController.currentDestination?.route != Routes.STAFF_MODES) {
+                    navController.navigate(Routes.STAFF_MODES) { launchSingleTop = true }
+                }
+                onOrderConsumed()
+            }
+            return@LaunchedEffect
+        }
 
         fun openClientOrder() {
             if (operationalState.role != OperationalRole.CLIENT) {
@@ -336,9 +349,7 @@ fun AppNavHost(
             when (modeRole) {
                 OperationalRole.CASHIER -> Routes.CASHIER
                 OperationalRole.KITCHEN -> Routes.KITCHEN
-                // Mesero no se ofrece como modo: la entrega en espacio la hacen
-                // Caja/Cocina. Si un contexto viejo revive como mesero, cae a Alumno.
-                OperationalRole.WAITER -> Routes.CATALOG
+                OperationalRole.WAITER -> Routes.WAITER
                 OperationalRole.CLIENT -> Routes.CATALOG
             }
         if (modeRole == OperationalRole.CLIENT) {
@@ -765,7 +776,9 @@ fun AppNavHost(
                         if (
                             authorizedAccessState.activeContext == null &&
                             authorizedAccessState.modes.any { mode ->
-                                mode.role == OperationalRole.CASHIER || mode.role == OperationalRole.KITCHEN
+                                mode.role == OperationalRole.CASHIER ||
+                                    mode.role == OperationalRole.KITCHEN ||
+                                    mode.role == OperationalRole.WAITER
                             }
                         ) {
                             { navController.navigate(Routes.STAFF_MODES) { launchSingleTop = true } }
@@ -1330,6 +1343,10 @@ fun AppNavHost(
                             navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
                         },
                         onRefresh = { operationalViewModel.refresh() },
+                        canCallWaiter = ::canCallWaiter,
+                        onCurrentWaiterCall = operationalViewModel::currentWaiterCall,
+                        onCallWaiter = operationalViewModel::callWaiter,
+                        onCancelWaiter = operationalViewModel::cancelWaiterCall,
                     )
                 }
             }
@@ -1404,6 +1421,47 @@ fun AppNavHost(
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "kitchen",
+                    )
+                }
+            }
+
+            composable(Routes.WAITER) {
+                val authorizedWaiter = authorizedAccessState.activeContext?.role == OperationalRole.WAITER
+                LaunchedEffect(authorizedWaiter) {
+                    if (!authorizedWaiter) {
+                        returnToModes(navController, operationalViewModel)()
+                    }
+                }
+                if (authorizedWaiter) {
+                    OperationalPresenceLifecycle(OperationalRole.WAITER, operationalViewModel)
+                    DisposableEffect(Unit) {
+                        waiterViewModel.onVisible()
+                        onDispose { waiterViewModel.onHidden() }
+                    }
+                    var alertCall by remember { mutableStateOf<TableCall?>(null) }
+                    LaunchedEffect(Unit) {
+                        waiterViewModel.newCallEvents.collect { call -> alertCall = call }
+                    }
+                    WaiterOperationalScreen(
+                        state = waiterState,
+                        onBack = returnToModes(navController, operationalViewModel),
+                        onRefresh = waiterViewModel::refresh,
+                        onGoing = waiterViewModel::markGoing,
+                        onAttended = waiterViewModel::markAttended,
+                        onDeliver = { order, qrToken -> waiterViewModel.deliver(order, qrToken) },
+                        onFilterAttending = waiterViewModel::setFilterAttending,
+                        newCallTable = alertCall,
+                        onAlertConsumed = { alertCall = null },
+                        onChangeMode =
+                            if (authorizedAccessState.hasMultipleModes) {
+                                returnToModes(navController, operationalViewModel)
+                            } else {
+                                null
+                            },
+                        restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
+                        placeName = authorizedAccessState.activeContext?.establishmentName.orEmpty(),
+                        assistantUserKey =
+                            authorizedAccessState.activeContext?.membershipId ?: "waiter",
                     )
                 }
             }

@@ -63,6 +63,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -88,6 +89,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -98,6 +100,10 @@ import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.StripePaymentStatus
+import com.vaiinilla.app.domain.repository.CallReason
+import com.vaiinilla.app.domain.repository.CallStatus
+import com.vaiinilla.app.domain.repository.CallsUnavailableException
+import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.OrderDetailSummary
 import com.vaiinilla.app.ui.components.OrderTrackingCard
@@ -121,9 +127,11 @@ import com.vaiinilla.app.ui.components.trackingStepTitle
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
@@ -143,6 +151,10 @@ fun StudentTrackingScreen(
     onDeleteOrder: (String) -> Unit = {},
     onViewReceipt: () -> Unit = {},
     onRefresh: () -> Unit = {},
+    canCallWaiter: (OrderDetail) -> Boolean = { false },
+    onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
+    onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
+    onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
 ) {
     val haptics = rememberVaiinillaHaptics()
     LaunchedEffect(Unit) {
@@ -373,6 +385,10 @@ fun StudentTrackingScreen(
                                                 itemImageUrls(order, orderState.catalog)
                                                     .firstOrNull { it != null },
                                             onOpenFull = { onSelectOrder(order.summary.id) },
+                                            canCallWaiter = canCallWaiter,
+                                            onCurrentWaiterCall = onCurrentWaiterCall,
+                                            onCallWaiter = onCallWaiter,
+                                            onCancelWaiter = onCancelWaiter,
                                         )
                                     }
                                     if (index == 0) {
@@ -653,6 +669,10 @@ private fun ActiveOrderCard(
     order: OrderDetail,
     leadingImageUrl: String? = null,
     onOpenFull: () -> Unit,
+    canCallWaiter: (OrderDetail) -> Boolean = { false },
+    onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
+    onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
+    onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     var expanded by rememberSaveable(order.summary.id) { mutableStateOf(false) }
@@ -757,6 +777,14 @@ private fun ActiveOrderCard(
             if (summary.state == OrderState.READY) {
                 InlinePickupQr(order = order)
             }
+            if (canCallWaiter(order) && onCurrentWaiterCall != null && onCallWaiter != null && onCancelWaiter != null) {
+                CallWaiterButton(
+                    order = order,
+                    onCurrent = onCurrentWaiterCall,
+                    onCall = onCallWaiter,
+                    onCancel = onCancelWaiter,
+                )
+            }
             CardDivider()
             // Solo fade: la altura la anima animateContentSize del contenedor.
             AnimatedVisibility(
@@ -837,6 +865,285 @@ private fun ActiveOrderCard(
         }
     }
 }
+
+private enum class CallWaiterView { IDLE, REASONS, OPEN, UNAVAILABLE }
+
+/** "Llamar al mesero": un toque abre tres motivos y el botón se vuelve estado en vivo. */
+@Composable
+private fun CallWaiterButton(
+    order: OrderDetail,
+    onCurrent: suspend (Int) -> Result<TableCall?>,
+    onCall: suspend (Int, CallReason, String?) -> Result<TableCall>,
+    onCancel: suspend (TableCall) -> Result<TableCall>,
+) {
+    val spaceId = order.summary.space?.id ?: return
+    val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
+    val scope = rememberCoroutineScope()
+    var view by remember(order.summary.id) { mutableStateOf(CallWaiterView.IDLE) }
+    var call by remember(order.summary.id) { mutableStateOf<TableCall?>(null) }
+    var busy by remember(order.summary.id) { mutableStateOf(false) }
+    var error by remember(order.summary.id) { mutableStateOf<String?>(null) }
+    var cooldown by remember(order.summary.id) { mutableIntStateOf(0) }
+
+    // Recupera una llamada abierta al recargar y la mantiene fresca mientras la tarjeta vive.
+    LaunchedEffect(spaceId) {
+        while (true) {
+            onCurrent(spaceId).fold(
+                onSuccess = { current ->
+                    if (current == null && call != null) cooldown = CALL_COOLDOWN_SECONDS
+                    call = current
+                    view =
+                        when {
+                            current != null -> CallWaiterView.OPEN
+                            view == CallWaiterView.OPEN -> CallWaiterView.IDLE
+                            else -> view
+                        }
+                },
+                onFailure = { cause ->
+                    if (cause is CallsUnavailableException) view = CallWaiterView.UNAVAILABLE
+                },
+            )
+            delay(CALL_POLL_MS)
+        }
+    }
+
+    LaunchedEffect(cooldown) {
+        if (cooldown > 0) {
+            delay(1_000)
+            cooldown -= 1
+        }
+    }
+
+    fun send(reason: CallReason) {
+        if (busy) return
+        busy = true
+        error = null
+        scope.launch {
+            onCall(spaceId, reason, order.summary.id).fold(
+                onSuccess = { created ->
+                    call = created
+                    view = CallWaiterView.OPEN
+                    haptics.impact()
+                },
+                onFailure = { cause ->
+                    if (cause is CallsUnavailableException) {
+                        view = CallWaiterView.UNAVAILABLE
+                    } else {
+                        error = cause.toUserFacingMessage()
+                    }
+                },
+            )
+            busy = false
+        }
+    }
+
+    fun cancel() {
+        val current = call ?: return
+        if (busy) return
+        busy = true
+        error = null
+        scope.launch {
+            onCancel(current).fold(
+                onSuccess = {
+                    call = null
+                    view = CallWaiterView.IDLE
+                },
+                onFailure = { cause -> error = cause.toUserFacingMessage() },
+            )
+            busy = false
+        }
+    }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+                .animateContentSize(),
+    ) {
+        AnimatedContent(
+            targetState = view,
+            transitionSpec = {
+                (fadeIn(tween(200)) + scaleIn(initialScale = 0.97f, animationSpec = tween(200))) togetherWith
+                    (fadeOut(tween(120)) + scaleOut(targetScale = 0.99f, animationSpec = tween(120)))
+            },
+            label = "call-waiter-view",
+        ) { current ->
+            when (current) {
+                CallWaiterView.UNAVAILABLE -> {
+                    Text(
+                        "Llamar al mesero todavía no está disponible en esta cafetería.",
+                        color = OrderTrackingCardText.copy(alpha = 0.55f),
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                    )
+                }
+                CallWaiterView.OPEN -> {
+                    val openCall = call
+                    if (openCall != null) {
+                        CallLiveRow(
+                            call = openCall,
+                            busy = busy,
+                            colors = colors,
+                            onCancel = ::cancel,
+                        )
+                    }
+                }
+                CallWaiterView.REASONS -> {
+                    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text(
+                            "¿Qué necesitas?",
+                            color = OrderTrackingCardText,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black,
+                        )
+                        CallReason.entries.forEach { reason ->
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color.White.copy(alpha = 0.08f))
+                                        .physicalPress(scale = PhysicalPressScale.Small, enabled = !busy) {
+                                            send(reason)
+                                        }.padding(horizontal = 13.dp, vertical = 11.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    reason.label,
+                                    color = OrderTrackingCardText,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                        }
+                        Text(
+                            "Cancelar",
+                            color = OrderTrackingCardText.copy(alpha = 0.5f),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .physicalPress(scale = PhysicalPressScale.Small) {
+                                        view = CallWaiterView.IDLE
+                                    }.padding(vertical = 7.dp),
+                        )
+                    }
+                }
+                CallWaiterView.IDLE -> {
+                    val waiting = cooldown > 0
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(46.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(if (waiting) Color.White.copy(alpha = 0.10f) else colors.accent)
+                                .physicalPress(scale = PhysicalPressScale.Default, enabled = !waiting) {
+                                    haptics.selection()
+                                    view = CallWaiterView.REASONS
+                                },
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            Icons.Outlined.Notifications,
+                            contentDescription = null,
+                            tint = if (waiting) OrderTrackingCardText.copy(alpha = 0.5f) else colors.accentInk,
+                            modifier = Modifier.size(17.dp),
+                        )
+                        Spacer(Modifier.width(7.dp))
+                        Text(
+                            if (waiting) "Puedes volver a llamar en $cooldown s" else "Llamar al mesero",
+                            color = if (waiting) OrderTrackingCardText.copy(alpha = 0.5f) else colors.accentInk,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black,
+                        )
+                    }
+                }
+            }
+        }
+        error?.let { message ->
+            Text(
+                message,
+                color = colors.coral,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CallLiveRow(
+    call: TableCall,
+    busy: Boolean,
+    colors: VaiinillaColors,
+    onCancel: () -> Unit,
+) {
+    val going = call.status == CallStatus.EN_CAMINO
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(
+            modifier = Modifier.size(30.dp).clip(CircleShape).background(colors.accent),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Outlined.Notifications,
+                contentDescription = null,
+                tint = colors.accentInk,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                if (going) "${call.takenBy?.name ?: "Tu mesero"} va en camino" else "Llamando a tu mesero…",
+                color = OrderTrackingCardText,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Black,
+            )
+            Text(
+                if (going) {
+                    if (call.space.name.isBlank()) "Va a tu mesa" else "Va a ${call.space.name}"
+                } else {
+                    "${call.space.name} · ${call.reason.label}"
+                },
+                color = OrderTrackingCardText.copy(alpha = 0.58f),
+                fontSize = 11.sp,
+                modifier = Modifier.padding(top = 1.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (!going) {
+            Row(
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.White.copy(alpha = 0.10f))
+                        .physicalPress(scale = PhysicalPressScale.Small, enabled = !busy, onClick = onCancel)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+            ) {
+                Text(
+                    "Cancelar",
+                    color = OrderTrackingCardText,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+    }
+}
+
+private const val CALL_POLL_MS = 5_000L
+private const val CALL_COOLDOWN_SECONDS = 60
 
 @Composable
 private fun InlinePickupQr(order: OrderDetail) {

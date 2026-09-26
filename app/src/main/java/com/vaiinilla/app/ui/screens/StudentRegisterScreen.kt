@@ -9,9 +9,8 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -76,7 +75,11 @@ import com.vaiinilla.app.ui.theme.VaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
-private enum class RegisterStep(val icon: ImageVector, val title: String, val subtitle: String) {
+private enum class RegisterStep(
+    val icon: ImageVector,
+    val title: String,
+    val subtitle: String,
+) {
     Email(
         icon = Icons.Outlined.Email,
         title = "¿Cuál es tu correo?",
@@ -123,16 +126,17 @@ fun StudentRegisterScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
 
     val normalizedEmail = state.email.trim()
-    val canAdvance = when (step) {
-        RegisterStep.Email -> normalizedEmail.contains("@") && normalizedEmail.contains(".")
-        RegisterStep.Password -> state.password.length >= 6
-        RegisterStep.Name -> state.name.trim().isNotEmpty()
-        RegisterStep.Legal ->
-            state.termsAccepted &&
-                state.privacyAccepted &&
-                (!state.clientIdRequired || state.contextualId.isNotBlank()) &&
-                !state.loading
-    }
+    val canAdvance =
+        when (step) {
+            RegisterStep.Email -> normalizedEmail.contains("@") && normalizedEmail.contains(".")
+            RegisterStep.Password -> state.password.length >= 6
+            RegisterStep.Name -> state.name.trim().isNotEmpty()
+            RegisterStep.Legal ->
+                state.termsAccepted &&
+                    state.privacyAccepted &&
+                    (!state.clientIdRequired || state.contextualId.isNotBlank()) &&
+                    !state.loading
+        }
 
     // The step flow shows the password once with a reveal toggle instead of
     // asking for it twice; mirroring it into passwordConfirm keeps the
@@ -142,7 +146,10 @@ fun StudentRegisterScreen(
         onPasswordConfirmChange(value)
     }
 
-    fun goToStep(target: Int, forward: Boolean) {
+    fun goToStep(
+        target: Int,
+        forward: Boolean,
+    ) {
         movingForward = forward
         stepIndex = target
     }
@@ -168,10 +175,11 @@ fun StudentRegisterScreen(
     BackHandler(onBack = ::goBack)
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.paper)
-            .statusBarsPadding(),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(colors.paper)
+                .statusBarsPadding(),
     ) {
         RegisterTopBar(
             step = stepIndex,
@@ -213,18 +221,20 @@ fun StudentRegisterScreen(
         }
 
         Column(
-            modifier = Modifier
-                .navigationBarsPadding()
-                .imePadding()
-                .padding(horizontal = 28.dp)
-                .padding(bottom = 12.dp),
+            modifier =
+                Modifier
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(horizontal = 28.dp)
+                    .padding(bottom = 12.dp),
         ) {
             AuthInkSubmitButton(
-                text = when {
-                    step != RegisterStep.Legal -> "Continuar"
-                    state.loading -> "Creando…"
-                    else -> "Crear cuenta"
-                },
+                text =
+                    when {
+                        step != RegisterStep.Legal -> "Continuar"
+                        state.loading -> "Creando…"
+                        else -> "Crear cuenta"
+                    },
                 onClick = ::advance,
                 enabled = canAdvance,
             )
@@ -241,10 +251,11 @@ private fun RegisterTopBar(
     onLogin: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(44.dp)
-            .padding(horizontal = 20.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .padding(horizontal = 20.dp),
     ) {
         Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
@@ -276,9 +287,10 @@ private fun RegisterTopBar(
                 Surface(
                     color = if (index <= step) colors.accentInk else colors.line,
                     shape = CircleShape,
-                    modifier = Modifier
-                        .width(if (index == step) 22.dp else 7.dp)
-                        .height(7.dp),
+                    modifier =
+                        Modifier
+                            .width(if (index == step) 22.dp else 7.dp)
+                            .height(7.dp),
                 ) {}
             }
         }
@@ -308,9 +320,10 @@ private fun RegisterStepContent(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 28.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(modifier = Modifier.height(28.dp))
@@ -325,10 +338,11 @@ private fun RegisterStepContent(
                     placeholder = "Correo",
                     colors = colors,
                     focusRequester = focusRequester,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Email,
-                        imeAction = ImeAction.Next,
-                    ),
+                    keyboardOptions =
+                        KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next,
+                        ),
                     onSubmit = onSubmitField,
                 )
             RegisterStep.Password ->
@@ -348,11 +362,12 @@ private fun RegisterStepContent(
                     placeholder = "Tu nombre",
                     colors = colors,
                     focusRequester = focusRequester,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Words,
-                        keyboardType = KeyboardType.Text,
-                        imeAction = ImeAction.Done,
-                    ),
+                    keyboardOptions =
+                        KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Words,
+                            keyboardType = KeyboardType.Text,
+                            imeAction = ImeAction.Done,
+                        ),
                     onSubmit = onSubmitField,
                 )
             RegisterStep.Legal ->
@@ -370,15 +385,19 @@ private fun RegisterStepContent(
 }
 
 @Composable
-private fun RegisterStepHeader(step: RegisterStep, colors: VaiinillaColors) {
+private fun RegisterStepHeader(
+    step: RegisterStep,
+    colors: VaiinillaColors,
+) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
-            modifier = Modifier
-                .size(48.dp)
-                .background(
-                    color = colors.accent.copy(alpha = if (colors.isDark) 0.18f else 0.22f),
-                    shape = CircleShape,
-                ),
+            modifier =
+                Modifier
+                    .size(48.dp)
+                    .background(
+                        color = colors.accent.copy(alpha = if (colors.isDark) 0.18f else 0.22f),
+                        shape = CircleShape,
+                    ),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -422,22 +441,27 @@ private fun HeroTextField(
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier
-            .fillMaxWidth()
-            .focusRequester(focusRequester),
-        textStyle = TextStyle(
-            color = colors.ink,
-            fontSize = 30.sp,
-            fontWeight = FontWeight.Black,
-            textAlign = TextAlign.Center,
-        ),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester),
+        textStyle =
+            TextStyle(
+                color = colors.ink,
+                fontSize = 30.sp,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center,
+            ),
         singleLine = true,
-        cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.accentInk),
+        cursorBrush =
+            androidx.compose.ui.graphics
+                .SolidColor(colors.accentInk),
         keyboardOptions = keyboardOptions,
-        keyboardActions = KeyboardActions(
-            onNext = { onSubmit() },
-            onDone = { onSubmit() },
-        ),
+        keyboardActions =
+            KeyboardActions(
+                onNext = { onSubmit() },
+                onDone = { onSubmit() },
+            ),
         visualTransformation = visualTransformation,
         decorationBox = { innerTextField ->
             Box(contentAlignment = Alignment.Center) {
@@ -473,10 +497,11 @@ private fun HeroPasswordField(
             placeholder = "Contraseña",
             colors = colors,
             focusRequester = focusRequester,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Done,
-            ),
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Done,
+                ),
             onSubmit = onSubmit,
             visualTransformation = if (revealsPassword) VisualTransformation.None else PasswordVisualTransformation(),
             modifier = Modifier.padding(horizontal = 40.dp),

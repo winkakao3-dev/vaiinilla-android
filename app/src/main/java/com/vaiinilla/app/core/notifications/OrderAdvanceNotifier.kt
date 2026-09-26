@@ -24,6 +24,8 @@ object OrderAdvanceNotifier {
     const val EXTRA_ORDER_ID = "order_id"
     const val EXTRA_NOTIFICATION_TARGET = "notification_target"
     private const val CHANNEL_ID = "order_tracking"
+    private const val STAFF_MODES_REQUEST_CODE = 710_300
+    private const val PLAIN_LAUNCH_REQUEST_CODE = 710_301
 
     fun ensureChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
@@ -89,6 +91,61 @@ object OrderAdvanceNotifier {
         NotificationManagerCompat.from(context).notify("staff:$orderId:$alert".hashCode(), notification)
     }
 
+    /** Aviso a meseros: una mesa llamó. Tocar la notificación cae en la consola de personal. */
+    @SuppressLint("MissingPermission")
+    fun notifyTableCall(
+        context: Context,
+        callId: String,
+        spaceName: String,
+        reason: String?,
+    ) {
+        if (!canPost(context)) return
+        ensureStaffChannel(context)
+        val notification =
+            NotificationCompat
+                .Builder(context, STAFF_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_order_notification)
+                .setContentTitle(if (spaceName.isBlank()) "Una mesa te llama" else "$spaceName te llama")
+                .setContentText(tableCallText(reason))
+                .setAutoCancel(true)
+                .setContentIntent(staffModesLaunchIntent(context))
+                .setCategory(NotificationCompat.CATEGORY_STATUS)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .build()
+        NotificationManagerCompat.from(context).notify("staff-call:$callId".hashCode(), notification)
+    }
+
+    internal fun tableCallText(reason: String?): String =
+        when (reason) {
+            "utensilios" -> "Pide cubiertos o servilletas"
+            "problema" -> "Algo está mal con su pedido"
+            else -> "Necesita atención"
+        }
+
+    /** Aviso al cliente: el mesero que atiende su llamada va en camino. */
+    @SuppressLint("MissingPermission")
+    fun notifyCallerOnTheWay(
+        context: Context,
+        callId: String,
+        waiterName: String?,
+    ) {
+        if (!canPost(context)) return
+        ensureChannel(context)
+        val who = waiterName?.trim().orEmpty()
+        val notification =
+            NotificationCompat
+                .Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_order_notification)
+                .setContentTitle("Tu mesero va en camino")
+                .setContentText(if (who.isEmpty()) "Va a tu mesa." else "$who va a tu mesa.")
+                .setAutoCancel(true)
+                .setContentIntent(plainLaunchIntent(context))
+                .setCategory(NotificationCompat.CATEGORY_STATUS)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .build()
+        NotificationManagerCompat.from(context).notify("call-on-the-way:$callId".hashCode(), notification)
+    }
+
     fun canPost(context: Context): Boolean =
         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
@@ -140,6 +197,28 @@ object OrderAdvanceNotifier {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }
+
+    /** Sin pedido asociado: la app resuelve el objetivo STAFF abriendo la consola de modos. */
+    private fun staffModesLaunchIntent(context: Context): PendingIntent =
+        PendingIntent.getActivity(
+            context,
+            STAFF_MODES_REQUEST_CODE,
+            Intent(context, MainActivity::class.java)
+                .setAction("${context.packageName}.staff.modes")
+                .putExtra(EXTRA_NOTIFICATION_TARGET, OrderNotificationTarget.STAFF.wireValue)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+    private fun plainLaunchIntent(context: Context): PendingIntent =
+        PendingIntent.getActivity(
+            context,
+            PLAIN_LAUNCH_REQUEST_CODE,
+            Intent(context, MainActivity::class.java)
+                .setAction("${context.packageName}.open")
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
 
     private fun messageFor(state: OrderState): String =
         when (state) {

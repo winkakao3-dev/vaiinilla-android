@@ -42,4 +42,5 @@ object Routes {
 
     const val CASHIER = "cashier"
     const val KITCHEN = "kitchen"
+    const val WAITER = "waiter"
 }

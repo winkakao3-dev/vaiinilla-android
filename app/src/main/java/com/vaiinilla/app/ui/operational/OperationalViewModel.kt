@@ -20,10 +20,13 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.WalletClient
+import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
 import com.vaiinilla.app.domain.repository.DeviceIdentity
+import com.vaiinilla.app.domain.repository.TableCall
+import com.vaiinilla.app.domain.repository.WaiterRepository
 import com.vaiinilla.app.domain.repository.WalletRepository
 import com.vaiinilla.app.domain.repository.WalletRepositoryException
 import com.vaiinilla.app.domain.usecase.CollectCashUseCase
@@ -63,6 +66,7 @@ class OperationalViewModel
         private val dismissedClientOrdersStore: DismissedClientOrdersStore,
         private val deviceTokenRegistrar: DeviceTokenRegistrar,
         private val pendingWalletReloadStore: PendingWalletReloadStore,
+        private val waiterRepository: WaiterRepository,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(OperationalUiState())
         val uiState: State<OperationalUiState> = _uiState
@@ -1084,6 +1088,23 @@ class OperationalViewModel
             pollingJob?.cancel()
             super.onCleared()
         }
+
+        suspend fun currentWaiterCall(espacioId: Int): Result<TableCall?> =
+            withContext(Dispatchers.IO) { waiterRepository.currentCall(espacioId) }
+
+        suspend fun callWaiter(
+            espacioId: Int,
+            reason: CallReason,
+            orderId: String?,
+        ): Result<TableCall> =
+            withContext(Dispatchers.IO) {
+                waiterRepository.call(espacioId, reason, orderId, UUID.randomUUID().toString())
+            }
+
+        suspend fun cancelWaiterCall(call: TableCall): Result<TableCall> =
+            withContext(Dispatchers.IO) {
+                waiterRepository.cancelCall(call, UUID.randomUUID().toString())
+            }
 
         private companion object {
             const val POLL_INTERVAL_MS = 5_000L

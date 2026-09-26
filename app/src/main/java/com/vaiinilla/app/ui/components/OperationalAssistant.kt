@@ -49,10 +49,12 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowForwardIos
 import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.ToggleOff
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -2087,3 +2089,83 @@ fun kitchenAssistantGuides(
         ),
     )
 }
+
+fun waiterAssistantGuides(): List<OperationalAssistantGuide> =
+    listOf(
+        OperationalAssistantGuide(
+            id = "atender-llamada",
+            title = "¿Cómo atiendo una llamada de mesa?",
+            role = OperationalRole.WAITER,
+            section = "Mesas",
+            icon = Icons.Outlined.NotificationsActive,
+            demoSteps =
+                listOf(
+                    OperationalManualDemoStep(
+                        "Las llamadas van primero",
+                        "El tablero ordena las mesas por urgencia: Llamando, Listo, activa y libre. Una mesa que llama siempre aparece hasta arriba.",
+                        OperationalManualVisual.ORDER_STATES,
+                    ),
+                    OperationalManualDemoStep(
+                        "Toca la mesa y di Voy",
+                        "En la hoja de la mesa toca Voy para avisar que vas en camino. El cliente ve tu nombre en su seguimiento.",
+                        OperationalManualVisual.ORDER_STATES,
+                    ),
+                    OperationalManualDemoStep(
+                        "Cierra con Atendida",
+                        "Cuando resuelvas la llamada, toca Atendida. La mesa deja de marcar Llamando para todo el equipo.",
+                        OperationalManualVisual.ORDER_STATES,
+                    ),
+                ),
+            completionMessage = "Llamadas de mesa revisadas",
+            available = false,
+        ),
+        OperationalAssistantGuide(
+            id = "entregar-mesa",
+            title = "¿Cómo entrego un pedido en la mesa?",
+            role = OperationalRole.WAITER,
+            section = "Entregas",
+            icon = Icons.Outlined.QrCodeScanner,
+            demoSteps =
+                listOf(
+                    OperationalManualDemoStep(
+                        "Busca la mesa con Listo",
+                        "Cuando Cocina termina, la mesa sube en el tablero con la etiqueta Listo. Toca la mesa para ver sus pedidos.",
+                        OperationalManualVisual.QR_READY,
+                    ),
+                    OperationalManualDemoStep(
+                        "Escanea el QR del cliente",
+                        "Toca Entregar y escanea el QR del pedido del cliente con la cámara, o pega el código a mano.",
+                        OperationalManualVisual.QR_SCAN,
+                    ),
+                    OperationalManualDemoStep(
+                        "Si el QR no funciona",
+                        "Pide al cliente abrir su pedido en la app y usar el código de respaldo; el sistema valida el mismo pedido.",
+                        OperationalManualVisual.QR_TROUBLESHOOT,
+                    ),
+                ),
+            completionMessage = "Entrega en mesa revisada",
+            available = false,
+        ),
+        OperationalAssistantGuide(
+            id = "cambiar-modo-mesero",
+            title = "¿Cómo cambio entre modos de trabajo?",
+            role = OperationalRole.WAITER,
+            section = "Cuenta y modo",
+            icon = Icons.Outlined.SwapHoriz,
+            demoSteps =
+                listOf(
+                    OperationalManualDemoStep(
+                        "Toca el chip de tu cuenta",
+                        "El control con las iniciales en el encabezado permite regresar a la selección de modos.",
+                        OperationalManualVisual.CHANGE_MODE,
+                    ),
+                    OperationalManualDemoStep(
+                        "Elige otro modo autorizado",
+                        "La aplicación solo muestra roles realmente asignados por el backend.",
+                        OperationalManualVisual.CHANGE_MODE,
+                    ),
+                ),
+            completionMessage = "Cambio de modo revisado",
+            available = false,
+        ),
+    )
