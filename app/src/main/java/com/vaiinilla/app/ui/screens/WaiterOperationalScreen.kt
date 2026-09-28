@@ -6,13 +6,12 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.snap
@@ -23,7 +22,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -33,8 +31,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -67,7 +68,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -75,6 +81,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.mode.RestrictedMode
@@ -94,6 +101,7 @@ import com.vaiinilla.app.ui.components.SlidingSegments
 import com.vaiinilla.app.ui.components.ToastPill
 import com.vaiinilla.app.ui.components.VaiinillaAssistantButton
 import com.vaiinilla.app.ui.components.VaiinillaMark
+import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
@@ -195,15 +203,17 @@ fun WaiterOperationalScreen(
                     }
                 },
     ) {
-        LazyColumn(
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
             modifier =
                 Modifier
                     .fillMaxSize()
                     .statusBarsPadding(),
             contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 100.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            item {
+            item(span = fullWidth) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -301,60 +311,44 @@ fun WaiterOperationalScreen(
                 }
             }
 
-            item {
-                Column(modifier = Modifier.padding(top = 4.dp)) {
-                    Text(
-                        "Mesas en vivo",
-                        color = colors.textSecondary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
-                        letterSpacing = 1.6.sp,
-                    )
-                    Text(
-                        if (placeName.isNotBlank()) "Mesas · $placeName" else "Mesas",
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 32.sp,
-                        letterSpacing = (-1.2).sp,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                    Text(
-                        "Llamadas primero. Toca una mesa para atenderla.",
-                        color = colors.textSecondary,
-                        fontSize = 14.sp,
-                        lineHeight = 19.sp,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                }
+            item(span = fullWidth) {
+                WaiterTitleBlock(
+                    placeName = placeName,
+                    online = state.errorMessage == null || state.tables.isNotEmpty(),
+                    colors = colors,
+                )
             }
 
-            item {
+            item(span = fullWidth) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    WaiterSummaryPill(
+                    WaiterSummaryCard(
                         count = calling,
                         label = "llamando",
-                        highlighted = calling > 0,
+                        kind = if (calling > 0) SummaryKind.Call else SummaryKind.Plain,
                         colors = colors,
+                        modifier = Modifier.weight(1f),
                     )
-                    WaiterSummaryPill(
+                    WaiterSummaryCard(
                         count = readyCount,
                         label = if (readyCount == 1) "listo" else "listos",
-                        highlighted = readyCount > 0,
+                        kind = if (readyCount > 0) SummaryKind.Ready else SummaryKind.Plain,
                         colors = colors,
+                        modifier = Modifier.weight(1f),
                     )
-                    WaiterSummaryPill(
+                    WaiterSummaryCard(
                         count = activeCount,
                         label = "activas",
-                        highlighted = false,
+                        kind = SummaryKind.Plain,
                         colors = colors,
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
 
-            item {
+            item(span = fullWidth) {
                 SlidingSegments(
                     labels = listOf("Todas", "Por atender"),
                     selectedIndex = if (state.filterAttending) 1 else 0,
@@ -362,17 +356,20 @@ fun WaiterOperationalScreen(
                         haptics.selection()
                         onFilterAttending(index == 1)
                     },
-                    trackColor = colors.cardInner,
-                    indicatorColor = colors.accentLime,
-                    selectedContentColor = colors.accentInk,
+                    trackColor = colors.cardBackground,
+                    indicatorColor = colors.textPrimary,
+                    selectedContentColor = colors.background,
                     idleContentColor = colors.textSecondary,
                     modifier = Modifier.fillMaxWidth(),
                     verticalPadding = 9.dp,
+                    cornerRadius = 14.dp,
+                    borderColor = colors.cardBorder,
+                    indicatorDamping = 0.6f,
                 )
             }
 
             if (!state.callsEnabled) {
-                item(key = "calls-disabled") {
+                item(key = "calls-disabled", span = fullWidth) {
                     Surface(
                         shape = RoundedCornerShape(18.dp),
                         color = colors.cardBackground,
@@ -395,7 +392,7 @@ fun WaiterOperationalScreen(
             }
 
             if (state.errorMessage != null && state.tables.isEmpty()) {
-                item(key = "board-error") {
+                item(key = "board-error", span = fullWidth) {
                     Surface(
                         shape = RoundedCornerShape(20.dp),
                         color = colors.cardBackground,
@@ -430,18 +427,19 @@ fun WaiterOperationalScreen(
             }
 
             if (state.loading && state.tables.isEmpty()) {
-                items(6) {
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = colors.cardBackground,
-                        modifier = Modifier.fillMaxWidth().border(1.dp, colors.cardBorder, RoundedCornerShape(20.dp)),
-                    ) {
-                        Box(modifier = Modifier.fillMaxWidth().height(76.dp))
-                    }
+                items(9) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .height(WaiterTileHeight)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(colors.cardBackground)
+                                .border(1.dp, colors.cardBorder, RoundedCornerShape(20.dp)),
+                    )
                 }
             } else {
                 items(sorted, key = { it.space.id }) { table ->
-                    WaiterTableCard(
+                    WaiterTile(
                         table = table,
                         tick = tick,
                         colors = colors,
@@ -453,7 +451,7 @@ fun WaiterOperationalScreen(
                     )
                 }
                 if (sorted.isEmpty()) {
-                    item(key = "board-empty") {
+                    item(key = "board-empty", span = fullWidth) {
                         Surface(
                             shape = RoundedCornerShape(26.dp),
                             color = colors.cardBackground,
@@ -552,191 +550,252 @@ fun WaiterOperationalScreen(
     }
 }
 
-/** Latido suave sobre la mesa que está llamando; con animaciones apagadas no se dibuja. */
+private val WaiterCoral = Color(0xFFE5645A)
+private val WaiterTileHeight = 116.dp
+
+private val fullWidth: LazyGridItemSpanScope.() -> GridItemSpan = { GridItemSpan(maxLineSpan) }
+
+private enum class SummaryKind { Plain, Call, Ready }
+
+/** Kicker con guion lima, título grande y el estado de conexión: la cabecera del tablero web. */
 @Composable
-private fun BoxScope.CallPulseRing(
-    color: Color,
-    reduced: Boolean,
+private fun WaiterTitleBlock(
+    placeName: String,
+    online: Boolean,
+    colors: OperationalColors,
 ) {
-    if (reduced) return
-    val transition = rememberInfiniteTransition(label = "call-pulse")
-    val progress by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1100, easing = FastOutSlowInEasing), RepeatMode.Restart),
-        label = "call-pulse-progress",
-    )
-    Box(
-        modifier =
-            Modifier.matchParentSize().drawBehind {
-                drawRect(color.copy(alpha = 0.32f * (1f - progress)))
-            },
-    )
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.size(width = 18.dp, height = 3.dp).clip(CircleShape).background(colors.accentLime))
+                Text(
+                    if (placeName.isBlank()) "MESERO" else "MESERO · ${placeName.uppercase()}",
+                    color = colors.textSecondary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    letterSpacing = 1.6.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                "Mesas",
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Black,
+                fontSize = 40.sp,
+                letterSpacing = (-1.5).sp,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        WaiterLivePill(online = online, colors = colors)
+    }
 }
 
 @Composable
-private fun WaiterSummaryPill(
-    count: Int,
-    label: String,
-    highlighted: Boolean,
+private fun WaiterLivePill(
+    online: Boolean,
     colors: OperationalColors,
 ) {
-    val reduced = reducedMotion()
-    val colorSpec = if (reduced) snap<Color>() else spring(stiffness = Spring.StiffnessMediumLow)
-    val background by animateColorAsState(
-        if (highlighted) colors.accentLime else colors.cardBackground,
-        colorSpec,
-        label = "pill-background",
-    )
-    val borderColor by animateColorAsState(
-        if (highlighted) colors.accentLime else colors.cardBorder,
-        colorSpec,
-        label = "pill-border",
-    )
-    val content by animateColorAsState(
-        if (highlighted) colors.accentInk else colors.textSecondary,
-        colorSpec,
-        label = "pill-content",
-    )
+    val dot = animateSelectionColor(if (online) colors.accentLime else WaiterCoral, "live-dot")
     Row(
         modifier =
             Modifier
                 .clip(CircleShape)
-                .background(background)
-                .border(1.dp, borderColor, CircleShape)
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+                .background(colors.cardBackground)
+                .border(1.dp, colors.cardBorder, CircleShape)
+                .padding(horizontal = 12.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        NumberTicker(value = count, label = "pill-count") { value ->
-            Text(
-                "$value",
-                color = content,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-            )
-        }
+        Box(
+            Modifier
+                .size(8.dp)
+                .pulseGlow(active = online, color = colors.accentLime, spread = 8.dp, corner = 4.dp)
+                .clip(CircleShape)
+                .background(dot),
+        )
         Text(
-            " $label",
-            color = content,
-            fontSize = 12.sp,
+            if (online) "En vivo" else "Sin conexión",
+            color = colors.textSecondary,
             fontWeight = FontWeight.Bold,
+            fontSize = 12.5.sp,
+        )
+    }
+}
+
+/** Halo que se expande y se desvanece detrás del elemento; con animaciones apagadas no se dibuja. */
+@Composable
+private fun Modifier.pulseGlow(
+    active: Boolean,
+    color: Color,
+    spread: Dp,
+    corner: Dp,
+    periodMillis: Int = 1200,
+): Modifier {
+    if (!active || reducedMotion()) return this
+    val transition = rememberInfiniteTransition(label = "pulse-glow")
+    val progress by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(periodMillis, easing = FastOutSlowInEasing), RepeatMode.Restart),
+        label = "pulse-glow-progress",
+    )
+    return drawBehind {
+        val grow = spread.toPx() * progress
+        drawRoundRect(
+            color = color.copy(alpha = 0.55f * (1f - progress)),
+            topLeft = Offset(-grow, -grow),
+            size = Size(size.width + 2f * grow, size.height + 2f * grow),
+            cornerRadius = CornerRadius(corner.toPx() + grow),
         )
     }
 }
 
 @Composable
-private fun WaiterTableCard(
+private fun WaiterSummaryCard(
+    count: Int,
+    label: String,
+    kind: SummaryKind,
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+) {
+    val background =
+        animateSelectionColor(
+            when (kind) {
+                SummaryKind.Call -> lerp(colors.cardBackground, WaiterCoral, 0.14f)
+                SummaryKind.Ready -> lerp(colors.cardBackground, colors.accentLime, 0.22f)
+                SummaryKind.Plain -> colors.cardBackground
+            },
+            "summary-background",
+        )
+    val border =
+        animateSelectionColor(
+            when (kind) {
+                SummaryKind.Call -> WaiterCoral.copy(alpha = 0.45f)
+                SummaryKind.Ready -> colors.accentLime.copy(alpha = 0.6f)
+                SummaryKind.Plain -> colors.cardBorder
+            },
+            "summary-border",
+        )
+    val labelColor =
+        animateSelectionColor(
+            if (kind == SummaryKind.Call) WaiterCoral else colors.textSecondary,
+            "summary-label",
+        )
+    Column(
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(background)
+                .border(1.dp, border, RoundedCornerShape(16.dp))
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        NumberTicker(value = count, label = "summary-count") { value ->
+            Text(
+                "$value",
+                color = colors.textPrimary,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Black,
+                lineHeight = 26.sp,
+            )
+        }
+        Text(label, color = labelColor, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+/** Mosaico de una mesa: número grande arriba, estado abajo; el color cuenta la urgencia. */
+@Composable
+private fun WaiterTile(
     table: BoardTable,
     tick: Int,
     colors: OperationalColors,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    val tableState = table.tableState()
+    val state = table.tableState()
+    val going = table.call?.status == CallStatus.EN_CAMINO
+    val ringing = state == TableState.CALL && !going
+    val shape = RoundedCornerShape(20.dp)
     val readyOrders = table.orders.filter { it.state == OrderState.READY }
-    // tick entra en la clave para que el "hace 0:42" avance cada segundo.
-    val subtitle = remember(table, readyOrders, tick) { waiterTableSubtitle(table, readyOrders) }
-    val urgent = tableState == TableState.CALL || tableState == TableState.READY
-    val reduced = reducedMotion()
-    val colorSpec = if (reduced) snap<Color>() else spring(stiffness = Spring.StiffnessMediumLow)
-    val border by animateColorAsState(
-        if (urgent) colors.highlightBorder else colors.cardBorder,
-        colorSpec,
-        label = "table-border",
+    // tick entra en la clave para que el "0:42" avance cada segundo.
+    val caption = remember(table, readyOrders, tick) { waiterTileCaption(table, readyOrders) }
+    val container =
+        animateSelectionColor(
+            when {
+                ringing -> WaiterCoral
+                state == TableState.CALL -> lerp(colors.cardBackground, WaiterCoral, 0.18f)
+                state == TableState.READY -> lerp(colors.cardBackground, colors.accentLime, 0.28f)
+                state == TableState.ACTIVE -> colors.cardBackground
+                else -> Color.Transparent
+            },
+            "tile-container",
+        )
+    val border =
+        animateSelectionColor(
+            when (state) {
+                TableState.CALL -> WaiterCoral
+                TableState.READY -> colors.accentLime.copy(alpha = 0.7f)
+                else -> colors.cardBorder
+            },
+            "tile-border",
+        )
+    val numberColor = animateSelectionColor(if (ringing) Color.White else colors.textPrimary, "tile-number")
+    val captionColor =
+        animateSelectionColor(
+            when {
+                ringing -> Color.White.copy(alpha = 0.9f)
+                state == TableState.CALL -> WaiterCoral
+                state == TableState.READY -> colors.textPrimary
+                else -> colors.textSecondary
+            },
+            "tile-caption",
+        )
+    val alpha by animateFloatAsState(
+        targetValue = if (state == TableState.FREE) 0.5f else 1f,
+        animationSpec = if (reducedMotion()) snap() else spring(stiffness = Spring.StiffnessMediumLow),
+        label = "tile-alpha",
     )
-    val borderWidth by animateDpAsState(
-        if (urgent) 2.dp else 1.dp,
-        if (reduced) snap() else spring(stiffness = Spring.StiffnessMediumLow),
-        label = "table-border-width",
-    )
-    val badgeBackground by animateColorAsState(
-        if (urgent) colors.accentLime else colors.textPrimary,
-        colorSpec,
-        label = "table-badge-background",
-    )
-    val badgeContent by animateColorAsState(
-        if (urgent) colors.accentInk else colors.background,
-        colorSpec,
-        label = "table-badge-content",
-    )
-    Surface(
+    Column(
         modifier =
             modifier
                 .physicalPress(onClick = onClick)
-                .fillMaxWidth()
-                .border(borderWidth, border, RoundedCornerShape(20.dp))
-                .animateContentSize(),
-        shape = RoundedCornerShape(20.dp),
-        color = colors.cardBackground,
+                .pulseGlow(active = ringing, color = WaiterCoral, spread = 7.dp, corner = 20.dp)
+                .graphicsLayer { this.alpha = alpha }
+                .height(WaiterTileHeight)
+                .clip(shape)
+                .background(container)
+                .border(1.dp, border, shape)
+                .padding(12.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(width = 56.dp, height = 56.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(badgeBackground),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (tableState == TableState.CALL) {
-                    CallPulseRing(color = Color.White, reduced = reduced)
-                }
-                Text(
-                    waiterShortName(table.space.name),
-                    color = badgeContent,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 19.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Column(modifier = Modifier.weight(1f).animateContentSize()) {
-                Text(
-                    table.space.name,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = colors.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    subtitle,
-                    fontSize = 12.sp,
-                    color = colors.textSecondary,
-                    modifier = Modifier.padding(top = 1.dp),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Box(
-                modifier =
-                    Modifier
-                        .clip(CircleShape)
-                        .background(colors.pillBackground)
-                        .border(1.dp, colors.pillBorder, CircleShape)
-                        .padding(horizontal = 10.dp, vertical = 5.dp),
-            ) {
-                Text(
-                    when (tableState) {
-                        TableState.CALL -> "Llamando"
-                        TableState.READY -> "Listo"
-                        TableState.ACTIVE -> "${table.orders.size}"
-                        TableState.FREE -> "Libre"
-                    },
-                    color = colors.textSecondary,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-        }
+        Text(
+            waiterShortName(table.space.name),
+            color = numberColor,
+            fontWeight = FontWeight.Black,
+            fontSize = 30.sp,
+            letterSpacing = (-0.9).sp,
+            lineHeight = 32.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            caption,
+            color = captionColor,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 11.5.sp,
+            lineHeight = 14.sp,
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
-private fun waiterTableSubtitle(
+private fun waiterTileCaption(
     table: BoardTable,
     readyOrders: List<BoardOrder>,
 ): String {
@@ -747,9 +806,9 @@ private fun waiterTableSubtitle(
                 if (call.status == CallStatus.EN_CAMINO) {
                     "Va ${call.takenBy?.name ?: "alguien"}"
                 } else {
-                    "Llamando · ${waiterSince(call.createdAt)}"
+                    "Llamando"
                 }
-            "$whenText · ${call.reason.staffLabel}"
+            "$whenText · ${waiterSince(call.createdAt)}\n${call.reason.staffLabel}"
         }
         readyOrders.isNotEmpty() -> "#${readyOrders.joinToString(", #") { it.folio.toString() }} listo"
         table.orders.isNotEmpty() -> "${table.orders.size} ${if (table.orders.size == 1) "pedido" else "pedidos"}"
@@ -844,10 +903,23 @@ private fun WaiterTableSheet(
             )
             val call = table.call
             if (call != null) {
+                val going = call.status == CallStatus.EN_CAMINO
                 Surface(
                     shape = RoundedCornerShape(18.dp),
-                    color = colors.cardBackground,
-                    modifier = Modifier.fillMaxWidth().border(1.dp, colors.cardBorder, RoundedCornerShape(18.dp)),
+                    color =
+                        animateSelectionColor(
+                            if (going) colors.cardBackground else lerp(colors.cardBackground, WaiterCoral, 0.14f),
+                            "sheet-call-background",
+                        ),
+                    modifier =
+                        Modifier.fillMaxWidth().border(
+                            1.dp,
+                            animateSelectionColor(
+                                if (going) colors.cardBorder else WaiterCoral.copy(alpha = 0.4f),
+                                "sheet-call-border",
+                            ),
+                            RoundedCornerShape(18.dp),
+                        ),
                 ) {
                     Column(modifier = Modifier.padding(16.dp).animateContentSize()) {
                         Text(

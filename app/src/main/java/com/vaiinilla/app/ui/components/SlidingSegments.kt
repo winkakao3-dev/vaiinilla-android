@@ -5,10 +5,12 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -41,26 +43,37 @@ fun SlidingSegments(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     verticalPadding: Dp = 10.dp,
+    cornerRadius: Dp = Dp.Unspecified,
+    borderColor: Color = Color.Transparent,
+    indicatorDamping: Float = 0.75f,
 ) {
     val reduced = reducedMotion()
     val position by animateFloatAsState(
         targetValue = selectedIndex.toFloat(),
-        animationSpec = if (reduced) snap() else spring(dampingRatio = 0.75f, stiffness = 520f),
+        animationSpec = if (reduced) snap() else spring(dampingRatio = indicatorDamping, stiffness = 520f),
         label = "segments-indicator",
     )
+    val trackShape = if (cornerRadius == Dp.Unspecified) CircleShape else RoundedCornerShape(cornerRadius)
     Row(
         modifier =
             modifier
-                .clip(CircleShape)
+                .clip(trackShape)
                 .background(trackColor)
+                .border(1.dp, borderColor, trackShape)
                 .padding(4.dp)
                 .drawBehind {
                     val segmentWidth = size.width / labels.size
+                    val radius =
+                        if (cornerRadius == Dp.Unspecified) {
+                            size.height / 2f
+                        } else {
+                            (cornerRadius - 4.dp).toPx().coerceAtLeast(0f)
+                        }
                     drawRoundRect(
                         color = indicatorColor,
                         topLeft = Offset(position * segmentWidth, 0f),
                         size = Size(segmentWidth, size.height),
-                        cornerRadius = CornerRadius(size.height / 2f),
+                        cornerRadius = CornerRadius(radius),
                     )
                 },
     ) {
