@@ -1,4 +1,4 @@
-package com.vaiinilla.app.domain.arcade
+package com.vaiinilla.app.arcade
 
 internal enum class ArcadeKind(
     val label: String,

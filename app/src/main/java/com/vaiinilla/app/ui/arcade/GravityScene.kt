@@ -1,7 +1,7 @@
 package com.vaiinilla.app.ui.arcade
 
-import com.vaiinilla.app.domain.arcade.GravityGame
-import com.vaiinilla.app.domain.arcade.jsRound
+import com.vaiinilla.app.arcade.GravityGame
+import com.vaiinilla.app.arcade.jsRound
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.min

@@ -1,8 +1,8 @@
 package com.vaiinilla.app.ui.arcade
 
-import com.vaiinilla.app.domain.arcade.StackGame
-import com.vaiinilla.app.domain.arcade.clamp01
-import com.vaiinilla.app.domain.arcade.jsRound
+import com.vaiinilla.app.arcade.StackGame
+import com.vaiinilla.app.arcade.clamp01
+import com.vaiinilla.app.arcade.jsRound
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos

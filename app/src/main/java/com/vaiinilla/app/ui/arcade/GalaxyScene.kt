@@ -1,11 +1,11 @@
 package com.vaiinilla.app.ui.arcade
 
-import com.vaiinilla.app.domain.arcade.GalaxyBoss
-import com.vaiinilla.app.domain.arcade.GalaxyDrop
-import com.vaiinilla.app.domain.arcade.GalaxyEnemy
-import com.vaiinilla.app.domain.arcade.GalaxyEnemyKind
-import com.vaiinilla.app.domain.arcade.GalaxyGame
-import com.vaiinilla.app.domain.arcade.jsRound
+import com.vaiinilla.app.arcade.GalaxyBoss
+import com.vaiinilla.app.arcade.GalaxyDrop
+import com.vaiinilla.app.arcade.GalaxyEnemy
+import com.vaiinilla.app.arcade.GalaxyEnemyKind
+import com.vaiinilla.app.arcade.GalaxyGame
+import com.vaiinilla.app.arcade.jsRound
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos

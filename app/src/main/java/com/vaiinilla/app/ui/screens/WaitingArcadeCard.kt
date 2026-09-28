@@ -45,9 +45,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.domain.arcade.ArcadeBoardRow
-import com.vaiinilla.app.domain.arcade.ArcadeKind
-import com.vaiinilla.app.domain.arcade.ArcadeSession
+import com.vaiinilla.app.arcade.ArcadeBoardRow
+import com.vaiinilla.app.arcade.ArcadeKind
+import com.vaiinilla.app.arcade.ArcadeSession
 import com.vaiinilla.app.ui.arcade.ArcadeHaptic
 import com.vaiinilla.app.ui.arcade.ArcadeStage
 import com.vaiinilla.app.ui.arcade.PixelCanvas

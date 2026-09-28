@@ -1,8 +1,8 @@
 package com.vaiinilla.app.ui.arcade
 
-import com.vaiinilla.app.domain.arcade.clamp01
-import com.vaiinilla.app.domain.arcade.jsRound
-import com.vaiinilla.app.domain.arcade.lerp
+import com.vaiinilla.app.arcade.clamp01
+import com.vaiinilla.app.arcade.jsRound
+import com.vaiinilla.app.arcade.lerp
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.hypot

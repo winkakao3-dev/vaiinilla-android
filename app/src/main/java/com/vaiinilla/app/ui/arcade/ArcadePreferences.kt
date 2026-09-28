@@ -1,10 +1,10 @@
 package com.vaiinilla.app.ui.arcade
 
 import android.content.Context
-import com.vaiinilla.app.domain.arcade.ArcadeKind
-import com.vaiinilla.app.domain.arcade.ArcadeScoreStore
-import com.vaiinilla.app.domain.arcade.SkateProgress
-import com.vaiinilla.app.domain.arcade.SkateProgressStore
+import com.vaiinilla.app.arcade.ArcadeKind
+import com.vaiinilla.app.arcade.ArcadeScoreStore
+import com.vaiinilla.app.arcade.SkateProgress
+import com.vaiinilla.app.arcade.SkateProgressStore
 
 /** Top scores per game, kept in the app's private preferences. */
 internal class PrefsArcadeScoreStore(

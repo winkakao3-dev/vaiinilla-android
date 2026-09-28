@@ -1,4 +1,4 @@
-package com.vaiinilla.app.domain.arcade
+package com.vaiinilla.app.arcade
 
 import kotlin.math.abs
 import kotlin.math.floor

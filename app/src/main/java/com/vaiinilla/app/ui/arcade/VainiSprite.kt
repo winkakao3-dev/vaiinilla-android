@@ -1,6 +1,6 @@
 package com.vaiinilla.app.ui.arcade
 
-import com.vaiinilla.app.domain.arcade.jsRound
+import com.vaiinilla.app.arcade.jsRound
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin

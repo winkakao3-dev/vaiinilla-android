@@ -6,8 +6,8 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import com.vaiinilla.app.domain.arcade.ArcadeSession
-import com.vaiinilla.app.domain.arcade.ArcadeStatus
+import com.vaiinilla.app.arcade.ArcadeSession
+import com.vaiinilla.app.arcade.ArcadeStatus
 import kotlinx.coroutines.channels.Channel
 import kotlin.math.max
 import kotlin.math.min

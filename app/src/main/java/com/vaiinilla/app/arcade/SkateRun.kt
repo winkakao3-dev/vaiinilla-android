@@ -1,4 +1,4 @@
-package com.vaiinilla.app.domain.arcade
+package com.vaiinilla.app.arcade
 
 import kotlin.math.PI
 import kotlin.math.abs

@@ -1,15 +1,15 @@
 package com.vaiinilla.app.ui.arcade
 
-import com.vaiinilla.app.domain.arcade.ArcadeRandom
-import com.vaiinilla.app.domain.arcade.SkateEvent
-import com.vaiinilla.app.domain.arcade.SkateGame
-import com.vaiinilla.app.domain.arcade.SkateMissions
-import com.vaiinilla.app.domain.arcade.SkateObstacle
-import com.vaiinilla.app.domain.arcade.SkateObstacleKind
-import com.vaiinilla.app.domain.arcade.SkateRun
-import com.vaiinilla.app.domain.arcade.clamp01
-import com.vaiinilla.app.domain.arcade.jsRound
-import com.vaiinilla.app.domain.arcade.lerp
+import com.vaiinilla.app.arcade.ArcadeRandom
+import com.vaiinilla.app.arcade.SkateEvent
+import com.vaiinilla.app.arcade.SkateGame
+import com.vaiinilla.app.arcade.SkateMissions
+import com.vaiinilla.app.arcade.SkateObstacle
+import com.vaiinilla.app.arcade.SkateObstacleKind
+import com.vaiinilla.app.arcade.SkateRun
+import com.vaiinilla.app.arcade.clamp01
+import com.vaiinilla.app.arcade.jsRound
+import com.vaiinilla.app.arcade.lerp
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.floor

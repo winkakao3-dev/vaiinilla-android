@@ -1,4 +1,4 @@
-package com.vaiinilla.app.domain.arcade
+package com.vaiinilla.app.arcade
 
 import kotlin.math.max
 import kotlin.math.min

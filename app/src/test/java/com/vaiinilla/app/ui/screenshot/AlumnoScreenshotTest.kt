@@ -11,10 +11,10 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.vaiinilla.app.arcade.ArcadeKind
+import com.vaiinilla.app.arcade.ArcadeSession
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
-import com.vaiinilla.app.domain.arcade.ArcadeKind
-import com.vaiinilla.app.domain.arcade.ArcadeSession
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.arcade.ArcadeStage
 import com.vaiinilla.app.ui.auth.student.StudentAuthUiState

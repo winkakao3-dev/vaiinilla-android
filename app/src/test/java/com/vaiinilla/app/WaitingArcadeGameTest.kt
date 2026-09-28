@@ -1,18 +1,18 @@
 package com.vaiinilla.app
 
-import com.vaiinilla.app.domain.arcade.ArcadeGame
-import com.vaiinilla.app.domain.arcade.ArcadeKind
-import com.vaiinilla.app.domain.arcade.ArcadeSession
-import com.vaiinilla.app.domain.arcade.ArcadeStatus
-import com.vaiinilla.app.domain.arcade.FlappyGame
-import com.vaiinilla.app.domain.arcade.GalaxyGame
-import com.vaiinilla.app.domain.arcade.GalaxyWave
-import com.vaiinilla.app.domain.arcade.GravityGame
-import com.vaiinilla.app.domain.arcade.MemoryArcadeScoreStore
-import com.vaiinilla.app.domain.arcade.MemorySkateProgressStore
-import com.vaiinilla.app.domain.arcade.SkateGame
-import com.vaiinilla.app.domain.arcade.SkateMissions
-import com.vaiinilla.app.domain.arcade.StackGame
+import com.vaiinilla.app.arcade.ArcadeGame
+import com.vaiinilla.app.arcade.ArcadeKind
+import com.vaiinilla.app.arcade.ArcadeSession
+import com.vaiinilla.app.arcade.ArcadeStatus
+import com.vaiinilla.app.arcade.FlappyGame
+import com.vaiinilla.app.arcade.GalaxyGame
+import com.vaiinilla.app.arcade.GalaxyWave
+import com.vaiinilla.app.arcade.GravityGame
+import com.vaiinilla.app.arcade.MemoryArcadeScoreStore
+import com.vaiinilla.app.arcade.MemorySkateProgressStore
+import com.vaiinilla.app.arcade.SkateGame
+import com.vaiinilla.app.arcade.SkateMissions
+import com.vaiinilla.app.arcade.StackGame
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -198,7 +198,7 @@ class WaitingArcadeGameTest {
                 val target =
                     bot.boss?.x
                         ?: bot.enemies
-                            .filter { it.state == com.vaiinilla.app.domain.arcade.GalaxyEnemy.State.FORMATION }
+                            .filter { it.state == com.vaiinilla.app.arcade.GalaxyEnemy.State.FORMATION }
                             .minByOrNull { abs(it.x - bot.x) }
                             ?.x
                 if (target != null) bot.aim(target)

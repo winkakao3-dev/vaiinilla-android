@@ -1,4 +1,4 @@
-package com.vaiinilla.app.domain.arcade
+package com.vaiinilla.app.arcade
 
 /** Vaini Skate as one of the arcade games: wraps the street rules with the challenges, levels and saved progress. */
 internal class SkateGame(

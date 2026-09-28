@@ -1,12 +1,12 @@
 package com.vaiinilla.app.ui.arcade
 
-import com.vaiinilla.app.domain.arcade.ArcadeGame
-import com.vaiinilla.app.domain.arcade.ArcadeKind
-import com.vaiinilla.app.domain.arcade.FlappyGame
-import com.vaiinilla.app.domain.arcade.GalaxyGame
-import com.vaiinilla.app.domain.arcade.GravityGame
-import com.vaiinilla.app.domain.arcade.SkateGame
-import com.vaiinilla.app.domain.arcade.StackGame
+import com.vaiinilla.app.arcade.ArcadeGame
+import com.vaiinilla.app.arcade.ArcadeKind
+import com.vaiinilla.app.arcade.FlappyGame
+import com.vaiinilla.app.arcade.GalaxyGame
+import com.vaiinilla.app.arcade.GravityGame
+import com.vaiinilla.app.arcade.SkateGame
+import com.vaiinilla.app.arcade.StackGame
 
 /** Big title on the pixel title screen. */
 private val ArcadeKind.pixelTitle: String
