@@ -13,12 +13,13 @@ import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.arcade.ArcadeKind
+import com.vaiinilla.app.domain.arcade.ArcadeSession
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.ui.arcade.ArcadeStage
 import com.vaiinilla.app.ui.auth.student.StudentAuthUiState
 import com.vaiinilla.app.ui.components.StudentTab
-import com.vaiinilla.app.ui.screens.ArcadeEngine
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
-import com.vaiinilla.app.ui.screens.BrincaGame
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
@@ -352,23 +353,22 @@ class AlumnoScreenshotTest {
     }
 
     @Test
-    fun `17c_waiting_runner_running`() {
-        val engine = ArcadeEngine()
-        engine.width = 330f
-        engine.height = 250f
-        engine.primary()
-        repeat(20) { engine.step(0.016f) }
-        (engine.game as BrincaGame).obstacles += BrincaGame.Ob(x = 210f, w = 18f, h = 36f)
+    fun `17c_waiting_arcade_running`() {
+        val session = ArcadeSession(seedSource = { 3 })
+        session.select(ArcadeKind.GALAXIA)
+        session.primary()
+        repeat(120 * 6) { session.step(ArcadeSession.FIXED_STEP) }
+        val stage = ArcadeStage(session)
         composeTestRule.mainClock.autoAdvance = false
         composeTestRule.setContent {
             ScreenshotTheme {
                 Box(modifier = Modifier.padding(20.dp)) {
-                    WaitingArcadeCard(engine)
+                    WaitingArcadeCard(stageOverride = stage)
                 }
             }
         }
         composeTestRule.waitForIdle()
-        composeTestRule.onRoot().captureRoboImage("17c_waiting_runner_running.png")
+        composeTestRule.onRoot().captureRoboImage("17c_waiting_arcade_running.png")
     }
 
     @Test
