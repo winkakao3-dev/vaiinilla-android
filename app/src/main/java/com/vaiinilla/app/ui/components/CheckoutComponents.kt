@@ -1,5 +1,12 @@
 package com.vaiinilla.app.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -266,6 +274,10 @@ fun CheckoutSpacePicker(
             spaces.forEach { space ->
                 val selected = space.id == selectedSpaceId
                 val haptics = LocalHapticFeedback.current
+                val chipBackground =
+                    animateSelectionColor(if (selected) colors.ink else colors.paper2, "space-chip-background")
+                val chipContent =
+                    animateSelectionColor(if (selected) colors.paper else colors.ink, "space-chip-content")
                 Surface(
                     modifier =
                         Modifier
@@ -277,12 +289,12 @@ fun CheckoutSpacePicker(
                                 role = Role.RadioButton
                                 this.selected = selected
                             },
-                    color = if (selected) colors.ink else colors.paper2,
+                    color = chipBackground,
                     shape = RoundedCornerShape(14.dp),
                 ) {
                     Text(
                         space.name,
-                        color = if (selected) colors.paper else colors.ink,
+                        color = chipContent,
                         fontWeight = FontWeight.Black,
                         fontSize = 13.sp,
                         modifier =
@@ -310,9 +322,21 @@ private fun DestinationOption(
     val haptics = LocalHapticFeedback.current
     val selectedBackground = if (colors.isDark) colors.paper2 else colors.ink
     val selectedForeground = if (colors.isDark) colors.ink else colors.paper
-    val background = if (selected) selectedBackground else colors.paper2
-    val foreground = if (selected) selectedForeground else colors.ink
-    val secondary = if (selected) selectedForeground.copy(alpha = 0.78f) else colors.muted
+    val background =
+        animateSelectionColor(if (selected) selectedBackground else colors.paper2, "destination-background")
+    val foreground = animateSelectionColor(if (selected) selectedForeground else colors.ink, "destination-foreground")
+    val secondary =
+        animateSelectionColor(
+            if (selected) selectedForeground.copy(alpha = 0.78f) else colors.muted,
+            "destination-secondary",
+        )
+    val borderColor = animateSelectionColor(if (selected) colors.accent else colors.line, "destination-border")
+    val iconTile =
+        animateSelectionColor(
+            if (selected) selectedForeground.copy(alpha = 0.10f) else colors.paper,
+            "destination-icon-tile",
+        )
+    val borderWidth by animateDpAsState(if (selected) 1.5.dp else 1.dp, label = "destination-border-width")
     Surface(
         modifier =
             modifier
@@ -324,8 +348,8 @@ private fun DestinationOption(
                     },
                 ).heightIn(min = 154.dp)
                 .border(
-                    width = if (selected) 1.5.dp else 1.dp,
-                    color = if (selected) colors.accent else colors.line,
+                    width = borderWidth,
+                    color = borderColor,
                     shape = RoundedCornerShape(24.dp),
                 ).semantics {
                     role = Role.RadioButton
@@ -335,11 +359,17 @@ private fun DestinationOption(
         shape = RoundedCornerShape(24.dp),
     ) {
         Box(modifier = Modifier.padding(16.dp)) {
-            if (selected) {
+            AnimatedVisibility(
+                visible = selected,
+                modifier = Modifier.align(Alignment.TopEnd),
+                enter =
+                    fadeIn(spring(stiffness = 500f)) +
+                        scaleIn(spring(dampingRatio = 0.6f, stiffness = 500f), initialScale = 0.4f),
+                exit = fadeOut(spring(stiffness = 600f)) + scaleOut(spring(stiffness = 600f), targetScale = 0.6f),
+            ) {
                 Box(
                     modifier =
                         Modifier
-                            .align(Alignment.TopEnd)
                             .size(30.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(colors.accent),
@@ -359,9 +389,7 @@ private fun DestinationOption(
                         Modifier
                             .size(46.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(
-                                if (selected) selectedForeground.copy(alpha = 0.10f) else colors.paper,
-                            ),
+                            .background(iconTile),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(icon, contentDescription = null, tint = foreground, modifier = Modifier.size(24.dp))
@@ -441,13 +469,21 @@ private fun PaymentOption(
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = LocalHapticFeedback.current
-    val background = if (selected) colors.accent else colors.paper2
+    val background = animateSelectionColor(if (selected) colors.accent else colors.paper2, "payment-background")
     val foreground =
-        when {
-            selected -> colors.accentInk
-            !enabled -> colors.muted
-            else -> colors.ink
-        }
+        animateSelectionColor(
+            when {
+                selected -> colors.accentInk
+                !enabled -> colors.muted
+                else -> colors.ink
+            },
+            "payment-foreground",
+        )
+    val borderColor =
+        animateSelectionColor(
+            if (selected) colors.accent.copy(alpha = 0.95f) else colors.line,
+            "payment-border",
+        )
     Surface(
         modifier =
             modifier

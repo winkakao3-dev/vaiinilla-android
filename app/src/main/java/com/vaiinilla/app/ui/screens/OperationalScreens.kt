@@ -4,14 +4,19 @@ import android.net.Uri
 import android.widget.ImageView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -104,7 +109,10 @@ import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_OPEN_CASH
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_QR_SCAN
 import com.vaiinilla.app.ui.components.OperationalAssistantHost
 import com.vaiinilla.app.ui.components.OperationalAssistantPalette
+import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
+import com.vaiinilla.app.ui.components.SlidingSegments
+import com.vaiinilla.app.ui.components.ToastPill
 import com.vaiinilla.app.ui.components.VaiinillaAssistantButton
 import com.vaiinilla.app.ui.components.VaiinillaMark
 import com.vaiinilla.app.ui.components.assistantAnchor
@@ -114,6 +122,8 @@ import com.vaiinilla.app.ui.components.assistantProductSwitchAnchor
 import com.vaiinilla.app.ui.components.assistantQueueOrderAnchor
 import com.vaiinilla.app.ui.components.cashierAssistantGuides
 import com.vaiinilla.app.ui.components.kitchenAssistantGuides
+import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
 import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
@@ -151,6 +161,17 @@ data class OperationalColors(
     val highlightBorder: Color,
     val isDark: Boolean,
 )
+
+/** Cambio de pedido protagonista: el nuevo entra con fade + escala suave; misma orden = sin animación. */
+private fun heroSwapTransition(reduced: Boolean): ContentTransform =
+    if (reduced) {
+        fadeIn(snap()) togetherWith fadeOut(snap())
+    } else {
+        (
+            fadeIn(spring(stiffness = 300f)) +
+                scaleIn(spring(dampingRatio = 0.85f, stiffness = 400f), initialScale = 0.96f)
+        ) togetherWith fadeOut(spring(stiffness = 600f))
+    }
 
 @Composable
 fun rememberOperationalColors(): OperationalColors {
@@ -240,6 +261,7 @@ fun CashierOperationalScreen(
     assistantUserKey: String = "cashier",
 ) {
     val colors = rememberOperationalColors()
+    val reduceMotion = reducedMotion()
     val themeMode = LocalVaiinillaThemeMode.current
     val themeChanger = LocalVaiinillaThemeModeChanger.current
     val haptics = rememberVaiinillaHaptics()
@@ -463,13 +485,12 @@ fun CashierOperationalScreen(
                         Box(
                             modifier =
                                 Modifier
-                                    .size(width = 48.dp, height = 40.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(colors.textPrimary)
-                                    .clickable {
+                                    .physicalPress(scale = PhysicalPressScale.Small) {
                                         haptics.impact()
                                         onChangeMode?.invoke() ?: onBack()
-                                    },
+                                    }.size(width = 48.dp, height = 40.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(colors.textPrimary),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
@@ -513,10 +534,11 @@ fun CashierOperationalScreen(
 
             // Session Alert if Closed
             if (state.cashSessionOpen == false) {
-                item {
+                item(key = "cash-session-closed") {
                     Surface(
                         modifier =
                             Modifier
+                                .animateItem()
                                 .fillMaxWidth()
                                 .border(1.dp, Color(0xFFE45244), RoundedCornerShape(20.dp)),
                         shape = RoundedCornerShape(20.dp),
@@ -588,262 +610,273 @@ fun CashierOperationalScreen(
 
             // Hero Recent Order Card or Empty State
             item {
-                if (recentOrder != null) {
-                    val isDelivered = recentOrder.summary.state == OrderState.DELIVERED
-                    val isOrderReady = recentOrder.summary.state == OrderState.READY
-                    val isPendingPayment = recentOrder.summary.state == OrderState.PENDING_PAYMENT
-                    var cashReceivedInput by
-                        remember(recentOrder.summary.id) {
-                            mutableStateOf(recentOrder.summary.total)
+                AnimatedContent(
+                    targetState = recentOrder,
+                    contentKey = { it?.summary?.id },
+                    transitionSpec = { heroSwapTransition(reduceMotion) },
+                    label = "cashier-hero",
+                ) { heroOrder ->
+                    val recentOrder = heroOrder
+                    if (recentOrder != null) {
+                        val isDelivered = recentOrder.summary.state == OrderState.DELIVERED
+                        val isOrderReady = recentOrder.summary.state == OrderState.READY
+                        val isPendingPayment = recentOrder.summary.state == OrderState.PENDING_PAYMENT
+                        var cashReceivedInput by
+                            remember(recentOrder.summary.id) {
+                                mutableStateOf(recentOrder.summary.total)
+                            }
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Surface(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_CASHIER_ORDER_CARD),
+                                shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
+                                color = TicketPaper,
+                                shadowElevation = 10.dp,
+                            ) {
+                                Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.Top,
+                                    ) {
+                                        Column {
+                                            Text(
+                                                "PEDIDO · ${elapsedShort(
+                                                    recentOrder.summary.createdAt,
+                                                    tick,
+                                                ).uppercase()}",
+                                                color = TicketMuted,
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                letterSpacing = 1.6.sp,
+                                            )
+                                            Text(
+                                                "#${recentOrder.summary.folio}",
+                                                fontSize = 46.sp,
+                                                fontWeight = FontWeight.Black,
+                                                letterSpacing = (-1.5).sp,
+                                                color = TicketInk,
+                                            )
+                                        }
+                                        StampLabel(
+                                            text =
+                                                if (isDelivered) {
+                                                    "ENTREGADO"
+                                                } else if (isPendingPayment) {
+                                                    "POR COBRAR"
+                                                } else if (isOrderReady) {
+                                                    "LISTO"
+                                                } else {
+                                                    "EN ESPERA"
+                                                },
+                                            live = !isDelivered,
+                                        )
+                                    }
+
+                                    Column(modifier = Modifier.padding(top = 8.dp)) {
+                                        recentOrder.items.forEach { item ->
+                                            ReceiptLine(
+                                                quantity = item.quantity,
+                                                name = item.productName,
+                                                detail =
+                                                    item.options
+                                                        .joinToString(" · ") { it.name }
+                                                        .ifEmpty { null },
+                                                price = "$${item.unitDigitalPrice}",
+                                            )
+                                        }
+                                    }
+
+                                    TicketPerf()
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.Bottom,
+                                    ) {
+                                        Text(
+                                            "TOTAL",
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            letterSpacing = 1.4.sp,
+                                            color = TicketMuted,
+                                        )
+                                        Text(
+                                            "$${recentOrder.summary.total}",
+                                            fontSize = 28.sp,
+                                            fontWeight = FontWeight.Black,
+                                            letterSpacing = (-1).sp,
+                                            color = TicketInk,
+                                        )
+                                    }
+
+                                    if (isPendingPayment) {
+                                        // Pedido pagado en efectivo: hay que cobrarlo antes de que exista
+                                        // cualquier posibilidad de avanzarlo a cocina/entrega.
+                                        BasicTextField(
+                                            value = cashReceivedInput,
+                                            onValueChange = { raw ->
+                                                cashReceivedInput =
+                                                    raw.filter { it.isDigit() || it == '.' }
+                                            },
+                                            singleLine = true,
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                            enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
+                                            textStyle =
+                                                TextStyle(
+                                                    color = TicketInk,
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                ),
+                                            cursorBrush = SolidColor(TicketInk),
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(top = 12.dp)
+                                                    .height(46.dp)
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .background(TicketInk.copy(alpha = 0.05f))
+                                                    .border(1.dp, TicketLine, RoundedCornerShape(12.dp)),
+                                            decorationBox = { inner ->
+                                                Box(
+                                                    modifier =
+                                                        Modifier
+                                                            .fillMaxSize()
+                                                            .padding(horizontal = 14.dp),
+                                                    contentAlignment = Alignment.CenterStart,
+                                                ) {
+                                                    if (cashReceivedInput.isEmpty()) {
+                                                        Text(
+                                                            "Efectivo recibido · $${recentOrder.summary.total}",
+                                                            color = TicketMuted,
+                                                            fontSize = 14.sp,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                        )
+                                                    }
+                                                    inner()
+                                                }
+                                            },
+                                        )
+                                        Button(
+                                            onClick = {
+                                                haptics.impact()
+                                                onCollect(
+                                                    recentOrder.summary.id,
+                                                    cashReceivedInput,
+                                                    recentOrder.summary.version,
+                                                )
+                                            },
+                                            enabled =
+                                                cashReceivedInput.isNotBlank() &&
+                                                    !state.acting &&
+                                                    restrictedMode != RestrictedMode.READ_ONLY,
+                                            colors =
+                                                ButtonDefaults.buttonColors(
+                                                    containerColor = colors.accentLime,
+                                                    contentColor = colors.accentInk,
+                                                    disabledContainerColor = TicketLine,
+                                                    disabledContentColor = TicketMuted,
+                                                ),
+                                            shape = RoundedCornerShape(14.dp),
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(top = 10.dp)
+                                                    .height(50.dp),
+                                            contentPadding = PaddingValues(horizontal = 14.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Payments,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(
+                                                "Cobrar $${recentOrder.summary.total}",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp,
+                                                maxLines = 1,
+                                                softWrap = false,
+                                            )
+                                        }
+                                    } else {
+                                        // La entrega para llevar exige el QR del alumno. No existe transición manual sin token.
+                                        Button(
+                                            onClick = {
+                                                haptics.impact()
+                                                onScanDeliver(recentOrder.summary.id, recentOrder.summary.version)
+                                            },
+                                            enabled =
+                                                isOrderReady &&
+                                                    restrictedMode != RestrictedMode.READ_ONLY,
+                                            colors =
+                                                ButtonDefaults.buttonColors(
+                                                    containerColor = TicketInk,
+                                                    contentColor = TicketPaper,
+                                                    disabledContainerColor = TicketLine,
+                                                    disabledContentColor = TicketMuted,
+                                                ),
+                                            shape = RoundedCornerShape(14.dp),
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(top = 12.dp)
+                                                    .height(50.dp)
+                                                    .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_QR_SCAN),
+                                            contentPadding = PaddingValues(horizontal = 14.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.QrCodeScanner,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(
+                                                if (isOrderReady) {
+                                                    "Escanear QR para entregar"
+                                                } else {
+                                                    "Disponible cuando esté LISTO"
+                                                },
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp,
+                                                maxLines = 1,
+                                                softWrap = false,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            TicketZigzag()
                         }
-                    Column(modifier = Modifier.fillMaxWidth()) {
+                    } else {
                         Surface(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_CASHIER_ORDER_CARD),
-                            shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
-                            color = TicketPaper,
-                            shadowElevation = 10.dp,
+                                    .border(1.dp, colors.cardBorder, RoundedCornerShape(26.dp)),
+                            shape = RoundedCornerShape(26.dp),
+                            color = colors.cardBackground,
                         ) {
-                            Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.Top,
-                                ) {
-                                    Column {
-                                        Text(
-                                            "PEDIDO · ${elapsedShort(recentOrder.summary.createdAt, tick).uppercase()}",
-                                            color = TicketMuted,
-                                            fontSize = 9.5.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            letterSpacing = 1.6.sp,
-                                        )
-                                        Text(
-                                            "#${recentOrder.summary.folio}",
-                                            fontSize = 46.sp,
-                                            fontWeight = FontWeight.Black,
-                                            letterSpacing = (-1.5).sp,
-                                            color = TicketInk,
-                                        )
-                                    }
-                                    StampLabel(
-                                        text =
-                                            if (isDelivered) {
-                                                "ENTREGADO"
-                                            } else if (isPendingPayment) {
-                                                "POR COBRAR"
-                                            } else if (isOrderReady) {
-                                                "LISTO"
-                                            } else {
-                                                "EN ESPERA"
-                                            },
-                                        live = !isDelivered,
-                                    )
-                                }
-
-                                Column(modifier = Modifier.padding(top = 8.dp)) {
-                                    recentOrder.items.forEach { item ->
-                                        ReceiptLine(
-                                            quantity = item.quantity,
-                                            name = item.productName,
-                                            detail =
-                                                item.options
-                                                    .joinToString(" · ") { it.name }
-                                                    .ifEmpty { null },
-                                            price = "$${item.unitDigitalPrice}",
-                                        )
-                                    }
-                                }
-
-                                TicketPerf()
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.Bottom,
-                                ) {
-                                    Text(
-                                        "TOTAL",
-                                        fontSize = 10.5.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        letterSpacing = 1.4.sp,
-                                        color = TicketMuted,
-                                    )
-                                    Text(
-                                        "$${recentOrder.summary.total}",
-                                        fontSize = 28.sp,
-                                        fontWeight = FontWeight.Black,
-                                        letterSpacing = (-1).sp,
-                                        color = TicketInk,
-                                    )
-                                }
-
-                                if (isPendingPayment) {
-                                    // Pedido pagado en efectivo: hay que cobrarlo antes de que exista
-                                    // cualquier posibilidad de avanzarlo a cocina/entrega.
-                                    BasicTextField(
-                                        value = cashReceivedInput,
-                                        onValueChange = { raw ->
-                                            cashReceivedInput =
-                                                raw.filter { it.isDigit() || it == '.' }
-                                        },
-                                        singleLine = true,
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                        enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
-                                        textStyle =
-                                            TextStyle(
-                                                color = TicketInk,
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                            ),
-                                        cursorBrush = SolidColor(TicketInk),
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .padding(top = 12.dp)
-                                                .height(46.dp)
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .background(TicketInk.copy(alpha = 0.05f))
-                                                .border(1.dp, TicketLine, RoundedCornerShape(12.dp)),
-                                        decorationBox = { inner ->
-                                            Box(
-                                                modifier =
-                                                    Modifier
-                                                        .fillMaxSize()
-                                                        .padding(horizontal = 14.dp),
-                                                contentAlignment = Alignment.CenterStart,
-                                            ) {
-                                                if (cashReceivedInput.isEmpty()) {
-                                                    Text(
-                                                        "Efectivo recibido · $${recentOrder.summary.total}",
-                                                        color = TicketMuted,
-                                                        fontSize = 14.sp,
-                                                        fontWeight = FontWeight.SemiBold,
-                                                    )
-                                                }
-                                                inner()
-                                            }
-                                        },
-                                    )
-                                    Button(
-                                        onClick = {
-                                            haptics.impact()
-                                            onCollect(
-                                                recentOrder.summary.id,
-                                                cashReceivedInput,
-                                                recentOrder.summary.version,
-                                            )
-                                        },
-                                        enabled =
-                                            cashReceivedInput.isNotBlank() &&
-                                                !state.acting &&
-                                                restrictedMode != RestrictedMode.READ_ONLY,
-                                        colors =
-                                            ButtonDefaults.buttonColors(
-                                                containerColor = colors.accentLime,
-                                                contentColor = colors.accentInk,
-                                                disabledContainerColor = TicketLine,
-                                                disabledContentColor = TicketMuted,
-                                            ),
-                                        shape = RoundedCornerShape(14.dp),
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .padding(top = 10.dp)
-                                                .height(50.dp),
-                                        contentPadding = PaddingValues(horizontal = 14.dp),
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Payments,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp),
-                                        )
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(
-                                            "Cobrar $${recentOrder.summary.total}",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 14.sp,
-                                            maxLines = 1,
-                                            softWrap = false,
-                                        )
-                                    }
-                                } else {
-                                    // La entrega para llevar exige el QR del alumno. No existe transición manual sin token.
-                                    Button(
-                                        onClick = {
-                                            haptics.impact()
-                                            onScanDeliver(recentOrder.summary.id, recentOrder.summary.version)
-                                        },
-                                        enabled =
-                                            isOrderReady &&
-                                                restrictedMode != RestrictedMode.READ_ONLY,
-                                        colors =
-                                            ButtonDefaults.buttonColors(
-                                                containerColor = TicketInk,
-                                                contentColor = TicketPaper,
-                                                disabledContainerColor = TicketLine,
-                                                disabledContentColor = TicketMuted,
-                                            ),
-                                        shape = RoundedCornerShape(14.dp),
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .padding(top = 12.dp)
-                                                .height(50.dp)
-                                                .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_QR_SCAN),
-                                        contentPadding = PaddingValues(horizontal = 14.dp),
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.QrCodeScanner,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp),
-                                        )
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(
-                                            if (isOrderReady) {
-                                                "Escanear QR para entregar"
-                                            } else {
-                                                "Disponible cuando esté LISTO"
-                                            },
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 14.sp,
-                                            maxLines = 1,
-                                            softWrap = false,
-                                        )
-                                    }
-                                }
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(28.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Text(
+                                    "No hay pedidos pendientes",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = colors.textPrimary,
+                                )
+                                Text(
+                                    text = "Los pedidos que entren por ventanilla o app aparecerán aquí.",
+                                    fontSize = 13.sp,
+                                    color = colors.textSecondary,
+                                    textAlign = TextAlign.Center,
+                                )
                             }
-                        }
-                        TicketZigzag()
-                    }
-                } else {
-                    Surface(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .border(1.dp, colors.cardBorder, RoundedCornerShape(26.dp)),
-                        shape = RoundedCornerShape(26.dp),
-                        color = colors.cardBackground,
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(28.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Text(
-                                "No hay pedidos pendientes",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                color = colors.textPrimary,
-                            )
-                            Text(
-                                text = "Los pedidos que entren por ventanilla o app aparecerán aquí.",
-                                fontSize = 13.sp,
-                                color = colors.textSecondary,
-                                textAlign = TextAlign.Center,
-                            )
                         }
                     }
                 }
@@ -877,6 +910,7 @@ fun CashierOperationalScreen(
                             .joinToString(" · ") { "${it.quantity}x ${it.productName}" }
                             .ifEmpty { "Productos del menú" }
                     QueueTicketRow(
+                        modifier = Modifier.animateItem(),
                         folio = "#${order.summary.folio}",
                         title = queueTitle,
                         subtitle =
@@ -1193,16 +1227,15 @@ fun CashierOperationalScreen(
                     Box(
                         modifier =
                             Modifier
-                                .size(48.dp)
+                                .physicalPress(enabled = canCreateProduct, scale = PhysicalPressScale.Small) {
+                                    haptics.impact()
+                                    addProductSheetOpen = true
+                                }.size(48.dp)
                                 .clip(CircleShape)
                                 .background(colors.cardBackground)
                                 .border(1.dp, colors.cardBorder, CircleShape)
                                 .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_ADD_PRODUCT)
-                                .shadow(8.dp, CircleShape, spotColor = Color(0x1F171816))
-                                .clickable(enabled = canCreateProduct) {
-                                    haptics.impact()
-                                    addProductSheetOpen = true
-                                },
+                                .shadow(8.dp, CircleShape, spotColor = Color(0x1F171816)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
@@ -1219,7 +1252,7 @@ fun CashierOperationalScreen(
             if (products.isNotEmpty()) {
                 items(products.chunked(2), key = { it.first().id }) { pair ->
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.animateItem().fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         pair.forEach { product ->
@@ -1282,43 +1315,13 @@ fun CashierOperationalScreen(
             }
         }
 
-        // Floating Toast Notification
-        AnimatedVisibility(
-            visible = toastMessage != null,
-            enter = fadeIn(tween(200)),
-            exit = fadeOut(tween(200)),
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 30.dp),
-        ) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = colors.textPrimary,
-                shadowElevation = 8.dp,
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Box(
-                        modifier = Modifier.size(20.dp).clip(CircleShape).background(colors.accentLime),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Check,
-                            contentDescription = null,
-                            tint = colors.accentInk,
-                            modifier = Modifier.size(13.dp),
-                        )
-                    }
-                    Text(
-                        toastMessage.orEmpty(),
-                        color = colors.background,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
-        }
+        ToastPill(
+            message = toastMessage,
+            containerColor = colors.textPrimary,
+            contentColor = colors.background,
+            badgeColor = colors.accentLime,
+            badgeContentColor = colors.accentInk,
+        )
 
         // Sheet: Add Product
         if (addProductSheetOpen) {
@@ -1574,11 +1577,11 @@ private fun ProductGridCard(
                             Modifier
                                 .align(Alignment.TopStart)
                                 .padding(6.dp)
+                                .physicalPress(scale = PhysicalPressScale.Small) { onEditImage() }
                                 .size(30.dp)
                                 .clip(CircleShape)
                                 .background(colors.cardBackground)
-                                .border(1.dp, colors.cardBorder, CircleShape)
-                                .clickable { onEditImage() },
+                                .border(1.dp, colors.cardBorder, CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
@@ -1589,16 +1592,27 @@ private fun ProductGridCard(
                         )
                     }
                 }
+                val switchSpec = if (reducedMotion()) snap<Color>() else spring(stiffness = Spring.StiffnessMedium)
+                val switchBackground by animateColorAsState(
+                    if (product.available) colors.accentLime else colors.cardBackground,
+                    switchSpec,
+                    label = "availability-background",
+                )
+                val switchTint by animateColorAsState(
+                    if (product.available) colors.accentInk else colors.textMuted,
+                    switchSpec,
+                    label = "availability-tint",
+                )
                 Box(
                     modifier =
                         Modifier
                             .align(Alignment.TopEnd)
                             .padding(6.dp)
+                            .physicalPress(scale = PhysicalPressScale.Small) { onToggle(!product.available) }
                             .size(30.dp)
                             .clip(CircleShape)
-                            .background(
-                                if (product.available) colors.accentLime else colors.cardBackground,
-                            ).then(
+                            .background(switchBackground)
+                            .then(
                                 if (assistantRegistry != null) {
                                     Modifier.assistantAnchor(
                                         assistantRegistry,
@@ -1607,7 +1621,7 @@ private fun ProductGridCard(
                                 } else {
                                     Modifier
                                 },
-                            ).clickable { onToggle(!product.available) },
+                            ),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -1615,7 +1629,7 @@ private fun ProductGridCard(
                             if (product.available) Icons.Rounded.Check else Icons.Outlined.Close,
                         contentDescription =
                             if (product.available) "Disponible" else "Pausado",
-                        tint = if (product.available) colors.accentInk else colors.textMuted,
+                        tint = switchTint,
                         modifier = Modifier.size(16.dp),
                     )
                 }
@@ -1676,6 +1690,7 @@ fun KitchenOperationalScreen(
     assistantUserKey: String = "kitchen",
 ) {
     val colors = rememberOperationalColors()
+    val reduceMotion = reducedMotion()
     val themeMode = LocalVaiinillaThemeMode.current
     val themeChanger = LocalVaiinillaThemeModeChanger.current
     val haptics = rememberVaiinillaHaptics()
@@ -1837,13 +1852,12 @@ fun KitchenOperationalScreen(
                         Box(
                             modifier =
                                 Modifier
-                                    .size(width = 48.dp, height = 40.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(colors.textPrimary)
-                                    .clickable {
+                                    .physicalPress(scale = PhysicalPressScale.Small) {
                                         haptics.impact()
                                         onChangeMode?.invoke() ?: onBack()
-                                    },
+                                    }.size(width = 48.dp, height = 40.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(colors.textPrimary),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
@@ -1912,197 +1926,205 @@ fun KitchenOperationalScreen(
 
             // Kitchen Hero Ticket Card or Empty State
             item {
-                if (activeOrder != null) {
-                    val destLabel =
-                        if (activeOrder.summary.destination.name == "TAKE_AWAY") {
-                            "PARA LLEVAR"
-                        } else {
-                            "COMER AQUÍ"
+                AnimatedContent(
+                    targetState = activeOrder,
+                    contentKey = { it?.summary?.id },
+                    transitionSpec = { heroSwapTransition(reduceMotion) },
+                    label = "kitchen-hero",
+                ) { heroOrder ->
+                    val activeOrder = heroOrder
+                    if (activeOrder != null) {
+                        val destLabel =
+                            if (activeOrder.summary.destination.name == "TAKE_AWAY") {
+                                "PARA LLEVAR"
+                            } else {
+                                "COMER AQUÍ"
+                            }
+                        val stateLabel =
+                            if (isReady) {
+                                "LISTA"
+                            } else if (isPreparing) {
+                                "EN PREPARACIÓN"
+                            } else {
+                                "NUEVA"
+                            }
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Surface(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_KITCHEN_CARD),
+                                shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
+                                color = TicketPaper,
+                                shadowElevation = 10.dp,
+                            ) {
+                                Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.Top,
+                                    ) {
+                                        Column {
+                                            Text(
+                                                "$stateLabel · $destLabel",
+                                                color = TicketMuted,
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                letterSpacing = 1.6.sp,
+                                            )
+                                            Text(
+                                                "#${activeOrder.summary.folio}",
+                                                fontSize = 48.sp,
+                                                fontWeight = FontWeight.Black,
+                                                letterSpacing = (-1.5).sp,
+                                                color = TicketInk,
+                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.Bottom,
+                                                modifier = Modifier.padding(top = 2.dp),
+                                            ) {
+                                                Text(
+                                                    formatTimer(elapsedSinceMs(activeOrder.summary.createdAt)),
+                                                    fontSize = 19.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = TicketInk,
+                                                )
+                                                Text(
+                                                    "  en cocina",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = TicketMuted,
+                                                )
+                                            }
+                                        }
+                                        StampLabel(
+                                            text =
+                                                if (isReady) {
+                                                    "Lista"
+                                                } else if (isPreparing) {
+                                                    "Preparando"
+                                                } else {
+                                                    "Nueva"
+                                                },
+                                            live = !isReady,
+                                        )
+                                    }
+
+                                    TicketPerf()
+
+                                    Column {
+                                        activeOrder.items.forEach { item ->
+                                            ReceiptLine(
+                                                quantity = item.quantity,
+                                                name = item.productName,
+                                                detail =
+                                                    item.options
+                                                        .joinToString(" · ") { it.name }
+                                                        .ifEmpty { null },
+                                                price = "$${item.unitDigitalPrice}",
+                                            )
+                                        }
+                                    }
+
+                                    // Una sola acción: la que aplica según el estado real.
+                                    Button(
+                                        onClick = {
+                                            if (isPreparing) {
+                                                haptics.success()
+                                                onReady(activeOrder.summary.id, activeOrder.summary.version)
+                                                toastMessage = "Comanda #${activeOrder.summary.folio} lista"
+                                            } else {
+                                                haptics.impact()
+                                                onStart(activeOrder.summary.id, activeOrder.summary.version)
+                                                toastMessage = "Comanda #${activeOrder.summary.folio} en preparación"
+                                            }
+                                        },
+                                        enabled = !isReady && restrictedMode != RestrictedMode.READ_ONLY,
+                                        colors =
+                                            ButtonDefaults.buttonColors(
+                                                containerColor = colors.accentLime,
+                                                contentColor = colors.accentInk,
+                                                disabledContainerColor = TicketLine,
+                                                disabledContentColor = TicketMuted,
+                                            ),
+                                        shape = RoundedCornerShape(14.dp),
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 12.dp)
+                                                .height(50.dp)
+                                                .assistantAnchor(
+                                                    assistantRegistry,
+                                                    if (isPreparing) {
+                                                        assistantKitchenReadyAnchor(activeOrder.summary.id)
+                                                    } else {
+                                                        assistantKitchenStartAnchor(activeOrder.summary.id)
+                                                    },
+                                                ),
+                                        contentPadding = PaddingValues(horizontal = 14.dp),
+                                    ) {
+                                        Text(
+                                            text =
+                                                if (isReady) {
+                                                    "Lista para recoger"
+                                                } else if (isPreparing) {
+                                                    "Marcar lista"
+                                                } else {
+                                                    "Empezar a preparar"
+                                                },
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp,
+                                        )
+                                    }
+
+                                    upcomingOrders.firstOrNull()?.let { next ->
+                                        val nextDest =
+                                            if (next.summary.destination.name == "TAKE_AWAY") {
+                                                "PARA LLEVAR"
+                                            } else {
+                                                "COMER AQUÍ"
+                                            }
+                                        Text(
+                                            "SIGUIENTE: #${next.summary.folio} · $nextDest",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 0.8.sp,
+                                            color = TicketMuted,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                                        )
+                                    }
+                                }
+                            }
+                            TicketZigzag()
                         }
-                    val stateLabel =
-                        if (isReady) {
-                            "LISTA"
-                        } else if (isPreparing) {
-                            "EN PREPARACIÓN"
-                        } else {
-                            "NUEVA"
-                        }
-                    Column(modifier = Modifier.fillMaxWidth()) {
+                    } else {
                         Surface(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_KITCHEN_CARD),
-                            shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
-                            color = TicketPaper,
-                            shadowElevation = 10.dp,
+                                    .border(1.dp, colors.cardBorder, RoundedCornerShape(26.dp)),
+                            shape = RoundedCornerShape(26.dp),
+                            color = colors.cardBackground,
                         ) {
-                            Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.Top,
-                                ) {
-                                    Column {
-                                        Text(
-                                            "$stateLabel · $destLabel",
-                                            color = TicketMuted,
-                                            fontSize = 9.5.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            letterSpacing = 1.6.sp,
-                                        )
-                                        Text(
-                                            "#${activeOrder.summary.folio}",
-                                            fontSize = 48.sp,
-                                            fontWeight = FontWeight.Black,
-                                            letterSpacing = (-1.5).sp,
-                                            color = TicketInk,
-                                        )
-                                        Row(
-                                            verticalAlignment = Alignment.Bottom,
-                                            modifier = Modifier.padding(top = 2.dp),
-                                        ) {
-                                            Text(
-                                                formatTimer(elapsedSinceMs(activeOrder.summary.createdAt)),
-                                                fontSize = 19.sp,
-                                                fontWeight = FontWeight.Black,
-                                                color = TicketInk,
-                                            )
-                                            Text(
-                                                "  en cocina",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = TicketMuted,
-                                            )
-                                        }
-                                    }
-                                    StampLabel(
-                                        text =
-                                            if (isReady) {
-                                                "Lista"
-                                            } else if (isPreparing) {
-                                                "Preparando"
-                                            } else {
-                                                "Nueva"
-                                            },
-                                        live = !isReady,
-                                    )
-                                }
-
-                                TicketPerf()
-
-                                Column {
-                                    activeOrder.items.forEach { item ->
-                                        ReceiptLine(
-                                            quantity = item.quantity,
-                                            name = item.productName,
-                                            detail =
-                                                item.options
-                                                    .joinToString(" · ") { it.name }
-                                                    .ifEmpty { null },
-                                            price = "$${item.unitDigitalPrice}",
-                                        )
-                                    }
-                                }
-
-                                // Una sola acción: la que aplica según el estado real.
-                                Button(
-                                    onClick = {
-                                        if (isPreparing) {
-                                            haptics.success()
-                                            onReady(activeOrder.summary.id, activeOrder.summary.version)
-                                            toastMessage = "Comanda #${activeOrder.summary.folio} lista"
-                                        } else {
-                                            haptics.impact()
-                                            onStart(activeOrder.summary.id, activeOrder.summary.version)
-                                            toastMessage = "Comanda #${activeOrder.summary.folio} en preparación"
-                                        }
-                                    },
-                                    enabled = !isReady && restrictedMode != RestrictedMode.READ_ONLY,
-                                    colors =
-                                        ButtonDefaults.buttonColors(
-                                            containerColor = colors.accentLime,
-                                            contentColor = colors.accentInk,
-                                            disabledContainerColor = TicketLine,
-                                            disabledContentColor = TicketMuted,
-                                        ),
-                                    shape = RoundedCornerShape(14.dp),
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 12.dp)
-                                            .height(50.dp)
-                                            .assistantAnchor(
-                                                assistantRegistry,
-                                                if (isPreparing) {
-                                                    assistantKitchenReadyAnchor(activeOrder.summary.id)
-                                                } else {
-                                                    assistantKitchenStartAnchor(activeOrder.summary.id)
-                                                },
-                                            ),
-                                    contentPadding = PaddingValues(horizontal = 14.dp),
-                                ) {
-                                    Text(
-                                        text =
-                                            if (isReady) {
-                                                "Lista para recoger"
-                                            } else if (isPreparing) {
-                                                "Marcar lista"
-                                            } else {
-                                                "Empezar a preparar"
-                                            },
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                    )
-                                }
-
-                                upcomingOrders.firstOrNull()?.let { next ->
-                                    val nextDest =
-                                        if (next.summary.destination.name == "TAKE_AWAY") {
-                                            "PARA LLEVAR"
-                                        } else {
-                                            "COMER AQUÍ"
-                                        }
-                                    Text(
-                                        "SIGUIENTE: #${next.summary.folio} · $nextDest",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = 0.8.sp,
-                                        color = TicketMuted,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                                    )
-                                }
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(28.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Text(
+                                    "Cocina al día",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = colors.textPrimary,
+                                )
+                                Text(
+                                    text = "No hay comandas pendientes en este momento.",
+                                    fontSize = 13.sp,
+                                    color = colors.textSecondary,
+                                    textAlign = TextAlign.Center,
+                                )
                             }
-                        }
-                        TicketZigzag()
-                    }
-                } else {
-                    Surface(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .border(1.dp, colors.cardBorder, RoundedCornerShape(26.dp)),
-                        shape = RoundedCornerShape(26.dp),
-                        color = colors.cardBackground,
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(28.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Text(
-                                "Cocina al día",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                color = colors.textPrimary,
-                            )
-                            Text(
-                                text = "No hay comandas pendientes en este momento.",
-                                fontSize = 13.sp,
-                                color = colors.textSecondary,
-                                textAlign = TextAlign.Center,
-                            )
                         }
                     }
                 }
@@ -2148,7 +2170,10 @@ fun KitchenOperationalScreen(
                     subtitle = orderDest,
                     time = "En espera",
                     colors = colors,
-                    modifier = Modifier.assistantAnchor(assistantRegistry, assistantQueueOrderAnchor(order.summary.id)),
+                    modifier =
+                        Modifier
+                            .animateItem()
+                            .assistantAnchor(assistantRegistry, assistantQueueOrderAnchor(order.summary.id)),
                     onClick = {
                         haptics.selection()
                         selectedOrderId = order.summary.id
@@ -2159,43 +2184,13 @@ fun KitchenOperationalScreen(
             }
         }
 
-        // Floating Toast Notification
-        AnimatedVisibility(
-            visible = toastMessage != null,
-            enter = fadeIn(tween(200)),
-            exit = fadeOut(tween(200)),
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 30.dp),
-        ) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = colors.textPrimary,
-                shadowElevation = 8.dp,
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Box(
-                        modifier = Modifier.size(20.dp).clip(CircleShape).background(colors.accentLime),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Check,
-                            contentDescription = null,
-                            tint = colors.accentInk,
-                            modifier = Modifier.size(13.dp),
-                        )
-                    }
-                    Text(
-                        toastMessage.orEmpty(),
-                        color = colors.background,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
-        }
+        ToastPill(
+            message = toastMessage,
+            containerColor = colors.textPrimary,
+            contentColor = colors.background,
+            badgeColor = colors.accentLime,
+            badgeContentColor = colors.accentInk,
+        )
 
         OperationalAssistantHost(
             controller = assistantController,
@@ -2222,9 +2217,9 @@ private fun QueueTicketRow(
     Surface(
         modifier =
             modifier
+                .physicalPress(onClick = onClick)
                 .fillMaxWidth()
-                .border(1.dp, colors.cardBorder, RoundedCornerShape(20.dp))
-                .clickable(onClick = onClick),
+                .border(1.dp, colors.cardBorder, RoundedCornerShape(20.dp)),
         shape = RoundedCornerShape(20.dp),
         color = colors.cardBackground,
     ) {
@@ -2369,11 +2364,11 @@ private fun AddProductSheet(
                 Box(
                     modifier =
                         Modifier
+                            .physicalPress(enabled = !saving, scale = PhysicalPressScale.Small) { onDismiss() }
                             .size(34.dp)
                             .clip(CircleShape)
                             .background(colors.cardBackground)
-                            .border(1.dp, colors.cardBorder, CircleShape)
-                            .clickable(enabled = !saving) { onDismiss() },
+                            .border(1.dp, colors.cardBorder, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -2389,11 +2384,11 @@ private fun AddProductSheet(
             Box(
                 modifier =
                     Modifier
+                        .physicalPress(enabled = !saving) { photoPicker.launch("image/*") }
                         .fillMaxWidth()
                         .height(112.dp)
                         .clip(RoundedCornerShape(20.dp))
-                        .background(colors.cardBackground)
-                        .clickable(enabled = !saving) { photoPicker.launch("image/*") },
+                        .background(colors.cardBackground),
                 contentAlignment = Alignment.Center,
             ) {
                 val previewUri = selectedImageUri
@@ -2465,41 +2460,26 @@ private fun AddProductSheet(
             }
 
             // Station segmented control
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(CircleShape)
-                        .background(colors.cardInner)
-                        .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
+            val stations =
                 listOf(
                     PreparationStation.CASHIER to "Barra / Bebidas",
                     PreparationStation.KITCHEN to "Cocina caliente",
-                ).forEach { (station, label) ->
-                    val selected = selectedStation == station
-                    Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .clip(CircleShape)
-                                .background(if (selected) colors.accentLime else Color.Transparent)
-                                .clickable(enabled = !saving) {
-                                    haptics.selection()
-                                    selectedStation = station
-                                }.padding(vertical = 11.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            label,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (selected) colors.accentInk else colors.textSecondary,
-                        )
-                    }
-                }
-            }
+                )
+            SlidingSegments(
+                labels = stations.map { it.second },
+                selectedIndex = stations.indexOfFirst { it.first == selectedStation }.coerceAtLeast(0),
+                onSelect = { index ->
+                    haptics.selection()
+                    selectedStation = stations[index].first
+                },
+                trackColor = colors.cardInner,
+                indicatorColor = colors.accentLime,
+                selectedContentColor = colors.accentInk,
+                idleContentColor = colors.textSecondary,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !saving,
+                verticalPadding = 11.dp,
+            )
 
             // Name input
             BasicTextField(

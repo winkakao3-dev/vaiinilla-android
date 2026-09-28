@@ -102,6 +102,7 @@ import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.components.CheckoutDestinationPicker
 import com.vaiinilla.app.ui.components.CheckoutSpaceOption
 import com.vaiinilla.app.ui.components.CheckoutSpacePicker
+import com.vaiinilla.app.ui.components.NumberTicker
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
@@ -119,6 +120,8 @@ import com.vaiinilla.app.ui.order.selectedSpaceName
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
+import java.math.BigDecimal
+import java.math.RoundingMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1242,13 +1245,18 @@ private fun OrderSummaryCard(state: OrderFlowUiState) {
                     fontSize = 20.sp,
                     lineHeight = 26.sp,
                 )
-                Text(
-                    moneyLabel(state.cartPreviewTotal),
-                    color = colors.ink,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 26.sp,
-                    lineHeight = 30.sp,
-                )
+                NumberTicker(
+                    value = state.cartPreviewTotal.toBigDecimalOrNull() ?: BigDecimal.ZERO,
+                    label = "cart-total-ticker",
+                ) { total ->
+                    Text(
+                        moneyLabel(total.setScale(2, RoundingMode.HALF_UP).toPlainString()),
+                        color = colors.ink,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 26.sp,
+                        lineHeight = 30.sp,
+                    )
+                }
             }
         }
     }
