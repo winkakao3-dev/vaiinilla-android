@@ -28,6 +28,18 @@ class OrderContractJson
 
         fun encodeCreateRequest(request: CreateOrderRequest): String = json.encodeToString(request.toDto())
 
+        fun encodeCancelOrder(
+            expectedVersion: Int,
+            reason: String,
+        ): String =
+            json.encodeToString(CancelOrderRequestDto(expectedVersion = expectedVersion, reason = reason.trim()))
+
+        fun parseCancelledOrder(raw: String): OrderDetail {
+            val envelope = json.decodeFromString<CancelOrderEnvelopeDto>(raw)
+            requireEnvelopeSuccess(envelope.error)
+            return envelope.data.order.toDomain()
+        }
+
         fun encodeCashCollection(
             amountReceived: String,
             expectedVersion: Int,

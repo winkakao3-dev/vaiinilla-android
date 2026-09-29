@@ -21,6 +21,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +30,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -58,8 +61,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -116,6 +121,7 @@ import com.vaiinilla.app.ui.components.SlidingSegments
 import com.vaiinilla.app.ui.components.ToastPill
 import com.vaiinilla.app.ui.components.VaiinillaAssistantButton
 import com.vaiinilla.app.ui.components.VaiinillaMark
+import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.assistantAnchor
 import com.vaiinilla.app.ui.components.assistantKitchenReadyAnchor
 import com.vaiinilla.app.ui.components.assistantKitchenStartAnchor
@@ -254,6 +260,7 @@ fun CashierOperationalScreen(
     onReloadWallet: (userId: String, amount: String) -> Unit = { _, _ -> },
     onCashChangeNoticed: () -> Unit = {},
     onChangeMode: (() -> Unit)? = null,
+    onOpenAccounts: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
     onToggleProductAvailable: (productId: Int, available: Boolean) -> Unit = { _, _ -> },
     onCreateCashierProduct: (CatalogProductDraft, ByteArray?, String?, String?, (String?) -> Unit) -> Unit =
@@ -500,6 +507,45 @@ fun CashierOperationalScreen(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
                             )
+                        }
+                    }
+                }
+            }
+
+            if (onOpenAccounts != null) {
+                item(key = "accounts-entry") {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = colors.cardBackground,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, colors.cardBorder, RoundedCornerShape(20.dp))
+                                .physicalPress {
+                                    haptics.selection()
+                                    onOpenAccounts()
+                                },
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Cuentas de mesas y canchas",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = colors.textPrimary,
+                                )
+                                Text(
+                                    "Cobra la cuenta al irse y libera el espacio.",
+                                    fontSize = 12.5.sp,
+                                    color = colors.textSecondary,
+                                    modifier = Modifier.padding(top = 2.dp),
+                                )
+                            }
+                            Text("›", fontSize = 26.sp, fontWeight = FontWeight.Light, color = colors.textSecondary)
                         }
                     }
                 }
@@ -1686,6 +1732,7 @@ fun KitchenOperationalScreen(
     onBack: () -> Unit,
     onStart: (orderId: String, version: Int) -> Unit,
     onReady: (orderId: String, version: Int) -> Unit,
+    onReject: (orderId: String, version: Int, reason: String) -> Unit = { _, _, _ -> },
     onChangeMode: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
     assistantUserKey: String = "kitchen",
@@ -1702,6 +1749,7 @@ fun KitchenOperationalScreen(
     val assistantFocusRequester = remember { FocusRequester() }
 
     var selectedOrderId by remember { mutableStateOf<String?>(null) }
+    var rejecting by remember { mutableStateOf(false) }
     val activeOrder =
         state.orders.firstOrNull { it.summary.id == selectedOrderId }
             ?: state.orders.firstOrNull()
@@ -2025,6 +2073,17 @@ fun KitchenOperationalScreen(
                                         }
                                     }
 
+                                    if (activeOrder.summary.payAtEnd) {
+                                        Text(
+                                            "A LA CUENTA · SE PAGA AL FINAL",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            letterSpacing = 1.2.sp,
+                                            color = TicketMuted,
+                                            modifier = Modifier.padding(top = 8.dp),
+                                        )
+                                    }
+
                                     // Una sola acción: la que aplica según el estado real.
                                     Button(
                                         onClick = {
@@ -2074,6 +2133,20 @@ fun KitchenOperationalScreen(
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 14.sp,
                                         )
+                                    }
+
+                                    if (!isReady && restrictedMode != RestrictedMode.READ_ONLY) {
+                                        TextButton(
+                                            onClick = { rejecting = true },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) {
+                                            Text(
+                                                "Rechazar pedido",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                color = Color(0xFFE5645A),
+                                            )
+                                        }
                                     }
 
                                     upcomingOrders.firstOrNull()?.let { next ->
@@ -2192,6 +2265,20 @@ fun KitchenOperationalScreen(
             palette = kitchenAssistantPalette,
             buttonFocusRequester = assistantFocusRequester,
             modifier = Modifier.fillMaxSize(),
+        )
+    }
+
+    if (rejecting && activeOrder != null) {
+        KitchenRejectDialog(
+            folio = activeOrder.summary.folio,
+            colors = colors,
+            onDismiss = { rejecting = false },
+            onConfirm = { reason ->
+                rejecting = false
+                haptics.impact()
+                onReject(activeOrder.summary.id, activeOrder.summary.version, reason)
+                toastMessage = "Comanda #${activeOrder.summary.folio} rechazada"
+            },
         )
     }
 }
@@ -2600,6 +2687,100 @@ private fun AddProductSheet(
                     letterSpacing = 0.2.sp,
                 )
             }
+        }
+    }
+}
+
+/** Motivos que Cocina da con más frecuencia: un toque los escribe. */
+private val RejectionQuickReasons = listOf("Se acabó el producto", "Faltan ingredientes", "Cocina saturada")
+
+/**
+ * Cocina rechaza un pedido y explica por qué: el cliente ve el motivo en su seguimiento. Es una hoja,
+ * como el resto de la app; el botón se vuelve su propio progreso y no aparece un modal aparte.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun KitchenRejectDialog(
+    folio: Int,
+    colors: OperationalColors,
+    onDismiss: () -> Unit,
+    onConfirm: (reason: String) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = colors.background,
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+    ) {
+        KitchenRejectContent(folio = folio, colors = colors, onConfirm = onConfirm)
+    }
+}
+
+/** El contenido de la hoja de rechazo, aparte de la hoja: así se puede probar y capturar. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun KitchenRejectContent(
+    folio: Int,
+    colors: OperationalColors,
+    onConfirm: (reason: String) -> Unit,
+) {
+    var reason by remember { mutableStateOf("") }
+    val valid = reason.trim().length >= 3
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 22.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Column(modifier = Modifier.arrive(0)) {
+            Text("Rechazar pedido", fontSize = 13.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
+            Text(
+                "#$folio",
+                fontSize = 44.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-1.4).sp,
+                color = colors.textPrimary,
+            )
+            Text(
+                "El cliente verá el motivo. Si ya había pagado, se le devuelve el dinero.",
+                fontSize = 13.sp,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+        Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                RejectionQuickReasons.forEach { quick ->
+                    ChipButton(
+                        label = quick,
+                        enabled = true,
+                        colors = colors,
+                        selected = reason == quick,
+                    ) { reason = quick }
+                }
+            }
+            OutlinedTextField(
+                value = reason,
+                onValueChange = { reason = it.take(240) },
+                label = { Text("Motivo") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        Box(modifier = Modifier.arrive(2)) {
+            ActionPill(
+                label = "Rechazar pedido",
+                enabled = valid,
+                loading = false,
+                colors = colors,
+            ) { onConfirm(reason.trim()) }
         }
     }
 }

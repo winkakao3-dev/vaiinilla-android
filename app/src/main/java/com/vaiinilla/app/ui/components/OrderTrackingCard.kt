@@ -126,12 +126,37 @@ internal fun trackingStepTitle(
     state: OrderState,
     paymentMethod: PaymentMethod,
     paymentStatus: StripePaymentStatus?,
+    payAtEnd: Boolean = false,
 ): String =
-    timelineSteps
-        .firstOrNull { it.state == state }
-        ?.title
-        ?.invoke(paymentMethod, paymentStatus)
+    payAtEndStepTitle(state, payAtEnd)
+        ?: timelineSteps
+            .firstOrNull { it.state == state }
+            ?.title
+            ?.invoke(paymentMethod, paymentStatus)
         ?: state.label.uppercase()
+
+/** Un pedido a la cuenta no se cobra al pedir: sus dos primeros pasos lo dicen así. */
+private fun payAtEndStepTitle(
+    state: OrderState,
+    payAtEnd: Boolean,
+): String? =
+    when {
+        !payAtEnd -> null
+        state == OrderState.PENDING_PAYMENT -> "PEDIDO ENVIADO"
+        state == OrderState.PAID -> "RECIBIDO"
+        else -> null
+    }
+
+private fun payAtEndStepDescription(
+    state: OrderState,
+    payAtEnd: Boolean,
+): String? =
+    when {
+        !payAtEnd -> null
+        state == OrderState.PENDING_PAYMENT -> "Pagas al final, con toda la cuenta."
+        state == OrderState.PAID -> "Cocina recibió la comanda."
+        else -> null
+    }
 
 internal fun trackingStepDescription(
     state: OrderState,
@@ -139,8 +164,11 @@ internal fun trackingStepDescription(
     paymentMethod: PaymentMethod,
     paymentStatus: StripePaymentStatus?,
     spaceType: String? = null,
+    payAtEnd: Boolean = false,
 ): String =
-    if (state == OrderState.READY && destination == OrderDestination.IN_SPACE) {
+    if (payAtEndStepDescription(state, payAtEnd) != null) {
+        payAtEndStepDescription(state, payAtEnd).orEmpty()
+    } else if (state == OrderState.READY && destination == OrderDestination.IN_SPACE) {
         "El personal lo llevará a ${SpaceCopy.yourPlace(spaceType)}."
     } else {
         timelineSteps
@@ -218,7 +246,7 @@ fun OrderTrackingCard(
                     Text(destinationDisplayLabel(order), color = cardText.copy(alpha = 0.82f), fontSize = 13.sp)
                 }
                 Text(
-                    paymentMethodLabel(order.summary.paymentMethod),
+                    orderPaymentLabel(order.summary),
                     color = cardText.copy(alpha = 0.82f),
                     fontSize = 13.sp,
                 )
@@ -289,6 +317,7 @@ fun OrderTrackingTimeline(
     paymentMethod: PaymentMethod = PaymentMethod.CASH,
     paymentStatus: StripePaymentStatus? = null,
     spaceType: String? = null,
+    payAtEnd: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     val view = LocalView.current
@@ -305,8 +334,16 @@ fun OrderTrackingTimeline(
             val stepIndex = step.state.trackingIndex
             TimelineRow(
                 stepNumber = index + 1,
-                title = step.title(paymentMethod, paymentStatus),
-                description = trackingStepDescription(step.state, destination, paymentMethod, paymentStatus, spaceType),
+                title = trackingStepTitle(step.state, paymentMethod, paymentStatus, payAtEnd),
+                description =
+                    trackingStepDescription(
+                        step.state,
+                        destination,
+                        paymentMethod,
+                        paymentStatus,
+                        spaceType,
+                        payAtEnd,
+                    ),
                 isDone = stepIndex < currentIndex,
                 isCurrent = stepIndex == currentIndex,
                 showLine = index < timelineSteps.lastIndex,

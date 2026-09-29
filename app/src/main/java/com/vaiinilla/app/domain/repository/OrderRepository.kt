@@ -43,6 +43,14 @@ interface OrderRepository {
         idempotencyKey: String,
         pickupToken: String? = null,
     ): Result<OrderDetail>
+
+    /** Cancela o rechaza un pedido con un motivo que verá el cliente. */
+    fun cancelOrder(
+        orderId: String,
+        expectedVersion: Int,
+        reason: String,
+        idempotencyKey: String,
+    ): Result<OrderDetail> = Result.failure(UnsupportedOperationException("Cancelar pedidos no está disponible."))
 }
 
 class OrderRepositoryException(

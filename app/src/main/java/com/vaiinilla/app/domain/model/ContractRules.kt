@@ -112,6 +112,11 @@ object ContractRules {
         ) {
             "El backend REMOTE acepta efectivo, saldo o stripe."
         }
+        if (request.payAtEnd) {
+            require(request.paymentMethod == PaymentMethod.CASH && request.destination == OrderDestination.IN_SPACE) {
+                "Pagar al final exige efectivo y un espacio."
+            }
+        }
         when (request.destination) {
             OrderDestination.TAKE_AWAY ->
                 require(request.spaceId == null) {

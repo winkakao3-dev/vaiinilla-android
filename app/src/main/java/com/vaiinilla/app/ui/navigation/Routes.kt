@@ -43,4 +43,7 @@ object Routes {
     const val CASHIER = "cashier"
     const val KITCHEN = "kitchen"
     const val WAITER = "waiter"
+
+    /** Caja también cobra la cuenta de una mesa o cancha: abre el mismo tablero que el mesero. */
+    const val CASHIER_ACCOUNTS = "cashier_accounts"
 }

@@ -53,6 +53,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Remove
@@ -112,6 +113,7 @@ import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.canCreateOrder
+import com.vaiinilla.app.ui.order.canPayAtEnd
 import com.vaiinilla.app.ui.order.cartPreviewTotal
 import com.vaiinilla.app.ui.order.hasUnresolvedStripePayment
 import com.vaiinilla.app.ui.order.isBalancePaymentAffordable
@@ -134,6 +136,7 @@ fun CartScreen(
     onDestinationChange: (OrderDestination) -> Unit,
     onSpaceChange: (Int) -> Unit = {},
     onPaymentChange: (PaymentMethod) -> Unit,
+    onPayAtEnd: () -> Unit = {},
     onConfirm: () -> Unit,
     onResolvePendingStripePayment: () -> Unit = {},
     walletBalance: String? = null,
@@ -372,7 +375,14 @@ fun CartScreen(
             PaymentMethodOverlay(
                 balanceAffordable = state.isBalancePaymentAffordable(walletBalance),
                 walletBalance = walletBalance,
+                payAtEndAvailable = state.canPayAtEnd,
                 onDismiss = { paymentDialogOpen = false },
+                onSelectPayAtEnd = {
+                    paymentDialogOpen = false
+                    haptics.selection()
+                    onPayAtEnd()
+                    onConfirm()
+                },
                 onSelect = { method ->
                     paymentDialogOpen = false
                     haptics.selection()
@@ -389,17 +399,26 @@ fun CartScreen(
 private fun PaymentMethodOverlay(
     balanceAffordable: Boolean,
     walletBalance: String?,
+    payAtEndAvailable: Boolean,
     onDismiss: () -> Unit,
+    onSelectPayAtEnd: () -> Unit,
     onSelect: (PaymentMethod) -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
     var selectedMethod by remember { mutableStateOf<PaymentMethod?>(null) }
+    var payAtEndSelected by remember { mutableStateOf(false) }
     var selectionLocked by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val hasSelection = selectedMethod != null || payAtEndSelected
 
     fun continueWithSelection() {
-        val method = selectedMethod ?: return
         if (selectionLocked) return
+        if (payAtEndSelected) {
+            selectionLocked = true
+            onSelectPayAtEnd()
+            return
+        }
+        val method = selectedMethod ?: return
         selectionLocked = true
         onSelect(method)
     }
@@ -464,6 +483,20 @@ private fun PaymentMethodOverlay(
             Column(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                if (payAtEndAvailable) {
+                    PaymentMethodCardOption(
+                        icon = Icons.Outlined.Receipt,
+                        title = "Pagar al final",
+                        subtitle = "Pide lo que quieras y paga toda la cuenta al irte.",
+                        badgeText = "Cuenta",
+                        selected = payAtEndSelected,
+                        enabled = !selectionLocked,
+                        onClick = {
+                            payAtEndSelected = true
+                            selectedMethod = null
+                        },
+                    )
+                }
                 PaymentMethodCardOption(
                     icon = Icons.Outlined.Payments,
                     title = "Pago en caja",
@@ -471,7 +504,10 @@ private fun PaymentMethodOverlay(
                     badgeText = "Efectivo",
                     selected = selectedMethod == PaymentMethod.CASH,
                     enabled = !selectionLocked,
-                    onClick = { selectedMethod = PaymentMethod.CASH },
+                    onClick = {
+                        payAtEndSelected = false
+                        selectedMethod = PaymentMethod.CASH
+                    },
                 )
                 PaymentMethodCardOption(
                     icon = Icons.Outlined.AccountBalanceWallet,
@@ -485,7 +521,10 @@ private fun PaymentMethodOverlay(
                     badgeText = "Saldo",
                     selected = selectedMethod == PaymentMethod.BALANCE,
                     enabled = !selectionLocked && balanceAffordable,
-                    onClick = { selectedMethod = PaymentMethod.BALANCE },
+                    onClick = {
+                        payAtEndSelected = false
+                        selectedMethod = PaymentMethod.BALANCE
+                    },
                 )
                 PaymentMethodCardOption(
                     icon = Icons.Outlined.CreditCard,
@@ -494,7 +533,10 @@ private fun PaymentMethodOverlay(
                     badgeText = "Stripe",
                     selected = selectedMethod == PaymentMethod.STRIPE,
                     enabled = !selectionLocked,
-                    onClick = { selectedMethod = PaymentMethod.STRIPE },
+                    onClick = {
+                        payAtEndSelected = false
+                        selectedMethod = PaymentMethod.STRIPE
+                    },
                 )
             }
 
@@ -506,23 +548,25 @@ private fun PaymentMethodOverlay(
                         .padding(top = 6.dp)
                         .height(52.dp)
                         .physicalPress(
-                            enabled = !selectionLocked && selectedMethod != null,
+                            enabled = !selectionLocked && hasSelection,
                             onClick = ::continueWithSelection,
                         ),
-                color = if (selectedMethod != null) colors.accent else colors.paper2,
-                contentColor = if (selectedMethod != null) colors.accentInk else colors.muted,
+                color = if (hasSelection) colors.accent else colors.paper2,
+                contentColor = if (hasSelection) colors.accentInk else colors.muted,
                 shape = RoundedCornerShape(26.dp),
-                shadowElevation = if (selectedMethod != null) 6.dp else 0.dp,
+                shadowElevation = if (hasSelection) 6.dp else 0.dp,
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         text =
-                            if (selectedMethod != null) {
+                            if (payAtEndSelected) {
+                                "Continuar con pagar al final"
+                            } else if (selectedMethod != null) {
                                 "Continuar con ${selectedMethod.paymentDialogLabel()}"
                             } else {
                                 "Selecciona método de pago"
                             },
-                        color = if (selectedMethod != null) colors.accentInk else colors.muted,
+                        color = if (hasSelection) colors.accentInk else colors.muted,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Black,
                     )

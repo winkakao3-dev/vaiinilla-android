@@ -87,9 +87,12 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.BoardOrder
 import com.vaiinilla.app.domain.repository.BoardTable
 import com.vaiinilla.app.domain.repository.CallStatus
+import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
+import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.TableState
 import com.vaiinilla.app.domain.repository.sortWaiterTables
@@ -99,6 +102,7 @@ import com.vaiinilla.app.ui.components.OperationalAssistantHost
 import com.vaiinilla.app.ui.components.OperationalAssistantPalette
 import com.vaiinilla.app.ui.components.SlidingSegments
 import com.vaiinilla.app.ui.components.ToastPill
+import com.vaiinilla.app.ui.components.TurnProgressBar
 import com.vaiinilla.app.ui.components.VaiinillaAssistantButton
 import com.vaiinilla.app.ui.components.VaiinillaMark
 import com.vaiinilla.app.ui.components.animateSelectionColor
@@ -123,7 +127,14 @@ fun WaiterOperationalScreen(
     onRefresh: () -> Unit = {},
     onGoing: (TableCall) -> Unit = {},
     onAttended: (TableCall) -> Unit = {},
-    onDeliver: (BoardOrder, String) -> Unit = { _, _ -> },
+    onDeliver: (BoardOrder, String?) -> Unit = { _, _ -> },
+    onOpenSpace: (Int) -> Unit = {},
+    onCloseSpace: () -> Unit = {},
+    onOpenTurn: (Int, Int?) -> Unit = { _, _ -> },
+    onExtendTurn: (Int, Int) -> Unit = { _, _ -> },
+    onReleaseSpace: (Int) -> Unit = {},
+    onCollectAccount: (Int, String, String) -> Unit = { _, _, _ -> },
+    onDismissCollection: () -> Unit = {},
     onFilterAttending: (Boolean) -> Unit = {},
     newCallTable: TableCall? = null,
     onAlertConsumed: () -> Unit = {},
@@ -131,6 +142,10 @@ fun WaiterOperationalScreen(
     restrictedMode: RestrictedMode? = null,
     placeName: String = "",
     assistantUserKey: String = "waiter",
+    /** Quién usa el tablero: el mesero, o Caja cuando entra a cobrar cuentas. */
+    kicker: String = "MESERO",
+    roleSubtitle: String = "Cuenta de mesero",
+    roleChip: String = "MS",
 ) {
     val colors = rememberOperationalColors()
     val themeMode = LocalVaiinillaThemeMode.current
@@ -232,7 +247,7 @@ fun WaiterOperationalScreen(
                                 color = colors.textPrimary,
                             )
                             Text(
-                                "Cuenta de mesero",
+                                roleSubtitle,
                                 fontSize = 12.sp,
                                 color = colors.textSecondary,
                                 fontWeight = FontWeight.SemiBold,
@@ -301,7 +316,7 @@ fun WaiterOperationalScreen(
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
-                                "MS",
+                                roleChip,
                                 color = colors.background,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
@@ -313,6 +328,7 @@ fun WaiterOperationalScreen(
 
             item(span = fullWidth) {
                 WaiterTitleBlock(
+                    kicker = kicker,
                     placeName = placeName,
                     online = state.errorMessage == null || state.tables.isNotEmpty(),
                     colors = colors,
@@ -447,6 +463,7 @@ fun WaiterOperationalScreen(
                         onClick = {
                             haptics.selection()
                             openTableId = table.space.id
+                            onOpenSpace(table.space.id)
                         },
                     )
                 }
@@ -512,13 +529,31 @@ fun WaiterOperationalScreen(
             acting = state.acting,
             readOnly = readOnly,
             colors = colors,
-            onDismiss = { openTableId = null },
+            spaceDetail = state.spaceDetail,
+            spaceDetailLoading = state.spaceDetailLoading,
+            lastCollection = state.lastCollection,
+            onDismiss = {
+                openTableId = null
+                onCloseSpace()
+            },
             onGoing = { onGoing(it) },
             onAttended = { onAttended(it) },
             onDeliver = {
-                openTableId = null
-                delivering = it
+                if (state.deliveryRequiresQr) {
+                    openTableId = null
+                    onCloseSpace()
+                    delivering = it
+                } else {
+                    // El establecimiento dispensa el QR en espacios: se confirma la entrega y listo.
+                    onDeliver(it, null)
+                }
             },
+            deliveryRequiresQr = state.deliveryRequiresQr,
+            onOpenTurn = { onOpenTurn(open.space.id, it) },
+            onExtendTurn = { onExtendTurn(open.space.id, it) },
+            onReleaseSpace = { onReleaseSpace(open.space.id) },
+            onCollectAccount = { received, total -> onCollectAccount(open.space.id, received, total) },
+            onDismissCollection = onDismissCollection,
         )
     }
 
@@ -560,6 +595,7 @@ private enum class SummaryKind { Plain, Call, Ready }
 /** Kicker con guion lima, título grande y el estado de conexión: la cabecera del tablero web. */
 @Composable
 private fun WaiterTitleBlock(
+    kicker: String,
     placeName: String,
     online: Boolean,
     colors: OperationalColors,
@@ -573,7 +609,7 @@ private fun WaiterTitleBlock(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(Modifier.size(width = 18.dp, height = 3.dp).clip(CircleShape).background(colors.accentLime))
                 Text(
-                    if (placeName.isBlank()) "MESERO" else "MESERO · ${placeName.uppercase()}",
+                    if (placeName.isBlank()) kicker else "$kicker · ${placeName.uppercase()}",
                     color = colors.textSecondary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
@@ -723,7 +759,7 @@ private fun WaiterTile(
     val shape = RoundedCornerShape(20.dp)
     val readyOrders = table.orders.filter { it.state == OrderState.READY }
     // tick entra en la clave para que el "0:42" avance cada segundo.
-    val caption = remember(table, readyOrders, tick) { waiterTileCaption(table, readyOrders) }
+    val caption = remember(table, readyOrders, tick) { waiterTileCaption(table, readyOrders, tick) }
     val container =
         animateSelectionColor(
             when {
@@ -783,21 +819,44 @@ private fun WaiterTile(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Text(
-            caption,
-            color = captionColor,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 11.5.sp,
-            lineHeight = 14.sp,
-            maxLines = 4,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Column {
+            Text(
+                caption,
+                color = captionColor,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 11.5.sp,
+                lineHeight = 14.sp,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
+            )
+            // Avance del turno: se ve de un vistazo cuánto le queda a cada cancha.
+            val progress = spaceTileProgress(table.availability, tick)
+            if (progress != null) {
+                val overdue =
+                    table.availability?.state.let {
+                        it == SpaceAvailabilityState.EN_GRACIA || it == SpaceAvailabilityState.POR_COBRAR
+                    }
+                TurnProgressBar(
+                    fraction = progress,
+                    track = if (ringing) Color.White.copy(alpha = 0.3f) else colors.pillBackground,
+                    fill =
+                        when {
+                            table.availability?.state == SpaceAvailabilityState.POR_COBRAR -> WaiterCoral
+                            overdue -> Color(0xFFE9A23B)
+                            else -> colors.accentLime
+                        },
+                    modifier = Modifier.padding(top = 7.dp),
+                    height = 4.dp,
+                )
+            }
+        }
     }
 }
 
 private fun waiterTileCaption(
     table: BoardTable,
     readyOrders: List<BoardOrder>,
+    tick: Int,
 ): String {
     val call = table.call
     return when {
@@ -810,9 +869,20 @@ private fun waiterTileCaption(
                 }
             "$whenText · ${waiterSince(call.createdAt)}\n${call.reason.staffLabel}"
         }
-        readyOrders.isNotEmpty() -> "#${readyOrders.joinToString(", #") { it.folio.toString() }} listo"
-        table.orders.isNotEmpty() -> "${table.orders.size} ${if (table.orders.size == 1) "pedido" else "pedidos"}"
-        else -> "Libre"
+        readyOrders.isNotEmpty() -> {
+            // Una cancha con un pedido listo sigue teniendo turno: no se pierde el tiempo restante.
+            val ready = "#${readyOrders.joinToString(", #") { it.folio.toString() }} listo"
+            spaceAvailabilityCaption(table.availability, tick)?.let { "$ready\n$it" } ?: ready
+        }
+        else -> {
+            val occupied = spaceAvailabilityCaption(table.availability, tick)
+            when {
+                occupied != null -> occupied
+                table.orders.isNotEmpty() ->
+                    "${table.orders.size} ${if (table.orders.size == 1) "pedido" else "pedidos"}"
+                else -> "Libre"
+            }
+        }
     }
 }
 
@@ -842,10 +912,19 @@ private fun WaiterTableSheet(
     acting: Boolean,
     readOnly: Boolean,
     colors: OperationalColors,
+    spaceDetail: SpaceSessionDetail?,
+    spaceDetailLoading: Boolean,
+    lastCollection: AccountCollection?,
     onDismiss: () -> Unit,
     onGoing: (TableCall) -> Unit,
     onAttended: (TableCall) -> Unit,
     onDeliver: (BoardOrder) -> Unit,
+    deliveryRequiresQr: Boolean,
+    onOpenTurn: (Int?) -> Unit,
+    onExtendTurn: (Int) -> Unit,
+    onReleaseSpace: () -> Unit,
+    onCollectAccount: (String, String) -> Unit,
+    onDismissCollection: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -964,6 +1043,21 @@ private fun WaiterTableSheet(
                     }
                 }
             }
+            WaiterSpaceSection(
+                space = table.space,
+                detail = spaceDetail,
+                loading = spaceDetailLoading,
+                lastCollection = lastCollection,
+                tick = tick,
+                acting = acting,
+                readOnly = readOnly,
+                colors = colors,
+                onOpenTurn = onOpenTurn,
+                onExtend = onExtendTurn,
+                onCollect = onCollectAccount,
+                onRelease = onReleaseSpace,
+                onDismissCollection = onDismissCollection,
+            )
             table.orders.forEach { order ->
                 Surface(
                     shape = RoundedCornerShape(18.dp),

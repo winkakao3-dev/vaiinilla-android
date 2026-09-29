@@ -2,19 +2,30 @@ package com.vaiinilla.app.data.operational
 
 import com.vaiinilla.app.data.contract.MetaDto
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.repository.AccountCollection
+import com.vaiinilla.app.domain.repository.AccountOrder
 import com.vaiinilla.app.domain.repository.BoardOrder
 import com.vaiinilla.app.domain.repository.BoardTable
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
+import com.vaiinilla.app.domain.repository.SpaceAccount
+import com.vaiinilla.app.domain.repository.SpaceAvailability
+import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
+import com.vaiinilla.app.domain.repository.SpaceSessionDetail
+import com.vaiinilla.app.domain.repository.SpaceSessionInfo
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.TableCallTaker
 import com.vaiinilla.app.domain.repository.TableSpace
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import java.math.BigDecimal
+import java.math.RoundingMode
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -103,11 +114,13 @@ data class CallTransitionRequestDto(
     @SerialName("version_esperada") val expectedVersion: Int,
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class DeliverTransitionRequestDto(
     @SerialName("estado_objetivo") val target: String,
     @SerialName("version_esperada") val expectedVersion: Int,
-    @SerialName("qr_token") val qrToken: String,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("qr_token") val qrToken: String? = null,
 )
 
 @Serializable
@@ -116,7 +129,194 @@ data class BuyerCallRequestDto(
     @SerialName("pedido_id") val orderId: String? = null,
 )
 
+@Serializable
+data class SpaceAvailabilityDto(
+    val espacio: TableSpaceDto,
+    val estado: String,
+    val saldada: Boolean = true,
+    @SerialName("fin_previsto") val endsAt: String? = null,
+    @SerialName("libera_en") val releasesAt: String? = null,
+    @SerialName("restante_seg") val remainingSeconds: Int? = null,
+    @SerialName("gracia_min") val graceMinutes: Int = 5,
+    @SerialName("inicio") val startedAt: String? = null,
+)
+
+@Serializable
+data class AvailabilityEnvelopeDto(
+    val data: List<SpaceAvailabilityDto>,
+    val meta: MetaDto? = null,
+    val error: JsonElement? = null,
+)
+
+@Serializable
+data class SpaceSessionInfoDto(
+    val id: String,
+    val inicio: String,
+    @SerialName("fin_previsto") val endsAt: String? = null,
+    val version: Int,
+)
+
+@Serializable
+data class AccountOrderDto(
+    val id: String,
+    val folio: Int,
+    val estado: String,
+    val total: Double,
+    @SerialName("pago_diferido") val payAtEnd: Boolean = false,
+    @SerialName("pendiente_cobro") val pending: Boolean = false,
+    val cliente: TableCallClientDto? = null,
+    @SerialName("items_resumen") val itemsSummary: String = "",
+)
+
+@Serializable
+data class SpaceAccountDto(
+    val pedidos: List<AccountOrderDto> = emptyList(),
+    val total: Double = 0.0,
+    val pendiente: Double = 0.0,
+    val pagado: Double = 0.0,
+    val saldada: Boolean = true,
+)
+
+@Serializable
+data class SpaceSessionDetailDto(
+    val espacio: TableSpaceDto,
+    val estado: String,
+    val saldada: Boolean = true,
+    @SerialName("fin_previsto") val endsAt: String? = null,
+    @SerialName("libera_en") val releasesAt: String? = null,
+    @SerialName("restante_seg") val remainingSeconds: Int? = null,
+    @SerialName("gracia_min") val graceMinutes: Int = 5,
+    @SerialName("inicio") val startedAt: String? = null,
+    val sesion: SpaceSessionInfoDto? = null,
+    val cuenta: SpaceAccountDto? = null,
+)
+
+@Serializable
+data class SpaceSessionDetailEnvelopeDto(
+    val data: SpaceSessionDetailDto,
+    val meta: MetaDto? = null,
+    val error: JsonElement? = null,
+)
+
+@Serializable
+data class AccountCollectionDto(
+    @SerialName("pedidos_cobrados") val ordersCollected: Int,
+    val total: String,
+    @SerialName("monto_recibido") val received: String,
+    val cambio: String,
+)
+
+@Serializable
+data class AccountCollectionEnvelopeDto(
+    val data: AccountCollectionDto,
+    val meta: MetaDto? = null,
+    val error: JsonElement? = null,
+)
+
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+data class OpenSessionRequestDto(
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("duracion_min") val durationMinutes: Int? = null,
+)
+
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+data class ExtendSessionRequestDto(
+    @SerialName("minutos") val minutes: Int,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("version") val expectedVersion: Int? = null,
+)
+
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+data class ReleaseSpaceRequestDto(
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("version") val expectedVersion: Int? = null,
+)
+
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+data class CollectAccountRequestDto(
+    @SerialName("monto_recibido") val received: String,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("total_esperado") val expectedTotal: String? = null,
+)
+
+/** Solo la política de entrega del estado operativo: el resto no le hace falta al mesero. */
+@Serializable
+data class DeliveryPolicyDto(
+    @SerialName("entrega_requiere_qr") val deliveryRequiresQr: Boolean = true,
+)
+
+@Serializable
+data class DeliveryPolicyEnvelopeDto(
+    val data: DeliveryPolicyDto,
+    val meta: MetaDto? = null,
+    val error: JsonElement? = null,
+)
+
+private fun Double.toMoney(): String = BigDecimal.valueOf(this).setScale(2, RoundingMode.HALF_UP).toPlainString()
+
 fun TableSpaceDto.toDomain(): TableSpace = TableSpace(id = id, name = nombre, type = tipo)
+
+fun SpaceAvailabilityDto.toDomain(): SpaceAvailability =
+    SpaceAvailability(
+        space = espacio.toDomain(),
+        state = SpaceAvailabilityState.fromWireValue(estado),
+        settled = saldada,
+        endsAt = endsAt,
+        releasesAt = releasesAt,
+        remainingSeconds = remainingSeconds,
+        graceMinutes = graceMinutes,
+        startedAt = startedAt,
+    )
+
+fun AccountOrderDto.toDomain(): AccountOrder =
+    AccountOrder(
+        id = id,
+        folio = folio,
+        state = estado,
+        total = total.toMoney(),
+        clientName = cliente?.nombre,
+        itemsSummary = itemsSummary,
+        payAtEnd = payAtEnd,
+        pending = pending,
+    )
+
+fun SpaceAccountDto.toDomain(): SpaceAccount =
+    SpaceAccount(
+        orders = pedidos.map { it.toDomain() },
+        total = total.toMoney(),
+        pending = pendiente.toMoney(),
+        paid = pagado.toMoney(),
+        settled = saldada,
+    )
+
+fun SpaceSessionDetailDto.toDomain(): SpaceSessionDetail =
+    SpaceSessionDetail(
+        availability =
+            SpaceAvailability(
+                space = espacio.toDomain(),
+                state = SpaceAvailabilityState.fromWireValue(estado),
+                settled = saldada,
+                endsAt = endsAt,
+                releasesAt = releasesAt,
+                remainingSeconds = remainingSeconds,
+                graceMinutes = graceMinutes,
+                startedAt = startedAt,
+            ),
+        session =
+            sesion?.let {
+                SpaceSessionInfo(
+                    id = it.id,
+                    startedAt = it.inicio,
+                    endsAt = it.endsAt,
+                    version = it.version,
+                )
+            },
+        account = cuenta?.toDomain(),
+    )
 
 fun TableCallDto.toDomain(): TableCall =
     TableCall(
@@ -187,6 +387,51 @@ class WaiterContractJson
             return envelope.data.toDomain()
         }
 
+        fun parseAvailability(raw: String): List<SpaceAvailability> {
+            val envelope = json.decodeFromString<AvailabilityEnvelopeDto>(raw)
+            require(envelope.error == null) { "La API devolvió un error en el envelope." }
+            return envelope.data.map { it.toDomain() }
+        }
+
+        fun parseSessionDetail(raw: String): SpaceSessionDetail {
+            val envelope = json.decodeFromString<SpaceSessionDetailEnvelopeDto>(raw)
+            require(envelope.error == null) { "La API devolvió un error en el envelope." }
+            return envelope.data.toDomain()
+        }
+
+        fun parseAccountCollection(raw: String): AccountCollection {
+            val envelope = json.decodeFromString<AccountCollectionEnvelopeDto>(raw)
+            require(envelope.error == null) { "La API devolvió un error en el envelope." }
+            return AccountCollection(
+                ordersCollected = envelope.data.ordersCollected,
+                total = envelope.data.total,
+                received = envelope.data.received,
+                change = envelope.data.cambio,
+            )
+        }
+
+        fun parseDeliveryRequiresQr(raw: String): Boolean {
+            val envelope = json.decodeFromString<DeliveryPolicyEnvelopeDto>(raw)
+            require(envelope.error == null) { "La API devolvió un error en el envelope." }
+            return envelope.data.deliveryRequiresQr
+        }
+
+        fun encodeOpenSession(durationMinutes: Int?): String =
+            json.encodeToString(OpenSessionRequestDto(durationMinutes))
+
+        fun encodeExtendSession(
+            minutes: Int,
+            expectedVersion: Int?,
+        ): String = json.encodeToString(ExtendSessionRequestDto(minutes = minutes, expectedVersion = expectedVersion))
+
+        fun encodeReleaseSpace(expectedVersion: Int?): String =
+            json.encodeToString(ReleaseSpaceRequestDto(expectedVersion))
+
+        fun encodeCollectAccount(
+            received: String,
+            expectedTotal: String?,
+        ): String = json.encodeToString(CollectAccountRequestDto(received = received, expectedTotal = expectedTotal))
+
         fun encodeCallTransition(
             target: CallStatus,
             expectedVersion: Int,
@@ -200,13 +445,13 @@ class WaiterContractJson
 
         fun encodeDeliver(
             expectedVersion: Int,
-            qrToken: String,
+            qrToken: String?,
         ): String =
             json.encodeToString(
                 DeliverTransitionRequestDto(
                     target = "entregado",
                     expectedVersion = expectedVersion,
-                    qrToken = qrToken.trim(),
+                    qrToken = qrToken?.trim()?.takeIf { it.isNotEmpty() },
                 ),
             )
 

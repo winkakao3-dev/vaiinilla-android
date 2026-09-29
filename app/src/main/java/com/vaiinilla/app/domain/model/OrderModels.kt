@@ -19,6 +19,8 @@ data class CreateOrderRequest(
     val spaceId: Int?,
     val kitchenNotes: String,
     val items: List<CreateOrderItem>,
+    /** Pagar al final: el pedido va a la cuenta del espacio (efectivo, en un espacio). */
+    val payAtEnd: Boolean = false,
 )
 
 data class CreateOrderItem(
@@ -72,6 +74,13 @@ data class OrderSummary(
     val version: Int,
     val createdAt: String,
     val updatedAt: String,
+    /** El pedido va a la cuenta del espacio y se paga al final, en efectivo. */
+    val payAtEnd: Boolean = false,
+    /** Pedido a la cuenta que aún no se cobra (y sigue vigente). */
+    val paymentPending: Boolean = false,
+    /** Motivo que indicó quien canceló o rechazó el pedido; solo si está cancelado. */
+    val cancelReason: String? = null,
+    val canceledByRole: String? = null,
 )
 
 data class CashCollectionResult(

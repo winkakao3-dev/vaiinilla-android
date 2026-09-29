@@ -116,6 +116,21 @@ class RemoteOrderRepository(
             .mapApiErrors()
     }
 
+    override fun cancelOrder(
+        orderId: String,
+        expectedVersion: Int,
+        reason: String,
+        idempotencyKey: String,
+    ): Result<OrderDetail> =
+        apiClient
+            .post(
+                path = "pedidos/$orderId/cancelaciones",
+                body = contractJson.encodeCancelOrder(expectedVersion, reason),
+                headers = mapOf("Idempotency-Key" to idempotencyKey),
+            ).mapCatching { contractJson.parseCancelledOrder(it) }
+            .mapCatching { pickupTokenStore.attach(it) }
+            .mapApiErrors()
+
     private fun <T> Result<T>.mapApiErrors(): Result<T> =
         fold(
             onSuccess = { Result.success(it) },

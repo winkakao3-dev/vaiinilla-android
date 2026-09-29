@@ -5,12 +5,15 @@ import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.BoardOrder
 import com.vaiinilla.app.domain.repository.BoardTable
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.domain.repository.CallsUnavailableException
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
+import com.vaiinilla.app.domain.repository.SpaceAvailability
+import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.WaiterBoard
 import com.vaiinilla.app.domain.repository.WaiterRepository
@@ -22,6 +25,7 @@ class RemoteWaiterRepository(
 ) : WaiterRepository {
     private var boardEndpoint = true
     private var callsEnabled = true
+    private var deliveryPolicy: Pair<Long, Boolean>? = null
 
     override fun board(): Result<WaiterBoard> =
         runCatching {
@@ -56,8 +60,47 @@ class RemoteWaiterRepository(
                 } else {
                     tables
                 }
-            WaiterBoard(tables = withCalls, callsEnabled = boardEndpoint || callsEnabled)
+            WaiterBoard(
+                tables = withAvailability(withCalls),
+                callsEnabled = boardEndpoint || callsEnabled,
+                deliveryRequiresQr = deliveryRequiresQr(),
+            )
         }.mapApiErrors()
+
+    /**
+     * El estado de cada espacio (libre, ocupado, tiempo restante) es un extra del tablero: si el
+     * servidor todavía no lo ofrece, el tablero se muestra igual que antes.
+     */
+    private fun withAvailability(tables: List<BoardTable>): List<BoardTable> {
+        val availability =
+            runCatching {
+                apiClient
+                    .get("espacios/disponibilidad")
+                    .mapCatching(contractJson::parseAvailability)
+                    .getOrThrow()
+            }.getOrNull() ?: return tables
+        return tables.map { table ->
+            table.copy(availability = availability.firstOrNull { it.space.id == table.space.id })
+        }
+    }
+
+    /**
+     * Si el establecimiento dispensa el QR al entregar en un espacio. Se consulta como mucho una vez
+     * por minuto; ante cualquier duda se sigue exigiendo el QR, como siempre.
+     */
+    private fun deliveryRequiresQr(): Boolean {
+        val now = System.currentTimeMillis()
+        deliveryPolicy?.let { (at, requires) -> if (now - at < POLICY_TTL_MS) return requires }
+        val requires =
+            runCatching {
+                apiClient
+                    .get("estado-operativo")
+                    .mapCatching(contractJson::parseDeliveryRequiresQr)
+                    .getOrThrow()
+            }.getOrDefault(true)
+        deliveryPolicy = now to requires
+        return requires
+    }
 
     private fun fallbackBoard(): List<BoardTable> {
         val spaces =
@@ -104,7 +147,7 @@ class RemoteWaiterRepository(
 
     override fun deliver(
         order: BoardOrder,
-        qrToken: String,
+        qrToken: String?,
         idempotencyKey: String,
     ): Result<Unit> =
         apiClient
@@ -116,6 +159,72 @@ class RemoteWaiterRepository(
                 orderContractJson.parseOrderDetail(it)
                 Unit
             }.mapApiErrors()
+
+    override fun spaceSession(spaceId: Int): Result<SpaceSessionDetail> =
+        apiClient
+            .get("espacios/$spaceId/sesion")
+            .mapCatching(contractJson::parseSessionDetail)
+            .mapApiErrors()
+
+    override fun availability(): Result<List<SpaceAvailability>> =
+        apiClient
+            .get("espacios/disponibilidad")
+            .mapCatching(contractJson::parseAvailability)
+            .mapApiErrors()
+
+    override fun openSession(
+        spaceId: Int,
+        durationMinutes: Int?,
+        idempotencyKey: String,
+    ): Result<Unit> =
+        apiClient
+            .post(
+                path = "espacios/$spaceId/sesion",
+                body = contractJson.encodeOpenSession(durationMinutes),
+                headers = mapOf("Idempotency-Key" to idempotencyKey),
+            ).map { }
+            .mapApiErrors()
+
+    override fun extendSession(
+        spaceId: Int,
+        minutes: Int,
+        expectedVersion: Int?,
+        idempotencyKey: String,
+    ): Result<Unit> =
+        apiClient
+            .post(
+                path = "espacios/$spaceId/sesion/extensiones",
+                body = contractJson.encodeExtendSession(minutes, expectedVersion),
+                headers = mapOf("Idempotency-Key" to idempotencyKey),
+            ).map { }
+            .mapApiErrors()
+
+    override fun releaseSpace(
+        spaceId: Int,
+        expectedVersion: Int?,
+        idempotencyKey: String,
+    ): Result<Unit> =
+        apiClient
+            .post(
+                path = "espacios/$spaceId/sesion/cierres",
+                body = contractJson.encodeReleaseSpace(expectedVersion),
+                headers = mapOf("Idempotency-Key" to idempotencyKey),
+            ).map { }
+            .mapApiErrors()
+
+    override fun collectAccount(
+        spaceId: Int,
+        received: String,
+        expectedTotal: String?,
+        idempotencyKey: String,
+    ): Result<AccountCollection> =
+        apiClient
+            .post(
+                path = "espacios/$spaceId/sesion/cobros",
+                body = contractJson.encodeCollectAccount(received, expectedTotal),
+                headers = mapOf("Idempotency-Key" to idempotencyKey),
+            ).mapCatching(contractJson::parseAccountCollection)
+            .mapApiErrors()
 
     override fun currentCall(espacioId: Int): Result<TableCall?> =
         runCatching {
@@ -189,5 +298,6 @@ class RemoteWaiterRepository(
 
     private companion object {
         const val OPEN_CALL_QUERY = "pendiente,en_camino"
+        const val POLICY_TTL_MS = 60_000L
     }
 }

@@ -7,6 +7,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class CreateOrderRequestDto(
     @SerialName("metodo_pago") val paymentMethod: String,
@@ -14,6 +15,9 @@ data class CreateOrderRequestDto(
     @SerialName("espacio_id") val spaceId: Int?,
     @SerialName("notas_cocina") val kitchenNotes: String?,
     @SerialName("items") val items: List<CreateOrderItemDto>,
+    // Solo viaja cuando es true: los demás pedidos se envían exactamente igual que antes.
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("pago_diferido") val payAtEnd: Boolean? = null,
 )
 
 @Serializable
@@ -26,6 +30,24 @@ data class CreateOrderItemDto(
 @Serializable
 data class OrderListEnvelopeDto(
     val data: List<OrderDetailDto>,
+    val meta: MetaDto,
+    val error: JsonElement? = null,
+)
+
+@Serializable
+data class CancelOrderRequestDto(
+    @SerialName("version_esperada") val expectedVersion: Int,
+    @SerialName("motivo") val reason: String,
+)
+
+@Serializable
+data class CancelOrderDataDto(
+    @SerialName("pedido") val order: OrderDetailDto,
+)
+
+@Serializable
+data class CancelOrderEnvelopeDto(
+    val data: CancelOrderDataDto,
     val meta: MetaDto,
     val error: JsonElement? = null,
 )
@@ -99,6 +121,10 @@ data class OrderDetailDto(
     @SerialName("items") val items: List<OrderItemDto> = emptyList(),
     @SerialName("qr_token") val pickupToken: String? = null,
     @SerialName("pago") val payment: OrderPaymentDto? = null,
+    @SerialName("pago_diferido") val payAtEnd: Boolean = false,
+    @SerialName("pago_pendiente") val paymentPending: Boolean = false,
+    @SerialName("motivo_cancelacion") val cancelReason: String? = null,
+    @SerialName("cancelado_por_rol") val canceledByRole: String? = null,
 )
 
 @Serializable

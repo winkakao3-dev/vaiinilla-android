@@ -75,7 +75,9 @@ import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.ui.components.ActiveOrderBanner
+import com.vaiinilla.app.ui.components.CourtsMapCard
 import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductCardSkeleton
@@ -122,6 +124,7 @@ fun CatalogScreen(
     onOpenModes: (() -> Unit)? = null,
     profileInitials: String = "?",
     onOpenAccount: () -> Unit = {},
+    courts: List<SpaceAvailability> = emptyList(),
 ) {
     val haptics = rememberVaiinillaHaptics()
     when {
@@ -165,6 +168,7 @@ fun CatalogScreen(
                 onOpenModes = onOpenModes,
                 profileInitials = profileInitials,
                 onOpenAccount = onOpenAccount,
+                courts = courts,
             )
         else ->
             CatalogError(
@@ -310,6 +314,7 @@ private fun CatalogContent(
     onOpenModes: (() -> Unit)?,
     profileInitials: String,
     onOpenAccount: () -> Unit,
+    courts: List<SpaceAvailability> = emptyList(),
 ) {
     val catalog = requireNotNull(state.catalog)
     val colors = LocalVaiinillaColors.current
@@ -399,6 +404,12 @@ private fun CatalogContent(
                                 onClick = onOpenTracking,
                             )
                         }
+                    }
+                }
+
+                if (courts.isNotEmpty()) {
+                    item(key = "courts-map", span = { GridItemSpan(maxLineSpan) }) {
+                        CourtsMapCard(courts = courts, modifier = Modifier.padding(top = 4.dp, bottom = 6.dp))
                     }
                 }
 

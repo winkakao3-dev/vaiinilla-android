@@ -29,6 +29,7 @@ import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.WaiterRepository
 import com.vaiinilla.app.domain.repository.WalletRepository
 import com.vaiinilla.app.domain.repository.WalletRepositoryException
+import com.vaiinilla.app.domain.usecase.CancelOrderUseCase
 import com.vaiinilla.app.domain.usecase.CollectCashUseCase
 import com.vaiinilla.app.domain.usecase.GetOrderUseCase
 import com.vaiinilla.app.domain.usecase.ListOrdersUseCase
@@ -57,6 +58,7 @@ class OperationalViewModel
         private val getOrder: GetOrderUseCase,
         private val collectCash: CollectCashUseCase,
         private val transitionOrder: TransitionOrderUseCase,
+        private val cancelOrder: CancelOrderUseCase,
         private val openCashSession: OpenCashSessionUseCase,
         private val cashSessionRepository: CashSessionRepository,
         private val heartbeatRepository: DeviceHeartbeatRepository,
@@ -667,6 +669,28 @@ class OperationalViewModel
             }
         }
 
+        /** Cocina rechaza un pedido que no puede preparar; el cliente verá el motivo. */
+        fun rejectOrder(
+            orderId: String,
+            expectedVersion: Int,
+            reason: String,
+        ) {
+            val motivo = reason.trim()
+            if (motivo.length < MIN_REJECTION_REASON) {
+                showMutationError("Escribe el motivo del rechazo (mínimo $MIN_REJECTION_REASON letras).")
+                return
+            }
+            val version = freshVersion(orderId, expectedVersion)
+            performMutation {
+                cancelOrder(
+                    orderId = orderId,
+                    expectedVersion = version,
+                    reason = motivo,
+                    idempotencyKey = MutationIdempotency.orderCancellation(orderId, version, motivo),
+                ).getOrThrow()
+            }
+        }
+
         fun markReady(
             orderId: String,
             expectedVersion: Int,
@@ -1110,6 +1134,7 @@ class OperationalViewModel
             const val POLL_INTERVAL_MS = 5_000L
             const val MUTATION_ERROR_VISIBLE_MS = 9_000L
             const val MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024
+            const val MIN_REJECTION_REASON = 3
         }
     }
 

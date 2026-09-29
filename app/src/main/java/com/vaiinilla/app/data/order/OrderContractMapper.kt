@@ -24,6 +24,7 @@ fun CreateOrderRequest.toDto(): CreateOrderRequestDto =
         spaceId = spaceId,
         kitchenNotes = kitchenNotes.trim().takeIf { it.isNotEmpty() },
         items = items.map { it.toDto() },
+        payAtEnd = payAtEnd.takeIf { it },
     )
 
 private fun CreateOrderItem.toDto(): CreateOrderItemDto =
@@ -51,6 +52,10 @@ fun OrderDetailDto.toDomain(): OrderDetail =
                 version = version,
                 createdAt = createdAt,
                 updatedAt = updatedAt,
+                payAtEnd = payAtEnd,
+                paymentPending = paymentPending,
+                cancelReason = cancelReason,
+                canceledByRole = canceledByRole,
             ),
         user = user?.let { OrderUser(name = it.name, enrollment = it.enrollment.orEmpty()) },
         kitchenNotes = kitchenNotes.orEmpty(),

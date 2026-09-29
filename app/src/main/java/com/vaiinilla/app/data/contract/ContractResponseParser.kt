@@ -49,6 +49,8 @@ class ContractResponseParser
                 kitchenOnline = envelope.data.kitchenOnline,
                 estimatedTimeMinutes = envelope.data.estimatedTimeMinutes,
                 consultedAt = envelope.data.consultedAt,
+                deliveryRequiresQr = envelope.data.deliveryRequiresQr,
+                allowsPayAtEnd = envelope.data.allowsPayAtEnd,
             )
         }
 

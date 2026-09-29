@@ -16,12 +16,14 @@ class BuildCreateOrderRequestUseCase
             paymentMethod: PaymentMethod = PaymentMethod.CASH,
             destination: OrderDestination = OrderDestination.TAKE_AWAY,
             spaceId: Int? = null,
+            payAtEnd: Boolean = false,
         ): CreateOrderRequest =
             CreateOrderRequest(
                 paymentMethod = paymentMethod,
                 destination = destination,
                 spaceId = spaceId,
                 kitchenNotes = kitchenNotes,
+                payAtEnd = payAtEnd,
                 items =
                     lines.map { line ->
                         CreateOrderItem(

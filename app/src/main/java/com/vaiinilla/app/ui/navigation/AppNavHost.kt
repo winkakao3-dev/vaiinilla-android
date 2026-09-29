@@ -57,6 +57,7 @@ import com.vaiinilla.app.ui.components.prefetchProductImages
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
+import com.vaiinilla.app.ui.operational.CourtsViewModel
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.operational.WaiterViewModel
@@ -118,6 +119,7 @@ fun AppNavHost(
     val orderFlowViewModel: OrderFlowViewModel = viewModel()
     val operationalViewModel: OperationalViewModel = viewModel()
     val waiterViewModel: WaiterViewModel = viewModel()
+    val courtsViewModel: CourtsViewModel = viewModel()
     val studentAuthViewModel: StudentAuthViewModel = viewModel()
     val authorizedAccessViewModel: AuthorizedAccessViewModel = viewModel()
     val discoveryViewModel: GuestDiscoveryViewModel = viewModel()
@@ -751,7 +753,14 @@ fun AppNavHost(
             }
 
             composable(Routes.CATALOG) {
+                // El mapa de canchas pide datos con la sesión del cliente: sin sesión no se consulta.
+                val courtsAvailable = !orderFlowViewModel.requiresStudentAuth()
+                DisposableEffect(courtsAvailable) {
+                    if (courtsAvailable) courtsViewModel.onVisible()
+                    onDispose { courtsViewModel.onHidden() }
+                }
                 CatalogScreen(
+                    courts = if (courtsAvailable) courtsViewModel.uiState.value.courts else emptyList(),
                     state = orderState,
                     activeOrder = activeOrder,
                     onRetry = orderFlowViewModel::refresh,
@@ -964,6 +973,7 @@ fun AppNavHost(
                     onDestinationChange = orderFlowViewModel::updateCheckoutDestination,
                     onSpaceChange = orderFlowViewModel::updateCheckoutSpace,
                     onPaymentChange = orderFlowViewModel::updateCheckoutPayment,
+                    onPayAtEnd = orderFlowViewModel::selectPayAtEnd,
                     onConfirm = {
                         if (guestAuthRequired) {
                             studentAuthViewModel.ensureVenueContext(
@@ -1380,6 +1390,7 @@ fun AppNavHost(
                             } else {
                                 null
                             },
+                        onOpenAccounts = { navController.navigate(Routes.CASHIER_ACCOUNTS) { launchSingleTop = true } },
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
                         onToggleProductAvailable = operationalViewModel::setProductAvailable,
                         onCreateCashierProduct = { draft, bytes, filename, mime, onSuccess ->
@@ -1412,6 +1423,7 @@ fun AppNavHost(
                         onBack = returnToModes(navController, operationalViewModel),
                         onStart = operationalViewModel::startKitchen,
                         onReady = operationalViewModel::markReady,
+                        onReject = operationalViewModel::rejectOrder,
                         onChangeMode =
                             if (authorizedAccessState.hasMultipleModes) {
                                 returnToModes(navController, operationalViewModel)
@@ -1421,6 +1433,47 @@ fun AppNavHost(
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "kitchen",
+                    )
+                }
+            }
+
+            composable(Routes.CASHIER_ACCOUNTS) {
+                val authorizedCashier = authorizedAccessState.activeContext?.role == OperationalRole.CASHIER
+                LaunchedEffect(authorizedCashier) {
+                    if (!authorizedCashier) {
+                        returnToModes(navController, operationalViewModel)()
+                    }
+                }
+                if (authorizedCashier) {
+                    OperationalPresenceLifecycle(OperationalRole.CASHIER, operationalViewModel)
+                    DisposableEffect(Unit) {
+                        waiterViewModel.onVisible()
+                        onDispose { waiterViewModel.onHidden() }
+                    }
+                    val backToCashier: () -> Unit = { navController.popBackStack() }
+                    WaiterOperationalScreen(
+                        state = waiterState,
+                        onBack = backToCashier,
+                        onRefresh = waiterViewModel::refresh,
+                        onGoing = waiterViewModel::markGoing,
+                        onAttended = waiterViewModel::markAttended,
+                        onDeliver = { order, qrToken -> waiterViewModel.deliver(order, qrToken) },
+                        onOpenSpace = waiterViewModel::openSpace,
+                        onCloseSpace = waiterViewModel::closeSpace,
+                        onOpenTurn = waiterViewModel::openTurn,
+                        onExtendTurn = waiterViewModel::extendTurn,
+                        onReleaseSpace = waiterViewModel::releaseSpace,
+                        onCollectAccount = waiterViewModel::collectAccount,
+                        onDismissCollection = waiterViewModel::dismissCollection,
+                        onFilterAttending = waiterViewModel::setFilterAttending,
+                        onChangeMode = backToCashier,
+                        restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
+                        placeName = authorizedAccessState.activeContext?.establishmentName.orEmpty(),
+                        assistantUserKey =
+                            authorizedAccessState.activeContext?.membershipId ?: "cashier-accounts",
+                        kicker = "CAJA",
+                        roleSubtitle = "Cuenta de caja",
+                        roleChip = "CJ",
                     )
                 }
             }
@@ -1449,6 +1502,13 @@ fun AppNavHost(
                         onGoing = waiterViewModel::markGoing,
                         onAttended = waiterViewModel::markAttended,
                         onDeliver = { order, qrToken -> waiterViewModel.deliver(order, qrToken) },
+                        onOpenSpace = waiterViewModel::openSpace,
+                        onCloseSpace = waiterViewModel::closeSpace,
+                        onOpenTurn = waiterViewModel::openTurn,
+                        onExtendTurn = waiterViewModel::extendTurn,
+                        onReleaseSpace = waiterViewModel::releaseSpace,
+                        onCollectAccount = waiterViewModel::collectAccount,
+                        onDismissCollection = waiterViewModel::dismissCollection,
                         onFilterAttending = waiterViewModel::setFilterAttending,
                         newCallTable = alertCall,
                         onAlertConsumed = { alertCall = null },

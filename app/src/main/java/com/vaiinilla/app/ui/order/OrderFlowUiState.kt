@@ -32,6 +32,8 @@ data class OrderFlowUiState(
     val checkoutDestination: OrderDestination = OrderDestination.TAKE_AWAY,
     val selectedSpaceId: Int = 0,
     val checkoutPayment: PaymentMethod = PaymentMethod.CASH,
+    /** Pagar al final: el pedido va a la cuenta del espacio y se paga al irse (en efectivo). */
+    val checkoutPayAtEnd: Boolean = false,
     val creatingOrder: Boolean = false,
     val createOrderError: String? = null,
     val createdOrder: OrderDetail? = null,
@@ -134,7 +136,9 @@ val OrderFlowUiState.isSelectedProductValid: Boolean
 val OrderFlowUiState.isOperationallyReady: Boolean
     get() =
         operationalStatus?.let { status ->
-            status.acceptingOrders && status.cashSessionOpen && status.cashierOnline && status.kitchenOnline
+            // Un pedido a la cuenta no espera a Caja: se cobra al final, y Cocina lo recibe en su cola.
+            status.acceptingOrders &&
+                (checkoutPayAtEnd || (status.cashSessionOpen && status.cashierOnline && status.kitchenOnline))
         } == true
 
 val OrderFlowUiState.canSubmitCart: Boolean
@@ -177,8 +181,8 @@ fun OrderFlowUiState.isBalancePaymentAffordable(walletBalance: String?): Boolean
 const val ESTABLISHMENT_CLOSED_MESSAGE =
     "El establecimiento no está abierto en este momento. Verifica que esté abierto y desliza hacia abajo para actualizar."
 
-fun OperationalStatus.checkoutStaffBlocker(): String? {
-    if (acceptingOrders && cashSessionOpen && cashierOnline && kitchenOnline) return null
+fun OperationalStatus.checkoutStaffBlocker(payAtEnd: Boolean = false): String? {
+    if (acceptingOrders && (payAtEnd || (cashSessionOpen && cashierOnline && kitchenOnline))) return null
     return ESTABLISHMENT_CLOSED_MESSAGE
 }
 
@@ -186,8 +190,12 @@ val OrderFlowUiState.operationalBlockerMessage: String?
     get() {
         if (cartLines.isEmpty() || isOperationallyReady) return null
         val status = operationalStatus ?: return "No pudimos verificar si el establecimiento está recibiendo pedidos."
-        return status.checkoutStaffBlocker()
+        return status.checkoutStaffBlocker(payAtEnd = checkoutPayAtEnd)
     }
+
+/** ¿Se ofrece "Pagar al final"? Solo en un espacio y si el establecimiento lo permite. */
+val OrderFlowUiState.canPayAtEnd: Boolean
+    get() = checkoutDestination == OrderDestination.IN_SPACE && operationalStatus?.allowsPayAtEnd == true
 
 enum class StripePaymentPhase {
     IDLE,

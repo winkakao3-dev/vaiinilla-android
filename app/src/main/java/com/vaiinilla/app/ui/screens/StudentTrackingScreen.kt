@@ -117,9 +117,12 @@ import com.vaiinilla.app.ui.components.SwipeToDeleteOrder
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
+import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.destinationDisplayLabel
 import com.vaiinilla.app.ui.components.moneyLabel
-import com.vaiinilla.app.ui.components.paymentMethodLabel
+import com.vaiinilla.app.ui.components.needsPickupQr
+import com.vaiinilla.app.ui.components.orderPaymentLabel
+import com.vaiinilla.app.ui.components.orderStateLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
@@ -343,9 +346,18 @@ fun StudentTrackingScreen(
                                     paymentMethod = animatedSelected.summary.paymentMethod,
                                     paymentStatus = animatedSelected.payment?.status,
                                     spaceType = animatedSelected.summary.space?.type,
+                                    payAtEnd = animatedSelected.summary.payAtEnd,
                                 )
                             }
-                            if (animatedSelected.summary.state == OrderState.READY) {
+                            if (animatedSelected.summary.state == OrderState.CANCELED) {
+                                item { CancelReasonCard(animatedSelected) }
+                            }
+                            if (
+                                animatedSelected.summary.state == OrderState.READY &&
+                                animatedSelected.needsPickupQr(
+                                    orderState.operationalStatus?.deliveryRequiresQr != false,
+                                )
+                            ) {
                                 item { PickupCodeCard(animatedSelected) }
                             }
                             item {
@@ -387,6 +399,8 @@ fun StudentTrackingScreen(
                                                 itemImageUrls(order, orderState.catalog)
                                                     .firstOrNull { it != null },
                                             onOpenFull = { onSelectOrder(order.summary.id) },
+                                            deliveryRequiresQr =
+                                                orderState.operationalStatus?.deliveryRequiresQr != false,
                                             canCallWaiter = canCallWaiter,
                                             onCurrentWaiterCall = onCurrentWaiterCall,
                                             onCallWaiter = onCallWaiter,
@@ -470,6 +484,51 @@ private fun OrderTrackingSkeleton() {
             SkeletonBlock(modifier = Modifier.fillMaxWidth(0.7f).height(18.dp), corner = 9.dp)
             SkeletonBlock(modifier = Modifier.fillMaxWidth(0.45f).height(14.dp), corner = 7.dp)
             SkeletonBlock(modifier = Modifier.fillMaxWidth(0.55f).height(44.dp), corner = 14.dp)
+        }
+    }
+}
+
+/** Quién canceló el pedido y por qué: Cocina, Caja o el propio cliente. */
+@Composable
+private fun CancelReasonCard(order: OrderDetail) {
+    val colors = LocalVaiinillaColors.current
+    val by =
+        when (order.summary.canceledByRole) {
+            "cocina" -> "Cocina"
+            "cajero" -> "Caja"
+            "admin" -> "El establecimiento"
+            "cliente" -> "Tú"
+            else -> null
+        }
+    val reason = order.summary.cancelReason?.takeIf { it.isNotBlank() }
+    Surface(
+        modifier = Modifier.fillMaxWidth().arrive(0, key = order.summary.id),
+        color = colors.paper2,
+        shape = RoundedCornerShape(24.dp),
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Text(
+                if (by != null && by != "Tú") "$by canceló tu pedido" else "Pedido cancelado",
+                color = colors.coral,
+                fontWeight = FontWeight.Black,
+                fontSize = 16.sp,
+            )
+            if (reason != null) {
+                Text(
+                    reason,
+                    color = colors.ink,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
+            if (order.summary.payAtEnd) {
+                Text(
+                    "No se te cobrará: este pedido iba a tu cuenta.",
+                    color = colors.muted,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
         }
     }
 }
@@ -671,6 +730,7 @@ private fun ActiveOrderCard(
     order: OrderDetail,
     leadingImageUrl: String? = null,
     onOpenFull: () -> Unit,
+    deliveryRequiresQr: Boolean = true,
     canCallWaiter: (OrderDetail) -> Boolean = { false },
     onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
@@ -712,7 +772,7 @@ private fun ActiveOrderCard(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Black,
                 )
-                OrderStatusPill(state = summary.state)
+                OrderStatusPill(state = summary.state, label = orderStateLabel(summary))
             }
             Row(
                 modifier =
@@ -733,7 +793,7 @@ private fun ActiveOrderCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        "${destinationDisplayLabel(order)} · ${paymentMethodLabel(summary.paymentMethod)}",
+                        "${destinationDisplayLabel(order)} · ${orderPaymentLabel(summary)}",
                         color = OrderTrackingCardText.copy(alpha = 0.58f),
                         fontSize = 11.sp,
                         modifier = Modifier.padding(top = 2.dp),
@@ -758,7 +818,7 @@ private fun ActiveOrderCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    summary.state.label,
+                    orderStateLabel(summary),
                     color = OrderTrackingCardText,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
@@ -770,6 +830,7 @@ private fun ActiveOrderCard(
                         summary.paymentMethod,
                         order.payment?.status,
                         summary.space?.type,
+                        summary.payAtEnd,
                     ),
                     color = OrderTrackingCardText.copy(alpha = 0.55f),
                     fontSize = 12.sp,
@@ -777,7 +838,7 @@ private fun ActiveOrderCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            if (summary.state == OrderState.READY) {
+            if (summary.state == OrderState.READY && order.needsPickupQr(deliveryRequiresQr)) {
                 InlinePickupQr(order = order)
             }
             if (canCallWaiter(order) && onCurrentWaiterCall != null && onCallWaiter != null && onCancelWaiter != null) {
@@ -802,6 +863,7 @@ private fun ActiveOrderCard(
                         paymentMethod = summary.paymentMethod,
                         paymentStatus = order.payment?.status,
                         spaceType = summary.space?.type,
+                        payAtEnd = summary.payAtEnd,
                     )
                     Spacer(Modifier.height(12.dp))
                     Button(
@@ -1277,6 +1339,7 @@ private fun CompactTrackingSteps(
     paymentMethod: PaymentMethod,
     paymentStatus: StripePaymentStatus?,
     spaceType: String? = null,
+    payAtEnd: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     val reduceMotion = reducedMotion()
@@ -1342,7 +1405,7 @@ private fun CompactTrackingSteps(
                     }
                 }
                 Text(
-                    trackingStepTitle(stepState, paymentMethod, paymentStatus),
+                    trackingStepTitle(stepState, paymentMethod, paymentStatus, payAtEnd),
                     color = titleColor,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
@@ -1394,7 +1457,7 @@ private fun PastOrderRow(
                         fontWeight = FontWeight.Black,
                     )
                     Text(
-                        "${destinationDisplayLabel(order)} · ${paymentMethodLabel(summary.paymentMethod)}",
+                        "${destinationDisplayLabel(order)} · ${orderPaymentLabel(summary)}",
                         color = contentColor.copy(alpha = 0.62f),
                         fontSize = 12.sp,
                         modifier = Modifier.padding(top = 2.dp),
@@ -1410,7 +1473,7 @@ private fun PastOrderRow(
                     maxLines = 1,
                     modifier = Modifier.padding(end = 12.dp),
                 )
-                OrderStatusPill(state = summary.state, onAccent = isReady)
+                OrderStatusPill(state = summary.state, onAccent = isReady, label = orderStateLabel(summary))
             }
             // Los thumbnails van en su propia línea: en la fila principal
             // competían con total+pill y colapsaban el texto a cero.
@@ -1563,13 +1626,14 @@ private fun ShowMorePastOrdersButton(
 private fun OrderStatusPill(
     state: OrderState,
     onAccent: Boolean = false,
+    label: String = state.label,
 ) {
     Surface(
         color = Color.White.copy(alpha = if (onAccent) 0.55f else 0.16f),
         shape = RoundedCornerShape(10.dp),
     ) {
         Text(
-            state.label.uppercase(),
+            label.uppercase(),
             color = if (onAccent) LocalVaiinillaColors.current.accentInk else OrderTrackingCardText,
             fontSize = 10.sp,
             fontWeight = FontWeight.Black,

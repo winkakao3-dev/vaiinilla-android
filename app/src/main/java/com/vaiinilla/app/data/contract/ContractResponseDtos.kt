@@ -40,6 +40,8 @@ data class OperationalStatusDto(
     @SerialName("cocina_en_linea") val kitchenOnline: Boolean,
     @SerialName("tiempo_estimado_min") val estimatedTimeMinutes: Int,
     @SerialName("consultado_en") val consultedAt: String,
+    @SerialName("entrega_requiere_qr") val deliveryRequiresQr: Boolean = true,
+    @SerialName("permite_pago_al_final") val allowsPayAtEnd: Boolean = false,
 )
 
 @Serializable

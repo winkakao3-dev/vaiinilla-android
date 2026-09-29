@@ -509,6 +509,8 @@ class OrderFlowViewModel
             _uiState.value =
                 _uiState.value.copy(
                     checkoutDestination = destination,
+                    // Pagar al final solo existe en un espacio.
+                    checkoutPayAtEnd = _uiState.value.checkoutPayAtEnd && destination == OrderDestination.IN_SPACE,
                     createOrderError = null,
                 )
         }
@@ -527,6 +529,18 @@ class OrderFlowViewModel
             _uiState.value =
                 _uiState.value.copy(
                     checkoutPayment = payment,
+                    checkoutPayAtEnd = false,
+                    createOrderError = null,
+                )
+        }
+
+        /** Pagar al final: efectivo, sumado a la cuenta del espacio y cobrado al irse. */
+        fun selectPayAtEnd() {
+            pendingIdempotencyKey = null
+            _uiState.value =
+                _uiState.value.copy(
+                    checkoutPayment = PaymentMethod.CASH,
+                    checkoutPayAtEnd = true,
                     createOrderError = null,
                 )
         }
@@ -623,6 +637,7 @@ class OrderFlowViewModel
                         paymentMethod = current.checkoutPayment,
                         destination = current.checkoutDestination,
                         spaceId = current.checkoutSpaceId,
+                        payAtEnd = current.checkoutPayAtEnd,
                     )
                 val requestFingerprint = createOrderFingerprint(request)
                 val idempotencyKey =
@@ -660,6 +675,7 @@ class OrderFlowViewModel
                                 kitchenNotes = "",
                                 checkoutDestination = OrderDestination.TAKE_AWAY,
                                 checkoutPayment = PaymentMethod.CASH,
+                                checkoutPayAtEnd = false,
                                 createdOrder = created.order,
                                 stripeObservedOrder = null,
                                 stripePendingOrderId = stripePendingOrderId,

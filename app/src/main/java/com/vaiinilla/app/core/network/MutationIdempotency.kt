@@ -26,6 +26,12 @@ internal object MutationIdempotency {
         pickupToken: String?,
     ): String = derive("transition", orderId, targetState, expectedVersion.toString(), pickupToken)
 
+    fun orderCancellation(
+        orderId: String,
+        expectedVersion: Int,
+        reason: String,
+    ): String = derive("cancel", orderId, expectedVersion.toString(), reason.trim())
+
     fun cashCollection(
         orderId: String,
         amountReceived: String,

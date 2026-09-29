@@ -20,6 +20,8 @@ internal fun createOrderFingerprint(request: CreateOrderRequest): String {
             append(request.spaceId ?: "null")
             append('|')
             append(request.kitchenNotes)
+            // Solo cuando es true, para no cambiar la huella de los pedidos de siempre.
+            if (request.payAtEnd) append("|pago_al_final")
             request.items.forEach { item ->
                 append('|')
                 append(item.productId)
