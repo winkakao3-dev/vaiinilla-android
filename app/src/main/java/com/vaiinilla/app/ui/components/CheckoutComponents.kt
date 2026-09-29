@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.ui.theme.Ink
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.Yolk
@@ -61,8 +62,9 @@ fun OrderStateTrackingHero(
     destination: OrderDestination,
     modifier: Modifier = Modifier,
     spaceName: String? = null,
+    spaceType: String? = null,
 ) {
-    val content = trackingHeroContent(state, destination, spaceName)
+    val content = trackingHeroContent(state, destination, spaceName, spaceType)
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = content.background,
@@ -124,6 +126,7 @@ private fun trackingHeroContent(
     state: OrderState,
     destination: OrderDestination,
     spaceName: String?,
+    spaceType: String?,
 ): TrackingHeroContent {
     val darkBg = Color(0xFF1C1D1B)
     val darkText = Color(0xFFF5F2E8)
@@ -158,13 +161,18 @@ private fun trackingHeroContent(
         OrderState.READY -> {
             val pickup =
                 if (destination == OrderDestination.IN_SPACE) {
-                    "Tu pedido va en camino a ${spaceName ?: "tu mesa"}."
+                    "Tu pedido va en camino a ${spaceName ?: SpaceCopy.yourPlace(spaceType)}."
                 } else {
                     "Recógelo en la barra cuando veas este estado."
                 }
             TrackingHeroContent(
                 eyebrow = "LISTO",
-                title = if (destination == OrderDestination.IN_SPACE) "En camino a tu mesa" else "Listo para recoger",
+                title =
+                    if (destination == OrderDestination.IN_SPACE) {
+                        "En camino a ${SpaceCopy.yourPlace(spaceType)}"
+                    } else {
+                        "Listo para recoger"
+                    },
                 message = pickup,
                 badge = "23 · LISTO",
                 background = Color(0xFF1D250C),
@@ -217,6 +225,7 @@ fun CheckoutDestinationPicker(
     onSelect: (OrderDestination) -> Unit,
     modifier: Modifier = Modifier,
     showInSpace: Boolean = true,
+    spaceType: String? = null,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -233,8 +242,8 @@ fun CheckoutDestinationPicker(
         )
         if (showInSpace) {
             DestinationOption(
-                title = "Comer aquí",
-                subtitle = "Te lo llevamos a tu espacio",
+                title = SpaceCopy.destinationTitle(spaceType),
+                subtitle = SpaceCopy.destinationSubtitle(spaceType),
                 detail = selectedSpaceName.ifBlank { "Dentro del establecimiento" },
                 icon = Icons.Outlined.Restaurant,
                 selected = selected == OrderDestination.IN_SPACE,
@@ -257,11 +266,12 @@ fun CheckoutSpacePicker(
     spaces: List<CheckoutSpaceOption>,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    spaceType: String? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            "Selecciona tu mesa",
+            SpaceCopy.pickPrompt(spaceType),
             color = colors.ink,
             fontWeight = FontWeight.Bold,
             fontSize = 13.sp,

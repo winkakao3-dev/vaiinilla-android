@@ -51,6 +51,7 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaColors
@@ -137,12 +138,17 @@ internal fun trackingStepDescription(
     destination: OrderDestination,
     paymentMethod: PaymentMethod,
     paymentStatus: StripePaymentStatus?,
+    spaceType: String? = null,
 ): String =
-    timelineSteps
-        .firstOrNull { it.state == state }
-        ?.description
-        ?.invoke(destination, paymentMethod, paymentStatus)
-        ?: state.label
+    if (state == OrderState.READY && destination == OrderDestination.IN_SPACE) {
+        "El personal lo llevará a ${SpaceCopy.yourPlace(spaceType)}."
+    } else {
+        timelineSteps
+            .firstOrNull { it.state == state }
+            ?.description
+            ?.invoke(destination, paymentMethod, paymentStatus)
+            ?: state.label
+    }
 
 @Composable
 fun OrderTrackingCard(
@@ -282,6 +288,7 @@ fun OrderTrackingTimeline(
     destination: OrderDestination = OrderDestination.TAKE_AWAY,
     paymentMethod: PaymentMethod = PaymentMethod.CASH,
     paymentStatus: StripePaymentStatus? = null,
+    spaceType: String? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     val view = LocalView.current
@@ -299,7 +306,7 @@ fun OrderTrackingTimeline(
             TimelineRow(
                 stepNumber = index + 1,
                 title = step.title(paymentMethod, paymentStatus),
-                description = step.description(destination, paymentMethod, paymentStatus),
+                description = trackingStepDescription(step.state, destination, paymentMethod, paymentStatus, spaceType),
                 isDone = stepIndex < currentIndex,
                 isCurrent = stepIndex == currentIndex,
                 showLine = index < timelineSteps.lastIndex,

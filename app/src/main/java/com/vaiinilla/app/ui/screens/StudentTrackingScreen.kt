@@ -99,6 +99,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
+import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
@@ -341,6 +342,7 @@ fun StudentTrackingScreen(
                                     destination = animatedSelected.summary.destination,
                                     paymentMethod = animatedSelected.summary.paymentMethod,
                                     paymentStatus = animatedSelected.payment?.status,
+                                    spaceType = animatedSelected.summary.space?.type,
                                 )
                             }
                             if (animatedSelected.summary.state == OrderState.READY) {
@@ -767,6 +769,7 @@ private fun ActiveOrderCard(
                         summary.destination,
                         summary.paymentMethod,
                         order.payment?.status,
+                        summary.space?.type,
                     ),
                     color = OrderTrackingCardText.copy(alpha = 0.55f),
                     fontSize = 12.sp,
@@ -798,6 +801,7 @@ private fun ActiveOrderCard(
                         destination = summary.destination,
                         paymentMethod = summary.paymentMethod,
                         paymentStatus = order.payment?.status,
+                        spaceType = summary.space?.type,
                     )
                     Spacer(Modifier.height(12.dp))
                     Button(
@@ -1111,7 +1115,13 @@ private fun CallLiveRow(
             )
             Text(
                 if (going) {
-                    if (call.space.name.isBlank()) "Va a tu mesa" else "Va a ${call.space.name}"
+                    if (call.space.name.isBlank()) {
+                        "Va a ${SpaceCopy.yourPlace(
+                            call.space.type,
+                        )}"
+                    } else {
+                        "Va a ${call.space.name}"
+                    }
                 } else {
                     "${call.space.name} · ${call.reason.label}"
                 },
@@ -1162,7 +1172,7 @@ private fun InlinePickupQr(order: OrderDetail) {
         }
         Text(
             if (order.summary.destination == OrderDestination.IN_SPACE) {
-                "El personal lo llevará a tu mesa. Muéstrales este QR."
+                "El personal lo llevará a ${SpaceCopy.yourPlace(order.summary.space?.type)}. Muéstrales este QR."
             } else {
                 "Muéstralo en Caja cuando recojas tu pedido."
             },
@@ -1266,6 +1276,7 @@ private fun CompactTrackingSteps(
     destination: OrderDestination,
     paymentMethod: PaymentMethod,
     paymentStatus: StripePaymentStatus?,
+    spaceType: String? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     val reduceMotion = reducedMotion()
@@ -1340,7 +1351,7 @@ private fun CompactTrackingSteps(
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
-                    trackingStepDescription(stepState, destination, paymentMethod, paymentStatus),
+                    trackingStepDescription(stepState, destination, paymentMethod, paymentStatus, spaceType),
                     color = OrderTrackingCardText.copy(alpha = 0.45f),
                     fontSize = 11.sp,
                     textAlign = TextAlign.End,

@@ -102,6 +102,7 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_ADD_PRODUCT
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_CASHIER_ORDER_CARD
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_KITCHEN_CARD
@@ -917,7 +918,7 @@ fun CashierOperationalScreen(
                             if (order.summary.destination.name == "TAKE_AWAY") {
                                 "Para llevar"
                             } else {
-                                "Comer aquí"
+                                SpaceCopy.staffDestination(order.summary.destination, order.summary.space)
                             },
                         time =
                             if (order.summary.state == OrderState.PENDING_PAYMENT) {
@@ -1935,11 +1936,9 @@ fun KitchenOperationalScreen(
                     val activeOrder = heroOrder
                     if (activeOrder != null) {
                         val destLabel =
-                            if (activeOrder.summary.destination.name == "TAKE_AWAY") {
-                                "PARA LLEVAR"
-                            } else {
-                                "COMER AQUÍ"
-                            }
+                            SpaceCopy
+                                .staffDestination(activeOrder.summary.destination, activeOrder.summary.space)
+                                .uppercase()
                         val stateLabel =
                             if (isReady) {
                                 "LISTA"
@@ -2079,11 +2078,9 @@ fun KitchenOperationalScreen(
 
                                     upcomingOrders.firstOrNull()?.let { next ->
                                         val nextDest =
-                                            if (next.summary.destination.name == "TAKE_AWAY") {
-                                                "PARA LLEVAR"
-                                            } else {
-                                                "COMER AQUÍ"
-                                            }
+                                            SpaceCopy
+                                                .staffDestination(next.summary.destination, next.summary.space)
+                                                .uppercase()
                                         Text(
                                             "SIGUIENTE: #${next.summary.folio} · $nextDest",
                                             fontSize = 10.sp,
@@ -2154,12 +2151,7 @@ fun KitchenOperationalScreen(
 
             // Upcoming Orders List
             items(upcomingOrders, key = { it.summary.id }) { order ->
-                val orderDest =
-                    if (order.summary.destination.name == "TAKE_AWAY") {
-                        "Para llevar"
-                    } else {
-                        "Comer aquí"
-                    }
+                val orderDest = SpaceCopy.staffDestination(order.summary.destination, order.summary.space)
                 val orderSummaryTitle =
                     order.items
                         .joinToString(" · ") { "${it.quantity}x ${it.productName}" }

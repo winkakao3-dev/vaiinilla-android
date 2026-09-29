@@ -99,6 +99,7 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.ui.components.CheckoutDestinationPicker
 import com.vaiinilla.app.ui.components.CheckoutSpaceOption
 import com.vaiinilla.app.ui.components.CheckoutSpacePicker
@@ -173,7 +174,7 @@ fun CartScreen(
     val destinationLabel =
         when (state.checkoutDestination) {
             OrderDestination.TAKE_AWAY -> "Para llevar"
-            OrderDestination.IN_SPACE -> "Comer aquí"
+            OrderDestination.IN_SPACE -> SpaceCopy.destinationTitle(state.guestVenue?.space?.type)
         }
     val productCountLabel =
         if (state.cartLines.size == 1) {
@@ -263,6 +264,7 @@ fun CartScreen(
                             onDestinationChange(it)
                         },
                         showInSpace = canChooseInSpace,
+                        spaceType = state.guestVenue?.space?.type,
                     )
                 }
                 if (state.checkoutDestination == OrderDestination.IN_SPACE && checkoutSpaces.isNotEmpty()) {
@@ -275,6 +277,7 @@ fun CartScreen(
                                 haptics.selection()
                                 onSpaceChange(it)
                             },
+                            spaceType = state.guestVenue?.space?.type,
                         )
                     }
                 }
