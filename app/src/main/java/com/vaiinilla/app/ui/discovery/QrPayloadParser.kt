@@ -17,11 +17,16 @@ sealed interface QrPayload {
 }
 
 object QrPayloadParser {
-    private val allowedHosts = setOf("vaiinilla.app", "www.vaiinilla.app")
+    private const val TRUSTED_HOST = "vaiinilla.app"
     private val spaceSlug = Regex("[A-Za-z0-9][A-Za-z0-9_-]*")
     private val reservedSpaceSlugs = setOf("e", "u", "invitaciones")
     private const val MAX_SPACE_SLUG_LENGTH = 100
     private const val MAX_SPACE_TOKEN_LENGTH = 256
+
+    private fun isTrustedHost(host: String?): Boolean {
+        val lower = host?.lowercase() ?: return false
+        return lower == TRUSTED_HOST || lower.endsWith(".$TRUSTED_HOST")
+    }
 
     fun encodeUser(userId: String): String {
         val id = userId.trim()
@@ -55,7 +60,7 @@ object QrPayloadParser {
             val isHttpsHost =
                 uri?.let { parsed ->
                     parsed.scheme.equals("https", ignoreCase = true) &&
-                        parsed.host?.lowercase() in allowedHosts
+                        isTrustedHost(parsed.host)
                 } == true
             val isHttpsAppHost =
                 isHttpsHost && segments.size == 2 && segments.last().isNotBlank()

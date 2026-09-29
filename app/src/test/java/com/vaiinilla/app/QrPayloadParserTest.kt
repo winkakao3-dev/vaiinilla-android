@@ -105,6 +105,35 @@ class QrPayloadParserTest {
     }
 
     @Test
+    fun `space URL on vaiinilla subdomains becomes token only`() {
+        assertEquals(
+            QrPayload.SpaceToken("tok-123"),
+            QrPayloadParser.parse("https://dev.vaiinilla.app/cafeteria-usagi/m/tok-123").getOrThrow(),
+        )
+        assertEquals(
+            QrPayload.SpaceToken("tok-123"),
+            QrPayloadParser.parse("https://app.vaiinilla.app/cafeteria-usagi/m/tok-123").getOrThrow(),
+        )
+        assertEquals(
+            QrPayload.SpaceToken("tok-123"),
+            QrPayloadParser.parse("https://WWW.Vaiinilla.App/cafeteria-usagi/m/tok-123").getOrThrow(),
+        )
+    }
+
+    @Test
+    fun `look-alike hosts are not trusted`() {
+        listOf(
+            "https://evilvaiinilla.app/cafeteria-usagi/m/tok-123",
+            "https://vaiinilla.app.evil.com/cafeteria-usagi/m/tok-123",
+            "https://vaiinilla.app.evil.com/cafeteria-centro",
+            "https://evilvaiinilla.app/e/cafeteria-centro",
+            "http://dev.vaiinilla.app/cafeteria-usagi/m/tok-123",
+        ).forEach { url ->
+            assertEquals(QrPayload.SpaceToken(url), QrPayloadParser.parse(url).getOrThrow())
+        }
+    }
+
+    @Test
     fun `empty QR is rejected`() {
         assertTrue(QrPayloadParser.parse(" ").isFailure)
     }
