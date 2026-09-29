@@ -87,20 +87,12 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:697485438624:android:3ec322652bcf498697a3c5",
+        "mobilesdk_app_id": "1:697485438624:android:5dcd5db4c451685797a3c5",
         "android_client_info": {
           "package_name": "com.vaiinilla.app.dev.caja"
         }
       },
       "oauth_client": [
-        {
-          "client_id": "697485438624-p995aiqsp057eophhr0fireuspb5pmt3.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.vaiinilla.app.dev.caja",
-            "certificate_hash": "1e57527a828e03cc3dd86a02252390a7a8e961d4"
-          }
-        },
         {
           "client_id": "697485438624-6i7o7q74il519m5i9tju6kmij6cr5a59.apps.googleusercontent.com",
           "client_type": 3
@@ -131,17 +123,53 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:697485438624:android:3ec322652bcf498697a3c5",
+        "mobilesdk_app_id": "1:697485438624:android:90c75e108b95232c97a3c5",
         "android_client_info": {
           "package_name": "com.vaiinilla.app.dev.cocina"
         }
       },
       "oauth_client": [
         {
-          "client_id": "697485438624-p995aiqsp057eophhr0fireuspb5pmt3.apps.googleusercontent.com",
+          "client_id": "697485438624-6i7o7q74il519m5i9tju6kmij6cr5a59.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDyTQEoziF4FQiZ3MuzPW9ywymaLDwU-5A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "697485438624-6i7o7q74il519m5i9tju6kmij6cr5a59.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "697485438624-3d280pcbnpaoncrilgrtslbcgiovp19q.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "om.innovapro.vaiinilla"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:697485438624:android:142c02718b71710a97a3c5",
+        "android_client_info": {
+          "package_name": "com.vaiinilla.app.dev.mesero"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "697485438624-op71h50m31fil9rkvk5e5cdm4e5hle9u.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.vaiinilla.app.dev.cocina",
+            "package_name": "com.vaiinilla.app.dev.mesero",
             "certificate_hash": "1e57527a828e03cc3dd86a02252390a7a8e961d4"
           }
         },

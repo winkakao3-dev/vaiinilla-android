@@ -212,6 +212,10 @@ android {
             dimension = "role"
             applicationIdSuffix = ".cocina"
         }
+        create("mesero") {
+            dimension = "role"
+            applicationIdSuffix = ".mesero"
+        }
     }
 
     signingConfigs {
