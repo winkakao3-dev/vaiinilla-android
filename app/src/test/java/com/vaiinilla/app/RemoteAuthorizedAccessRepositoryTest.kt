@@ -43,7 +43,7 @@ class RemoteAuthorizedAccessRepositoryTest {
         }
 
     @Test
-    fun `remote access list omits waiter memberships`() =
+    fun `remote access list includes waiter memberships`() =
         runTest {
             val api = RecordingAuthorizedAccessApi()
             api.accessResponse = accessResponseWithWaiter()
@@ -52,7 +52,7 @@ class RemoteAuthorizedAccessRepositoryTest {
             val modes = repository.authorizedModes(session).getOrThrow()
 
             assertEquals(
-                listOf(OperationalRole.CLIENT, OperationalRole.CASHIER, OperationalRole.KITCHEN),
+                listOf(OperationalRole.CLIENT, OperationalRole.CASHIER, OperationalRole.KITCHEN, OperationalRole.WAITER),
                 modes.map { it.role },
             )
         }
@@ -217,24 +217,21 @@ class RemoteAuthorizedAccessRepositoryTest {
         """.trimIndent()
 
     private fun accessResponseWithWaiter(): String =
+        // JSON ignores whitespace, so anchor on the admin key instead of its indentation.
         accessResponse().replace(
+            "\"membresia_id\": \"membership-admin\",",
             """
-            {
-              "membresia_id": "membership-admin",
-            """.trimIndent(),
-            """
-            {
-              "membresia_id": "membership-waiter",
-              "establecimiento": {"id": "establishment-a", "nombre": "Cafetería", "slug": "cafeteria"},
-              "rol": "mesero",
-              "identificador_cliente": null,
-              "estado_establecimiento": "activo",
-              "cierre_operativo_disponible": false
+            "membresia_id": "membership-waiter",
+            "establecimiento": {"id": "establishment-a", "nombre": "Cafetería", "slug": "cafeteria"},
+            "rol": "mesero",
+            "identificador_cliente": null,
+            "estado_establecimiento": "activo",
+            "cierre_operativo_disponible": false
             },
             {
-              "membresia_id": "membership-admin",
+            "membresia_id": "membership-admin",
             """.trimIndent(),
-        )
+        ).also { check(it.contains("membership-waiter")) { "fixture did not insert the waiter access" } }
 
     private fun contextResponse(
         membershipId: String,
