@@ -33,6 +33,8 @@ import com.vaiinilla.app.data.operational.RemoteWaiterRepository
 import com.vaiinilla.app.data.operational.WaiterContractJson
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.data.order.RemoteOrderRepository
+import com.vaiinilla.app.data.reservations.RemoteReservationRepository
+import com.vaiinilla.app.data.reservations.ReservationContractJson
 import com.vaiinilla.app.data.wallet.RemoteWalletRepository
 import com.vaiinilla.app.domain.account.AccountDeletionRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
@@ -44,6 +46,7 @@ import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
 import com.vaiinilla.app.domain.repository.DeviceIdentity
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.repository.OrderRepository
+import com.vaiinilla.app.domain.repository.ReservationRepository
 import com.vaiinilla.app.domain.repository.WaiterRepository
 import com.vaiinilla.app.domain.repository.WalletRepository
 import dagger.Module
@@ -133,6 +136,13 @@ object VaiinillaModule {
         waiterContractJson: WaiterContractJson,
         orderContractJson: OrderContractJson,
     ): WaiterRepository = RemoteWaiterRepository(apiClient, waiterContractJson, orderContractJson)
+
+    @Provides
+    @Singleton
+    fun provideReservationRepository(
+        apiClient: VaiinillaApiClient,
+        reservationContractJson: ReservationContractJson,
+    ): ReservationRepository = RemoteReservationRepository(apiClient, reservationContractJson)
 
     @Provides
     @Singleton

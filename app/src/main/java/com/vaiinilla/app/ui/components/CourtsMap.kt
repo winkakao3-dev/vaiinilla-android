@@ -47,6 +47,8 @@ private val CourtAmber = Color(0xFFE9A23B)
 fun CourtsMapCard(
     courts: List<SpaceAvailability>,
     modifier: Modifier = Modifier,
+    /** Abre la renta de canchas; sin él, el mapa solo informa. */
+    onOpen: (() -> Unit)? = null,
 ) {
     if (courts.isEmpty()) return
     val colors = LocalVaiinillaColors.current
@@ -92,20 +94,43 @@ fun CourtsMapCard(
                     )
                 }
             }
-            Text(
-                "de ${courts.size}",
-                color = colors.muted,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(bottom = 4.dp),
-            )
+            if (onOpen != null) {
+                Text(
+                    "Rentar",
+                    color = colors.accentInk,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    modifier =
+                        Modifier
+                            .padding(bottom = 4.dp)
+                            .physicalPress(onClick = onOpen)
+                            .clip(RoundedCornerShape(50))
+                            .background(colors.accent)
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                )
+            } else {
+                Text(
+                    "de ${courts.size}",
+                    color = colors.muted,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+            }
         }
         Row(
             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             courts.forEachIndexed { index, court ->
-                CourtTile(court = court, tick = tick, modifier = Modifier.arrive(index + 1, key = court.space.id))
+                CourtTile(
+                    court = court,
+                    tick = tick,
+                    modifier =
+                        Modifier
+                            .arrive(index + 1, key = court.space.id)
+                            .physicalPress(enabled = onOpen != null) { onOpen?.invoke() },
+                )
             }
         }
     }

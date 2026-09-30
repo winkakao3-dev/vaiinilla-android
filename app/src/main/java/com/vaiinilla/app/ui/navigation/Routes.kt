@@ -20,6 +20,7 @@ object Routes {
     const val ASSISTANT = "assistant"
     const val ASSISTANT_CHAT = "assistant/chat"
     const val WALLET = "wallet"
+    const val RESERVATIONS = "reservations"
     const val WALLET_ADD_MONEY = "wallet/add-money?method={method}"
     const val WALLET_METHODS = "wallet/methods"
     const val WALLET_ADD_CARD = "wallet/add-card"

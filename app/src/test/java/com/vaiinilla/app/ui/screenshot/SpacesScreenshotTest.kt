@@ -156,6 +156,7 @@ class SpacesScreenshotTest {
         detail: SpaceSessionDetail?,
         space: TableSpace,
         lastCollection: AccountCollection? = null,
+        rentable: Boolean = false,
     ) {
         val colors = rememberOperationalColors()
         SheetHost {
@@ -173,6 +174,7 @@ class SpacesScreenshotTest {
                 onCollect = { _, _, _ -> },
                 onRelease = {},
                 onDismissCollection = {},
+                rentable = rentable,
             )
         }
     }
@@ -231,6 +233,37 @@ class SpacesScreenshotTest {
     fun `spaces_section_court_unpaid`() {
         capture("spaces_section_court_unpaid.png") {
             Section(detail(courts[3], withSession = true), TableSpace(4, "Cancha 4", "cancha"))
+        }
+    }
+
+    @Test
+    fun `spaces_section_rent_free`() {
+        capture("spaces_section_rent_free.png") {
+            Section(detail(courts[1], withSession = false), TableSpace(2, "Cancha 2", "cancha"), rentable = true)
+        }
+    }
+
+    @Test
+    fun `spaces_section_rent_busy`() {
+        capture("spaces_section_rent_busy.png") {
+            Section(detail(courts[0], withSession = true), courtSpace, rentable = true)
+        }
+    }
+
+    @Test
+    fun `spaces_rental_collect`() {
+        capture("spaces_rental_collect.png") {
+            val colors = rememberOperationalColors()
+            Box(Modifier.fillMaxSize().background(colors.background)) {
+                CollectAccountContent(
+                    total = "330.00",
+                    payable = emptyList(),
+                    confirming = false,
+                    colors = colors,
+                    title = "Rentar Cancha 2 · 1 h",
+                    onConfirm = { _, _, _ -> },
+                )
+            }
         }
     }
 

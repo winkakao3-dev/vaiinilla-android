@@ -59,6 +59,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.Money
+import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.AccountOrder
 import com.vaiinilla.app.domain.repository.SpaceAvailability
@@ -154,13 +155,21 @@ private fun stateLabel(state: SpaceAvailabilityState): String =
         SpaceAvailabilityState.POR_COBRAR -> "Por cobrar"
     }
 
-private fun stateSubtitle(availability: SpaceAvailability): String =
+private fun stateSubtitle(
+    availability: SpaceAvailability,
+    rentable: Boolean = false,
+): String =
     when (availability.state) {
-        SpaceAvailabilityState.LIBRE -> "Abre el turno cuando lleguen."
+        SpaceAvailabilityState.LIBRE ->
+            if (rentable) "Se renta y se paga antes de jugar." else "Abre el turno cuando lleguen."
         SpaceAvailabilityState.OCUPADA ->
             if (availability.endsAt != null) "Turno en curso." else "Cuenta abierta: se libera a mano."
         SpaceAvailabilityState.EN_GRACIA ->
-            "Terminó el turno. Tienen ${availability.graceMinutes} min para decidir si siguen."
+            if (rentable) {
+                "Terminó el turno. Tienen ${availability.graceMinutes} min para renovar (se cobra) o liberar."
+            } else {
+                "Terminó el turno. Tienen ${availability.graceMinutes} min para decidir si siguen."
+            }
         SpaceAvailabilityState.POR_COBRAR -> "No se libera hasta que se cobre la cuenta."
     }
 
@@ -262,6 +271,9 @@ internal fun WaiterSpaceSection(
     onCollect: (received: String, expectedTotal: String, orderIds: List<String>?) -> Unit,
     onRelease: () -> Unit,
     onDismissCollection: () -> Unit,
+    /** Cancha con precio: se renta y se cobra en lugar de abrir o alargar el turno a mano. */
+    rentable: Boolean = false,
+    onRent: (minutes: Int, start: Instant?) -> Unit = { _, _ -> },
 ) {
     var collecting by remember { mutableStateOf(false) }
     // Solo el botón que se tocó muestra su progreso; los demás quedan quietos.
@@ -350,7 +362,7 @@ internal fun WaiterSpaceSection(
         }
 
         AnimatedContent(
-            targetState = stateSubtitle(availability),
+            targetState = stateSubtitle(availability, rentable),
             transitionSpec = { fadeIn(spring(stiffness = 300f)) togetherWith fadeOut(spring(stiffness = 500f)) },
             label = "space-subtitle",
         ) { subtitle ->
@@ -358,7 +370,25 @@ internal fun WaiterSpaceSection(
         }
 
         if (session == null) {
-            if (isCourt) {
+            if (isCourt && rentable) {
+                Text(
+                    "Rentar ahora · se cobra al rentar",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.5.sp,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(top = 14.dp),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    TurnDurations.forEach { minutes ->
+                        ChipButton(rentalLabel(minutes), enabled, colors, Modifier.weight(1f)) {
+                            onRent(minutes, null)
+                        }
+                    }
+                }
+            } else if (isCourt) {
                 Text(
                     "Abrir turno",
                     fontWeight = FontWeight.SemiBold,
@@ -471,7 +501,25 @@ internal fun WaiterSpaceSection(
 
     if (session != null) {
         SectionCard(colors, Modifier.arrive(2)) {
-            if (isCourt || session.endsAt != null) {
+            if (rentable) {
+                // Renovar = rentar el siguiente horario pegado al turno y cobrarlo.
+                Text(
+                    "Renovar · se cobra al renovar",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.5.sp,
+                    color = colors.textSecondary,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    TurnDurations.forEach { minutes ->
+                        ChipButton("+${rentalLabel(minutes)}", enabled, colors, Modifier.weight(1f)) {
+                            onRent(minutes, session.endsAt?.let { runCatching { Instant.parse(it) }.getOrNull() })
+                        }
+                    }
+                }
+            } else if (isCourt || session.endsAt != null) {
                 Text(
                     if (session.endsAt == null) "Iniciar turno" else "Alargar turno",
                     fontWeight = FontWeight.SemiBold,
@@ -496,7 +544,7 @@ internal fun WaiterSpaceSection(
                 loading = acting && busyKey == "release",
                 colors = colors,
                 primary = !hasPending,
-                modifier = Modifier.padding(top = if (isCourt || session.endsAt != null) 14.dp else 0.dp),
+                modifier = Modifier.padding(top = if (rentable || isCourt || session.endsAt != null) 14.dp else 0.dp),
             ) {
                 busyKey = "release"
                 onRelease()
@@ -845,6 +893,7 @@ internal fun CollectAccountContent(
     confirming: Boolean,
     colors: OperationalColors,
     onConfirm: (received: String, expectedTotal: String, orderIds: List<String>?) -> Unit,
+    title: String? = null,
 ) {
     var selected by remember(payable) { mutableStateOf(payable.map { it.id }.toSet()) }
     val splitting = payable.size >= 2
@@ -877,7 +926,7 @@ internal fun CollectAccountContent(
     ) {
         Column(modifier = Modifier.arrive(0)) {
             Text(
-                if (splitting && !allSelected) "Cobrar parte de la cuenta" else "Cobrar cuenta",
+                title ?: if (splitting && !allSelected) "Cobrar parte de la cuenta" else "Cobrar cuenta",
                 fontSize = 13.sp,
                 color = colors.textSecondary,
                 fontWeight = FontWeight.SemiBold,
@@ -1011,5 +1060,43 @@ private fun SplitOrdersPicker(
                 Text("$${order.total}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.textPrimary)
             }
         }
+    }
+}
+
+private fun rentalLabel(minutes: Int): String =
+    when {
+        minutes % 60 == 0 -> "${minutes / 60} h"
+        minutes > 60 -> "${minutes / 60} h ${minutes % 60}"
+        else -> "$minutes min"
+    }
+
+/**
+ * Cobro en efectivo de una renta de mostrador: el total es lo que paga el cliente (el precio de la
+ * app con efectivo), con los mismos atajos de billete y el cambio. Cerrar sin cobrar libera el horario.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun RentalCollectSheet(
+    rental: Reservation,
+    confirming: Boolean,
+    colors: OperationalColors,
+    onDismiss: () -> Unit,
+    onConfirm: (received: String) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = colors.background,
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+    ) {
+        CollectAccountContent(
+            total = rental.customerPrice?.cashOrBalance ?: rental.amount,
+            payable = emptyList(),
+            confirming = confirming,
+            colors = colors,
+            title = "Rentar ${rental.courtName ?: "cancha"} · ${rentalLabel(rental.durationMinutes)}",
+            onConfirm = { received, _, _ -> onConfirm(received) },
+        )
     }
 }

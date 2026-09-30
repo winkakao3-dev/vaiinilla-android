@@ -5,10 +5,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.domain.model.Reservation
+import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.BoardOrder
 import com.vaiinilla.app.domain.repository.BoardTable
 import com.vaiinilla.app.domain.repository.CallStatus
+import com.vaiinilla.app.domain.repository.ReservationRepository
 import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.WaiterRepository
@@ -21,6 +24,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
 
@@ -39,6 +43,8 @@ data class WaiterUiState(
     val spaceDetailLoading: Boolean = false,
     /** Cambio de la última cuenta cobrada, para que se lo entregue al cliente. */
     val lastCollection: AccountCollection? = null,
+    /** Renta de mostrador apartada esperando que se cobre en efectivo. */
+    val pendingRental: Reservation? = null,
 )
 
 @HiltViewModel
@@ -46,6 +52,7 @@ class WaiterViewModel
     @Inject
     constructor(
         private val waiterRepository: WaiterRepository,
+        private val reservationRepository: ReservationRepository,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(WaiterUiState())
         val uiState: State<WaiterUiState> = _uiState
@@ -249,6 +256,78 @@ class WaiterViewModel
                     ?.version
             runSpaceAction(spaceId, "+$minutes min") {
                 waiterRepository.extendSession(spaceId, minutes, version, UUID.randomUUID().toString())
+            }
+        }
+
+        /**
+         * Renta de mostrador de una cancha con precio: se aparta ([start] null = ahora; o el fin del
+         * turno para renovar) y se abre el cobro en efectivo. La renta se paga primero.
+         */
+        fun startRental(
+            spaceId: Int,
+            minutes: Int,
+            start: Instant?,
+        ) {
+            if (_uiState.value.acting) return
+            _uiState.value = _uiState.value.copy(acting = true)
+            viewModelScope.launch {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        reservationRepository.create(
+                            courtId = spaceId,
+                            start = start,
+                            durationMinutes = minutes,
+                            customerName = null,
+                            idempotencyKey = UUID.randomUUID().toString(),
+                        )
+                    }
+                _uiState.value = _uiState.value.copy(acting = false)
+                result.fold(
+                    onSuccess = { reservation -> _uiState.value = _uiState.value.copy(pendingRental = reservation) },
+                    onFailure = { error -> showToast(error.toUserFacingMessage()) },
+                )
+            }
+        }
+
+        /** Cobra la renta apartada: con el cobro se ocupa la cancha (o se alarga su turno). */
+        fun confirmRental(received: String) {
+            val reservation = _uiState.value.pendingRental ?: return
+            if (_uiState.value.acting) return
+            _uiState.value = _uiState.value.copy(acting = true)
+            viewModelScope.launch {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        reservationRepository.pay(
+                            reservationId = reservation.id,
+                            method = ReservationPaymentMethod.CASH,
+                            cashReceived = received,
+                            idempotencyKey = UUID.randomUUID().toString(),
+                        )
+                    }
+                _uiState.value = _uiState.value.copy(acting = false)
+                result.fold(
+                    onSuccess = { payment ->
+                        _uiState.value = _uiState.value.copy(pendingRental = null)
+                        val change =
+                            payment.cashChange
+                                ?.takeIf { it != "0.00" }
+                                ?.let { " · cambio $$it" }
+                                .orEmpty()
+                        showToast("Cancha rentada$change")
+                    },
+                    onFailure = { error -> showToast(error.toUserFacingMessage()) },
+                )
+                refresh()
+                loadSpaceDetail(reservation.courtId, silent = true)
+            }
+        }
+
+        /** Se cerró el cobro sin cobrar: se libera el horario apartado. */
+        fun cancelPendingRental() {
+            val reservation = _uiState.value.pendingRental ?: return
+            _uiState.value = _uiState.value.copy(pendingRental = null)
+            viewModelScope.launch(Dispatchers.IO) {
+                reservationRepository.cancel(reservation.id, UUID.randomUUID().toString())
             }
         }
 

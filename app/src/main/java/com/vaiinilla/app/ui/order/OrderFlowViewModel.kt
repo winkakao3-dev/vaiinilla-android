@@ -15,14 +15,18 @@ import com.vaiinilla.app.domain.discovery.DiscoveryFailures
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.ContractRules
+import com.vaiinilla.app.domain.model.CreatedOrder
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PublicEstablishment
+import com.vaiinilla.app.domain.model.PublicSpace
+import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
+import com.vaiinilla.app.domain.repository.ReservationRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
 import com.vaiinilla.app.domain.usecase.CreateRemoteOrderUseCase
 import com.vaiinilla.app.domain.usecase.GetCatalogUseCase
@@ -58,6 +62,7 @@ class OrderFlowViewModel
         private val contextoExchange: ContextoExchanger,
         private val sessionStore: SecureSessionStore,
         private val staffPresenceCoordinator: StaffPresenceCoordinator,
+        private val reservationRepository: ReservationRepository,
     ) : ViewModel() {
         private val _uiState =
             mutableStateOf(
@@ -187,6 +192,8 @@ class OrderFlowViewModel
                     // Load it right away: without it the cart cannot offer "Pagar al final".
                     val status =
                         withContext(Dispatchers.IO) { getOperationalStatus() }.getOrNull()
+                    // Con sesión, la cancha rentada y en curso también puede recibir el pedido.
+                    val rentedCourt = if (status != null) loadRentedCourt() else null
                     if (activeCartStorageKey != storageKey) return@launchTracked
                     val failure = catalogResult.exceptionOrNull()
                     val suspended = DiscoveryFailures.isEstablishmentSuspended(failure)
@@ -195,6 +202,8 @@ class OrderFlowViewModel
                             loading = false,
                             catalog = effectiveCatalog,
                             operationalStatus = status,
+                            rentedCourt = rentedCourt,
+                            selectedSpaceId = rentedCourt?.id ?: _uiState.value.selectedSpaceId,
                             cartLines = nextCart,
                             errorMessage = if (effectiveCatalog == null) failure?.toUserFacingMessage() else null,
                             guestVenueSuspended = suspended,
@@ -703,6 +712,40 @@ class OrderFlowViewModel
                     },
                 )
             }
+        }
+
+        private suspend fun loadRentedCourt(): PublicSpace? =
+            withContext(Dispatchers.IO) { reservationRepository.list() }
+                .getOrNull()
+                ?.firstOrNull { it.state == ReservationState.IN_PROGRESS }
+                ?.let { PublicSpace(id = it.courtId, name = it.courtName ?: "Cancha", type = "cancha") }
+
+        /**
+         * El pedido que cobra una renta de cancha (reservas) se muestra y se paga igual que un
+         * pedido recién creado: la confirmación presenta la hoja de Stripe si hace falta y sigue
+         * el cobro. No toca el carrito.
+         */
+        fun adoptReservationOrder(created: CreatedOrder) {
+            val stripeSession = created.stripeSession
+            val stripePendingOrderId =
+                stripeSession?.let {
+                    created.order.summary.id
+                        .also(guestSessionStore::savePendingStripeConfirmationOrderId)
+                }
+            _uiState.value =
+                _uiState.value.copy(
+                    createdOrder = created.order,
+                    stripeObservedOrder = null,
+                    stripePendingOrderId = stripePendingOrderId,
+                    stripePaymentSession = stripeSession,
+                    stripePresentationKey = stripeSession?.let { UUID.randomUUID().toString() },
+                    stripePaymentPhase =
+                        if (stripeSession != null) StripePaymentPhase.READY else StripePaymentPhase.IDLE,
+                    stripePaymentMessage =
+                        if (stripeSession != null) "Elige cómo pagar de forma segura." else null,
+                    purchaseCelebration = null,
+                    createOrderError = null,
+                )
         }
 
         private suspend fun refreshClientContext(venue: GuestVenueContext) {

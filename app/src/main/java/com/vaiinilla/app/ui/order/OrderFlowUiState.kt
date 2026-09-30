@@ -12,6 +12,7 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.domain.model.PublicSpace
 import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.ui.assistant.AssistantChatMessage
@@ -31,6 +32,8 @@ data class OrderFlowUiState(
     val kitchenNotes: String = "",
     val checkoutDestination: OrderDestination = OrderDestination.TAKE_AWAY,
     val selectedSpaceId: Int = 0,
+    /** Cancha rentada y en curso del cliente en este negocio: puede recibir ahí su comida. */
+    val rentedCourt: PublicSpace? = null,
     val checkoutPayment: PaymentMethod = PaymentMethod.CASH,
     /** Pagar al final: el pedido va a la cuenta del espacio y se paga al irse (en efectivo). */
     val checkoutPayAtEnd: Boolean = false,
@@ -154,16 +157,24 @@ val OrderFlowUiState.requiresOperationalReady: Boolean
 val OrderFlowUiState.canCreateOrder: Boolean
     get() = canSubmitCart && (!requiresOperationalReady || isOperationallyReady)
 
+/** Espacios a los que se puede mandar el pedido: el del QR y, si hay, la cancha rentada. */
+val OrderFlowUiState.checkoutSpaces: List<PublicSpace>
+    get() = listOfNotNull(guestVenue?.space, rentedCourt).distinctBy { it.id }
+
+/** El espacio elegido, si sigue entre los permitidos; si no, el primero (la cancha rentada va primero). */
+val OrderFlowUiState.checkoutSpace: PublicSpace?
+    get() = checkoutSpaces.firstOrNull { it.id == selectedSpaceId } ?: rentedCourt ?: guestVenue?.space
+
 val OrderFlowUiState.checkoutSpaceId: Int?
     get() =
         if (checkoutDestination == OrderDestination.IN_SPACE) {
-            guestVenue?.space?.id
+            checkoutSpace?.id
         } else {
             null
         }
 
 val OrderFlowUiState.selectedSpaceName: String
-    get() = guestVenue?.space?.name ?: "Escanea el QR de tu mesa"
+    get() = checkoutSpace?.name ?: "Escanea el QR de tu mesa"
 
 /**
  * Whether the known wallet balance can cover the cart. Unknown or unparsable

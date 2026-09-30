@@ -102,7 +102,15 @@ data class SpaceAvailability(
     val graceMinutes: Int,
     /** Cuándo empezó la sesión; con `endsAt` da el avance del turno. */
     val startedAt: String? = null,
-)
+    /** Precio por hora: con precio, la cancha se renta y se paga primero (no se abre a mano). */
+    val pricePerHour: String? = null,
+    /** Siguiente reserva (próximas 24 h), para avisar al personal. */
+    val nextReservationStart: String? = null,
+    val nextReservationEnd: String? = null,
+) {
+    val rentable: Boolean
+        get() = space.type == "cancha" && pricePerHour != null
+}
 
 data class SpaceSessionInfo(
     val id: String,

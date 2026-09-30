@@ -139,6 +139,15 @@ data class SpaceAvailabilityDto(
     @SerialName("restante_seg") val remainingSeconds: Int? = null,
     @SerialName("gracia_min") val graceMinutes: Int = 5,
     @SerialName("inicio") val startedAt: String? = null,
+    @SerialName("precio_hora") val pricePerHour: String? = null,
+    @SerialName("proxima_reserva") val nextReservation: NextReservationDto? = null,
+)
+
+@Serializable
+data class NextReservationDto(
+    val inicio: String,
+    val fin: String,
+    val estado: String? = null,
 )
 
 @Serializable
@@ -274,6 +283,9 @@ fun SpaceAvailabilityDto.toDomain(): SpaceAvailability =
         remainingSeconds = remainingSeconds,
         graceMinutes = graceMinutes,
         startedAt = startedAt,
+        pricePerHour = pricePerHour,
+        nextReservationStart = nextReservation?.inicio,
+        nextReservationEnd = nextReservation?.fin,
     )
 
 fun AccountOrderDto.toDomain(): AccountOrder =

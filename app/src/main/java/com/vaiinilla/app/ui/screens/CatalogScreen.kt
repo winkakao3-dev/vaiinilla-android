@@ -125,6 +125,7 @@ fun CatalogScreen(
     profileInitials: String = "?",
     onOpenAccount: () -> Unit = {},
     courts: List<SpaceAvailability> = emptyList(),
+    onOpenCourts: (() -> Unit)? = null,
 ) {
     val haptics = rememberVaiinillaHaptics()
     when {
@@ -169,6 +170,7 @@ fun CatalogScreen(
                 profileInitials = profileInitials,
                 onOpenAccount = onOpenAccount,
                 courts = courts,
+                onOpenCourts = onOpenCourts,
             )
         else ->
             CatalogError(
@@ -315,6 +317,7 @@ private fun CatalogContent(
     profileInitials: String,
     onOpenAccount: () -> Unit,
     courts: List<SpaceAvailability> = emptyList(),
+    onOpenCourts: (() -> Unit)? = null,
 ) {
     val catalog = requireNotNull(state.catalog)
     val colors = LocalVaiinillaColors.current
@@ -409,7 +412,11 @@ private fun CatalogContent(
 
                 if (courts.isNotEmpty()) {
                     item(key = "courts-map", span = { GridItemSpan(maxLineSpan) }) {
-                        CourtsMapCard(courts = courts, modifier = Modifier.padding(top = 4.dp, bottom = 6.dp))
+                        CourtsMapCard(
+                            courts = courts,
+                            onOpen = onOpenCourts,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
+                        )
                     }
                 }
 

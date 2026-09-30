@@ -62,6 +62,8 @@ import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.isEstablishmentSwitch
 import com.vaiinilla.app.ui.order.toRuntimeConfiguration
 import com.vaiinilla.app.ui.profile.displayInitials
+import com.vaiinilla.app.ui.reservations.ReservationsScreen
+import com.vaiinilla.app.ui.reservations.ReservationsViewModel
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
 import com.vaiinilla.app.ui.screens.AuthorizedModeScreen
 import com.vaiinilla.app.ui.screens.CartScreen
@@ -117,6 +119,7 @@ fun AppNavHost(
     val operationalViewModel: OperationalViewModel = viewModel()
     val waiterViewModel: WaiterViewModel = viewModel()
     val courtsViewModel: CourtsViewModel = viewModel()
+    val reservationsViewModel: ReservationsViewModel = viewModel()
     val studentAuthViewModel: StudentAuthViewModel = viewModel()
     val authorizedAccessViewModel: AuthorizedAccessViewModel = viewModel()
     val discoveryViewModel: GuestDiscoveryViewModel = viewModel()
@@ -789,6 +792,53 @@ fun AppNavHost(
                         },
                     profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
                     onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
+                    // Rentar pide cuenta: sin sesión, primero se entra y se vuelve a Canchas.
+                    onOpenCourts =
+                        if (courtsViewModel.uiState.value.courts
+                                .any { it.rentable }
+                        ) {
+                            {
+                                if (hasStudentSession) {
+                                    navController.navigate(Routes.RESERVATIONS) { launchSingleTop = true }
+                                } else {
+                                    navController.navigate(Routes.authLandingRoute(Routes.RESERVATIONS))
+                                }
+                            }
+                        } else {
+                            null
+                        },
+                )
+            }
+
+            composable(Routes.RESERVATIONS) {
+                val reservationsState = reservationsViewModel.uiState.value
+                DisposableEffect(Unit) {
+                    reservationsViewModel.onVisible()
+                    onDispose { reservationsViewModel.onHidden() }
+                }
+                // El pago crea un pedido de renta: se sigue en la confirmación de pedido
+                // (hoja de tarjeta, folio para pagar en caja o compra ya pagada con saldo).
+                LaunchedEffect(reservationsState.paidOrder) {
+                    val order = reservationsState.paidOrder ?: return@LaunchedEffect
+                    reservationsViewModel.consumePaidOrder()
+                    orderFlowViewModel.adoptReservationOrder(order)
+                    navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
+                }
+                ReservationsScreen(
+                    state = reservationsState,
+                    venueName = orderState.guestVenue?.establishment?.name,
+                    onBack = { navController.popBackStack() },
+                    onSelectDate = reservationsViewModel::selectDate,
+                    onSelectCourt = reservationsViewModel::selectCourt,
+                    onRentNow = reservationsViewModel::selectRentNow,
+                    onSelectStart = reservationsViewModel::selectStart,
+                    onSelectDuration = reservationsViewModel::selectDuration,
+                    onReserve = reservationsViewModel::reserve,
+                    onPay = reservationsViewModel::pay,
+                    onDismissPayment = reservationsViewModel::dismissPayment,
+                    onResumePayment = reservationsViewModel::resumePayment,
+                    onCancel = reservationsViewModel::cancel,
+                    onDismissMessage = reservationsViewModel::dismissMessages,
                 )
             }
 
@@ -1457,6 +1507,9 @@ fun AppNavHost(
                         onOpenSpace = waiterViewModel::openSpace,
                         onCloseSpace = waiterViewModel::closeSpace,
                         onOpenTurn = waiterViewModel::openTurn,
+                        onStartRental = waiterViewModel::startRental,
+                        onConfirmRental = waiterViewModel::confirmRental,
+                        onCancelRental = waiterViewModel::cancelPendingRental,
                         onExtendTurn = waiterViewModel::extendTurn,
                         onReleaseSpace = waiterViewModel::releaseSpace,
                         onCollectAccount = waiterViewModel::collectAccount,
@@ -1501,6 +1554,9 @@ fun AppNavHost(
                         onOpenSpace = waiterViewModel::openSpace,
                         onCloseSpace = waiterViewModel::closeSpace,
                         onOpenTurn = waiterViewModel::openTurn,
+                        onStartRental = waiterViewModel::startRental,
+                        onConfirmRental = waiterViewModel::confirmRental,
+                        onCancelRental = waiterViewModel::cancelPendingRental,
                         onExtendTurn = waiterViewModel::extendTurn,
                         onReleaseSpace = waiterViewModel::releaseSpace,
                         onCollectAccount = waiterViewModel::collectAccount,

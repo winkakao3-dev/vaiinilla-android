@@ -115,6 +115,8 @@ import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.canCreateOrder
 import com.vaiinilla.app.ui.order.canPayAtEnd
 import com.vaiinilla.app.ui.order.cartPreviewTotal
+import com.vaiinilla.app.ui.order.checkoutSpace
+import com.vaiinilla.app.ui.order.checkoutSpaces
 import com.vaiinilla.app.ui.order.hasUnresolvedStripePayment
 import com.vaiinilla.app.ui.order.isBalancePaymentAffordable
 import com.vaiinilla.app.ui.order.operationalBlockerMessage
@@ -156,11 +158,7 @@ fun CartScreen(
     BackHandler(enabled = paymentDialogOpen) {
         paymentDialogOpen = false
     }
-    val checkoutSpaces =
-        state.guestVenue
-            ?.space
-            ?.let { space -> listOf(CheckoutSpaceOption(space.id, space.name)) }
-            .orEmpty()
+    val checkoutSpaces = state.checkoutSpaces.map { space -> CheckoutSpaceOption(space.id, space.name) }
     val canChooseInSpace = checkoutSpaces.isNotEmpty()
     // A guest must be able to continue into Firebase auth before the protected
     // operational-status check runs. submitOrder performs that check after auth.
@@ -177,7 +175,7 @@ fun CartScreen(
     val destinationLabel =
         when (state.checkoutDestination) {
             OrderDestination.TAKE_AWAY -> "Para llevar"
-            OrderDestination.IN_SPACE -> SpaceCopy.destinationTitle(state.guestVenue?.space?.type)
+            OrderDestination.IN_SPACE -> SpaceCopy.destinationTitle(state.checkoutSpace?.type)
         }
     val productCountLabel =
         if (state.cartLines.size == 1) {
@@ -267,20 +265,20 @@ fun CartScreen(
                             onDestinationChange(it)
                         },
                         showInSpace = canChooseInSpace,
-                        spaceType = state.guestVenue?.space?.type,
+                        spaceType = state.checkoutSpace?.type,
                     )
                 }
                 if (state.checkoutDestination == OrderDestination.IN_SPACE && checkoutSpaces.isNotEmpty()) {
                     item {
                         Spacer(Modifier.height(14.dp))
                         CheckoutSpacePicker(
-                            selectedSpaceId = state.selectedSpaceId ?: checkoutSpaces.first().id,
+                            selectedSpaceId = state.checkoutSpace?.id ?: checkoutSpaces.first().id,
                             spaces = checkoutSpaces,
                             onSelect = {
                                 haptics.selection()
                                 onSpaceChange(it)
                             },
-                            spaceType = state.guestVenue?.space?.type,
+                            spaceType = state.checkoutSpace?.type,
                         )
                     }
                 }

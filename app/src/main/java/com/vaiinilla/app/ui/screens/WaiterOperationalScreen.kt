@@ -119,6 +119,7 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.delay
+import java.time.Instant
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -136,6 +137,10 @@ fun WaiterOperationalScreen(
     onReleaseSpace: (Int) -> Unit = {},
     onCollectAccount: (Int, String, String, List<String>?) -> Unit = { _, _, _, _ -> },
     onDismissCollection: () -> Unit = {},
+    /** Renta de mostrador de una cancha con precio: aparta (ahora o renovación) y abre el cobro. */
+    onStartRental: (Int, Int, Instant?) -> Unit = { _, _, _ -> },
+    onConfirmRental: (String) -> Unit = {},
+    onCancelRental: () -> Unit = {},
     onFilterAttending: (Boolean) -> Unit = {},
     newCallTable: TableCall? = null,
     onAlertConsumed: () -> Unit = {},
@@ -552,9 +557,21 @@ fun WaiterOperationalScreen(
             deliveryRequiresQr = state.deliveryRequiresQr,
             onOpenTurn = { onOpenTurn(open.space.id, it) },
             onExtendTurn = { onExtendTurn(open.space.id, it) },
+            rentable = open.availability?.rentable == true,
+            onStartRental = { minutes, start -> onStartRental(open.space.id, minutes, start) },
             onReleaseSpace = { onReleaseSpace(open.space.id) },
             onCollectAccount = { received, total, ids -> onCollectAccount(open.space.id, received, total, ids) },
             onDismissCollection = onDismissCollection,
+        )
+    }
+
+    state.pendingRental?.let { rental ->
+        RentalCollectSheet(
+            rental = rental,
+            confirming = state.acting,
+            colors = colors,
+            onDismiss = onCancelRental,
+            onConfirm = onConfirmRental,
         )
     }
 
@@ -889,10 +906,12 @@ private fun waiterTileCaption(
         }
         else -> {
             val occupied = spaceAvailabilityCaption(table.availability, tick)
+            val next = nextReservationCaption(table.availability?.nextReservationStart)
             when {
-                occupied != null -> occupied
+                occupied != null -> listOfNotNull(occupied, next).joinToString("\n")
                 table.orders.isNotEmpty() ->
                     "${table.orders.size} ${if (table.orders.size == 1) "pedido" else "pedidos"}"
+                next != null -> "Libre\n$next"
                 else -> "Libre"
             }
         }
@@ -938,6 +957,8 @@ private fun WaiterTableSheet(
     onReleaseSpace: () -> Unit,
     onCollectAccount: (String, String, List<String>?) -> Unit,
     onDismissCollection: () -> Unit,
+    rentable: Boolean = false,
+    onStartRental: (Int, Instant?) -> Unit = { _, _ -> },
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -1070,6 +1091,8 @@ private fun WaiterTableSheet(
                 onCollect = onCollectAccount,
                 onRelease = onReleaseSpace,
                 onDismissCollection = onDismissCollection,
+                rentable = rentable,
+                onRent = onStartRental,
             )
             table.orders.forEach { order ->
                 Surface(
@@ -1285,3 +1308,13 @@ private fun playWaiterAlert(context: Context) {
     } catch (_: Exception) {
     }
 }
+
+private val RESERVATION_HOUR =
+    java.time.format.DateTimeFormatter
+        .ofPattern("HH:mm")
+
+/** "Reservada 19:00" para la siguiente reserva de la cancha, con la hora local del teléfono. */
+private fun nextReservationCaption(startIso: String?): String? =
+    startIso
+        ?.let { runCatching { java.time.Instant.parse(it) }.getOrNull() }
+        ?.let { "Reservada ${it.atZone(java.time.ZoneId.systemDefault()).format(RESERVATION_HOUR)}" }
