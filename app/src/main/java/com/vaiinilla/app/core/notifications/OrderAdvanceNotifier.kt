@@ -115,6 +115,39 @@ object OrderAdvanceNotifier {
         NotificationManagerCompat.from(context).notify("staff-call:$callId".hashCode(), notification)
     }
 
+    /** Aviso al personal: el turno de una cancha está por terminar o ya terminó. Va al tablero del personal. */
+    @SuppressLint("MissingPermission")
+    fun notifyTurnEnding(
+        context: Context,
+        spaceName: String,
+        minutesLeft: Int,
+    ) {
+        if (!canPost(context)) return
+        ensureStaffChannel(context)
+        val notification =
+            NotificationCompat
+                .Builder(context, STAFF_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_order_notification)
+                .setContentTitle(turnEndingTitle(spaceName))
+                .setContentText(turnEndingText(minutesLeft))
+                .setAutoCancel(true)
+                .setContentIntent(staffModesLaunchIntent(context))
+                .setCategory(NotificationCompat.CATEGORY_STATUS)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .build()
+        NotificationManagerCompat.from(context).notify("staff-turn:$spaceName".hashCode(), notification)
+    }
+
+    internal fun turnEndingTitle(spaceName: String): String =
+        if (spaceName.isBlank()) "Un turno está por terminar" else "$spaceName: turno por terminar"
+
+    internal fun turnEndingText(minutesLeft: Int): String =
+        if (minutesLeft > 0) {
+            "Termina en $minutesLeft min. Ve preparando la cuenta."
+        } else {
+            "Ya terminó. Cobra la cuenta y libera el espacio."
+        }
+
     internal fun tableCallText(reason: String?): String =
         when (reason) {
             "utensilios" -> "Pide cubiertos o servilletas"

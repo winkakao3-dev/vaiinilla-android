@@ -15,6 +15,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -252,7 +254,7 @@ internal fun WaiterSpaceSection(
     colors: OperationalColors,
     onOpenTurn: (Int?) -> Unit,
     onExtend: (Int) -> Unit,
-    onCollect: (received: String, expectedTotal: String) -> Unit,
+    onCollect: (received: String, expectedTotal: String, orderIds: List<String>?) -> Unit,
     onRelease: () -> Unit,
     onDismissCollection: () -> Unit,
 ) {
@@ -498,10 +500,11 @@ internal fun WaiterSpaceSection(
     if (collecting && account != null) {
         CollectAccountSheet(
             total = account.pending,
+            payable = account.orders.filter { it.pending && it.payAtEnd },
             confirming = acting,
             colors = colors,
             onDismiss = { if (!acting) collecting = false },
-            onConfirm = { received -> onCollect(received, account.pending) },
+            onConfirm = { received, expected, ids -> onCollect(received, expected, ids) },
         )
     }
 }
@@ -613,10 +616,18 @@ internal fun CollectionResultCard(
                     modifier = Modifier.size(18.dp),
                 )
             }
-            Text("Cuenta cobrada", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.textPrimary)
+            Text(
+                if (collection.settled) "Cuenta cobrada" else "Cobro registrado",
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                color = colors.textPrimary,
+            )
         }
         Text(
-            "Total $${collection.total} · Recibido $${collection.received}",
+            buildString {
+                append("Total $${collection.total} · Recibido $${collection.received}")
+                if (!collection.settled) append(" · Quedan $${collection.remaining} por cobrar")
+            },
             fontSize = 12.5.sp,
             color = colors.textSecondary,
             modifier = Modifier.padding(top = 10.dp),
@@ -777,10 +788,11 @@ internal fun quickCashAmounts(total: BigDecimal): List<BigDecimal> =
 @Composable
 private fun CollectAccountSheet(
     total: String,
+    payable: List<AccountOrder>,
     confirming: Boolean,
     colors: OperationalColors,
     onDismiss: () -> Unit,
-    onConfirm: (received: String) -> Unit,
+    onConfirm: (received: String, expectedTotal: String, orderIds: List<String>?) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -789,25 +801,49 @@ private fun CollectAccountSheet(
         containerColor = colors.background,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
     ) {
-        CollectAccountContent(total = total, confirming = confirming, colors = colors, onConfirm = onConfirm)
+        CollectAccountContent(
+            total = total,
+            payable = payable,
+            confirming = confirming,
+            colors = colors,
+            onConfirm = onConfirm,
+        )
     }
 }
 
-/** El contenido de la hoja de cobro, aparte de la hoja: así se puede probar y capturar. */
+/**
+ * El contenido de la hoja de cobro, aparte de la hoja: así se puede probar y capturar.
+ *
+ * Con dos o más pedidos a la cuenta se puede dividir: cada pedido se marca o desmarca (por
+ * ejemplo lo de una persona) y el total, el atajo "Justo" y el cambio siguen a la selección.
+ * Con todos marcados se cobra la cuenta completa, como siempre.
+ */
 @Composable
 internal fun CollectAccountContent(
     total: String,
+    payable: List<AccountOrder>,
     confirming: Boolean,
     colors: OperationalColors,
-    onConfirm: (received: String) -> Unit,
+    onConfirm: (received: String, expectedTotal: String, orderIds: List<String>?) -> Unit,
 ) {
-    var text by remember { mutableStateOf(total) }
-    val totalAmount = total.moneyOrZero()
+    var selected by remember(payable) { mutableStateOf(payable.map { it.id }.toSet()) }
+    val splitting = payable.size >= 2
+    val allSelected = selected.size == payable.size
+    val totalAmount =
+        if (payable.isEmpty()) {
+            total.moneyOrZero()
+        } else {
+            payable.filter { it.id in selected }.fold(BigDecimal.ZERO) { sum, order -> sum + order.total.moneyOrZero() }
+        }
+    val totalLabel = Money.format(totalAmount)
+    // Lo que el cajero escribió; sin tocar nada el efectivo sigue al total (cobro justo).
+    var typed by remember { mutableStateOf<String?>(null) }
+    val text = typed ?: totalLabel
     val received = text.trim().toBigDecimalOrNull()?.takeIf { it.signum() >= 0 }
     val difference = received?.let { it - totalAmount }
-    val canConfirm = difference != null && difference.signum() >= 0
+    val canConfirm = totalAmount.signum() > 0 && difference != null && difference.signum() >= 0
     val shortfall = difference != null && difference.signum() < 0
-    val quickAmounts = remember(total) { quickCashAmounts(totalAmount) }
+    val quickAmounts = remember(totalLabel) { quickCashAmounts(totalAmount) }
     val changeInk = animateSelectionColor(if (shortfall) StateCoral else colors.textPrimary, "change-ink")
 
     Column(
@@ -820,11 +856,28 @@ internal fun CollectAccountContent(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Column(modifier = Modifier.arrive(0)) {
-            Text("Cobrar cuenta", fontSize = 13.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
+            Text(
+                if (splitting && !allSelected) "Cobrar parte de la cuenta" else "Cobrar cuenta",
+                fontSize = 13.sp,
+                color = colors.textSecondary,
+                fontWeight = FontWeight.SemiBold,
+            )
             RollingText(
-                text = "$$total",
+                text = "$$totalLabel",
                 style = TextStyle(fontSize = 48.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.6).sp),
                 color = colors.textPrimary,
+            )
+        }
+        if (splitting) {
+            SplitOrdersPicker(
+                orders = payable,
+                selected = selected,
+                enabled = !confirming,
+                colors = colors,
+                onToggle = { id ->
+                    selected = if (id in selected) selected - id else selected + id
+                    typed = null
+                },
             )
         }
         Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -841,7 +894,7 @@ internal fun CollectAccountContent(
                     colors = colors,
                     modifier = Modifier.weight(1f),
                     selected = received != null && received.compareTo(totalAmount) == 0,
-                ) { text = total }
+                ) { typed = null }
                 quickAmounts.forEach { amount ->
                     ChipButton(
                         label = "$${amount.setScale(0)}",
@@ -849,12 +902,12 @@ internal fun CollectAccountContent(
                         colors = colors,
                         modifier = Modifier.weight(1f),
                         selected = received != null && received.compareTo(amount) == 0,
-                    ) { text = Money.format(amount) }
+                    ) { typed = Money.format(amount) }
                 }
             }
             OutlinedTextField(
                 value = text,
-                onValueChange = { text = it.filter { c -> c.isDigit() || c == '.' } },
+                onValueChange = { typed = it.filter { c -> c.isDigit() || c == '.' } },
                 label = { Text("Otro monto") },
                 singleLine = true,
                 enabled = !confirming,
@@ -877,11 +930,66 @@ internal fun CollectAccountContent(
         }
         Box(modifier = Modifier.arrive(3)) {
             ActionPill(
-                label = "Cobrar $$total",
+                label = "Cobrar $$totalLabel",
                 enabled = canConfirm,
                 loading = confirming,
                 colors = colors,
-            ) { received?.let { onConfirm(Money.format(it)) } }
+            ) {
+                received?.let {
+                    onConfirm(Money.format(it), totalLabel, if (allSelected) null else selected.toList())
+                }
+            }
+        }
+    }
+}
+
+/** Los pedidos de la cuenta con casilla: marcar los que se cobran ahora. */
+@Composable
+private fun SplitOrdersPicker(
+    orders: List<AccountOrder>,
+    selected: Set<String>,
+    enabled: Boolean,
+    colors: OperationalColors,
+    onToggle: (String) -> Unit,
+) {
+    Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            "¿Qué se cobra ahora?",
+            fontSize = 12.5.sp,
+            color = colors.textSecondary,
+            fontWeight = FontWeight.SemiBold,
+        )
+        orders.forEach { order ->
+            val checked = order.id in selected
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(if (checked) colors.cardBackground else colors.background)
+                        .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp))
+                        .clickable(enabled = enabled) { onToggle(order.id) }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Checkbox(checked = checked, onCheckedChange = null, enabled = enabled)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "#${order.folio} · ${order.clientName ?: "Cliente"}",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.5.sp,
+                        color = colors.textPrimary,
+                    )
+                    Text(
+                        order.itemsSummary,
+                        fontSize = 12.sp,
+                        color = colors.textSecondary,
+                        maxLines = 1,
+                    )
+                }
+                Text("$${order.total}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.textPrimary)
+            }
         }
     }
 }

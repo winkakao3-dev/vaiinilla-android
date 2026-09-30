@@ -142,7 +142,12 @@ data class AccountCollection(
     val total: String,
     val received: String,
     val change: String,
-)
+    /** Lo que quedó sin cobrar al dividir la cuenta; "0.00" si quedó saldada. */
+    val remaining: String = "0.00",
+) {
+    /** Con este cobro la cuenta quedó saldada. */
+    val settled: Boolean get() = remaining.toBigDecimalOrNull()?.signum() != 1
+}
 
 data class BoardTable(
     val space: TableSpace,
@@ -246,6 +251,7 @@ interface WaiterRepository {
         spaceId: Int,
         received: String,
         expectedTotal: String?,
+        orderIds: List<String>?,
         idempotencyKey: String,
     ): Result<AccountCollection>
 

@@ -204,6 +204,8 @@ data class AccountCollectionDto(
     val total: String,
     @SerialName("monto_recibido") val received: String,
     val cambio: String,
+    /** Lo que sigue sin cobrar de la cuenta; un servidor anterior no lo envía. */
+    val restante: String = "0.00",
 )
 
 @Serializable
@@ -241,6 +243,8 @@ data class CollectAccountRequestDto(
     @SerialName("monto_recibido") val received: String,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     @SerialName("total_esperado") val expectedTotal: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("pedido_ids") val orderIds: List<String>? = null,
 )
 
 /** Solo la política de entrega del estado operativo: el resto no le hace falta al mesero. */
@@ -407,6 +411,7 @@ class WaiterContractJson
                 total = envelope.data.total,
                 received = envelope.data.received,
                 change = envelope.data.cambio,
+                remaining = envelope.data.restante,
             )
         }
 
@@ -430,7 +435,11 @@ class WaiterContractJson
         fun encodeCollectAccount(
             received: String,
             expectedTotal: String?,
-        ): String = json.encodeToString(CollectAccountRequestDto(received = received, expectedTotal = expectedTotal))
+            orderIds: List<String>? = null,
+        ): String =
+            json.encodeToString(
+                CollectAccountRequestDto(received = received, expectedTotal = expectedTotal, orderIds = orderIds),
+            )
 
         fun encodeCallTransition(
             target: CallStatus,

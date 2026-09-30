@@ -62,6 +62,14 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
             )
             return
         }
+        if (alert == "turno_por_terminar") {
+            OrderAdvanceNotifier.notifyTurnEnding(
+                context = applicationContext,
+                spaceName = data["espacio_nombre"] ?: data["espacioNombre"].orEmpty(),
+                minutesLeft = data["restante_min"]?.toIntOrNull() ?: 0,
+            )
+            return
+        }
         val orderId = data["orderId"] ?: return
         val folio = data["folio"]?.toIntOrNull() ?: return
         OrderAdvanceNotifier.notifyStaff(applicationContext, orderId, folio, alert)

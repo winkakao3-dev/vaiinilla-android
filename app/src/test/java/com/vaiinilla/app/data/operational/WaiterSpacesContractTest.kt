@@ -102,6 +102,28 @@ class WaiterSpacesContractTest {
         assertEquals("220.00", collection.total)
         assertEquals("300.00", collection.received)
         assertEquals("80.00", collection.change)
+        // Un servidor anterior no manda `restante`: la cuenta se toma como saldada.
+        assertEquals("0.00", collection.remaining)
+        assertTrue(collection.settled)
+    }
+
+    @Test
+    fun `a split collection reports what is left and is not settled`() {
+        val raw =
+            """{"data":{"espacio":{"id":7,"nombre":"Cancha 1","tipo":"cancha"},"pedidos_cobrados":1,
+               "total":"100.00","monto_recibido":"100.00","cambio":"0.00","restante":"120.00"},"meta":{},"error":null}"""
+        val collection = json.parseAccountCollection(raw)
+        assertEquals("120.00", collection.remaining)
+        assertFalse(collection.settled)
+    }
+
+    @Test
+    fun `collect sends only the chosen orders and omits the list when collecting everything`() {
+        assertEquals(
+            """{"monto_recibido":"100.00","total_esperado":"100.00","pedido_ids":["a","b"]}""",
+            json.encodeCollectAccount("100.00", "100.00", listOf("a", "b")),
+        )
+        assertFalse(json.encodeCollectAccount("100.00", "100.00", null).contains("pedido_ids"))
     }
 
     @Test

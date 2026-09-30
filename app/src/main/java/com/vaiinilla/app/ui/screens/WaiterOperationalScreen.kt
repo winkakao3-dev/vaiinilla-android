@@ -133,7 +133,7 @@ fun WaiterOperationalScreen(
     onOpenTurn: (Int, Int?) -> Unit = { _, _ -> },
     onExtendTurn: (Int, Int) -> Unit = { _, _ -> },
     onReleaseSpace: (Int) -> Unit = {},
-    onCollectAccount: (Int, String, String) -> Unit = { _, _, _ -> },
+    onCollectAccount: (Int, String, String, List<String>?) -> Unit = { _, _, _, _ -> },
     onDismissCollection: () -> Unit = {},
     onFilterAttending: (Boolean) -> Unit = {},
     newCallTable: TableCall? = null,
@@ -552,7 +552,7 @@ fun WaiterOperationalScreen(
             onOpenTurn = { onOpenTurn(open.space.id, it) },
             onExtendTurn = { onExtendTurn(open.space.id, it) },
             onReleaseSpace = { onReleaseSpace(open.space.id) },
-            onCollectAccount = { received, total -> onCollectAccount(open.space.id, received, total) },
+            onCollectAccount = { received, total, ids -> onCollectAccount(open.space.id, received, total, ids) },
             onDismissCollection = onDismissCollection,
         )
     }
@@ -923,7 +923,7 @@ private fun WaiterTableSheet(
     onOpenTurn: (Int?) -> Unit,
     onExtendTurn: (Int) -> Unit,
     onReleaseSpace: () -> Unit,
-    onCollectAccount: (String, String) -> Unit,
+    onCollectAccount: (String, String, List<String>?) -> Unit,
     onDismissCollection: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)

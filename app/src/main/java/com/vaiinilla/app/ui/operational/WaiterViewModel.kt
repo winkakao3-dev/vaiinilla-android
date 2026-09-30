@@ -263,24 +263,34 @@ class WaiterViewModel
             }
         }
 
-        /** Cobra en efectivo toda la cuenta del espacio. `expectedTotal` evita cobrar mal si cambió. */
+        /**
+         * Cobra en efectivo la cuenta del espacio: toda si [orderIds] es null, o solo esos pedidos
+         * (dividir la cuenta). `expectedTotal` evita cobrar mal si cambió.
+         */
         fun collectAccount(
             spaceId: Int,
             received: String,
             expectedTotal: String,
+            orderIds: List<String>? = null,
         ) {
             if (_uiState.value.acting) return
             _uiState.value = _uiState.value.copy(acting = true)
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
-                        waiterRepository.collectAccount(spaceId, received, expectedTotal, UUID.randomUUID().toString())
+                        waiterRepository.collectAccount(
+                            spaceId,
+                            received,
+                            expectedTotal,
+                            orderIds,
+                            UUID.randomUUID().toString(),
+                        )
                     }
                 _uiState.value = _uiState.value.copy(acting = false)
                 result.fold(
                     onSuccess = { collection ->
                         _uiState.value = _uiState.value.copy(lastCollection = collection)
-                        showToast("Cuenta cobrada")
+                        showToast(if (collection.settled) "Cuenta cobrada" else "Cobro registrado")
                     },
                     onFailure = { error -> showToast(error.toUserFacingMessage()) },
                 )

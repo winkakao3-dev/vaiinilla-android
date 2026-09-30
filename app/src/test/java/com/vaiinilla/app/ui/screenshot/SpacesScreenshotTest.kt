@@ -170,7 +170,7 @@ class SpacesScreenshotTest {
                 colors = colors,
                 onOpenTurn = {},
                 onExtend = {},
-                onCollect = { _, _ -> },
+                onCollect = { _, _, _ -> },
                 onRelease = {},
                 onDismissCollection = {},
             )
@@ -250,7 +250,34 @@ class SpacesScreenshotTest {
         capture("spaces_collect_sheet.png") {
             val colors = rememberOperationalColors()
             Box(Modifier.fillMaxSize().background(colors.background)) {
-                CollectAccountContent(total = "220.00", confirming = false, colors = colors, onConfirm = {})
+                CollectAccountContent(
+                    total = "220.00",
+                    payable = emptyList(),
+                    confirming = false,
+                    colors = colors,
+                    onConfirm = { _, _, _ -> },
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `spaces_collect_sheet_split`() {
+        capture("spaces_collect_sheet_split.png") {
+            val colors = rememberOperationalColors()
+            Box(Modifier.fillMaxSize().background(colors.background)) {
+                CollectAccountContent(
+                    total = "220.00",
+                    payable =
+                        listOf(
+                            accountOrder(41, "120.00", pending = true, items = "Hamburguesa y refresco"),
+                            accountOrder(42, "60.00", pending = true, items = "Papas grandes"),
+                            accountOrder(43, "40.00", pending = true, items = "Cerveza"),
+                        ),
+                    confirming = false,
+                    colors = colors,
+                    onConfirm = { _, _, _ -> },
+                )
             }
         }
     }

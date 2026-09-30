@@ -87,4 +87,18 @@ class OrderNotificationTest {
         assertEquals("Necesita atención", OrderAdvanceNotifier.tableCallText("atencion"))
         assertEquals("Necesita atención", OrderAdvanceNotifier.tableCallText(null))
     }
+
+    @Test
+    fun `turn ending notification says how long is left or asks to collect`() {
+        assertEquals("Cancha 1: turno por terminar", OrderAdvanceNotifier.turnEndingTitle("Cancha 1"))
+        assertEquals("Un turno está por terminar", OrderAdvanceNotifier.turnEndingTitle(" "))
+        assertEquals(
+            "Termina en 4 min. Ve preparando la cuenta.",
+            OrderAdvanceNotifier.turnEndingText(4),
+        )
+        assertEquals(
+            "Ya terminó. Cobra la cuenta y libera el espacio.",
+            OrderAdvanceNotifier.turnEndingText(0),
+        )
+    }
 }
