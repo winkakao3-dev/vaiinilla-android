@@ -51,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -242,6 +243,10 @@ private fun SpaceStatePill(
  * cuenta y liberar. El servidor es la autoridad: aquí solo se deshabilita lo que sabemos que no procede.
  * Cada bloque llega con un resorte escalonado y los números ruedan cuando cambian.
  */
+private val TICKET_TIME_FORMAT: java.time.format.DateTimeFormatter =
+    java.time.format.DateTimeFormatter
+        .ofPattern("dd/MM/yyyy HH:mm")
+
 @Composable
 internal fun WaiterSpaceSection(
     space: TableSpace,
@@ -445,6 +450,21 @@ internal fun WaiterSpaceSection(
                     colors = colors,
                     modifier = Modifier.padding(top = 14.dp),
                 ) { collecting = true }
+            }
+            val context = LocalContext.current
+            ActionPill(
+                label = "Imprimir cuenta",
+                enabled = account.orders.isNotEmpty(),
+                loading = false,
+                colors = colors,
+                primary = false,
+                modifier = Modifier.padding(top = 10.dp),
+            ) {
+                val printedAt =
+                    java.time.LocalDateTime
+                        .now()
+                        .format(TICKET_TIME_FORMAT)
+                printAccountTicket(context, space.name, buildAccountTicketHtml(space.name, account, printedAt))
             }
         }
     }
