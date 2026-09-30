@@ -35,8 +35,19 @@ class CourtsViewModel
         val uiState: State<CourtsUiState> = _uiState
 
         private var pollingJob: Job? = null
+        private var hasSession = false
+        private var slug: String? = null
 
-        fun onVisible() {
+        /**
+         * Con sesión de cliente se lee el mapa del negocio; sin sesión (solo mirando el menú) se usa el
+         * mapa público del [slug]. Sin ninguno de los dos no hay nada que consultar.
+         */
+        fun onVisible(
+            hasSession: Boolean,
+            slug: String?,
+        ) {
+            this.hasSession = hasSession
+            this.slug = slug
             pollingJob?.cancel()
             pollingJob =
                 viewModelScope.launch {
@@ -53,7 +64,15 @@ class CourtsViewModel
         }
 
         private suspend fun refresh() {
-            val result = withContext(Dispatchers.IO) { waiterRepository.availability() }
+            val venue = slug
+            val result =
+                withContext(Dispatchers.IO) {
+                    when {
+                        hasSession -> waiterRepository.availability()
+                        venue != null -> waiterRepository.publicAvailability(venue)
+                        else -> Result.success(emptyList())
+                    }
+                }
             result.fold(
                 onSuccess = { all ->
                     _uiState.value =

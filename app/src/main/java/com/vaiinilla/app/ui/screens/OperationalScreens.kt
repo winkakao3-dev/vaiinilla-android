@@ -253,6 +253,9 @@ fun CashierOperationalScreen(
     state: OperationalUiState,
     onBack: () -> Unit,
     onOpenCashSession: () -> Unit,
+    onRequestCloseCash: () -> Unit = {},
+    onDismissCloseCash: () -> Unit = {},
+    onCloseCash: (String) -> Unit = {},
     onCollect: (orderId: String, amount: String, version: Int) -> Unit,
     onScanDeliver: (orderId: String, version: Int) -> Unit = { _, _ -> },
     onSearchWalletClients: (String) -> Unit = {},
@@ -540,6 +543,46 @@ fun CashierOperationalScreen(
                                 )
                                 Text(
                                     "Cobra la cuenta al irse y libera el espacio.",
+                                    fontSize = 12.5.sp,
+                                    color = colors.textSecondary,
+                                    modifier = Modifier.padding(top = 2.dp),
+                                )
+                            }
+                            Text("›", fontSize = 26.sp, fontWeight = FontWeight.Light, color = colors.textSecondary)
+                        }
+                    }
+                }
+            }
+
+            if (state.cashSessionOpen == true) {
+                item(key = "close-cash-entry") {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = colors.cardBackground,
+                        modifier =
+                            Modifier
+                                .animateItem()
+                                .fillMaxWidth()
+                                .border(1.dp, colors.cardBorder, RoundedCornerShape(20.dp))
+                                .physicalPress {
+                                    haptics.selection()
+                                    onRequestCloseCash()
+                                },
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Cerrar caja",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = colors.textPrimary,
+                                )
+                                Text(
+                                    "Cuenta el efectivo y termina el turno.",
                                     fontSize = 12.5.sp,
                                     color = colors.textSecondary,
                                     modifier = Modifier.padding(top = 2.dp),
@@ -1371,6 +1414,15 @@ fun CashierOperationalScreen(
         )
 
         // Sheet: Add Product
+        state.closeCash?.let { closeState ->
+            CashCloseSheet(
+                state = closeState,
+                colors = colors,
+                onDismiss = onDismissCloseCash,
+                onConfirm = onCloseCash,
+                onOpenAccounts = onOpenAccounts,
+            )
+        }
         if (addProductSheetOpen) {
             val categoryId =
                 state.catalog

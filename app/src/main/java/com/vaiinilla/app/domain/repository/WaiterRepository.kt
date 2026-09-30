@@ -218,6 +218,9 @@ interface WaiterRepository {
     /** Estado de todos los espacios activos; lo puede leer también el cliente (mapa de canchas). */
     fun availability(): Result<List<SpaceAvailability>>
 
+    /** Lo mismo sin sesión: el mapa público de un establecimiento, para quien solo está mirando el menú. */
+    fun publicAvailability(slug: String): Result<List<SpaceAvailability>>
+
     /** Abre el turno; sin duración abre la cuenta de una mesa sin turno. */
     fun openSession(
         spaceId: Int,

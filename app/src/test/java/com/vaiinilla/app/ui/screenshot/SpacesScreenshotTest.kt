@@ -25,7 +25,9 @@ import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.SpaceSessionInfo
 import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.ui.components.CourtsMapCard
+import com.vaiinilla.app.ui.operational.CloseCashUi
 import com.vaiinilla.app.ui.operational.WaiterUiState
+import com.vaiinilla.app.ui.screens.CashCloseContent
 import com.vaiinilla.app.ui.screens.CollectAccountContent
 import com.vaiinilla.app.ui.screens.KitchenRejectContent
 import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
@@ -259,6 +261,32 @@ class SpacesScreenshotTest {
             val colors = rememberOperationalColors()
             Box(Modifier.fillMaxSize().background(colors.background)) {
                 KitchenRejectContent(folio = 312, colors = colors, onConfirm = {})
+            }
+        }
+    }
+
+    @Test
+    fun `cash_close_sheet_count`() {
+        capture("cash_close_sheet_count.png") {
+            val colors = rememberOperationalColors()
+            Box(Modifier.fillMaxSize().background(colors.background)) {
+                CashCloseContent(CloseCashUi(), colors, onDismiss = {}, onConfirm = {}, onOpenAccounts = {})
+            }
+        }
+    }
+
+    @Test
+    fun `cash_close_sheet_blocked`() {
+        capture("cash_close_sheet_blocked.png") {
+            val colors = rememberOperationalColors()
+            Box(Modifier.fillMaxSize().background(colors.background)) {
+                CashCloseContent(
+                    CloseCashUi(blockedByAccounts = true),
+                    colors,
+                    onDismiss = {},
+                    onConfirm = {},
+                    onOpenAccounts = {},
+                )
             }
         }
     }

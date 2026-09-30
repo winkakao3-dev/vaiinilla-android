@@ -147,6 +147,11 @@ data class OpenCashSessionRequestDto(
 )
 
 @Serializable
+data class CloseCashSessionRequestDto(
+    @SerialName("monto_final") val finalAmount: String,
+)
+
+@Serializable
 data class CashSessionDto(
     val id: String,
     @SerialName("fecha_operativa") val operationalDate: String,

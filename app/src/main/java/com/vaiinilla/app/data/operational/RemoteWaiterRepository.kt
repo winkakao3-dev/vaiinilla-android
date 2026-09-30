@@ -172,6 +172,12 @@ class RemoteWaiterRepository(
             .mapCatching(contractJson::parseAvailability)
             .mapApiErrors()
 
+    override fun publicAvailability(slug: String): Result<List<SpaceAvailability>> =
+        apiClient
+            .getPublic("publico/establecimientos/$slug/disponibilidad")
+            .mapCatching(contractJson::parseAvailability)
+            .mapApiErrors()
+
     override fun openSession(
         spaceId: Int,
         durationMinutes: Int?,

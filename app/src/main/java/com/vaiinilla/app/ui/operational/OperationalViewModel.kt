@@ -25,11 +25,13 @@ import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
 import com.vaiinilla.app.domain.repository.DeviceIdentity
+import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.WaiterRepository
 import com.vaiinilla.app.domain.repository.WalletRepository
 import com.vaiinilla.app.domain.repository.WalletRepositoryException
 import com.vaiinilla.app.domain.usecase.CancelOrderUseCase
+import com.vaiinilla.app.domain.usecase.CloseCashSessionUseCase
 import com.vaiinilla.app.domain.usecase.CollectCashUseCase
 import com.vaiinilla.app.domain.usecase.GetOrderUseCase
 import com.vaiinilla.app.domain.usecase.ListOrdersUseCase
@@ -60,6 +62,7 @@ class OperationalViewModel
         private val transitionOrder: TransitionOrderUseCase,
         private val cancelOrder: CancelOrderUseCase,
         private val openCashSession: OpenCashSessionUseCase,
+        private val closeCashSession: CloseCashSessionUseCase,
         private val cashSessionRepository: CashSessionRepository,
         private val heartbeatRepository: DeviceHeartbeatRepository,
         private val deviceIdentity: DeviceIdentity,
@@ -370,6 +373,49 @@ class OperationalViewModel
                             }
                         }
                 }
+        }
+
+        fun requestCloseCash() {
+            if (_uiState.value.role != OperationalRole.CASHIER || _uiState.value.cashSessionOpen != true) return
+            _uiState.value = _uiState.value.copy(closeCash = CloseCashUi())
+        }
+
+        fun dismissCloseCash() {
+            if (_uiState.value.closeCash?.closing == true) return
+            _uiState.value = _uiState.value.copy(closeCash = null)
+        }
+
+        /** Cierra la caja con el efectivo contado. Con cuentas por cobrar el servidor lo rechaza y se avisa. */
+        fun closeCashRegister(finalAmount: String) {
+            val current = _uiState.value.closeCash ?: return
+            if (_uiState.value.role != OperationalRole.CASHIER || current.closing) return
+            val generation = roleGeneration
+            _uiState.value = _uiState.value.copy(closeCash = CloseCashUi(closing = true))
+            viewModelScope.launch {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        cashSessionRepository.activeSessionId().mapCatching { id ->
+                            val sessionId = id ?: error("No hay una caja abierta.")
+                            closeCashSession(sessionId, finalAmount, UUID.randomUUID().toString()).getOrThrow()
+                        }
+                    }
+                if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
+                result
+                    .onSuccess {
+                        _uiState.value = _uiState.value.copy(closeCash = null, cashSessionOpen = false)
+                    }.onFailure { error ->
+                        val blocked =
+                            error is OrderRepositoryException && error.code == CASH_HAS_OPEN_ACCOUNTS_CODE
+                        _uiState.value =
+                            _uiState.value.copy(
+                                closeCash =
+                                    CloseCashUi(
+                                        blockedByAccounts = blocked,
+                                        errorMessage = if (blocked) null else error.toUserFacingMessage(),
+                                    ),
+                            )
+                    }
+            }
         }
 
         fun resolveWalletUserQr(rawValue: String) {
@@ -1131,6 +1177,7 @@ class OperationalViewModel
             }
 
         private companion object {
+            const val CASH_HAS_OPEN_ACCOUNTS_CODE = "CASH_SESSION_HAS_OPEN_ACCOUNTS"
             const val POLL_INTERVAL_MS = 5_000L
             const val MUTATION_ERROR_VISIBLE_MS = 9_000L
             const val MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024

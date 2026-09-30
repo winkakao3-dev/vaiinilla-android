@@ -93,6 +93,18 @@ class CancelOrderUseCase
         ): Result<OrderDetail> = repository.cancelOrder(orderId, expectedVersion, reason, idempotencyKey)
     }
 
+class CloseCashSessionUseCase
+    @Inject
+    constructor(
+        private val repository: CashSessionRepository,
+    ) {
+        operator fun invoke(
+            sessionId: String,
+            finalAmount: String,
+            idempotencyKey: String,
+        ): Result<Unit> = repository.closeSession(sessionId, finalAmount, idempotencyKey)
+    }
+
 class OpenCashSessionUseCase
     @Inject
     constructor(

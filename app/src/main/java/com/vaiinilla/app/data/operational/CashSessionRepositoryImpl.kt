@@ -30,6 +30,25 @@ class RemoteCashSessionRepository(
             .mapCatching { contractJson.parseCashSession(it) != null }
             .mapApiErrors()
 
+    override fun activeSessionId(): Result<String?> =
+        apiClient
+            .get("sesiones-caja/activa")
+            .mapCatching { contractJson.parseCashSession(it)?.id }
+            .mapApiErrors()
+
+    override fun closeSession(
+        sessionId: String,
+        finalAmount: String,
+        idempotencyKey: String,
+    ): Result<Unit> =
+        apiClient
+            .post(
+                path = "sesiones-caja/$sessionId/cerrar",
+                body = contractJson.encodeCloseCashSession(finalAmount),
+                headers = mapOf("Idempotency-Key" to idempotencyKey),
+            ).map { }
+            .mapApiErrors()
+
     private fun <T> Result<T>.mapApiErrors(): Result<T> =
         fold(
             onSuccess = { Result.success(it) },
@@ -57,4 +76,15 @@ class NoOpCashSessionRepository : CashSessionRepository {
     }
 
     override fun hasActiveSession(): Result<Boolean> = Result.success(open)
+
+    override fun activeSessionId(): Result<String?> = Result.success(if (open) "local" else null)
+
+    override fun closeSession(
+        sessionId: String,
+        finalAmount: String,
+        idempotencyKey: String,
+    ): Result<Unit> {
+        open = false
+        return Result.success(Unit)
+    }
 }

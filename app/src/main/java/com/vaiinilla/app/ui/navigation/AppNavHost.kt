@@ -753,14 +753,15 @@ fun AppNavHost(
             }
 
             composable(Routes.CATALOG) {
-                // El mapa de canchas pide datos con la sesión del cliente: sin sesión no se consulta.
-                val courtsAvailable = !orderFlowViewModel.requiresStudentAuth()
-                DisposableEffect(courtsAvailable) {
-                    if (courtsAvailable) courtsViewModel.onVisible()
+                // Con sesión el mapa sale del negocio; sin sesión, del mapa público del slug que se está mirando.
+                val hasStudentSession = !orderFlowViewModel.requiresStudentAuth()
+                val venueSlug = orderState.guestVenue?.establishment?.slug
+                DisposableEffect(hasStudentSession, venueSlug) {
+                    courtsViewModel.onVisible(hasStudentSession, venueSlug)
                     onDispose { courtsViewModel.onHidden() }
                 }
                 CatalogScreen(
-                    courts = if (courtsAvailable) courtsViewModel.uiState.value.courts else emptyList(),
+                    courts = courtsViewModel.uiState.value.courts,
                     state = orderState,
                     activeOrder = activeOrder,
                     onRetry = orderFlowViewModel::refresh,
@@ -1376,6 +1377,9 @@ fun AppNavHost(
                         state = operationalState,
                         onBack = returnToModes(navController, operationalViewModel),
                         onOpenCashSession = operationalViewModel::openCashRegister,
+                        onRequestCloseCash = operationalViewModel::requestCloseCash,
+                        onDismissCloseCash = operationalViewModel::dismissCloseCash,
+                        onCloseCash = operationalViewModel::closeCashRegister,
                         onCollect = operationalViewModel::collectCash,
                         onSearchWalletClients = operationalViewModel::searchWalletClients,
                         onOpenWalletUserQr = { walletUserQrOpen = true },

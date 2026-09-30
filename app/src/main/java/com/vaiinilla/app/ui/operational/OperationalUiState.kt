@@ -23,7 +23,17 @@ data class OperationalUiState(
     val walletReloadReceipt: WalletReloadReceipt? = null,
     val catalog: Catalog? = null,
     val cashChangeNotice: String? = null,
+    /** Hoja de cierre de caja; null mientras está cerrada. */
+    val closeCash: CloseCashUi? = null,
 ) {
     val selectedOrder: OrderDetail?
         get() = orders.firstOrNull { it.summary.id == selectedOrderId }
 }
+
+/** Estado de la hoja "Cerrar caja". */
+data class CloseCashUi(
+    val closing: Boolean = false,
+    /** El servidor rechazó el cierre porque hay cuentas a pagar al final sin cobrar. */
+    val blockedByAccounts: Boolean = false,
+    val errorMessage: String? = null,
+)

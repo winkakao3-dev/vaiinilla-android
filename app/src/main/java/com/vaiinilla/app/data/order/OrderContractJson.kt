@@ -69,6 +69,9 @@ class OrderContractJson
                 OpenCashSessionRequestDto(initialAmount = initialAmount),
             )
 
+        fun encodeCloseCashSession(finalAmount: String): String =
+            json.encodeToString(CloseCashSessionRequestDto(finalAmount = finalAmount))
+
         fun parseCreatedOrder(raw: String): CreatedOrder {
             val envelope = json.decodeFromString<OrderDetailEnvelopeDto>(raw)
             requireEnvelopeSuccess(envelope.error)
