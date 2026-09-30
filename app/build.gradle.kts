@@ -337,8 +337,23 @@ androidComponents {
     beforeVariants(selector().all()) { variantBuilder ->
         val isProd = variantBuilder.productFlavors.any { it.first == "environment" && it.second == "prod" }
         val role = variantBuilder.productFlavors.firstOrNull { it.first == "role" }?.second
-        if (isProd && role != null && role != "alumno") {
+        // Play solo publica Alumno. Las apps de personal en prod se generan a mano para
+        // pruebas en teléfono con -PvaiinillaProdStaffApks=true.
+        val prodStaffApks = project.findProperty("vaiinillaProdStaffApks") == "true"
+        if (isProd && role != null && role != "alumno" && !prodStaffApks) {
             variantBuilder.enable = false
+        }
+    }
+}
+
+androidComponents {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        val isProd = variant.productFlavors.any { it.first == "environment" && it.second == "prod" }
+        val isAlumno = variant.productFlavors.any { it.first == "role" && it.second == "alumno" }
+        // La app de Play (vaiinilla.innovapro.app) no se puede sobrescribir con una firma
+        // de depuración; el cliente de pruebas en prod vive junto a ella con otro paquete.
+        if (isProd && isAlumno) {
+            variant.applicationId.set("vaiinilla.innovapro.app.pruebas")
         }
     }
 }
