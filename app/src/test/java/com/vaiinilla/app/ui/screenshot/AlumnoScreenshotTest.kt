@@ -49,6 +49,8 @@ class AlumnoScreenshotTest {
 
     @Test
     fun `01_auth_landing`() {
+        // The welcome hero keeps flipping stickers forever, so drive the clock by hand.
+        composeTestRule.mainClock.autoAdvance = false
         composeTestRule.setContent {
             ScreenshotTheme {
                 StudentAuthLandingScreen(
@@ -61,7 +63,7 @@ class AlumnoScreenshotTest {
                 )
             }
         }
-        composeTestRule.waitForIdle()
+        composeTestRule.mainClock.advanceTimeBy(2100)
         composeTestRule.onRoot().captureRoboImage("01_auth_landing.png")
     }
 

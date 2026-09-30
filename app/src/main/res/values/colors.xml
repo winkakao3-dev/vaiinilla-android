@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="vaiinilla_paper">#F4F1E7</color>
-    <color name="vaiinilla_splash_boot">#08090B</color>
+    <color name="vaiinilla_splash_boot">#F4F1E7</color>
     <color name="ic_launcher_bg">#F4F1E7</color>
 </resources>

@@ -110,6 +110,8 @@ fun VaiinillaMascot(
     reduceMotion: Boolean = false,
     shadowColor: Color = Color(0x1C000000),
     wave: Boolean = false,
+    /** Where Vaini looks, from -1 (left) to 1 (right); only the eyes move. */
+    look: Float = 0f,
 ) {
     val appear = remember { Animatable(0f) }
     LaunchedEffect(delayMs, reduceMotion) {
@@ -242,12 +244,15 @@ fun VaiinillaMascot(
                 drawPath(MASCOT_FOLD, accentColor)
                 drawPath(MASCOT_BAR_TOP, accentColor)
                 drawPath(MASCOT_BAR_BOTTOM, accentColor)
+                val eyeShift = look.coerceIn(-1f, 1f) * 2.6f
                 withTransform({
+                    translate(eyeShift, 0f)
                     scale(1f, resolvedBlink, pivot = Offset(40.1f, 52.5f))
                 }) {
                     drawPath(MASCOT_EYE_LEFT, inkColor)
                 }
                 withTransform({
+                    translate(eyeShift, 0f)
                     scale(1f, resolvedBlink, pivot = Offset(59.9f, 52.5f))
                 }) {
                     drawPath(MASCOT_EYE_RIGHT, inkColor)

@@ -11,9 +11,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -22,7 +19,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.credentials.exceptions.GetCredentialException
@@ -88,7 +84,8 @@ import com.vaiinilla.app.ui.screens.WalletAddCardScreen
 import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
 import com.vaiinilla.app.ui.screens.WalletPaymentMethodsScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
-import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.screens.WelcomeBootStage
+import com.vaiinilla.app.ui.screens.rememberReduceMotion
 import com.vaiinilla.app.ui.wallet.WalletViewModel
 import com.vaiinilla.app.ui.wallet.rememberWalletUiState
 import kotlinx.coroutines.delay
@@ -643,12 +640,7 @@ fun AppNavHost(
                     }
                 }
 
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .background(LocalVaiinillaColors.current.paper),
-                )
+                WelcomeBootStage(reduceMotion = rememberReduceMotion())
             }
 
             composable(Routes.DISCOVERY) {

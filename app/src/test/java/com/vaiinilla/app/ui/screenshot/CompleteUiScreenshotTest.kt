@@ -75,16 +75,22 @@ class CompleteUiScreenshotTest {
 
     @Test
     fun `31_auth_landing`() {
-        capture("31_auth_landing.png") {
-            StudentAuthLandingScreen(
-                state = StudentAuthUiState(),
-                onBack = {},
-                onRegister = {},
-                onLogin = {},
-                onGoogleSignIn = {},
-                onExplore = {},
-            )
+        // The welcome hero keeps flipping stickers forever, so drive the clock by hand.
+        composeTestRule.mainClock.autoAdvance = false
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                StudentAuthLandingScreen(
+                    state = StudentAuthUiState(),
+                    onBack = {},
+                    onRegister = {},
+                    onLogin = {},
+                    onGoogleSignIn = {},
+                    onExplore = {},
+                )
+            }
         }
+        composeTestRule.mainClock.advanceTimeBy(2100)
+        composeTestRule.onRoot().captureRoboImage("31_auth_landing.png")
     }
 
     @Test
