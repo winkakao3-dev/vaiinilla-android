@@ -5,6 +5,15 @@ package com.vaiinilla.app.domain.model
  * Sin tipo o con `mesa` se conserva el texto de siempre.
  */
 object SpaceCopy {
+    /** Nombre corto del tipo para el personal: "Mesa", "Cancha"... */
+    fun kindLabel(type: String?): String =
+        when (type) {
+            "cancha" -> "Cancha"
+            "barra" -> "Barra"
+            "drive_thru" -> "Carril"
+            else -> "Mesa"
+        }
+
     /** Cómo nombra el cliente su lugar: "tu mesa", "tu cancha"... */
     fun yourPlace(type: String?): String =
         when (type) {

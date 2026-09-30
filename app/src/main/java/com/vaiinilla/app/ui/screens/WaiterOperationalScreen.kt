@@ -87,6 +87,7 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.BoardOrder
 import com.vaiinilla.app.domain.repository.BoardTable
@@ -809,16 +810,28 @@ private fun WaiterTile(
                 .padding(12.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(
-            waiterShortName(table.space.name),
-            color = numberColor,
-            fontWeight = FontWeight.Black,
-            fontSize = 30.sp,
-            letterSpacing = (-0.9).sp,
-            lineHeight = 32.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        // Mesa y cancha pueden compartir número: el tipo va junto al número.
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                waiterShortName(table.space.name),
+                color = numberColor,
+                fontWeight = FontWeight.Black,
+                fontSize = 30.sp,
+                letterSpacing = (-0.9).sp,
+                lineHeight = 32.sp,
+                maxLines = 1,
+            )
+            Text(
+                SpaceCopy.kindLabel(table.space.type).uppercase(),
+                color = captionColor,
+                fontWeight = FontWeight.Bold,
+                fontSize = 10.5.sp,
+                letterSpacing = 0.8.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 6.dp, bottom = 5.dp),
+            )
+        }
         Column {
             Text(
                 caption,

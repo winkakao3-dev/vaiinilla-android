@@ -184,13 +184,17 @@ class OrderFlowViewModel
                         }
                     // Public guest discovery is valid without identity. Operational status is
                     // authenticated, so its failure must not hide a catalog that loaded correctly.
+                    // Load it right away: without it the cart cannot offer "Pagar al final".
+                    val status =
+                        withContext(Dispatchers.IO) { getOperationalStatus() }.getOrNull()
+                    if (activeCartStorageKey != storageKey) return@launchTracked
                     val failure = catalogResult.exceptionOrNull()
                     val suspended = DiscoveryFailures.isEstablishmentSuspended(failure)
                     _uiState.value =
                         _uiState.value.copy(
                             loading = false,
                             catalog = effectiveCatalog,
-                            operationalStatus = null,
+                            operationalStatus = status,
                             cartLines = nextCart,
                             errorMessage = if (effectiveCatalog == null) failure?.toUserFacingMessage() else null,
                             guestVenueSuspended = suspended,

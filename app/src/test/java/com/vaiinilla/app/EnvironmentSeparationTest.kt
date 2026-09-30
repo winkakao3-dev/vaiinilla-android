@@ -91,22 +91,22 @@ class EnvironmentSeparationTest {
 
     @Test
     fun testCheckoutBlockerDoesNotExposeStaffRoles() {
-        val blocked =
+        val closed =
             OperationalStatus(
-                acceptingOrders = true,
+                acceptingOrders = false,
                 cashSessionOpen = false,
                 cashierOnline = false,
                 kitchenOnline = false,
                 estimatedTimeMinutes = 10,
                 consultedAt = "2026-08-12T00:00:00.000Z",
             )
-        val message = blocked.checkoutStaffBlocker()!!
+        val message = closed.checkoutStaffBlocker()!!
         assertFalse(message.contains("Caja") || message.contains("Cocina"))
         assertTrue(message.contains("no está abierto"))
     }
 
     @Test
-    fun testOperationalReadyRequiresAllFourConditions() {
+    fun testOperationalReadyFollowsBackendAcceptingOrders() {
         val fullStatus =
             OperationalStatus(
                 acceptingOrders = true,
@@ -116,43 +116,26 @@ class EnvironmentSeparationTest {
                 estimatedTimeMinutes = 10,
                 consultedAt = "2026-08-12T00:00:00.000Z",
             )
+        assertTrue(OrderFlowUiState(operationalStatus = fullStatus).isOperationallyReady)
+        assertNull(fullStatus.checkoutStaffBlocker())
 
-        val fullState = OrderFlowUiState(operationalStatus = fullStatus)
-        assertTrue("All 4 conditions met must mean ready", fullState.isOperationallyReady)
-        assertNull("All 4 conditions met must have no blocker", fullStatus.checkoutStaffBlocker())
+        // El backend acepta el pedido y lo deja en cola aunque Caja o Cocina estén fuera
+        // de línea o la caja esté cerrada: la app no debe bloquear más que el backend.
+        val degraded =
+            listOf(
+                fullStatus.copy(cashierOnline = false),
+                fullStatus.copy(kitchenOnline = false),
+                fullStatus.copy(cashSessionOpen = false),
+                fullStatus.copy(cashSessionOpen = false, cashierOnline = false, kitchenOnline = false),
+            )
+        degraded.forEach { status ->
+            assertTrue(OrderFlowUiState(operationalStatus = status).isOperationallyReady)
+            assertNull(status.checkoutStaffBlocker())
+        }
 
-        // Cashier offline
-        val noCashierState = OrderFlowUiState(operationalStatus = fullStatus.copy(cashierOnline = false))
-        assertFalse(noCashierState.isOperationallyReady)
-        assertTrue(fullStatus.copy(cashierOnline = false).checkoutStaffBlocker()!!.contains("no está abierto"))
-
-        // Kitchen offline
-        val noKitchenState = OrderFlowUiState(operationalStatus = fullStatus.copy(kitchenOnline = false))
-        assertFalse(noKitchenState.isOperationallyReady)
-        assertTrue(fullStatus.copy(kitchenOnline = false).checkoutStaffBlocker()!!.contains("no está abierto"))
-
-        // Both offline
-        val bothOfflineState =
-            OrderFlowUiState(operationalStatus = fullStatus.copy(cashierOnline = false, kitchenOnline = false))
-        assertFalse(bothOfflineState.isOperationallyReady)
-        assertTrue(
-            fullStatus
-                .copy(
-                    cashierOnline = false,
-                    kitchenOnline = false,
-                ).checkoutStaffBlocker()!!
-                .contains("no está abierto"),
-        )
-
-        // Cash session closed
-        val closedCashState = OrderFlowUiState(operationalStatus = fullStatus.copy(cashSessionOpen = false))
-        assertFalse(closedCashState.isOperationallyReady)
-        assertTrue(
-            fullStatus.copy(cashSessionOpen = false).checkoutStaffBlocker()!!.contains("no está abierto"),
-        )
-
-        // Not accepting orders
-        val notAcceptingState = OrderFlowUiState(operationalStatus = fullStatus.copy(acceptingOrders = false))
-        assertFalse(notAcceptingState.isOperationallyReady)
+        // Solo bloquea cuando el backend dice que no recibe pedidos.
+        val notAccepting = fullStatus.copy(acceptingOrders = false)
+        assertFalse(OrderFlowUiState(operationalStatus = notAccepting).isOperationallyReady)
+        assertTrue(notAccepting.checkoutStaffBlocker()!!.contains("no está abierto"))
     }
 }

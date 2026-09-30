@@ -38,13 +38,13 @@ class PayAtEndGatingTest {
     @Test
     fun `an order to the account only needs the establishment to accept orders`() {
         assertTrue(state(status(), payAtEnd = true).isOperationallyReady)
-        assertNull(status().checkoutStaffBlocker(payAtEnd = true))
+        assertNull(status().checkoutStaffBlocker())
     }
 
     @Test
-    fun `any other payment still needs cash, cashier and kitchen`() {
-        assertFalse(state(status(), payAtEnd = false).isOperationallyReady)
-        assertEquals(ESTABLISHMENT_CLOSED_MESSAGE, status().checkoutStaffBlocker())
+    fun `paying now follows the backend and does not wait for cash, cashier or kitchen`() {
+        assertTrue(state(status(), payAtEnd = false).isOperationallyReady)
+        assertNull(status().checkoutStaffBlocker())
         assertTrue(
             state(status(cashOpen = true, cashier = true, kitchen = true), payAtEnd = false).isOperationallyReady,
         )
@@ -53,7 +53,7 @@ class PayAtEndGatingTest {
     @Test
     fun `an establishment that does not accept orders blocks even pay at end`() {
         assertFalse(state(status(accepting = false), payAtEnd = true).isOperationallyReady)
-        assertEquals(ESTABLISHMENT_CLOSED_MESSAGE, status(accepting = false).checkoutStaffBlocker(payAtEnd = true))
+        assertEquals(ESTABLISHMENT_CLOSED_MESSAGE, status(accepting = false).checkoutStaffBlocker())
     }
 
     @Test

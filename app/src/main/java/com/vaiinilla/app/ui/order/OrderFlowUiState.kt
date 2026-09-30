@@ -135,11 +135,9 @@ val OrderFlowUiState.isSelectedProductValid: Boolean
 
 val OrderFlowUiState.isOperationallyReady: Boolean
     get() =
-        operationalStatus?.let { status ->
-            // Un pedido a la cuenta no espera a Caja: se cobra al final, y Cocina lo recibe en su cola.
-            status.acceptingOrders &&
-                (checkoutPayAtEnd || (status.cashSessionOpen && status.cashierOnline && status.kitchenOnline))
-        } == true
+        // La app sigue la regla del backend: basta con que el negocio reciba pedidos. Si Caja
+        // o Cocina están fuera de línea, el backend acepta el pedido y lo deja en su cola.
+        operationalStatus?.acceptingOrders == true
 
 val OrderFlowUiState.canSubmitCart: Boolean
     get() = cartLines.isNotEmpty() && !creatingOrder && !hasUnresolvedStripePayment
@@ -181,16 +179,13 @@ fun OrderFlowUiState.isBalancePaymentAffordable(walletBalance: String?): Boolean
 const val ESTABLISHMENT_CLOSED_MESSAGE =
     "El establecimiento no está abierto en este momento. Verifica que esté abierto y desliza hacia abajo para actualizar."
 
-fun OperationalStatus.checkoutStaffBlocker(payAtEnd: Boolean = false): String? {
-    if (acceptingOrders && (payAtEnd || (cashSessionOpen && cashierOnline && kitchenOnline))) return null
-    return ESTABLISHMENT_CLOSED_MESSAGE
-}
+fun OperationalStatus.checkoutStaffBlocker(): String? = if (acceptingOrders) null else ESTABLISHMENT_CLOSED_MESSAGE
 
 val OrderFlowUiState.operationalBlockerMessage: String?
     get() {
         if (cartLines.isEmpty() || isOperationallyReady) return null
         val status = operationalStatus ?: return "No pudimos verificar si el establecimiento está recibiendo pedidos."
-        return status.checkoutStaffBlocker(payAtEnd = checkoutPayAtEnd)
+        return status.checkoutStaffBlocker()
     }
 
 /** ¿Se ofrece "Pagar al final"? Solo en un espacio y si el establecimiento lo permite. */
