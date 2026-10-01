@@ -1,7 +1,7 @@
 package com.vaiinilla.app.domain.model
 
 /**
- * Vocabulario según el tipo de espacio del pedido (`mesa`, `barra`, `cancha`, `drive_thru`).
+ * Vocabulario según el tipo de espacio del pedido (`mesa`, `barra`, `cancha`, `drive_thru`, `asiento`).
  * Sin tipo o con `mesa` se conserva el texto de siempre.
  */
 object SpaceCopy {
@@ -11,6 +11,7 @@ object SpaceCopy {
             "cancha" -> "Cancha"
             "barra" -> "Barra"
             "drive_thru" -> "Carril"
+            "asiento" -> "Asiento"
             else -> "Mesa"
         }
 
@@ -20,6 +21,7 @@ object SpaceCopy {
             "cancha" -> "tu cancha"
             "barra" -> "la barra"
             "drive_thru" -> "tu auto"
+            "asiento" -> "tu asiento"
             null, "mesa" -> "tu mesa"
             else -> "tu espacio"
         }
@@ -30,6 +32,7 @@ object SpaceCopy {
             "cancha" -> "En la cancha"
             "barra" -> "En la barra"
             "drive_thru" -> "En tu auto"
+            "asiento" -> "En tu asiento"
             else -> "Comer aquí"
         }
 
@@ -41,6 +44,7 @@ object SpaceCopy {
             "cancha" -> "Selecciona tu cancha"
             "barra" -> "Selecciona tu lugar en la barra"
             "drive_thru" -> "Selecciona tu carril"
+            "asiento" -> "Selecciona tu asiento"
             else -> "Selecciona tu mesa"
         }
 

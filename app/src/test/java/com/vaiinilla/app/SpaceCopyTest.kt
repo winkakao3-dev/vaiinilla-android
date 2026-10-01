@@ -33,6 +33,17 @@ class SpaceCopyTest {
     }
 
     @Test
+    fun `el asiento de un cine o estadio tiene su vocabulario`() {
+        assertEquals("Asiento", SpaceCopy.kindLabel("asiento"))
+        assertEquals("tu asiento", SpaceCopy.yourPlace("asiento"))
+        assertEquals("Selecciona tu asiento", SpaceCopy.pickPrompt("asiento"))
+        assertEquals(
+            "En tu asiento · Asiento 14",
+            SpaceCopy.staffDestination(OrderDestination.IN_SPACE, OrderSpace(30, "Asiento 14", "asiento")),
+        )
+    }
+
+    @Test
     fun `cocina y caja ven el nombre del espacio`() {
         assertEquals("Para llevar", SpaceCopy.staffDestination(OrderDestination.TAKE_AWAY, null))
         assertEquals(
