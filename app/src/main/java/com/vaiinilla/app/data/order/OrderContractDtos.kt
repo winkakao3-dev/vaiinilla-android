@@ -125,6 +125,18 @@ data class OrderDetailDto(
     @SerialName("pago_pendiente") val paymentPending: Boolean = false,
     @SerialName("motivo_cancelacion") val cancelReason: String? = null,
     @SerialName("cancelado_por_rol") val canceledByRole: String? = null,
+    @SerialName("reserva") val reservation: OrderReservationDto? = null,
+)
+
+/** La reserva de un pedido de renta de cancha; `null` en cualquier otro pedido. */
+@Serializable
+data class OrderReservationDto(
+    val id: String,
+    @SerialName("espacio") val space: OrderSpaceDto? = null,
+    @SerialName("inicio") val start: String,
+    @SerialName("fin") val end: String,
+    @SerialName("duracion_min") val durationMinutes: Int,
+    @SerialName("estado") val state: String,
 )
 
 @Serializable

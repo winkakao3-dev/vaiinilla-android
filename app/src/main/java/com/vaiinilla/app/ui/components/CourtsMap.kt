@@ -59,7 +59,7 @@ fun CourtsMapCard(
             tick += 1
         }
     }
-    val free = courts.count { it.state == SpaceAvailabilityState.LIBRE }
+    val free = courts.count { it.isFreeNow }
 
     Column(modifier = modifier.fillMaxWidth().arrive(0), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
@@ -145,27 +145,32 @@ private fun CourtTile(
     val colors = LocalVaiinillaColors.current
     val shape = RoundedCornerShape(22.dp)
     val state = court.state
+    // El apartado empieza y termina con la hora, sin nuevo dato del backend: se recalcula con el tick.
+    tick.hashCode()
+    val held = court.isHeldAt()
     val container =
         animateSelectionColor(
-            when (state) {
-                SpaceAvailabilityState.LIBRE -> colors.accent.copy(alpha = 0.32f)
-                SpaceAvailabilityState.OCUPADA -> colors.paper2
-                SpaceAvailabilityState.EN_GRACIA -> CourtAmber.copy(alpha = 0.22f)
-                SpaceAvailabilityState.POR_COBRAR -> colors.coral.copy(alpha = 0.16f)
+            when {
+                held -> colors.coral.copy(alpha = 0.16f)
+                state == SpaceAvailabilityState.LIBRE -> colors.accent.copy(alpha = 0.32f)
+                state == SpaceAvailabilityState.OCUPADA -> colors.paper2
+                state == SpaceAvailabilityState.EN_GRACIA -> CourtAmber.copy(alpha = 0.22f)
+                else -> colors.coral.copy(alpha = 0.16f)
             },
             "court-container",
         )
     val border =
         animateSelectionColor(
-            when (state) {
-                SpaceAvailabilityState.LIBRE -> colors.accent
-                SpaceAvailabilityState.OCUPADA -> colors.line
-                SpaceAvailabilityState.EN_GRACIA -> CourtAmber
-                SpaceAvailabilityState.POR_COBRAR -> colors.coral
+            when {
+                held -> colors.coral
+                state == SpaceAvailabilityState.LIBRE -> colors.accent
+                state == SpaceAvailabilityState.OCUPADA -> colors.line
+                state == SpaceAvailabilityState.EN_GRACIA -> CourtAmber
+                else -> colors.coral
             },
             "court-border",
         )
-    val ink = animateSelectionColor(if (state == SpaceAvailabilityState.LIBRE) colors.ink else colors.ink2, "court-ink")
+    val ink = animateSelectionColor(if (court.isFreeNow) colors.ink else colors.ink2, "court-ink")
 
     // El reloj corre solo mientras hay un turno; el resto del tiempo no hay nada que contar.
     tick.hashCode()
@@ -199,7 +204,7 @@ private fun CourtTile(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Box(Modifier.size(7.dp).clip(CircleShape).background(border))
             Text(
-                courtStateLabel(state),
+                if (held) "Apartada" else courtStateLabel(state),
                 color = ink,
                 fontSize = 11.5.sp,
                 fontWeight = FontWeight.Bold,
@@ -231,7 +236,11 @@ private fun CourtTile(
                 }
             } else {
                 Text(
-                    courtHint(state),
+                    when {
+                        held && court.isWaitingPayment -> "Esperando pago"
+                        held -> "Reservada ahora"
+                        else -> courtHint(state)
+                    },
                     color = colors.muted,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,

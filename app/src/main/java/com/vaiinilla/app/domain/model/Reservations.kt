@@ -41,6 +41,16 @@ data class BusyInterval(
     val reason: String,
 )
 
+/** Foto, descripción y características de la cancha que escribe el dueño. */
+data class CourtProfile(
+    val description: String? = null,
+    val imageUrl: String? = null,
+    val features: List<String> = emptyList(),
+) {
+    val isEmpty: Boolean
+        get() = description == null && imageUrl == null && features.isEmpty()
+}
+
 data class CourtSchedule(
     val id: Int,
     val name: String,
@@ -48,6 +58,7 @@ data class CourtSchedule(
     val customerPricePerHour: CustomerPrice?,
     val rentable: Boolean,
     val busy: List<BusyInterval>,
+    val profile: CourtProfile = CourtProfile(),
 )
 
 /** Horario reservable de un día y lo ocupado de cada cancha. */
@@ -127,6 +138,31 @@ object ReservationSlots {
         val end = start.plus(Duration.ofMinutes(minutes.toLong()))
         if (start.isBefore(day.opensAt) || end.isAfter(day.closesAt)) return false
         return court.busy.none { it.start.isBefore(end) && start.isBefore(it.end) }
+    }
+
+    /**
+     * Si la cancha está ocupada en `at`, hasta cuándo, uniendo intervalos pegados (un turno seguido
+     * de una reserva no deja un "libre" de cero minutos). `null` si está libre en ese momento.
+     */
+    fun busyUntil(
+        court: CourtSchedule,
+        at: Instant,
+    ): Instant? {
+        var until: Instant? = null
+        var cursor = at
+        while (true) {
+            val covering =
+                court.busy
+                    .filter {
+                        !cursor.isBefore(
+                            it.start,
+                        ) &&
+                            cursor.isBefore(it.end)
+                    }.maxOfOrNull { it.end }
+            if (covering == null) return until
+            until = covering
+            cursor = covering
+        }
     }
 
     /** Un inicio se ofrece si cabe al menos la duración más corta. */

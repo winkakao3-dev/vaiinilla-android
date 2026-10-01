@@ -1,5 +1,7 @@
 package com.vaiinilla.app.domain.model
 
+import java.time.Instant
+
 data class CartLine(
     val product: Product,
     val quantity: Int,
@@ -46,6 +48,17 @@ data class OrderDetail(
     val items: List<OrderItem>,
     val pickupToken: String? = null,
     val payment: OrderPayment? = null,
+    /** Solo en un pedido de renta de cancha: no se prepara ni se entrega, se juega. */
+    val reservation: OrderReservation? = null,
+)
+
+data class OrderReservation(
+    val id: String,
+    val space: OrderSpace?,
+    val start: Instant,
+    val end: Instant,
+    val durationMinutes: Int,
+    val state: ReservationState,
 )
 
 fun OrderDetail.isStripePaymentConfirmedByBackend(): Boolean =

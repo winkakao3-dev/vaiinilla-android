@@ -161,7 +161,13 @@ private fun stateSubtitle(
 ): String =
     when (availability.state) {
         SpaceAvailabilityState.LIBRE ->
-            if (rentable) "Se renta y se paga antes de jugar." else "Abre el turno cuando lleguen."
+            when {
+                availability.isHeldAt() && availability.isWaitingPayment ->
+                    "Apartada: alguien la rentó y está pagando. No la ocupes."
+                availability.isHeldAt() -> "Reservada ahora: el turno se abre solo."
+                rentable -> "Se renta y se paga antes de jugar."
+                else -> "Abre el turno cuando lleguen."
+            }
         SpaceAvailabilityState.OCUPADA ->
             if (availability.endsAt != null) "Turno en curso." else "Cuenta abierta: se libera a mano."
         SpaceAvailabilityState.EN_GRACIA ->

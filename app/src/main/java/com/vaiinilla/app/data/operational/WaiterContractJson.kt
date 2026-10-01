@@ -286,6 +286,7 @@ fun SpaceAvailabilityDto.toDomain(): SpaceAvailability =
         pricePerHour = pricePerHour,
         nextReservationStart = nextReservation?.inicio,
         nextReservationEnd = nextReservation?.fin,
+        nextReservationState = nextReservation?.estado,
     )
 
 fun AccountOrderDto.toDomain(): AccountOrder =

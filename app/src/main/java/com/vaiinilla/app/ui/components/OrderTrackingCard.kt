@@ -55,6 +55,7 @@ import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaColors
+import java.time.Instant
 
 private val TaskCardDark = Color(0xFF1C1D1B)
 private val TaskCardText = Color(0xFFF5F2E8)
@@ -120,7 +121,7 @@ private val timelineSteps =
     )
 
 internal fun destinationDisplayLabel(order: OrderDetail): String =
-    order.summary.space?.name ?: order.summary.destination.label
+    order.rentalCourtName ?: order.summary.space?.name ?: order.summary.destination.label
 
 internal fun trackingStepTitle(
     state: OrderState,
@@ -262,7 +263,7 @@ fun OrderTrackingCard(
                     ) {
                         Text(
                             text =
-                                order.summary.state.label
+                                (if (order.isRental) rentalStateLabel(order) else order.summary.state.label)
                                     .uppercase(),
                             color = if (isReady) colors.accentInk else Color(0xFF171812),
                             fontSize = 8.sp,
@@ -295,7 +296,7 @@ fun OrderTrackingCard(
                 ) {
                     Text(
                         text =
-                            order.summary.state.label
+                            (if (order.isRental) rentalStateLabel(order) else order.summary.state.label)
                                 .uppercase(),
                         color = if (isReady) colors.accentInk else Color(0xFF171812),
                         fontSize = 10.sp,
@@ -347,6 +348,40 @@ fun OrderTrackingTimeline(
                 isDone = stepIndex < currentIndex,
                 isCurrent = stepIndex == currentIndex,
                 showLine = index < timelineSteps.lastIndex,
+                staggerMs = index * 70,
+                colors = colors,
+            )
+        }
+    }
+}
+
+/** Seguimiento de una renta de cancha: pagar, reservada, en juego, terminada. Sin cocina. */
+@Composable
+fun RentalTrackingTimeline(
+    order: OrderDetail,
+    modifier: Modifier = Modifier,
+    now: Instant = Instant.now(),
+) {
+    val reservation = order.reservation ?: return
+    val colors = LocalVaiinillaColors.current
+    val current = rentalStep(order, now)
+    val currentIndex = current?.ordinal ?: -1
+    val steps = RentalStep.entries
+    Column(modifier = modifier) {
+        steps.forEachIndexed { index, step ->
+            TimelineRow(
+                stepNumber = index + 1,
+                title = step.title,
+                description =
+                    rentalStepDescription(
+                        step,
+                        reservation,
+                        order.summary.paymentMethod,
+                        order.payment?.status,
+                    ),
+                isDone = index < currentIndex || current == RentalStep.DONE,
+                isCurrent = index == currentIndex && current != RentalStep.DONE,
+                showLine = index < steps.lastIndex,
                 staggerMs = index * 70,
                 colors = colors,
             )
