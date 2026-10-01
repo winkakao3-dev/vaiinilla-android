@@ -8,6 +8,7 @@ import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.repository.AccountCollection
+import com.vaiinilla.app.domain.repository.AccountPaymentMethod
 import com.vaiinilla.app.domain.repository.BoardOrder
 import com.vaiinilla.app.domain.repository.BoardTable
 import com.vaiinilla.app.domain.repository.CallStatus
@@ -343,12 +344,14 @@ class WaiterViewModel
         }
 
         /**
-         * Cobra en efectivo la cuenta del espacio: toda si [orderIds] es null, o solo esos pedidos
-         * (dividir la cuenta). `expectedTotal` evita cobrar mal si cambió.
+         * Cobra la cuenta del espacio, en efectivo o con la terminal de tarjeta del negocio: toda si
+         * [orderIds] es null, o solo esos pedidos (dividir la cuenta). `expectedTotal` evita cobrar
+         * mal si cambió. Con la terminal no hay efectivo recibido: [received] va null.
          */
         fun collectAccount(
             spaceId: Int,
-            received: String,
+            method: AccountPaymentMethod,
+            received: String?,
             expectedTotal: String,
             orderIds: List<String>? = null,
         ) {
@@ -359,6 +362,7 @@ class WaiterViewModel
                     withContext(Dispatchers.IO) {
                         waiterRepository.collectAccount(
                             spaceId,
+                            method,
                             received,
                             expectedTotal,
                             orderIds,

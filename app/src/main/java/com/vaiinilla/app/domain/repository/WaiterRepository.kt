@@ -166,6 +166,19 @@ data class SpaceSessionDetail(
     val account: SpaceAccount?,
 )
 
+/** Cómo se cobra una cuenta abierta: efectivo en la caja o con la terminal de tarjeta del negocio. */
+enum class AccountPaymentMethod(
+    val wire: String,
+) {
+    CASH("efectivo"),
+    TERMINAL("terminal"),
+    ;
+
+    companion object {
+        fun fromWire(value: String?): AccountPaymentMethod = entries.firstOrNull { it.wire == value } ?: CASH
+    }
+}
+
 data class AccountCollection(
     val ordersCollected: Int,
     val total: String,
@@ -173,6 +186,7 @@ data class AccountCollection(
     val change: String,
     /** Lo que quedó sin cobrar al dividir la cuenta; "0.00" si quedó saldada. */
     val remaining: String = "0.00",
+    val method: AccountPaymentMethod = AccountPaymentMethod.CASH,
 ) {
     /** Con este cobro la cuenta quedó saldada. */
     val settled: Boolean get() = remaining.toBigDecimalOrNull()?.signum() != 1
@@ -278,7 +292,8 @@ interface WaiterRepository {
 
     fun collectAccount(
         spaceId: Int,
-        received: String,
+        method: AccountPaymentMethod,
+        received: String?,
         expectedTotal: String?,
         orderIds: List<String>?,
         idempotencyKey: String,

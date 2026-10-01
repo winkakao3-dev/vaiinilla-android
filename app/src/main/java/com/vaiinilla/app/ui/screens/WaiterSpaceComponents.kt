@@ -62,6 +62,7 @@ import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.AccountOrder
+import com.vaiinilla.app.domain.repository.AccountPaymentMethod
 import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
 import com.vaiinilla.app.domain.repository.SpaceSessionDetail
@@ -274,7 +275,12 @@ internal fun WaiterSpaceSection(
     colors: OperationalColors,
     onOpenTurn: (Int?) -> Unit,
     onExtend: (Int) -> Unit,
-    onCollect: (received: String, expectedTotal: String, orderIds: List<String>?) -> Unit,
+    onCollect: (
+        method: AccountPaymentMethod,
+        received: String?,
+        expectedTotal: String,
+        orderIds: List<String>?,
+    ) -> Unit,
     onRelease: () -> Unit,
     onDismissCollection: () -> Unit,
     /** Cancha con precio: se renta y se cobra en lugar de abrir o alargar el turno a mano. */
@@ -578,7 +584,7 @@ internal fun WaiterSpaceSection(
             confirming = acting,
             colors = colors,
             onDismiss = { if (!acting) collecting = false },
-            onConfirm = { received, expected, ids -> onCollect(received, expected, ids) },
+            onConfirm = { method, received, expected, ids -> onCollect(method, received, expected, ids) },
         )
     }
 }
@@ -699,24 +705,31 @@ internal fun CollectionResultCard(
         }
         Text(
             buildString {
-                append("Total $${collection.total} · Recibido $${collection.received}")
+                append("Total $${collection.total}")
+                if (collection.method == AccountPaymentMethod.TERMINAL) {
+                    append(" · Cobrado con la terminal")
+                } else {
+                    append(" · Recibido $${collection.received}")
+                }
                 if (!collection.settled) append(" · Quedan $${collection.remaining} por cobrar")
             },
             fontSize = 12.5.sp,
             color = colors.textSecondary,
             modifier = Modifier.padding(top = 10.dp),
         )
-        Text(
-            "Entrega de cambio",
-            fontSize = 12.sp,
-            color = colors.textSecondary,
-            modifier = Modifier.padding(top = 10.dp),
-        )
-        RollingText(
-            text = "$$shownChange",
-            style = TextStyle(fontSize = 38.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.2).sp),
-            color = colors.textPrimary,
-        )
+        if (collection.method == AccountPaymentMethod.CASH) {
+            Text(
+                "Entrega de cambio",
+                fontSize = 12.sp,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+            RollingText(
+                text = "$$shownChange",
+                style = TextStyle(fontSize = 38.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.2).sp),
+                color = colors.textPrimary,
+            )
+        }
         ActionPill(
             "Listo",
             enabled = true,
@@ -866,7 +879,12 @@ private fun CollectAccountSheet(
     confirming: Boolean,
     colors: OperationalColors,
     onDismiss: () -> Unit,
-    onConfirm: (received: String, expectedTotal: String, orderIds: List<String>?) -> Unit,
+    onConfirm: (
+        method: AccountPaymentMethod,
+        received: String?,
+        expectedTotal: String,
+        orderIds: List<String>?,
+    ) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -898,8 +916,15 @@ internal fun CollectAccountContent(
     payable: List<AccountOrder>,
     confirming: Boolean,
     colors: OperationalColors,
-    onConfirm: (received: String, expectedTotal: String, orderIds: List<String>?) -> Unit,
+    onConfirm: (
+        method: AccountPaymentMethod,
+        received: String?,
+        expectedTotal: String,
+        orderIds: List<String>?,
+    ) -> Unit,
     title: String? = null,
+    /** La renta de mostrador solo se cobra en efectivo; la cuenta abierta también con la terminal. */
+    allowTerminal: Boolean = true,
 ) {
     var selected by remember(payable) { mutableStateOf(payable.map { it.id }.toSet()) }
     val splitting = payable.size >= 2
@@ -913,11 +938,14 @@ internal fun CollectAccountContent(
     val totalLabel = Money.format(totalAmount)
     // Lo que el cajero escribió; sin tocar nada el efectivo sigue al total (cobro justo).
     var typed by remember { mutableStateOf<String?>(null) }
+    var method by remember { mutableStateOf(AccountPaymentMethod.CASH) }
+    val withTerminal = allowTerminal && method == AccountPaymentMethod.TERMINAL
     val text = typed ?: totalLabel
     val received = text.trim().toBigDecimalOrNull()?.takeIf { it.signum() >= 0 }
     val difference = received?.let { it - totalAmount }
-    val canConfirm = totalAmount.signum() > 0 && difference != null && difference.signum() >= 0
-    val shortfall = difference != null && difference.signum() < 0
+    val canConfirm =
+        totalAmount.signum() > 0 && (withTerminal || (difference != null && difference.signum() >= 0))
+    val shortfall = !withTerminal && difference != null && difference.signum() < 0
     val quickAmounts = remember(totalLabel) { quickCashAmounts(totalAmount) }
     val changeInk = animateSelectionColor(if (shortfall) StateCoral else colors.textPrimary, "change-ink")
 
@@ -955,63 +983,101 @@ internal fun CollectAccountContent(
                 },
             )
         }
-        Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                "Efectivo recibido",
-                fontSize = 12.5.sp,
-                color = colors.textSecondary,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                ChipButton(
-                    label = "Justo",
-                    enabled = !confirming,
-                    colors = colors,
-                    modifier = Modifier.weight(1f),
-                    selected = received != null && received.compareTo(totalAmount) == 0,
-                ) { typed = null }
-                quickAmounts.forEach { amount ->
+        if (allowTerminal) {
+            Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "¿Cómo paga?",
+                    fontSize = 12.5.sp,
+                    color = colors.textSecondary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     ChipButton(
-                        label = "$${amount.setScale(0)}",
+                        label = "Efectivo",
                         enabled = !confirming,
                         colors = colors,
                         modifier = Modifier.weight(1f),
-                        selected = received != null && received.compareTo(amount) == 0,
-                    ) { typed = Money.format(amount) }
+                        selected = method == AccountPaymentMethod.CASH,
+                    ) { method = AccountPaymentMethod.CASH }
+                    ChipButton(
+                        label = "Terminal",
+                        enabled = !confirming,
+                        colors = colors,
+                        modifier = Modifier.weight(1f),
+                        selected = method == AccountPaymentMethod.TERMINAL,
+                    ) { method = AccountPaymentMethod.TERMINAL }
                 }
             }
-            OutlinedTextField(
-                value = text,
-                onValueChange = { typed = it.filter { c -> c.isDigit() || c == '.' } },
-                label = { Text("Otro monto") },
-                singleLine = true,
-                enabled = !confirming,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth(),
-            )
         }
-        Column(modifier = Modifier.arrive(2)) {
+        if (withTerminal) {
             Text(
-                if (shortfall) "Falta" else "Cambio",
-                fontSize = 12.5.sp,
+                "Cobra $$totalLabel en tu terminal de tarjeta y confirma aquí. No entra al efectivo de la caja.",
+                fontSize = 13.sp,
                 color = colors.textSecondary,
-                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.arrive(2),
             )
-            RollingText(
-                text = "$${Money.format((difference ?: BigDecimal.ZERO).abs())}",
-                style = TextStyle(fontSize = 34.sp, fontWeight = FontWeight.Black, letterSpacing = (-1).sp),
-                color = changeInk,
-            )
+        } else {
+            Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Efectivo recibido",
+                    fontSize = 12.5.sp,
+                    color = colors.textSecondary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    ChipButton(
+                        label = "Justo",
+                        enabled = !confirming,
+                        colors = colors,
+                        modifier = Modifier.weight(1f),
+                        selected = received != null && received.compareTo(totalAmount) == 0,
+                    ) { typed = null }
+                    quickAmounts.forEach { amount ->
+                        ChipButton(
+                            label = "$${amount.setScale(0)}",
+                            enabled = !confirming,
+                            colors = colors,
+                            modifier = Modifier.weight(1f),
+                            selected = received != null && received.compareTo(amount) == 0,
+                        ) { typed = Money.format(amount) }
+                    }
+                }
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { typed = it.filter { c -> c.isDigit() || c == '.' } },
+                    label = { Text("Otro monto") },
+                    singleLine = true,
+                    enabled = !confirming,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            Column(modifier = Modifier.arrive(2)) {
+                Text(
+                    if (shortfall) "Falta" else "Cambio",
+                    fontSize = 12.5.sp,
+                    color = colors.textSecondary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                RollingText(
+                    text = "$${Money.format((difference ?: BigDecimal.ZERO).abs())}",
+                    style = TextStyle(fontSize = 34.sp, fontWeight = FontWeight.Black, letterSpacing = (-1).sp),
+                    color = changeInk,
+                )
+            }
         }
         Box(modifier = Modifier.arrive(3)) {
             ActionPill(
-                label = "Cobrar $$totalLabel",
+                label = if (withTerminal) "Cobrado en la terminal $$totalLabel" else "Cobrar $$totalLabel",
                 enabled = canConfirm,
                 loading = confirming,
                 colors = colors,
             ) {
-                received?.let {
-                    onConfirm(Money.format(it), totalLabel, if (allSelected) null else selected.toList())
+                val orderIds = if (allSelected) null else selected.toList()
+                if (withTerminal) {
+                    onConfirm(AccountPaymentMethod.TERMINAL, null, totalLabel, orderIds)
+                } else {
+                    received?.let { onConfirm(AccountPaymentMethod.CASH, Money.format(it), totalLabel, orderIds) }
                 }
             }
         }
@@ -1102,7 +1168,8 @@ internal fun RentalCollectSheet(
             confirming = confirming,
             colors = colors,
             title = "Rentar ${rental.courtName ?: "cancha"} · ${rentalLabel(rental.durationMinutes)}",
-            onConfirm = { received, _, _ -> onConfirm(received) },
+            allowTerminal = false,
+            onConfirm = { _, received, _, _ -> received?.let(onConfirm) },
         )
     }
 }

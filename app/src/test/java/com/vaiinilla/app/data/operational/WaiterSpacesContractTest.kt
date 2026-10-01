@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.operational
 
+import com.vaiinilla.app.domain.repository.AccountPaymentMethod
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
 import org.junit.Assert.assertEquals
@@ -124,6 +125,47 @@ class WaiterSpacesContractTest {
             json.encodeCollectAccount("100.00", "100.00", listOf("a", "b")),
         )
         assertFalse(json.encodeCollectAccount("100.00", "100.00", null).contains("pedido_ids"))
+    }
+
+    @Test
+    fun `parses a terminal collection that has no cash received`() {
+        val raw =
+            """{"data":{"espacio":{"id":7,"nombre":"Cancha 1","tipo":"cancha"},"pedidos_cobrados":2,"metodo_pago":"terminal",
+               "total":"220.00","monto_recibido":null,"cambio":"0.00","restante":"0.00"},"meta":{},"error":null}"""
+        val collection = json.parseAccountCollection(raw)
+        assertEquals(AccountPaymentMethod.TERMINAL, collection.method)
+        assertEquals("220.00", collection.received)
+        assertEquals("0.00", collection.change)
+        assertTrue(collection.settled)
+    }
+
+    @Test
+    fun `an older server without the method is read as cash`() {
+        val raw =
+            """{"data":{"pedidos_cobrados":1,"total":"50.00","monto_recibido":"100.00","cambio":"50.00"},"meta":{},"error":null}"""
+        assertEquals(AccountPaymentMethod.CASH, json.parseAccountCollection(raw).method)
+    }
+
+    @Test
+    fun `collect with the terminal sends the method and never the cash received`() {
+        assertEquals(
+            """{"metodo_pago":"terminal","total_esperado":"220.00"}""",
+            json.encodeCollectAccount(null, "220.00", null, AccountPaymentMethod.TERMINAL),
+        )
+        // Aunque se le pasara efectivo, con la terminal no viaja.
+        assertFalse(
+            json
+                .encodeCollectAccount(
+                    "300.00",
+                    "220.00",
+                    null,
+                    AccountPaymentMethod.TERMINAL,
+                ).contains("monto_recibido"),
+        )
+        assertEquals(
+            """{"metodo_pago":"terminal","total_esperado":"100.00","pedido_ids":["a"]}""",
+            json.encodeCollectAccount(null, "100.00", listOf("a"), AccountPaymentMethod.TERMINAL),
+        )
     }
 
     @Test
