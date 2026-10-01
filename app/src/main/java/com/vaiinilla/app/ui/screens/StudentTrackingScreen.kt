@@ -108,6 +108,7 @@ import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.domain.repository.CallsUnavailableException
 import com.vaiinilla.app.domain.repository.TableCall
+import com.vaiinilla.app.domain.repository.callWaiterSpaceId
 import com.vaiinilla.app.ui.components.ArrivalNotice
 import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.OrderDetailSummary
@@ -1028,7 +1029,7 @@ private fun CallWaiterButton(
     onCall: suspend (Int, CallReason, String?) -> Result<TableCall>,
     onCancel: suspend (TableCall) -> Result<TableCall>,
 ) {
-    val spaceId = order.summary.space?.id ?: return
+    val spaceId = callWaiterSpaceId(order) ?: return
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
     val scope = rememberCoroutineScope()

@@ -190,7 +190,9 @@ fun OrderFlowUiState.isBalancePaymentAffordable(walletBalance: String?): Boolean
 const val ESTABLISHMENT_CLOSED_MESSAGE =
     "El establecimiento no está abierto en este momento. Verifica que esté abierto y desliza hacia abajo para actualizar."
 
-fun OperationalStatus.checkoutStaffBlocker(): String? = if (acceptingOrders) null else ESTABLISHMENT_CLOSED_MESSAGE
+/** Fuera de las franjas que eligió el dueño se dice el horario; si no, el aviso genérico de cerrado. */
+fun OperationalStatus.checkoutStaffBlocker(): String? =
+    outsideOrderHoursMessage ?: if (acceptingOrders) null else ESTABLISHMENT_CLOSED_MESSAGE
 
 val OrderFlowUiState.operationalBlockerMessage: String?
     get() {

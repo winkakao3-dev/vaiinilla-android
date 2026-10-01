@@ -5,6 +5,7 @@ import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OptionGroup
+import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.ProductOption
@@ -52,6 +53,8 @@ class ContractResponseParser
                 deliveryRequiresQr = envelope.data.deliveryRequiresQr,
                 allowsPayAtEnd = envelope.data.allowsPayAtEnd,
                 businessType = envelope.data.businessType,
+                orderWindows = envelope.data.orderWindows.map { OrderWindow(it.from, it.to) },
+                withinOrderWindow = envelope.data.withinOrderWindow,
             )
         }
 
