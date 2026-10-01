@@ -3,6 +3,7 @@ package com.vaiinilla.app.domain.repository
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.ReservationState
 import java.time.Instant
 
 enum class CallReason(
@@ -236,10 +237,28 @@ fun sortWaiterTables(tables: List<BoardTable>): List<BoardTable> =
         }.thenBy { it.space.name },
     )
 
-fun canCallWaiter(order: OrderDetail): Boolean =
-    order.summary.destination == OrderDestination.IN_SPACE &&
-        order.summary.space != null &&
-        order.summary.state != OrderState.CANCELED
+/**
+ * La cancha a la que llama el botón "Llamar al mesero": la del pedido a una mesa o cancha, o la de una
+ * renta en juego (el backend deja llamar con una renta pagada y en curso aunque no se haya pedido comida).
+ */
+fun callWaiterSpaceId(
+    order: OrderDetail,
+    now: Instant = Instant.now(),
+): Int? {
+    val summary = order.summary
+    val space = summary.space
+    if (summary.destination == OrderDestination.IN_SPACE && space != null && summary.state != OrderState.CANCELED) {
+        return space.id
+    }
+    val reservation = order.reservation ?: return null
+    val playing =
+        (reservation.state == ReservationState.CONFIRMED || reservation.state == ReservationState.IN_PROGRESS) &&
+            !now.isBefore(reservation.start) &&
+            now.isBefore(reservation.end)
+    return reservation.space?.id.takeIf { playing }
+}
+
+fun canCallWaiter(order: OrderDetail): Boolean = callWaiterSpaceId(order) != null
 
 class CallsUnavailableException(
     message: String = "Llamar al mesero todavía no está disponible en esta cafetería.",
