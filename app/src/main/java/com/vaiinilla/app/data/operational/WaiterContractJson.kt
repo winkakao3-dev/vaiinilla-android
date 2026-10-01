@@ -4,6 +4,7 @@ import com.vaiinilla.app.data.contract.MetaDto
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.AccountOrder
+import com.vaiinilla.app.domain.repository.AccountPaymentMethod
 import com.vaiinilla.app.domain.repository.BoardOrder
 import com.vaiinilla.app.domain.repository.BoardTable
 import com.vaiinilla.app.domain.repository.CallReason
@@ -211,10 +212,13 @@ data class SpaceSessionDetailEnvelopeDto(
 data class AccountCollectionDto(
     @SerialName("pedidos_cobrados") val ordersCollected: Int,
     val total: String,
-    @SerialName("monto_recibido") val received: String,
+    /** Con la terminal no hay efectivo: el servidor manda null. */
+    @SerialName("monto_recibido") val received: String? = null,
     val cambio: String,
     /** Lo que sigue sin cobrar de la cuenta; un servidor anterior no lo envía. */
     val restante: String = "0.00",
+    /** Un servidor anterior solo cobra en efectivo y no lo envía. */
+    @SerialName("metodo_pago") val paymentMethod: String = "efectivo",
 )
 
 @Serializable
@@ -249,7 +253,11 @@ data class ReleaseSpaceRequestDto(
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class CollectAccountRequestDto(
-    @SerialName("monto_recibido") val received: String,
+    /** Solo se manda con la terminal; sin él el servidor cobra en efectivo, como siempre. */
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("metodo_pago") val paymentMethod: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("monto_recibido") val received: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     @SerialName("total_esperado") val expectedTotal: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
@@ -422,9 +430,10 @@ class WaiterContractJson
             return AccountCollection(
                 ordersCollected = envelope.data.ordersCollected,
                 total = envelope.data.total,
-                received = envelope.data.received,
+                received = envelope.data.received ?: envelope.data.total,
                 change = envelope.data.cambio,
                 remaining = envelope.data.restante,
+                method = AccountPaymentMethod.fromWire(envelope.data.paymentMethod),
             )
         }
 
@@ -446,12 +455,18 @@ class WaiterContractJson
             json.encodeToString(ReleaseSpaceRequestDto(expectedVersion))
 
         fun encodeCollectAccount(
-            received: String,
+            received: String?,
             expectedTotal: String?,
             orderIds: List<String>? = null,
+            method: AccountPaymentMethod = AccountPaymentMethod.CASH,
         ): String =
             json.encodeToString(
-                CollectAccountRequestDto(received = received, expectedTotal = expectedTotal, orderIds = orderIds),
+                CollectAccountRequestDto(
+                    paymentMethod = method.wire.takeIf { method != AccountPaymentMethod.CASH },
+                    received = received.takeIf { method == AccountPaymentMethod.CASH },
+                    expectedTotal = expectedTotal,
+                    orderIds = orderIds,
+                ),
             )
 
         fun encodeCallTransition(

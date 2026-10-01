@@ -6,6 +6,7 @@ import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.repository.AccountCollection
+import com.vaiinilla.app.domain.repository.AccountPaymentMethod
 import com.vaiinilla.app.domain.repository.BoardOrder
 import com.vaiinilla.app.domain.repository.BoardTable
 import com.vaiinilla.app.domain.repository.CallReason
@@ -220,7 +221,8 @@ class RemoteWaiterRepository(
 
     override fun collectAccount(
         spaceId: Int,
-        received: String,
+        method: AccountPaymentMethod,
+        received: String?,
         expectedTotal: String?,
         orderIds: List<String>?,
         idempotencyKey: String,
@@ -228,7 +230,7 @@ class RemoteWaiterRepository(
         apiClient
             .post(
                 path = "espacios/$spaceId/sesion/cobros",
-                body = contractJson.encodeCollectAccount(received, expectedTotal, orderIds),
+                body = contractJson.encodeCollectAccount(received, expectedTotal, orderIds, method),
                 headers = mapOf("Idempotency-Key" to idempotencyKey),
             ).mapCatching(contractJson::parseAccountCollection)
             .mapApiErrors()

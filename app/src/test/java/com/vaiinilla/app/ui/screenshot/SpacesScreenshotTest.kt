@@ -10,12 +10,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.AccountOrder
+import com.vaiinilla.app.domain.repository.AccountPaymentMethod
 import com.vaiinilla.app.domain.repository.BoardOrder
 import com.vaiinilla.app.domain.repository.BoardTable
 import com.vaiinilla.app.domain.repository.SpaceAccount
@@ -171,7 +174,7 @@ class SpacesScreenshotTest {
                 colors = colors,
                 onOpenTurn = {},
                 onExtend = {},
-                onCollect = { _, _, _ -> },
+                onCollect = { _, _, _, _ -> },
                 onRelease = {},
                 onDismissCollection = {},
                 rentable = rentable,
@@ -261,7 +264,8 @@ class SpacesScreenshotTest {
                     confirming = false,
                     colors = colors,
                     title = "Rentar Cancha 2 · 1 h",
-                    onConfirm = { _, _, _ -> },
+                    allowTerminal = false,
+                    onConfirm = { _, _, _, _ -> },
                 )
             }
         }
@@ -288,9 +292,49 @@ class SpacesScreenshotTest {
                     payable = emptyList(),
                     confirming = false,
                     colors = colors,
-                    onConfirm = { _, _, _ -> },
+                    onConfirm = { _, _, _, _ -> },
                 )
             }
+        }
+    }
+
+    @Test
+    fun `spaces_collect_sheet_terminal`() {
+        composeTestRule.setContent {
+            ScreenshotTheme(mode = VaiinillaThemeMode.Light) {
+                val colors = rememberOperationalColors()
+                Box(Modifier.fillMaxSize().background(colors.background)) {
+                    CollectAccountContent(
+                        total = "220.00",
+                        payable = emptyList(),
+                        confirming = false,
+                        colors = colors,
+                        onConfirm = { _, _, _, _ -> },
+                    )
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Terminal").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onRoot().captureRoboImage("spaces_collect_sheet_terminal.png")
+    }
+
+    @Test
+    fun `spaces_collected_terminal`() {
+        capture("spaces_collected_terminal.png") {
+            Section(
+                detail = null,
+                space = courtSpace,
+                lastCollection =
+                    AccountCollection(
+                        ordersCollected = 2,
+                        total = "220.00",
+                        received = "220.00",
+                        change = "0.00",
+                        method = AccountPaymentMethod.TERMINAL,
+                    ),
+            )
         }
     }
 
@@ -309,7 +353,7 @@ class SpacesScreenshotTest {
                         ),
                     confirming = false,
                     colors = colors,
-                    onConfirm = { _, _, _ -> },
+                    onConfirm = { _, _, _, _ -> },
                 )
             }
         }
