@@ -50,6 +50,8 @@ data class OrderDetail(
     val payment: OrderPayment? = null,
     /** Solo en un pedido de renta de cancha: no se prepara ni se entrega, se juega. */
     val reservation: OrderReservation? = null,
+    /** Cuándo el cliente avisó que ya llegó por su pedido (drive-thru); `null` si no ha avisado. */
+    val arrivedAt: Instant? = null,
 )
 
 data class OrderReservation(

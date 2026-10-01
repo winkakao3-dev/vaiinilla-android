@@ -44,6 +44,10 @@ interface OrderRepository {
         pickupToken: String? = null,
     ): Result<OrderDetail>
 
+    /** El cliente avisa que ya llegó por su pedido (drive-thru). Avisar otra vez no cambia nada. */
+    fun announceArrival(orderId: String): Result<OrderDetail> =
+        Result.failure(UnsupportedOperationException("Avisar la llegada no está disponible."))
+
     /** Cancela o rechaza un pedido con un motivo que verá el cliente. */
     fun cancelOrder(
         orderId: String,

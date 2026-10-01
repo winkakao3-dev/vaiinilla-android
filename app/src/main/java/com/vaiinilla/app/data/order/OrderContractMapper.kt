@@ -86,6 +86,7 @@ fun OrderDetailDto.toDomain(): OrderDetail =
         pickupToken = pickupToken,
         payment = payment?.toDomain(),
         reservation = reservation?.toDomain(),
+        arrivedAt = arrivedAt?.let { runCatching { Instant.parse(it) }.getOrNull() },
     )
 
 private fun OrderReservationDto.toDomain(): OrderReservation? =

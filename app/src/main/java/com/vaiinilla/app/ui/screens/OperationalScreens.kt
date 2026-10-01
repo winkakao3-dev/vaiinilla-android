@@ -104,6 +104,7 @@ import androidx.core.net.toUri
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
@@ -736,7 +737,7 @@ fun CashierOperationalScreen(
                                                 "PEDIDO · ${elapsedShort(
                                                     recentOrder.summary.createdAt,
                                                     tick,
-                                                ).uppercase()}",
+                                                ).uppercase()}${arrivalSuffix(recentOrder)}",
                                                 color = TicketMuted,
                                                 fontSize = 9.5.sp,
                                                 fontWeight = FontWeight.ExtraBold,
@@ -1004,11 +1005,13 @@ fun CashierOperationalScreen(
                         folio = "#${order.summary.folio}",
                         title = queueTitle,
                         subtitle =
-                            if (order.summary.destination.name == "TAKE_AWAY") {
-                                "Para llevar"
-                            } else {
-                                SpaceCopy.staffDestination(order.summary.destination, order.summary.space)
-                            },
+                            (
+                                if (order.summary.destination.name == "TAKE_AWAY") {
+                                    "Para llevar"
+                                } else {
+                                    SpaceCopy.staffDestination(order.summary.destination, order.summary.space)
+                                }
+                            ) + arrivalSuffix(order),
                         time =
                             if (order.summary.state == OrderState.PENDING_PAYMENT) {
                                 "Por cobrar"
@@ -1479,6 +1482,9 @@ private val TicketInk = Color(0xFF1D1C18)
 private val TicketMuted = Color(0xFF6B6656)
 private val TicketLine = Color(0xFFD8CDB4)
 private val StampGreen = Color(0xFF5A7A1E)
+
+/** " · YA LLEGÓ" cuando el cliente (drive-thru) avisó que llegó por su pedido; si no, vacío. */
+internal fun arrivalSuffix(order: OrderDetail): String = if (order.arrivedAt != null) " · YA LLEGÓ" else ""
 
 internal fun elapsedSinceMs(iso: String): Long? =
     runCatching {
@@ -2065,7 +2071,7 @@ fun KitchenOperationalScreen(
                                     ) {
                                         Column {
                                             Text(
-                                                "$stateLabel · $destLabel",
+                                                "$stateLabel · $destLabel${arrivalSuffix(activeOrder)}",
                                                 color = TicketMuted,
                                                 fontSize = 9.5.sp,
                                                 fontWeight = FontWeight.ExtraBold,
@@ -2284,7 +2290,7 @@ fun KitchenOperationalScreen(
                 QueueTicketRow(
                     folio = "#${order.summary.folio}",
                     title = orderSummaryTitle,
-                    subtitle = orderDest,
+                    subtitle = orderDest + arrivalSuffix(order),
                     time = "En espera",
                     colors = colors,
                     modifier =

@@ -1398,6 +1398,7 @@ fun AppNavHost(
                         onRefresh = { operationalViewModel.refresh() },
                         canCallWaiter = ::canCallWaiter,
                         onCurrentWaiterCall = operationalViewModel::currentWaiterCall,
+                        onAnnounceArrival = operationalViewModel::announceArrival,
                         onCallWaiter = operationalViewModel::callWaiter,
                         onCancelWaiter = operationalViewModel::cancelWaiterCall,
                     )

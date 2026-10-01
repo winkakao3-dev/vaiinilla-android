@@ -11,4 +11,10 @@ data class OperationalStatus(
     val deliveryRequiresQr: Boolean = true,
     /** Si es true, el cliente puede pedir en un espacio y pagar al final. */
     val allowsPayAtEnd: Boolean = false,
-)
+    /** Lo que el dueño dice que es el negocio (`drive_thru`, `restaurante`, `padel`…). */
+    val businessType: String = "cafeteria",
+) {
+    /** En un drive-thru el cliente avisa desde la app que ya llegó por su pedido. */
+    val isDriveThru: Boolean
+        get() = businessType == "drive_thru"
+}
