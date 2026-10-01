@@ -256,7 +256,7 @@ class SpacesScreenshotTest {
             val colors = rememberOperationalColors()
             Box(Modifier.fillMaxSize().background(colors.background)) {
                 CollectAccountContent(
-                    total = "330.00",
+                    total = "250.00",
                     payable = emptyList(),
                     confirming = false,
                     colors = colors,
