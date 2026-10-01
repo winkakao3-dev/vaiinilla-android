@@ -116,6 +116,13 @@ class RemoteOrderRepository(
             .mapApiErrors()
     }
 
+    override fun announceArrival(orderId: String): Result<OrderDetail> =
+        apiClient
+            .postWithoutBody(path = "pedidos/$orderId/llegada")
+            .mapCatching { contractJson.parseOrderDetail(it) }
+            .mapCatching { pickupTokenStore.attach(it) }
+            .mapApiErrors()
+
     override fun cancelOrder(
         orderId: String,
         expectedVersion: Int,

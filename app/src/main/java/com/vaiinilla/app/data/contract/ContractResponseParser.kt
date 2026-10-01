@@ -51,6 +51,7 @@ class ContractResponseParser
                 consultedAt = envelope.data.consultedAt,
                 deliveryRequiresQr = envelope.data.deliveryRequiresQr,
                 allowsPayAtEnd = envelope.data.allowsPayAtEnd,
+                businessType = envelope.data.businessType,
             )
         }
 

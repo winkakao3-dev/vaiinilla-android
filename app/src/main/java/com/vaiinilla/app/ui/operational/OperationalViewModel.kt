@@ -30,6 +30,7 @@ import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.WaiterRepository
 import com.vaiinilla.app.domain.repository.WalletRepository
 import com.vaiinilla.app.domain.repository.WalletRepositoryException
+import com.vaiinilla.app.domain.usecase.AnnounceArrivalUseCase
 import com.vaiinilla.app.domain.usecase.CancelOrderUseCase
 import com.vaiinilla.app.domain.usecase.CloseCashSessionUseCase
 import com.vaiinilla.app.domain.usecase.CollectCashUseCase
@@ -61,6 +62,7 @@ class OperationalViewModel
         private val collectCash: CollectCashUseCase,
         private val transitionOrder: TransitionOrderUseCase,
         private val cancelOrder: CancelOrderUseCase,
+        private val announceArrivalUseCase: AnnounceArrivalUseCase,
         private val openCashSession: OpenCashSessionUseCase,
         private val closeCashSession: CloseCashSessionUseCase,
         private val cashSessionRepository: CashSessionRepository,
@@ -713,6 +715,11 @@ class OperationalViewModel
                         ),
                 ).getOrThrow()
             }
+        }
+
+        /** Drive-thru: el cliente avisa que ya llegó; Cocina y Caja lo ven en el pedido. */
+        fun announceArrival(orderId: String) {
+            performMutation { announceArrivalUseCase(orderId).getOrThrow() }
         }
 
         /** Cocina rechaza un pedido que no puede preparar; el cliente verá el motivo. */

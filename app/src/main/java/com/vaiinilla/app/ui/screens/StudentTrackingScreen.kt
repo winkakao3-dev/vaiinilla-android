@@ -108,6 +108,7 @@ import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.domain.repository.CallsUnavailableException
 import com.vaiinilla.app.domain.repository.TableCall
+import com.vaiinilla.app.ui.components.ArrivalNotice
 import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.OrderDetailSummary
 import com.vaiinilla.app.ui.components.OrderTrackingCard
@@ -123,6 +124,7 @@ import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.components.arrive
+import com.vaiinilla.app.ui.components.canAnnounceArrival
 import com.vaiinilla.app.ui.components.destinationDisplayLabel
 import com.vaiinilla.app.ui.components.isLiveRental
 import com.vaiinilla.app.ui.components.isRental
@@ -166,6 +168,7 @@ fun StudentTrackingScreen(
     onDeleteOrder: (String) -> Unit = {},
     onViewReceipt: () -> Unit = {},
     onRefresh: () -> Unit = {},
+    onAnnounceArrival: (String) -> Unit = {},
     canCallWaiter: (OrderDetail) -> Boolean = { false },
     onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
@@ -351,6 +354,18 @@ fun StudentTrackingScreen(
                                     )
                                 }
                             }
+                            if (animatedSelected.canAnnounceArrival(
+                                    orderState.operationalStatus?.isDriveThru == true,
+                                )
+                            ) {
+                                item {
+                                    ArrivalNotice(
+                                        order = animatedSelected,
+                                        enabled = !state.acting,
+                                        onAnnounce = { onAnnounceArrival(animatedSelected.summary.id) },
+                                    )
+                                }
+                            }
                             item {
                                 TrackingSectionHead()
                             }
@@ -422,6 +437,12 @@ fun StudentTrackingScreen(
                                                         .firstOrNull { it != null }
                                                 },
                                             onOpenFull = { onSelectOrder(order.summary.id) },
+                                            showArrival =
+                                                order.canAnnounceArrival(
+                                                    orderState.operationalStatus?.isDriveThru == true,
+                                                ),
+                                            arrivalEnabled = !state.acting,
+                                            onAnnounceArrival = { onAnnounceArrival(order.summary.id) },
                                             deliveryRequiresQr =
                                                 orderState.operationalStatus?.deliveryRequiresQr != false,
                                             canCallWaiter = canCallWaiter,
@@ -760,6 +781,9 @@ private fun ActiveOrderCard(
     order: OrderDetail,
     leadingImageUrl: String? = null,
     onOpenFull: () -> Unit,
+    showArrival: Boolean = false,
+    arrivalEnabled: Boolean = true,
+    onAnnounceArrival: () -> Unit = {},
     deliveryRequiresQr: Boolean = true,
     canCallWaiter: (OrderDetail) -> Boolean = { false },
     onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
@@ -895,6 +919,9 @@ private fun ActiveOrderCard(
             }
             if (summary.state == OrderState.READY && order.needsPickupQr(deliveryRequiresQr)) {
                 InlinePickupQr(order = order)
+            }
+            if (showArrival) {
+                ArrivalNotice(order = order, enabled = arrivalEnabled, onAnnounce = onAnnounceArrival, onDark = true)
             }
             if (canCallWaiter(order) && onCurrentWaiterCall != null && onCallWaiter != null && onCancelWaiter != null) {
                 CallWaiterButton(
