@@ -3,6 +3,7 @@ package com.vaiinilla.app.domain.repository
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import java.time.Instant
 
 enum class CallReason(
     val wireValue: String,
@@ -107,9 +108,29 @@ data class SpaceAvailability(
     /** Siguiente reserva (próximas 24 h), para avisar al personal. */
     val nextReservationStart: String? = null,
     val nextReservationEnd: String? = null,
+    /** `pendiente_pago` o `confirmada`. */
+    val nextReservationState: String? = null,
 ) {
     val rentable: Boolean
         get() = space.type == "cancha" && pricePerHour != null
+
+    /**
+     * Sin turno abierto pero apartada por una reserva que ya empezó: una renta "ahora" que espera
+     * pago, o una pagada a la que todavía no se le abre el turno. No se debe mostrar libre.
+     */
+    fun isHeldAt(now: Instant = Instant.now()): Boolean {
+        if (state != SpaceAvailabilityState.LIBRE) return false
+        val start = nextReservationStart?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: return false
+        val end = nextReservationEnd?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: return false
+        return !now.isBefore(start) && now.isBefore(end)
+    }
+
+    /** Libre de verdad: sin turno y sin una reserva en su horario. */
+    val isFreeNow: Boolean
+        get() = state == SpaceAvailabilityState.LIBRE && !isHeldAt()
+
+    val isWaitingPayment: Boolean
+        get() = nextReservationState == "pendiente_pago"
 }
 
 data class SpaceSessionInfo(

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,11 +48,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.vaiinilla.app.domain.model.CourtDay
 import com.vaiinilla.app.domain.model.CourtSchedule
 import com.vaiinilla.app.domain.model.Reservation
@@ -59,6 +64,7 @@ import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
+import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.RollingText
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.physicalPress
@@ -157,6 +163,9 @@ fun ReservationsScreen(
                     )
                 }
                 val court = state.selectedCourt
+                if (court != null && !court.profile.isEmpty) {
+                    item(key = "profile-${court.id}") { CourtProfileCard(court = court, colors = colors) }
+                }
                 if (court != null && court.rentable) {
                     if (ReservationSlots.canRentNow(day, court)) {
                         item(key = "now") {
@@ -366,7 +375,9 @@ private fun CourtStrip(
                 SPRING_COLOR,
                 label = "court-ink",
             )
-            val busyNow = court.busy.firstOrNull { !day.now.isBefore(it.start) && day.now.isBefore(it.end) }
+            val isToday = day.date == day.today
+            val busyUntil = if (isToday) ReservationSlots.busyUntil(court, day.now) else null
+            val looksFree = if (isToday) busyUntil == null else court.busy.isEmpty()
             Column(
                 modifier =
                     Modifier
@@ -390,19 +401,104 @@ private fun CourtStrip(
                         Modifier
                             .size(8.dp)
                             .clip(CircleShape)
-                            .background(if (busyNow == null) colors.accent else colors.coral),
+                            .background(if (looksFree) colors.accent else colors.coral),
                     )
                     Text(
-                        if (busyNow == null || day.date != day.today) {
-                            "Libre ahora"
-                        } else {
-                            "Libre desde ${busyNow.end.atZone(zone).format(HOUR)}"
+                        when {
+                            busyUntil != null -> "Se libera ${busyUntil.atZone(zone).format(HOUR)}"
+                            isToday -> "Libre ahora"
+                            court.busy.isEmpty() -> "Libre todo el día"
+                            else -> "Con horarios ocupados"
                         },
                         color = ink.copy(alpha = 0.8f),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(start = 6.dp),
                     )
+                }
+            }
+        }
+    }
+}
+
+/** Ficha que escribió el dueño: foto (se abre en grande), descripción y características. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CourtProfileCard(
+    court: CourtSchedule,
+    colors: VaiinillaColors,
+) {
+    val profile = court.profile
+    var zoomed by remember(court.id) { mutableStateOf(false) }
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .arrive(3, key = court.id)
+                .clip(RoundedCornerShape(24.dp))
+                .background(colors.paper2),
+    ) {
+        profile.imageUrl?.let { url ->
+            ProductImage(
+                imageUrl = url,
+                contentDescription = "Foto de ${court.name}",
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 10f)
+                        .physicalPress { zoomed = true },
+                contentScale = ContentScale.Crop,
+            )
+        }
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(court.name, color = colors.ink, fontSize = 20.sp, fontWeight = FontWeight.Black)
+            profile.description?.let {
+                Text(it, color = colors.ink.copy(alpha = 0.8f), fontSize = 14.sp, lineHeight = 20.sp)
+            }
+            if (profile.features.isNotEmpty()) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    profile.features.forEach { feature ->
+                        Text(
+                            feature,
+                            color = colors.ink,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier =
+                                Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(colors.paper)
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+    val zoomUrl = profile.imageUrl
+    if (zoomed && zoomUrl != null) {
+        Dialog(onDismissRequest = { zoomed = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black)
+                        .physicalPress { zoomed = false },
+                contentAlignment = Alignment.Center,
+            ) {
+                ProductImage(
+                    imageUrl = zoomUrl,
+                    contentDescription = "Foto de ${court.name}",
+                    modifier = Modifier.fillMaxWidth(),
+                    contentScale = ContentScale.Fit,
+                )
+                IconButton(
+                    onClick = { zoomed = false },
+                    modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(8.dp),
+                ) {
+                    Icon(Icons.Outlined.Close, contentDescription = "Cerrar foto", tint = Color.White)
                 }
             }
         }

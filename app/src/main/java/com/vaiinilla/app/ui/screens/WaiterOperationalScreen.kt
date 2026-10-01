@@ -906,8 +906,11 @@ private fun waiterTileCaption(
         }
         else -> {
             val occupied = spaceAvailabilityCaption(table.availability, tick)
-            val next = nextReservationCaption(table.availability?.nextReservationStart)
+            val availability = table.availability
+            val held = availability?.isHeldAt() == true
+            val next = if (held) null else nextReservationCaption(availability?.nextReservationStart)
             when {
+                held -> if (availability?.isWaitingPayment == true) "Apartada\nesperando pago" else "Reservada\nahora"
                 occupied != null -> listOfNotNull(occupied, next).joinToString("\n")
                 table.orders.isNotEmpty() ->
                     "${table.orders.size} ${if (table.orders.size == 1) "pedido" else "pedidos"}"

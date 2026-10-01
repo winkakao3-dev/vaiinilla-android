@@ -8,14 +8,17 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderItemOption
 import com.vaiinilla.app.domain.model.OrderPayment
+import com.vaiinilla.app.domain.model.OrderReservation
 import com.vaiinilla.app.domain.model.OrderSpace
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.OrderUser
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
+import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.model.StripePaymentStatus
+import java.time.Instant
 
 fun CreateOrderRequest.toDto(): CreateOrderRequestDto =
     CreateOrderRequestDto(
@@ -82,7 +85,20 @@ fun OrderDetailDto.toDomain(): OrderDetail =
             },
         pickupToken = pickupToken,
         payment = payment?.toDomain(),
+        reservation = reservation?.toDomain(),
     )
+
+private fun OrderReservationDto.toDomain(): OrderReservation? =
+    runCatching {
+        OrderReservation(
+            id = id,
+            space = space?.let { OrderSpace(id = it.id, name = it.name, type = it.type) },
+            start = Instant.parse(start),
+            end = Instant.parse(end),
+            durationMinutes = durationMinutes,
+            state = ReservationState.fromWire(state),
+        )
+    }.getOrNull()
 
 fun OrderPaymentDto.toDomain(): OrderPayment =
     OrderPayment(

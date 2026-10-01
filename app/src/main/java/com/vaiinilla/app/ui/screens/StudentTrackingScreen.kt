@@ -47,10 +47,12 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Restaurant
+import androidx.compose.material.icons.outlined.SportsTennis
 import androidx.compose.material.icons.outlined.Verified
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -95,6 +97,7 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderItem
+import com.vaiinilla.app.domain.model.OrderReservation
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PaymentMethod
@@ -111,6 +114,8 @@ import com.vaiinilla.app.ui.components.OrderTrackingCard
 import com.vaiinilla.app.ui.components.OrderTrackingTimeline
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
+import com.vaiinilla.app.ui.components.RentalStep
+import com.vaiinilla.app.ui.components.RentalTrackingTimeline
 import com.vaiinilla.app.ui.components.SkeletonBlock
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.SwipeToDeleteOrder
@@ -119,6 +124,8 @@ import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.destinationDisplayLabel
+import com.vaiinilla.app.ui.components.isLiveRental
+import com.vaiinilla.app.ui.components.isRental
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.needsPickupQr
 import com.vaiinilla.app.ui.components.orderPaymentLabel
@@ -126,6 +133,10 @@ import com.vaiinilla.app.ui.components.orderStateLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.components.rentalScheduleLabel
+import com.vaiinilla.app.ui.components.rentalStateLabel
+import com.vaiinilla.app.ui.components.rentalStep
+import com.vaiinilla.app.ui.components.rentalStepDescription
 import com.vaiinilla.app.ui.components.trackingStepDescription
 import com.vaiinilla.app.ui.components.trackingStepTitle
 import com.vaiinilla.app.ui.operational.OperationalUiState
@@ -331,23 +342,31 @@ fun StudentTrackingScreen(
                                         order = animatedSelected,
                                         showEyebrow = true,
                                         leadingImageUrl =
-                                            itemImageUrls(animatedSelected, orderState.catalog)
-                                                .firstOrNull { it != null },
+                                            if (animatedSelected.isRental) {
+                                                null
+                                            } else {
+                                                itemImageUrls(animatedSelected, orderState.catalog)
+                                                    .firstOrNull { it != null }
+                                            },
                                     )
                                 }
                             }
                             item {
                                 TrackingSectionHead()
                             }
-                            item {
-                                OrderTrackingTimeline(
-                                    current = animatedSelected.summary.state,
-                                    destination = animatedSelected.summary.destination,
-                                    paymentMethod = animatedSelected.summary.paymentMethod,
-                                    paymentStatus = animatedSelected.payment?.status,
-                                    spaceType = animatedSelected.summary.space?.type,
-                                    payAtEnd = animatedSelected.summary.payAtEnd,
-                                )
+                            if (animatedSelected.isRental) {
+                                item { RentalTrackingTimeline(order = animatedSelected) }
+                            } else {
+                                item {
+                                    OrderTrackingTimeline(
+                                        current = animatedSelected.summary.state,
+                                        destination = animatedSelected.summary.destination,
+                                        paymentMethod = animatedSelected.summary.paymentMethod,
+                                        paymentStatus = animatedSelected.payment?.status,
+                                        spaceType = animatedSelected.summary.space?.type,
+                                        payAtEnd = animatedSelected.summary.payAtEnd,
+                                    )
+                                }
                             }
                             if (animatedSelected.summary.state == OrderState.CANCELED) {
                                 item { CancelReasonCard(animatedSelected) }
@@ -384,8 +403,8 @@ fun StudentTrackingScreen(
                             }
                         }
                         else -> {
-                            val activeOrders = state.orders.filter { !it.summary.state.isPast }
-                            val pastOrders = state.orders.filter { it.summary.state.isPast }
+                            val activeOrders = state.orders.filter { it.isActiveForCustomer }
+                            val pastOrders = state.orders.filterNot { it.isActiveForCustomer }
                             if (activeOrders.isNotEmpty()) {
                                 item(key = "section-active") { OrdersSectionLabel("EN CURSO") }
                                 itemsIndexed(activeOrders, key = { _, o -> o.summary.id }) { index, order ->
@@ -396,8 +415,12 @@ fun StudentTrackingScreen(
                                         ActiveOrderCard(
                                             order = order,
                                             leadingImageUrl =
-                                                itemImageUrls(order, orderState.catalog)
-                                                    .firstOrNull { it != null },
+                                                if (order.isRental) {
+                                                    null
+                                                } else {
+                                                    itemImageUrls(order, orderState.catalog)
+                                                        .firstOrNull { it != null }
+                                                },
                                             onOpenFull = { onSelectOrder(order.summary.id) },
                                             deliveryRequiresQr =
                                                 orderState.operationalStatus?.deliveryRequiresQr != false,
@@ -698,6 +721,13 @@ private fun TrackingSectionHead() {
 private val OrderState.isPast: Boolean
     get() = this == OrderState.DELIVERED || isTerminalWithoutDelivery
 
+/** Una renta queda "entregada" al pagarse, pero sigue en curso hasta que termina su horario. */
+private val OrderDetail.isActiveForCustomer: Boolean
+    get() = if (isRental) isLiveRental() else !summary.state.isPast
+
+private fun customerStateLabel(order: OrderDetail): String =
+    if (order.isRental) rentalStateLabel(order) else orderStateLabel(order.summary)
+
 private val OrderTrackingCardBg = Color(0xFF1C1D1B)
 private val OrderTrackingCardText = Color(0xFFF5F2E8)
 
@@ -772,7 +802,7 @@ private fun ActiveOrderCard(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Black,
                 )
-                OrderStatusPill(state = summary.state, label = orderStateLabel(summary))
+                OrderStatusPill(state = summary.state, label = customerStateLabel(order))
             }
             Row(
                 modifier =
@@ -782,7 +812,12 @@ private fun ActiveOrderCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                OrderItemThumb(imageUrl = leadingImageUrl, size = 48.dp, corner = 14.dp)
+                OrderItemThumb(
+                    imageUrl = leadingImageUrl,
+                    size = 48.dp,
+                    corner = 14.dp,
+                    placeholder = if (order.isRental) Icons.Outlined.SportsTennis else Icons.Outlined.Restaurant,
+                )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         order.items.joinToString(" · ") { "${it.quantity} ${it.productName}" },
@@ -793,7 +828,11 @@ private fun ActiveOrderCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        "${destinationDisplayLabel(order)} · ${orderPaymentLabel(summary)}",
+                        listOf(
+                            destinationDisplayLabel(order),
+                            order.reservation?.let { rentalScheduleLabel(it) },
+                            orderPaymentLabel(summary),
+                        ).filterNotNull().joinToString(" · "),
                         color = OrderTrackingCardText.copy(alpha = 0.58f),
                         fontSize = 11.sp,
                         modifier = Modifier.padding(top = 2.dp),
@@ -808,30 +847,46 @@ private fun ActiveOrderCard(
                     fontWeight = FontWeight.Black,
                 )
             }
-            OrderProgressBar(
-                currentIndex = summary.state.trackingIndex,
-                modifier = Modifier.padding(top = 12.dp),
-            )
+            val rental = order.reservation
+            val rentalNow = rentalStep(order)
+            if (rental != null) {
+                OrderProgressBar(
+                    currentIndex = rentalProgressIndex(rentalNow),
+                    steps = RentalProgressSteps,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            } else {
+                OrderProgressBar(
+                    currentIndex = summary.state.trackingIndex,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
             Row(
                 modifier = Modifier.padding(top = 9.dp),
                 horizontalArrangement = Arrangement.spacedBy(7.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    orderStateLabel(summary),
+                    customerStateLabel(order),
                     color = OrderTrackingCardText,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
                 )
                 Text(
-                    trackingStepDescription(
-                        summary.state,
-                        summary.destination,
-                        summary.paymentMethod,
-                        order.payment?.status,
-                        summary.space?.type,
-                        summary.payAtEnd,
-                    ),
+                    if (rental != null) {
+                        rentalNow
+                            ?.let { rentalStepDescription(it, rental, summary.paymentMethod, order.payment?.status) }
+                            .orEmpty()
+                    } else {
+                        trackingStepDescription(
+                            summary.state,
+                            summary.destination,
+                            summary.paymentMethod,
+                            order.payment?.status,
+                            summary.space?.type,
+                            summary.payAtEnd,
+                        )
+                    },
                     color = OrderTrackingCardText.copy(alpha = 0.55f),
                     fontSize = 12.sp,
                     maxLines = 1,
@@ -857,14 +912,18 @@ private fun ActiveOrderCard(
                 exit = fadeOut(if (reduceMotion) snap() else tween(110)),
             ) {
                 Column {
-                    CompactTrackingSteps(
-                        current = summary.state,
-                        destination = summary.destination,
-                        paymentMethod = summary.paymentMethod,
-                        paymentStatus = order.payment?.status,
-                        spaceType = summary.space?.type,
-                        payAtEnd = summary.payAtEnd,
-                    )
+                    if (rental != null) {
+                        RentalCompactSteps(order = order, reservation = rental, current = rentalNow)
+                    } else {
+                        CompactTrackingSteps(
+                            current = summary.state,
+                            destination = summary.destination,
+                            paymentMethod = summary.paymentMethod,
+                            paymentStatus = order.payment?.status,
+                            spaceType = summary.space?.type,
+                            payAtEnd = summary.payAtEnd,
+                        )
+                    }
                     Spacer(Modifier.height(12.dp))
                     Button(
                         onClick = onOpenFull,
@@ -1260,6 +1319,7 @@ private val CardTrackEase = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
 private fun OrderProgressBar(
     currentIndex: Int,
     modifier: Modifier = Modifier,
+    steps: List<ProgressStep> = FoodProgressSteps,
 ) {
     val colors = LocalVaiinillaColors.current
     val reduceMotion = reducedMotion()
@@ -1267,7 +1327,7 @@ private fun OrderProgressBar(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        OrderState.trackingFlow.forEachIndexed { index, state ->
+        steps.forEachIndexed { index, step ->
             val isDone = index < currentIndex
             val isCurrent = index == currentIndex
             val nodeFill =
@@ -1291,13 +1351,13 @@ private fun OrderProgressBar(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = state.trackingIcon,
-                    contentDescription = state.label,
+                    imageVector = step.icon,
+                    contentDescription = step.label,
                     tint = iconTint,
                     modifier = Modifier.size(12.dp),
                 )
             }
-            if (index < OrderState.trackingFlow.lastIndex) {
+            if (index < steps.lastIndex) {
                 val railFill by animateColorAsState(
                     targetValue = if (index < currentIndex) colors.accent else Color.White.copy(alpha = 0.22f),
                     animationSpec =
@@ -1321,6 +1381,31 @@ private fun OrderProgressBar(
     }
 }
 
+private data class ProgressStep(
+    val icon: ImageVector,
+    val label: String,
+)
+
+private val FoodProgressSteps: List<ProgressStep>
+    get() = OrderState.trackingFlow.map { ProgressStep(it.trackingIcon, it.label) }
+
+private val RentalProgressSteps: List<ProgressStep>
+    get() =
+        listOf(
+            ProgressStep(Icons.AutoMirrored.Outlined.ReceiptLong, "Por pagar"),
+            ProgressStep(Icons.Outlined.EventAvailable, "Reservada"),
+            ProgressStep(Icons.Outlined.SportsTennis, "En juego"),
+            ProgressStep(Icons.Outlined.Verified, "Terminada"),
+        )
+
+/** Terminada marca todos los pasos como hechos; una renta caída, ninguno. */
+private fun rentalProgressIndex(step: RentalStep?): Int =
+    when (step) {
+        null -> -1
+        RentalStep.DONE -> RentalStep.entries.size
+        else -> step.ordinal
+    }
+
 private val OrderState.trackingIcon: ImageVector
     get() =
         when (this) {
@@ -1341,11 +1426,58 @@ private fun CompactTrackingSteps(
     spaceType: String? = null,
     payAtEnd: Boolean = false,
 ) {
+    CompactStepList(
+        steps =
+            OrderState.trackingFlow.map { stepState ->
+                CompactStep(
+                    title = trackingStepTitle(stepState, paymentMethod, paymentStatus, payAtEnd),
+                    description =
+                        trackingStepDescription(
+                            stepState,
+                            destination,
+                            paymentMethod,
+                            paymentStatus,
+                            spaceType,
+                        ),
+                )
+            },
+        currentIndex = current.trackingIndex,
+    )
+}
+
+@Composable
+private fun RentalCompactSteps(
+    order: OrderDetail,
+    reservation: OrderReservation,
+    current: RentalStep?,
+) {
+    CompactStepList(
+        steps =
+            RentalStep.entries.map { step ->
+                CompactStep(
+                    title = step.title,
+                    description =
+                        rentalStepDescription(step, reservation, order.summary.paymentMethod, order.payment?.status),
+                )
+            },
+        currentIndex = rentalProgressIndex(current),
+    )
+}
+
+private data class CompactStep(
+    val title: String,
+    val description: String,
+)
+
+@Composable
+private fun CompactStepList(
+    steps: List<CompactStep>,
+    currentIndex: Int,
+) {
     val colors = LocalVaiinillaColors.current
     val reduceMotion = reducedMotion()
-    val currentIndex = current.trackingIndex
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        OrderState.trackingFlow.forEachIndexed { index, stepState ->
+        steps.forEachIndexed { index, step ->
             val isDone = index < currentIndex
             val isCurrent = index == currentIndex
             val duration = if (reduceMotion) 0 else 420
@@ -1405,7 +1537,7 @@ private fun CompactTrackingSteps(
                     }
                 }
                 Text(
-                    trackingStepTitle(stepState, paymentMethod, paymentStatus, payAtEnd),
+                    step.title,
                     color = titleColor,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
@@ -1414,7 +1546,7 @@ private fun CompactTrackingSteps(
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
-                    trackingStepDescription(stepState, destination, paymentMethod, paymentStatus, spaceType),
+                    step.description,
                     color = OrderTrackingCardText.copy(alpha = 0.45f),
                     fontSize = 11.sp,
                     textAlign = TextAlign.End,
@@ -1473,7 +1605,7 @@ private fun PastOrderRow(
                     maxLines = 1,
                     modifier = Modifier.padding(end = 12.dp),
                 )
-                OrderStatusPill(state = summary.state, onAccent = isReady, label = orderStateLabel(summary))
+                OrderStatusPill(state = summary.state, onAccent = isReady, label = customerStateLabel(order))
             }
             // Los thumbnails van en su propia línea: en la fila principal
             // competían con total+pill y colapsaban el texto a cero.
@@ -1503,6 +1635,7 @@ private fun OrderItemThumb(
     imageUrl: String?,
     size: Dp,
     corner: Dp,
+    placeholder: ImageVector = Icons.Outlined.Restaurant,
 ) {
     Box(
         modifier =
@@ -1521,7 +1654,7 @@ private fun OrderItemThumb(
             )
         } else {
             Icon(
-                Icons.Outlined.Restaurant,
+                placeholder,
                 contentDescription = null,
                 tint = OrderTrackingCardText.copy(alpha = 0.55f),
                 modifier = Modifier.size(size * 0.45f),

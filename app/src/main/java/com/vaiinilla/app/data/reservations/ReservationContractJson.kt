@@ -3,6 +3,7 @@ package com.vaiinilla.app.data.reservations
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.model.BusyInterval
 import com.vaiinilla.app.domain.model.CourtDay
+import com.vaiinilla.app.domain.model.CourtProfile
 import com.vaiinilla.app.domain.model.CourtSchedule
 import com.vaiinilla.app.domain.model.CustomerPrice
 import com.vaiinilla.app.domain.model.Reservation
@@ -40,9 +41,18 @@ data class CourtRefDto(
     val tipo: String? = null,
 )
 
+/** Ficha que escribe el dueño en el panel (migración 50). Todo opcional. */
+@Serializable
+data class CourtProfileDto(
+    val descripcion: String? = null,
+    @SerialName("imagen_url") val imagenUrl: String? = null,
+    val caracteristicas: List<String> = emptyList(),
+)
+
 @Serializable
 data class CourtScheduleDto(
     val espacio: CourtRefDto,
+    val ficha: CourtProfileDto? = null,
     @SerialName("precio_hora") val precioHora: String? = null,
     @SerialName("precio_hora_cliente") val precioHoraCliente: CustomerPriceDto? = null,
     val rentable: Boolean = false,
@@ -222,6 +232,12 @@ private fun CourtDayDto.toDomain() =
                     pricePerHour = court.precioHora,
                     customerPricePerHour = court.precioHoraCliente?.toDomain(),
                     rentable = court.rentable,
+                    profile =
+                        CourtProfile(
+                            description = court.ficha?.descripcion?.takeIf { it.isNotBlank() },
+                            imageUrl = court.ficha?.imagenUrl?.takeIf { it.isNotBlank() },
+                            features = court.ficha?.caracteristicas.orEmpty(),
+                        ),
                     busy =
                         court.ocupado.map {
                             BusyInterval(
