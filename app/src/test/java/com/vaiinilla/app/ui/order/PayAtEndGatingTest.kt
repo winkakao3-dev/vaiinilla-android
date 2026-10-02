@@ -63,4 +63,11 @@ class PayAtEndGatingTest {
         assertFalse(state(status(), payAtEnd = false, destination = OrderDestination.TAKE_AWAY).canPayAtEnd)
         assertFalse(state(null, payAtEnd = false).canPayAtEnd)
     }
+
+    @Test
+    fun `the next round keeps paying at end only in a space`() {
+        assertTrue(state(status(), payAtEnd = true).payAtEndForNextRound)
+        assertFalse(state(status(), payAtEnd = false).payAtEndForNextRound)
+        assertFalse(state(status(), payAtEnd = true, destination = OrderDestination.TAKE_AWAY).payAtEndForNextRound)
+    }
 }

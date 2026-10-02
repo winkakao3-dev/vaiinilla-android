@@ -205,6 +205,10 @@ val OrderFlowUiState.operationalBlockerMessage: String?
 val OrderFlowUiState.canPayAtEnd: Boolean
     get() = checkoutDestination == OrderDestination.IN_SPACE && operationalStatus?.allowsPayAtEnd == true
 
+/** Después de pedir a la cuenta en una mesa, la siguiente ronda sigue a la cuenta. */
+val OrderFlowUiState.payAtEndForNextRound: Boolean
+    get() = checkoutPayAtEnd && checkoutDestination == OrderDestination.IN_SPACE
+
 /** ¿Se ofrece pagar con tarjeta? Solo si el dueño la activó en su panel. */
 val OrderFlowUiState.canPayWithCard: Boolean
     get() = operationalStatus?.acceptsCard == true
