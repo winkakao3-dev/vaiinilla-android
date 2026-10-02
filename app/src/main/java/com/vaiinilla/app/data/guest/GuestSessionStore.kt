@@ -43,6 +43,7 @@ class GuestSessionStore
                         id = it,
                         name = prefs.getString(KEY_SPACE_NAME, "") ?: "",
                         type = prefs.getString(KEY_SPACE_TYPE, "mesa") ?: "mesa",
+                        qrToken = prefs.getString(KEY_SPACE_QR_TOKEN, null),
                     )
                 }
             return GuestVenueContext(
@@ -78,10 +79,18 @@ class GuestSessionStore
                     remove(KEY_SPACE_ID)
                     remove(KEY_SPACE_NAME)
                     remove(KEY_SPACE_TYPE)
+                    remove(KEY_SPACE_QR_TOKEN)
                 } else {
                     putInt(KEY_SPACE_ID, space.id)
                     putString(KEY_SPACE_NAME, space.name)
                     putString(KEY_SPACE_TYPE, space.type)
+                    if (space.qrToken ==
+                        null
+                    ) {
+                        remove(KEY_SPACE_QR_TOKEN)
+                    } else {
+                        putString(KEY_SPACE_QR_TOKEN, space.qrToken)
+                    }
                 }
             }
         }
@@ -96,6 +105,7 @@ class GuestSessionStore
                 remove(KEY_SPACE_ID)
                 remove(KEY_SPACE_NAME)
                 remove(KEY_SPACE_TYPE)
+                remove(KEY_SPACE_QR_TOKEN)
             }
         }
 
@@ -209,6 +219,7 @@ class GuestSessionStore
             const val KEY_SPACE_ID = "space_id"
             const val KEY_SPACE_NAME = "space_name"
             const val KEY_SPACE_TYPE = "space_type"
+            const val KEY_SPACE_QR_TOKEN = "space_qr_token"
             const val KEY_CREATE_IDEMPOTENCY_FINGERPRINT = "create_idempotency_fingerprint"
             const val KEY_CREATE_IDEMPOTENCY_KEY = "create_idempotency_key"
             const val KEY_PENDING_STRIPE_CONFIRMATION_ORDER_ID = "pending_stripe_confirmation_order_id"
