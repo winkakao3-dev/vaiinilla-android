@@ -205,6 +205,10 @@ val OrderFlowUiState.operationalBlockerMessage: String?
 val OrderFlowUiState.canPayAtEnd: Boolean
     get() = checkoutDestination == OrderDestination.IN_SPACE && operationalStatus?.allowsPayAtEnd == true
 
+/** ¿Se ofrece pagar con tarjeta? Solo si el dueño la activó en su panel. */
+val OrderFlowUiState.canPayWithCard: Boolean
+    get() = operationalStatus?.acceptsCard == true
+
 enum class StripePaymentPhase {
     IDLE,
     READY,

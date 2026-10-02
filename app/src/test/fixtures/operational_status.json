@@ -5,7 +5,8 @@
     "caja_en_linea": true,
     "cocina_en_linea": true,
     "tiempo_estimado_min": 12,
-    "consultado_en": "2026-07-20T15:00:00.000Z"
+    "consultado_en": "2026-07-20T15:00:00.000Z",
+    "acepta_tarjeta": true
   },
   "meta": { "page": null, "total_pages": null, "total_items": null, "cursor": null },
   "error": null

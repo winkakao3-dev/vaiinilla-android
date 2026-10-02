@@ -114,6 +114,7 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.canCreateOrder
 import com.vaiinilla.app.ui.order.canPayAtEnd
+import com.vaiinilla.app.ui.order.canPayWithCard
 import com.vaiinilla.app.ui.order.cartPreviewTotal
 import com.vaiinilla.app.ui.order.checkoutSpace
 import com.vaiinilla.app.ui.order.checkoutSpaces
@@ -374,6 +375,7 @@ fun CartScreen(
                 balanceAffordable = state.isBalancePaymentAffordable(walletBalance),
                 walletBalance = walletBalance,
                 payAtEndAvailable = state.canPayAtEnd,
+                cardAvailable = state.canPayWithCard,
                 onDismiss = { paymentDialogOpen = false },
                 onSelectPayAtEnd = {
                     paymentDialogOpen = false
@@ -401,6 +403,8 @@ private fun PaymentMethodOverlay(
     onDismiss: () -> Unit,
     onSelectPayAtEnd: () -> Unit,
     onSelect: (PaymentMethod) -> Unit,
+    /** "Pago con Stripe" solo si el dueño activó la tarjeta en su panel (el cobro sigue intacto). */
+    cardAvailable: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     var selectedMethod by remember { mutableStateOf<PaymentMethod?>(null) }
@@ -524,18 +528,20 @@ private fun PaymentMethodOverlay(
                         selectedMethod = PaymentMethod.BALANCE
                     },
                 )
-                PaymentMethodCardOption(
-                    icon = Icons.Outlined.CreditCard,
-                    title = "Pago con Stripe",
-                    subtitle = "Tarjeta de débito o crédito · Pago seguro con Stripe.",
-                    badgeText = "Stripe",
-                    selected = selectedMethod == PaymentMethod.STRIPE,
-                    enabled = !selectionLocked,
-                    onClick = {
-                        payAtEndSelected = false
-                        selectedMethod = PaymentMethod.STRIPE
-                    },
-                )
+                if (cardAvailable) {
+                    PaymentMethodCardOption(
+                        icon = Icons.Outlined.CreditCard,
+                        title = "Pago con Stripe",
+                        subtitle = "Tarjeta de débito o crédito · Pago seguro con Stripe.",
+                        badgeText = "Stripe",
+                        selected = selectedMethod == PaymentMethod.STRIPE,
+                        enabled = !selectionLocked,
+                        onClick = {
+                            payAtEndSelected = false
+                            selectedMethod = PaymentMethod.STRIPE
+                        },
+                    )
+                }
             }
 
             // Action Button matching reference

@@ -104,6 +104,8 @@ fun ReservationsScreen(
     onResumePayment: (Reservation) -> Unit,
     onCancel: (Reservation) -> Unit,
     onDismissMessage: () -> Unit,
+    /** "Tarjeta" solo si el dueño la activó en su panel. */
+    cardAvailable: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     val day = state.day
@@ -268,6 +270,7 @@ fun ReservationsScreen(
                 working = state.working,
                 onPay = onPay,
                 colors = colors,
+                cardAvailable = cardAvailable,
             )
         }
     }
@@ -687,6 +690,7 @@ internal fun ReservationPaymentContent(
     working: Boolean,
     onPay: (ReservationPaymentMethod) -> Unit,
     colors: VaiinillaColors,
+    cardAvailable: Boolean = false,
 ) {
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(reservation.id) {
@@ -746,20 +750,22 @@ internal fun ReservationPaymentContent(
             onClick = { onPay(ReservationPaymentMethod.BALANCE) },
             colors = colors,
         )
-        PayOption(
-            title = "Tarjeta",
-            detail = "Pago seguro con tu tarjeta.",
-            amount = prices?.card ?: reservation.amount,
-            index = 2,
-            enabled = !working && remaining != 0L,
-            onClick = { onPay(ReservationPaymentMethod.CARD) },
-            colors = colors,
-        )
+        if (cardAvailable) {
+            PayOption(
+                title = "Tarjeta",
+                detail = "Pago seguro con tu tarjeta.",
+                amount = prices?.card ?: reservation.amount,
+                index = 2,
+                enabled = !working && remaining != 0L,
+                onClick = { onPay(ReservationPaymentMethod.CARD) },
+                colors = colors,
+            )
+        }
         PayOption(
             title = "Efectivo en caja",
             detail = "Paga en caja antes de que venza el apartado.",
             amount = prices?.cashOrBalance ?: reservation.amount,
-            index = 3,
+            index = if (cardAvailable) 3 else 2,
             enabled = !working && remaining != 0L,
             onClick = { onPay(ReservationPaymentMethod.CASH) },
             colors = colors,

@@ -229,6 +229,7 @@ class ReservationsScreenshotTest {
                     working = false,
                     onPay = {},
                     colors = LocalVaiinillaColors.current,
+                    cardAvailable = true,
                 )
             }
         }
