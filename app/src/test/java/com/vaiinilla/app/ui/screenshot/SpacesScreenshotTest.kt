@@ -33,6 +33,7 @@ import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.screens.CashCloseContent
 import com.vaiinilla.app.ui.screens.CollectAccountContent
 import com.vaiinilla.app.ui.screens.KitchenRejectContent
+import com.vaiinilla.app.ui.screens.SplitMode
 import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
 import com.vaiinilla.app.ui.screens.WaiterSpaceSection
 import com.vaiinilla.app.ui.screens.rememberOperationalColors
@@ -266,6 +267,44 @@ class SpacesScreenshotTest {
                     title = "Rentar Cancha 2 · 1 h",
                     allowTerminal = false,
                     onConfirm = { _, _, _, _, _ -> },
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `spaces_abono_parts`() {
+        capture("spaces_abono_parts.png") {
+            val colors = rememberOperationalColors()
+            Box(Modifier.fillMaxSize().background(colors.background)) {
+                CollectAccountContent(
+                    total = "100.00",
+                    payable = emptyList(),
+                    confirming = false,
+                    colors = colors,
+                    remaining = "100.00",
+                    onConfirm = { _, _, _, _, _ -> },
+                    onAbono = { _, _, _, _, _, _, _ -> },
+                    initialSplit = SplitMode.PARTS,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `spaces_abono_amount_in_progress`() {
+        capture("spaces_abono_amount_in_progress.png") {
+            val colors = rememberOperationalColors()
+            Box(Modifier.fillMaxSize().background(colors.background)) {
+                CollectAccountContent(
+                    total = "200.00",
+                    payable = emptyList(),
+                    confirming = false,
+                    colors = colors,
+                    remaining = "100.00",
+                    paidIn = "100.00",
+                    onConfirm = { _, _, _, _, _ -> },
+                    onAbono = { _, _, _, _, _, _, _ -> },
                 )
             }
         }

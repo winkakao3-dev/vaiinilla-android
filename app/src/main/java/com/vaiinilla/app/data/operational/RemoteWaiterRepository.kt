@@ -5,6 +5,8 @@ import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.repository.AbonoMode
+import com.vaiinilla.app.domain.repository.AbonoResult
 import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.AccountPaymentMethod
 import com.vaiinilla.app.domain.repository.BoardOrder
@@ -234,6 +236,25 @@ class RemoteWaiterRepository(
                 body = contractJson.encodeCollectAccount(received, expectedTotal, orderIds, method, tip),
                 headers = mapOf("Idempotency-Key" to idempotencyKey),
             ).mapCatching(contractJson::parseAccountCollection)
+            .mapApiErrors()
+
+    override fun abonar(
+        spaceId: Int,
+        method: AccountPaymentMethod,
+        mode: AbonoMode,
+        amount: String?,
+        parts: Int?,
+        received: String?,
+        expectedRemaining: String,
+        idempotencyKey: String,
+        tip: String?,
+    ): Result<AbonoResult> =
+        apiClient
+            .post(
+                path = "espacios/$spaceId/sesion/abonos",
+                body = contractJson.encodeAbono(method, mode, amount, parts, received, expectedRemaining, tip),
+                headers = mapOf("Idempotency-Key" to idempotencyKey),
+            ).mapCatching(contractJson::parseAbono)
             .mapApiErrors()
 
     override fun currentCall(espacioId: Int): Result<TableCall?> =

@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
+import com.vaiinilla.app.domain.repository.AbonoMode
+import com.vaiinilla.app.domain.repository.AbonoResult
 import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.AccountPaymentMethod
 import com.vaiinilla.app.domain.repository.BoardOrder
@@ -44,6 +46,7 @@ data class WaiterUiState(
     val spaceDetailLoading: Boolean = false,
     /** Cambio de la última cuenta cobrada, para que se lo entregue al cliente. */
     val lastCollection: AccountCollection? = null,
+    val lastAbono: AbonoResult? = null,
     /** Renta de mostrador apartada esperando que se cobre en efectivo. */
     val pendingRental: Reservation? = null,
 )
@@ -206,7 +209,7 @@ class WaiterViewModel
         /** Abre el detalle de un espacio: su sesión, su cuenta y su turno. */
         fun openSpace(spaceId: Int) {
             openSpaceId = spaceId
-            _uiState.value = _uiState.value.copy(spaceDetail = null, lastCollection = null)
+            _uiState.value = _uiState.value.copy(spaceDetail = null, lastCollection = null, lastAbono = null)
             loadSpaceDetail(spaceId, silent = false)
         }
 
@@ -216,7 +219,7 @@ class WaiterViewModel
         }
 
         fun dismissCollection() {
-            _uiState.value = _uiState.value.copy(lastCollection = null)
+            _uiState.value = _uiState.value.copy(lastCollection = null, lastAbono = null)
         }
 
         private fun loadSpaceDetail(
@@ -384,6 +387,53 @@ class WaiterViewModel
             }
         }
 
+        /**
+         * Abona a la cuenta por monto o en partes iguales (docs/dividir-cuenta.md). La llave sale
+         * del abono mismo: repetirlo tras un error de red no cobra dos veces, y un abono nuevo
+         * trae otra llave porque lo que falta ya cambió.
+         */
+        fun abonar(
+            spaceId: Int,
+            method: AccountPaymentMethod,
+            mode: AbonoMode,
+            amount: String?,
+            parts: Int?,
+            received: String?,
+            expectedRemaining: String,
+            tip: String? = null,
+        ) {
+            if (_uiState.value.acting) return
+            _uiState.value = _uiState.value.copy(acting = true)
+            val key =
+                abonoIdempotencyKey(spaceId, method, mode, amount, parts, expectedRemaining, tip)
+            viewModelScope.launch {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        waiterRepository.abonar(
+                            spaceId,
+                            method,
+                            mode,
+                            amount,
+                            parts,
+                            received,
+                            expectedRemaining,
+                            key,
+                            tip,
+                        )
+                    }
+                _uiState.value = _uiState.value.copy(acting = false)
+                result.fold(
+                    onSuccess = { abono ->
+                        _uiState.value = _uiState.value.copy(lastAbono = abono)
+                        showToast(if (abono.settled) "Cuenta saldada" else "Abono registrado")
+                    },
+                    onFailure = { error -> showToast(error.toUserFacingMessage()) },
+                )
+                refresh()
+                loadSpaceDetail(spaceId, silent = true)
+            }
+        }
+
         private fun runSpaceAction(
             spaceId: Int,
             successMessage: String,
@@ -454,3 +504,20 @@ class WaiterViewModel
             const val TOAST_VISIBLE_MS = 4_200L
         }
     }
+
+/** Llave de idempotencia de un abono: la misma para el mismo abono sobre el mismo restante. */
+internal fun abonoIdempotencyKey(
+    spaceId: Int,
+    method: AccountPaymentMethod,
+    mode: AbonoMode,
+    amount: String?,
+    parts: Int?,
+    expectedRemaining: String,
+    tip: String?,
+): String =
+    UUID
+        .nameUUIDFromBytes(
+            listOf("abono", spaceId, method.wire, mode.wire, amount, parts, expectedRemaining, tip)
+                .joinToString("|")
+                .toByteArray(),
+        ).toString()

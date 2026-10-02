@@ -88,6 +88,7 @@ import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.AccountPaymentMethod
 import com.vaiinilla.app.domain.repository.BoardOrder
@@ -144,6 +145,8 @@ fun WaiterOperationalScreen(
         List<String>?,
         String?,
     ) -> Unit = { _, _, _, _, _, _ -> },
+    /** Abonos por monto o partes iguales: el espacio y el abono. */
+    onAbono: ((Int, AccountPaymentMethod, AbonoMode, String?, Int?, String?, String, String?) -> Unit)? = null,
     onDismissCollection: () -> Unit = {},
     /** Renta de mostrador de una cancha con precio: aparta (ahora o renovación) y abre el cobro. */
     onStartRental: (Int, Int, Instant?) -> Unit = { _, _, _ -> },
@@ -571,6 +574,12 @@ fun WaiterOperationalScreen(
             onCollectAccount = { method, received, total, ids, tip ->
                 onCollectAccount(open.space.id, method, received, total, ids, tip)
             },
+            onAbono =
+                onAbono?.let { abonar ->
+                    { method, mode, amount, parts, received, expected, tip ->
+                        abonar(open.space.id, method, mode, amount, parts, received, expected, tip)
+                    }
+                },
             onDismissCollection = onDismissCollection,
         )
     }
@@ -970,6 +979,7 @@ private fun WaiterTableSheet(
     onReleaseSpace: () -> Unit,
     onCollectAccount: (AccountPaymentMethod, String?, String, List<String>?, String?) -> Unit,
     onDismissCollection: () -> Unit,
+    onAbono: AbonoHandler? = null,
     rentable: Boolean = false,
     onStartRental: (Int, Instant?) -> Unit = { _, _ -> },
 ) {
@@ -1102,6 +1112,7 @@ private fun WaiterTableSheet(
                 onOpenTurn = onOpenTurn,
                 onExtend = onExtendTurn,
                 onCollect = onCollectAccount,
+                onAbono = onAbono,
                 onRelease = onReleaseSpace,
                 onDismissCollection = onDismissCollection,
                 rentable = rentable,
