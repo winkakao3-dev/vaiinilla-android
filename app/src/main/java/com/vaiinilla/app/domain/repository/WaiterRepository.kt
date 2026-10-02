@@ -151,6 +151,8 @@ data class AccountOrder(
     val payAtEnd: Boolean,
     /** Aún no se cobra: por cobrar en Caja, o a la cuenta sin cobrar. */
     val pending: Boolean,
+    /** Alias de quien dijo "esto lo pago yo" en la mesa compartida. */
+    val payer: String? = null,
 )
 
 data class SpaceAccount(
@@ -159,7 +161,14 @@ data class SpaceAccount(
     val pending: String,
     val paid: String,
     val settled: Boolean,
-)
+    /** Ya recibido en abonos (dividir por monto o partes); los pedidos se cobran al cubrir todo. */
+    val paidIn: String = "0.00",
+    /** Lo que falta: pendiente menos abonado. */
+    val remaining: String = pending,
+) {
+    /** Hay abonos sin liquidar: el cobro por pedidos queda bloqueado (SPLIT_IN_PROGRESS). */
+    val splitInProgress: Boolean get() = paidIn.toBigDecimalOrNull()?.signum() == 1
+}
 
 data class SpaceSessionDetail(
     val availability: SpaceAvailability,
@@ -179,6 +188,25 @@ enum class AccountPaymentMethod(
         fun fromWire(value: String?): AccountPaymentMethod = entries.firstOrNull { it.wire == value } ?: CASH
     }
 }
+
+/** Cómo se divide un abono: un monto libre o una de N partes iguales. */
+enum class AbonoMode(
+    val wire: String,
+) {
+    AMOUNT("monto"),
+    PARTS("partes"),
+}
+
+/** Resultado de POST /espacios/:id/sesion/abonos. */
+data class AbonoResult(
+    val amount: String,
+    val received: String,
+    val change: String,
+    val remaining: String,
+    val settled: Boolean,
+    val ordersCollected: Int,
+    val method: AccountPaymentMethod,
+)
 
 data class AccountCollection(
     val ordersCollected: Int,
@@ -318,6 +346,19 @@ interface WaiterRepository {
         idempotencyKey: String,
         tip: String? = null,
     ): Result<AccountCollection>
+
+    /** Abona a la cuenta por monto o en partes iguales (docs/dividir-cuenta.md). */
+    fun abonar(
+        spaceId: Int,
+        method: AccountPaymentMethod,
+        mode: AbonoMode,
+        amount: String?,
+        parts: Int?,
+        received: String?,
+        expectedRemaining: String,
+        idempotencyKey: String,
+        tip: String? = null,
+    ): Result<AbonoResult>
 
     fun currentCall(espacioId: Int): Result<TableCall?>
 

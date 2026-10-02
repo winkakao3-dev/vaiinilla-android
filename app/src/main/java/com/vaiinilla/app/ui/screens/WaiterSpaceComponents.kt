@@ -43,6 +43,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -58,12 +59,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.model.AccountSplit
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.TipChoice
 import com.vaiinilla.app.domain.model.TipPercents
 import com.vaiinilla.app.domain.model.amountFor
 import com.vaiinilla.app.domain.model.asTipWire
+import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.AccountOrder
 import com.vaiinilla.app.domain.repository.AccountPaymentMethod
@@ -291,6 +294,8 @@ internal fun WaiterSpaceSection(
     /** Cancha con precio: se renta y se cobra en lugar de abrir o alargar el turno a mano. */
     rentable: Boolean = false,
     onRent: (minutes: Int, start: Instant?) -> Unit = { _, _ -> },
+    /** Abonos por monto o partes iguales; null los oculta. */
+    onAbono: AbonoHandler? = null,
 ) {
     var collecting by remember { mutableStateOf(false) }
     // Solo el botón que se tocó muestra su progreso; los demás quedan quietos.
@@ -590,6 +595,9 @@ internal fun WaiterSpaceSection(
             colors = colors,
             onDismiss = { if (!acting) collecting = false },
             onConfirm = { method, received, expected, ids, tip -> onCollect(method, received, expected, ids, tip) },
+            remaining = account.remaining,
+            paidIn = account.paidIn,
+            onAbono = onAbono,
         )
     }
 }
@@ -891,6 +899,9 @@ private fun CollectAccountSheet(
         orderIds: List<String>?,
         tip: String?,
     ) -> Unit,
+    remaining: String? = null,
+    paidIn: String = "0.00",
+    onAbono: AbonoHandler? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -905,6 +916,9 @@ private fun CollectAccountSheet(
             confirming = confirming,
             colors = colors,
             onConfirm = onConfirm,
+            remaining = remaining,
+            paidIn = paidIn,
+            onAbono = onAbono,
         )
     }
 }
@@ -934,16 +948,50 @@ internal fun CollectAccountContent(
     allowTerminal: Boolean = true,
     /** La propina va en el cobro de la cuenta; la renta de mostrador no la lleva. */
     allowTip: Boolean = true,
+    /** Lo que falta (pendiente menos abonado); null sin abonos. */
+    remaining: String? = null,
+    /** Lo ya abonado sin liquidar. */
+    paidIn: String = "0.00",
+    /** Abonar por monto o partes iguales (docs/dividir-cuenta.md); null lo oculta. */
+    onAbono: AbonoHandler? = null,
+    /** El modo con que abre la hoja (capturas y pruebas). */
+    initialSplit: SplitMode = SplitMode.ORDERS,
 ) {
     var selected by remember(payable) { mutableStateOf(payable.map { it.id }.toSet()) }
-    val splitting = payable.size >= 2
+    val paidInAmount = paidIn.moneyOrZero()
+    val remainingAmount = remaining?.moneyOrZero() ?: total.moneyOrZero()
+    val splitLocked = paidInAmount.signum() > 0
+    var split by remember {
+        mutableStateOf(
+            if (splitLocked &&
+                initialSplit == SplitMode.ORDERS
+            ) {
+                SplitMode.AMOUNT
+            } else {
+                initialSplit
+            },
+        )
+    }
+    if (splitLocked && split == SplitMode.ORDERS) split = SplitMode.AMOUNT
+    var abonoText by remember { mutableStateOf("") }
+    var people by remember { mutableIntStateOf(2) }
+    val byOrders = onAbono == null || split == SplitMode.ORDERS
+    val splitting = byOrders && payable.size >= 2
     val allSelected = selected.size == payable.size
     val totalAmount =
-        if (payable.isEmpty()) {
-            total.moneyOrZero()
-        } else {
-            payable.filter { it.id in selected }.fold(BigDecimal.ZERO) { sum, order -> sum + order.total.moneyOrZero() }
+        when {
+            !byOrders && split == SplitMode.PARTS -> AccountSplit.partAmount(remainingAmount, people)
+            !byOrders ->
+                abonoText.trim().toBigDecimalOrNull()?.setScale(2, java.math.RoundingMode.DOWN)
+                    ?: BigDecimal.ZERO
+            payable.isEmpty() -> total.moneyOrZero()
+            else ->
+                payable.filter { it.id in selected }.fold(BigDecimal.ZERO) { sum, order ->
+                    sum +
+                        order.total.moneyOrZero()
+                }
         }
+    val abonoValid = byOrders || AccountSplit.isValidAmount(totalAmount, remainingAmount)
     val totalLabel = Money.format(totalAmount)
     var tipChoice by remember { mutableStateOf<TipChoice>(TipChoice.None) }
     val tipAmount = if (allowTip) tipChoice.amountFor(totalAmount) else BigDecimal.ZERO
@@ -958,7 +1006,7 @@ internal fun CollectAccountContent(
     val received = text.trim().toBigDecimalOrNull()?.takeIf { it.signum() >= 0 }
     val difference = received?.let { it - chargeAmount }
     val canConfirm =
-        totalAmount.signum() > 0 && (withTerminal || (difference != null && difference.signum() >= 0))
+        abonoValid && totalAmount.signum() > 0 && (withTerminal || (difference != null && difference.signum() >= 0))
     val shortfall = !withTerminal && difference != null && difference.signum() < 0
     val quickAmounts = remember(chargeLabel) { quickCashAmounts(chargeAmount) }
     val changeInk = animateSelectionColor(if (shortfall) StateCoral else colors.textPrimary, "change-ink")
@@ -974,7 +1022,11 @@ internal fun CollectAccountContent(
     ) {
         Column(modifier = Modifier.arrive(0)) {
             Text(
-                title ?: if (splitting && !allSelected) "Cobrar parte de la cuenta" else "Cobrar cuenta",
+                title ?: when {
+                    !byOrders -> "Abonar a la cuenta"
+                    splitting && !allSelected -> "Cobrar parte de la cuenta"
+                    else -> "Cobrar cuenta"
+                },
                 fontSize = 13.sp,
                 color = colors.textSecondary,
                 fontWeight = FontWeight.SemiBold,
@@ -985,7 +1037,96 @@ internal fun CollectAccountContent(
                 color = colors.textPrimary,
             )
         }
+        if (onAbono != null) {
+            if (paidInAmount.signum() > 0) {
+                Text(
+                    "Abonado $${Money.format(paidInAmount)} · Falta $${Money.format(remainingAmount)}",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary,
+                    modifier = Modifier.arrive(1),
+                )
+            }
+            Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Cómo dividir",
+                    fontSize = 12.5.sp,
+                    color = colors.textSecondary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    SplitMode.entries.forEach { mode ->
+                        ChipButton(
+                            label = mode.label,
+                            enabled = !confirming && !(mode == SplitMode.ORDERS && splitLocked),
+                            colors = colors,
+                            modifier = Modifier.weight(1f),
+                            selected = split == mode,
+                        ) {
+                            split = mode
+                            typed = null
+                        }
+                    }
+                }
+                if (splitLocked) {
+                    Text(
+                        "Hay abonos sin liquidar: termina la división por montos.",
+                        fontSize = 12.sp,
+                        color = colors.textSecondary,
+                    )
+                }
+                if (split == SplitMode.AMOUNT) {
+                    OutlinedTextField(
+                        value = abonoText,
+                        onValueChange = { raw ->
+                            abonoText = raw.filter { c -> c.isDigit() || c == '.' }
+                            typed = null
+                        },
+                        label = { Text("Monto de este abono") },
+                        supportingText = { Text("Falta $${Money.format(remainingAmount)}") },
+                        isError = abonoText.isNotBlank() && !abonoValid,
+                        singleLine = true,
+                        enabled = !confirming,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                if (split == SplitMode.PARTS) {
+                    Text(
+                        "¿Entre cuántos? Paga $${Money.format(
+                            AccountSplit.partAmount(remainingAmount, people),
+                        )} cada uno; " +
+                            "el último paga lo que quede.",
+                        fontSize = 12.sp,
+                        color = colors.textSecondary,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                        PartsChoices.forEach { n ->
+                            ChipButton(
+                                label = if (n == 1) "Resto" else "$n",
+                                enabled = !confirming,
+                                colors = colors,
+                                modifier = Modifier.weight(1f),
+                                selected = people == n,
+                            ) {
+                                people = n
+                                typed = null
+                            }
+                        }
+                    }
+                }
+            }
+        }
         if (splitting) {
+            PayerShortcuts(
+                orders = payable,
+                enabled = !confirming,
+                colors = colors,
+                onPick = { ids ->
+                    selected = ids
+                    typed = null
+                },
+            )
             SplitOrdersPicker(
                 orders = payable,
                 selected = selected,
@@ -1141,19 +1282,84 @@ internal fun CollectAccountContent(
         }
         Box(modifier = Modifier.arrive(3)) {
             ActionPill(
-                label = if (withTerminal) "Cobrado en la terminal $$chargeLabel" else "Cobrar $$chargeLabel",
+                label =
+                    when {
+                        !byOrders && withTerminal -> "Abonado en la terminal $$chargeLabel"
+                        !byOrders -> "Abonar $$chargeLabel"
+                        withTerminal -> "Cobrado en la terminal $$chargeLabel"
+                        else -> "Cobrar $$chargeLabel"
+                    },
                 enabled = canConfirm,
                 loading = confirming,
                 colors = colors,
             ) {
                 val orderIds = if (allSelected) null else selected.toList()
                 val tip = tipAmount.asTipWire()
-                if (withTerminal) {
+                if (!byOrders && onAbono != null) {
+                    val mode = if (split == SplitMode.PARTS) AbonoMode.PARTS else AbonoMode.AMOUNT
+                    onAbono(
+                        if (withTerminal) AccountPaymentMethod.TERMINAL else AccountPaymentMethod.CASH,
+                        mode,
+                        totalLabel.takeIf { mode == AbonoMode.AMOUNT },
+                        people.takeIf { mode == AbonoMode.PARTS },
+                        received?.let { Money.format(it) }.takeIf { !withTerminal },
+                        Money.format(remainingAmount),
+                        tip,
+                    )
+                } else if (withTerminal) {
                     onConfirm(AccountPaymentMethod.TERMINAL, null, totalLabel, orderIds, tip)
                 } else {
                     received?.let { onConfirm(AccountPaymentMethod.CASH, Money.format(it), totalLabel, orderIds, tip) }
                 }
             }
+        }
+    }
+}
+
+/** Un abono por monto o partes iguales, como lo manda la hoja de cobro. */
+internal typealias AbonoHandler = (
+    method: AccountPaymentMethod,
+    mode: AbonoMode,
+    amount: String?,
+    parts: Int?,
+    received: String?,
+    expectedRemaining: String,
+    tip: String?,
+) -> Unit
+
+/** Cómo se divide la cuenta en la hoja de cobro. */
+internal enum class SplitMode(
+    val label: String,
+) {
+    ORDERS("Por pedidos"),
+    AMOUNT("Por monto"),
+    PARTS("Partes"),
+}
+
+/** Entre cuántos se divide; "Resto" (1) paga todo lo que queda. */
+private val PartsChoices = listOf(2, 3, 4, 5, 1)
+
+/** "Parte de Ana": marca solo los pedidos que esa persona dijo que paga. */
+@Composable
+private fun PayerShortcuts(
+    orders: List<AccountOrder>,
+    enabled: Boolean,
+    colors: OperationalColors,
+    onPick: (Set<String>) -> Unit,
+) {
+    val payers = orders.mapNotNull { it.payer }.distinct()
+    if (payers.isEmpty()) return
+    Row(
+        modifier = Modifier.fillMaxWidth().arrive(1),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        payers.forEach { payer ->
+            ChipButton(
+                label = "Parte de $payer",
+                enabled = enabled,
+                colors = colors,
+                modifier = Modifier.weight(1f),
+            ) { onPick(orders.filter { it.payer == payer }.map { it.id }.toSet()) }
         }
     }
 }
@@ -1191,7 +1397,8 @@ private fun SplitOrdersPicker(
                 Checkbox(checked = checked, onCheckedChange = null, enabled = enabled)
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "#${order.folio} · ${order.clientName ?: "Cliente"}",
+                        "#${order.folio} · ${order.clientName ?: "Cliente"}" +
+                            (order.payer?.let { " · Paga $it" } ?: ""),
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.5.sp,
                         color = colors.textPrimary,

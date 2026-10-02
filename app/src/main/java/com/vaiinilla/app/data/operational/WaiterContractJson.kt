@@ -2,6 +2,8 @@ package com.vaiinilla.app.data.operational
 
 import com.vaiinilla.app.data.contract.MetaDto
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.repository.AbonoMode
+import com.vaiinilla.app.domain.repository.AbonoResult
 import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.AccountOrder
 import com.vaiinilla.app.domain.repository.AccountPaymentMethod
@@ -176,6 +178,8 @@ data class AccountOrderDto(
     @SerialName("pendiente_cobro") val pending: Boolean = false,
     val cliente: TableCallClientDto? = null,
     @SerialName("items_resumen") val itemsSummary: String = "",
+    /** Alias de quien dijo "esto lo pago yo"; un servidor anterior no lo envía. */
+    val pagara: String? = null,
 )
 
 @Serializable
@@ -185,6 +189,9 @@ data class SpaceAccountDto(
     val pendiente: Double = 0.0,
     val pagado: Double = 0.0,
     val saldada: Boolean = true,
+    /** Abonos sin liquidar; un servidor anterior no los envía. */
+    val abonado: Double = 0.0,
+    val restante: Double? = null,
 )
 
 @Serializable
@@ -219,6 +226,45 @@ data class AccountCollectionDto(
     val restante: String = "0.00",
     /** Un servidor anterior solo cobra en efectivo y no lo envía. */
     @SerialName("metodo_pago") val paymentMethod: String = "efectivo",
+)
+
+@Serializable
+data class AbonoDto(
+    @SerialName("metodo_pago") val paymentMethod: String = "efectivo",
+    val monto: String,
+    @SerialName("monto_recibido") val received: String? = null,
+    val cambio: String = "0.00",
+)
+
+@Serializable
+data class AbonoResultDto(
+    val abono: AbonoDto,
+    val restante: String,
+    val liquidada: Boolean = false,
+    @SerialName("pedidos_cobrados") val ordersCollected: Int = 0,
+)
+
+@Serializable
+data class AbonoResultEnvelopeDto(
+    val data: AbonoResultDto,
+    val meta: MetaDto? = null,
+    val error: JsonElement? = null,
+)
+
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+data class AbonoRequestDto(
+    @SerialName("metodo_pago") val paymentMethod: String,
+    val modo: String,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val monto: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val partes: Int? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("monto_recibido") val received: String? = null,
+    @SerialName("restante_esperado") val expectedRemaining: String,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("propina") val tip: String? = null,
 )
 
 @Serializable
@@ -310,6 +356,7 @@ fun AccountOrderDto.toDomain(): AccountOrder =
         itemsSummary = itemsSummary,
         payAtEnd = payAtEnd,
         pending = pending,
+        payer = pagara,
     )
 
 fun SpaceAccountDto.toDomain(): SpaceAccount =
@@ -319,6 +366,8 @@ fun SpaceAccountDto.toDomain(): SpaceAccount =
         pending = pendiente.toMoney(),
         paid = pagado.toMoney(),
         settled = saldada,
+        paidIn = abonado.toMoney(),
+        remaining = (restante ?: (pendiente - abonado)).toMoney(),
     )
 
 fun SpaceSessionDetailDto.toDomain(): SpaceSessionDetail =
@@ -473,6 +522,42 @@ class WaiterContractJson
                     tip = tip,
                 ),
             )
+
+        fun encodeAbono(
+            method: AccountPaymentMethod,
+            mode: AbonoMode,
+            amount: String?,
+            parts: Int?,
+            received: String?,
+            expectedRemaining: String,
+            tip: String? = null,
+        ): String =
+            json.encodeToString(
+                AbonoRequestDto(
+                    paymentMethod = method.wire,
+                    modo = mode.wire,
+                    monto = amount.takeIf { mode == AbonoMode.AMOUNT },
+                    partes = parts.takeIf { mode == AbonoMode.PARTS },
+                    received = received.takeIf { method == AccountPaymentMethod.CASH },
+                    expectedRemaining = expectedRemaining,
+                    tip = tip?.takeIf { it.toBigDecimalOrNull()?.signum() == 1 },
+                ),
+            )
+
+        fun parseAbono(raw: String): AbonoResult {
+            val envelope = json.decodeFromString<AbonoResultEnvelopeDto>(raw)
+            require(envelope.error == null) { "La API devolvió un error en el envelope." }
+            val data = envelope.data
+            return AbonoResult(
+                amount = data.abono.monto,
+                received = data.abono.received ?: data.abono.monto,
+                change = data.abono.cambio,
+                remaining = data.restante,
+                settled = data.liquidada,
+                ordersCollected = data.ordersCollected,
+                method = AccountPaymentMethod.fromWire(data.abono.paymentMethod),
+            )
+        }
 
         fun encodeCallTransition(
             target: CallStatus,
