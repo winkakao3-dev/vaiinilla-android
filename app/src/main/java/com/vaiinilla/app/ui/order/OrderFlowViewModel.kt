@@ -686,9 +686,10 @@ class OrderFlowViewModel
                                 creatingOrder = false,
                                 cartLines = emptyList(),
                                 kitchenNotes = "",
-                                checkoutDestination = OrderDestination.TAKE_AWAY,
+                                // La mesa se conserva para pedir otra ronda sin volver a escanear;
+                                // si la ronda fue a la cuenta, la siguiente arranca igual.
                                 checkoutPayment = PaymentMethod.CASH,
-                                checkoutPayAtEnd = false,
+                                checkoutPayAtEnd = _uiState.value.payAtEndForNextRound,
                                 createdOrder = created.order,
                                 stripeObservedOrder = null,
                                 stripePendingOrderId = stripePendingOrderId,
