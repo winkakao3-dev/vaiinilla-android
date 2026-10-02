@@ -75,6 +75,7 @@ import com.vaiinilla.app.ui.screens.InvitationAcceptanceScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
+import com.vaiinilla.app.ui.screens.SharedTableCard
 import com.vaiinilla.app.ui.screens.StudentAuthLandingScreen
 import com.vaiinilla.app.ui.screens.StudentForgotPasswordScreen
 import com.vaiinilla.app.ui.screens.StudentLoginScreen
@@ -89,6 +90,7 @@ import com.vaiinilla.app.ui.screens.WalletPaymentMethodsScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
 import com.vaiinilla.app.ui.screens.WelcomeBootStage
 import com.vaiinilla.app.ui.screens.rememberReduceMotion
+import com.vaiinilla.app.ui.sharedtable.SharedTableViewModel
 import com.vaiinilla.app.ui.wallet.WalletViewModel
 import com.vaiinilla.app.ui.wallet.rememberWalletUiState
 import kotlinx.coroutines.delay
@@ -121,6 +123,7 @@ fun AppNavHost(
     val waiterViewModel: WaiterViewModel = viewModel()
     val courtsViewModel: CourtsViewModel = viewModel()
     val reservationsViewModel: ReservationsViewModel = viewModel()
+    val sharedTableViewModel: SharedTableViewModel = viewModel()
     val studentAuthViewModel: StudentAuthViewModel = viewModel()
     val authorizedAccessViewModel: AuthorizedAccessViewModel = viewModel()
     val discoveryViewModel: GuestDiscoveryViewModel = viewModel()
@@ -1403,6 +1406,26 @@ fun AppNavHost(
                         onAnnounceArrival = operationalViewModel::announceArrival,
                         onCallWaiter = operationalViewModel::callWaiter,
                         onCancelWaiter = operationalViewModel::cancelWaiterCall,
+                        sharedTable = {
+                            // Solo consulta la mesa mientras Mis pedidos está a la vista.
+                            DisposableEffect(Unit) {
+                                sharedTableViewModel.onVisible()
+                                onDispose { sharedTableViewModel.onHidden() }
+                            }
+                            SharedTableCard(
+                                state = sharedTableViewModel.uiState.value,
+                                qrToken = orderState.guestVenue?.space?.qrToken,
+                                onAliasChange = sharedTableViewModel::updateAlias,
+                                onJoin = {
+                                    orderState.guestVenue
+                                        ?.space
+                                        ?.qrToken
+                                        ?.let(sharedTableViewModel::join)
+                                },
+                                onClaim = sharedTableViewModel::claim,
+                                onLeave = sharedTableViewModel::leave,
+                            )
+                        },
                     )
                 }
             }

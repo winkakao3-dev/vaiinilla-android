@@ -174,6 +174,8 @@ fun StudentTrackingScreen(
     onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
+    /** La mesa compartida, arriba de la lista (vacía si el cliente no está en una mesa). */
+    sharedTable: @Composable () -> Unit = {},
 ) {
     val haptics = rememberVaiinillaHaptics()
     LaunchedEffect(Unit) {
@@ -319,6 +321,9 @@ fun StudentTrackingScreen(
                                 )
                             }
                         }
+                    }
+                    if (animatedSelected == null) {
+                        item(key = "shared-table") { sharedTable() }
                     }
 
                     when {
@@ -750,8 +755,8 @@ private val OrderDetail.isActiveForCustomer: Boolean
 private fun customerStateLabel(order: OrderDetail): String =
     if (order.isRental) rentalStateLabel(order) else orderStateLabel(order.summary)
 
-private val OrderTrackingCardBg = Color(0xFF1C1D1B)
-private val OrderTrackingCardText = Color(0xFFF5F2E8)
+internal val OrderTrackingCardBg = Color(0xFF1C1D1B)
+internal val OrderTrackingCardText = Color(0xFFF5F2E8)
 
 @Composable
 private fun OrdersSectionLabel(text: String) {

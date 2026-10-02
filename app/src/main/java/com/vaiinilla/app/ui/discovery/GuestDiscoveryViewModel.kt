@@ -187,7 +187,7 @@ class GuestDiscoveryViewModel
                         tryEnter(
                             GuestVenueContext(
                                 establishment = resolved.establishment,
-                                space = resolved.space,
+                                space = resolved.space?.copy(qrToken = token),
                             ),
                             onEntered,
                         )

@@ -12,6 +12,8 @@ data class PublicSpace(
     val id: Int,
     val name: String,
     val type: String,
+    /** Código del QR escaneado: con él el cliente se une a la mesa compartida. */
+    val qrToken: String? = null,
 )
 
 data class GuestVenueContext(
