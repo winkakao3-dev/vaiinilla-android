@@ -17,6 +17,8 @@ data class OperationalStatus(
     val deliveryRequiresQr: Boolean = true,
     /** Si es true, el cliente puede pedir en un espacio y pagar al final. */
     val allowsPayAtEnd: Boolean = false,
+    /** Si es true, el dueño activó la tarjeta en su panel y Stripe ya le permite cobrar. */
+    val acceptsCard: Boolean = false,
     /** Lo que el dueño dice que es el negocio (`drive_thru`, `restaurante`, `padel`…). */
     val businessType: String = "cafeteria",
     /** Franjas en las que se reciben pedidos; vacía = sin límite. */

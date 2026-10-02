@@ -58,6 +58,7 @@ import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.operational.WaiterViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
+import com.vaiinilla.app.ui.order.canPayWithCard
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.isEstablishmentSwitch
 import com.vaiinilla.app.ui.order.toRuntimeConfiguration
@@ -839,6 +840,7 @@ fun AppNavHost(
                     onResumePayment = reservationsViewModel::resumePayment,
                     onCancel = reservationsViewModel::cancel,
                     onDismissMessage = reservationsViewModel::dismissMessages,
+                    cardAvailable = orderState.canPayWithCard,
                 )
             }
 
