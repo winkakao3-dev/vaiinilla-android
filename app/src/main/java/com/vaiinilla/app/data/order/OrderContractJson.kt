@@ -43,11 +43,13 @@ class OrderContractJson
         fun encodeCashCollection(
             amountReceived: String,
             expectedVersion: Int,
+            tip: String? = null,
         ): String =
             json.encodeToString(
                 CashCollectionRequestDto(
                     amountReceived = amountReceived,
                     expectedVersion = expectedVersion,
+                    tip = tip,
                 ),
             )
 

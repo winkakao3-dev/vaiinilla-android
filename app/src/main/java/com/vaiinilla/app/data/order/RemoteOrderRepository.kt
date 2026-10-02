@@ -74,6 +74,7 @@ class RemoteOrderRepository(
         amountReceived: String,
         expectedVersion: Int,
         idempotencyKey: String,
+        tip: String?,
     ): Result<CashCollectionResult> {
         val cachedToken = pickupTokenStore.read(orderId)
         return apiClient
@@ -83,6 +84,7 @@ class RemoteOrderRepository(
                     contractJson.encodeCashCollection(
                         amountReceived = amountReceived,
                         expectedVersion = expectedVersion,
+                        tip = tip,
                     ),
                 headers = mapOf("Idempotency-Key" to idempotencyKey),
             ).mapCatching { contractJson.parseCashCollection(it) }

@@ -619,6 +619,7 @@ class OperationalViewModel
             orderId: String,
             amountReceived: String,
             expectedVersion: Int,
+            tip: String? = null,
         ) {
             val role = _uiState.value.role ?: return
             // El ticket pudo abrirse hace varios ciclos de polling: cobrar con la
@@ -635,8 +636,9 @@ class OperationalViewModel
                 return
             }
             val total = freshest?.summary?.total?.let { runCatching { Money.parse(it) }.getOrNull() }
-            if (total != null && received < total) {
-                showMutationError("El efectivo recibido no cubre el total del pedido (\$${freshest.summary.total}).")
+            val tipAmount = tip?.let { runCatching { BigDecimal(it) }.getOrNull() } ?: BigDecimal.ZERO
+            if (total != null && received < total + tipAmount) {
+                showMutationError("El efectivo recibido no cubre el total del pedido más la propina.")
                 return
             }
             val generation = roleGeneration
@@ -651,8 +653,14 @@ class OperationalViewModel
                                 orderId = orderId,
                                 amountReceived = normalizedAmount,
                                 expectedVersion = version,
+                                // La propina es parte del cobro: otra propina es otro cobro.
                                 idempotencyKey =
-                                    MutationIdempotency.cashCollection(orderId, normalizedAmount, version),
+                                    MutationIdempotency.cashCollection(
+                                        orderId,
+                                        normalizedAmount + "|" + tip.orEmpty(),
+                                        version,
+                                    ),
+                                tip = tip,
                             )
                         }
                     if (generation != roleGeneration || _uiState.value.role != role) return@launch

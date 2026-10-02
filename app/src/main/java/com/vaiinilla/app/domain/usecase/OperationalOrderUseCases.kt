@@ -50,12 +50,14 @@ class CollectCashUseCase
             amountReceived: String,
             expectedVersion: Int,
             idempotencyKey: String,
+            tip: String? = null,
         ): Result<CashCollectionResult> =
             repository.collectCash(
                 orderId = orderId,
                 amountReceived = amountReceived,
                 expectedVersion = expectedVersion,
                 idempotencyKey = idempotencyKey,
+                tip = tip,
             )
     }
 

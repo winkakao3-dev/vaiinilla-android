@@ -174,7 +174,7 @@ class SpacesScreenshotTest {
                 colors = colors,
                 onOpenTurn = {},
                 onExtend = {},
-                onCollect = { _, _, _, _ -> },
+                onCollect = { _, _, _, _, _ -> },
                 onRelease = {},
                 onDismissCollection = {},
                 rentable = rentable,
@@ -265,7 +265,7 @@ class SpacesScreenshotTest {
                     colors = colors,
                     title = "Rentar Cancha 2 · 1 h",
                     allowTerminal = false,
-                    onConfirm = { _, _, _, _ -> },
+                    onConfirm = { _, _, _, _, _ -> },
                 )
             }
         }
@@ -292,10 +292,32 @@ class SpacesScreenshotTest {
                     payable = emptyList(),
                     confirming = false,
                     colors = colors,
-                    onConfirm = { _, _, _, _ -> },
+                    onConfirm = { _, _, _, _, _ -> },
                 )
             }
         }
+    }
+
+    @Test
+    fun `spaces_collect_sheet_propina`() {
+        composeTestRule.setContent {
+            ScreenshotTheme(mode = VaiinillaThemeMode.Light) {
+                val colors = rememberOperationalColors()
+                Box(Modifier.fillMaxSize().background(colors.background)) {
+                    CollectAccountContent(
+                        total = "200.50",
+                        payable = emptyList(),
+                        confirming = false,
+                        colors = colors,
+                        onConfirm = { _, _, _, _, _ -> },
+                    )
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("10%").performClick()
+        composeTestRule.mainClock.advanceTimeBy(800)
+        composeTestRule.onRoot().captureRoboImage("mesa/propina_cuenta.png")
     }
 
     @Test
@@ -309,7 +331,7 @@ class SpacesScreenshotTest {
                         payable = emptyList(),
                         confirming = false,
                         colors = colors,
-                        onConfirm = { _, _, _, _ -> },
+                        onConfirm = { _, _, _, _, _ -> },
                     )
                 }
             }
@@ -353,7 +375,7 @@ class SpacesScreenshotTest {
                         ),
                     confirming = false,
                     colors = colors,
-                    onConfirm = { _, _, _, _ -> },
+                    onConfirm = { _, _, _, _, _ -> },
                 )
             }
         }

@@ -262,6 +262,9 @@ data class CollectAccountRequestDto(
     @SerialName("total_esperado") val expectedTotal: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     @SerialName("pedido_ids") val orderIds: List<String>? = null,
+    /** Propina (docs/propinas.md): solo se manda si hay. */
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("propina") val tip: String? = null,
 )
 
 /** Solo la política de entrega del estado operativo: el resto no le hace falta al mesero. */
@@ -459,6 +462,7 @@ class WaiterContractJson
             expectedTotal: String?,
             orderIds: List<String>? = null,
             method: AccountPaymentMethod = AccountPaymentMethod.CASH,
+            tip: String? = null,
         ): String =
             json.encodeToString(
                 CollectAccountRequestDto(
@@ -466,6 +470,7 @@ class WaiterContractJson
                     received = received.takeIf { method == AccountPaymentMethod.CASH },
                     expectedTotal = expectedTotal,
                     orderIds = orderIds,
+                    tip = tip,
                 ),
             )
 

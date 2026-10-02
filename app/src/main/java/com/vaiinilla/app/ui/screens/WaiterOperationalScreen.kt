@@ -136,7 +136,14 @@ fun WaiterOperationalScreen(
     onOpenTurn: (Int, Int?) -> Unit = { _, _ -> },
     onExtendTurn: (Int, Int) -> Unit = { _, _ -> },
     onReleaseSpace: (Int) -> Unit = {},
-    onCollectAccount: (Int, AccountPaymentMethod, String?, String, List<String>?) -> Unit = { _, _, _, _, _ -> },
+    onCollectAccount: (
+        Int,
+        AccountPaymentMethod,
+        String?,
+        String,
+        List<String>?,
+        String?,
+    ) -> Unit = { _, _, _, _, _, _ -> },
     onDismissCollection: () -> Unit = {},
     /** Renta de mostrador de una cancha con precio: aparta (ahora o renovación) y abre el cobro. */
     onStartRental: (Int, Int, Instant?) -> Unit = { _, _, _ -> },
@@ -561,8 +568,8 @@ fun WaiterOperationalScreen(
             rentable = open.availability?.rentable == true,
             onStartRental = { minutes, start -> onStartRental(open.space.id, minutes, start) },
             onReleaseSpace = { onReleaseSpace(open.space.id) },
-            onCollectAccount = { method, received, total, ids ->
-                onCollectAccount(open.space.id, method, received, total, ids)
+            onCollectAccount = { method, received, total, ids, tip ->
+                onCollectAccount(open.space.id, method, received, total, ids, tip)
             },
             onDismissCollection = onDismissCollection,
         )
@@ -961,7 +968,7 @@ private fun WaiterTableSheet(
     onOpenTurn: (Int?) -> Unit,
     onExtendTurn: (Int) -> Unit,
     onReleaseSpace: () -> Unit,
-    onCollectAccount: (AccountPaymentMethod, String?, String, List<String>?) -> Unit,
+    onCollectAccount: (AccountPaymentMethod, String?, String, List<String>?, String?) -> Unit,
     onDismissCollection: () -> Unit,
     rentable: Boolean = false,
     onStartRental: (Int, Instant?) -> Unit = { _, _ -> },

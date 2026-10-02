@@ -52,10 +52,14 @@ data class CancelOrderEnvelopeDto(
     val error: JsonElement? = null,
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class CashCollectionRequestDto(
     @SerialName("monto_recibido") val amountReceived: String,
     @SerialName("version_esperada") val expectedVersion: Int,
+    /** Propina (docs/propinas.md): solo se manda si hay. */
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("propina") val tip: String? = null,
 )
 
 @Serializable
