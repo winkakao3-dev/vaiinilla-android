@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.PREPARING_SKIPPED_NOTE
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.StripePaymentStatus
@@ -320,6 +321,8 @@ fun OrderTrackingTimeline(
     paymentStatus: StripePaymentStatus? = null,
     spaceType: String? = null,
     payAtEnd: Boolean = false,
+    /** Pedido sin cocina: "Preparando" queda omitido. */
+    skipsKitchen: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     val view = LocalView.current
@@ -334,19 +337,25 @@ fun OrderTrackingTimeline(
     Column(modifier = modifier) {
         timelineSteps.forEachIndexed { index, step ->
             val stepIndex = step.state.trackingIndex
+            val skipped = skipsKitchen && step.state == OrderState.PREPARING
             TimelineRow(
                 stepNumber = index + 1,
                 title = trackingStepTitle(step.state, paymentMethod, paymentStatus, payAtEnd),
                 description =
-                    trackingStepDescription(
-                        step.state,
-                        destination,
-                        paymentMethod,
-                        paymentStatus,
-                        spaceType,
-                        payAtEnd,
-                    ),
-                isDone = stepIndex < currentIndex,
+                    if (skipped) {
+                        PREPARING_SKIPPED_NOTE
+                    } else {
+                        trackingStepDescription(
+                            step.state,
+                            destination,
+                            paymentMethod,
+                            paymentStatus,
+                            spaceType,
+                            payAtEnd,
+                        )
+                    },
+                isSkipped = skipped,
+                isDone = !skipped && stepIndex < currentIndex,
                 isCurrent = stepIndex == currentIndex,
                 showLine = index < timelineSteps.lastIndex,
                 staggerMs = index * 70,
@@ -395,6 +404,7 @@ private fun TimelineRow(
     stepNumber: Int,
     title: String,
     description: String,
+    isSkipped: Boolean = false,
     isDone: Boolean,
     isCurrent: Boolean,
     showLine: Boolean,
@@ -486,7 +496,7 @@ private fun TimelineRow(
                         )
                     } else {
                         Text(
-                            stepNumber.toString(),
+                            if (isSkipped) "–" else stepNumber.toString(),
                             color = colors.muted,
                             fontWeight = FontWeight.Black,
                             fontSize = 11.sp,
@@ -520,6 +530,7 @@ private fun TimelineRow(
                 color = titleColor,
                 fontWeight = FontWeight.Black,
                 fontSize = 13.sp,
+                textDecoration = if (isSkipped) TextDecoration.LineThrough else null,
             )
             Text(description, color = colors.muted, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
         }

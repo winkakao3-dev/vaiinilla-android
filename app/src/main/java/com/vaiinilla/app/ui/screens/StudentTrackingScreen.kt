@@ -84,6 +84,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -100,12 +101,14 @@ import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderReservation
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
+import com.vaiinilla.app.domain.model.PREPARING_SKIPPED_NOTE
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.model.rejectedItemsHint
+import com.vaiinilla.app.domain.model.skipsKitchen
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.domain.repository.CallsUnavailableException
@@ -388,6 +391,7 @@ fun StudentTrackingScreen(
                                         paymentStatus = animatedSelected.payment?.status,
                                         spaceType = animatedSelected.summary.space?.type,
                                         payAtEnd = animatedSelected.summary.payAtEnd,
+                                        skipsKitchen = animatedSelected.skipsKitchen,
                                     )
                                 }
                             }
@@ -967,6 +971,7 @@ private fun ActiveOrderCard(
                             paymentStatus = order.payment?.status,
                             spaceType = summary.space?.type,
                             payAtEnd = summary.payAtEnd,
+                            skipsKitchen = order.skipsKitchen,
                         )
                     }
                     Spacer(Modifier.height(12.dp))
@@ -1470,20 +1475,27 @@ private fun CompactTrackingSteps(
     paymentStatus: StripePaymentStatus?,
     spaceType: String? = null,
     payAtEnd: Boolean = false,
+    skipsKitchen: Boolean = false,
 ) {
     CompactStepList(
         steps =
             OrderState.trackingFlow.map { stepState ->
+                val skipped = skipsKitchen && stepState == OrderState.PREPARING
                 CompactStep(
                     title = trackingStepTitle(stepState, paymentMethod, paymentStatus, payAtEnd),
                     description =
-                        trackingStepDescription(
-                            stepState,
-                            destination,
-                            paymentMethod,
-                            paymentStatus,
-                            spaceType,
-                        ),
+                        if (skipped) {
+                            PREPARING_SKIPPED_NOTE
+                        } else {
+                            trackingStepDescription(
+                                stepState,
+                                destination,
+                                paymentMethod,
+                                paymentStatus,
+                                spaceType,
+                            )
+                        },
+                    skipped = skipped,
                 )
             },
         currentIndex = current.trackingIndex,
@@ -1512,6 +1524,8 @@ private fun RentalCompactSteps(
 private data class CompactStep(
     val title: String,
     val description: String,
+    /** "Preparando" en un pedido sin cocina: no aplica. */
+    val skipped: Boolean = false,
 )
 
 @Composable
@@ -1523,8 +1537,8 @@ private fun CompactStepList(
     val reduceMotion = reducedMotion()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         steps.forEachIndexed { index, step ->
-            val isDone = index < currentIndex
-            val isCurrent = index == currentIndex
+            val isDone = !step.skipped && index < currentIndex
+            val isCurrent = !step.skipped && index == currentIndex
             val duration = if (reduceMotion) 0 else 420
             val delay = if (reduceMotion) 0 else index * 70
             val spec = tween<Color>(duration, delayMillis = delay, easing = CardTrackEase)
@@ -1569,7 +1583,7 @@ private fun CompactStepList(
                         )
                     } else {
                         Text(
-                            (index + 1).toString(),
+                            if (step.skipped) "–" else (index + 1).toString(),
                             color =
                                 if (isCurrent) {
                                     colors.accentInk
@@ -1587,6 +1601,7 @@ private fun CompactStepList(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 0.6.sp,
+                    textDecoration = if (step.skipped) TextDecoration.LineThrough else null,
                     modifier = Modifier.padding(start = 10.dp),
                 )
                 Spacer(Modifier.weight(1f))
