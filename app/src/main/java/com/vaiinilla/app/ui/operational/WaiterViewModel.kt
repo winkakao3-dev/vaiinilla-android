@@ -354,6 +354,7 @@ class WaiterViewModel
             received: String?,
             expectedTotal: String,
             orderIds: List<String>? = null,
+            tip: String? = null,
         ) {
             if (_uiState.value.acting) return
             _uiState.value = _uiState.value.copy(acting = true)
@@ -367,6 +368,7 @@ class WaiterViewModel
                             expectedTotal,
                             orderIds,
                             UUID.randomUUID().toString(),
+                            tip,
                         )
                     }
                 _uiState.value = _uiState.value.copy(acting = false)

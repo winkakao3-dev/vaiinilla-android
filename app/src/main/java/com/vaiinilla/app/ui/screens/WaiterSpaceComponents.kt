@@ -60,6 +60,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.Reservation
+import com.vaiinilla.app.domain.model.TipChoice
+import com.vaiinilla.app.domain.model.TipPercents
+import com.vaiinilla.app.domain.model.amountFor
+import com.vaiinilla.app.domain.model.asTipWire
 import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.AccountOrder
 import com.vaiinilla.app.domain.repository.AccountPaymentMethod
@@ -280,6 +284,7 @@ internal fun WaiterSpaceSection(
         received: String?,
         expectedTotal: String,
         orderIds: List<String>?,
+        tip: String?,
     ) -> Unit,
     onRelease: () -> Unit,
     onDismissCollection: () -> Unit,
@@ -584,7 +589,7 @@ internal fun WaiterSpaceSection(
             confirming = acting,
             colors = colors,
             onDismiss = { if (!acting) collecting = false },
-            onConfirm = { method, received, expected, ids -> onCollect(method, received, expected, ids) },
+            onConfirm = { method, received, expected, ids, tip -> onCollect(method, received, expected, ids, tip) },
         )
     }
 }
@@ -884,6 +889,7 @@ private fun CollectAccountSheet(
         received: String?,
         expectedTotal: String,
         orderIds: List<String>?,
+        tip: String?,
     ) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -921,10 +927,13 @@ internal fun CollectAccountContent(
         received: String?,
         expectedTotal: String,
         orderIds: List<String>?,
+        tip: String?,
     ) -> Unit,
     title: String? = null,
     /** La renta de mostrador solo se cobra en efectivo; la cuenta abierta también con la terminal. */
     allowTerminal: Boolean = true,
+    /** La propina va en el cobro de la cuenta; la renta de mostrador no la lleva. */
+    allowTip: Boolean = true,
 ) {
     var selected by remember(payable) { mutableStateOf(payable.map { it.id }.toSet()) }
     val splitting = payable.size >= 2
@@ -936,17 +945,22 @@ internal fun CollectAccountContent(
             payable.filter { it.id in selected }.fold(BigDecimal.ZERO) { sum, order -> sum + order.total.moneyOrZero() }
         }
     val totalLabel = Money.format(totalAmount)
+    var tipChoice by remember { mutableStateOf<TipChoice>(TipChoice.None) }
+    val tipAmount = if (allowTip) tipChoice.amountFor(totalAmount) else BigDecimal.ZERO
+    // Lo que paga la mesa: la cuenta más la propina. El total esperado sigue siendo la cuenta.
+    val chargeAmount = totalAmount + tipAmount
+    val chargeLabel = Money.format(chargeAmount)
     // Lo que el cajero escribió; sin tocar nada el efectivo sigue al total (cobro justo).
     var typed by remember { mutableStateOf<String?>(null) }
     var method by remember { mutableStateOf(AccountPaymentMethod.CASH) }
     val withTerminal = allowTerminal && method == AccountPaymentMethod.TERMINAL
-    val text = typed ?: totalLabel
+    val text = typed ?: chargeLabel
     val received = text.trim().toBigDecimalOrNull()?.takeIf { it.signum() >= 0 }
-    val difference = received?.let { it - totalAmount }
+    val difference = received?.let { it - chargeAmount }
     val canConfirm =
         totalAmount.signum() > 0 && (withTerminal || (difference != null && difference.signum() >= 0))
     val shortfall = !withTerminal && difference != null && difference.signum() < 0
-    val quickAmounts = remember(totalLabel) { quickCashAmounts(totalAmount) }
+    val quickAmounts = remember(chargeLabel) { quickCashAmounts(chargeAmount) }
     val changeInk = animateSelectionColor(if (shortfall) StateCoral else colors.textPrimary, "change-ink")
 
     Column(
@@ -1009,9 +1023,68 @@ internal fun CollectAccountContent(
                 }
             }
         }
+        if (allowTip) {
+            Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    if (tipAmount.signum() > 0) "Propina $${Money.format(tipAmount)} · es del negocio" else "Propina",
+                    fontSize = 12.5.sp,
+                    color = colors.textSecondary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                    ChipButton(
+                        label = "Sin",
+                        enabled = !confirming,
+                        colors = colors,
+                        modifier = Modifier.weight(1f),
+                        selected = tipChoice == TipChoice.None,
+                    ) {
+                        tipChoice = TipChoice.None
+                        typed = null
+                    }
+                    TipPercents.forEach { percent ->
+                        ChipButton(
+                            label = "$percent%",
+                            enabled = !confirming,
+                            colors = colors,
+                            modifier = Modifier.weight(1f),
+                            selected = tipChoice == TipChoice.Percent(percent),
+                        ) {
+                            tipChoice = TipChoice.Percent(percent)
+                            typed = null
+                        }
+                    }
+                    ChipButton(
+                        label = "Otro",
+                        enabled = !confirming,
+                        colors = colors,
+                        modifier = Modifier.weight(1f),
+                        selected = tipChoice is TipChoice.Custom,
+                    ) {
+                        tipChoice = TipChoice.Custom((tipChoice as? TipChoice.Custom)?.amount.orEmpty())
+                        typed = null
+                    }
+                }
+                val custom = tipChoice as? TipChoice.Custom
+                if (custom != null) {
+                    OutlinedTextField(
+                        value = custom.amount,
+                        onValueChange = { raw ->
+                            tipChoice = TipChoice.Custom(raw.filter { c -> c.isDigit() || c == '.' })
+                            typed = null
+                        },
+                        label = { Text("Monto de la propina") },
+                        singleLine = true,
+                        enabled = !confirming,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
         if (withTerminal) {
             Text(
-                "Cobra $$totalLabel en tu terminal de tarjeta y confirma aquí. No entra al efectivo de la caja.",
+                "Cobra $$chargeLabel en tu terminal de tarjeta y confirma aquí. No entra al efectivo de la caja.",
                 fontSize = 13.sp,
                 color = colors.textSecondary,
                 modifier = Modifier.arrive(2),
@@ -1030,7 +1103,7 @@ internal fun CollectAccountContent(
                         enabled = !confirming,
                         colors = colors,
                         modifier = Modifier.weight(1f),
-                        selected = received != null && received.compareTo(totalAmount) == 0,
+                        selected = received != null && received.compareTo(chargeAmount) == 0,
                     ) { typed = null }
                     quickAmounts.forEach { amount ->
                         ChipButton(
@@ -1068,16 +1141,17 @@ internal fun CollectAccountContent(
         }
         Box(modifier = Modifier.arrive(3)) {
             ActionPill(
-                label = if (withTerminal) "Cobrado en la terminal $$totalLabel" else "Cobrar $$totalLabel",
+                label = if (withTerminal) "Cobrado en la terminal $$chargeLabel" else "Cobrar $$chargeLabel",
                 enabled = canConfirm,
                 loading = confirming,
                 colors = colors,
             ) {
                 val orderIds = if (allSelected) null else selected.toList()
+                val tip = tipAmount.asTipWire()
                 if (withTerminal) {
-                    onConfirm(AccountPaymentMethod.TERMINAL, null, totalLabel, orderIds)
+                    onConfirm(AccountPaymentMethod.TERMINAL, null, totalLabel, orderIds, tip)
                 } else {
-                    received?.let { onConfirm(AccountPaymentMethod.CASH, Money.format(it), totalLabel, orderIds) }
+                    received?.let { onConfirm(AccountPaymentMethod.CASH, Money.format(it), totalLabel, orderIds, tip) }
                 }
             }
         }
@@ -1169,7 +1243,8 @@ internal fun RentalCollectSheet(
             colors = colors,
             title = "Rentar ${rental.courtName ?: "cancha"} · ${rentalLabel(rental.durationMinutes)}",
             allowTerminal = false,
-            onConfirm = { _, received, _, _ -> received?.let(onConfirm) },
+            allowTip = false,
+            onConfirm = { _, received, _, _, _ -> received?.let(onConfirm) },
         )
     }
 }

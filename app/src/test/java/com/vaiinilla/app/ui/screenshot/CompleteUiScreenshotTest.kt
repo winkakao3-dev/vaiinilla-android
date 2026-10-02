@@ -2,7 +2,9 @@ package com.vaiinilla.app.ui.screenshot
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.vaiinilla.app.domain.auth.student.StudentAuthSession
 import com.vaiinilla.app.domain.mode.AuthorizedInvitation
@@ -302,10 +304,36 @@ class CompleteUiScreenshotTest {
                     ),
                 onBack = {},
                 onOpenCashSession = {},
-                onCollect = { _, _, _ -> },
+                onCollect = { _, _, _, _ -> },
                 onChangeMode = {},
             )
         }
+    }
+
+    @Test
+    fun `42_cashier_propina`() {
+        val pending = ScreenshotFixtures.sampleOrder(state = OrderState.PENDING_PAYMENT)
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                CashierOperationalScreen(
+                    state =
+                        OperationalUiState(
+                            role = OperationalRole.CASHIER,
+                            orders = listOf(pending),
+                            cashSessionOpen = true,
+                            catalog = ScreenshotFixtures.catalogLoadedState().catalog,
+                        ),
+                    onBack = {},
+                    onOpenCashSession = {},
+                    onCollect = { _, _, _, _ -> },
+                    onChangeMode = {},
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("15%").performClick()
+        composeTestRule.mainClock.advanceTimeBy(800)
+        composeTestRule.onRoot().captureRoboImage("mesa/propina_caja.png")
     }
 
     @Test

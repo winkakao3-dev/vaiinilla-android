@@ -316,6 +316,7 @@ interface WaiterRepository {
         expectedTotal: String?,
         orderIds: List<String>?,
         idempotencyKey: String,
+        tip: String? = null,
     ): Result<AccountCollection>
 
     fun currentCall(espacioId: Int): Result<TableCall?>

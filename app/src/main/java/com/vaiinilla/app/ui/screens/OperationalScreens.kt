@@ -103,12 +103,17 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.CatalogProductDraft
+import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.TipChoice
+import com.vaiinilla.app.domain.model.TipPercents
+import com.vaiinilla.app.domain.model.amountFor
+import com.vaiinilla.app.domain.model.asTipWire
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_ADD_PRODUCT
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_CASHIER_ORDER_CARD
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_KITCHEN_CARD
@@ -147,6 +152,7 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
 import com.vaiinilla.app.ui.theme.MutedInk
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.delay
+import java.math.BigDecimal
 
 /**
  * Adaptive operational color tokens supporting Light, Dark, and pure-pitch AMOLED.
@@ -257,7 +263,7 @@ fun CashierOperationalScreen(
     onRequestCloseCash: () -> Unit = {},
     onDismissCloseCash: () -> Unit = {},
     onCloseCash: (String) -> Unit = {},
-    onCollect: (orderId: String, amount: String, version: Int) -> Unit,
+    onCollect: (orderId: String, amount: String, version: Int, tip: String?) -> Unit,
     onScanDeliver: (orderId: String, version: Int) -> Unit = { _, _ -> },
     onSearchWalletClients: (String) -> Unit = {},
     onOpenWalletUserQr: () -> Unit = {},
@@ -716,6 +722,10 @@ fun CashierOperationalScreen(
                             remember(recentOrder.summary.id) {
                                 mutableStateOf(recentOrder.summary.total)
                             }
+                        var cashTipChoice by
+                            remember(recentOrder.summary.id) {
+                                mutableStateOf<TipChoice>(TipChoice.None)
+                            }
                         Column(modifier = Modifier.fillMaxWidth()) {
                             Surface(
                                 modifier =
@@ -804,6 +814,24 @@ fun CashierOperationalScreen(
                                     }
 
                                     if (isPendingPayment) {
+                                        val orderTotal =
+                                            runCatching {
+                                                BigDecimal(
+                                                    recentOrder.summary.total,
+                                                )
+                                            }.getOrDefault(BigDecimal.ZERO)
+                                        val tipAmount = cashTipChoice.amountFor(orderTotal)
+                                        TicketTipRow(
+                                            choice = cashTipChoice,
+                                            tipAmount = tipAmount,
+                                            enabled = !state.acting,
+                                            onChange = { next ->
+                                                cashTipChoice = next
+                                                // El efectivo sugerido sigue al pedido más la propina.
+                                                cashReceivedInput =
+                                                    Money.format(orderTotal + next.amountFor(orderTotal))
+                                            },
+                                        )
                                         // Pedido pagado en efectivo: hay que cobrarlo antes de que exista
                                         // cualquier posibilidad de avanzarlo a cocina/entrega.
                                         BasicTextField(
@@ -840,7 +868,9 @@ fun CashierOperationalScreen(
                                                 ) {
                                                     if (cashReceivedInput.isEmpty()) {
                                                         Text(
-                                                            "Efectivo recibido · $${recentOrder.summary.total}",
+                                                            "Efectivo recibido · $${Money.format(
+                                                                orderTotal + tipAmount,
+                                                            )}",
                                                             color = TicketMuted,
                                                             fontSize = 14.sp,
                                                             fontWeight = FontWeight.SemiBold,
@@ -857,6 +887,7 @@ fun CashierOperationalScreen(
                                                     recentOrder.summary.id,
                                                     cashReceivedInput,
                                                     recentOrder.summary.version,
+                                                    tipAmount.asTipWire(),
                                                 )
                                             },
                                             enabled =
@@ -885,7 +916,7 @@ fun CashierOperationalScreen(
                                             )
                                             Spacer(Modifier.width(8.dp))
                                             Text(
-                                                "Cobrar $${recentOrder.summary.total}",
+                                                "Cobrar $${Money.format(orderTotal + tipAmount)}",
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 14.sp,
                                                 maxLines = 1,
@@ -1478,6 +1509,99 @@ fun CashierOperationalScreen(
 }
 
 private val TicketPaper = Color(0xFFF5ECDA)
+
+/** Propina en el ticket de Caja: píldoras con el trazo del ticket, la elegida en tinta. */
+@Composable
+private fun TicketTipRow(
+    choice: TipChoice,
+    tipAmount: BigDecimal,
+    enabled: Boolean,
+    onChange: (TipChoice) -> Unit,
+) {
+    Column(modifier = Modifier.padding(top = 12.dp)) {
+        Text(
+            if (tipAmount.signum() > 0) "PROPINA \$${Money.format(tipAmount)}" else "PROPINA",
+            fontSize = 10.5.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 1.4.sp,
+            color = TicketMuted,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            val options =
+                listOf<Pair<String, TipChoice>>("Sin" to TipChoice.None) +
+                    TipPercents.map { "$it%" to TipChoice.Percent(it) }
+            options.forEach { (label, option) ->
+                TicketChip(
+                    label,
+                    selected = choice == option,
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f),
+                ) { onChange(option) }
+            }
+            TicketChip(
+                "Otro",
+                selected = choice is TipChoice.Custom,
+                enabled = enabled,
+                modifier = Modifier.weight(1f),
+            ) {
+                onChange(TipChoice.Custom((choice as? TipChoice.Custom)?.amount.orEmpty()))
+            }
+        }
+        val custom = choice as? TipChoice.Custom
+        if (custom != null) {
+            BasicTextField(
+                value = custom.amount,
+                onValueChange = { raw -> onChange(TipChoice.Custom(raw.filter { it.isDigit() || it == '.' })) },
+                singleLine = true,
+                enabled = enabled,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                textStyle = TextStyle(color = TicketInk, fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+                cursorBrush = SolidColor(TicketInk),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                        .height(42.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(TicketInk.copy(alpha = 0.05f))
+                        .border(1.dp, TicketLine, RoundedCornerShape(12.dp))
+                        .padding(horizontal = 14.dp, vertical = 11.dp),
+                decorationBox = { inner ->
+                    if (custom.amount.isEmpty()) Text("Monto de la propina", color = TicketMuted, fontSize = 14.sp)
+                    inner()
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun TicketChip(
+    label: String,
+    selected: Boolean,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val bg by animateColorAsState(if (selected) TicketInk else Color.Transparent, label = "ticket-chip-bg")
+    val fg by animateColorAsState(if (selected) Color.White else TicketInk, label = "ticket-chip-fg")
+    Box(
+        modifier =
+            modifier
+                .height(36.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(bg)
+                .border(1.dp, if (selected) TicketInk else TicketLine, RoundedCornerShape(12.dp))
+                .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, color = fg, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+    }
+}
+
 private val TicketInk = Color(0xFF1D1C18)
 private val TicketMuted = Color(0xFF6B6656)
 private val TicketLine = Color(0xFFD8CDB4)

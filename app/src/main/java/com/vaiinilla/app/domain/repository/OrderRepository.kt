@@ -34,6 +34,7 @@ interface OrderRepository {
         amountReceived: String,
         expectedVersion: Int,
         idempotencyKey: String,
+        tip: String? = null,
     ): Result<CashCollectionResult>
 
     fun transition(

@@ -226,11 +226,12 @@ class RemoteWaiterRepository(
         expectedTotal: String?,
         orderIds: List<String>?,
         idempotencyKey: String,
+        tip: String?,
     ): Result<AccountCollection> =
         apiClient
             .post(
                 path = "espacios/$spaceId/sesion/cobros",
-                body = contractJson.encodeCollectAccount(received, expectedTotal, orderIds, method),
+                body = contractJson.encodeCollectAccount(received, expectedTotal, orderIds, method, tip),
                 headers = mapOf("Idempotency-Key" to idempotencyKey),
             ).mapCatching(contractJson::parseAccountCollection)
             .mapApiErrors()

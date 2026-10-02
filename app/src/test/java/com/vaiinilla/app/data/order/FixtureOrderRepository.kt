@@ -192,6 +192,7 @@ class FixtureOrderRepository(
         amountReceived: String,
         expectedVersion: Int,
         idempotencyKey: String,
+        tip: String?,
     ): Result<CashCollectionResult> =
         runMutation(idempotencyKey) {
             requireUuid(idempotencyKey)
