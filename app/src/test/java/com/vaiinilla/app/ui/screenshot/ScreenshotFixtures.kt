@@ -78,6 +78,8 @@ object ScreenshotFixtures {
         )
     }
 
+    fun rawCreatedOrder(): String = fixtureSource.read("fixtures/created_order.json")
+
     fun sampleOrder(
         state: OrderState = OrderState.PENDING_PAYMENT,
         paymentMethod: PaymentMethod = PaymentMethod.CASH,

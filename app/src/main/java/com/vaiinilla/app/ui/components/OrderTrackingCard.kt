@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -551,20 +552,32 @@ fun OrderDetailSummary(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = "${item.quantity} × ${item.productName}",
-                        color = TaskCardText.copy(alpha = 0.86f),
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 12.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
+                    val rejected = item.rejection != null
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "${item.quantity} × ${item.productName}",
+                            color = TaskCardText.copy(alpha = if (rejected) 0.45f else 0.86f),
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textDecoration = if (rejected) TextDecoration.LineThrough else null,
+                        )
+                        item.rejection?.let {
+                            Text(
+                                text = "Se quitó: ${it.reason}",
+                                color = LocalVaiinillaColors.current.coral,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                            )
+                        }
+                    }
                     Text(
                         text = moneyLabel(item.subtotal),
-                        color = TaskCardText,
+                        color = TaskCardText.copy(alpha = if (rejected) 0.45f else 1f),
                         fontWeight = FontWeight.Black,
                         fontSize = 12.sp,
+                        textDecoration = if (rejected) TextDecoration.LineThrough else null,
                         modifier = Modifier.padding(start = 12.dp),
                     )
                 }

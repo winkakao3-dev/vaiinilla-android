@@ -146,7 +146,26 @@ data class OrderItem(
     val subtotal: String,
     val options: List<OrderItemOption>,
     val unitCollectionPrice: String? = null,
+    /** Rechazo por artículo: Cocina o Caja lo quitaron y ya no cuenta en el total. */
+    val rejection: OrderItemRejection? = null,
 )
+
+data class OrderItemRejection(
+    val reason: String,
+    val amount: String,
+)
+
+/** Lo que sí se prepara: un artículo quitado no encabeza la tarjeta. */
+val OrderDetail.activeItems: List<OrderItem>
+    get() = items.filter { it.rejection == null }
+
+/** "Se quitó Torta: Se terminó el pan." para el cliente, o null si no se quitó nada. */
+val OrderDetail.rejectedItemsHint: String?
+    get() =
+        items
+            .filter { it.rejection != null }
+            .takeIf { it.isNotEmpty() }
+            ?.joinToString(" ") { "Se quitó ${it.productName}: ${it.rejection?.reason}." }
 
 data class OrderItemOption(
     val optionId: Int,

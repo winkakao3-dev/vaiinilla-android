@@ -104,6 +104,8 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.StripePaymentStatus
+import com.vaiinilla.app.domain.model.activeItems
+import com.vaiinilla.app.domain.model.rejectedItemsHint
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.domain.repository.CallsUnavailableException
@@ -850,7 +852,7 @@ private fun ActiveOrderCard(
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        order.items.joinToString(" · ") { "${it.quantity} ${it.productName}" },
+                        order.activeItems.joinToString(" · ") { "${it.quantity} ${it.productName}" },
                         color = OrderTrackingCardText,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Black,
@@ -875,6 +877,16 @@ private fun ActiveOrderCard(
                     color = OrderTrackingCardText,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Black,
+                )
+            }
+            order.rejectedItemsHint?.let { hint ->
+                // Rechazo por artículo: el cliente ve qué se quitó y por qué.
+                Text(
+                    hint,
+                    color = LocalVaiinillaColors.current.coral,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 10.dp).arrive(0, key = hint),
                 )
             }
             val rental = order.reservation
