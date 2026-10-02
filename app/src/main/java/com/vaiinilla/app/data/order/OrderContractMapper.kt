@@ -7,6 +7,7 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderItemOption
+import com.vaiinilla.app.domain.model.OrderItemRejection
 import com.vaiinilla.app.domain.model.OrderPayment
 import com.vaiinilla.app.domain.model.OrderReservation
 import com.vaiinilla.app.domain.model.OrderSpace
@@ -72,6 +73,7 @@ fun OrderDetailDto.toDomain(): OrderDetail =
                     quantity = item.quantity,
                     unitDigitalPrice = item.unitDigitalPrice,
                     subtotal = item.subtotal,
+                    rejection = item.rejection?.let { OrderItemRejection(reason = it.reason, amount = it.amount) },
                     options =
                         item.options.map { option ->
                             OrderItemOption(

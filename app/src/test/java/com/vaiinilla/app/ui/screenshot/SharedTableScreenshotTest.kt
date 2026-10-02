@@ -1,7 +1,9 @@
 package com.vaiinilla.app.ui.screenshot
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
@@ -165,5 +167,99 @@ class SharedTableScreenshotTest {
         }
         composeTestRule.mainClock.advanceTimeBy(2_000)
         composeTestRule.onRoot().captureRoboImage("mesa/mesa_unirse.png")
+    }
+}
+
+/** Rechazo por artículo visto por el cliente: aviso en la tarjeta y artículo tachado en el detalle. */
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(qualifiers = "w411dp-h1400dp-normal-long-notround-any-xxhdpi", sdk = [33])
+class ItemRejectionScreenshotTest {
+    @get:Rule
+    val composeTestRule = createComposeRule()
+
+    @Test
+    fun `articulo_quitado`() {
+        val base =
+            ScreenshotFixtures.sampleOrder(
+                state = OrderState.PREPARING,
+                destination = OrderDestination.IN_SPACE,
+                spaceId = 3,
+            )
+        val first = base.items.first()
+        val order =
+            base.copy(
+                items =
+                    listOf(
+                        first.copy(
+                            id = 101,
+                            productName = "Torta de milanesa",
+                            subtotal = "80.00",
+                            rejection =
+                                com.vaiinilla.app.domain.model
+                                    .OrderItemRejection("Se terminó el pan", "80.00"),
+                        ),
+                        first.copy(id = 102, productName = "Tacos al pastor", subtotal = "120.00"),
+                    ),
+            )
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                androidx.compose.foundation.layout.Column {
+                    ScreenshotWithStudentNav(activeTab = StudentTab.ORDERS, cartCount = 0) {
+                        StudentTrackingScreen(
+                            state = ScreenshotFixtures.trackingState(order, selected = false),
+                            orderState = ScreenshotFixtures.catalogLoadedState(),
+                            onMenu = {},
+                            onAssistant = {},
+                            onWallet = {},
+                            onCart = {},
+                            onOpenCatalog = {},
+                            onSelectOrder = {},
+                        )
+                    }
+                }
+            }
+        }
+        composeTestRule.mainClock.advanceTimeBy(2_000)
+        composeTestRule.onRoot().captureRoboImage("mesa/articulo_quitado.png")
+    }
+
+    @Test
+    fun `articulo_quitado_detalle`() {
+        val base =
+            ScreenshotFixtures.sampleOrder(
+                state = OrderState.PREPARING,
+                destination = OrderDestination.IN_SPACE,
+                spaceId = 3,
+            )
+        val first = base.items.first()
+        val order =
+            base.copy(
+                items =
+                    listOf(
+                        first.copy(
+                            id = 101,
+                            productName = "Torta de milanesa",
+                            subtotal = "80.00",
+                            rejection =
+                                com.vaiinilla.app.domain.model
+                                    .OrderItemRejection("Se terminó el pan", "80.00"),
+                        ),
+                        first.copy(id = 102, productName = "Tacos al pastor", subtotal = "120.00"),
+                    ),
+            )
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                androidx.compose.foundation.layout.Box(
+                    androidx.compose.ui.Modifier
+                        .padding(20.dp),
+                ) {
+                    com.vaiinilla.app.ui.components
+                        .OrderDetailSummary(order = order)
+                }
+            }
+        }
+        composeTestRule.mainClock.advanceTimeBy(1_000)
+        composeTestRule.onRoot().captureRoboImage("mesa/articulo_quitado_detalle.png")
     }
 }

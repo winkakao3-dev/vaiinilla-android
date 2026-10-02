@@ -203,6 +203,13 @@ data class OrderItemDto(
     @SerialName("precio_cobro_unitario") val unitCollectionPrice: String? = null,
     @SerialName("subtotal") val subtotal: String,
     @SerialName("opciones") val options: List<OrderItemOptionDto>,
+    @SerialName("rechazo") val rejection: OrderItemRejectionDto? = null,
+)
+
+@Serializable
+data class OrderItemRejectionDto(
+    @SerialName("motivo") val reason: String,
+    @SerialName("monto") val amount: String,
 )
 
 @Serializable
