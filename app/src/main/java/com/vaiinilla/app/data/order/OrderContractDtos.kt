@@ -201,6 +201,8 @@ data class OrderItemDto(
     val id: Int,
     @SerialName("producto_id") val productId: Int,
     @SerialName("nombre_producto") val productName: String,
+    /** Foto actual del producto; un servidor anterior no la envía. */
+    @SerialName("imagen_url") val imageUrl: String? = null,
     @SerialName("estacion_preparacion") val preparationStation: String,
     @SerialName("cantidad") val quantity: Int,
     @SerialName("precio_digital_unitario") val unitDigitalPrice: String,

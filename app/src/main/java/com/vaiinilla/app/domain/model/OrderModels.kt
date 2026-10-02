@@ -148,6 +148,8 @@ data class OrderItem(
     val unitCollectionPrice: String? = null,
     /** Rechazo por artículo: Cocina o Caja lo quitaron y ya no cuenta en el total. */
     val rejection: OrderItemRejection? = null,
+    /** Foto actual del producto, como la manda el pedido. */
+    val imageUrl: String? = null,
 )
 
 data class OrderItemRejection(
