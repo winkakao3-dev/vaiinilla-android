@@ -1680,14 +1680,15 @@ private fun PastOrderRow(
     }
 }
 
-private fun itemImageUrls(
+internal fun itemImageUrls(
     order: OrderDetail,
     catalog: Catalog?,
 ): List<String?> {
     val seen = mutableSetOf<Int>()
     return order.items
         .filter { seen.add(it.productId) }
-        .map { item -> catalog?.products?.firstOrNull { it.id == item.productId }?.imageUrl }
+        // La foto que manda el pedido gana: no depende de que el catálogo ya haya cargado.
+        .map { item -> item.imageUrl ?: catalog?.products?.firstOrNull { it.id == item.productId }?.imageUrl }
 }
 
 @Composable

@@ -69,6 +69,7 @@ fun OrderDetailDto.toDomain(): OrderDetail =
                     id = item.id,
                     productId = item.productId,
                     productName = item.productName,
+                    imageUrl = item.imageUrl?.takeIf { it.isNotBlank() },
                     preparationStation = PreparationStation.fromWireValue(item.preparationStation),
                     quantity = item.quantity,
                     unitDigitalPrice = item.unitDigitalPrice,
