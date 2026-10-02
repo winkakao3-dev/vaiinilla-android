@@ -155,6 +155,20 @@ data class OrderItemRejection(
     val amount: String,
 )
 
+/**
+ * Sin artículos de cocina el pedido no se prepara: el backend lo pasa solo a listo. El seguimiento
+ * marca "Preparando" como omitido (no aplica) en vez de hecho. Si el estado ya es preparando, sí aplica.
+ */
+val OrderDetail.skipsKitchen: Boolean
+    get() {
+        val live = items.filter { it.rejection == null }
+        return summary.state != OrderState.PREPARING &&
+            live.isNotEmpty() &&
+            live.none { it.preparationStation == PreparationStation.KITCHEN }
+    }
+
+const val PREPARING_SKIPPED_NOTE = "No aplica: este pedido no pasa por cocina."
+
 /** Lo que sí se prepara: un artículo quitado no encabeza la tarjeta. */
 val OrderDetail.activeItems: List<OrderItem>
     get() = items.filter { it.rejection == null }
