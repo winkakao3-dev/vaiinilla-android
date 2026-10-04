@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.Density
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.PublicEstablishment
@@ -120,5 +121,34 @@ class DiscoveryCompactLayoutTest {
         composeTestRule.onAllNodesWithText("ACCESO RÁPIDO EN MESA").assertCountEquals(1)
         composeTestRule.onAllNodesWithText("Escanear QR").assertCountEquals(1)
         composeTestRule.onAllNodesWithText("Usar código").assertCountEquals(1)
+    }
+
+    @Test
+    fun `sin negocios en la lista ofrece escanear QR, escribir codigo o acercar NFC`() {
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                DiscoveryScreen(
+                    state = DiscoveryUiState(establishments = emptyList()),
+                    onQueryChange = {},
+                    onSpaceTokenChange = {},
+                    onSelectEstablishment = {},
+                    onResolveSpace = {},
+                    onConfirmSwitch = {},
+                    onDismissSwitch = {},
+                    onContinueSelected = {},
+                    profileInitials = "DR",
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Escanea el QR de tu mesa o de la tienda").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Escribir código").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Acercar NFC").performClick()
+        composeTestRule
+            .onNodeWithText("Acerca la parte de atrás de tu teléfono a la etiqueta de la mesa: Vaiinilla se abre sola.")
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithText("Escribir código").performClick()
+        composeTestRule.onNodeWithText("Escribe los 4 dígitos que aparecen junto al QR de tu mesa.").assertIsDisplayed()
     }
 }
