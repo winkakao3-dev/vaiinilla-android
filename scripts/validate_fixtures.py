@@ -99,8 +99,11 @@ def validate_operational_status() -> None:
         "cocina_en_linea",
         "tiempo_estimado_min",
         "consultado_en",
+        # Backend estado-operativo.service: la tarjeta solo aparece si el dueño la activó.
+        "acepta_tarjeta",
     }
     require(set(status) == expected, "Campos inesperados en OperationalStatus")
+    require(isinstance(status["acepta_tarjeta"], bool), "acepta_tarjeta debe ser booleano")
     require(status["tiempo_estimado_min"] >= 0, "tiempo_estimado_min negativo")
     require(UTC.fullmatch(status["consultado_en"]) is not None, "consultado_en no es ISO 8601 UTC")
 

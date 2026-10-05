@@ -2,6 +2,7 @@ package com.vaiinilla.app.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.RepeatMode
@@ -80,6 +81,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
@@ -285,6 +287,7 @@ fun DiscoveryScreen(
                             query = state.query,
                             onClearQuery = { onQueryChange("") },
                             onOpenQrScanner = onOpenQrScanner,
+                            onOpenCode = { codeSheetOpen = true },
                         )
                     }
                 } else if (filteredEstablishments.isEmpty()) {
@@ -1191,8 +1194,13 @@ private fun VenueEmptyState(
     query: String,
     onClearQuery: () -> Unit,
     onOpenQrScanner: () -> Unit,
+    onOpenCode: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    // Los negocios no se listan salvo que lo activen: sin búsqueda, esta es la puerta de
+    // entrada (escanear el QR, escribir el código de 4 dígitos o acercar el NFC).
+    val entry = query.isBlank()
+    var nfcHint by remember { mutableStateOf(false) }
     Column(
         modifier =
             Modifier
@@ -1200,19 +1208,21 @@ private fun VenueEmptyState(
                 .clip(RoundedCornerShape(20.dp))
                 .background(colors.paper2)
                 .border(1.dp, colors.line, RoundedCornerShape(20.dp))
+                .animateContentSize(spring(dampingRatio = 0.8f, stiffness = 380f))
                 .padding(18.dp),
     ) {
         Text(
-            "Sin coincidencias",
+            if (entry) "Escanea el QR de tu mesa o de la tienda" else "Sin coincidencias",
             color = colors.ink,
-            fontSize = 15.sp,
+            fontSize = if (entry) 19.sp else 15.sp,
+            lineHeight = if (entry) 24.sp else 20.sp,
             fontWeight = FontWeight.Black,
         )
         Text(
-            if (query.isBlank()) {
-                "Todavía no hay cafeterías disponibles. Intenta de nuevo en un momento."
+            if (entry) {
+                "Llega a tu mesa, cancha o a la tienda y pide desde ahí."
             } else {
-                "No encontramos “$query”. Revisa la escritura o usa el QR de tu mesa."
+                "No encontramos “$query” en la lista. Si ya estás ahí, escanea su QR o escribe el código."
             },
             color = colors.muted,
             fontSize = 12.5.sp,
@@ -1220,38 +1230,70 @@ private fun VenueEmptyState(
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(top = 6.dp),
         )
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            if (query.isNotBlank()) {
-                Box(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .height(46.dp)
-                            .clip(RoundedCornerShape(15.dp))
-                            .background(colors.paper)
-                            .border(1.dp, colors.line, RoundedCornerShape(15.dp))
-                            .physicalPress(onClick = onClearQuery),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("Limpiar búsqueda", color = colors.ink, fontSize = 13.sp, fontWeight = FontWeight.Black)
-                }
-            }
+        if (!entry) {
             Box(
                 modifier =
                     Modifier
-                        .weight(1f)
+                        .padding(top = 14.dp)
+                        .fillMaxWidth()
                         .height(46.dp)
                         .clip(RoundedCornerShape(15.dp))
-                        .background(colors.accent)
-                        .physicalPress(onClick = onOpenQrScanner),
+                        .background(colors.paper)
+                        .border(1.dp, colors.line, RoundedCornerShape(15.dp))
+                        .physicalPress(onClick = onClearQuery),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("Escanear QR", color = colors.accentInk, fontSize = 13.sp, fontWeight = FontWeight.Black)
+                Text("Limpiar búsqueda", color = colors.ink, fontSize = 13.sp, fontWeight = FontWeight.Black)
             }
         }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            EntryOption("Escanear QR", main = true, modifier = Modifier.weight(1f), onClick = onOpenQrScanner)
+            EntryOption("Escribir código", main = false, modifier = Modifier.weight(1f), onClick = onOpenCode)
+            EntryOption("Acercar NFC", main = false, modifier = Modifier.weight(1f), onClick = { nfcHint = !nfcHint })
+        }
+        if (nfcHint) {
+            Text(
+                "Acerca la parte de atrás de tu teléfono a la etiqueta de la mesa: Vaiinilla se abre sola.",
+                color = colors.ink,
+                fontSize = 12.5.sp,
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun EntryOption(
+    label: String,
+    main: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Box(
+        modifier =
+            modifier
+                .height(52.dp)
+                .clip(RoundedCornerShape(15.dp))
+                .background(if (main) colors.accent else colors.paper)
+                .border(1.dp, if (main) colors.accent else colors.line, RoundedCornerShape(15.dp))
+                .physicalPress(onClick = onClick)
+                .padding(horizontal = 6.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            color = if (main) colors.accentInk else colors.ink,
+            fontSize = 12.5.sp,
+            lineHeight = 15.sp,
+            fontWeight = FontWeight.Black,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
@@ -1470,7 +1512,7 @@ private fun SpaceCodeSheet(
                 modifier = Modifier.padding(top = 14.dp),
             )
             Text(
-                "Escribe los dígitos que aparecen en el tent card de tu mesa.",
+                "Escribe los 4 dígitos que aparecen junto al QR de tu mesa.",
                 color = colors.muted,
                 fontSize = 13.sp,
                 lineHeight = 18.sp,
@@ -1483,8 +1525,12 @@ private fun SpaceCodeSheet(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                 horizontalArrangement = Arrangement.Center,
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    for (index in 0 until 3) {
+                // Los códigos son de 4 dígitos (hasta 8 si algún día crecen): siempre se ven todos.
+                // Con más de 5 casillas se angostan para que 8 quepan en un teléfono de 360dp.
+                val slots = (token.length + 1).coerceIn(4, 8)
+                val slotWidth = if (slots <= 5) 50.dp else 34.dp
+                Row(horizontalArrangement = Arrangement.spacedBy(if (slots <= 5) 10.dp else 5.dp)) {
+                    for (index in 0 until slots) {
                         val char =
                             when {
                                 index < token.length -> token[index].toString()
@@ -1496,7 +1542,7 @@ private fun SpaceCodeSheet(
                         Box(
                             modifier =
                                 Modifier
-                                    .size(width = 50.dp, height = 58.dp)
+                                    .size(width = slotWidth, height = 58.dp)
                                     .clip(RoundedCornerShape(14.dp))
                                     .background(
                                         if (isFilled) {
