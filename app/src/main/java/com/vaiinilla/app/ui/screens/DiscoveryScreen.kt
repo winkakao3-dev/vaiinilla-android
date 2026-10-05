@@ -1525,9 +1525,11 @@ private fun SpaceCodeSheet(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                 horizontalArrangement = Arrangement.Center,
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    // Los códigos son de 4 dígitos (hasta 8 si algún día crecen): siempre se ven todos.
-                    val slots = (token.length + 1).coerceIn(4, 8)
+                // Los códigos son de 4 dígitos (hasta 8 si algún día crecen): siempre se ven todos.
+                // Con más de 5 casillas se angostan para que 8 quepan en un teléfono de 360dp.
+                val slots = (token.length + 1).coerceIn(4, 8)
+                val slotWidth = if (slots <= 5) 50.dp else 34.dp
+                Row(horizontalArrangement = Arrangement.spacedBy(if (slots <= 5) 10.dp else 5.dp)) {
                     for (index in 0 until slots) {
                         val char =
                             when {
@@ -1540,7 +1542,7 @@ private fun SpaceCodeSheet(
                         Box(
                             modifier =
                                 Modifier
-                                    .size(width = 50.dp, height = 58.dp)
+                                    .size(width = slotWidth, height = 58.dp)
                                     .clip(RoundedCornerShape(14.dp))
                                     .background(
                                         if (isFilled) {
