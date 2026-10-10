@@ -135,6 +135,7 @@ data class OrderDetailDto(
     @SerialName("cancelado_por_rol") val canceledByRole: String? = null,
     @SerialName("reserva") val reservation: OrderReservationDto? = null,
     @SerialName("llegada_en") val arrivedAt: String? = null,
+    @SerialName("sesion_espacio_id") val tableSessionId: String? = null,
 )
 
 /** La reserva de un pedido de renta de cancha; `null` en cualquier otro pedido. */

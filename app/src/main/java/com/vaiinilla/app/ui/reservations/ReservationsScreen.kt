@@ -186,9 +186,16 @@ fun ReservationsScreen(
                     item(key = "profile-${court.id}") { CourtProfileCard(court = court, colors = colors) }
                 }
                 if (court != null && court.rentable) {
-                    if (ReservationSlots.canRentNow(day, court)) {
+                    if (day.date == day.today) {
                         item(key = "now") {
-                            RentNowCard(selected = state.rentNow, onClick = onRentNow, colors = colors)
+                            RentNowCard(
+                                selected = state.rentNow,
+                                available = ReservationSlots.canRentNow(day, court),
+                                busyUntil = ReservationSlots.busyUntil(court, day.now),
+                                zone = zone,
+                                onClick = onRentNow,
+                                colors = colors,
+                            )
                         }
                     }
                     item(key = "hours") {
@@ -530,40 +537,68 @@ private fun CourtProfileCard(
 @Composable
 private fun RentNowCard(
     selected: Boolean,
+    available: Boolean,
+    busyUntil: Instant?,
+    zone: ZoneId,
     onClick: () -> Unit,
     colors: VaiinillaColors,
 ) {
-    val container by animateColorAsState(
-        if (selected) colors.accent else colors.accent.copy(alpha = 0.22f),
-        SPRING_COLOR,
-        label = "now-bg",
-    )
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .arrive(3)
-                .physicalPress(onClick = onClick)
-                .clip(RoundedCornerShape(22.dp))
-                .background(container)
-                .padding(18.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text("Rentar ahora", color = colors.accentInk, fontSize = 18.sp, fontWeight = FontWeight.Black)
+    if (!available) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .arrive(3)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(colors.paper2)
+                    .padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Rentar ahora", color = colors.ink, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                Text(
+                    busyUntil?.let { "Ocupada ahora mismo · Se libera a las ${it.atZone(zone).format(HOUR)}." }
+                        ?: "Fuera de horario para rentar de inmediato.",
+                    color = colors.muted,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+            Text("Ocupada", color = colors.muted, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+        }
+    } else {
+        val container by animateColorAsState(
+            if (selected) colors.accent else colors.accent.copy(alpha = 0.22f),
+            SPRING_COLOR,
+            label = "now-bg",
+        )
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .arrive(3)
+                    .physicalPress(onClick = onClick)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(container)
+                    .padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Rentar ahora", color = colors.accentInk, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                Text(
+                    "Empieza en cuanto pagues.",
+                    color = colors.accentInk.copy(alpha = 0.78f),
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
             Text(
-                "Empieza en cuanto pagues.",
-                color = colors.accentInk.copy(alpha = 0.78f),
+                if (selected) "Elegido" else "Elegir",
+                color = colors.accentInk,
+                fontWeight = FontWeight.ExtraBold,
                 fontSize = 13.sp,
-                modifier = Modifier.padding(top = 2.dp),
             )
         }
-        Text(
-            if (selected) "Elegido" else "Elegir",
-            color = colors.accentInk,
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 13.sp,
-        )
     }
 }
 
@@ -578,6 +613,7 @@ private fun HourGrid(
     colors: VaiinillaColors,
 ) {
     val starts = remember(day, court.id) { ReservationSlots.startTimes(day) }
+    val shifts = remember(starts, zone) { ReservationSlots.groupByShift(starts, zone) }
     Column(modifier = Modifier.arrive(4), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
             if (day.date == day.today) "O aparta una hora de hoy" else "Elige la hora",
@@ -588,16 +624,23 @@ private fun HourGrid(
         if (starts.isEmpty()) {
             Text("Ya no quedan horarios este día.", color = colors.muted, fontSize = 14.sp)
         }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            starts.forEach { start ->
-                val free = ReservationSlots.isStartAvailable(day, court, start)
-                Chip(
-                    label = start.atZone(zone).format(HOUR),
-                    selected = start == selected,
-                    enabled = free,
-                    onClick = { onSelect(start) },
-                    colors = colors,
-                )
+        shifts.forEach { (shift, shiftStarts) ->
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(shift.label, color = colors.muted, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    shiftStarts.forEach { start ->
+                        Chip(
+                            label = start.atZone(zone).format(HOUR),
+                            selected = start == selected,
+                            enabled = ReservationSlots.isStartAvailable(day, court, start),
+                            onClick = { onSelect(start) },
+                            colors = colors,
+                        )
+                    }
+                }
             }
         }
     }

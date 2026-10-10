@@ -61,6 +61,7 @@ fun OrderDetailDto.toDomain(): OrderDetail =
                 paymentPending = paymentPending,
                 cancelReason = cancelReason,
                 canceledByRole = canceledByRole,
+                tableSessionId = tableSessionId,
             ),
         user = user?.let { OrderUser(name = it.name, enrollment = it.enrollment.orEmpty()) },
         kitchenNotes = kitchenNotes.orEmpty(),

@@ -4,6 +4,7 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 
 /** Estado de una reserva de cancha tal como la manda el backend (docs/reservas-cancha.md). */
 enum class ReservationState(
@@ -119,11 +120,37 @@ data class ReservationPayment(
     val cashChange: String?,
 )
 
+/** Turno del día en el que empieza un horario, en la hora local del establecimiento. */
+enum class ReservationShift(
+    val label: String,
+) {
+    MORNING("Mañana"),
+    AFTERNOON("Tarde"),
+    NIGHT("Noche"),
+}
+
 /**
  * Cuentas puras de horarios: qué inicios ofrecer, qué duraciones caben sin chocar y cuánto cuesta.
  * Sin Android para poder probarlas.
  */
 object ReservationSlots {
+    /** Mismos cortes que la PWA: 06–11 mañana, 12–18 tarde, el resto noche. */
+    fun shiftOf(
+        start: Instant,
+        zone: ZoneId,
+    ): ReservationShift =
+        when (start.atZone(zone).hour) {
+            in 6..11 -> ReservationShift.MORNING
+            in 12..18 -> ReservationShift.AFTERNOON
+            else -> ReservationShift.NIGHT
+        }
+
+    /** Agrupa los inicios por turno, en el orden en que aparecen. */
+    fun groupByShift(
+        starts: List<Instant>,
+        zone: ZoneId,
+    ): Map<ReservationShift, List<Instant>> = starts.groupBy { shiftOf(it, zone) }
+
     /** Inicios de `blockMinutes` entre la apertura y el cierre; hoy, solo desde el siguiente bloque. */
     fun startTimes(day: CourtDay): List<Instant> {
         val block = Duration.ofMinutes(day.blockMinutes.toLong())

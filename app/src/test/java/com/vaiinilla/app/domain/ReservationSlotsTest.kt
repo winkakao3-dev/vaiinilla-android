@@ -5,6 +5,7 @@ import com.vaiinilla.app.data.reservations.ReservationContractJson
 import com.vaiinilla.app.domain.model.BusyInterval
 import com.vaiinilla.app.domain.model.CourtDay
 import com.vaiinilla.app.domain.model.CourtSchedule
+import com.vaiinilla.app.domain.model.ReservationShift
 import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.ReservationState
 import org.junit.Assert.assertEquals
@@ -13,6 +14,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
+import java.time.ZoneId
 
 class ReservationSlotsTest {
     // Horario de 08:00 a 22:00 local (UTC-6) el 1 de octubre.
@@ -165,5 +167,46 @@ class ReservationContractJsonTest {
         assertEquals(ReservationState.CONFLICT, ReservationState.fromWire("nuevo_estado"))
         assertTrue(ReservationState.CONFIRMED.isLive)
         assertFalse(ReservationState.CANCELLED.isLive)
+    }
+
+    private val chihuahua = ZoneId.of("America/Chihuahua")
+
+    private fun shiftAt(utc: String) = ReservationSlots.shiftOf(Instant.parse(utc), chihuahua)
+
+    @Test
+    fun `cada hora cae en su turno con los cortes de la PWA en la hora local`() {
+        // Chihuahua es UTC-6: 06:00, 11:59, 12:00, 18:59 y 19:00 locales.
+        assertEquals(ReservationShift.MORNING, shiftAt("2026-10-01T12:00:00Z"))
+        assertEquals(ReservationShift.MORNING, shiftAt("2026-10-01T17:59:00Z"))
+        assertEquals(ReservationShift.AFTERNOON, shiftAt("2026-10-01T18:00:00Z"))
+        assertEquals(ReservationShift.AFTERNOON, shiftAt("2026-10-02T00:59:00Z"))
+        assertEquals(ReservationShift.NIGHT, shiftAt("2026-10-02T01:00:00Z"))
+        // 05:59 local tampoco es mañana: queda en noche.
+        assertEquals(ReservationShift.NIGHT, shiftAt("2026-10-01T11:59:00Z"))
+    }
+
+    @Test
+    fun `el turno se calcula en la zona del establecimiento y no en UTC`() {
+        // 12:00 UTC son las 06:00 en Chihuahua (mañana) y las 12:00 en UTC (tarde).
+        val start = Instant.parse("2026-10-01T12:00:00Z")
+        assertEquals(ReservationShift.MORNING, ReservationSlots.shiftOf(start, chihuahua))
+        assertEquals(ReservationShift.AFTERNOON, ReservationSlots.shiftOf(start, ZoneId.of("UTC")))
+    }
+
+    @Test
+    fun `agrupa los inicios por turno en el orden del día`() {
+        // Locales: 15:00 y 18:30 (tarde); 19:00, 20:00 y 21:00 (noche).
+        val starts =
+            listOf(
+                "2026-10-01T21:00:00Z",
+                "2026-10-02T00:30:00Z",
+                "2026-10-02T01:00:00Z",
+                "2026-10-02T02:00:00Z",
+                "2026-10-02T03:00:00Z",
+            ).map(Instant::parse)
+        val groups = ReservationSlots.groupByShift(starts, chihuahua)
+        assertEquals(listOf(ReservationShift.AFTERNOON, ReservationShift.NIGHT), groups.keys.toList())
+        assertEquals(2, groups.getValue(ReservationShift.AFTERNOON).size)
+        assertEquals(3, groups.getValue(ReservationShift.NIGHT).size)
     }
 }

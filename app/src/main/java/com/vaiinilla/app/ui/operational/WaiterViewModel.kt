@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.model.Reservation
+import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AbonoResult
@@ -278,6 +279,7 @@ class WaiterViewModel
                 val result =
                     withContext(Dispatchers.IO) {
                         reservationRepository.create(
+                            access = ReservationAccess.Account,
                             courtId = spaceId,
                             start = start,
                             durationMinutes = minutes,
@@ -302,6 +304,7 @@ class WaiterViewModel
                 val result =
                     withContext(Dispatchers.IO) {
                         reservationRepository.pay(
+                            access = ReservationAccess.Account,
                             reservationId = reservation.id,
                             method = ReservationPaymentMethod.CASH,
                             cashReceived = received,
@@ -331,7 +334,11 @@ class WaiterViewModel
             val reservation = _uiState.value.pendingRental ?: return
             _uiState.value = _uiState.value.copy(pendingRental = null)
             viewModelScope.launch(Dispatchers.IO) {
-                reservationRepository.cancel(reservation.id, UUID.randomUUID().toString())
+                reservationRepository.cancel(
+                        access = ReservationAccess.Account,
+                        reservationId = reservation.id,
+                        idempotencyKey = UUID.randomUUID().toString(),
+                    )
             }
         }
 

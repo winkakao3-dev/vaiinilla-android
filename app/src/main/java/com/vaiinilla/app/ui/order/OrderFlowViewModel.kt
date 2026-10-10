@@ -23,6 +23,7 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicSpace
+import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
@@ -727,10 +728,27 @@ class OrderFlowViewModel
         }
 
         private suspend fun loadRentedCourt(): PublicSpace? =
-            withContext(Dispatchers.IO) { reservationRepository.list() }
+            withContext(Dispatchers.IO) { reservationRepository.list(access = ReservationAccess.Account) }
                 .getOrNull()
                 ?.firstOrNull { it.state == ReservationState.IN_PROGRESS }
                 ?.let { PublicSpace(id = it.courtId, name = it.courtName ?: "Cancha", type = "cancha") }
+
+        /**
+         * Tras pagar una renta, la cancha pasa a "en curso" en la siguiente consulta de reservas:
+         * se vuelve a leer para ofrecerla como destino sin recargar el lugar.
+         */
+        fun refreshRentedCourt() {
+            // Sin estado operativo (invitado) no hay cancha rentada que ofrecer.
+            if (_uiState.value.operationalStatus == null) return
+            launchTracked {
+                val rentedCourt = loadRentedCourt()
+                _uiState.value =
+                    _uiState.value.copy(
+                        rentedCourt = rentedCourt,
+                        selectedSpaceId = rentedCourt?.id ?: _uiState.value.selectedSpaceId,
+                    )
+            }
+        }
 
         /**
          * El pedido que cobra una renta de cancha (reservas) se muestra y se paga igual que un

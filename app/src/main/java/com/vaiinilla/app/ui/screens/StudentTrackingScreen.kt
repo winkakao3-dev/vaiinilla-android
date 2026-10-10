@@ -102,11 +102,13 @@ import com.vaiinilla.app.domain.model.OrderReservation
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PREPARING_SKIPPED_NOTE
+import com.vaiinilla.app.domain.model.PastOrderEntry
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.domain.model.activeItems
+import com.vaiinilla.app.domain.model.groupOrdersBySession
 import com.vaiinilla.app.domain.model.rejectedItemsHint
 import com.vaiinilla.app.domain.model.skipsKitchen
 import com.vaiinilla.app.domain.repository.CallReason
@@ -470,8 +472,8 @@ fun StudentTrackingScreen(
                                 }
                             }
                             if (pastOrders.isNotEmpty()) {
-                                item(key = "section-past") { OrdersSectionLabel("ANTERIORES") }
-                                items(pastOrders.take(3), key = { it.summary.id }) { order ->
+                                val pastEntries = groupOrdersBySession(pastOrders)
+                                val pastRow: @Composable (OrderDetail) -> Unit = { order ->
                                     SwipeToDeleteOrder(
                                         orderFolio = order.summary.folio.toString(),
                                         onDelete = { onDeleteOrder(order.summary.id) },
@@ -483,26 +485,21 @@ fun StudentTrackingScreen(
                                         )
                                     }
                                 }
+                                item(key = "section-past") { OrdersSectionLabel("ANTERIORES") }
+                                items(pastEntries.take(3), key = { it.key }) { entry ->
+                                    PastEntryContent(entry, pastRow)
+                                }
                                 if (showAllPast) {
-                                    items(pastOrders.drop(3), key = { it.summary.id }) { order ->
+                                    items(pastEntries.drop(3), key = { it.key }) { entry ->
                                         Box(modifier = Modifier.animateItem()) {
-                                            SwipeToDeleteOrder(
-                                                orderFolio = order.summary.folio.toString(),
-                                                onDelete = { onDeleteOrder(order.summary.id) },
-                                            ) {
-                                                PastOrderRow(
-                                                    order = order,
-                                                    imageUrls = itemImageUrls(order, orderState.catalog),
-                                                    onClick = { onSelectOrder(order.summary.id) },
-                                                )
-                                            }
+                                            PastEntryContent(entry, pastRow)
                                         }
                                     }
                                 }
-                                if (pastOrders.size > 3) {
+                                if (pastEntries.size > 3) {
                                     item(key = "section-past-more") {
                                         ShowMorePastOrdersButton(
-                                            hiddenCount = pastOrders.size - 3,
+                                            hiddenCount = pastEntries.size - 3,
                                             expanded = showAllPast,
                                             onClick = {
                                                 haptics.impact()
@@ -1616,6 +1613,44 @@ private fun CompactStepList(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun PastEntryContent(
+    entry: PastOrderEntry,
+    row: @Composable (OrderDetail) -> Unit,
+) {
+    when (entry) {
+        is PastOrderEntry.Single -> row(entry.order)
+        is PastOrderEntry.TableSession -> TableSessionCard(entry, row)
+    }
+}
+
+@Composable
+private fun TableSessionCard(
+    session: PastOrderEntry.TableSession,
+    row: @Composable (OrderDetail) -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    val count = session.orders.size
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(22.dp))
+                .background(colors.paper2)
+                .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            "${session.orders.first().summary.space?.name ?: "Mesa"} · " +
+                "$count ${if (count == 1) "pedido" else "pedidos"}",
+            color = colors.ink,
+            fontWeight = FontWeight.Black,
+            fontSize = 15.sp,
+        )
+        session.orders.forEach { order -> row(order) }
     }
 }
 

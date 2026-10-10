@@ -838,6 +838,7 @@ fun AppNavHost(
                     val order = reservationsState.paidOrder ?: return@LaunchedEffect
                     reservationsViewModel.consumePaidOrder()
                     orderFlowViewModel.adoptReservationOrder(order)
+                    orderFlowViewModel.refreshRentedCourt()
                     navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
                 }
                 ReservationsScreen(
