@@ -34,6 +34,22 @@ class OrderIdempotencyTest {
     }
 
     @Test
+    fun `changing a line note changes the fingerprint`() {
+        val a = cartRequest(notes = "sin cebolla")
+        val b = cartRequest(notes = "sin cebolla, salsa aparte")
+
+        assertNotEquals(createOrderFingerprint(a), createOrderFingerprint(b))
+    }
+
+    @Test
+    fun `identical line notes produce the same fingerprint`() {
+        val a = cartRequest(notes = "sin cebolla")
+        val b = cartRequest(notes = "sin cebolla")
+
+        assertEquals(createOrderFingerprint(a), createOrderFingerprint(b))
+    }
+
+    @Test
     fun `changing the payment method changes the fingerprint`() {
         val a = cartRequest(paymentMethod = PaymentMethod.CASH)
         val b = cartRequest(paymentMethod = PaymentMethod.STRIPE)
@@ -81,11 +97,12 @@ class OrderIdempotencyTest {
         paymentMethod: PaymentMethod = PaymentMethod.CASH,
         quantity: Int = 1,
         optionIds: List<Int> = listOf(310, 314, 317),
+        notes: String = "",
     ) = CreateOrderRequest(
         paymentMethod = paymentMethod,
         destination = OrderDestination.TAKE_AWAY,
         spaceId = null,
         kitchenNotes = "Salsa aparte",
-        items = listOf(CreateOrderItem(productId = 103, quantity = quantity, optionIds = optionIds)),
+        items = listOf(CreateOrderItem(productId = 103, quantity = quantity, optionIds = optionIds, notes = notes)),
     )
 }
