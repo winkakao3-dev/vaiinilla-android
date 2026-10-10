@@ -93,6 +93,15 @@ data class Reservation(
     val version: Int,
 )
 
+/** Quién aparta y paga: la cuenta con sesión, o un invitado (sin cuenta) del negocio. */
+sealed interface ReservationAccess {
+    data object Account : ReservationAccess
+
+    data class Guest(
+        val establishmentSlug: String,
+    ) : ReservationAccess
+}
+
 enum class ReservationPaymentMethod(
     val wire: String,
     val label: String,

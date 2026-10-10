@@ -801,16 +801,18 @@ fun AppNavHost(
                         },
                     profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
                     onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
-                    // Rentar pide cuenta: sin sesión, primero se entra y se vuelve a Canchas.
+                    // Sin cuenta también se renta, salvo en los lugares que piden cuenta: ahí se entra primero.
                     onOpenCourts =
                         if (courtsViewModel.uiState.value.courts
                                 .any { it.rentable }
                         ) {
                             {
-                                if (hasStudentSession) {
-                                    navController.navigate(Routes.RESERVATIONS) { launchSingleTop = true }
-                                } else {
+                                val needsAccount =
+                                    !hasStudentSession && orderState.guestVenue?.establishment?.clientIdRequired == true
+                                if (needsAccount) {
                                     navController.navigate(Routes.authLandingRoute(Routes.RESERVATIONS))
+                                } else {
+                                    navController.navigate(Routes.RESERVATIONS) { launchSingleTop = true }
                                 }
                             }
                         } else {
@@ -821,8 +823,13 @@ fun AppNavHost(
 
             composable(Routes.RESERVATIONS) {
                 val reservationsState = reservationsViewModel.uiState.value
-                DisposableEffect(Unit) {
-                    reservationsViewModel.onVisible()
+                val reservationsHasAccount = !orderFlowViewModel.requiresStudentAuth()
+                val reservationsVenueSlug = orderState.guestVenue?.establishment?.slug
+                DisposableEffect(reservationsHasAccount, reservationsVenueSlug) {
+                    reservationsViewModel.onVisible(
+                        guestSlug = reservationsVenueSlug,
+                        hasAccount = reservationsHasAccount,
+                    )
                     onDispose { reservationsViewModel.onHidden() }
                 }
                 // El pago crea un pedido de renta: se sigue en la confirmación de pedido
@@ -849,6 +856,14 @@ fun AppNavHost(
                     onCancel = reservationsViewModel::cancel,
                     onDismissMessage = reservationsViewModel::dismissMessages,
                     cardAvailable = orderState.canPayWithCard,
+                    onGuestNameChange = reservationsViewModel::onGuestNameChange,
+                    onEnterAsGuest = reservationsViewModel::enterAsGuest,
+                    onSignIn =
+                        if (reservationsHasAccount) {
+                            null
+                        } else {
+                            { navController.navigate(Routes.authLandingRoute(Routes.RESERVATIONS)) }
+                        },
                 )
             }
 

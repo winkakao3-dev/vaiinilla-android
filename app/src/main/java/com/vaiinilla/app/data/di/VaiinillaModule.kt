@@ -23,6 +23,7 @@ import com.vaiinilla.app.data.auth.student.StudentEnrollmentApi
 import com.vaiinilla.app.data.catalog.RemoteCatalogRepository
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.discovery.RemoteDiscoveryRepository
+import com.vaiinilla.app.data.guest.GuestReservationSession
 import com.vaiinilla.app.data.location.FusedDeviceLocationProvider
 import com.vaiinilla.app.data.mode.AuthorizedAccessApi
 import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessApi
@@ -147,7 +148,8 @@ object VaiinillaModule {
     fun provideReservationRepository(
         apiClient: VaiinillaApiClient,
         reservationContractJson: ReservationContractJson,
-    ): ReservationRepository = RemoteReservationRepository(apiClient, reservationContractJson)
+        guestReservationSession: GuestReservationSession,
+    ): ReservationRepository = RemoteReservationRepository(apiClient, reservationContractJson, guestReservationSession)
 
     @Provides
     @Singleton

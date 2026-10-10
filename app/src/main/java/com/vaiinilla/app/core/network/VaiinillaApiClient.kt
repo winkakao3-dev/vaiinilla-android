@@ -31,6 +31,21 @@ interface VaiinillaApiClient {
         headers: Map<String, String> = emptyMap(),
     ): Result<String> = Result.failure(UnsupportedOperationException("DELETE no soportado"))
 
+    /** Sends an explicit bearer (p. ej. la sesión de un invitado) sin usar ni refrescar la sesión activa. */
+    fun getWithBearer(
+        bearer: String,
+        path: String,
+        query: Map<String, String> = emptyMap(),
+    ): Result<String> = Result.failure(UnsupportedOperationException("GET con bearer no soportado"))
+
+    /** Sends an explicit bearer (p. ej. la sesión de un invitado) sin usar ni refrescar la sesión activa. */
+    fun postWithBearer(
+        bearer: String,
+        path: String,
+        body: String? = null,
+        headers: Map<String, String> = emptyMap(),
+    ): Result<String> = Result.failure(UnsupportedOperationException("POST con bearer no soportado"))
+
     /** Sends an explicit bearer without reading or refreshing the Vaiinilla context JWT. */
     fun deleteWithBearer(
         bearer: String,

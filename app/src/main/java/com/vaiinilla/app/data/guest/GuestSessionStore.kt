@@ -113,6 +113,28 @@ class GuestSessionStore
             prefs.edit { clear() }
         }
 
+        /** Llave del invitado (identidad sin cuenta). Vive solo en este dispositivo. */
+        fun readGuestKey(): String? = prefs.getString(KEY_GUEST_KEY, null)
+
+        fun readGuestName(): String? = prefs.getString(KEY_GUEST_NAME, null)
+
+        fun saveGuest(
+            name: String,
+            key: String,
+        ) {
+            prefs.edit {
+                putString(KEY_GUEST_NAME, name)
+                putString(KEY_GUEST_KEY, key)
+            }
+        }
+
+        fun clearGuest() {
+            prefs.edit {
+                remove(KEY_GUEST_NAME)
+                remove(KEY_GUEST_KEY)
+            }
+        }
+
         fun readPendingCreateIdempotency(fingerprint: String): String? {
             val storedFingerprint = prefs.getString(KEY_CREATE_IDEMPOTENCY_FINGERPRINT, null)
             if (storedFingerprint != fingerprint) return null
@@ -225,6 +247,8 @@ class GuestSessionStore
             const val KEY_CREATE_IDEMPOTENCY_FINGERPRINT = "create_idempotency_fingerprint"
             const val KEY_CREATE_IDEMPOTENCY_KEY = "create_idempotency_key"
             const val KEY_PENDING_STRIPE_CONFIRMATION_ORDER_ID = "pending_stripe_confirmation_order_id"
+            const val KEY_GUEST_KEY = "guest_key"
+            const val KEY_GUEST_NAME = "guest_name"
         }
     }
 

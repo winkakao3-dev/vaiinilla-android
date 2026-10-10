@@ -173,11 +173,11 @@ class HttpVaiinillaApiClient
                 accessToken = accessToken,
             )
 
-        fun postWithBearer(
+        override fun postWithBearer(
             bearer: String,
             path: String,
-            body: String? = null,
-            headers: Map<String, String> = emptyMap(),
+            body: String?,
+            headers: Map<String, String>,
         ): Result<String> =
             execute(
                 method = "POST",
@@ -188,10 +188,10 @@ class HttpVaiinillaApiClient
                 allowSessionRefresh = false,
             )
 
-        fun getWithBearer(
+        override fun getWithBearer(
             bearer: String,
             path: String,
-            query: Map<String, String> = emptyMap(),
+            query: Map<String, String>,
         ): Result<String> =
             execute(
                 method = "GET",

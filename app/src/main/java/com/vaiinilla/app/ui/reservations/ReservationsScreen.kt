@@ -34,6 +34,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -106,6 +108,10 @@ fun ReservationsScreen(
     onDismissMessage: () -> Unit,
     /** "Tarjeta" solo si el dueño la activó en su panel. */
     cardAvailable: Boolean = false,
+    /** Sin cuenta: se pide el nombre y se entra como invitado antes de ver horarios. */
+    onGuestNameChange: (String) -> Unit = {},
+    onEnterAsGuest: () -> Unit = {},
+    onSignIn: (() -> Unit)? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     val day = state.day
@@ -127,7 +133,18 @@ fun ReservationsScreen(
                 item(key = "notice") { Banner(message, colors.accent, colors, onDismissMessage) }
             }
 
-            if (day == null) {
+            if (state.guestEntry) {
+                item(key = "guest-entry") {
+                    GuestEntryCard(
+                        name = state.guestName,
+                        working = state.working,
+                        onNameChange = onGuestNameChange,
+                        onEnter = onEnterAsGuest,
+                        onSignIn = onSignIn,
+                        colors = colors,
+                    )
+                }
+            } else if (day == null) {
                 item(key = "loading") {
                     Text(
                         if (state.loading) "Cargando canchas…" else "Este lugar todavía no renta canchas.",
@@ -270,7 +287,9 @@ fun ReservationsScreen(
                 working = state.working,
                 onPay = onPay,
                 colors = colors,
-                cardAvailable = cardAvailable,
+                // Sin cuenta no hay saldo ni tarjeta: el backend los rechaza para invitados.
+                cardAvailable = cardAvailable && !state.guestMode,
+                balanceAvailable = !state.guestMode,
             )
         }
     }
@@ -609,6 +628,71 @@ private fun DurationRow(
 }
 
 @Composable
+private fun GuestEntryCard(
+    name: String,
+    working: Boolean,
+    onNameChange: (String) -> Unit,
+    onEnter: () -> Unit,
+    onSignIn: (() -> Unit)?,
+    colors: VaiinillaColors,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .arrive(1)
+                .clip(RoundedCornerShape(26.dp))
+                .border(1.dp, colors.line, RoundedCornerShape(26.dp))
+                .padding(20.dp),
+    ) {
+        Text(
+            "Renta sin cuenta",
+            color = colors.ink,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = (-0.6).sp,
+        )
+        Text(
+            "Para ver horarios y apartar una cancha solo necesitamos tu nombre. " +
+                "Al entrar aceptas los términos y el aviso de privacidad vigentes.",
+            color = colors.muted,
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        OutlinedTextField(
+            value = name,
+            onValueChange = onNameChange,
+            label = { Text("Tu nombre") },
+            singleLine = true,
+            enabled = !working,
+            colors =
+                OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = colors.ink,
+                    unfocusedTextColor = colors.ink,
+                    focusedBorderColor = colors.ink,
+                    unfocusedBorderColor = colors.line,
+                    focusedLabelColor = colors.muted,
+                    unfocusedLabelColor = colors.muted,
+                    cursorColor = colors.ink,
+                ),
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+        )
+        Spacer(Modifier.height(12.dp))
+        EditorialAccentButton(
+            text = if (working) "Entrando…" else "Continuar",
+            onClick = onEnter,
+            enabled = !working && name.isNotBlank(),
+        )
+        if (onSignIn != null) {
+            TextButton(onClick = onSignIn, modifier = Modifier.fillMaxWidth()) {
+                Text("¿Ya tienes cuenta? Inicia sesión", color = colors.ink)
+            }
+        }
+    }
+}
+
+@Composable
 private fun Summary(
     state: ReservationsUiState,
     day: CourtDay,
@@ -691,6 +775,7 @@ internal fun ReservationPaymentContent(
     onPay: (ReservationPaymentMethod) -> Unit,
     colors: VaiinillaColors,
     cardAvailable: Boolean = false,
+    balanceAvailable: Boolean = true,
 ) {
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(reservation.id) {
@@ -741,21 +826,23 @@ internal fun ReservationPaymentContent(
             }
         }
         val prices = reservation.customerPrice
-        PayOption(
-            title = "Saldo",
-            detail = "Se paga al instante con tu cartera.",
-            amount = prices?.cashOrBalance ?: reservation.amount,
-            index = 1,
-            enabled = !working && remaining != 0L,
-            onClick = { onPay(ReservationPaymentMethod.BALANCE) },
-            colors = colors,
-        )
+        if (balanceAvailable) {
+            PayOption(
+                title = "Saldo",
+                detail = "Se paga al instante con tu cartera.",
+                amount = prices?.cashOrBalance ?: reservation.amount,
+                index = 1,
+                enabled = !working && remaining != 0L,
+                onClick = { onPay(ReservationPaymentMethod.BALANCE) },
+                colors = colors,
+            )
+        }
         if (cardAvailable) {
             PayOption(
                 title = "Tarjeta",
                 detail = "Pago seguro con tu tarjeta.",
                 amount = prices?.card ?: reservation.amount,
-                index = 2,
+                index = if (balanceAvailable) 2 else 1,
                 enabled = !working && remaining != 0L,
                 onClick = { onPay(ReservationPaymentMethod.CARD) },
                 colors = colors,
@@ -765,7 +852,7 @@ internal fun ReservationPaymentContent(
             title = "Efectivo en caja",
             detail = "Paga en caja antes de que venza el apartado.",
             amount = prices?.cashOrBalance ?: reservation.amount,
-            index = if (cardAvailable) 3 else 2,
+            index = 1 + (if (balanceAvailable) 1 else 0) + (if (cardAvailable) 1 else 0),
             enabled = !working && remaining != 0L,
             onClick = { onPay(ReservationPaymentMethod.CASH) },
             colors = colors,
