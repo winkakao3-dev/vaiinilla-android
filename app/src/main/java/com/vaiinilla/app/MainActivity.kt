@@ -1,7 +1,11 @@
 package com.vaiinilla.app
 
+import android.app.PendingIntent
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
+import android.nfc.NfcAdapter
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -107,6 +111,24 @@ class MainActivity : ComponentActivity() {
         captureDeepLink(intent)
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Foreground dispatch y no reader mode: reader mode apaga el card emulation (HCE) mientras la app está visible.
+        NfcAdapter.getDefaultAdapter(this)?.enableForegroundDispatch(this, nfcPendingIntent(), NFC_TAG_FILTERS, null)
+    }
+
+    override fun onPause() {
+        NfcAdapter.getDefaultAdapter(this)?.disableForegroundDispatch(this)
+        super.onPause()
+    }
+
+    // FLAG_MUTABLE: el despachador de NFC completa el intent con el URI de la etiqueta.
+    private fun nfcPendingIntent(): PendingIntent {
+        val intent = Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        val mutability = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
+        return PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or mutability)
+    }
+
     private fun captureDeepLink(source: Intent?) {
         pendingEstablishmentSlug = establishmentSlugFrom(source)
         pendingSpaceToken = spaceTokenFrom(source)
@@ -200,6 +222,14 @@ class MainActivity : ComponentActivity() {
         private val APP_HOSTS = setOf("vaiinilla.app", "www.vaiinilla.app")
         private val ESTABLISHMENT_SLUG = Regex("[A-Za-z0-9][A-Za-z0-9_-]*")
         private val ORDER_ID = Regex("[A-Za-z0-9_-]+")
+        private val NFC_TAG_FILTERS =
+            arrayOf(
+                IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED).apply {
+                    addDataScheme("https")
+                    addDataAuthority("vaiinilla.app", null)
+                    addDataAuthority("www.vaiinilla.app", null)
+                },
+            )
         private val RESERVED_PATH_ROOTS = setOf("e", "u", "invitaciones")
         private const val MAX_ESTABLISHMENT_SLUG_LENGTH = 100
         private const val MAX_INVITATION_TOKEN_LENGTH = 4_096

@@ -3,6 +3,7 @@ package com.vaiinilla.app.ui.screens
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
@@ -1280,6 +1281,9 @@ private fun VenueEmptyState(
     // entrada (escanear el QR, escribir el código de 4 dígitos o acercar el NFC).
     val entry = query.isBlank()
     var nfcHint by remember { mutableStateOf(false) }
+    // Sin chip NFC en el teléfono no ofrecemos "Acercar NFC": no hay nada que hacer con él.
+    val context = LocalContext.current
+    val nfcSupported = remember(context) { context.packageManager.hasSystemFeature(PackageManager.FEATURE_NFC) }
     Column(
         modifier =
             Modifier
@@ -1331,7 +1335,14 @@ private fun VenueEmptyState(
         ) {
             EntryOption("Escanear QR", main = true, modifier = Modifier.weight(1f), onClick = onOpenQrScanner)
             EntryOption("Escribir código", main = false, modifier = Modifier.weight(1f), onClick = onOpenCode)
-            EntryOption("Acercar NFC", main = false, modifier = Modifier.weight(1f), onClick = { nfcHint = !nfcHint })
+            if (nfcSupported) {
+                EntryOption(
+                    "Acercar NFC",
+                    main = false,
+                    modifier = Modifier.weight(1f),
+                    onClick = { nfcHint = !nfcHint },
+                )
+            }
         }
         if (nfcHint) {
             Text(

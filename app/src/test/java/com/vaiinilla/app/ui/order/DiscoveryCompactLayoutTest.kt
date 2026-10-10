@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.order
 
+import android.content.pm.PackageManager
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertCountEquals
@@ -18,6 +19,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
@@ -125,6 +128,34 @@ class DiscoveryCompactLayoutTest {
 
     @Test
     fun `sin negocios en la lista ofrece escanear QR, escribir codigo o acercar NFC`() {
+        setNfcFeature(supported = true)
+        setEmptyDiscovery()
+
+        composeTestRule.onNodeWithText("Escanea el QR de tu mesa o de la tienda").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Escribir código").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Acercar NFC").performClick()
+        composeTestRule
+            .onNodeWithText("Acerca la parte de atrás de tu teléfono a la etiqueta de la mesa: Vaiinilla se abre sola.")
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithText("Escribir código").performClick()
+        composeTestRule.onNodeWithText("Escribe los 4 dígitos que aparecen junto al QR de tu mesa.").assertIsDisplayed()
+    }
+
+    @Test
+    fun `sin chip NFC en el telefono no ofrece acercar NFC`() {
+        setNfcFeature(supported = false)
+        setEmptyDiscovery()
+
+        composeTestRule.onNodeWithText("Escribir código").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Acercar NFC").assertCountEquals(0)
+    }
+
+    private fun setNfcFeature(supported: Boolean) {
+        shadowOf(RuntimeEnvironment.getApplication().packageManager)
+            .setSystemFeature(PackageManager.FEATURE_NFC, supported)
+    }
+
+    private fun setEmptyDiscovery() {
         composeTestRule.setContent {
             ScreenshotTheme {
                 DiscoveryScreen(
@@ -141,14 +172,5 @@ class DiscoveryCompactLayoutTest {
             }
         }
         composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithText("Escanea el QR de tu mesa o de la tienda").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Escribir código").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Acercar NFC").performClick()
-        composeTestRule
-            .onNodeWithText("Acerca la parte de atrás de tu teléfono a la etiqueta de la mesa: Vaiinilla se abre sola.")
-            .assertIsDisplayed()
-        composeTestRule.onNodeWithText("Escribir código").performClick()
-        composeTestRule.onNodeWithText("Escribe los 4 dígitos que aparecen junto al QR de tu mesa.").assertIsDisplayed()
     }
 }
