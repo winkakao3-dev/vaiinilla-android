@@ -53,6 +53,9 @@ data class OrderFlowUiState(
     val purchaseCelebration: PurchaseCelebration? = null,
     val guestVenue: GuestVenueContext? = null,
     val guestVenueSuspended: Boolean = false,
+    /** Compra sin cuenta: falta el nombre para dar de alta al invitado antes del primer pedido. */
+    val guestEntryRequired: Boolean = false,
+    val guestName: String = "",
     val assistantChatMessages: List<AssistantChatMessage> = emptyList(),
 )
 

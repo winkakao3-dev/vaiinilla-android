@@ -2,6 +2,8 @@ package com.vaiinilla.app.data.guest
 
 import android.content.Context
 import androidx.core.content.edit
+import com.vaiinilla.app.core.security.GuestKeyVault
+import com.vaiinilla.app.core.security.KeystoreGuestKeyVault
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.Product
@@ -19,10 +21,15 @@ import javax.inject.Singleton
  */
 @Singleton
 class GuestSessionStore
-    @Inject
-    constructor(
-        @ApplicationContext context: Context,
+    internal constructor(
+        context: Context,
+        private val keyVault: GuestKeyVault,
     ) {
+        @Inject
+        constructor(
+            @ApplicationContext context: Context,
+        ) : this(context, KeystoreGuestKeyVault(context))
+
         private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         private val json =
             Json {
@@ -110,11 +117,19 @@ class GuestSessionStore
         }
 
         fun clearAll() {
+            keyVault.clear()
             prefs.edit { clear() }
         }
 
-        /** Llave del invitado (identidad sin cuenta). Vive solo en este dispositivo. */
-        fun readGuestKey(): String? = prefs.getString(KEY_GUEST_KEY, null)
+        /** Llave del invitado (identidad sin cuenta). Cifrada en este dispositivo; nunca sale de él. */
+        fun readGuestKey(): String? {
+            keyVault.read()?.let { return it }
+            // Versiones anteriores la guardaban en claro aquí: se mueve al vault cifrado una vez.
+            val legacy = prefs.getString(KEY_GUEST_KEY_LEGACY, null)?.takeIf { it.isNotBlank() } ?: return null
+            runCatching { keyVault.write(legacy) }
+                .onSuccess { prefs.edit { remove(KEY_GUEST_KEY_LEGACY) } }
+            return legacy
+        }
 
         fun readGuestName(): String? = prefs.getString(KEY_GUEST_NAME, null)
 
@@ -122,16 +137,18 @@ class GuestSessionStore
             name: String,
             key: String,
         ) {
+            keyVault.write(key)
             prefs.edit {
                 putString(KEY_GUEST_NAME, name)
-                putString(KEY_GUEST_KEY, key)
+                remove(KEY_GUEST_KEY_LEGACY)
             }
         }
 
         fun clearGuest() {
+            keyVault.clear()
             prefs.edit {
                 remove(KEY_GUEST_NAME)
-                remove(KEY_GUEST_KEY)
+                remove(KEY_GUEST_KEY_LEGACY)
             }
         }
 
@@ -247,7 +264,7 @@ class GuestSessionStore
             const val KEY_CREATE_IDEMPOTENCY_FINGERPRINT = "create_idempotency_fingerprint"
             const val KEY_CREATE_IDEMPOTENCY_KEY = "create_idempotency_key"
             const val KEY_PENDING_STRIPE_CONFIRMATION_ORDER_ID = "pending_stripe_confirmation_order_id"
-            const val KEY_GUEST_KEY = "guest_key"
+            const val KEY_GUEST_KEY_LEGACY = "guest_key"
             const val KEY_GUEST_NAME = "guest_name"
         }
     }

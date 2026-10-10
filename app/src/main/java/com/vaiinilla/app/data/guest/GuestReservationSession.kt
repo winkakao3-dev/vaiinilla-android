@@ -100,8 +100,25 @@ class GuestReservationSession
             cached = null
         }
 
+        /**
+         * Ejecuta [request] con el bearer del invitado. Un 401 (sesión vencida) reintenta una vez con
+         * una sesión nueva; la clave de idempotencia la pone quien llama, así que no duplica nada.
+         */
+        fun <T> withBearer(
+            establishmentSlug: String,
+            request: (bearer: String) -> Result<T>,
+        ): Result<T> {
+            val token = bearer(establishmentSlug).getOrElse { return Result.failure(it) }
+            val result = request(token)
+            if ((result.exceptionOrNull() as? ApiClientException)?.httpStatus != HTTP_UNAUTHORIZED) return result
+            invalidate()
+            val renewed = bearer(establishmentSlug).getOrElse { return Result.failure(it) }
+            return request(renewed)
+        }
+
+        /** Olvida la identidad de invitado en este dispositivo (p. ej. tras reclamar sus pedidos a una cuenta). */
         @Synchronized
-        private fun forgetIdentity() {
+        fun forgetIdentity() {
             cached = null
             store.clearGuest()
         }
@@ -137,7 +154,9 @@ class GuestReservationSession
             /** La sesión de invitado dura 15 min; se renueva antes para no llegar con un 401. */
             const val RENEW_AFTER_MS = 10 * 60 * 1000L
 
-            val KEY_REJECTED_STATUSES = setOf(401, 404)
+            const val HTTP_UNAUTHORIZED = 401
+
+            val KEY_REJECTED_STATUSES = setOf(HTTP_UNAUTHORIZED, 404)
         }
     }
 

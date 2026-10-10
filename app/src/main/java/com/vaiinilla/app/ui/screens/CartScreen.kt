@@ -63,6 +63,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -144,6 +146,9 @@ fun CartScreen(
     onResolvePendingStripePayment: () -> Unit = {},
     walletBalance: String? = null,
     guestAuthRequired: Boolean = false,
+    /** Compra sin cuenta: sin saldo Vaiinilla y con el nombre del invitado si falta. */
+    guestCheckout: Boolean = false,
+    onGuestNameChange: (String) -> Unit = {},
     profileInitials: String = "?",
     onOpenAccount: () -> Unit = {},
     isRefreshing: Boolean = false,
@@ -283,6 +288,15 @@ fun CartScreen(
                         )
                     }
                 }
+                if (state.guestEntryRequired) {
+                    item {
+                        Spacer(Modifier.height(16.dp))
+                        GuestNameField(
+                            value = state.guestName,
+                            onValueChange = onGuestNameChange,
+                        )
+                    }
+                }
                 item {
                     Spacer(Modifier.height(16.dp))
                     CartNotesField(
@@ -373,6 +387,7 @@ fun CartScreen(
         if (paymentDialogOpen) {
             PaymentMethodOverlay(
                 balanceAffordable = state.isBalancePaymentAffordable(walletBalance),
+                showBalance = !guestCheckout,
                 walletBalance = walletBalance,
                 payAtEndAvailable = state.canPayAtEnd,
                 cardAvailable = state.canPayWithCard,
@@ -398,6 +413,7 @@ fun CartScreen(
 @Composable
 private fun PaymentMethodOverlay(
     balanceAffordable: Boolean,
+    showBalance: Boolean,
     walletBalance: String?,
     payAtEndAvailable: Boolean,
     onDismiss: () -> Unit,
@@ -511,23 +527,26 @@ private fun PaymentMethodOverlay(
                         selectedMethod = PaymentMethod.CASH
                     },
                 )
-                PaymentMethodCardOption(
-                    icon = Icons.Outlined.AccountBalanceWallet,
-                    title = "Saldo Vaiinilla",
-                    subtitle =
-                        if (balanceAffordable) {
-                            "Usa el saldo disponible de tu cuenta."
-                        } else {
-                            "Saldo insuficiente · Disponible: $${walletBalance.orEmpty()}"
+                // El saldo es de la cuenta: un invitado no lo ve.
+                if (showBalance) {
+                    PaymentMethodCardOption(
+                        icon = Icons.Outlined.AccountBalanceWallet,
+                        title = "Saldo Vaiinilla",
+                        subtitle =
+                            if (balanceAffordable) {
+                                "Usa el saldo disponible de tu cuenta."
+                            } else {
+                                "Saldo insuficiente · Disponible: $${walletBalance.orEmpty()}"
+                            },
+                        badgeText = "Saldo",
+                        selected = selectedMethod == PaymentMethod.BALANCE,
+                        enabled = !selectionLocked && balanceAffordable,
+                        onClick = {
+                            payAtEndSelected = false
+                            selectedMethod = PaymentMethod.BALANCE
                         },
-                    badgeText = "Saldo",
-                    selected = selectedMethod == PaymentMethod.BALANCE,
-                    enabled = !selectionLocked && balanceAffordable,
-                    onClick = {
-                        payAtEndSelected = false
-                        selectedMethod = PaymentMethod.BALANCE
-                    },
-                )
+                    )
+                }
                 if (cardAvailable) {
                     PaymentMethodCardOption(
                         icon = Icons.Outlined.CreditCard,
@@ -1086,6 +1105,37 @@ private fun QuantityButton(
     ) {
         Icon(icon, contentDescription = description, tint = tint, modifier = Modifier.size(18.dp))
     }
+}
+
+@Composable
+private fun GuestNameField(
+    value: String,
+    onValueChange: (String) -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text("Tu nombre") },
+        supportingText = {
+            Text(
+                "Para confirmar solo necesitamos tu nombre. " +
+                    "Al continuar aceptas los términos y el aviso de privacidad vigentes.",
+            )
+        },
+        singleLine = true,
+        colors =
+            OutlinedTextFieldDefaults.colors(
+                focusedTextColor = colors.ink,
+                unfocusedTextColor = colors.ink,
+                focusedBorderColor = colors.ink,
+                unfocusedBorderColor = colors.line,
+                focusedLabelColor = colors.muted,
+                unfocusedLabelColor = colors.muted,
+                cursorColor = colors.ink,
+            ),
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable

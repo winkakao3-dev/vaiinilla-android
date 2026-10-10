@@ -8,6 +8,9 @@ import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.auth.ContextoExchanger
+import com.vaiinilla.app.data.guest.GuestCheckoutPolicy
+import com.vaiinilla.app.data.guest.GuestOrderGateway
+import com.vaiinilla.app.data.guest.GuestReservationSession
 import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
@@ -18,6 +21,7 @@ import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.CreatedOrder
 import com.vaiinilla.app.domain.model.GuestVenueContext
+import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
@@ -25,9 +29,11 @@ import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicSpace
 import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
+import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import com.vaiinilla.app.domain.repository.ReservationRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
 import com.vaiinilla.app.domain.usecase.CreateRemoteOrderUseCase
@@ -67,6 +73,9 @@ class OrderFlowViewModel
         private val sessionStore: SecureSessionStore,
         private val staffPresenceCoordinator: StaffPresenceCoordinator,
         private val reservationRepository: ReservationRepository,
+        private val guestOrders: GuestOrderGateway,
+        private val guestSession: GuestReservationSession,
+        private val guestCheckoutPolicy: GuestCheckoutPolicy,
     ) : ViewModel() {
         private val _uiState =
             mutableStateOf(
@@ -195,7 +204,11 @@ class OrderFlowViewModel
                     // authenticated, so its failure must not hide a catalog that loaded correctly.
                     // Load it right away: without it the cart cannot offer "Pagar al final".
                     val status =
-                        withContext(Dispatchers.IO) { getOperationalStatus() }.getOrNull()
+                        withContext(Dispatchers.IO) { fetchOperationalStatus() }.getOrNull()
+                    val guestEntryRequired =
+                        withContext(Dispatchers.IO) {
+                            guestSlugFor(resolvedVenue) != null && !guestSession.hasIdentity()
+                        }
                     // Con sesión, la cancha rentada y en curso también puede recibir el pedido.
                     val rentedCourt = if (status != null) loadRentedCourt() else null
                     if (activeCartStorageKey != storageKey) return@launchTracked
@@ -212,6 +225,7 @@ class OrderFlowViewModel
                             errorMessage = if (effectiveCatalog == null) failure?.toUserFacingMessage() else null,
                             guestVenueSuspended = suspended,
                             guestVenue = resolvedVenue,
+                            guestEntryRequired = guestEntryRequired,
                         )
                 }
         }
@@ -286,13 +300,13 @@ class OrderFlowViewModel
             _uiState.value = _uiState.value.copy(refreshing = true)
             launchTracked {
                 val current = _uiState.value
-                var statusResult = withContext(Dispatchers.IO) { getOperationalStatus() }
+                var statusResult = withContext(Dispatchers.IO) { fetchOperationalStatus() }
                 if (
                     statusResult.isFailure &&
                     current.guestVenue?.establishment?.clientIdRequired == false
                 ) {
                     current.guestVenue?.let { refreshClientContext(it) }
-                    statusResult = withContext(Dispatchers.IO) { getOperationalStatus() }
+                    statusResult = withContext(Dispatchers.IO) { fetchOperationalStatus() }
                 }
                 _uiState.value =
                     _uiState.value.copy(
@@ -315,10 +329,54 @@ class OrderFlowViewModel
             return !studentAuthRepository.isReadyForCheckout(venue.establishment.id)
         }
 
+        /** Compra sin cuenta en el lugar actual: no hay sesión de cuenta y el negocio no pide identificador. */
+        fun isGuestCheckout(): Boolean = guestCheckoutPolicy.allows(_uiState.value.guestVenue)
+
+        /** Como [requiresStudentAuth], salvo la compra sin cuenta: ese invitado no necesita cuenta. */
+        fun requiresAccountAuth(): Boolean = requiresStudentAuth() && !isGuestCheckout()
+
+        fun updateGuestName(name: String) {
+            _uiState.value = _uiState.value.copy(guestName = name, createOrderError = null)
+        }
+
+        /** Slug del negocio cuando la compra es de invitado; null cuando es de cuenta. */
+        private fun guestSlugFor(venue: GuestVenueContext?): String? =
+            venue?.establishment?.slug?.takeIf { guestCheckoutPolicy.allows(venue) }
+
+        private fun fetchOperationalStatus(): Result<OperationalStatus> {
+            val slug = guestSlugFor(_uiState.value.guestVenue) ?: return getOperationalStatus()
+            return guestOrders.operationalStatus(slug)
+        }
+
+        private fun fetchOrder(orderId: String): Result<OrderDetail> {
+            val slug = guestSlugFor(_uiState.value.guestVenue) ?: return getOrder(orderId)
+            return guestOrders.get(slug, orderId)
+        }
+
+        private fun retryStripe(
+            orderId: String,
+            idempotencyKey: String,
+        ): Result<StripePaymentSession> {
+            val slug = guestSlugFor(_uiState.value.guestVenue) ?: return retryStripePayment(orderId, idempotencyKey)
+            return guestOrders.retryStripePayment(slug, orderId, idempotencyKey)
+        }
+
         /** Reloads guest venue + cart after returning from auth without clearing tenant state. */
         fun restoreGuestSessionAfterAuth() {
             val venue = guestSessionStore.readVenue() ?: return
             enterGuestVenue(venue)
+        }
+
+        /**
+         * Tras identificarse: los pedidos hechos como invitado en este dispositivo pasan a la cuenta.
+         * La llave es del dispositivo, así que no depende de tener un negocio abierto.
+         */
+        fun claimGuestOrders() {
+            if (!guestOrders.hasIdentity()) return
+            launchTracked {
+                val token = studentAuthRepository.getIdToken().getOrNull() ?: return@launchTracked
+                withContext(Dispatchers.IO) { guestOrders.claim(token) }
+            }
         }
 
         /** Leaves the guest venue before entering an authenticated operational mode. */
@@ -332,6 +390,7 @@ class OrderFlowViewModel
                 _uiState.value.copy(
                     guestVenue = null,
                     cartLines = emptyList(),
+                    guestEntryRequired = false,
                 )
         }
 
@@ -589,11 +648,16 @@ class OrderFlowViewModel
             }
             if (state.creatingOrder) return
 
-            if (requiresStudentAuth()) {
+            if (requiresAccountAuth()) {
                 _uiState.value =
                     state.copy(
                         createOrderError = "Inicia sesión y verifica tu correo antes de confirmar el pedido.",
                     )
+                return
+            }
+
+            if (guestSlugFor(state.guestVenue) != null && !guestSession.hasIdentity()) {
+                enterGuestThenSubmit(state)
                 return
             }
 
@@ -621,13 +685,13 @@ class OrderFlowViewModel
                         )
                     return@launchTracked
                 }
-                var statusResult = withContext(Dispatchers.IO) { getOperationalStatus() }
+                var statusResult = withContext(Dispatchers.IO) { fetchOperationalStatus() }
                 if (
                     statusResult.isFailure &&
                     current.guestVenue?.establishment?.clientIdRequired == false
                 ) {
                     refreshClientContext(requireNotNull(current.guestVenue))
-                    statusResult = withContext(Dispatchers.IO) { getOperationalStatus() }
+                    statusResult = withContext(Dispatchers.IO) { fetchOperationalStatus() }
                 }
                 val status =
                     statusResult.getOrElse { error ->
@@ -676,9 +740,14 @@ class OrderFlowViewModel
                         },
                     )
                 pendingIdempotencyKey = idempotencyKey
+                val guestSlug = guestSlugFor(current.guestVenue)
                 val result =
                     withContext(Dispatchers.IO) {
-                        createRemoteOrder(request, idempotencyKey)
+                        if (guestSlug != null) {
+                            guestOrders.create(guestSlug, request, idempotencyKey)
+                        } else {
+                            createRemoteOrder(request, idempotencyKey)
+                        }
                     }
                 result.fold(
                     onSuccess = { created ->
@@ -720,7 +789,44 @@ class OrderFlowViewModel
                         _uiState.value =
                             _uiState.value.copy(
                                 creatingOrder = false,
-                                createOrderError = error.toUserFacingMessage("No se pudo crear el pedido."),
+                                createOrderError =
+                                    if ((error as? OrderRepositoryException)?.code == GUEST_CANNOT_USE_BALANCE) {
+                                        "El saldo Vaiinilla es de una cuenta. Paga en caja o con tarjeta."
+                                    } else {
+                                        error.toUserFacingMessage("No se pudo crear el pedido.")
+                                    },
+                            )
+                    },
+                )
+            }
+        }
+
+        /** Primera compra sin cuenta: da de alta al invitado con el nombre escrito y sigue con el pedido. */
+        private fun enterGuestThenSubmit(state: OrderFlowUiState) {
+            val slug = guestSlugFor(state.guestVenue) ?: return
+            val name = state.guestName.trim().replace(Regex("\\s+"), " ")
+            if (name.isEmpty()) {
+                _uiState.value =
+                    state.copy(
+                        guestEntryRequired = true,
+                        createOrderError = "Escribe tu nombre para confirmar el pedido.",
+                    )
+                return
+            }
+            _uiState.value = state.copy(creatingOrder = true, createOrderError = null)
+            launchTracked {
+                val entered = withContext(Dispatchers.IO) { guestSession.enter(slug, name) }
+                entered.fold(
+                    onSuccess = {
+                        _uiState.value = _uiState.value.copy(creatingOrder = false, guestEntryRequired = false)
+                        submitOrder()
+                    },
+                    onFailure = { error ->
+                        _uiState.value =
+                            _uiState.value.copy(
+                                creatingOrder = false,
+                                guestEntryRequired = true,
+                                createOrderError = error.toUserFacingMessage("No pudimos darte de alta como invitado."),
                             )
                     },
                 )
@@ -891,7 +997,7 @@ class OrderFlowViewModel
                     createOrderError = null,
                 )
             launchTracked {
-                withContext(Dispatchers.IO) { getOrder(orderId) }.fold(
+                withContext(Dispatchers.IO) { fetchOrder(orderId) }.fold(
                     onSuccess = { order ->
                         if (order.summary.paymentMethod != PaymentMethod.STRIPE) {
                             _uiState.value =
@@ -960,7 +1066,7 @@ class OrderFlowViewModel
             }
             _uiState.value = _uiState.value.copy(resolvingPendingStripePayment = true)
             launchTracked {
-                withContext(Dispatchers.IO) { getOrder(order.summary.id) }.fold(
+                withContext(Dispatchers.IO) { fetchOrder(order.summary.id) }.fold(
                     onSuccess = { latest ->
                         _uiState.value = _uiState.value.copy(resolvingPendingStripePayment = false)
                         val status = latest.payment?.status
@@ -1110,7 +1216,7 @@ class OrderFlowViewModel
             launchTracked {
                 val result =
                     withContext(Dispatchers.IO) {
-                        retryStripePayment(order.summary.id, key)
+                        retryStripe(order.summary.id, key)
                     }
                 result.fold(
                     onSuccess = { session ->
@@ -1182,7 +1288,7 @@ class OrderFlowViewModel
                     val result =
                         pollStripePaymentConfirmation(
                             orderId = orderId,
-                            fetch = { id -> withContext(Dispatchers.IO) { getOrder(id) } },
+                            fetch = { id -> withContext(Dispatchers.IO) { fetchOrder(id) } },
                         )
                     val latest = result.order ?: seed
                     val phase = if (result.timedOut) StripePaymentPhase.TIMED_OUT else result.phase
@@ -1342,6 +1448,7 @@ class OrderFlowViewModel
 
         private companion object {
             val catalogMemoryCache = ConcurrentHashMap<String, Catalog>()
+            const val GUEST_CANNOT_USE_BALANCE = "GUEST_CANNOT_USE_BALANCE"
         }
     }
 

@@ -445,6 +445,7 @@ fun AppNavHost(
 
     fun finishStudentAuth(returnRoute: String) {
         orderFlowViewModel.restoreGuestSessionAfterAuth()
+        orderFlowViewModel.claimGuestOrders()
         studentAuthViewModel.refreshGuestVenue()
         authorizedAccessViewModel.refreshCurrentSession()
         if (!navController.popBackStack(returnRoute, inclusive = false)) {
@@ -466,6 +467,7 @@ fun AppNavHost(
 
     fun finishLaunchAuth() {
         orderFlowViewModel.restoreGuestSessionAfterAuth()
+        orderFlowViewModel.claimGuestOrders()
         studentAuthViewModel.refreshGuestVenue()
         authorizedAccessViewModel.refreshCurrentSession()
         authorizedAccessViewModel.refreshModes(force = true) {
@@ -547,7 +549,7 @@ fun AppNavHost(
                     if (orderState.catalog == null && !orderState.loading) {
                         orderFlowViewModel.refresh()
                     }
-                    if (!orderFlowViewModel.requiresStudentAuth()) {
+                    if (!orderFlowViewModel.requiresAccountAuth()) {
                         if (operationalState.role != OperationalRole.CLIENT) {
                             operationalViewModel.setRole(OperationalRole.CLIENT)
                         } else if (operationalState.orders.isEmpty() && !operationalState.loading) {
@@ -573,7 +575,7 @@ fun AppNavHost(
                     }
                     // El vacío muestra "Pedidos anteriores": si el usuario entra
                     // a Carrito antes que a Pedidos, las órdenes aún no cargan.
-                    if (!orderFlowViewModel.requiresStudentAuth()) {
+                    if (!orderFlowViewModel.requiresAccountAuth()) {
                         if (operationalState.role != OperationalRole.CLIENT) {
                             operationalViewModel.setRole(OperationalRole.CLIENT)
                         } else if (operationalState.orders.isEmpty() && !operationalState.loading) {
@@ -1046,9 +1048,11 @@ fun AppNavHost(
             }
 
             composable(Routes.CART) {
-                val guestAuthRequired = orderFlowViewModel.requiresStudentAuth()
+                val guestAuthRequired = orderFlowViewModel.requiresAccountAuth()
                 CartScreen(
                     state = orderState,
+                    guestCheckout = orderFlowViewModel.isGuestCheckout(),
+                    onGuestNameChange = orderFlowViewModel::updateGuestName,
                     onMenu = { navController.navigateStudent(Routes.CATALOG) },
                     onQuantityChange = orderFlowViewModel::changeCartLineQuantity,
                     onNotesChange = orderFlowViewModel::updateKitchenNotes,
@@ -1403,7 +1407,7 @@ fun AppNavHost(
             }
 
             composable(Routes.STUDENT_TRACKING) {
-                val venueAuthRequired = orderFlowViewModel.requiresStudentAuth()
+                val venueAuthRequired = orderFlowViewModel.requiresAccountAuth()
                 LaunchedEffect(venueAuthRequired, studentAuthState.session?.uid) {
                     if (venueAuthRequired) {
                         studentAuthViewModel.ensureVenueContext(

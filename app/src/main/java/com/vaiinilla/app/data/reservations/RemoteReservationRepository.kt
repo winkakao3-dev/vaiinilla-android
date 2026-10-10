@@ -107,24 +107,8 @@ class RemoteReservationRepository(
     private fun <T> ReservationAccess.perform(request: (bearer: String?) -> Result<T>): Result<T> =
         when (this) {
             ReservationAccess.Account -> request(null)
-            is ReservationAccess.Guest -> performAsGuest(establishmentSlug, request)
+            is ReservationAccess.Guest -> guestSession.withBearer(establishmentSlug) { bearer -> request(bearer) }
         }
-
-    /**
-     * Un 401 del invitado (sesión vencida) se reintenta una vez con una sesión nueva. La clave de
-     * idempotencia la pone quien llama, así que el reintento no duplica el apartado.
-     */
-    private fun <T> performAsGuest(
-        establishmentSlug: String,
-        request: (bearer: String?) -> Result<T>,
-    ): Result<T> {
-        val bearer = guestSession.bearer(establishmentSlug).getOrElse { return Result.failure(it) }
-        val result = request(bearer)
-        if ((result.exceptionOrNull() as? ApiClientException)?.httpStatus != HTTP_UNAUTHORIZED) return result
-        guestSession.invalidate()
-        val renewed = guestSession.bearer(establishmentSlug).getOrElse { return Result.failure(it) }
-        return request(renewed)
-    }
 
     private fun <T> Result<T>.mapApiErrors(): Result<T> =
         fold(
@@ -139,8 +123,4 @@ class RemoteReservationRepository(
                 )
             },
         )
-
-    private companion object {
-        const val HTTP_UNAUTHORIZED = 401
-    }
 }

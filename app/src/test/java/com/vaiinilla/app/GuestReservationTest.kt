@@ -31,8 +31,19 @@ class GuestReservationTest {
     @Before
     fun setUp() {
         val context: Context = ApplicationProvider.getApplicationContext()
-        store = GuestSessionStore(context)
+        store = GuestSessionStore(context, InMemoryGuestKeyVault())
         store.clearGuest()
+    }
+
+    @Test
+    fun legacyPlaintextKeyMovesToVaultOnce() {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        val prefs = context.getSharedPreferences("vaiinilla_guest_session", Context.MODE_PRIVATE)
+        prefs.edit().putString("guest_key", "llave-vieja").commit()
+
+        assertEquals("llave-vieja", store.readGuestKey())
+        assertNull(prefs.getString("guest_key", null))
+        assertEquals("llave-vieja", store.readGuestKey())
     }
 
     @Test
@@ -156,7 +167,7 @@ class GuestReservationTest {
     private fun sessionJson(token: String) =
         """{"data":{"access_token":"$token","token_type":"bearer","expires_in":900}}"""
 
-    private class FakeApi(
+    internal class FakeApi(
         private val handler:
             (path: String, bearer: String?, body: String?, headers: Map<String, String>) -> Result<String>,
     ) : VaiinillaApiClient {

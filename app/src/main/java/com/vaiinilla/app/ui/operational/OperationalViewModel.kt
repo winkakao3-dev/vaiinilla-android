@@ -8,6 +8,9 @@ import com.vaiinilla.app.core.network.MutationIdempotency
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.notifications.DeviceTokenRegistrar
 import com.vaiinilla.app.core.runCatchingCancellable
+import com.vaiinilla.app.data.guest.GuestCheckoutPolicy
+import com.vaiinilla.app.data.guest.GuestOrderGateway
+import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.data.order.DismissedClientOrdersStore
 import com.vaiinilla.app.data.wallet.PendingWalletReload
 import com.vaiinilla.app.data.wallet.PendingWalletReloadStore
@@ -74,6 +77,9 @@ class OperationalViewModel
         private val deviceTokenRegistrar: DeviceTokenRegistrar,
         private val pendingWalletReloadStore: PendingWalletReloadStore,
         private val waiterRepository: WaiterRepository,
+        private val guestOrders: GuestOrderGateway,
+        private val guestSessionStore: GuestSessionStore,
+        private val guestCheckoutPolicy: GuestCheckoutPolicy,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(OperationalUiState())
         val uiState: State<OperationalUiState> = _uiState
@@ -181,6 +187,20 @@ class OperationalViewModel
             }
         }
 
+        /** Pedidos del cliente: los de la cuenta o, sin cuenta, los del invitado en el negocio que mira. */
+        private fun loadOrders(
+            role: OperationalRole,
+            updatedSince: String?,
+        ): Result<List<OrderDetail>> {
+            val venue = guestSessionStore.readVenue()
+            val slug = venue?.establishment?.slug
+            if (role != OperationalRole.CLIENT || slug == null || !guestCheckoutPolicy.allows(venue)) {
+                return listOrders(role, updatedSince)
+            }
+            if (!guestOrders.hasIdentity()) return Result.success(emptyList())
+            return guestOrders.list(slug)
+        }
+
         fun refresh() {
             val role = _uiState.value.role ?: return
             val generation = roleGeneration
@@ -216,7 +236,7 @@ class OperationalViewModel
                 // Client orders always fetch the full list (like iOS): the delta can miss
                 // transitions that don't bump updatedAt. Staff keeps the delta.
                 val since = if (role == OperationalRole.CLIENT) null else lastUpdatedSince
-                val result = withContext(Dispatchers.IO) { listOrders(role, since) }
+                val result = withContext(Dispatchers.IO) { loadOrders(role, since) }
                 if (generation != roleGeneration || _uiState.value.role != role) return@launch
                 result.fold(
                     onSuccess = { orders ->
