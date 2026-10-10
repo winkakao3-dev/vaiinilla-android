@@ -29,6 +29,11 @@ class CartLineNotesTest {
     }
 
     @Test
+    fun `a line without note keeps the key it had before notes existed`() {
+        assertEquals("103:310", CartLine(burrito, quantity = 1, selectedOptionIds = setOf(310)).key)
+    }
+
+    @Test
     fun `same product with a different note stays as a separate line`() {
         val withNote = CartLine(burrito, quantity = 1, selectedOptionIds = emptySet(), notes = "sin cebolla")
         val plain = CartLine(burrito, quantity = 1, selectedOptionIds = emptySet())

@@ -12,14 +12,17 @@ data class CartLine(
     /** Igual nota consolida la línea; una nota distinta la separa. Viene recortada. */
     val notes: String = "",
 ) {
-    // La nota va al final: las opciones no llevan ":", así que la clave no es ambigua.
+    // La nota va al final y solo si existe: una clave sin nota queda igual que antes, y las opciones
+    // no llevan ":", así que la clave no es ambigua.
     val key: String =
         buildString {
             append(product.id)
             append(':')
             append(selectedOptionIds.sorted().joinToString(","))
-            append(':')
-            append(notes)
+            if (notes.isNotEmpty()) {
+                append(':')
+                append(notes)
+            }
         }
 }
 
