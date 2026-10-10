@@ -12,6 +12,7 @@ import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.discovery.DiscoveryFailures
+import com.vaiinilla.app.domain.model.CART_LINE_NOTE_MAX
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.ContractRules
@@ -33,6 +34,8 @@ import com.vaiinilla.app.domain.usecase.GetCatalogUseCase
 import com.vaiinilla.app.domain.usecase.GetOperationalStatusUseCase
 import com.vaiinilla.app.domain.usecase.GetOrderUseCase
 import com.vaiinilla.app.domain.usecase.RetryStripePaymentUseCase
+import com.vaiinilla.app.domain.usecase.generalKitchenNotes
+import com.vaiinilla.app.domain.usecase.kitchenLineNotesSummary
 import com.vaiinilla.app.ui.assistant.AssistantChatMessage
 import com.vaiinilla.app.ui.assistant.AssistantLocalReplies
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -365,6 +368,7 @@ class OrderFlowViewModel
                     selectedProductId = productId,
                     selectedOptionIds = defaults,
                     selectedQuantity = 1,
+                    selectedNotes = "",
                     createOrderError = null,
                 )
         }
@@ -375,7 +379,12 @@ class OrderFlowViewModel
                     selectedProductId = null,
                     selectedOptionIds = emptySet(),
                     selectedQuantity = 1,
+                    selectedNotes = "",
                 )
+        }
+
+        fun updateSelectedNotes(notes: String) {
+            _uiState.value = _uiState.value.copy(selectedNotes = notes.take(CART_LINE_NOTE_MAX))
         }
 
         fun toggleOption(
@@ -441,6 +450,7 @@ class OrderFlowViewModel
                     product = product,
                     quantity = state.selectedQuantity,
                     selectedOptionIds = state.selectedOptionIds,
+                    notes = state.selectedNotes.trim(),
                 )
             val existing = state.cartLines.firstOrNull { it.key == candidate.key }
             val updated =
@@ -468,6 +478,7 @@ class OrderFlowViewModel
                     selectedProductId = null,
                     selectedOptionIds = emptySet(),
                     selectedQuantity = 1,
+                    selectedNotes = "",
                     createOrderError = null,
                 )
             persistCurrentCartIfNeeded()
@@ -994,6 +1005,7 @@ class OrderFlowViewModel
                         product = product,
                         quantity = item.quantity.coerceIn(1, 20),
                         selectedOptionIds = requestedOptionIds.filterTo(linkedSetOf()) { it in validOptionIds },
+                        notes = item.notes.trim().take(CART_LINE_NOTE_MAX),
                     )
                 val existingIndex = restored.indexOfFirst { line -> line.key == candidate.key }
                 if (existingIndex >= 0) {
@@ -1013,6 +1025,13 @@ class OrderFlowViewModel
             pendingStripeRetryIdempotencyKey = null
             pendingIdempotencyKey = null
 
+            // notas_cocina llega con el resumen por línea; la nota general del carrito no lo debe incluir.
+            val generalNotes =
+                generalKitchenNotes(
+                    combined = order.kitchenNotes,
+                    lineSummary = kitchenLineNotesSummary(order.items.map { it.productName to it.notes }),
+                )
+
             val warning =
                 when {
                     unavailableProducts > 0 ->
@@ -1025,7 +1044,7 @@ class OrderFlowViewModel
             _uiState.value =
                 current.copy(
                     cartLines = restored,
-                    kitchenNotes = order.kitchenNotes,
+                    kitchenNotes = generalNotes,
                     checkoutDestination = order.summary.destination,
                     selectedSpaceId = order.summary.space?.id ?: 0,
                     createdOrder = null,

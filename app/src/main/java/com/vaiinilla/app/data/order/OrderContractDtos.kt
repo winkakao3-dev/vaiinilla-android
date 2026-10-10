@@ -20,11 +20,15 @@ data class CreateOrderRequestDto(
     @SerialName("pago_diferido") val payAtEnd: Boolean? = null,
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class CreateOrderItemDto(
     @SerialName("producto_id") val productId: Int,
     @SerialName("cantidad") val quantity: Int,
     @SerialName("opcion_ids") val optionIds: List<Int>,
+    // Solo viaja cuando hay nota: el resto de líneas se envían exactamente igual que antes.
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("notas") val notes: String? = null,
 )
 
 @Serializable
@@ -210,6 +214,8 @@ data class OrderItemDto(
     @SerialName("subtotal") val subtotal: String,
     @SerialName("opciones") val options: List<OrderItemOptionDto>,
     @SerialName("rechazo") val rejection: OrderItemRejectionDto? = null,
+    /** Nota de la línea; un servidor que no la conoce la omite. */
+    @SerialName("notas") val notes: String? = null,
 )
 
 @Serializable

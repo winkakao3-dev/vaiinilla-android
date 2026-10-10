@@ -770,6 +770,7 @@ fun AppNavHost(
                     onDismissProduct = orderFlowViewModel::closeProduct,
                     onToggleOption = orderFlowViewModel::toggleOption,
                     onClearOptionalGroup = orderFlowViewModel::clearOptionalGroup,
+                    onSelectedNotesChange = orderFlowViewModel::updateSelectedNotes,
                     onQuantityChange = orderFlowViewModel::changeSelectedQuantity,
                     onAddProduct = orderFlowViewModel::addSelectedProductToCart,
                     onOpenCart = { navController.navigateStudent(Routes.CART) },

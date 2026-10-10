@@ -36,6 +36,7 @@ private fun CreateOrderItem.toDto(): CreateOrderItemDto =
         productId = productId,
         quantity = quantity,
         optionIds = optionIds,
+        notes = notes.takeIf { it.isNotEmpty() },
     )
 
 fun OrderDetailDto.toDomain(): OrderDetail =
@@ -75,6 +76,7 @@ fun OrderDetailDto.toDomain(): OrderDetail =
                     unitDigitalPrice = item.unitDigitalPrice,
                     subtotal = item.subtotal,
                     rejection = item.rejection?.let { OrderItemRejection(reason = it.reason, amount = it.amount) },
+                    notes = item.notes.orEmpty(),
                     options =
                         item.options.map { option ->
                             OrderItemOption(

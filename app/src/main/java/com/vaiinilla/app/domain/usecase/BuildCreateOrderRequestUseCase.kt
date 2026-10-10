@@ -17,12 +17,18 @@ class BuildCreateOrderRequestUseCase
             destination: OrderDestination = OrderDestination.TAKE_AWAY,
             spaceId: Int? = null,
             payAtEnd: Boolean = false,
-        ): CreateOrderRequest =
-            CreateOrderRequest(
+        ): CreateOrderRequest {
+            val lineSummary = kitchenLineNotesSummary(lines.map { it.product.name to it.notes })
+            return CreateOrderRequest(
                 paymentMethod = paymentMethod,
                 destination = destination,
                 spaceId = spaceId,
-                kitchenNotes = kitchenNotes,
+                kitchenNotes =
+                    if (lineSummary.isEmpty()) {
+                        kitchenNotes
+                    } else {
+                        combineKitchenNotes(kitchenNotes, lineSummary)
+                    },
                 payAtEnd = payAtEnd,
                 items =
                     lines.map { line ->
@@ -30,7 +36,36 @@ class BuildCreateOrderRequestUseCase
                             productId = line.product.id,
                             quantity = line.quantity,
                             optionIds = line.selectedOptionIds.sorted(),
+                            notes = line.notes,
                         )
                     },
             )
+        }
+    }
+
+/** Resumen por línea como lo lee cocina: "Burrito: sin cebolla · Agua: sin hielo". Omite líneas sin nota. */
+internal fun kitchenLineNotesSummary(namesAndNotes: List<Pair<String, String>>): String =
+    namesAndNotes
+        .filter { (_, notes) -> notes.isNotEmpty() }
+        .joinToString(" · ") { (name, notes) -> "$name: $notes" }
+
+/** Nota general y resumen por línea en un solo texto para `notas_cocina`. */
+internal fun combineKitchenNotes(
+    general: String,
+    lineSummary: String,
+): String =
+    listOf(general.trim(), lineSummary)
+        .filter { it.isNotEmpty() }
+        .joinToString(" | ")
+
+/** Inversa de [combineKitchenNotes]: quita el resumen por línea para recuperar solo la nota general. */
+internal fun generalKitchenNotes(
+    combined: String,
+    lineSummary: String,
+): String =
+    when {
+        lineSummary.isEmpty() -> combined
+        combined == lineSummary -> ""
+        combined.endsWith(" | $lineSummary") -> combined.removeSuffix(" | $lineSummary")
+        else -> combined
     }

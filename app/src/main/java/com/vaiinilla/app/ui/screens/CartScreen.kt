@@ -956,6 +956,18 @@ private fun CartLineRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (line.notes.isNotEmpty()) {
+                Text(
+                    "Nota: ${line.notes}",
+                    color = colors.ink,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 2.dp),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             AnimatedContent(
                 targetState = line.quantity,
                 transitionSpec = {

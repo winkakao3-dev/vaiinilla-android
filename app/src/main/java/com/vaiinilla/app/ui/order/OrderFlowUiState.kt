@@ -28,6 +28,8 @@ data class OrderFlowUiState(
     val selectedProductId: Int? = null,
     val selectedOptionIds: Set<Int> = emptySet(),
     val selectedQuantity: Int = 1,
+    /** Nota para cocina del producto que se está agregando; viaja con la línea. */
+    val selectedNotes: String = "",
     val cartLines: List<CartLine> = emptyList(),
     val kitchenNotes: String = "",
     val checkoutDestination: OrderDestination = OrderDestination.TAKE_AWAY,

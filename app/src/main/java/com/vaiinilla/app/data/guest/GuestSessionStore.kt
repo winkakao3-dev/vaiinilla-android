@@ -183,6 +183,7 @@ class GuestSessionStore
                         productId = line.product.id,
                         quantity = line.quantity,
                         selectedOptionIds = line.selectedOptionIds.sorted(),
+                        notes = line.notes,
                     )
                 }
             prefs.edit { putString(cartPrefKey(storageKey), json.encodeToString(snapshot)) }
@@ -203,6 +204,7 @@ class GuestSessionStore
                     product = product,
                     quantity = item.quantity.coerceIn(1, 20),
                     selectedOptionIds = item.selectedOptionIds.toSet(),
+                    notes = item.notes,
                 )
             }
         }
@@ -231,4 +233,6 @@ data class GuestCartLineSnapshot(
     val productId: Int,
     val quantity: Int,
     val selectedOptionIds: List<Int>,
+    // Por defecto vacía: un carrito guardado antes de las notas se restaura igual.
+    val notes: String = "",
 )

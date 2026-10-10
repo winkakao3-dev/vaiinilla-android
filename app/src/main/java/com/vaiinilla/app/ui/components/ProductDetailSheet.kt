@@ -94,6 +94,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.model.CART_LINE_NOTE_MAX
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.ProductOption
@@ -114,9 +115,11 @@ fun ProductDetailSheet(
     previewTotal: String,
     canAdd: Boolean,
     errorMessage: String?,
+    notes: String = "",
     onDismiss: () -> Unit,
     onToggleOption: (groupId: Int, optionId: Int) -> Unit,
     onClearOptionalGroup: (groupId: Int) -> Unit,
+    onNotesChange: (String) -> Unit = {},
     onQuantityChange: (delta: Int) -> Unit,
     onAdd: () -> Unit,
 ) {
@@ -354,6 +357,16 @@ fun ProductDetailSheet(
                                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                                 )
                             }
+                        }
+
+                        item(key = "product-notes") {
+                            EditorialNotesField(
+                                value = notes,
+                                onValueChange = { onNotesChange(it.take(CART_LINE_NOTE_MAX)) },
+                                label = "Nota para cocina",
+                                placeholder = "Ej. sin cebolla, salsa aparte",
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                            )
                         }
 
                         item {

@@ -29,6 +29,14 @@ internal fun createOrderFingerprint(request: CreateOrderRequest): String {
                 append(item.quantity)
                 append(':')
                 append(item.optionIds.sorted().joinToString(","))
+                // Solo con nota, para no cambiar la huella de las líneas de siempre. El largo evita
+                // que una nota con "|" o ":" imite otra línea.
+                if (item.notes.isNotEmpty()) {
+                    append(":n")
+                    append(item.notes.length)
+                    append(':')
+                    append(item.notes)
+                }
             }
         }
     return MessageDigest

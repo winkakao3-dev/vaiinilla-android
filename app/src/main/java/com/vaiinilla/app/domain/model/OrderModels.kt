@@ -2,16 +2,24 @@ package com.vaiinilla.app.domain.model
 
 import java.time.Instant
 
+/** Largo máximo de la nota de una línea; la nota general de cocina usa el mismo límite en el carrito. */
+const val CART_LINE_NOTE_MAX = 90
+
 data class CartLine(
     val product: Product,
     val quantity: Int,
     val selectedOptionIds: Set<Int>,
+    /** Igual nota consolida la línea; una nota distinta la separa. Viene recortada. */
+    val notes: String = "",
 ) {
+    // La nota va al final: las opciones no llevan ":", así que la clave no es ambigua.
     val key: String =
         buildString {
             append(product.id)
             append(':')
             append(selectedOptionIds.sorted().joinToString(","))
+            append(':')
+            append(notes)
         }
 }
 
@@ -19,6 +27,7 @@ data class CreateOrderRequest(
     val paymentMethod: PaymentMethod,
     val destination: OrderDestination,
     val spaceId: Int?,
+    /** Lo que llega a cocina a nivel pedido: la nota general más el resumen por línea del caso de uso. */
     val kitchenNotes: String,
     val items: List<CreateOrderItem>,
     /** Pagar al final: el pedido va a la cuenta del espacio (efectivo, en un espacio). */
@@ -29,6 +38,7 @@ data class CreateOrderItem(
     val productId: Int,
     val quantity: Int,
     val optionIds: List<Int>,
+    val notes: String = "",
 )
 
 data class CreatedOrder(
@@ -150,6 +160,8 @@ data class OrderItem(
     val rejection: OrderItemRejection? = null,
     /** Foto actual del producto, como la manda el pedido. */
     val imageUrl: String? = null,
+    /** Nota de esta línea; vacía si el cliente no escribió ninguna. */
+    val notes: String = "",
 )
 
 data class OrderItemRejection(
