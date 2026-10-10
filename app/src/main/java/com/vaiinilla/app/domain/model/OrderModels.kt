@@ -35,7 +35,18 @@ data class CreateOrderRequest(
     val items: List<CreateOrderItem>,
     /** Pagar al final: el pedido va a la cuenta del espacio (efectivo, en un espacio). */
     val payAtEnd: Boolean = false,
+    /** `MOSTRADOR` solo lo envía el staff al tomar un pedido en mostrador. */
+    val origin: OrderOrigin = OrderOrigin.APP,
+    /** Nombre del cliente de mostrador; opcional. Vacío o blanco no se envía. */
+    val customerName: String? = null,
 )
+
+enum class OrderOrigin(
+    val wireValue: String,
+) {
+    APP("app"),
+    MOSTRADOR("mostrador"),
+}
 
 data class CreateOrderItem(
     val productId: Int,
@@ -65,6 +76,8 @@ data class OrderDetail(
     val reservation: OrderReservation? = null,
     /** Cuándo el cliente avisó que ya llegó por su pedido (drive-thru); `null` si no ha avisado. */
     val arrivedAt: Instant? = null,
+    /** Nombre a cuyo nombre lo tomó el staff en mostrador; `null` en pedidos de la app. */
+    val customerName: String? = null,
 )
 
 data class OrderReservation(

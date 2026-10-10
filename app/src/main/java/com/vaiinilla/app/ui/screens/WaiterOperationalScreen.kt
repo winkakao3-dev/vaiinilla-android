@@ -85,6 +85,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.mode.RestrictedMode
+import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.SpaceCopy
@@ -153,6 +154,10 @@ fun WaiterOperationalScreen(
     onConfirmRental: (String) -> Unit = {},
     onCancelRental: () -> Unit = {},
     onFilterAttending: (Boolean) -> Unit = {},
+    /** Pedido de mostrador a nombre de un cliente que no usa la app; se cobra en efectivo en Caja. */
+    onOpenCounterOrder: () -> Unit = {},
+    onCloseCounterOrder: () -> Unit = {},
+    onSubmitCounterOrder: (List<CartLine>, String) -> Unit = { _, _ -> },
     newCallTable: TableCall? = null,
     onAlertConsumed: () -> Unit = {},
     onChangeMode: (() -> Unit)? = null,
@@ -350,6 +355,12 @@ fun WaiterOperationalScreen(
                     online = state.errorMessage == null || state.tables.isNotEmpty(),
                     colors = colors,
                 )
+            }
+
+            if (!readOnly) {
+                item(span = fullWidth) {
+                    CounterOrderEntry(colors = colors, onClick = onOpenCounterOrder)
+                }
             }
 
             item(span = fullWidth) {
@@ -591,6 +602,15 @@ fun WaiterOperationalScreen(
             colors = colors,
             onDismiss = onCancelRental,
             onConfirm = onConfirmRental,
+        )
+    }
+
+    if (state.counterOrderOpen) {
+        CounterOrderSheet(
+            state = state,
+            colors = colors,
+            onDismiss = onCloseCounterOrder,
+            onSubmit = onSubmitCounterOrder,
         )
     }
 

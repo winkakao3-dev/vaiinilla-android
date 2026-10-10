@@ -1036,7 +1036,7 @@ fun CashierOperationalScreen(
                         folio = "#${order.summary.folio}",
                         title = queueTitle,
                         subtitle =
-                            (
+                            customerPrefix(order) + (
                                 if (order.summary.destination.name == "TAKE_AWAY") {
                                     "Para llevar"
                                 } else {
@@ -1609,6 +1609,9 @@ private val StampGreen = Color(0xFF5A7A1E)
 
 /** " · YA LLEGÓ" cuando el cliente (drive-thru) avisó que llegó por su pedido; si no, vacío. */
 internal fun arrivalSuffix(order: OrderDetail): String = if (order.arrivedAt != null) " · YA LLEGÓ" else ""
+
+/** Nombre del cliente de un pedido de mostrador para la fila de Caja o de Cocina; vacío en pedidos de la app. */
+private fun customerPrefix(order: OrderDetail): String = order.customerName?.let { "$it · " }.orEmpty()
 
 internal fun elapsedSinceMs(iso: String): Long? =
     runCatching {
@@ -2208,6 +2211,14 @@ fun KitchenOperationalScreen(
                                                 letterSpacing = (-1.5).sp,
                                                 color = TicketInk,
                                             )
+                                            activeOrder.customerName?.let { name ->
+                                                Text(
+                                                    name,
+                                                    fontSize = 18.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = TicketInk,
+                                                )
+                                            }
                                             Row(
                                                 verticalAlignment = Alignment.Bottom,
                                                 modifier = Modifier.padding(top = 2.dp),
@@ -2414,7 +2425,7 @@ fun KitchenOperationalScreen(
                 QueueTicketRow(
                     folio = "#${order.summary.folio}",
                     title = orderSummaryTitle,
-                    subtitle = orderDest + arrivalSuffix(order),
+                    subtitle = customerPrefix(order) + orderDest + arrivalSuffix(order),
                     time = "En espera",
                     colors = colors,
                     modifier =

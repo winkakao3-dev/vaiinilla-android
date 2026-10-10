@@ -6,6 +6,7 @@ import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.model.CreateOrderItem
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.OrderDestination
+import com.vaiinilla.app.domain.model.OrderOrigin
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
@@ -74,6 +75,39 @@ class OrderContractTest {
         val error = repository.createOrder(changed, key).exceptionOrNull()
         assertTrue(error is OrderRepositoryException)
         assertEquals("IDEMPOTENCY_KEY_REUSED", (error as OrderRepositoryException).code)
+    }
+
+    @Test
+    fun `app order request keeps the same wire shape without origin or customer name`() {
+        val json = OrderContractJson().encodeCreateRequest(validRequest())
+        assertFalse(json.contains("origen"))
+        assertFalse(json.contains("nombre_cliente_snapshot"))
+    }
+
+    @Test
+    fun `counter order request sends origin and the trimmed customer name`() {
+        val request = validRequest().copy(origin = OrderOrigin.MOSTRADOR, customerName = "  Ana  ")
+        val json = OrderContractJson().encodeCreateRequest(request)
+        assertTrue(json.contains("\"origen\":\"mostrador\""))
+        assertTrue(json.contains("\"nombre_cliente_snapshot\":\"Ana\""))
+        assertTrue(json.contains("\"metodo_pago\":\"efectivo\""))
+    }
+
+    @Test
+    fun `counter order request without a name omits the customer field`() {
+        val request = validRequest().copy(origin = OrderOrigin.MOSTRADOR, customerName = null)
+        val json = OrderContractJson().encodeCreateRequest(request)
+        assertTrue(json.contains("\"origen\":\"mostrador\""))
+        assertFalse(json.contains("nombre_cliente_snapshot"))
+    }
+
+    @Test
+    fun `order detail exposes the counter customer name when the server sends it`() {
+        val raw = source.read("fixtures/created_order.json")
+        val withName = raw.replaceFirst("\"data\": {", "\"data\": {\"nombre_cliente_snapshot\": \"  Luis \",")
+        val order = OrderContractJson().parseOrderDetail(withName)
+        assertEquals("Luis", order.customerName)
+        assertEquals(null, OrderContractJson().parseOrderDetail(raw).customerName)
     }
 
     private fun validRequest(): CreateOrderRequest =

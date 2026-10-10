@@ -3,6 +3,7 @@ package com.vaiinilla.app.ui.order
 import com.vaiinilla.app.domain.model.CreateOrderItem
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.OrderDestination
+import com.vaiinilla.app.domain.model.OrderOrigin
 import com.vaiinilla.app.domain.model.PaymentMethod
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -92,6 +93,49 @@ class OrderIdempotencyTest {
 
         assertEquals("fresh", key)
     }
+
+    @Test
+    fun `counter orders with a different customer name get a different fingerprint`() {
+        val ana = counterRequest(customerName = "Ana")
+        val luis = counterRequest(customerName = "Luis")
+
+        assertNotEquals(createOrderFingerprint(ana), createOrderFingerprint(luis))
+    }
+
+    @Test
+    fun `counter order fingerprint differs from the same app order`() {
+        val app = cartRequest()
+        val counter = counterRequest(customerName = null)
+
+        assertNotEquals(createOrderFingerprint(app), createOrderFingerprint(counter))
+    }
+
+    @Test
+    fun `counterOrderKeyFor reuses the key when the order is unchanged`() {
+        val first = counterOrderKeyFor(previous = null, fingerprint = "fp", generate = { "k1" })
+        val retry = counterOrderKeyFor(previous = first, fingerprint = "fp", generate = { error("no reuse") })
+
+        assertEquals("k1", retry.key)
+    }
+
+    @Test
+    fun `counterOrderKeyFor generates a new key when the order changed`() {
+        val first = CounterOrderKey(fingerprint = "fp", key = "k1")
+        val changed = counterOrderKeyFor(previous = first, fingerprint = "fp-2", generate = { "k2" })
+
+        assertEquals("k2", changed.key)
+    }
+
+    private fun counterRequest(customerName: String?) =
+        CreateOrderRequest(
+            paymentMethod = PaymentMethod.CASH,
+            destination = OrderDestination.TAKE_AWAY,
+            spaceId = null,
+            kitchenNotes = "",
+            items = listOf(CreateOrderItem(productId = 103, quantity = 1, optionIds = listOf(310))),
+            origin = OrderOrigin.MOSTRADOR,
+            customerName = customerName,
+        )
 
     private fun cartRequest(
         paymentMethod: PaymentMethod = PaymentMethod.CASH,

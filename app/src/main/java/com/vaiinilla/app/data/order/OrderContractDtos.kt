@@ -18,6 +18,11 @@ data class CreateOrderRequestDto(
     // Solo viaja cuando es true: los demás pedidos se envían exactamente igual que antes.
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     @SerialName("pago_diferido") val payAtEnd: Boolean? = null,
+    // Solo los pedidos de mostrador los llevan: el de la app se envía exactamente igual que antes.
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("origen") val origin: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("nombre_cliente_snapshot") val customerName: String? = null,
 )
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -136,6 +141,8 @@ data class OrderDetailDto(
     @SerialName("reserva") val reservation: OrderReservationDto? = null,
     @SerialName("llegada_en") val arrivedAt: String? = null,
     @SerialName("sesion_espacio_id") val tableSessionId: String? = null,
+    /** Solo viene en pedidos de mostrador; un servidor anterior no lo envía. */
+    @SerialName("nombre_cliente_snapshot") val customerName: String? = null,
 )
 
 /** La reserva de un pedido de renta de cancha; `null` en cualquier otro pedido. */

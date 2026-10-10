@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.order
 
 import com.vaiinilla.app.domain.model.CreateOrderRequest
+import com.vaiinilla.app.domain.model.OrderOrigin
 import java.security.MessageDigest
 
 /**
@@ -22,6 +23,14 @@ internal fun createOrderFingerprint(request: CreateOrderRequest): String {
             append(request.kitchenNotes)
             // Solo cuando es true, para no cambiar la huella de los pedidos de siempre.
             if (request.payAtEnd) append("|pago_al_final")
+            // Solo en pedidos de mostrador: el nombre cambia el pedido, así que no puede reusar la llave.
+            if (request.origin == OrderOrigin.MOSTRADOR) {
+                val name = request.customerName.orEmpty()
+                append("|origen:mostrador|nombre:")
+                append(name.length)
+                append(':')
+                append(name)
+            }
             request.items.forEach { item ->
                 append('|')
                 append(item.productId)
@@ -57,3 +66,19 @@ internal fun resolveIdempotencyKey(
     persistedKey: String?,
     generate: () -> String,
 ): String = inMemoryKey ?: persistedKey ?: generate()
+
+/** Llave de un pedido de mostrador junto con la huella del contenido que la generó. */
+internal data class CounterOrderKey(
+    val fingerprint: String,
+    val key: String,
+)
+
+/**
+ * Un reintento del mismo pedido (respuesta perdida) reusa la llave; si el pedido cambió, genera una nueva,
+ * porque reusar la anterior con otro contenido devuelve 409.
+ */
+internal fun counterOrderKeyFor(
+    previous: CounterOrderKey?,
+    fingerprint: String,
+    generate: () -> String,
+): CounterOrderKey = if (previous?.fingerprint == fingerprint) previous else CounterOrderKey(fingerprint, generate())

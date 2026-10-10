@@ -96,6 +96,9 @@ object ContractRules {
             "El checkout actual solo acepta destino para_llevar."
         }
         require(request.spaceId == null) { "para_llevar exige espacio_id null." }
+        require(request.customerName == null || request.customerName.length <= 120) {
+            "nombre_cliente_snapshot admite hasta 120 caracteres."
+        }
         validateOrderItems(request)
     }
 

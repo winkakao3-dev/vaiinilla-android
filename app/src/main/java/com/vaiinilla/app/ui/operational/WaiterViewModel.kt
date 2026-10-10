@@ -5,6 +5,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.domain.model.Catalog
+import com.vaiinilla.app.domain.model.CartLine
+import com.vaiinilla.app.domain.model.OrderOrigin
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
@@ -15,10 +18,16 @@ import com.vaiinilla.app.domain.repository.AccountPaymentMethod
 import com.vaiinilla.app.domain.repository.BoardOrder
 import com.vaiinilla.app.domain.repository.BoardTable
 import com.vaiinilla.app.domain.repository.CallStatus
+import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.ReservationRepository
 import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.WaiterRepository
+import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
+import com.vaiinilla.app.domain.usecase.CreateOrderUseCase
+import com.vaiinilla.app.ui.order.CounterOrderKey
+import com.vaiinilla.app.ui.order.counterOrderKeyFor
+import com.vaiinilla.app.ui.order.createOrderFingerprint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -50,6 +59,11 @@ data class WaiterUiState(
     val lastAbono: AbonoResult? = null,
     /** Renta de mostrador apartada esperando que se cobre en efectivo. */
     val pendingRental: Reservation? = null,
+    /** Pedido de mostrador: hoja abierta, catálogo cargado y envío en curso. */
+    val counterOrderOpen: Boolean = false,
+    val counterCatalog: Catalog? = null,
+    val counterOrderSending: Boolean = false,
+    val counterOrderError: String? = null,
 )
 
 @HiltViewModel
@@ -58,6 +72,9 @@ class WaiterViewModel
     constructor(
         private val waiterRepository: WaiterRepository,
         private val reservationRepository: ReservationRepository,
+        private val catalogRepository: CatalogRepository,
+        private val buildCreateOrderRequest: BuildCreateOrderRequestUseCase,
+        private val createOrder: CreateOrderUseCase,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(WaiterUiState())
         val uiState: State<WaiterUiState> = _uiState
@@ -70,6 +87,7 @@ class WaiterViewModel
         private var knownCallIds: Set<String>? = null
         private var visible = false
         private var toastClearJob: Job? = null
+        private var counterOrderKey: CounterOrderKey? = null
 
         fun onVisible() {
             visible = true
@@ -268,6 +286,64 @@ class WaiterViewModel
          * Renta de mostrador de una cancha con precio: se aparta ([start] null = ahora; o el fin del
          * turno para renovar) y se abre el cobro en efectivo. La renta se paga primero.
          */
+        /** Abre la hoja de pedido de mostrador; el catálogo se carga la primera vez. */
+        fun openCounterOrder() {
+            _uiState.value = _uiState.value.copy(counterOrderOpen = true, counterOrderError = null)
+            if (_uiState.value.counterCatalog != null) return
+            viewModelScope.launch {
+                val result = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }
+                result.fold(
+                    onSuccess = { catalog -> _uiState.value = _uiState.value.copy(counterCatalog = catalog) },
+                    onFailure = { error ->
+                        _uiState.value = _uiState.value.copy(counterOrderError = error.toUserFacingMessage())
+                    },
+                )
+            }
+        }
+
+        fun closeCounterOrder() {
+            if (_uiState.value.counterOrderSending) return
+            _uiState.value = _uiState.value.copy(counterOrderOpen = false, counterOrderError = null)
+        }
+
+        /**
+         * Envía el pedido de mostrador. Solo efectivo, para cobrarse en Caja; el total y el folio los calcula el
+         * servidor. Un reintento del mismo pedido reusa la llave; si cambió, se genera una nueva.
+         */
+        fun submitCounterOrder(
+            lines: List<CartLine>,
+            customerName: String,
+        ) {
+            if (_uiState.value.counterOrderSending) return
+            val request =
+                buildCreateOrderRequest(
+                    lines = lines,
+                    kitchenNotes = "",
+                    origin = OrderOrigin.MOSTRADOR,
+                    customerName = customerName,
+                )
+            val key =
+                counterOrderKeyFor(counterOrderKey, createOrderFingerprint(request)) {
+                    UUID.randomUUID().toString()
+                }
+            counterOrderKey = key
+            _uiState.value = _uiState.value.copy(counterOrderSending = true, counterOrderError = null)
+            viewModelScope.launch {
+                val result = withContext(Dispatchers.IO) { createOrder(request, key.key) }
+                _uiState.value = _uiState.value.copy(counterOrderSending = false)
+                result.fold(
+                    onSuccess = { created ->
+                        counterOrderKey = null
+                        _uiState.value = _uiState.value.copy(counterOrderOpen = false, counterOrderError = null)
+                        showToast("Pedido #${created.summary.folio} enviado a Caja")
+                    },
+                    onFailure = { error ->
+                        _uiState.value = _uiState.value.copy(counterOrderError = error.toUserFacingMessage())
+                    },
+                )
+            }
+        }
+
         fun startRental(
             spaceId: Int,
             minutes: Int,
