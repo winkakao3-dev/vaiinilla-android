@@ -3,13 +3,44 @@ package com.vaiinilla.app
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.discovery.RemoteDiscoveryRepository
+import com.vaiinilla.app.domain.model.GeoCoordinates
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.Locale
 
 class RemoteDiscoveryRepositoryTest {
     private val source = TestFixtureSource()
+
+    @Test
+    fun `nearby search sends latitud and longitud with dot decimals under any locale`() {
+        val client = RecordingPublicApiClient()
+        client.getResponses["publico/establecimientos"] = source.read("fixtures/publico_establecimientos.json")
+        val repository = RemoteDiscoveryRepository(client, ContractResponseParser())
+
+        repository.searchEstablishments("").getOrThrow()
+        val previousLocale = Locale.getDefault()
+        Locale.setDefault(Locale.forLanguageTag("es-ES"))
+        try {
+            repository
+                .searchEstablishments("", nearTo = GeoCoordinates(latitude = 19.4326077, longitude = -99.133208))
+                .getOrThrow()
+        } finally {
+            Locale.setDefault(previousLocale)
+        }
+
+        assertEquals(
+            listOf(
+                PublicRequest.Get(path = "publico/establecimientos", query = mapOf("limit" to "20")),
+                PublicRequest.Get(
+                    path = "publico/establecimientos",
+                    query = mapOf("limit" to "20", "latitud" to "19.432608", "longitud" to "-99.133208"),
+                ),
+            ),
+            client.getRequests.toList(),
+        )
+    }
 
     @Test
     fun `remote discovery uses public contract routes and maps responses`() {

@@ -17,6 +17,7 @@ robolectric = "4.14.1"
 googleServices = "4.4.2"
 firebaseBom = "33.10.0"
 coroutinesPlayServices = "1.10.2"
+playServicesLocation = "21.4.0"
 cameraX = "1.4.2"
 mlKitBarcode = "17.3.0"
 zxing = "3.5.3"
@@ -61,6 +62,7 @@ firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics-ktx"
 firebase-messaging = { module = "com.google.firebase:firebase-messaging-ktx" }
 leakcanary-android = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakcanary" }
 kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutinesPlayServices" }
+google-play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraX" }
 androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "cameraX" }
 androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "cameraX" }

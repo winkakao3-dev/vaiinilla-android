@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
+import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -7,6 +8,8 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
@@ -53,6 +56,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.NearMe
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Storefront
@@ -79,6 +83,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -94,6 +99,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicVideo
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
@@ -124,10 +130,28 @@ fun DiscoveryScreen(
     profileInitials: String = "?",
     onOpenAccount: () -> Unit = {},
     onBack: (() -> Unit)? = null,
+    onEnableNearby: () -> Unit = {},
+    onNearbyPermissionDenied: () -> Unit = {},
+    onDisableNearby: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
+    val nearbyPermissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) onEnableNearby() else onNearbyPermissionDenied()
+        }
+    val onToggleNearby = {
+        haptics.selection()
+        when {
+            state.nearbyOrigin != null -> onDisableNearby()
+            state.locating -> Unit
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED -> onEnableNearby()
+            else -> nearbyPermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+        }
+    }
     var codeSheetOpen by remember { mutableStateOf(false) }
     var tokenError by remember { mutableStateOf(false) }
     var pendingSelection by remember { mutableStateOf<PublicEstablishment?>(null) }
@@ -265,8 +289,20 @@ fun DiscoveryScreen(
                     FilterChipsBar(
                         selectedFilter = selectedFilter,
                         onSelectFilter = { selectedFilter = it },
+                        nearbyActive = state.nearbyOrigin != null,
+                        nearbyLocating = state.locating,
+                        onToggleNearby = onToggleNearby,
                         modifier = Modifier.padding(top = 12.dp),
                     )
+                }
+                state.locationMessage?.let { message ->
+                    item {
+                        VenueNoticeCard(
+                            message = message,
+                            tone = colors.muted,
+                            modifier = Modifier.padding(top = 14.dp),
+                        )
+                    }
                 }
                 state.suspendedMessage?.let { message ->
                     item {
@@ -329,7 +365,7 @@ fun DiscoveryScreen(
                     val others = filteredEstablishments.filterNot { it.id == recommended.id }
                     item {
                         SectionHeading(
-                            label = "RECOMENDADA PARA TI",
+                            label = if (state.nearbyOrigin != null) "MÁS CERCA DE TI" else "RECOMENDADA PARA TI",
                             modifier = Modifier.padding(top = 20.dp),
                         )
                     }
@@ -552,6 +588,9 @@ enum class VenueFilter(
 private fun FilterChipsBar(
     selectedFilter: VenueFilter,
     onSelectFilter: (VenueFilter) -> Unit,
+    nearbyActive: Boolean,
+    nearbyLocating: Boolean,
+    onToggleNearby: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -563,43 +602,70 @@ private fun FilterChipsBar(
                 .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        VenueFilterChip(
+            label = if (nearbyLocating) "Ubicándote…" else "Cerca de mí",
+            selected = nearbyActive,
+            onClick = onToggleNearby,
+            leadingIcon = Icons.Outlined.NearMe,
+        )
         VenueFilter.entries.forEach { filter ->
-            val isSelected = filter == selectedFilter
-            Row(
+            VenueFilterChip(
+                label = filter.label,
+                selected = filter == selectedFilter,
+                onClick = {
+                    haptics.selection()
+                    onSelectFilter(filter)
+                },
+                showOpenDot = filter == VenueFilter.OPEN,
+            )
+        }
+    }
+}
+
+@Composable
+private fun VenueFilterChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    leadingIcon: ImageVector? = null,
+    showOpenDot: Boolean = false,
+) {
+    val colors = LocalVaiinillaColors.current
+    val tint = if (selected) colors.paper else colors.ink
+    Row(
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (selected) colors.ink else colors.paper2)
+                .then(
+                    if (!selected) {
+                        Modifier.border(1.dp, colors.line, RoundedCornerShape(12.dp))
+                    } else {
+                        Modifier
+                    },
+                ).clickable(onClick = onClick)
+                .padding(horizontal = 13.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        if (showOpenDot) {
+            Box(
                 modifier =
                     Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(if (isSelected) colors.ink else colors.paper2)
-                        .then(
-                            if (!isSelected) {
-                                Modifier.border(1.dp, colors.line, RoundedCornerShape(12.dp))
-                            } else {
-                                Modifier
-                            },
-                        ).clickable {
-                            haptics.selection()
-                            onSelectFilter(filter)
-                        }.padding(horizontal = 13.dp, vertical = 7.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-            ) {
-                if (filter == VenueFilter.OPEN) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(colors.accent),
-                    )
-                }
-                Text(
-                    filter.label,
-                    color = if (isSelected) colors.paper else colors.ink,
-                    fontSize = 12.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                )
-            }
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(colors.accent),
+            )
         }
+        leadingIcon?.let {
+            Icon(it, contentDescription = null, tint = tint, modifier = Modifier.size(14.dp))
+        }
+        Text(
+            label,
+            color = tint,
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+        )
     }
 }
 

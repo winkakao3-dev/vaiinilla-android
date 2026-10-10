@@ -23,6 +23,7 @@ import com.vaiinilla.app.data.auth.student.StudentEnrollmentApi
 import com.vaiinilla.app.data.catalog.RemoteCatalogRepository
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.discovery.RemoteDiscoveryRepository
+import com.vaiinilla.app.data.location.FusedDeviceLocationProvider
 import com.vaiinilla.app.data.mode.AuthorizedAccessApi
 import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessApi
 import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessRepository
@@ -41,6 +42,7 @@ import com.vaiinilla.app.data.wallet.RemoteWalletRepository
 import com.vaiinilla.app.domain.account.AccountDeletionRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
+import com.vaiinilla.app.domain.location.DeviceLocationProvider
 import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
@@ -160,6 +162,12 @@ object VaiinillaModule {
         apiClient: VaiinillaApiClient,
         parser: ContractResponseParser,
     ): DiscoveryRepository = RemoteDiscoveryRepository(apiClient, parser)
+
+    @Provides
+    @Singleton
+    fun provideDeviceLocationProvider(
+        @ApplicationContext context: Context,
+    ): DeviceLocationProvider = FusedDeviceLocationProvider(context)
 
     @Provides
     @Singleton

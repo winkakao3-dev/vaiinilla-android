@@ -4,6 +4,7 @@ import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.fixture.FixtureSource
 import com.vaiinilla.app.domain.discovery.DiscoveryFailures
 import com.vaiinilla.app.domain.model.Catalog
+import com.vaiinilla.app.domain.model.GeoCoordinates
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.SpaceResolveResult
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
@@ -22,6 +23,7 @@ class FixtureDiscoveryRepository(
         query: String,
         limit: Int,
         cursor: String?,
+        nearTo: GeoCoordinates?,
     ): Result<Pair<List<PublicEstablishment>, String?>> =
         runCatching {
             val all = loadEstablishments()

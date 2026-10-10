@@ -682,6 +682,9 @@ fun AppNavHost(
                         } else {
                             null
                         },
+                    onEnableNearby = discoveryViewModel::enableNearby,
+                    onNearbyPermissionDenied = discoveryViewModel::onNearbyPermissionDenied,
+                    onDisableNearby = discoveryViewModel::disableNearby,
                 )
 
                 if (qrScannerOpen) {

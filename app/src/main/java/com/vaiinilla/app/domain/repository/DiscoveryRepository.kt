@@ -1,14 +1,17 @@
 package com.vaiinilla.app.domain.repository
 
 import com.vaiinilla.app.domain.model.Catalog
+import com.vaiinilla.app.domain.model.GeoCoordinates
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.SpaceResolveResult
 
 interface DiscoveryRepository {
+    /** Con [nearTo] el backend ordena por cercanía; sin él, el orden de siempre. */
     fun searchEstablishments(
         query: String,
         limit: Int = 20,
         cursor: String? = null,
+        nearTo: GeoCoordinates? = null,
     ): Result<Pair<List<PublicEstablishment>, String?>>
 
     fun getEstablishment(slug: String): Result<PublicEstablishment>

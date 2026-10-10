@@ -5,8 +5,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.domain.discovery.DiscoveryFailures
+import com.vaiinilla.app.domain.location.DeviceLocationProvider
+import com.vaiinilla.app.domain.model.GeoCoordinates
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
@@ -28,6 +31,10 @@ data class DiscoveryUiState(
     val spaceTokenInput: String = "",
     val pendingSwitch: GuestVenueContext? = null,
     val selected: GuestVenueContext? = null,
+    /** Coordenadas con las que se ordena por cercanía; `null` = búsqueda normal. */
+    val nearbyOrigin: GeoCoordinates? = null,
+    val locating: Boolean = false,
+    val locationMessage: String? = null,
 )
 
 @HiltViewModel
@@ -36,13 +43,22 @@ class GuestDiscoveryViewModel
     constructor(
         private val discoveryRepository: DiscoveryRepository,
         private val guestSessionStore: GuestSessionStore,
+        private val deviceLocationProvider: DeviceLocationProvider,
     ) : ViewModel() {
         private val _state = mutableStateOf(DiscoveryUiState())
         val state: State<DiscoveryUiState> = _state
 
         private var searchJob: Job? = null
         private var searchRevision: Long = 0
+        private var locateJob: Job? = null
         private val activeJobs = mutableSetOf<Job>()
+
+        companion object {
+            private const val LOCATION_DENIED_MESSAGE =
+                "No compartiste tu ubicación. Puedes buscar por nombre, código o QR."
+            private const val LOCATION_UNAVAILABLE_MESSAGE =
+                "No pudimos leer tu ubicación. Revisa que el GPS esté activo o busca por nombre."
+        }
 
         init {
             _state.value =
@@ -116,9 +132,10 @@ class GuestDiscoveryViewModel
             searchJob =
                 viewModelScope.launch {
                     if (debounceMs > 0) delay(debounceMs)
+                    val nearTo = _state.value.nearbyOrigin
                     val result =
                         withContext(Dispatchers.IO) {
-                            discoveryRepository.searchEstablishments(query = query.trim())
+                            discoveryRepository.searchEstablishments(query = query.trim(), nearTo = nearTo)
                         }
                     if (revision != searchRevision) return@launch
                     result.fold(
@@ -155,6 +172,58 @@ class GuestDiscoveryViewModel
                         },
                     )
                 }
+        }
+
+        /** Llamar solo con permiso de ubicación concedido: la pantalla lo pide antes. */
+        fun enableNearby() {
+            if (_state.value.locating) return
+            _state.value = _state.value.copy(locating = true, locationMessage = null)
+            locateJob =
+                viewModelScope.launch {
+                    val located =
+                        withContext(Dispatchers.IO) {
+                            runCatchingCancellable { deviceLocationProvider.currentLocation() }
+                        }
+                    located.fold(
+                        onSuccess = { origin ->
+                            if (origin == null) {
+                                _state.value =
+                                    _state.value.copy(
+                                        locating = false,
+                                        locationMessage = LOCATION_UNAVAILABLE_MESSAGE,
+                                    )
+                            } else {
+                                _state.value =
+                                    _state.value.copy(
+                                        locating = false,
+                                        nearbyOrigin = origin,
+                                        locationMessage = null,
+                                    )
+                                launchSearch(query = _state.value.query, debounceMs = 0L)
+                            }
+                        },
+                        onFailure = {
+                            _state.value =
+                                _state.value.copy(locating = false, locationMessage = LOCATION_UNAVAILABLE_MESSAGE)
+                        },
+                    )
+                }
+        }
+
+        fun disableNearby() {
+            locateJob?.cancel()
+            locateJob = null
+            _state.value = _state.value.copy(nearbyOrigin = null, locating = false, locationMessage = null)
+            launchSearch(query = _state.value.query, debounceMs = 0L)
+        }
+
+        fun onNearbyPermissionDenied() {
+            _state.value =
+                _state.value.copy(
+                    nearbyOrigin = null,
+                    locating = false,
+                    locationMessage = LOCATION_DENIED_MESSAGE,
+                )
         }
 
         fun selectEstablishment(
@@ -262,6 +331,8 @@ class GuestDiscoveryViewModel
             searchRevision += 1
             searchJob?.cancel()
             searchJob = null
+            locateJob?.cancel()
+            locateJob = null
             activeJobs.toList().forEach(Job::cancel)
             activeJobs.clear()
             _state.value = DiscoveryUiState()

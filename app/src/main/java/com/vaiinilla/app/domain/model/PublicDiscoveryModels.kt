@@ -9,6 +9,12 @@ data class PublicEstablishment(
     val localVideos: List<PublicVideo> = emptyList(),
 )
 
+/** Ubicación aproximada del dispositivo para ordenar el descubrimiento por cercanía. */
+data class GeoCoordinates(
+    val latitude: Double,
+    val longitude: Double,
+)
+
 data class PublicVideo(
     val url: String,
     val title: String,
