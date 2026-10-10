@@ -2,6 +2,7 @@ package com.vaiinilla.app.data.discovery
 
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicSpace
+import com.vaiinilla.app.domain.model.PublicVideo
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -12,6 +13,13 @@ data class PublicEstablishmentDto(
     val slug: String,
     @SerialName("identificador_cliente_etiqueta") val clientIdLabel: String,
     @SerialName("identificador_cliente_obligatorio") val clientIdRequired: Boolean,
+    @SerialName("videos_local") val localVideos: List<PublicVideoDto>? = null,
+)
+
+@Serializable
+data class PublicVideoDto(
+    val url: String? = null,
+    @SerialName("titulo") val title: String? = null,
 )
 
 @Serializable
@@ -34,7 +42,17 @@ fun PublicEstablishmentDto.toDomain() =
         slug = slug,
         clientIdLabel = clientIdLabel,
         clientIdRequired = clientIdRequired,
+        localVideos = localVideos.orEmpty().mapNotNull { it.toDomainOrNull() },
     )
+
+// Solo http(s): la URL llega a un ACTION_VIEW, así que descarta esquemas como intent: o javascript:.
+private fun PublicVideoDto.toDomainOrNull(): PublicVideo? {
+    val link = url?.trim().orEmpty()
+    val videoTitle = title?.trim().orEmpty()
+    val isWebLink = link.startsWith("https://", ignoreCase = true) || link.startsWith("http://", ignoreCase = true)
+    if (!isWebLink || videoTitle.isEmpty()) return null
+    return PublicVideo(url = link, title = videoTitle)
+}
 
 fun PublicSpaceDto.toDomain() =
     PublicSpace(

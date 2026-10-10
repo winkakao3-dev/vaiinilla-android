@@ -1,5 +1,9 @@
 package com.vaiinilla.app.ui.screens
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.animateContentSize
@@ -30,6 +34,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -75,6 +80,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
@@ -88,6 +94,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.PublicEstablishment
+import com.vaiinilla.app.domain.model.PublicVideo
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -147,6 +154,12 @@ fun DiscoveryScreen(
             ?: state.selected?.establishment
             ?: filteredEstablishments.firstOrNull()
             ?: state.establishments.firstOrNull()
+    // Los videos viven en la lista: el venue guardado en sesión no los trae.
+    val selectionVideos =
+        state.establishments
+            .firstOrNull { it.id == selection?.id }
+            ?.localVideos
+            .orEmpty()
 
     Box(
         modifier =
@@ -353,6 +366,14 @@ fun DiscoveryScreen(
                         }
                     }
                 }
+                if (selectionVideos.isNotEmpty()) {
+                    item {
+                        LocalVideosSection(
+                            videos = selectionVideos,
+                            modifier = Modifier.padding(top = 20.dp),
+                        )
+                    }
+                }
                 item {
                     QuickAccessCard(
                         onOpenQrScanner = onOpenQrScanner,
@@ -426,6 +447,64 @@ fun DiscoveryScreen(
                 },
             )
         }
+    }
+}
+
+@Composable
+private fun LocalVideosSection(
+    videos: List<PublicVideo>,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    val context = LocalContext.current
+    val haptics = rememberVaiinillaHaptics()
+    Column(modifier = modifier.fillMaxWidth()) {
+        SectionHeading(label = "VIDEOS DEL LOCAL")
+        videos.forEach { video ->
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                        .heightIn(min = 48.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(colors.paper2)
+                        .border(1.dp, colors.line, RoundedCornerShape(20.dp))
+                        .physicalPress(onClick = {
+                            haptics.click()
+                            openExternalVideo(context, video.url)
+                        }).padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    video.title,
+                    color = colors.ink,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    Icons.AutoMirrored.Rounded.ArrowForward,
+                    contentDescription = null,
+                    tint = colors.muted,
+                    modifier = Modifier.padding(start = 10.dp).size(18.dp),
+                )
+            }
+        }
+    }
+}
+
+private fun openExternalVideo(
+    context: Context,
+    url: String,
+) {
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+    try {
+        context.startActivity(intent)
+    } catch (_: ActivityNotFoundException) {
+        // Sin app que abra enlaces web no hay nada que mostrar.
     }
 }
 

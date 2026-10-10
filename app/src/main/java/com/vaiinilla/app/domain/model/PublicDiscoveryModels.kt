@@ -6,6 +6,12 @@ data class PublicEstablishment(
     val slug: String,
     val clientIdLabel: String,
     val clientIdRequired: Boolean,
+    val localVideos: List<PublicVideo> = emptyList(),
+)
+
+data class PublicVideo(
+    val url: String,
+    val title: String,
 )
 
 data class PublicSpace(
