@@ -91,6 +91,7 @@ import com.vaiinilla.app.ui.screens.WalletScreen
 import com.vaiinilla.app.ui.screens.WelcomeBootStage
 import com.vaiinilla.app.ui.screens.rememberReduceMotion
 import com.vaiinilla.app.ui.sharedtable.SharedTableViewModel
+import com.vaiinilla.app.ui.support.SupportScreen
 import com.vaiinilla.app.ui.wallet.WalletViewModel
 import com.vaiinilla.app.ui.wallet.rememberWalletUiState
 import kotlinx.coroutines.delay
@@ -1009,6 +1010,19 @@ fun AppNavHost(
                             launchSingleTop = true
                         }
                     },
+                    onOpenSupport = {
+                        navController.navigate(Routes.SUPPORT) {
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
+
+            composable(Routes.SUPPORT) {
+                SupportScreen(
+                    onBack = { navController.popBackStack() },
+                    termsUrl = studentAuthState.termsUrl,
+                    privacyUrl = studentAuthState.privacyUrl,
                 )
             }
 

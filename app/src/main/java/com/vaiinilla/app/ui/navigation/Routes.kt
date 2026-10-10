@@ -25,6 +25,7 @@ object Routes {
     const val WALLET_METHODS = "wallet/methods"
     const val WALLET_ADD_CARD = "wallet/add-card"
     const val WALLET_ACCOUNT = "wallet/account"
+    const val SUPPORT = "support"
     const val RECEIPT_STICKER = "receipt-sticker?style={style}"
 
     fun receiptStickerRoute(styleIndex: Int = 0): String = "receipt-sticker?style=$styleIndex"

@@ -76,6 +76,7 @@ fun WalletAccountScreen(
     onChangeVenue: () -> Unit = {},
     onSignOut: () -> Unit = {},
     onSignIn: () -> Unit = {},
+    onOpenSupport: () -> Unit = {},
     accountDeletionState: AccountDeletionUiState = AccountDeletionUiState(),
     onRequestAccountDeletion: () -> Unit = {},
     onConfirmAccountDeletion: () -> Unit = {},
@@ -287,6 +288,12 @@ fun WalletAccountScreen(
                 } else {
                     EditorialAccentButton(text = "Cambiar de tienda", onClick = onChangeVenue)
                 }
+                EditorialPrimaryButton(
+                    text = "Ayuda y soporte",
+                    onClick = onOpenSupport,
+                    background = colors.paper2,
+                    contentColor = colors.ink,
+                )
                 if (signedIn) {
                     EditorialPrimaryButton(
                         text = "Cerrar sesión",
