@@ -46,6 +46,7 @@ import com.vaiinilla.app.domain.usecase.kitchenLineNotesSummary
 import com.vaiinilla.app.ui.assistant.AssistantChatMessage
 import com.vaiinilla.app.ui.assistant.AssistantLocalReplies
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -1435,7 +1436,7 @@ class OrderFlowViewModel
         private fun launchTracked(block: suspend () -> Unit): Job {
             lateinit var job: Job
             job =
-                viewModelScope.launch {
+                viewModelScope.launch(start = CoroutineStart.LAZY) {
                     try {
                         block()
                     } finally {
@@ -1443,6 +1444,7 @@ class OrderFlowViewModel
                     }
                 }
             activeJobs += job
+            job.start()
             return job
         }
 
