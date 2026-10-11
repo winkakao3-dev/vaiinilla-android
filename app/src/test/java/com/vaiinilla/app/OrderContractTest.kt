@@ -85,10 +85,10 @@ class OrderContractTest {
     }
 
     @Test
-    fun `counter order request sends origin and the trimmed customer name`() {
+    fun `counter order request sends the trimmed customer name without origin`() {
         val request = validRequest().copy(origin = OrderOrigin.MOSTRADOR, customerName = "  Ana  ")
         val json = OrderContractJson().encodeCreateRequest(request)
-        assertTrue(json.contains("\"origen\":\"mostrador\""))
+        assertFalse(json.contains("origen"))
         assertTrue(json.contains("\"nombre_cliente_snapshot\":\"Ana\""))
         assertTrue(json.contains("\"metodo_pago\":\"efectivo\""))
     }
@@ -97,7 +97,7 @@ class OrderContractTest {
     fun `counter order request without a name omits the customer field`() {
         val request = validRequest().copy(origin = OrderOrigin.MOSTRADOR, customerName = null)
         val json = OrderContractJson().encodeCreateRequest(request)
-        assertTrue(json.contains("\"origen\":\"mostrador\""))
+        assertFalse(json.contains("origen"))
         assertFalse(json.contains("nombre_cliente_snapshot"))
     }
 

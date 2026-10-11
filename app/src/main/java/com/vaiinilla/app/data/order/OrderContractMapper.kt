@@ -8,7 +8,6 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderItemOption
 import com.vaiinilla.app.domain.model.OrderItemRejection
-import com.vaiinilla.app.domain.model.OrderOrigin
 import com.vaiinilla.app.domain.model.OrderPayment
 import com.vaiinilla.app.domain.model.OrderReservation
 import com.vaiinilla.app.domain.model.OrderSpace
@@ -30,7 +29,6 @@ fun CreateOrderRequest.toDto(): CreateOrderRequestDto =
         kitchenNotes = kitchenNotes.trim().takeIf { it.isNotEmpty() },
         items = items.map { it.toDto() },
         payAtEnd = payAtEnd.takeIf { it },
-        origin = origin.takeIf { it == OrderOrigin.MOSTRADOR }?.wireValue,
         customerName = customerName?.trim()?.takeIf { it.isNotEmpty() },
     )
 

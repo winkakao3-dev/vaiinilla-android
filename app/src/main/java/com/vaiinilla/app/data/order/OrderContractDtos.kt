@@ -18,9 +18,6 @@ data class CreateOrderRequestDto(
     // Solo viaja cuando es true: los demás pedidos se envían exactamente igual que antes.
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     @SerialName("pago_diferido") val payAtEnd: Boolean? = null,
-    // Solo los pedidos de mostrador los llevan: el de la app se envía exactamente igual que antes.
-    @EncodeDefault(EncodeDefault.Mode.NEVER)
-    @SerialName("origen") val origin: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     @SerialName("nombre_cliente_snapshot") val customerName: String? = null,
 )
