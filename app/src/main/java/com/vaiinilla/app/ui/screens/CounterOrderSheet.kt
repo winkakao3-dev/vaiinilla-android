@@ -1,8 +1,20 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -47,10 +60,12 @@ import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.operational.WaiterUiState
 
 private const val CUSTOMER_NAME_MAX = 120
 private const val COUNTER_LINE_QUANTITY_MAX = 20
+private val MorphSpring = spring<Float>(dampingRatio = 0.89f, stiffness = 180f)
 
 /** Opciones que trae cada grupo al abrir el producto: las mínimas obligatorias, como en el carrito del cliente. */
 internal fun opcionesIniciales(producto: Product): Set<Int> =
@@ -94,6 +109,7 @@ internal fun CounterOrderSheet(
 ) {
     var nombre by remember { mutableStateOf("") }
     var lineas by remember { mutableStateOf<Map<Int, CartLine>>(emptyMap()) }
+    val reduceMotion = reducedMotion()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val catalogo = state.counterCatalog
     val productos = catalogo?.products.orEmpty().filter { it.available }
@@ -192,6 +208,7 @@ internal fun CounterOrderSheet(
                 items(delaCategoria, key = { "producto-${it.id}" }) { producto ->
                     val linea = lineas[producto.id]
                     ProductoMostradorRow(
+                        modifier = Modifier.animateItem(),
                         producto = producto,
                         linea = linea,
                         colors = colors,
@@ -241,10 +258,24 @@ internal fun CounterOrderSheet(
                                 disabledContentColor = colors.textMuted,
                             ),
                     ) {
-                        Text(
-                            if (state.counterOrderSending) "Enviando…" else "Enviar a Caja",
-                            fontWeight = FontWeight.Bold,
-                        )
+                        AnimatedContent(
+                            targetState = state.counterOrderSending,
+                            transitionSpec = {
+                                if (reduceMotion) {
+                                    fadeIn(snap()) togetherWith fadeOut(snap())
+                                } else {
+                                    (fadeIn(MorphSpring) + scaleIn(MorphSpring, initialScale = 0.92f)) togetherWith
+                                        fadeOut(MorphSpring)
+                                }
+                            },
+                            contentAlignment = Alignment.Center,
+                            label = "enviar-a-caja",
+                        ) { enviando ->
+                            Text(
+                                if (enviando) "Enviando…" else "Enviar a Caja",
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                     }
                 }
             }
@@ -254,6 +285,7 @@ internal fun CounterOrderSheet(
 
 @Composable
 private fun ProductoMostradorRow(
+    modifier: Modifier = Modifier,
     producto: Product,
     linea: CartLine?,
     colors: OperationalColors,
@@ -264,12 +296,13 @@ private fun ProductoMostradorRow(
 ) {
     Column(
         modifier =
-            Modifier
+            modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
                 .background(colors.cardBackground)
                 .border(1.dp, colors.cardBorder, RoundedCornerShape(16.dp))
-                .padding(12.dp),
+                .padding(12.dp)
+                .animateContentSize(spring(dampingRatio = 0.8f, stiffness = 380f)),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(
@@ -287,7 +320,7 @@ private fun ProductoMostradorRow(
                         Modifier
                             .clip(RoundedCornerShape(12.dp))
                             .background(colors.accentLime)
-                            .clickable(onClick = onAgregar)
+                            .pressableScale { onAgregar() }
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                     color = colors.accentInk,
                     fontWeight = FontWeight.Bold,
@@ -296,7 +329,7 @@ private fun ProductoMostradorRow(
             } else {
                 Text(
                     "Quitar",
-                    modifier = Modifier.clickable(onClick = onQuitar).padding(8.dp),
+                    modifier = Modifier.pressableScale { onQuitar() }.padding(8.dp),
                     color = colors.textSecondary,
                     fontSize = 13.sp,
                 )
@@ -356,7 +389,7 @@ internal fun CounterOrderEntry(
                 .clip(RoundedCornerShape(16.dp))
                 .background(colors.cardBackground)
                 .border(1.dp, colors.cardBorder, RoundedCornerShape(16.dp))
-                .clickable(onClick = onClick)
+                .pressableScale { onClick() }
                 .padding(horizontal = 16.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
@@ -364,6 +397,31 @@ internal fun CounterOrderEntry(
         Text("Pedido de mostrador", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.textPrimary)
         Text("Tomar pedido", fontSize = 13.sp, color = colors.textSecondary)
     }
+}
+
+/** Clic con foco y Enter como `clickable`, más un leve encogimiento mientras el dedo está abajo. */
+@Composable
+private fun Modifier.pressableScale(
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+): Modifier {
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.93f else 1f,
+        animationSpec = if (reducedMotion()) snap() else spring(dampingRatio = 0.42f, stiffness = 700f),
+        label = "counter-press-scale",
+    )
+    return this
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }.clickable(
+            enabled = enabled,
+            interactionSource = source,
+            indication = LocalIndication.current,
+            onClick = onClick,
+        )
 }
 
 @Composable
@@ -379,7 +437,10 @@ private fun StepperMostrador(
     ) {
         Text(
             "−",
-            modifier = Modifier.clickable(enabled = cantidad > 1) { onCantidad(-1) }.padding(horizontal = 12.dp),
+            modifier =
+                Modifier
+                    .pressableScale(enabled = cantidad > 1) { onCantidad(-1) }
+                    .padding(horizontal = 12.dp),
             color = if (cantidad > 1) colors.textPrimary else colors.textMuted,
             fontWeight = FontWeight.Bold,
         )
@@ -388,7 +449,7 @@ private fun StepperMostrador(
             "+",
             modifier =
                 Modifier
-                    .clickable(enabled = cantidad < COUNTER_LINE_QUANTITY_MAX) { onCantidad(1) }
+                    .pressableScale(enabled = cantidad < COUNTER_LINE_QUANTITY_MAX) { onCantidad(1) }
                     .padding(horizontal = 12.dp),
             color = if (cantidad < COUNTER_LINE_QUANTITY_MAX) colors.textPrimary else colors.textMuted,
             fontWeight = FontWeight.Bold,

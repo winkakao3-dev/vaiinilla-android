@@ -54,6 +54,7 @@ import com.vaiinilla.app.ui.components.TotpMfaChallengeForm
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.components.WalletScreenShell
 import com.vaiinilla.app.ui.components.WalletSubflowTopBar
+import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -171,7 +172,7 @@ fun WalletAccountScreen(
                     }
                 },
             )
-            Column(modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 28.dp)) {
+            Column(modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 28.dp).arrive(index = 0)) {
                 Text(
                     "Código personal",
                     color = colors.muted,
@@ -204,7 +205,8 @@ fun WalletAccountScreen(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                        .padding(horizontal = 24.dp, vertical = 16.dp)
+                        .arrive(index = 1),
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
@@ -274,7 +276,7 @@ fun WalletAccountScreen(
             }
 
             Column(
-                modifier = Modifier.padding(horizontal = 28.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = 28.dp, vertical = 8.dp).arrive(index = 2),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 if (hasStaffModes) {
@@ -355,7 +357,8 @@ fun WalletAccountScreen(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 32.dp),
+                        .padding(horizontal = 32.dp)
+                        .arrive(index = 3),
             )
         }
 

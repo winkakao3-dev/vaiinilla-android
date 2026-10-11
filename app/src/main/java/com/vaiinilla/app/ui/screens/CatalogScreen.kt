@@ -433,7 +433,9 @@ private fun CatalogContent(
                     }
                 } else {
                     items(filteredProducts, key = Product::id) { product ->
-                        ProductCard(product = product, onClick = { onProductSelected(product.id) })
+                        Box(modifier = Modifier.animateItem().fillMaxWidth()) {
+                            ProductCard(product = product, onClick = { onProductSelected(product.id) })
+                        }
                     }
                 }
             }

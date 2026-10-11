@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.components.EditorialPrimaryButton
 import com.vaiinilla.app.ui.components.WalletScreenShell
 import com.vaiinilla.app.ui.components.WalletSubflowTopBar
+import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
@@ -95,7 +96,7 @@ fun SupportScreen(
                     onBack()
                 },
             )
-            Column(modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 28.dp)) {
+            Column(modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 28.dp).arrive(index = 0)) {
                 Text(
                     "¿Necesitas ayuda?",
                     color = colors.ink,
@@ -117,7 +118,7 @@ fun SupportScreen(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                SupportPanel {
+                SupportPanel(index = 1) {
                     Text(
                         SupportCopy.CONTACT_TITLE,
                         color = colors.ink,
@@ -135,10 +136,10 @@ fun SupportScreen(
                         onClick = { runCatching { uriHandler.openUri(SupportCopy.MAILTO) } },
                     )
                 }
-                SupportCopy.cards.dropLast(1).forEach { card ->
-                    SupportPanel { SupportCardText(card) }
+                SupportCopy.cards.dropLast(1).forEachIndexed { i, card ->
+                    SupportPanel(index = i + 2) { SupportCardText(card) }
                 }
-                SupportPanel {
+                SupportPanel(index = 4) {
                     SupportCardText(SupportCopy.cards.last())
                     Text(
                         SupportCopy.LEGAL_NOTE,
@@ -174,7 +175,10 @@ private fun SupportCardText(card: SupportCard) {
 }
 
 @Composable
-private fun SupportPanel(content: @Composable ColumnScope.() -> Unit) {
+private fun SupportPanel(
+    index: Int,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     val colors = LocalVaiinillaColors.current
     Column(
         modifier =
@@ -183,7 +187,8 @@ private fun SupportPanel(content: @Composable ColumnScope.() -> Unit) {
                 .clip(RoundedCornerShape(22.dp))
                 .background(colors.paper2)
                 .border(1.dp, colors.line, RoundedCornerShape(22.dp))
-                .padding(18.dp),
+                .padding(18.dp)
+                .arrive(index = index),
         verticalArrangement = Arrangement.spacedBy(10.dp),
         content = content,
     )

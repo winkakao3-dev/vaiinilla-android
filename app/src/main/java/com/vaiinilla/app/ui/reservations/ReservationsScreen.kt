@@ -247,13 +247,15 @@ fun ReservationsScreen(
                     )
                 }
                 items(mine, key = { "mine-${it.id}" }) { reservation ->
-                    MyReservationCard(
-                        reservation = reservation,
-                        zone = zone,
-                        onPay = { onResumePayment(reservation) },
-                        onCancel = { confirmCancel = reservation },
-                        colors = colors,
-                    )
+                    Box(modifier = Modifier.animateItem()) {
+                        MyReservationCard(
+                            reservation = reservation,
+                            zone = zone,
+                            onPay = { onResumePayment(reservation) },
+                            onCancel = { confirmCancel = reservation },
+                            colors = colors,
+                        )
+                    }
                 }
             }
         }
