@@ -1,9 +1,17 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -42,6 +51,7 @@ import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.sharedtable.SharedTableUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import java.math.BigDecimal
@@ -55,6 +65,30 @@ internal fun tableOrderStateLabel(order: SharedTableOrder): String =
         order.pendingPayment && order.status == OrderState.PAID -> "En la cuenta"
         order.pendingPayment -> order.status.label
         else -> "${order.status.label} · pagado"
+    }
+
+/** Lado derecho de un pedido por cobrar: quién lo paga, o el botón y el pago_yo que envía. */
+internal sealed interface TableClaim {
+    data class OtherPays(
+        val alias: String,
+    ) : TableClaim
+
+    data class Toggle(
+        val label: String,
+        val payIt: Boolean,
+    ) : TableClaim
+}
+
+/**
+ * Null si ya no está por cobrar. Quién paga sale de iPayIt (lo_pago_yo), no del alias: dos
+ * personas pueden llamarse igual.
+ */
+internal fun tableOrderClaim(order: SharedTableOrder): TableClaim? =
+    when {
+        !order.pendingPayment -> null
+        order.payer != null && !order.iPayIt -> TableClaim.OtherPays(order.payer)
+        order.iPayIt -> TableClaim.Toggle("Lo pago yo ✓", payIt = false)
+        else -> TableClaim.Toggle("Esto lo pago yo", payIt = true)
     }
 
 private fun money(value: BigDecimal): String = moneyLabel(value.setScale(2).toPlainString())
@@ -258,24 +292,23 @@ private fun TableOrderRow(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(money(order.total), color = OrderTrackingCardText, fontSize = 14.sp, fontWeight = FontWeight.Black)
-                if (order.pendingPayment) {
-                    val payer = order.payer
-                    if (payer != null && !order.iPayIt) {
+                when (val claim = tableOrderClaim(order)) {
+                    is TableClaim.OtherPays ->
                         Text(
-                            "Paga $payer",
+                            "Paga ${claim.alias}",
                             color = OrderTrackingCardText.copy(alpha = 0.6f),
                             fontSize = 12.sp,
                             modifier = Modifier.padding(top = 6.dp),
                         )
-                    } else {
+                    is TableClaim.Toggle ->
                         TableChip(
-                            text = if (order.iPayIt) "Lo pago yo ✓" else "Esto lo pago yo",
+                            text = claim.label,
                             on = order.iPayIt,
                             enabled = !busy,
-                            onClick = { onClaim(order.folio, !order.iPayIt) },
+                            onClick = { onClaim(order.folio, claim.payIt) },
                             modifier = Modifier.padding(top = 6.dp),
                         )
-                    }
+                    null -> Unit
                 }
             }
         }
@@ -289,7 +322,16 @@ private fun TableOrderRow(
     }
 }
 
-/** Píldora de la mesa: encendida en lima, como el resto de la app. */
+/** Escala del texto nuevo: rebota como un toggle. */
+private val ChipBounce = spring<Float>(dampingRatio = 0.44f, stiffness = 420f)
+
+/** Fundido del texto: suave, sin rebote, para que el viejo no se vea encima del nuevo. */
+private val ChipFade = spring<Float>(dampingRatio = 0.89f, stiffness = 180f)
+
+/**
+ * Píldora de la mesa, encendida en lima. Al cambiar el texto, el nuevo entra con rebote;
+ * deshabilitada se atenúa.
+ */
 @Composable
 private fun TableChip(
     text: String,
@@ -299,10 +341,13 @@ private fun TableChip(
     onClick: (() -> Unit)? = null,
 ) {
     val colors = LocalVaiinillaColors.current
+    val reduce = reducedMotion()
     val bg by animateColorAsState(if (on) colors.accent else Color.Transparent, label = "chip-bg")
     val fg by animateColorAsState(if (on) colors.accentInk else OrderTrackingCardText, label = "chip-fg")
+    val dim by animateFloatAsState(if (enabled) 1f else 0.5f, label = "chip-dim")
     val base =
         modifier
+            .graphicsLayer { alpha = dim }
             .border(1.dp, if (on) Color.Transparent else Color.White.copy(alpha = 0.18f), RoundedCornerShape(999.dp))
     Surface(
         modifier =
@@ -318,13 +363,26 @@ private fun TableChip(
         color = bg,
         shape = RoundedCornerShape(999.dp),
     ) {
-        Text(
-            text,
-            color = fg,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Black,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-        )
+        AnimatedContent(
+            targetState = text,
+            transitionSpec = {
+                if (reduce) {
+                    fadeIn(snap()) togetherWith fadeOut(snap())
+                } else {
+                    (fadeIn(ChipFade) + scaleIn(ChipBounce, initialScale = 0.92f)) togetherWith
+                        fadeOut(ChipFade) using SizeTransform(clip = false)
+                }
+            },
+            label = "chip-label",
+        ) { label ->
+            Text(
+                label,
+                color = fg,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            )
+        }
     }
 }
 

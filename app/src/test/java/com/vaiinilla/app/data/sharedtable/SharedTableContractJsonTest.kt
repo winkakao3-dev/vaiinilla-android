@@ -2,7 +2,9 @@ package com.vaiinilla.app.data.sharedtable
 
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.SharedTableAmounts
+import com.vaiinilla.app.ui.screens.TableClaim
 import com.vaiinilla.app.ui.screens.myShareHint
+import com.vaiinilla.app.ui.screens.tableOrderClaim
 import com.vaiinilla.app.ui.screens.tableOrderStateLabel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -68,6 +70,37 @@ class SharedTableContractJsonTest {
     fun `codifica unirse y esto lo pago yo`() {
         assertEquals("""{"token":"qr","alias":"Ana"}""", json.encodeJoin("qr", "Ana"))
         assertEquals("""{"folio":7,"pago_yo":true}""", json.encodeClaim(7, true))
+    }
+
+    /** Pedido 8 de Ana: por cobrar, sin reclamo. */
+    private val unclaimedOrder =
+        json
+            .parseTable(body)!!
+            .groups
+            .first { it.alias == "Ana" }
+            .orders
+            .single()
+
+    @Test
+    fun `un pedido ya cobrado no tiene botón de reclamo`() {
+        assertNull(tableOrderClaim(unclaimedOrder.copy(pendingPayment = false)))
+    }
+
+    @Test
+    fun `sin reclamo el botón dice esto lo pago yo y lo pide`() {
+        assertEquals(TableClaim.Toggle("Esto lo pago yo", payIt = true), tableOrderClaim(unclaimedOrder))
+    }
+
+    @Test
+    fun `si lo pago yo el botón se marca y lo quita`() {
+        val mine = unclaimedOrder.copy(payer = "Ana", iPayIt = true)
+        assertEquals(TableClaim.Toggle("Lo pago yo ✓", payIt = false), tableOrderClaim(mine))
+    }
+
+    @Test
+    fun `si otro lo reclamó muestra quién paga en vez del botón`() {
+        val theirs = unclaimedOrder.copy(payer = "Luis", iPayIt = false)
+        assertEquals(TableClaim.OtherPays("Luis"), tableOrderClaim(theirs))
     }
 
     @Test
