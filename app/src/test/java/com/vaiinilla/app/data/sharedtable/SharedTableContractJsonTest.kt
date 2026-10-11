@@ -1,6 +1,8 @@
 package com.vaiinilla.app.data.sharedtable
 
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.SharedTableAmounts
+import com.vaiinilla.app.ui.screens.myShareHint
 import com.vaiinilla.app.ui.screens.tableOrderStateLabel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -66,5 +68,31 @@ class SharedTableContractJsonTest {
     fun `codifica unirse y esto lo pago yo`() {
         assertEquals("""{"token":"qr","alias":"Ana"}""", json.encodeJoin("qr", "Ana"))
         assertEquals("""{"folio":7,"pago_yo":true}""", json.encodeClaim(7, true))
+    }
+
+    @Test
+    fun `tu parte sale tal cual la manda la API`() {
+        val share = json.parseTable(body)!!.myShare
+        assertEquals(BigDecimal("30.30"), share.total)
+        assertEquals(BigDecimal("0.00"), share.paid)
+        assertEquals(BigDecimal("30.30"), share.pending)
+    }
+
+    @Test
+    fun `con parte pendiente se paga en caja con tu nombre`() {
+        val pending = SharedTableAmounts(BigDecimal("30.30"), BigDecimal("0.00"), BigDecimal("30.30"))
+        assertEquals("Págala en caja o con tu mesero. Di tu nombre: Ana.", myShareHint(pending, "Ana"))
+    }
+
+    @Test
+    fun `con parte saldada no pide pagar`() {
+        val paid = SharedTableAmounts(BigDecimal("30.30"), BigDecimal("30.30"), BigDecimal("0.00"))
+        assertEquals("Tu parte ya está pagada.", myShareHint(paid, "Ana"))
+    }
+
+    @Test
+    fun `sin pedidos no hay texto de parte`() {
+        val none = SharedTableAmounts(BigDecimal("0.00"), BigDecimal("0.00"), BigDecimal("0.00"))
+        assertNull(myShareHint(none, "Ana"))
     }
 }

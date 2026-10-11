@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.SharedTable
+import com.vaiinilla.app.domain.model.SharedTableAmounts
 import com.vaiinilla.app.domain.model.SharedTableOrder
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.ui.components.EditorialAccentButton
@@ -57,6 +58,17 @@ internal fun tableOrderStateLabel(order: SharedTableOrder): String =
     }
 
 private fun money(value: BigDecimal): String = moneyLabel(value.setScale(2).toPlainString())
+
+/** Solo elige el texto: los montos de "tu parte" vienen de la API, sin recalcular. */
+internal fun myShareHint(
+    share: SharedTableAmounts,
+    alias: String,
+): String? =
+    when {
+        share.total.signum() == 0 -> null
+        share.pending.signum() == 0 -> "Tu parte ya está pagada."
+        else -> "Págala en caja o con tu mesero. Di tu nombre: $alias."
+    }
 
 /**
  * La mesa compartida en Mis pedidos, con la misma tarjeta oscura que los pedidos. Sin mesa,
@@ -204,7 +216,18 @@ private fun TableContent(
     CardRule()
     SumRow("Pagado", money(table.totals.paid))
     SumRow("Por pagar de la $noun", money(table.totals.pending))
+    CardRule()
+    SumRow("Tu parte", money(table.myShare.total))
+    SumRow("Tu parte pagada", money(table.myShare.paid))
     SumRow("Tu parte por pagar", money(table.myShare.pending), highlight = true)
+    myShareHint(table.myShare, table.myAlias)?.let {
+        Text(
+            it,
+            color = OrderTrackingCardText.copy(alpha = 0.62f),
+            fontSize = 13.sp,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+    }
     Spacer(Modifier.height(12.dp))
     EditorialPrimaryButton(
         text = "Salir de la $noun",
