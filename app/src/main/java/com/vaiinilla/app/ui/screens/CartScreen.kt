@@ -4,6 +4,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -196,8 +198,14 @@ fun CartScreen(
             ink = palette.ink,
             muted = palette.muted,
         )
+    // Con varios productos el mostrador se asoma menos, para que el cobro se vea sin hacer scroll.
+    val sceneWindow by animateFloatAsState(
+        targetValue = cartSceneWindow(state.cartLines.size),
+        animationSpec = spring(dampingRatio = 0.9f, stiffness = 300f),
+        label = "cart-scene-window",
+    )
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val windowPx = constraints.maxHeight * CART_SCENE_WINDOW
+        val windowPx = constraints.maxHeight * sceneWindow
         val windowDp = with(density) { windowPx.toDp() }
         val sheetTop = {
             if (listState.firstVisibleItemIndex == 0) windowPx - listState.firstVisibleItemScrollOffset else 0f
@@ -231,25 +239,30 @@ fun CartScreen(
                     verticalArrangement = Arrangement.spacedBy(0.dp),
                 ) {
                     item(key = "counter-window") { Spacer(Modifier.height(windowDp)) }
-                    item {
-                        Spacer(Modifier.height(22.dp))
-                        Text(
-                            "REVISA Y CONFIRMA",
-                            color = colors.muted,
-                            fontSize = 11.sp,
-                            lineHeight = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 2.2.sp,
-                        )
-                        Text(
-                            "Tu pedido",
-                            color = colors.ink,
-                            fontSize = 38.sp,
-                            lineHeight = 42.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = (-1.8).sp,
-                            modifier = Modifier.padding(top = 4.dp, bottom = 24.dp),
-                        )
+                    // Con productos, el pizarrón del mostrador ya dice "Tu bandeja": el título sobra y quita espacio al cobro.
+                    if (state.cartLines.isEmpty()) {
+                        item {
+                            Spacer(Modifier.height(22.dp))
+                            Text(
+                                "REVISA Y CONFIRMA",
+                                color = colors.muted,
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 2.2.sp,
+                            )
+                            Text(
+                                "Tu pedido",
+                                color = colors.ink,
+                                fontSize = 38.sp,
+                                lineHeight = 42.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = (-1.8).sp,
+                                modifier = Modifier.padding(top = 4.dp, bottom = 24.dp),
+                            )
+                        }
+                    } else {
+                        item { Spacer(Modifier.height(18.dp)) }
                     }
 
                     if (state.cartLines.isEmpty()) {
@@ -446,7 +459,8 @@ fun CartScreen(
     }
 }
 
-private const val CART_SCENE_WINDOW = 0.42f
+/** Fracción de la pantalla para el mostrador: con más de un producto baja a lo justo para ver a Vaini. */
+internal fun cartSceneWindow(lineCount: Int): Float = if (lineCount > 1) 0.3f else 0.42f
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
