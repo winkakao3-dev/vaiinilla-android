@@ -218,6 +218,10 @@ val OrderFlowUiState.payAtEndForNextRound: Boolean
 val OrderFlowUiState.canPayWithCard: Boolean
     get() = operationalStatus?.acceptsCard == true
 
+/** ¿Se ofrece pagar con saldo Vaiinilla? No si el dueño lo apagó en su panel (`permite_saldo`). */
+val OrderFlowUiState.canPayWithBalance: Boolean
+    get() = operationalStatus?.allowsBalance != false
+
 enum class StripePaymentPhase {
     IDLE,
     READY,

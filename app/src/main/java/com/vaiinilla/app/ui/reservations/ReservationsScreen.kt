@@ -296,9 +296,8 @@ fun ReservationsScreen(
                 working = state.working,
                 onPay = onPay,
                 colors = colors,
-                // Sin cuenta no hay saldo ni tarjeta: el backend los rechaza para invitados.
+                // Sin cuenta no hay tarjeta: el backend la rechaza para invitados.
                 cardAvailable = cardAvailable && !state.guestMode,
-                balanceAvailable = !state.guestMode,
             )
         }
     }
@@ -789,7 +788,7 @@ private fun Summary(
                     color = colors.ink,
                 )
                 Text(
-                    "  con efectivo o saldo",
+                    "  con efectivo",
                     color = colors.muted,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(bottom = 3.dp),
@@ -820,7 +819,6 @@ internal fun ReservationPaymentContent(
     onPay: (ReservationPaymentMethod) -> Unit,
     colors: VaiinillaColors,
     cardAvailable: Boolean = false,
-    balanceAvailable: Boolean = true,
 ) {
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(reservation.id) {
@@ -871,23 +869,12 @@ internal fun ReservationPaymentContent(
             }
         }
         val prices = reservation.customerPrice
-        if (balanceAvailable) {
-            PayOption(
-                title = "Saldo",
-                detail = "Se paga al instante con tu cartera.",
-                amount = prices?.cashOrBalance ?: reservation.amount,
-                index = 1,
-                enabled = !working && remaining != 0L,
-                onClick = { onPay(ReservationPaymentMethod.BALANCE) },
-                colors = colors,
-            )
-        }
         if (cardAvailable) {
             PayOption(
                 title = "Tarjeta",
                 detail = "Pago seguro con tu tarjeta.",
                 amount = prices?.card ?: reservation.amount,
-                index = if (balanceAvailable) 2 else 1,
+                index = 1,
                 enabled = !working && remaining != 0L,
                 onClick = { onPay(ReservationPaymentMethod.CARD) },
                 colors = colors,
@@ -897,7 +884,7 @@ internal fun ReservationPaymentContent(
             title = "Efectivo en caja",
             detail = "Paga en caja antes de que venza el apartado.",
             amount = prices?.cashOrBalance ?: reservation.amount,
-            index = 1 + (if (balanceAvailable) 1 else 0) + (if (cardAvailable) 1 else 0),
+            index = if (cardAvailable) 2 else 1,
             enabled = !working && remaining != 0L,
             onClick = { onPay(ReservationPaymentMethod.CASH) },
             colors = colors,

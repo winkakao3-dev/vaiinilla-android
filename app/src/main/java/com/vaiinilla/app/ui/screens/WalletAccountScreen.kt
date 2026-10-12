@@ -72,6 +72,8 @@ fun WalletAccountScreen(
     email: String = "",
     userId: String? = null,
     signedIn: Boolean = false,
+    /** Si el dueño apagó el saldo, no hay QR de recarga. */
+    rechargeAvailable: Boolean = true,
     hasStaffModes: Boolean = false,
     onOpenStaffModes: () -> Unit = {},
     onChangeVenue: () -> Unit = {},
@@ -201,7 +203,7 @@ fun WalletAccountScreen(
                     )
                 }
             }
-            Box(
+            if (rechargeAvailable) Box(
                 modifier =
                     Modifier
                         .fillMaxWidth()
