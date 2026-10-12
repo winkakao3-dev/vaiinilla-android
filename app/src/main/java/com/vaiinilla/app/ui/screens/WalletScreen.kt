@@ -1,5 +1,13 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
@@ -88,20 +96,40 @@ fun WalletScreen(
         )
     }
 
+    // Vainiverso: la casita de Vaini con su frasco de tesoros arriba; la cartera en vidrio encima.
+    val palette = scenePaletteForTheme()
+    val listState = rememberLazyListState()
+    val density = LocalDensity.current
+    val glassColors =
+        colors.copy(
+            paper = Color.Transparent,
+            paper2 = palette.glassCard,
+            line = palette.glassLine,
+            ink = palette.ink,
+            muted = palette.muted,
+        )
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    val windowPx = constraints.maxHeight * WALLET_SCENE_WINDOW
+    val windowDp = with(density) { windowPx.toDp() }
+    val sheetTop = {
+        if (listState.firstVisibleItemIndex == 0) windowPx - listState.firstVisibleItemScrollOffset else 0f
+    }
+    CompositionLocalProvider(LocalScene provides palette) {
+        WalletJarBackdrop(sheetTop = sheetTop, balance = remoteState.data?.wallet?.visibleBalance)
+    }
+    CompositionLocalProvider(LocalVaiinillaColors provides glassColors) {
     LazyColumn(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(colors.paper)
-                .statusBarsPadding(),
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
         contentPadding =
             PaddingValues(
                 start = 16.dp,
                 end = 16.dp,
-                top = 18.dp,
+                top = 0.dp,
                 bottom = VaiinillaBottomNavClearance + 48.dp,
             ),
     ) {
+        item(key = "home-window") { Spacer(Modifier.height(windowDp + 20.dp)) }
         item {
             Text(
                 text = "Cartera",
@@ -227,7 +255,18 @@ fun WalletScreen(
 
         item { Spacer(Modifier.height(4.dp)) }
     }
+    }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .windowInsetsTopHeight(WindowInsets.statusBars)
+            .graphicsLayer { alpha = if (sheetTop() < size.height) 1f else 0f }
+            .background(palette.stage.copy(alpha = 0.92f)),
+    )
+    }
 }
+
+private const val WALLET_SCENE_WINDOW = 0.4f
 
 @Composable
 private fun WalletBalanceHero(
@@ -240,23 +279,6 @@ private fun WalletBalanceHero(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(48.dp)
-                    .background(colors.accent, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.AccountBalanceWallet,
-                contentDescription = null,
-                tint = colors.accentInk,
-                modifier = Modifier.size(24.dp),
-            )
-        }
-
-        Spacer(Modifier.height(14.dp))
-
         when {
             remoteState.data != null -> {
                 AnimatedContent(

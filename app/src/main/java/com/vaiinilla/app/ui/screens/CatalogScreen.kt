@@ -61,6 +61,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -95,7 +96,6 @@ import com.vaiinilla.app.ui.order.isSelectedProductValid
 import com.vaiinilla.app.ui.order.selectedProduct
 import com.vaiinilla.app.ui.order.selectedProductPreviewPrice
 import com.vaiinilla.app.ui.order.selectedProductPreviewTotal
-import com.vaiinilla.app.ui.theme.AmoledLimeWash
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
@@ -333,34 +333,26 @@ private fun CatalogContent(
             state.filteredProducts
         }
 
+    val scene = scenePaletteForTheme()
+    val shelfColors =
+        colors.copy(paper = Color.Transparent, paper2 = scene.glassCard, line = scene.glassLine, ink = scene.ink, muted = scene.muted)
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(colors.paper)
+                .background(scene.facade)
                 .pointerInput(Unit) {
                     detectTapGestures(onTap = { focusManager.clearFocus() })
                 },
     ) {
-        if (themeMode == VaiinillaThemeMode.Amoled) {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            androidx.compose.ui.graphics.Brush.radialGradient(
-                                colors = listOf(AmoledLimeWash, colors.paper),
-                                radius = 900f,
-                            ),
-                        ),
-            )
-        }
+        CompositionLocalProvider(LocalScene provides scene) { MenuShelfWall() }
         PullToRefreshBox(
             isRefreshing = state.loading,
             onRefresh = onRefresh,
             modifier = Modifier.fillMaxSize(),
             indicator = {},
         ) {
+            CompositionLocalProvider(LocalScene provides scene, LocalVaiinillaColors provides shelfColors) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 modifier =
@@ -438,6 +430,7 @@ private fun CatalogContent(
                         }
                     }
                 }
+            }
             }
         }
 
@@ -612,7 +605,7 @@ private fun CatalogHeader(
                         ),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(profileInitials, color = colors.paper, fontWeight = FontWeight.Black)
+                Text(profileInitials, color = LocalScene.current.facade, fontWeight = FontWeight.Black)
             }
         }
 
@@ -713,7 +706,7 @@ private fun CategoryChip(
     ) {
         Text(
             text = label,
-            color = if (selected) colors.paper else colors.ink,
+            color = if (selected) LocalScene.current.facade else colors.ink,
             fontWeight = FontWeight.ExtraBold,
         )
     }
@@ -732,15 +725,7 @@ private fun ProductCard(
                 .padding(bottom = 14.dp)
                 .physicalPress(scale = PhysicalPressScale.ProductCard, onClick = onClick),
     ) {
-        ProductImage(
-            imageUrl = product.imageUrl,
-            contentDescription = product.name,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(24.dp)),
-        )
+        ProductNiche(product = product)
         Text(
             text = product.name,
             color = colors.ink,
@@ -750,14 +735,6 @@ private fun ProductCard(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(start = 2.dp, top = 12.dp, end = 2.dp),
-        )
-        Text(
-            text = moneyLabel(product.digitalPrice),
-            color = colors.muted,
-            fontWeight = FontWeight.Bold,
-            fontSize = 15.sp,
-            lineHeight = 19.sp,
-            modifier = Modifier.padding(start = 2.dp, top = 4.dp, end = 2.dp),
         )
     }
 }

@@ -333,7 +333,7 @@ private fun DrawScope.drawCounter(
     }
 }
 
-private fun DrawScope.drawTrayItem(
+internal fun DrawScope.drawTrayItem(
     kind: TrayItemKind,
     cx: Float,
     base: Float,

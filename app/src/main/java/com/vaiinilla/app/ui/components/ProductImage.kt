@@ -47,6 +47,8 @@ fun ProductImage(
     contentDescription: String,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
+    /** Lo que se ve si no hay foto; por defecto el ícono con "Sin foto". */
+    placeholder: @Composable (Modifier) -> Unit = { ProductImagePlaceholder(it) },
 ) {
     if (productImageIsRemote(imageUrl)) {
         var remote by remember(imageUrl) {
@@ -66,7 +68,7 @@ fun ProductImage(
                 contentScale = contentScale,
             )
         } else {
-            ProductImagePlaceholder(modifier)
+            placeholder(modifier)
         }
     } else {
         val local = productImageResource(imageUrl)
@@ -78,7 +80,7 @@ fun ProductImage(
                 contentScale = contentScale,
             )
         } else {
-            ProductImagePlaceholder(modifier)
+            placeholder(modifier)
         }
     }
 }
