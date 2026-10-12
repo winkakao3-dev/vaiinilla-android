@@ -30,6 +30,29 @@ class GetOrderUseCase
         operator fun invoke(orderId: String): Result<OrderDetail> = repository.getOrder(orderId)
     }
 
+/**
+ * Pedidos que ya se pagaron y cuyo QR de recogida no llegó en el detalle: el cliente lo recupera
+ * del servidor (como la PWA, `usePickupQrToken`). Los estados coinciden con `RECOVER_STATES` de la PWA.
+ */
+fun OrderDetail.needsPickupQrRecovery(): Boolean =
+    pickupToken.isNullOrBlank() &&
+        summary.state in setOf(OrderState.PAID, OrderState.PREPARING, OrderState.READY, OrderState.DELIVERED)
+
+class RecoverPickupQrUseCase
+    @Inject
+    constructor(
+        private val repository: OrderRepository,
+    ) {
+        /** Devuelve el pedido con su QR recuperado; si el servidor no lo da, el pedido tal cual. */
+        operator fun invoke(order: OrderDetail): OrderDetail {
+            if (!order.needsPickupQrRecovery()) return order
+            return repository.pickupQr(order.summary.id).fold(
+                onSuccess = { token -> order.copy(pickupToken = token) },
+                onFailure = { order },
+            )
+        }
+    }
+
 class RetryStripePaymentUseCase
     @Inject
     constructor(

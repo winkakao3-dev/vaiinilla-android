@@ -40,6 +40,18 @@ data class OrderListEnvelopeDto(
     val error: JsonElement? = null,
 )
 
+/** GET /pedidos/:id/qr: el token de recogida del propio cliente, solo con el pedido ya pagado. */
+@Serializable
+data class PickupQrDataDto(
+    @SerialName("qr_token") val qrToken: String? = null,
+)
+
+@Serializable
+data class PickupQrEnvelopeDto(
+    val data: PickupQrDataDto? = null,
+    val error: JsonElement? = null,
+)
+
 @Serializable
 data class CancelOrderRequestDto(
     @SerialName("version_esperada") val expectedVersion: Int,

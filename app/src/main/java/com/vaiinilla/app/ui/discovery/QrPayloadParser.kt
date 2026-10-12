@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.discovery
 
+import com.vaiinilla.app.domain.model.OrderTrackingLink
 import java.net.URI
 
 sealed interface QrPayload {
@@ -14,12 +15,17 @@ sealed interface QrPayload {
     data class SpaceToken(
         val token: String,
     ) : QrPayload
+
+    /** Enlace de seguimiento de un pedido de invitado (`/seguimiento/<token>`, la misma URL que muestra la PWA). */
+    data class Tracking(
+        val token: String,
+    ) : QrPayload
 }
 
 object QrPayloadParser {
     private const val TRUSTED_HOST = "vaiinilla.app"
     private val spaceSlug = Regex("[A-Za-z0-9][A-Za-z0-9_-]*")
-    private val reservedSpaceSlugs = setOf("e", "u", "invitaciones")
+    private val reservedSpaceSlugs = setOf("e", "u", "invitaciones", "seguimiento")
     private const val MAX_SPACE_SLUG_LENGTH = 100
     private const val MAX_SPACE_TOKEN_LENGTH = 256
 
@@ -79,6 +85,14 @@ object QrPayloadParser {
                 if (validSlug) {
                     return@runCatching QrPayload.Establishment(slug)
                 }
+            }
+            val isTrackingLink =
+                isHttpsHost &&
+                    segments.size == 2 &&
+                    segments[0] == "seguimiento" &&
+                    OrderTrackingLink.isValidToken(segments[1])
+            if (isTrackingLink) {
+                return@runCatching QrPayload.Tracking(segments[1])
             }
             if (isHttpsHost && segments.size == 3 && segments[1] == "m") {
                 val slug = segments[0]

@@ -6,6 +6,8 @@ import com.vaiinilla.app.domain.model.SharedTableAmounts
 import com.vaiinilla.app.domain.model.SharedTableGroup
 import com.vaiinilla.app.domain.model.SharedTableOrder
 import com.vaiinilla.app.domain.model.SharedTableParticipant
+import com.vaiinilla.app.domain.model.TableSession
+import com.vaiinilla.app.domain.model.TableSessionParticipant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -70,6 +72,28 @@ private data class TableDto(
 )
 
 @Serializable
+private data class SessionParticipantDto(
+    val id: String,
+    val alias: String,
+    // `yo` no trae soy_yo (siempre es quien soy): por eso el valor por defecto.
+    @SerialName("soy_yo") val soyYo: Boolean = false,
+)
+
+@Serializable
+private data class SessionDto(
+    val espacio: SpaceRefDto,
+    @SerialName("sesion_id") val sesionId: Long,
+    val participantes: List<SessionParticipantDto>,
+    val yo: SessionParticipantDto? = null,
+)
+
+@Serializable
+private data class SessionEnvelopeDto(
+    val data: SessionDto? = null,
+    val error: JsonElement? = null,
+)
+
+@Serializable
 private data class TableEnvelopeDto(
     val data: TableDto? = null,
     val error: JsonElement? = null,
@@ -85,6 +109,21 @@ class SharedTableContractJson
                 explicitNulls = false
             }
 
+        /** La sesión del QR para "¿Quién eres?". */
+        fun parseSession(raw: String): TableSession {
+            val envelope = json.decodeFromString<SessionEnvelopeDto>(raw)
+            require(envelope.error == null || envelope.error is JsonNull) { "La API devolvió un error." }
+            val data = requireNotNull(envelope.data) { "La mesa no llegó." }
+            return TableSession(
+                spaceId = data.espacio.id,
+                spaceName = data.espacio.nombre,
+                spaceType = data.espacio.tipo,
+                sessionId = data.sesionId,
+                participants = data.participantes.map { TableSessionParticipant(it.id, it.alias, it.soyYo) },
+                me = data.yo?.let { TableSessionParticipant(it.id, it.alias, isMe = true) },
+            )
+        }
+
         /** La mesa, o null si el cliente no está en ninguna (`data: null`). */
         fun parseTable(raw: String): SharedTable? {
             val envelope = json.decodeFromString<TableEnvelopeDto>(raw)
@@ -99,6 +138,15 @@ class SharedTableContractJson
             buildJsonObject {
                 put("token", qrToken)
                 put("alias", alias)
+            }.toString()
+
+        fun encodeContinue(
+            qrToken: String,
+            participantId: String,
+        ): String =
+            buildJsonObject {
+                put("token", qrToken)
+                put("participante_id", participantId)
             }.toString()
 
         fun encodeClaim(

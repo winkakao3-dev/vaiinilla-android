@@ -87,6 +87,7 @@ class GuestDiscoveryViewModel
         fun resolveQrPayload(
             rawValue: String,
             onEntered: (GuestVenueContext) -> Unit,
+            onTracking: (String) -> Unit,
         ) {
             QrPayloadParser.parse(rawValue).fold(
                 onSuccess = { payload ->
@@ -107,6 +108,7 @@ class GuestDiscoveryViewModel
                             updateSpaceToken(payload.token)
                             resolveSpaceToken(onEntered)
                         }
+                        is QrPayload.Tracking -> onTracking(payload.token)
                     }
                 },
                 onFailure = { error ->

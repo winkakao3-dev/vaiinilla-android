@@ -43,6 +43,7 @@ import com.vaiinilla.app.domain.usecase.GetOrderUseCase
 import com.vaiinilla.app.domain.usecase.ListOrdersUseCase
 import com.vaiinilla.app.domain.usecase.OpenCashSessionUseCase
 import com.vaiinilla.app.domain.usecase.RejectOrderItemUseCase
+import com.vaiinilla.app.domain.usecase.RecoverPickupQrUseCase
 import com.vaiinilla.app.domain.usecase.TransitionOrderUseCase
 import com.vaiinilla.app.ui.discovery.QrPayload
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
@@ -65,6 +66,7 @@ class OperationalViewModel
     constructor(
         private val listOrders: ListOrdersUseCase,
         private val getOrder: GetOrderUseCase,
+        private val recoverPickupQr: RecoverPickupQrUseCase,
         private val collectCash: CollectCashUseCase,
         private val transitionOrder: TransitionOrderUseCase,
         private val cancelOrder: CancelOrderUseCase,
@@ -332,9 +334,11 @@ class OperationalViewModel
         fun refreshOrder(orderId: String) {
             val generation = roleGeneration
             viewModelScope.launch {
-                withContext(Dispatchers.IO) { getOrder(orderId) }.onSuccess { order ->
+                val clientRole = _uiState.value.role == OperationalRole.CLIENT
+                withContext(Dispatchers.IO) {
+                    getOrder(orderId).map { order -> if (clientRole) recoverPickupQr(order) else order }
+                }.onSuccess { order ->
                     if (generation != roleGeneration) return@onSuccess
-                    val clientRole = _uiState.value.role == OperationalRole.CLIENT
                     val latestClientOrder =
                         if (clientRole) {
                             resolveLatestClientOrder(

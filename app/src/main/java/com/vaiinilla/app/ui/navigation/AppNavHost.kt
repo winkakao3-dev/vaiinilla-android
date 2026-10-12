@@ -44,6 +44,8 @@ import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.canCallWaiter
 import com.vaiinilla.app.ui.account.AccountDeletionViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
@@ -61,6 +63,7 @@ import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.operational.WaiterAlert
 import com.vaiinilla.app.ui.operational.WaiterViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
+import com.vaiinilla.app.ui.order.OrderLinkTrackingViewModel
 import com.vaiinilla.app.ui.order.canPayWithCard
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.isEstablishmentSwitch
@@ -78,6 +81,7 @@ import com.vaiinilla.app.ui.screens.DiscoveryScreen
 import com.vaiinilla.app.ui.screens.InvitationAcceptanceScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
+import com.vaiinilla.app.ui.screens.OrderLinkTrackingScreen
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
 import com.vaiinilla.app.ui.screens.SharedTableCard
 import com.vaiinilla.app.ui.screens.StudentAuthLandingScreen
@@ -86,6 +90,7 @@ import com.vaiinilla.app.ui.screens.StudentLoginScreen
 import com.vaiinilla.app.ui.screens.StudentRegisterScreen
 import com.vaiinilla.app.ui.screens.StudentTrackingScreen
 import com.vaiinilla.app.ui.screens.StudentVerifyEmailScreen
+import com.vaiinilla.app.ui.screens.TableWhoScreen
 import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
 import com.vaiinilla.app.ui.screens.WalletAccountScreen
 import com.vaiinilla.app.ui.screens.WalletAddCardScreen
@@ -95,6 +100,7 @@ import com.vaiinilla.app.ui.screens.WalletScreen
 import com.vaiinilla.app.ui.screens.WelcomeBootStage
 import com.vaiinilla.app.ui.screens.rememberReduceMotion
 import com.vaiinilla.app.ui.sharedtable.SharedTableViewModel
+import com.vaiinilla.app.ui.sharedtable.TableWhoViewModel
 import com.vaiinilla.app.ui.support.SupportScreen
 import com.vaiinilla.app.ui.wallet.WalletViewModel
 import com.vaiinilla.app.ui.wallet.rememberWalletUiState
@@ -118,10 +124,12 @@ fun AppNavHost(
     pendingInvitationToken: String? = null,
     pendingOrderId: String? = null,
     pendingOrderTarget: OrderNotificationTarget? = null,
+    pendingTrackingToken: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
     onSpaceLinkConsumed: () -> Unit = {},
     onInvitationConsumed: () -> Unit = {},
     onOrderConsumed: () -> Unit = {},
+    onTrackingLinkConsumed: () -> Unit = {},
 ) {
     val orderFlowViewModel: OrderFlowViewModel = viewModel()
     val operationalViewModel: OperationalViewModel = viewModel()
@@ -132,6 +140,8 @@ fun AppNavHost(
     val cashierBookingsViewModel: CashierBookingsViewModel = viewModel()
     val reservationsViewModel: ReservationsViewModel = viewModel()
     val sharedTableViewModel: SharedTableViewModel = viewModel()
+    val orderLinkTrackingViewModel: OrderLinkTrackingViewModel = viewModel()
+    val tableWhoViewModel: TableWhoViewModel = viewModel()
     val studentAuthViewModel: StudentAuthViewModel = viewModel()
     val authorizedAccessViewModel: AuthorizedAccessViewModel = viewModel()
     val discoveryViewModel: GuestDiscoveryViewModel = viewModel()
@@ -316,7 +326,10 @@ fun AppNavHost(
             operationalViewModel.clearRole()
         }
         orderFlowViewModel.enterGuestVenue(venue)
-        navController.navigate(Routes.CATALOG) {
+        // Mesa o barra por QR: primero "¿Quién eres?"; el catálogo llega después, desde esa pantalla.
+        val space = venue.space
+        val sharedByQr = space?.qrToken != null && SpaceCopy.isSharable(space.type)
+        navController.navigate(if (sharedByQr) Routes.TABLE_WHO else Routes.CATALOG) {
             launchSingleTop = true
         }
     }
@@ -340,6 +353,12 @@ fun AppNavHost(
             onEntered = ::enterVenueAndOpenCatalog,
             onFinished = onSpaceLinkConsumed,
         )
+    }
+    LaunchedEffect(pendingTrackingToken) {
+        val token = pendingTrackingToken?.trim().orEmpty()
+        if (token.isEmpty()) return@LaunchedEffect
+        navController.navigate(Routes.orderTrackingRoute(token)) { launchSingleTop = true }
+        onTrackingLinkConsumed()
     }
     var qrScannerOpen by remember { mutableStateOf(false) }
     var walletUserQrOpen by remember { mutableStateOf(false) }
@@ -707,6 +726,9 @@ fun AppNavHost(
                             discoveryViewModel.resolveQrPayload(
                                 rawValue = rawValue,
                                 onEntered = ::enterVenueAndOpenCatalog,
+                                onTracking = { token ->
+                                    navController.navigate(Routes.orderTrackingRoute(token)) { launchSingleTop = true }
+                                },
                             )
                         },
                     )
@@ -738,6 +760,50 @@ fun AppNavHost(
                     onAuthenticate = {
                         navigateStudentAuth(Routes.staffInvitationRoute(token))
                     },
+                )
+            }
+
+            composable(
+                route = Routes.ORDER_TRACKING,
+                arguments = listOf(navArgument("token") { type = NavType.StringType }),
+            ) { entry ->
+                val token = entry.arguments?.getString("token").orEmpty()
+                DisposableEffect(token) {
+                    orderLinkTrackingViewModel.onVisible(token)
+                    onDispose { orderLinkTrackingViewModel.onHidden() }
+                }
+                OrderLinkTrackingScreen(
+                    state = orderLinkTrackingViewModel.uiState.value,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(Routes.TABLE_WHO) {
+                val qrToken = orderState.guestVenue?.space?.qrToken
+                LaunchedEffect(qrToken) {
+                    if (qrToken != null) tableWhoViewModel.load(qrToken)
+                }
+                DisposableEffect(Unit) {
+                    onDispose { tableWhoViewModel.reset() }
+                }
+                val who = tableWhoViewModel.uiState.value
+                LaunchedEffect(who.seated) {
+                    if (who.seated) {
+                        navController.navigate(Routes.CATALOG) {
+                            popUpTo(Routes.TABLE_WHO) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                }
+                TableWhoScreen(
+                    state = who,
+                    onBack = { navController.popBackStack() },
+                    onRetry = { qrToken?.let(tableWhoViewModel::load) },
+                    onAliasChange = tableWhoViewModel::updateAlias,
+                    onSubmitAlias = tableWhoViewModel::submitAlias,
+                    onContinueAs = tableWhoViewModel::continueAs,
+                    onNotMe = tableWhoViewModel::showParticipantList,
+                    onAddMe = tableWhoViewModel::showAddForm,
                 )
             }
 

@@ -1,6 +1,7 @@
 package com.vaiinilla.app.domain.repository
 
 import com.vaiinilla.app.domain.model.SharedTable
+import com.vaiinilla.app.domain.model.TableSession
 
 /** Mesa compartida del cliente (docs/mesa-compartida.md y docs/dividir-cuenta.md del backend). */
 interface SharedTableRepository {
@@ -12,6 +13,16 @@ interface SharedTableRepository {
         qrToken: String,
         alias: String,
     ): Result<SharedTable>
+
+    /** Sesión abierta del QR con sus participantes, para elegir quién se es (GET /mesas/espacio/:token). */
+    fun session(qrToken: String): Result<TableSession> =
+        Result.failure<TableSession>(UnsupportedOperationException("La mesa no está disponible."))
+
+    /** Continúa como un participante que ya está en la mesa (`participante_id`). */
+    fun continueAs(
+        qrToken: String,
+        participantId: String,
+    ): Result<SharedTable> = Result.failure<SharedTable>(UnsupportedOperationException("La mesa no está disponible."))
 
     fun leave(): Result<Unit>
 

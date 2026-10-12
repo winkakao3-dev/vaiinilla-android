@@ -35,6 +35,23 @@ data class SharedTableParticipant(
     val isMe: Boolean,
 )
 
+/** "¿Quién eres?" de un espacio compartible, antes de pedir (GET /mesas/espacio/:token). */
+data class TableSession(
+    val spaceId: Int,
+    val spaceName: String,
+    val spaceType: String,
+    val sessionId: Long,
+    val participants: List<TableSessionParticipant>,
+    /** Quién soy en esta sesión y este dispositivo; null si todavía no me he sentado. */
+    val me: TableSessionParticipant?,
+)
+
+data class TableSessionParticipant(
+    val id: String,
+    val alias: String,
+    val isMe: Boolean,
+)
+
 data class SharedTable(
     val spaceId: Int,
     val spaceName: String,

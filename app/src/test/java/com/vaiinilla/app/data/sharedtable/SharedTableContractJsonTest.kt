@@ -6,6 +6,9 @@ import com.vaiinilla.app.ui.screens.TableClaim
 import com.vaiinilla.app.ui.screens.myShareHint
 import com.vaiinilla.app.ui.screens.tableOrderClaim
 import com.vaiinilla.app.ui.screens.tableOrderStateLabel
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -127,5 +130,45 @@ class SharedTableContractJsonTest {
     fun `sin pedidos no hay texto de parte`() {
         val none = SharedTableAmounts(BigDecimal("0.00"), BigDecimal("0.00"), BigDecimal("0.00"))
         assertNull(myShareHint(none, "Ana"))
+    }
+
+    @Test
+    fun `lee la sesion del QR con sus participantes y quien soy`() {
+        val session =
+            json.parseSession(
+                """
+                {"data":{"espacio":{"id":3,"nombre":"Mesa 3","tipo":"mesa"},"sesion_id":12,
+                 "participantes":[{"id":"p-1","alias":"Luis","soy_yo":false},{"id":"p-2","alias":"Ana","soy_yo":true}],
+                 "yo":{"id":"p-2","alias":"Ana"}},"error":null}
+                """.trimIndent(),
+            )
+        assertEquals(3, session.spaceId)
+        assertEquals("Mesa 3", session.spaceName)
+        assertEquals(12L, session.sessionId)
+        assertEquals(listOf("Luis", "Ana"), session.participants.map { it.alias })
+        assertEquals(false, session.participants.first().isMe)
+        assertEquals("p-2", session.me?.id)
+        assertTrue(session.me?.isMe == true)
+    }
+
+    @Test
+    fun `sin yo la sesion no tiene quien soy todavia`() {
+        val session =
+            json.parseSession(
+                """
+                {"data":{"espacio":{"id":3,"nombre":"Mesa 3","tipo":"mesa"},"sesion_id":12,
+                 "participantes":[],"yo":null},"error":null}
+                """.trimIndent(),
+            )
+        assertNull(session.me)
+        assertTrue(session.participants.isEmpty())
+    }
+
+    @Test
+    fun `continuar como codifica el token y el participante`() {
+        val element = Json.parseToJsonElement(json.encodeContinue("qr-tok", "p-2"))
+        val sent = element.jsonObject
+        assertEquals("qr-tok", (sent.getValue("token") as JsonPrimitive).content)
+        assertEquals("p-2", (sent.getValue("participante_id") as JsonPrimitive).content)
     }
 }
