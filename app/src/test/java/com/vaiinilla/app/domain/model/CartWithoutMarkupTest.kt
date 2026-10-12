@@ -16,7 +16,8 @@ class CartWithoutMarkupTest {
             .products
             .first { it.id == 103 }
 
-    private fun exact(price: String) = burrito.copy(digitalPrice = price, optionGroups = emptyList())
+    private fun exact(price: String) =
+        burrito.copy(counterPrice = price, digitalPrice = price, optionGroups = emptyList())
 
     @Test
     fun `a product at counter price does not go up when added to the cart`() {

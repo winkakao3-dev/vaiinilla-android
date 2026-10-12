@@ -40,7 +40,7 @@ class Vai10RulesTest {
                 quantity = 2,
                 selectedOptionIds = setOf(310, 314, 317),
             )
-        assertEquals("164.00", Money.cartLinePreview(line))
+        assertEquals("164.00", Money.cartLinePreview(line, PaymentMethod.STRIPE))
     }
 
     @Test
