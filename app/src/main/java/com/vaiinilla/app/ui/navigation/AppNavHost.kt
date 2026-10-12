@@ -1447,6 +1447,11 @@ fun AppNavHost(
                         onAnnounceArrival = operationalViewModel::announceArrival,
                         onCallWaiter = operationalViewModel::callWaiter,
                         onCancelWaiter = operationalViewModel::cancelWaiterCall,
+                        onOrderFoodAtCourt = {
+                            // La cancha en juego pasa a ser destino del carrito al volver al menú.
+                            orderFlowViewModel.refreshRentedCourt()
+                            navController.navigateStudent(Routes.CATALOG)
+                        },
                         sharedTable = {
                             // Solo consulta la mesa mientras Mis pedidos está a la vista.
                             DisposableEffect(Unit) {
