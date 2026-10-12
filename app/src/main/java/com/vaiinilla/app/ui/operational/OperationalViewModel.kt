@@ -21,6 +21,8 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.itemRejectionNotice
+import com.vaiinilla.app.domain.model.pendingForKitchen
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.WalletClient
 import com.vaiinilla.app.domain.repository.CallReason
@@ -40,6 +42,7 @@ import com.vaiinilla.app.domain.usecase.CollectCashUseCase
 import com.vaiinilla.app.domain.usecase.GetOrderUseCase
 import com.vaiinilla.app.domain.usecase.ListOrdersUseCase
 import com.vaiinilla.app.domain.usecase.OpenCashSessionUseCase
+import com.vaiinilla.app.domain.usecase.RejectOrderItemUseCase
 import com.vaiinilla.app.domain.usecase.TransitionOrderUseCase
 import com.vaiinilla.app.ui.discovery.QrPayload
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
@@ -65,6 +68,7 @@ class OperationalViewModel
         private val collectCash: CollectCashUseCase,
         private val transitionOrder: TransitionOrderUseCase,
         private val cancelOrder: CancelOrderUseCase,
+        private val rejectOrderItem: RejectOrderItemUseCase,
         private val announceArrivalUseCase: AnnounceArrivalUseCase,
         private val openCashSession: OpenCashSessionUseCase,
         private val closeCashSession: CloseCashSessionUseCase,
@@ -750,6 +754,50 @@ class OperationalViewModel
             performMutation { announceArrivalUseCase(orderId).getOrThrow() }
         }
 
+        /**
+         * Cocina o Caja quitan un artículo con motivo. El total baja y lo pagado se devuelve según su método;
+         * el aviso dice qué hacer con el dinero (lo calcula [itemRejectionNotice] con la respuesta del servidor).
+         */
+        fun rejectItem(
+            orderId: String,
+            itemId: Int,
+            expectedVersion: Int,
+            reason: String,
+        ) {
+            val motivo = reason.trim()
+            if (motivo.length < MIN_REJECTION_REASON) {
+                showMutationError("Escribe el motivo del rechazo (mínimo $MIN_REJECTION_REASON letras).")
+                return
+            }
+            val version = freshVersion(orderId, expectedVersion)
+            val itemName =
+                _uiState.value.orders
+                    .firstOrNull { it.summary.id == orderId }
+                    ?.items
+                    ?.firstOrNull { it.id == itemId }
+                    ?.productName
+                    .orEmpty()
+            performMutationWith(
+                block = {
+                    rejectOrderItem(
+                        orderId = orderId,
+                        itemId = itemId,
+                        expectedVersion = version,
+                        reason = motivo,
+                        idempotencyKey = MutationIdempotency.itemRejection(orderId, itemId, version, motivo),
+                    ).getOrThrow()
+                },
+                orderOf = { it.order },
+                noticeOf = { outcome -> itemRejectionNotice(outcome.order, itemName, outcome) },
+            )
+        }
+
+        fun consumeItemRejectionNotice() {
+            if (_uiState.value.itemRejectionNotice != null) {
+                _uiState.value = _uiState.value.copy(itemRejectionNotice = null)
+            }
+        }
+
         /** Cocina rechaza un pedido que no puede preparar; el cliente verá el motivo. */
         fun rejectOrder(
             orderId: String,
@@ -770,6 +818,62 @@ class OperationalViewModel
                     idempotencyKey = MutationIdempotency.orderCancellation(orderId, version, motivo),
                 ).getOrThrow()
             }
+        }
+
+        /**
+         * Cocina pone todas las comandas pendientes en preparación de una vez. Corre en secuencia
+         * (cada pedido con su versión fresca y su llave propia); un fallo no detiene a los demás.
+         */
+        fun startAllPending() {
+            if (_uiState.value.acting) return
+            val role = _uiState.value.role ?: return
+            val pending = _uiState.value.orders.pendingForKitchen
+            if (pending.isEmpty()) return
+            val generation = roleGeneration
+            mutationErrorVisible = false
+            _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
+            mutationJob =
+                viewModelScope.launch {
+                    var failed = 0
+                    for (order in pending) {
+                        val orderId = order.summary.id
+                        val version = freshVersion(orderId, order.summary.version)
+                        val result =
+                            runCatchingCancellable {
+                                withContext(Dispatchers.IO) {
+                                    transitionOrder(
+                                        orderId = orderId,
+                                        targetState = OrderState.PREPARING,
+                                        expectedVersion = version,
+                                        idempotencyKey =
+                                            MutationIdempotency.orderTransition(
+                                                orderId,
+                                                OrderState.PREPARING.wireValue,
+                                                version,
+                                                pickupToken = null,
+                                            ),
+                                    ).getOrThrow()
+                                }
+                            }
+                        if (generation != roleGeneration || _uiState.value.role != role) return@launch
+                        result
+                            .onSuccess { updated -> mergeOrder(updated) }
+                            .onFailure { failed++ }
+                    }
+                    _uiState.value = _uiState.value.copy(acting = false)
+                    if (failed > 0) {
+                        showMutationError("No se pudieron poner $failed de ${pending.size} comandas en preparación.")
+                    }
+                }
+        }
+
+        private fun mergeOrder(order: OrderDetail) {
+            val updated = _uiState.value.orders.filterNot { it.summary.id == order.summary.id } + order
+            _uiState.value =
+                _uiState.value.copy(
+                    orders = updated.sortedByDescending { it.summary.updatedAt },
+                    selectedOrderId = order.summary.id,
+                )
         }
 
         fun markReady(
@@ -879,7 +983,18 @@ class OperationalViewModel
             }
         }
 
-        private fun performMutation(block: () -> OrderDetail) {
+        private fun performMutation(block: () -> OrderDetail) =
+            performMutationWith(block = block, orderOf = { it }, noticeOf = { null })
+
+        /**
+         * Mutación con respuesta propia: [orderOf] saca el pedido actualizado y [noticeOf] el aviso
+         * que depende de la respuesta (p. ej. cómo se devuelve el dinero de un artículo quitado).
+         */
+        private fun <T> performMutationWith(
+            block: () -> T,
+            orderOf: (T) -> OrderDetail,
+            noticeOf: (T) -> String?,
+        ) {
             if (_uiState.value.acting) return
             val role = _uiState.value.role ?: return
             val generation = roleGeneration
@@ -890,7 +1005,8 @@ class OperationalViewModel
                     val result = runCatchingCancellable { withContext(Dispatchers.IO) { block() } }
                     if (generation != roleGeneration || _uiState.value.role != role) return@launch
                     result
-                        .onSuccess { order ->
+                        .onSuccess { response ->
+                            val order = orderOf(response)
                             val updated =
                                 _uiState.value.orders
                                     .filterNot { it.summary.id == order.summary.id } + order
@@ -899,6 +1015,7 @@ class OperationalViewModel
                                     acting = false,
                                     orders = updated.sortedByDescending { it.summary.updatedAt },
                                     selectedOrderId = order.summary.id,
+                                    itemRejectionNotice = noticeOf(response) ?: _uiState.value.itemRejectionNotice,
                                 )
                         }.onFailure { error ->
                             _uiState.value = _uiState.value.copy(acting = false)

@@ -1,6 +1,7 @@
 package com.vaiinilla.app.domain.usecase
 
 import com.vaiinilla.app.domain.model.CashCollectionResult
+import com.vaiinilla.app.domain.model.ItemRejectionOutcome
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
@@ -93,6 +94,21 @@ class CancelOrderUseCase
             reason: String,
             idempotencyKey: String,
         ): Result<OrderDetail> = repository.cancelOrder(orderId, expectedVersion, reason, idempotencyKey)
+    }
+
+class RejectOrderItemUseCase
+    @Inject
+    constructor(
+        private val repository: OrderRepository,
+    ) {
+        operator fun invoke(
+            orderId: String,
+            itemId: Int,
+            expectedVersion: Int,
+            reason: String,
+            idempotencyKey: String,
+        ): Result<ItemRejectionOutcome> =
+            repository.rejectItem(orderId, itemId, expectedVersion, reason, idempotencyKey)
     }
 
 class AnnounceArrivalUseCase

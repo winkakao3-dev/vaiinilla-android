@@ -32,7 +32,7 @@ import com.vaiinilla.app.ui.operational.CloseCashUi
 import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.screens.CashCloseContent
 import com.vaiinilla.app.ui.screens.CollectAccountContent
-import com.vaiinilla.app.ui.screens.KitchenRejectContent
+import com.vaiinilla.app.ui.screens.OrderRejectContent
 import com.vaiinilla.app.ui.screens.SplitMode
 import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
 import com.vaiinilla.app.ui.screens.WaiterSpaceSection
@@ -425,7 +425,14 @@ class SpacesScreenshotTest {
         capture("spaces_kitchen_reject_sheet.png") {
             val colors = rememberOperationalColors()
             Box(Modifier.fillMaxSize().background(colors.background)) {
-                KitchenRejectContent(folio = 312, colors = colors, onConfirm = {})
+                OrderRejectContent(
+                    folio = 312,
+                    colors = colors,
+                    allowWholeOrder = true,
+                    items = emptyList(),
+                    onDismiss = {},
+                    onConfirm = { _, _ -> },
+                )
             }
         }
     }

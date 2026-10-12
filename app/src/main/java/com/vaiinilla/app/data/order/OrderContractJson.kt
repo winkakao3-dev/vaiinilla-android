@@ -3,6 +3,8 @@ package com.vaiinilla.app.data.order
 import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.CreatedOrder
+import com.vaiinilla.app.domain.model.ItemRefundMethod
+import com.vaiinilla.app.domain.model.ItemRejectionOutcome
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
@@ -38,6 +40,28 @@ class OrderContractJson
             val envelope = json.decodeFromString<CancelOrderEnvelopeDto>(raw)
             requireEnvelopeSuccess(envelope.error)
             return envelope.data.order.toDomain()
+        }
+
+        fun encodeItemRejection(
+            expectedVersion: Int,
+            reason: String,
+        ): String =
+            json.encodeToString(ItemRejectionRequestDto(expectedVersion = expectedVersion, reason = reason.trim()))
+
+        fun parseItemRejection(raw: String): ItemRejectionOutcome {
+            val envelope = json.decodeFromString<ItemRejectionEnvelopeDto>(raw)
+            requireEnvelopeSuccess(envelope.error)
+            val rejection = envelope.data.rejection
+            return ItemRejectionOutcome(
+                order = envelope.data.order.toDomain(),
+                itemId = rejection.itemId,
+                amount = rejection.amount,
+                refundMethod =
+                    requireNotNull(ItemRefundMethod.fromWire(rejection.refundMethod)) {
+                        "Método de reembolso desconocido: ${rejection.refundMethod}"
+                    },
+                manualRefundOriginalMethod = envelope.data.refund?.originalMethod,
+            )
         }
 
         fun encodeCashCollection(

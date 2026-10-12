@@ -5,13 +5,16 @@ import android.widget.ImageView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
@@ -106,8 +109,11 @@ import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
+import com.vaiinilla.app.domain.model.activeItems
+import com.vaiinilla.app.domain.model.pendingForKitchen
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.TipChoice
@@ -269,6 +275,8 @@ fun CashierOperationalScreen(
     onOpenWalletUserQr: () -> Unit = {},
     onReloadWallet: (userId: String, amount: String) -> Unit = { _, _ -> },
     onCashChangeNoticed: () -> Unit = {},
+    onRejectItem: (orderId: String, itemId: Int, version: Int, reason: String) -> Unit = { _, _, _, _ -> },
+    onItemRejectionNoticed: () -> Unit = {},
     onChangeMode: (() -> Unit)? = null,
     onOpenAccounts: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
@@ -333,6 +341,14 @@ fun CashierOperationalScreen(
             onCashChangeNoticed()
         }
     }
+    // Quitar un artículo: el aviso dice qué hacer con el dinero (lo calcula el servidor).
+    LaunchedEffect(state.itemRejectionNotice) {
+        state.itemRejectionNotice?.let {
+            toastMessage = it
+            onItemRejectionNoticed()
+        }
+    }
+    var rejectingCashierOrderId by remember { mutableStateOf<String?>(null) }
     var assistantPulse by remember { mutableIntStateOf(0) }
 
     // Caja solo actúa sobre pedidos por cobrar o listos para entregar; el resto es de cocina.
@@ -786,6 +802,22 @@ fun CashierOperationalScreen(
                                                         .joinToString(" · ") { it.name }
                                                         .ifEmpty { null },
                                                 price = "$${item.unitDigitalPrice}",
+                                            )
+                                        }
+                                    }
+
+                                    if (recentOrder.summary.state !in ItemRejectionClosedStates &&
+                                        restrictedMode != RestrictedMode.READ_ONLY
+                                    ) {
+                                        TextButton(
+                                            onClick = { rejectingCashierOrderId = recentOrder.summary.id },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) {
+                                            Text(
+                                                "Quitar artículo",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                color = Color(0xFFE5645A),
                                             )
                                         }
                                     }
@@ -1457,6 +1489,24 @@ fun CashierOperationalScreen(
                 onOpenAccounts = onOpenAccounts,
             )
         }
+        rejectingCashierOrderId
+            ?.let { id -> state.orders.firstOrNull { it.summary.id == id } }
+            ?.let { order ->
+                OrderRejectDialog(
+                    order = order,
+                    colors = colors,
+                    allowWholeOrder = false,
+                    onDismiss = { rejectingCashierOrderId = null },
+                    onConfirm = { scope, reason ->
+                        rejectingCashierOrderId = null
+                        haptics.impact()
+                        if (scope is RejectScope.Item) {
+                            onRejectItem(order.summary.id, scope.id, order.summary.version, reason)
+                        }
+                    },
+                )
+            }
+
         if (addProductSheetOpen) {
             val categoryId =
                 state.catalog
@@ -1918,6 +1968,9 @@ fun KitchenOperationalScreen(
     onStart: (orderId: String, version: Int) -> Unit,
     onReady: (orderId: String, version: Int) -> Unit,
     onReject: (orderId: String, version: Int, reason: String) -> Unit = { _, _, _ -> },
+    onRejectItem: (orderId: String, itemId: Int, version: Int, reason: String) -> Unit = { _, _, _, _ -> },
+    onItemRejectionNoticed: () -> Unit = {},
+    onStartAllPending: () -> Unit = {},
     onChangeMode: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
     assistantUserKey: String = "kitchen",
@@ -1928,6 +1981,12 @@ fun KitchenOperationalScreen(
     val themeChanger = LocalVaiinillaThemeModeChanger.current
     val haptics = rememberVaiinillaHaptics()
     var toastMessage by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(state.itemRejectionNotice) {
+        state.itemRejectionNotice?.let {
+            toastMessage = it
+            onItemRejectionNoticed()
+        }
+    }
     var assistantPulse by remember { mutableIntStateOf(0) }
     val assistantRegistry = rememberAssistantAnchorRegistry()
     val assistantController = rememberOperationalAssistantController(assistantUserKey, OperationalRole.KITCHEN)
@@ -2334,7 +2393,7 @@ fun KitchenOperationalScreen(
                                             modifier = Modifier.fillMaxWidth(),
                                         ) {
                                             Text(
-                                                "Rechazar pedido",
+                                                "No se puede preparar",
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 13.sp,
                                                 color = Color(0xFFE5645A),
@@ -2389,6 +2448,28 @@ fun KitchenOperationalScreen(
                                 )
                             }
                         }
+                    }
+                }
+            }
+
+            // Todas las comandas pendientes pasan a preparación de una vez (como en el panel web).
+            item {
+                val pendingCount = state.orders.pendingForKitchen.size
+                AnimatedVisibility(
+                    visible = pendingCount > 0 && restrictedMode != RestrictedMode.READ_ONLY,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically(),
+                ) {
+                    ActionPill(
+                        label = "Poner todo en preparación",
+                        enabled = !state.acting,
+                        loading = state.acting,
+                        colors = colors,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                        primary = false,
+                    ) {
+                        haptics.impact()
+                        onStartAllPending()
                     }
                 }
             }
@@ -2462,15 +2543,23 @@ fun KitchenOperationalScreen(
     }
 
     if (rejecting && activeOrder != null) {
-        KitchenRejectDialog(
-            folio = activeOrder.summary.folio,
+        OrderRejectDialog(
+            order = activeOrder,
             colors = colors,
+            allowWholeOrder = true,
+            itemFilter = { it.preparationStation == PreparationStation.KITCHEN },
             onDismiss = { rejecting = false },
-            onConfirm = { reason ->
+            onConfirm = { scope, reason ->
                 rejecting = false
                 haptics.impact()
-                onReject(activeOrder.summary.id, activeOrder.summary.version, reason)
-                toastMessage = "Comanda #${activeOrder.summary.folio} rechazada"
+                when (scope) {
+                    RejectScope.WholeOrder -> {
+                        onReject(activeOrder.summary.id, activeOrder.summary.version, reason)
+                        toastMessage = "Comanda #${activeOrder.summary.folio} rechazada"
+                    }
+                    is RejectScope.Item ->
+                        onRejectItem(activeOrder.summary.id, scope.id, activeOrder.summary.version, reason)
+                }
             },
         )
     }
@@ -2887,18 +2976,40 @@ private fun AddProductSheet(
 /** Motivos que Cocina da con más frecuencia: un toque los escribe. */
 private val RejectionQuickReasons = listOf("Se acabó el producto", "Faltan ingredientes", "Cocina saturada")
 
+/** Pedidos que ya no se pueden tocar: quitar un artículo solo aplica a los que siguen vivos. */
+private val ItemRejectionClosedStates =
+    setOf(OrderState.DELIVERED, OrderState.CANCELED, OrderState.NOT_PICKED_UP, OrderState.EXPIRED)
+
+/** Mínimo de letras del motivo de rechazo; el servidor valida lo mismo. */
+private const val MIN_REJECTION_REASON = 3
+
+/** Lo que se rechaza: el pedido completo o un solo artículo. */
+internal sealed interface RejectScope {
+    data object WholeOrder : RejectScope
+
+    data class Item(
+        val id: Int,
+        val name: String,
+    ) : RejectScope
+}
+
 /**
- * Cocina rechaza un pedido y explica por qué: el cliente ve el motivo en su seguimiento. Es una hoja,
- * como el resto de la app; el botón se vuelve su propio progreso y no aparece un modal aparte.
+ * "No se puede preparar": el personal elige qué no puede preparar (el pedido completo o un artículo)
+ * y escribe el motivo. El cliente ve el motivo; si ya pagó, se le devuelve esa parte. Es una hoja,
+ * como el resto de la app.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun KitchenRejectDialog(
-    folio: Int,
+internal fun OrderRejectDialog(
+    order: OrderDetail,
     colors: OperationalColors,
+    allowWholeOrder: Boolean,
+    itemFilter: (OrderItem) -> Boolean = { true },
     onDismiss: () -> Unit,
-    onConfirm: (reason: String) -> Unit,
+    onConfirm: (scope: RejectScope, reason: String) -> Unit,
 ) {
+    // El último artículo no se quita: eso es rechazar el pedido completo (igual que en la web).
+    val items = if (order.activeItems.size > 1) order.activeItems.filter(itemFilter) else emptyList()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -2906,20 +3017,36 @@ private fun KitchenRejectDialog(
         containerColor = colors.background,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
     ) {
-        KitchenRejectContent(folio = folio, colors = colors, onConfirm = onConfirm)
+        OrderRejectContent(
+            folio = order.summary.folio,
+            colors = colors,
+            allowWholeOrder = allowWholeOrder,
+            items = items,
+            onDismiss = onDismiss,
+            onConfirm = onConfirm,
+        )
     }
 }
 
 /** El contenido de la hoja de rechazo, aparte de la hoja: así se puede probar y capturar. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun KitchenRejectContent(
+internal fun OrderRejectContent(
     folio: Int,
     colors: OperationalColors,
-    onConfirm: (reason: String) -> Unit,
+    allowWholeOrder: Boolean,
+    items: List<OrderItem>,
+    onDismiss: () -> Unit,
+    onConfirm: (scope: RejectScope, reason: String) -> Unit,
 ) {
     var reason by remember { mutableStateOf("") }
-    val valid = reason.trim().length >= 3
+    // Cocina arranca con el pedido completo marcado; Caja tiene que elegir el artículo.
+    var scope by remember {
+        mutableStateOf<RejectScope?>(if (allowWholeOrder) RejectScope.WholeOrder else null)
+    }
+    val chosen = scope
+    val valid = reason.trim().length >= MIN_REJECTION_REASON && chosen != null
+    val isItem = chosen is RejectScope.Item
     Column(
         modifier =
             Modifier
@@ -2930,7 +3057,12 @@ internal fun KitchenRejectContent(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Column(modifier = Modifier.arrive(0)) {
-            Text("Rechazar pedido", fontSize = 13.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
+            Text(
+                "No se puede preparar",
+                fontSize = 13.sp,
+                color = colors.textSecondary,
+                fontWeight = FontWeight.SemiBold,
+            )
             Text(
                 "#$folio",
                 fontSize = 44.sp,
@@ -2939,13 +3071,50 @@ internal fun KitchenRejectContent(
                 color = colors.textPrimary,
             )
             Text(
-                "El cliente verá el motivo. Si ya había pagado, se le devuelve el dinero.",
+                "El cliente verá este motivo y se le devolverá lo que ya pagó.",
                 fontSize = 13.sp,
                 color = colors.textSecondary,
                 modifier = Modifier.padding(top = 4.dp),
             )
         }
         Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                "¿Qué no se puede preparar?",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textSecondary,
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (allowWholeOrder) {
+                    ChipButton(
+                        label = "Todo el pedido",
+                        enabled = true,
+                        colors = colors,
+                        selected = chosen == RejectScope.WholeOrder,
+                    ) { scope = RejectScope.WholeOrder }
+                }
+                items.forEach { item ->
+                    ChipButton(
+                        label = "${item.quantity}× ${item.productName}",
+                        enabled = true,
+                        colors = colors,
+                        selected = chosen is RejectScope.Item && chosen.id == item.id,
+                    ) { scope = RejectScope.Item(item.id, item.productName) }
+                }
+            }
+            if (!allowWholeOrder && items.isEmpty()) {
+                Text(
+                    "Este pedido solo tiene un artículo: para quitarlo hay que cancelar el pedido completo.",
+                    fontSize = 12.sp,
+                    color = colors.textSecondary,
+                )
+            }
+        }
+        Column(modifier = Modifier.arrive(2), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -2964,16 +3133,28 @@ internal fun KitchenRejectContent(
                 value = reason,
                 onValueChange = { reason = it.take(240) },
                 label = { Text("Motivo") },
+                placeholder = { Text("Se terminó el producto") },
+                supportingText = { Text("Mínimo $MIN_REJECTION_REASON caracteres.") },
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        Box(modifier = Modifier.arrive(2)) {
+        Row(modifier = Modifier.arrive(3), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ActionPill(
-                label = "Rechazar pedido",
+                label = "Cancelar",
+                enabled = true,
+                loading = false,
+                colors = colors,
+                modifier = Modifier.weight(1f),
+                primary = false,
+                onClick = onDismiss,
+            )
+            ActionPill(
+                label = if (isItem) "Quitar artículo" else "Rechazar pedido",
                 enabled = valid,
                 loading = false,
                 colors = colors,
-            ) { onConfirm(reason.trim()) }
+                modifier = Modifier.weight(1f),
+            ) { chosen?.let { onConfirm(it, reason.trim()) } }
         }
     }
 }
