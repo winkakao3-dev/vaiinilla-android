@@ -30,9 +30,9 @@ import com.vaiinilla.app.ui.order.trayItemKind
 // El menú en el Vainiverso es la pared de repisas de la tienda: aquí la estrella es lo que se vende, no
 // Vaini. Cada producto vive en su nicho de madera con luz propia; sin foto, se dibuja sobre la repisa.
 
-private val TagCream = Color(0xFFF6EFDD)
-private val TagInk = Color(0xFF1A1414)
-private val TagLime = Color(0xFFA8D52C)
+internal val TagCream = Color(0xFFF6EFDD)
+internal val TagInk = Color(0xFF1A1414)
+internal val TagLime = Color(0xFFA8D52C)
 
 /** La pared de madera detrás de todo el menú. Va dentro de un `LocalScene` ya provisto. */
 @Composable
@@ -100,7 +100,7 @@ internal fun ProductNiche(
             placeholder = { m ->
                 // Sin foto: el producto dibujado, apoyado en la repisa del nicho.
                 Canvas(m) {
-                    val shelfTop = size.height * 0.8f
+                    val shelfTop = nicheShelfY(size.height, 10.dp.toPx())
                     drawTrayItem(kind, size.width / 2f, shelfTop, size.width * 0.46f, alpha = 1f)
                 }
             },
@@ -122,7 +122,7 @@ internal fun ProductNiche(
     }
 }
 
-private fun DrawScope.drawNiche(c: ScenePalette) {
+internal fun DrawScope.drawNiche(c: ScenePalette) {
     val w = size.width
     val h = size.height
     val hair = 1.dp.toPx()
@@ -142,8 +142,16 @@ private fun DrawScope.drawNiche(c: ScenePalette) {
         size = Size(w * 0.1f, h),
     )
     // Repisa.
-    val shelfTop = h * 0.8f
+    val shelfTop = h * NICHE_SHELF
     drawRect(c.shopShelf, topLeft = Offset(0f, shelfTop), size = Size(w, h - shelfTop))
     drawLine(Color.White.copy(alpha = 0.3f), Offset(0f, shelfTop), Offset(w, shelfTop), strokeWidth = hair * 1.5f)
     drawRect(Color.Black.copy(alpha = 0.12f), topLeft = Offset(0f, shelfTop + h * 0.06f), size = Size(w, h - shelfTop - h * 0.06f))
 }
+
+private const val NICHE_SHELF = 0.8f
+
+/** Altura de la repisa del nicho medida dentro de la foto, que va metida [inset] por cada lado. */
+internal fun nicheShelfY(
+    innerHeight: Float,
+    inset: Float,
+): Float = NICHE_SHELF * (innerHeight + 2f * inset) - inset

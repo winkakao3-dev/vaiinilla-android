@@ -16,6 +16,20 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.draw.blur
+import com.vaiinilla.app.ui.order.trayItemKind
+import com.vaiinilla.app.ui.screens.LocalScene
+import com.vaiinilla.app.ui.screens.MenuShelfWall
+import com.vaiinilla.app.ui.screens.TagCream
+import com.vaiinilla.app.ui.screens.TagInk
+import com.vaiinilla.app.ui.screens.TagLime
+import com.vaiinilla.app.ui.screens.drawNiche
+import com.vaiinilla.app.ui.screens.drawTrayItem
+import com.vaiinilla.app.ui.screens.nicheShelfY
+import com.vaiinilla.app.ui.screens.scenePaletteForTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -123,7 +137,17 @@ fun ProductDetailSheet(
     onQuantityChange: (delta: Int) -> Unit,
     onAdd: () -> Unit,
 ) {
-    val colors = LocalVaiinillaColors.current
+    val scene = scenePaletteForTheme()
+    val baseColors = LocalVaiinillaColors.current
+    val colors =
+        baseColors.copy(
+            paper = scene.sheetSolid,
+            paper2 = scene.glassCard,
+            line = scene.glassLine,
+            ink = scene.ink,
+            ink2 = scene.ink.copy(alpha = 0.82f),
+            muted = scene.muted,
+        )
     val reduceMotion = reducedMotion()
     val isCustomized = selectedOptionIds != defaultOptionIds
     val interactionSource = remember { MutableInteractionSource() }
@@ -291,10 +315,15 @@ fun ProductDetailSheet(
                             indication = null,
                             onClick = {},
                         ),
-                color = colors.paper,
+                color = Color.Transparent,
                 shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
+                border = BorderStroke(1.dp, scene.glassEdge),
                 shadowElevation = 24.dp,
             ) {
+                // La hoja es vidrio sobre la misma pared de repisas del menú.
+                CompositionLocalProvider(LocalScene provides scene, LocalVaiinillaColors provides colors) {
+                MenuShelfWall(Modifier.blur(24.dp))
+                Box(Modifier.fillMaxSize().background(scene.glassTint))
                 Column(modifier = Modifier.fillMaxSize()) {
                     LazyColumn(
                         state = listState,
@@ -397,6 +426,7 @@ fun ProductDetailSheet(
                         },
                     )
                 }
+                }
             }
         }
     }
@@ -410,20 +440,47 @@ private fun ProductHero(
     onDismiss: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    val scene = LocalScene.current
+    val kind = trayItemKind(product.name)
+    val reduceMotion = reducedMotion()
+    // El producto baja a su repisa al abrir la ficha, como si lo acabaran de poner ahí.
+    val drop = remember(product.id) { Animatable(if (reduceMotion) 1f else 0f) }
+    LaunchedEffect(product.id) {
+        drop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 260f))
+    }
+    val heroShape = RoundedCornerShape(28.dp)
     Box(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .padding(start = 14.dp, end = 14.dp, top = 14.dp)
                 .height(300.dp)
-                .clip(RoundedCornerShape(28.dp))
-                .background(colors.paper2),
+                .clip(heroShape)
+                .border(1.dp, scene.glassEdge, heroShape),
     ) {
+        Canvas(Modifier.fillMaxSize()) { drawNiche(scene) }
         ProductImage(
             imageUrl = product.imageUrl,
             contentDescription = product.name,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(14.dp)
+                    .clip(RoundedCornerShape(20.dp)),
+            placeholder = { m ->
+                Canvas(m) {
+                    val shelfTop = nicheShelfY(size.height, 14.dp.toPx())
+                    val lift = (1f - drop.value) * size.height * 0.5f
+                    drawTrayItem(
+                        kind,
+                        size.width / 2f,
+                        shelfTop - lift,
+                        size.height * 0.36f,
+                        alpha = (drop.value * 2.5f).coerceIn(0f, 1f),
+                    )
+                }
+            },
         )
 
         HeroActionButton(
@@ -457,8 +514,9 @@ private fun ProductHero(
         }
         Surface(
             modifier = Modifier.align(Alignment.BottomEnd).padding(14.dp),
-            color = colors.ink.copy(alpha = 0.94f),
-            shape = RoundedCornerShape(18.dp),
+            color = TagCream,
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(2.dp, TagLime),
         ) {
             AnimatedContent(
                 targetState = previewPrice,
@@ -475,7 +533,7 @@ private fun ProductHero(
             ) { price ->
                 Text(
                     moneyLabel(price),
-                    color = colors.paper,
+                    color = TagInk,
                     fontSize = 26.sp,
                     lineHeight = 30.sp,
                     fontWeight = FontWeight.Black,
@@ -500,7 +558,7 @@ private fun HeroActionButton(
             modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(colors.paper.copy(alpha = 0.90f)),
+                .background(colors.paper.copy(alpha = 0.82f)),
     ) {
         Icon(
             icon,
@@ -785,8 +843,9 @@ private fun ProductDetailDock(
                     indication = null,
                     onClick = {},
                 ),
-        color = colors.paper,
+        color = colors.paper.copy(alpha = 0.94f),
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        border = BorderStroke(1.dp, LocalScene.current.glassEdge),
         shadowElevation = 18.dp,
     ) {
         Column(
@@ -880,7 +939,7 @@ private fun ProductDetailDock(
             errorMessage?.let { message ->
                 Text(
                     message,
-                    color = Color(0xFF9D2E25),
+                    color = colors.coral,
                     fontSize = 12.sp,
                     lineHeight = 16.sp,
                     fontWeight = FontWeight.Bold,
