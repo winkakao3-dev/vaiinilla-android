@@ -342,7 +342,13 @@ fun DrawScope.drawVainiStanding(
 ) {
     val s = boxPx / 100f
     withTransform({ scale(s, s, pivot = Offset.Zero) }) {
-        drawOval(shadowColor, topLeft = Offset(30f, 75.5f), size = androidx.compose.ui.geometry.Size(40f, 5f))
+        drawOval(
+            shadowColor,
+            topLeft = Offset(30f, 75.5f),
+            size =
+                androidx.compose.ui.geometry
+                    .Size(40f, 5f),
+        )
         drawPath(MASCOT_ARM_LEFT, paperColor, style = Stroke(7f, cap = StrokeCap.Round))
         withTransform({ rotate(waveDegrees, pivot = Offset(75.9f, 52.5f)) }) {
             drawPath(MASCOT_ARM_RIGHT, paperColor, style = Stroke(7f, cap = StrokeCap.Round))
@@ -358,12 +364,28 @@ fun DrawScope.drawVainiStanding(
             val stroke = Stroke(2.8f, cap = StrokeCap.Round)
             drawPath(pathOf("M37.1 54.2Q40.1 48.6 43.1 54.2"), inkColor, style = stroke)
             drawPath(pathOf("M56.9 54.2Q59.9 48.6 62.9 54.2"), inkColor, style = stroke)
-            drawOval(Color(0x80FF8C78), topLeft = Offset(33.5f, 57f), size = androidx.compose.ui.geometry.Size(7f, 3.6f))
-            drawOval(Color(0x80FF8C78), topLeft = Offset(59.5f, 57f), size = androidx.compose.ui.geometry.Size(7f, 3.6f))
+            drawOval(
+                Color(0x80FF8C78),
+                topLeft = Offset(33.5f, 57f),
+                size =
+                    androidx.compose.ui.geometry
+                        .Size(7f, 3.6f),
+            )
+            drawOval(
+                Color(0x80FF8C78),
+                topLeft = Offset(59.5f, 57f),
+                size =
+                    androidx.compose.ui.geometry
+                        .Size(7f, 3.6f),
+            )
         } else {
             withTransform({ translate(lookX.coerceIn(-1f, 1f) * 3.2f, 0f) }) {
-                withTransform({ scale(1f, blink, pivot = Offset(40.1f, 52.5f)) }) { drawPath(MASCOT_EYE_LEFT, inkColor) }
-                withTransform({ scale(1f, blink, pivot = Offset(59.9f, 52.5f)) }) { drawPath(MASCOT_EYE_RIGHT, inkColor) }
+                withTransform(
+                    { scale(1f, blink, pivot = Offset(40.1f, 52.5f)) },
+                ) { drawPath(MASCOT_EYE_LEFT, inkColor) }
+                withTransform(
+                    { scale(1f, blink, pivot = Offset(59.9f, 52.5f)) },
+                ) { drawPath(MASCOT_EYE_RIGHT, inkColor) }
             }
         }
     }

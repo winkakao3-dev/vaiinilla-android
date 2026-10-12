@@ -44,11 +44,13 @@ import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.canCallWaiter
 import com.vaiinilla.app.ui.account.AccountDeletionViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.components.StudentTab
+import com.vaiinilla.app.ui.components.isRental
 import com.vaiinilla.app.ui.components.prefetchProductImages
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
@@ -94,8 +96,6 @@ import com.vaiinilla.app.ui.sharedtable.SharedTableViewModel
 import com.vaiinilla.app.ui.support.SupportScreen
 import com.vaiinilla.app.ui.wallet.WalletViewModel
 import com.vaiinilla.app.ui.wallet.rememberWalletUiState
-import com.vaiinilla.app.ui.components.isRental
-import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -1384,7 +1384,9 @@ fun AppNavHost(
                     onReturnToMenu = {
                         // Abierto desde Pedidos: atrás regresa a la lista. La selección se limpia allá,
                         // cuando esta pantalla ya salió, para no quedarse sin pedido a media animación.
-                        if (!isFreshConfirmation && navController.popBackStack(Routes.STUDENT_TRACKING, inclusive = false)) {
+                        if (!isFreshConfirmation &&
+                            navController.popBackStack(Routes.STUDENT_TRACKING, inclusive = false)
+                        ) {
                             return@OrderConfirmationScreen
                         }
                         if (isFreshConfirmation) {

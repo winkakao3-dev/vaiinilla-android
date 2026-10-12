@@ -1,13 +1,5 @@
 package com.vaiinilla.app.ui.screens
 
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.windowInsetsTopHeight
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
@@ -18,18 +10,22 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -47,6 +43,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,7 +51,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -109,160 +108,160 @@ fun WalletScreen(
             muted = palette.muted,
         )
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-    val windowPx = constraints.maxHeight * WALLET_SCENE_WINDOW
-    val windowDp = with(density) { windowPx.toDp() }
-    val sheetTop = {
-        if (listState.firstVisibleItemIndex == 0) windowPx - listState.firstVisibleItemScrollOffset else 0f
-    }
-    CompositionLocalProvider(LocalScene provides palette) {
-        WalletJarBackdrop(sheetTop = sheetTop, balance = remoteState.data?.wallet?.visibleBalance)
-    }
-    CompositionLocalProvider(LocalVaiinillaColors provides glassColors) {
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-        contentPadding =
-            PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                top = 0.dp,
-                bottom = VaiinillaBottomNavClearance + 48.dp,
-            ),
-    ) {
-        item(key = "home-window") { Spacer(Modifier.height(windowDp + 20.dp)) }
-        item {
-            Text(
-                text = "Cartera",
-                color = colors.ink,
-                fontWeight = FontWeight.Black,
-                fontSize = 23.sp,
-            )
+        val windowPx = constraints.maxHeight * WALLET_SCENE_WINDOW
+        val windowDp = with(density) { windowPx.toDp() }
+        val sheetTop = {
+            if (listState.firstVisibleItemIndex == 0) windowPx - listState.firstVisibleItemScrollOffset else 0f
         }
-
-        item {
-            Spacer(Modifier.height(26.dp))
-            WalletBalanceHero(
-                remoteState = remoteState,
-                onRetry = onRetry,
-            )
+        CompositionLocalProvider(LocalScene provides palette) {
+            WalletJarBackdrop(sheetTop = sheetTop, balance = remoteState.data?.wallet?.visibleBalance)
         }
-
-        item {
-            Spacer(Modifier.height(24.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+        CompositionLocalProvider(LocalVaiinillaColors provides glassColors) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding =
+                    PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 0.dp,
+                        bottom = VaiinillaBottomNavClearance + 48.dp,
+                    ),
             ) {
-                WalletAction(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Outlined.ShoppingCart,
-                    title = "Pagar",
-                    subtitle = "Usar saldo",
-                    onClick = onCart,
-                )
-                WalletAction(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.AutoMirrored.Outlined.ReceiptLong,
-                    title = "Pedidos",
-                    subtitle = "Ver actividad",
-                    onClick = onOrders,
-                )
-                WalletAction(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Outlined.QrCode2,
-                    title = "Recargar",
-                    subtitle = "Mostrar QR",
-                    onClick = { qrDialogOpen = true },
-                )
-            }
-        }
-
-        remoteState.data?.movements?.takeIf { it.isNotEmpty() }?.let { movements ->
-            item {
-                Spacer(Modifier.height(32.dp))
-                Text(
-                    text = "Movimientos",
-                    color = colors.ink,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 19.sp,
-                )
-                Spacer(Modifier.height(8.dp))
-            }
-
-            items(movements.take(12), key = { it.id }) { movement ->
-                WalletMovementRow(
-                    type = movement.type,
-                    description = movement.description,
-                    amount = movement.amount,
-                    balanceAfter = movement.balanceAfter,
-                )
-            }
-        }
-
-        item {
-            Spacer(Modifier.height(28.dp))
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onMenu,
-                color = colors.paper2,
-                shape = RoundedCornerShape(20.dp),
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 15.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(44.dp)
-                                .background(colors.paper, RoundedCornerShape(14.dp)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.MenuBook,
-                            contentDescription = null,
-                            tint = colors.ink,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
-                    Column(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .padding(horizontal = 14.dp),
-                    ) {
-                        Text(
-                            text = "Abrir menú",
-                            color = colors.ink,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 14.sp,
-                        )
-                        Text(
-                            text = "Usa tu saldo en tu siguiente pedido",
-                            color = colors.muted,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(top = 3.dp),
-                        )
-                    }
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
-                        contentDescription = null,
-                        tint = colors.muted,
+                item(key = "home-window") { Spacer(Modifier.height(windowDp + 20.dp)) }
+                item {
+                    Text(
+                        text = "Cartera",
+                        color = colors.ink,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 23.sp,
                     )
                 }
+
+                item {
+                    Spacer(Modifier.height(26.dp))
+                    WalletBalanceHero(
+                        remoteState = remoteState,
+                        onRetry = onRetry,
+                    )
+                }
+
+                item {
+                    Spacer(Modifier.height(24.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        WalletAction(
+                            modifier = Modifier.weight(1f),
+                            icon = Icons.Outlined.ShoppingCart,
+                            title = "Pagar",
+                            subtitle = "Usar saldo",
+                            onClick = onCart,
+                        )
+                        WalletAction(
+                            modifier = Modifier.weight(1f),
+                            icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                            title = "Pedidos",
+                            subtitle = "Ver actividad",
+                            onClick = onOrders,
+                        )
+                        WalletAction(
+                            modifier = Modifier.weight(1f),
+                            icon = Icons.Outlined.QrCode2,
+                            title = "Recargar",
+                            subtitle = "Mostrar QR",
+                            onClick = { qrDialogOpen = true },
+                        )
+                    }
+                }
+
+                remoteState.data?.movements?.takeIf { it.isNotEmpty() }?.let { movements ->
+                    item {
+                        Spacer(Modifier.height(32.dp))
+                        Text(
+                            text = "Movimientos",
+                            color = colors.ink,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 19.sp,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                    }
+
+                    items(movements.take(12), key = { it.id }) { movement ->
+                        WalletMovementRow(
+                            type = movement.type,
+                            description = movement.description,
+                            amount = movement.amount,
+                            balanceAfter = movement.balanceAfter,
+                        )
+                    }
+                }
+
+                item {
+                    Spacer(Modifier.height(28.dp))
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onMenu,
+                        color = colors.paper2,
+                        shape = RoundedCornerShape(20.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 15.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .size(44.dp)
+                                        .background(colors.paper, RoundedCornerShape(14.dp)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Outlined.MenuBook,
+                                    contentDescription = null,
+                                    tint = colors.ink,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            }
+                            Column(
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 14.dp),
+                            ) {
+                                Text(
+                                    text = "Abrir menú",
+                                    color = colors.ink,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 14.sp,
+                                )
+                                Text(
+                                    text = "Usa tu saldo en tu siguiente pedido",
+                                    color = colors.muted,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(top = 3.dp),
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                                contentDescription = null,
+                                tint = colors.muted,
+                            )
+                        }
+                    }
+                }
+
+                item { Spacer(Modifier.height(4.dp)) }
             }
         }
-
-        item { Spacer(Modifier.height(4.dp)) }
-    }
-    }
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .windowInsetsTopHeight(WindowInsets.statusBars)
-            .graphicsLayer { alpha = if (sheetTop() < size.height) 1f else 0f }
-            .background(palette.stage.copy(alpha = 0.92f)),
-    )
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .windowInsetsTopHeight(WindowInsets.statusBars)
+                .graphicsLayer { alpha = if (sheetTop() < size.height) 1f else 0f }
+                .background(palette.stage.copy(alpha = 0.92f)),
+        )
     }
 }
 

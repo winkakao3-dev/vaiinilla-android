@@ -24,7 +24,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -58,7 +57,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -68,13 +66,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlurEffect
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.PixelMap
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.TileMode
@@ -96,8 +92,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextMeasurer
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
@@ -117,14 +111,12 @@ import com.vaiinilla.app.ui.order.MOSAIC_FLIP_LENGTH
 import com.vaiinilla.app.ui.order.PickupStep
 import com.vaiinilla.app.ui.order.PurchaseCelebrationKind
 import com.vaiinilla.app.ui.order.mosaicCellStart
-import com.vaiinilla.app.ui.order.pickupCodeUseful
 import com.vaiinilla.app.ui.order.pickupCodeHint
+import com.vaiinilla.app.ui.order.pickupCodeUseful
 import com.vaiinilla.app.ui.order.pickupHint
 import com.vaiinilla.app.ui.order.pickupStep
 import com.vaiinilla.app.ui.order.pickupTitle
 import com.vaiinilla.app.ui.order.shouldAutoRevealPickupCode
-import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
-import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.PI
@@ -137,6 +129,7 @@ private val Lime = Color(0xFFB7D464)
 private val LimeInk = Color(0xFF172008)
 private val QrDark = Color(0xFF151513)
 private val QrLight = Color(0xFFFBF8F0)
+
 // La cámara vuela hacia la puerta de la tienda.
 private const val FOCUS_Y = 0.395f
 private const val ZOOM_MAX = 3.4f
@@ -209,11 +202,16 @@ private fun buildMosaic(
     val screenSide = width * 1.18f
     val sceneCenter = camera.toScene(Offset(width * 0.5f, height * 0.42f))
     val sceneSide = screenSide / camera.zoom
-    val bitmap = ImageBitmap((width * SAMPLE_SCALE).roundToInt().coerceAtLeast(1), (height * SAMPLE_SCALE).roundToInt().coerceAtLeast(1))
+    val bitmap =
+        ImageBitmap(
+            (width * SAMPLE_SCALE).roundToInt().coerceAtLeast(1),
+            (height * SAMPLE_SCALE).roundToInt().coerceAtLeast(1),
+        )
     CanvasDrawScope().draw(
         density,
         LayoutDirection.Ltr,
-        androidx.compose.ui.graphics.Canvas(bitmap),
+        androidx.compose.ui.graphics
+            .Canvas(bitmap),
         Size(bitmap.width.toFloat(), bitmap.height.toFloat()),
     ) {
         withTransform({ scale(SAMPLE_SCALE, SAMPLE_SCALE, pivot = Offset.Zero) }) {
@@ -326,7 +324,13 @@ private fun PickupJourney(
     }
     LaunchedEffect(revealed) {
         val target = if (revealed) 1f else 0f
-        if (reduceMotion) reveal.snapTo(target) else reveal.animateTo(target, spring(dampingRatio = 1f, stiffness = 14f))
+        if (reduceMotion) {
+            reveal.snapTo(
+                target,
+            )
+        } else {
+            reveal.animateTo(target, spring(dampingRatio = 1f, stiffness = 14f))
+        }
     }
     LaunchedEffect(hasCode) { if (!hasCode) revealed = false }
     BackHandler(enabled = revealed) { revealed = false }
@@ -495,7 +499,12 @@ private fun CelebrationCard(
     val c = LocalScene.current
     val paid = kind == PurchaseCelebrationKind.PAYMENT_CONFIRMED
     val title = if (paid) "¡Compra confirmada!" else "¡Pedido recibido!"
-    val message = if (paid) "Tu pago fue autorizado y tu pedido ya está en marcha." else "Paga en Caja para continuar con tu pedido."
+    val message =
+        if (paid) {
+            "Tu pago fue autorizado y tu pedido ya está en marcha."
+        } else {
+            "Paga en Caja para continuar con tu pedido."
+        }
     val leaving = 1f - shown
     GlassPanel(
         backdrop = backdrop,
@@ -714,8 +723,7 @@ private fun GlassPanel(
                     val at = it.positionInRoot()
                     left = at.x
                     top = at.y
-                }
-                .clip(shape),
+                }.clip(shape),
     ) {
         if (frosted && backdrop != null) {
             Canvas(
@@ -754,12 +762,24 @@ private fun StatusSheet(
     val entrance = remember { Animatable(0f) }
     val reduceMotion = reducedMotion()
     LaunchedEffect(Unit) {
-        if (reduceMotion) entrance.snapTo(1f) else entrance.animateTo(1f, spring(dampingRatio = 0.86f, stiffness = 180f))
+        if (reduceMotion) {
+            entrance.snapTo(
+                1f,
+            )
+        } else {
+            entrance.animateTo(1f, spring(dampingRatio = 0.86f, stiffness = 180f))
+        }
     }
     val progress = remember { Animatable((step?.ordinal ?: -1).toFloat() + 1f) }
     LaunchedEffect(step) {
         val target = (step?.ordinal ?: -1).toFloat() + 1f
-        if (reduceMotion) progress.snapTo(target) else progress.animateTo(target, spring(dampingRatio = 0.9f, stiffness = 120f))
+        if (reduceMotion) {
+            progress.snapTo(
+                target,
+            )
+        } else {
+            progress.animateTo(target, spring(dampingRatio = 0.9f, stiffness = 120f))
+        }
     }
     GlassPanel(
         backdrop = backdrop,
@@ -790,8 +810,14 @@ private fun StatusSheet(
             AnimatedContent(
                 targetState = pickupTitle(order),
                 transitionSpec = {
-                    (fadeIn(spring(stiffness = 180f)) + scaleIn(spring(stiffness = 180f), initialScale = 0.92f) + slideInVertically { it / 4 }) togetherWith
-                        (fadeOut(spring(stiffness = 300f)) + scaleOut(targetScale = 1.04f) + slideOutVertically { -it / 4 })
+                    (
+                        fadeIn(spring(stiffness = 180f)) + scaleIn(spring(stiffness = 180f), initialScale = 0.92f) +
+                            slideInVertically { it / 4 }
+                    ) togetherWith
+                        (
+                            fadeOut(spring(stiffness = 300f)) + scaleOut(targetScale = 1.04f) +
+                                slideOutVertically { -it / 4 }
+                        )
                 },
                 label = "pickup_title",
             ) { title ->
@@ -823,7 +849,15 @@ private fun StatusSheet(
                             ) {
                                 val r = CornerRadius(size.height / 2f)
                                 drawRoundRect(c.glassLine, cornerRadius = r)
-                                if (fill > 0f) drawRoundRect(c.ink, size = Size(size.width * fill, size.height), cornerRadius = r)
+                                if (fill >
+                                    0f
+                                ) {
+                                    drawRoundRect(
+                                        c.ink,
+                                        size = Size(size.width * fill, size.height),
+                                        cornerRadius = r,
+                                    )
+                                }
                             }
                             Spacer(Modifier.height(6.dp))
                             Text(
@@ -842,10 +876,20 @@ private fun StatusSheet(
             if (hasCode || onViewTracking != null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (hasCode) {
-                        PillButton("Mostrar código", primary = true, onClick = onShowCode, modifier = Modifier.weight(1f))
+                        PillButton(
+                            "Mostrar código",
+                            primary = true,
+                            onClick = onShowCode,
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                     if (onViewTracking != null) {
-                        PillButton("Seguir pedido", primary = !hasCode, onClick = onViewTracking, modifier = Modifier.weight(1f))
+                        PillButton(
+                            "Seguir pedido",
+                            primary = !hasCode,
+                            onClick = onViewTracking,
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
             }
@@ -964,13 +1008,23 @@ private fun PickupCodeSheet(
             )
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.LightMode, contentDescription = null, tint = c.muted, modifier = Modifier.size(14.dp))
+                Icon(
+                    Icons.Outlined.LightMode,
+                    contentDescription = null,
+                    tint = c.muted,
+                    modifier = Modifier.size(14.dp),
+                )
                 Spacer(Modifier.width(6.dp))
                 Text("Subimos el brillo mientras está abierto.", color = c.muted, fontSize = 12.sp)
             }
             if (onViewTracking != null) {
                 Spacer(Modifier.height(14.dp))
-                PillButton("Seguir pedido", primary = true, onClick = onViewTracking, modifier = Modifier.fillMaxWidth())
+                PillButton(
+                    "Seguir pedido",
+                    primary = true,
+                    onClick = onViewTracking,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
     }

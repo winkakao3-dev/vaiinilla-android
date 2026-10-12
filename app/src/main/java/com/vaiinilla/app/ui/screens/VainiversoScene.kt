@@ -267,7 +267,15 @@ internal fun DrawScope.drawStorefront(
         val ww = w * 0.17f
         val left = cx - ww / 2f
         val lit = col in c.litWindows
-        drawRect(c.facadeShade, topLeft = Offset(left - hair * 3, top - hair * 3), size = Size(ww + hair * 6, wh + hair * 6))
+        drawRect(
+            c.facadeShade,
+            topLeft = Offset(left - hair * 3, top - hair * 3),
+            size =
+                Size(
+                    ww + hair * 6,
+                    wh + hair * 6,
+                ),
+        )
         drawRect(c.windowFrame, topLeft = Offset(left, top), size = Size(ww, wh))
         val inset = hair * 3.5f
         val glassTop = top + inset
@@ -275,14 +283,23 @@ internal fun DrawScope.drawStorefront(
         if (lit) {
             val glowCenter = Offset(cx, top + wh / 2f)
             drawCircle(
-                Brush.radialGradient(listOf(c.lampGlow.copy(alpha = c.lampGlow.alpha * 0.45f), Color.Transparent), glowCenter, ww * 0.8f),
+                Brush.radialGradient(
+                    listOf(c.lampGlow.copy(alpha = c.lampGlow.alpha * 0.45f), Color.Transparent),
+                    glowCenter,
+                    ww * 0.8f,
+                ),
                 radius = ww * 0.8f,
                 center = glowCenter,
             )
         }
         drawRect(
             if (lit) {
-                Brush.verticalGradient(listOf(c.windowLit, c.windowLitDeep), startY = glassTop, endY = glassTop + glassSize.height)
+                Brush.verticalGradient(
+                    listOf(c.windowLit, c.windowLitDeep),
+                    startY = glassTop,
+                    endY =
+                        glassTop + glassSize.height,
+                )
             } else {
                 Brush.linearGradient(
                     listOf(c.windowGlass, c.windowGlassLight, c.windowGlass),
@@ -296,12 +313,26 @@ internal fun DrawScope.drawStorefront(
         drawLine(c.windowFrame, Offset(cx, glassTop), Offset(cx, glassTop + glassSize.height), strokeWidth = hair * 3)
         val mid = glassTop + glassSize.height * 0.42f
         drawLine(c.windowFrame, Offset(left + inset, mid), Offset(left + ww - inset, mid), strokeWidth = hair * 3)
-        drawRect(c.facadeLight, topLeft = Offset(left - hair * 6, top + wh + hair * 2), size = Size(ww + hair * 12, hair * 6))
+        drawRect(
+            c.facadeLight,
+            topLeft = Offset(left - hair * 6, top + wh + hair * 2),
+            size =
+                Size(
+                    ww + hair * 12,
+                    hair * 6,
+                ),
+        )
     }
 
     // Cornisa, letrero y toldo.
     drawRect(c.facadeLight, topLeft = Offset(0f, h * (CORNICE_Y - 0.012f)), size = Size(w, h * 0.016f))
-    drawLine(c.facadeShade, Offset(0f, h * (CORNICE_Y + 0.004f)), Offset(w, h * (CORNICE_Y + 0.004f)), strokeWidth = hair * 2)
+    drawLine(
+        c.facadeShade,
+        Offset(0f, h * (CORNICE_Y + 0.004f)),
+        Offset(w, h * (CORNICE_Y + 0.004f)),
+        strokeWidth =
+            hair * 2,
+    )
     val signLeft = w * 0.07f
     val signTop = h * SIGN_TOP_Y
     val signHeight = h * (SIGN_BOTTOM_Y - SIGN_TOP_Y)
@@ -313,7 +344,15 @@ internal fun DrawScope.drawStorefront(
             cornerRadius = CornerRadius(hair * 14),
         )
     }
-    drawRoundRect(c.signInk, topLeft = Offset(signLeft, signTop), size = Size(w * 0.86f, signHeight), cornerRadius = CornerRadius(hair * 3))
+    drawRoundRect(
+        c.signInk,
+        topLeft = Offset(signLeft, signTop),
+        size = Size(w * 0.86f, signHeight),
+        cornerRadius =
+            CornerRadius(
+                hair * 3,
+            ),
+    )
     val signStyle =
         TextStyle(
             color = c.signText,
@@ -357,7 +396,15 @@ internal fun DrawScope.drawStorefront(
         val left = w * from
         val width = w * (to - from)
         val glassBottom = shopBottom - plinth
-        drawRect(c.doorGreen, topLeft = Offset(left - hair * 3, shopTop - hair * 3), size = Size(width + hair * 6, glassBottom - shopTop + hair * 6))
+        drawRect(
+            c.doorGreen,
+            topLeft = Offset(left - hair * 3, shopTop - hair * 3),
+            size =
+                Size(
+                    width + hair * 6,
+                    glassBottom - shopTop + hair * 6,
+                ),
+        )
         drawRect(
             Brush.verticalGradient(listOf(c.shopLight, c.shopLightDeep), startY = shopTop, endY = glassBottom),
             topLeft = Offset(left, shopTop),
@@ -366,7 +413,18 @@ internal fun DrawScope.drawStorefront(
         for (lamp in listOf(0.3f, 0.7f)) {
             val lx = left + width * lamp
             drawLine(c.signInk, Offset(lx, shopTop), Offset(lx, shopTop + h * 0.03f), strokeWidth = hair)
-            drawArc(c.signInk, 180f, 180f, true, topLeft = Offset(lx - hair * 9, shopTop + h * 0.026f), size = Size(hair * 18, hair * 12))
+            drawArc(
+                c.signInk,
+                180f,
+                180f,
+                true,
+                topLeft = Offset(lx - hair * 9, shopTop + h * 0.026f),
+                size =
+                    Size(
+                        hair * 18,
+                        hair * 12,
+                    ),
+            )
             drawCircle(c.lampGlow, radius = hair * 16, center = Offset(lx, shopTop + h * 0.04f))
         }
         val shelfY = shopTop + (glassBottom - shopTop) * 0.62f
@@ -380,12 +438,36 @@ internal fun DrawScope.drawStorefront(
                 cornerRadius = CornerRadius(hair * 2),
             )
         }
-        drawRect(c.doorGreen.copy(alpha = 0.18f), topLeft = Offset(left, glassBottom - hair * 2), size = Size(width, hair * 2))
-        drawRect(c.facadeShade, topLeft = Offset(left - hair * 3, glassBottom + hair * 3), size = Size(width + hair * 6, plinth - hair * 3))
+        drawRect(
+            c.doorGreen.copy(alpha = 0.18f),
+            topLeft = Offset(left, glassBottom - hair * 2),
+            size =
+                Size(
+                    width,
+                    hair * 2,
+                ),
+        )
+        drawRect(
+            c.facadeShade,
+            topLeft = Offset(left - hair * 3, glassBottom + hair * 3),
+            size =
+                Size(
+                    width + hair * 6,
+                    plinth - hair * 3,
+                ),
+        )
     }
     val doorLeft = w * 0.395f
     val doorWidth = w * 0.21f
-    drawRect(c.doorGreen, topLeft = Offset(doorLeft - hair * 4, shopTop - hair * 4), size = Size(doorWidth + hair * 8, shopBottom - shopTop + hair * 4))
+    drawRect(
+        c.doorGreen,
+        topLeft = Offset(doorLeft - hair * 4, shopTop - hair * 4),
+        size =
+            Size(
+                doorWidth + hair * 8,
+                shopBottom - shopTop + hair * 4,
+            ),
+    )
     drawRect(
         Brush.verticalGradient(listOf(c.shopLightDeep, c.shopLight), startY = shopTop, endY = shopBottom),
         topLeft = Offset(doorLeft, shopTop),
@@ -408,13 +490,23 @@ internal fun DrawScope.drawStorefront(
     drawRect(c.sidewalk, topLeft = Offset(0f, shopBottom), size = Size(w, h * (SIDEWALK_BOTTOM_Y - SHOP_BOTTOM_Y)))
     var slab = 0f
     while (slab < w) {
-        drawLine(c.street.copy(alpha = 0.5f), Offset(slab, shopBottom), Offset(slab, h * SIDEWALK_BOTTOM_Y), strokeWidth = hair)
+        drawLine(
+            c.street.copy(alpha = 0.5f),
+            Offset(slab, shopBottom),
+            Offset(slab, h * SIDEWALK_BOTTOM_Y),
+            strokeWidth = hair,
+        )
         slab += w * 0.125f
     }
     drawRect(c.street, topLeft = Offset(0f, h * SIDEWALK_BOTTOM_Y), size = Size(w, h * (1f - SIDEWALK_BOTTOM_Y)))
     if (c.spill.alpha > 0f) {
         drawRect(
-            Brush.verticalGradient(listOf(c.spill, Color.Transparent), startY = shopBottom, endY = h * (SIDEWALK_BOTTOM_Y + 0.06f)),
+            Brush.verticalGradient(
+                listOf(c.spill, Color.Transparent),
+                startY = shopBottom,
+                endY =
+                    h * (SIDEWALK_BOTTOM_Y + 0.06f),
+            ),
             topLeft = Offset(w * 0.04f, shopBottom),
             size = Size(w * 0.92f, h * (SIDEWALK_BOTTOM_Y + 0.06f - SHOP_BOTTOM_Y)),
         )
@@ -425,14 +517,21 @@ internal fun DrawScope.drawStorefront(
         val potTop = shopBottom - h * 0.012f
         drawCircle(c.leafDark, radius = w * 0.04f, center = Offset(cx, potTop - w * 0.032f))
         drawCircle(c.leaf, radius = w * 0.034f, center = Offset(cx - w * 0.01f, potTop - w * 0.046f))
-        drawRoundRect(c.pot, topLeft = Offset(cx - w * 0.026f, potTop), size = Size(w * 0.052f, h * 0.026f), cornerRadius = CornerRadius(hair * 3))
+        drawRoundRect(
+            c.pot,
+            topLeft = Offset(cx - w * 0.026f, potTop),
+            size = Size(w * 0.052f, h * 0.026f),
+            cornerRadius =
+                CornerRadius(
+                    hair * 3,
+                ),
+        )
     }
 }
 
 /** Color de fondo del Vainiverso a la hora del tema, para lo que rodea a la escena. */
 @Composable
 internal fun vainiversoStageColor(): Color = scenePaletteForTheme().stage
-
 
 /**
  * La tienda de fondo para pantallas con lista: arriba de [sheetTop] se ve nítida y debajo queda borrosa

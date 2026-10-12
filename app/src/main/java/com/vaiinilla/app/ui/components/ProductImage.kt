@@ -5,7 +5,6 @@ import android.util.LruCache
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
@@ -23,9 +22,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -102,7 +101,14 @@ fun rememberProductTone(imageUrl: String): Color? {
                         loadRemoteProductImage(imageUrl)?.asAndroidBitmap()
                     } else {
                         productImageResource(imageUrl)?.let { res ->
-                            BitmapFactory.decodeResource(context.resources, res, BitmapFactory.Options().apply { inSampleSize = 8 })
+                            BitmapFactory.decodeResource(
+                                context.resources,
+                                res,
+                                BitmapFactory.Options().apply {
+                                    inSampleSize =
+                                        8
+                                },
+                            )
                         }
                     }
                 bitmap?.let { full ->
@@ -156,6 +162,7 @@ internal fun dominantTone(pixels: IntArray): Int? {
         } else {
             Triple(plainR / pixels.size, plainG / pixels.size, plainB / pixels.size)
         }
+
     fun channel(v: Double) = (v.coerceIn(0.0, 1.0) * 255).toInt()
     return (0xFF shl 24) or (channel(fr) shl 16) or (channel(fg) shl 8) or channel(fb)
 }

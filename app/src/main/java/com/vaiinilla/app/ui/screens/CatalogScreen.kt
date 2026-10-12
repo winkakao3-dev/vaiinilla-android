@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -53,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -61,7 +61,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -83,10 +82,8 @@ import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductCardSkeleton
 import com.vaiinilla.app.ui.components.ProductDetailSheet
-import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.SwipeToDeleteOrder
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
-import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.OrderFlowUiState
@@ -96,8 +93,8 @@ import com.vaiinilla.app.ui.order.isSelectedProductValid
 import com.vaiinilla.app.ui.order.selectedProduct
 import com.vaiinilla.app.ui.order.selectedProductPreviewPrice
 import com.vaiinilla.app.ui.order.selectedProductPreviewTotal
-import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.AmoledLimeWash
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
@@ -336,7 +333,13 @@ private fun CatalogContent(
 
     val scene = scenePaletteForTheme()
     val shelfColors =
-        colors.copy(paper = Color.Transparent, paper2 = scene.glassCard, line = scene.glassLine, ink = scene.ink, muted = scene.muted)
+        colors.copy(
+            paper = Color.Transparent,
+            paper2 = scene.glassCard,
+            line = scene.glassLine,
+            ink = scene.ink,
+            muted = scene.muted,
+        )
     Box(
         modifier =
             Modifier
@@ -366,84 +369,84 @@ private fun CatalogContent(
             indicator = {},
         ) {
             CompositionLocalProvider(LocalScene provides scene, LocalVaiinillaColors provides shelfColors) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding(),
-                contentPadding =
-                    PaddingValues(
-                        start = 20.dp,
-                        end = 20.dp,
-                        top = 16.dp,
-                        bottom = VaiinillaBottomNavClearance + 48.dp,
-                    ),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    CatalogHeader(
-                        state = state,
-                        categories = sortedCategories,
-                        onSearchChange = onSearchChange,
-                        onCategorySelected = onCategorySelected,
-                        onOpenCart = onOpenCart,
-                        onChangeVenue = onChangeVenue,
-                        onOpenModes = onOpenModes,
-                        onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
-                        profileInitials = profileInitials,
-                        onOpenAccount = onOpenAccount,
-                    )
-                }
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .statusBarsPadding(),
+                    contentPadding =
+                        PaddingValues(
+                            start = 20.dp,
+                            end = 20.dp,
+                            top = 16.dp,
+                            bottom = VaiinillaBottomNavClearance + 48.dp,
+                        ),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        CatalogHeader(
+                            state = state,
+                            categories = sortedCategories,
+                            onSearchChange = onSearchChange,
+                            onCategorySelected = onCategorySelected,
+                            onOpenCart = onOpenCart,
+                            onChangeVenue = onChangeVenue,
+                            onOpenModes = onOpenModes,
+                            onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
+                            profileInitials = profileInitials,
+                            onOpenAccount = onOpenAccount,
+                        )
+                    }
 
-                activeOrder?.let { order ->
-                    item(
-                        key = "active-order-${order.summary.id}",
-                        span = { GridItemSpan(maxLineSpan) },
-                    ) {
-                        SwipeToDeleteOrder(
-                            orderFolio = order.summary.folio.toString(),
-                            onDelete = { onDeleteOrder(order.summary.id) },
-                            modifier = Modifier.padding(bottom = 4.dp),
+                    activeOrder?.let { order ->
+                        item(
+                            key = "active-order-${order.summary.id}",
+                            span = { GridItemSpan(maxLineSpan) },
                         ) {
-                            ActiveOrderBanner(
-                                folio = order.summary.folio.toString(),
-                                statusLabel = order.summary.state.label,
-                                itemCount = order.items.sumOf { it.quantity },
-                                destination = order.summary.destination.label,
-                                onClick = onOpenTracking,
+                            SwipeToDeleteOrder(
+                                orderFolio = order.summary.folio.toString(),
+                                onDelete = { onDeleteOrder(order.summary.id) },
+                                modifier = Modifier.padding(bottom = 4.dp),
+                            ) {
+                                ActiveOrderBanner(
+                                    folio = order.summary.folio.toString(),
+                                    statusLabel = order.summary.state.label,
+                                    itemCount = order.items.sumOf { it.quantity },
+                                    destination = order.summary.destination.label,
+                                    onClick = onOpenTracking,
+                                )
+                            }
+                        }
+                    }
+
+                    if (courts.isNotEmpty()) {
+                        item(key = "courts-map", span = { GridItemSpan(maxLineSpan) }) {
+                            CourtsMapCard(
+                                courts = courts,
+                                onOpen = onOpenCourts,
+                                modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
                             )
                         }
                     }
-                }
 
-                if (courts.isNotEmpty()) {
-                    item(key = "courts-map", span = { GridItemSpan(maxLineSpan) }) {
-                        CourtsMapCard(
-                            courts = courts,
-                            onOpen = onOpenCourts,
-                            modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
-                        )
-                    }
-                }
-
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    MenuSectionHead()
-                }
-
-                if (filteredProducts.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
-                        EmptySearchState(onClearSearch = { onSearchChange("") })
+                        MenuSectionHead()
                     }
-                } else {
-                    items(filteredProducts, key = Product::id) { product ->
-                        Box(modifier = Modifier.animateItem().fillMaxWidth()) {
-                            ProductCard(product = product, onClick = { onProductSelected(product.id) })
+
+                    if (filteredProducts.isEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            EmptySearchState(onClearSearch = { onSearchChange("") })
+                        }
+                    } else {
+                        items(filteredProducts, key = Product::id) { product ->
+                            Box(modifier = Modifier.animateItem().fillMaxWidth()) {
+                                ProductCard(product = product, onClick = { onProductSelected(product.id) })
+                            }
                         }
                     }
                 }
-            }
             }
         }
 

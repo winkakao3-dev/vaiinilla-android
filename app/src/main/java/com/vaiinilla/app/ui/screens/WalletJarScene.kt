@@ -154,7 +154,15 @@ private fun DrawScope.drawVainiHome(
     val winLeft = w * 0.08f
     val winTop = h * 0.085f
     val winSize = Size(w * 0.3f, h * 0.13f)
-    drawRoundRect(c.windowFrame, Offset(winLeft - hair * 5, winTop - hair * 5), Size(winSize.width + hair * 10, winSize.height + hair * 10), CornerRadius(hair * 4))
+    drawRoundRect(
+        c.windowFrame,
+        Offset(winLeft - hair * 5, winTop - hair * 5),
+        Size(
+            winSize.width + hair * 10,
+            winSize.height + hair * 10,
+        ),
+        CornerRadius(hair * 4),
+    )
     val night = c.litWindows.isNotEmpty()
     drawRect(
         Brush.verticalGradient(
@@ -167,17 +175,65 @@ private fun DrawScope.drawVainiHome(
     )
     clipRect(winLeft, winTop, winLeft + winSize.width, winTop + winSize.height) {
         if (night) {
-            drawCircle(Moon, radius = winSize.height * 0.16f, center = Offset(winLeft + winSize.width * 0.7f, winTop + winSize.height * 0.3f))
+            drawCircle(
+                Moon,
+                radius = winSize.height * 0.16f,
+                center =
+                    Offset(
+                        winLeft + winSize.width * 0.7f,
+                        winTop + winSize.height * 0.3f,
+                    ),
+            )
             for ((sx, sy) in listOf(0.18f to 0.25f, 0.35f to 0.6f, 0.52f to 0.2f, 0.85f to 0.72f)) {
-                drawCircle(Moon.copy(alpha = 0.8f), radius = hair * 1.4f, center = Offset(winLeft + winSize.width * sx, winTop + winSize.height * sy))
+                drawCircle(
+                    Moon.copy(alpha = 0.8f),
+                    radius = hair * 1.4f,
+                    center =
+                        Offset(
+                            winLeft + winSize.width * sx,
+                            winTop + winSize.height * sy,
+                        ),
+                )
             }
         } else {
-            drawCircle(Color.White.copy(alpha = 0.7f), radius = winSize.height * 0.14f, center = Offset(winLeft + winSize.width * 0.3f, winTop + winSize.height * 0.45f))
-            drawCircle(Color.White.copy(alpha = 0.7f), radius = winSize.height * 0.11f, center = Offset(winLeft + winSize.width * 0.42f, winTop + winSize.height * 0.42f))
+            drawCircle(
+                Color.White.copy(alpha = 0.7f),
+                radius = winSize.height * 0.14f,
+                center =
+                    Offset(
+                        winLeft + winSize.width * 0.3f,
+                        winTop + winSize.height * 0.45f,
+                    ),
+            )
+            drawCircle(
+                Color.White.copy(alpha = 0.7f),
+                radius = winSize.height * 0.11f,
+                center =
+                    Offset(
+                        winLeft + winSize.width * 0.42f,
+                        winTop + winSize.height * 0.42f,
+                    ),
+            )
         }
     }
-    drawLine(c.windowFrame, Offset(winLeft + winSize.width / 2f, winTop), Offset(winLeft + winSize.width / 2f, winTop + winSize.height), strokeWidth = hair * 4)
-    drawRect(c.facadeShade, topLeft = Offset(winLeft - hair * 10, winTop + winSize.height + hair * 5), size = Size(winSize.width + hair * 20, hair * 6))
+    drawLine(
+        c.windowFrame,
+        Offset(winLeft + winSize.width / 2f, winTop),
+        Offset(
+            winLeft + winSize.width / 2f,
+            winTop + winSize.height,
+        ),
+        strokeWidth = hair * 4,
+    )
+    drawRect(
+        c.facadeShade,
+        topLeft = Offset(winLeft - hair * 10, winTop + winSize.height + hair * 5),
+        size =
+            Size(
+                winSize.width + hair * 20,
+                hair * 6,
+            ),
+    )
 
     // Lámpara de pie con su luz cálida.
     val lampX = w * 0.93f
@@ -192,7 +248,15 @@ private fun DrawScope.drawVainiHome(
     // Vaini junto a su mesa.
     val box = w * 0.3f
     withTransform({ translate(w * 0.27f - box / 2f, floor - box * 0.76f) }) {
-        drawVainiStanding(boxPx = box, paperColor = JarCream, accentColor = JarLime, inkColor = JarInk, blink = m.blink, happy = m.happy, lookX = 0.6f)
+        drawVainiStanding(
+            boxPx = box,
+            paperColor = JarCream,
+            accentColor = JarLime,
+            inkColor = JarInk,
+            blink = m.blink,
+            happy = m.happy,
+            lookX = 0.6f,
+        )
     }
 
     // Mesa.
@@ -201,7 +265,15 @@ private fun DrawScope.drawVainiHome(
     val tableW = w * 0.4f
     drawRoundRect(c.shopShelf, Offset(tableLeft, tableTop), Size(tableW, h * 0.012f), CornerRadius(hair * 3))
     for (lx in listOf(0.06f, 0.9f)) {
-        drawRect(c.pot, topLeft = Offset(tableLeft + tableW * lx, tableTop + h * 0.012f), size = Size(hair * 5, floor - tableTop - h * 0.012f))
+        drawRect(
+            c.pot,
+            topLeft = Offset(tableLeft + tableW * lx, tableTop + h * 0.012f),
+            size =
+                Size(
+                    hair * 5,
+                    floor - tableTop - h * 0.012f,
+                ),
+        )
     }
 
     // El frasco de tesoros: las monedas llegan hasta el nivel del saldo.
@@ -239,17 +311,53 @@ private fun DrawScope.drawVainiHome(
             drawOval(Coin, Offset(jarLeft + jarW / 2f + jarW * dx - coinW / 2f, cy), Size(coinW, coinW * 0.42f))
         }
     }
-    drawRoundRect(c.windowGlassLight.copy(alpha = 0.28f), Offset(jarLeft, jarTop), Size(jarW, jarH), CornerRadius(hair * 12))
-    drawRoundRect(Color.White.copy(alpha = 0.5f), Offset(jarLeft, jarTop), Size(jarW, jarH), CornerRadius(hair * 12), style = Stroke(hair * 2))
-    drawRoundRect(Color.White.copy(alpha = 0.35f), Offset(jarLeft + jarW * 0.1f, jarTop + jarH * 0.18f), Size(hair * 4, jarH * 0.5f), CornerRadius(hair * 2))
-    drawRoundRect(c.pot, Offset(jarLeft + jarW * 0.1f, jarTop - hair * 8), Size(jarW * 0.8f, hair * 10), CornerRadius(hair * 3))
+    drawRoundRect(
+        c.windowGlassLight.copy(alpha = 0.28f),
+        Offset(jarLeft, jarTop),
+        Size(jarW, jarH),
+        CornerRadius(
+            hair * 12,
+        ),
+    )
+    drawRoundRect(
+        Color.White.copy(alpha = 0.5f),
+        Offset(jarLeft, jarTop),
+        Size(jarW, jarH),
+        CornerRadius(hair * 12),
+        style =
+            Stroke(
+                hair * 2,
+            ),
+    )
+    drawRoundRect(
+        Color.White.copy(alpha = 0.35f),
+        Offset(jarLeft + jarW * 0.1f, jarTop + jarH * 0.18f),
+        Size(
+            hair * 4,
+            jarH * 0.5f,
+        ),
+        CornerRadius(hair * 2),
+    )
+    drawRoundRect(
+        c.pot,
+        Offset(jarLeft + jarW * 0.1f, jarTop - hair * 8),
+        Size(jarW * 0.8f, hair * 10),
+        CornerRadius(
+            hair * 3,
+        ),
+    )
 
     // Etiqueta de papel con el saldo.
     m.label?.let { label ->
         val text =
             textMeasurer.measure(
                 label,
-                TextStyle(color = JarInk, fontSize = (w * 0.045f / density / fontScale).sp, fontFamily = VaiinillaSerif, fontWeight = FontWeight.Bold),
+                TextStyle(
+                    color = JarInk,
+                    fontSize = (w * 0.045f / density / fontScale).sp,
+                    fontFamily = VaiinillaSerif,
+                    fontWeight = FontWeight.Bold,
+                ),
             )
         val tagW = text.size.width + hair * 16
         val tagH = text.size.height + hair * 6

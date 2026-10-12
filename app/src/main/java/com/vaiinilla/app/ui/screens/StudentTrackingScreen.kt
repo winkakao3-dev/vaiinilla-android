@@ -22,31 +22,30 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.windowInsetsTopHeight
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.foundation.border
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -69,6 +68,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -257,290 +257,291 @@ fun StudentTrackingScreen(
             VainiversoStoreBackdrop(sheetTop = sheetTop, cheering = cheering)
         }
         CompositionLocalProvider(LocalVaiinillaColors provides glassColors) {
-        PullToRefreshBox(
-            isRefreshing = false,
-            onRefresh = {
-                haptics.impact()
-                onRefresh()
-            },
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            AnimatedContent(
-                targetState = selected?.summary?.id,
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .offset {
-                            IntOffset(
-                                (detailBackShiftPx * detailBackSign * detailBackProgress).roundToInt(),
-                                0,
-                            )
-                        }.graphicsLayer {
-                            alpha = 1f - detailBackProgress * 0.12f
-                        },
-                transitionSpec = {
-                    if (reduceMotion) {
-                        fadeIn(animationSpec = tween(0)) togetherWith fadeOut(animationSpec = tween(0))
-                    } else if (targetState != null) {
-                        (
-                            slideInVertically(
-                                animationSpec = spring(dampingRatio = 0.82f, stiffness = 430f),
-                                initialOffsetY = { height -> height / 12 },
-                            ) +
-                                fadeIn(animationSpec = tween(durationMillis = 190)) +
-                                scaleIn(
-                                    initialScale = 0.985f,
-                                    animationSpec = spring(dampingRatio = 0.78f, stiffness = 520f),
-                                )
-                        ) togetherWith
-                            (
-                                slideOutVertically(
-                                    animationSpec = tween(durationMillis = 150),
-                                    targetOffsetY = { height -> -height / 22 },
-                                ) +
-                                    fadeOut(animationSpec = tween(durationMillis = 125)) +
-                                    scaleOut(targetScale = 0.992f, animationSpec = tween(durationMillis = 150))
-                            )
-                    } else {
-                        (
-                            slideInVertically(
-                                animationSpec = spring(dampingRatio = 0.84f, stiffness = 440f),
-                                initialOffsetY = { height -> -height / 18 },
-                            ) +
-                                fadeIn(animationSpec = tween(durationMillis = 190)) +
-                                scaleIn(
-                                    initialScale = 0.992f,
-                                    animationSpec = spring(dampingRatio = 0.8f, stiffness = 520f),
-                                )
-                        ) togetherWith
-                            (
-                                slideOutVertically(
-                                    animationSpec = tween(durationMillis = 145),
-                                    targetOffsetY = { height -> height / 14 },
-                                ) +
-                                    fadeOut(animationSpec = tween(durationMillis = 120)) +
-                                    scaleOut(targetScale = 0.985f, animationSpec = tween(durationMillis = 145))
-                            )
-                    }
+            PullToRefreshBox(
+                isRefreshing = false,
+                onRefresh = {
+                    haptics.impact()
+                    onRefresh()
                 },
-                label = "orders-overview-detail",
-            ) { animatedSelectedId ->
-                val animatedSelected =
-                    animatedSelectedId?.let { id ->
-                        state.orders.firstOrNull { it.summary.id == id }
-                            ?: selected?.takeIf { it.summary.id == id }
-                    }
-                val inOverview = animatedSelectedId == null
-                val detailListState = rememberLazyListState()
-                LazyColumn(
-                    state = if (inOverview) listState else detailListState,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                AnimatedContent(
+                    targetState = selected?.summary?.id,
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .then(if (inOverview) Modifier else Modifier.statusBarsPadding()),
-                    contentPadding =
-                        PaddingValues(
-                            start = 20.dp,
-                            end = 20.dp,
-                            top = if (inOverview) 0.dp else 18.dp,
-                            bottom = VaiinillaBottomNavClearance + 48.dp,
-                        ),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    if (inOverview) {
-                        // Ventana a la tienda: la hoja de vidrio empieza donde termina este hueco.
-                        item(key = "store-window") { Spacer(Modifier.height(windowDp)) }
-                    }
-                    item {
-                        Column {
-                            Text("Mis pedidos", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 28.sp)
-                            orderState.guestVenue?.establishment?.name?.let { venueName ->
-                                Text(
-                                    venueName,
-                                    color = colors.muted,
-                                    fontSize = 13.sp,
-                                    modifier = Modifier.padding(top = 2.dp),
+                            .offset {
+                                IntOffset(
+                                    (detailBackShiftPx * detailBackSign * detailBackProgress).roundToInt(),
+                                    0,
                                 )
+                            }.graphicsLayer {
+                                alpha = 1f - detailBackProgress * 0.12f
+                            },
+                    transitionSpec = {
+                        if (reduceMotion) {
+                            fadeIn(animationSpec = tween(0)) togetherWith fadeOut(animationSpec = tween(0))
+                        } else if (targetState != null) {
+                            (
+                                slideInVertically(
+                                    animationSpec = spring(dampingRatio = 0.82f, stiffness = 430f),
+                                    initialOffsetY = { height -> height / 12 },
+                                ) +
+                                    fadeIn(animationSpec = tween(durationMillis = 190)) +
+                                    scaleIn(
+                                        initialScale = 0.985f,
+                                        animationSpec = spring(dampingRatio = 0.78f, stiffness = 520f),
+                                    )
+                            ) togetherWith
+                                (
+                                    slideOutVertically(
+                                        animationSpec = tween(durationMillis = 150),
+                                        targetOffsetY = { height -> -height / 22 },
+                                    ) +
+                                        fadeOut(animationSpec = tween(durationMillis = 125)) +
+                                        scaleOut(targetScale = 0.992f, animationSpec = tween(durationMillis = 150))
+                                )
+                        } else {
+                            (
+                                slideInVertically(
+                                    animationSpec = spring(dampingRatio = 0.84f, stiffness = 440f),
+                                    initialOffsetY = { height -> -height / 18 },
+                                ) +
+                                    fadeIn(animationSpec = tween(durationMillis = 190)) +
+                                    scaleIn(
+                                        initialScale = 0.992f,
+                                        animationSpec = spring(dampingRatio = 0.8f, stiffness = 520f),
+                                    )
+                            ) togetherWith
+                                (
+                                    slideOutVertically(
+                                        animationSpec = tween(durationMillis = 145),
+                                        targetOffsetY = { height -> height / 14 },
+                                    ) +
+                                        fadeOut(animationSpec = tween(durationMillis = 120)) +
+                                        scaleOut(targetScale = 0.985f, animationSpec = tween(durationMillis = 145))
+                                )
+                        }
+                    },
+                    label = "orders-overview-detail",
+                ) { animatedSelectedId ->
+                    val animatedSelected =
+                        animatedSelectedId?.let { id ->
+                            state.orders.firstOrNull { it.summary.id == id }
+                                ?: selected?.takeIf { it.summary.id == id }
+                        }
+                    val inOverview = animatedSelectedId == null
+                    val detailListState = rememberLazyListState()
+                    LazyColumn(
+                        state = if (inOverview) listState else detailListState,
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .then(if (inOverview) Modifier else Modifier.statusBarsPadding()),
+                        contentPadding =
+                            PaddingValues(
+                                start = 20.dp,
+                                end = 20.dp,
+                                top = if (inOverview) 0.dp else 18.dp,
+                                bottom = VaiinillaBottomNavClearance + 48.dp,
+                            ),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        if (inOverview) {
+                            // Ventana a la tienda: la hoja de vidrio empieza donde termina este hueco.
+                            item(key = "store-window") { Spacer(Modifier.height(windowDp)) }
+                        }
+                        item {
+                            Column {
+                                Text("Mis pedidos", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 28.sp)
+                                orderState.guestVenue?.establishment?.name?.let { venueName ->
+                                    Text(
+                                        venueName,
+                                        color = colors.muted,
+                                        fontSize = 13.sp,
+                                        modifier = Modifier.padding(top = 2.dp),
+                                    )
+                                }
                             }
                         }
-                    }
-                    if (animatedSelected == null) {
-                        item(key = "shared-table") { sharedTable() }
-                    }
+                        if (animatedSelected == null) {
+                            item(key = "shared-table") { sharedTable() }
+                        }
 
-                    when {
-                        state.orders.isEmpty() && state.loading -> {
-                            items(3) { OrderTrackingSkeleton() }
-                        }
-                        state.orders.isEmpty() -> {
-                            item {
-                                EmptyState(
-                                    icon = Icons.Outlined.ReceiptLong,
-                                    title = "Sin pedidos activos",
-                                    message = "Cuando confirmes uno aparecerá aquí.",
-                                    actionLabel = "Pedir algo",
-                                    onAction = onOpenCatalog,
-                                )
+                        when {
+                            state.orders.isEmpty() && state.loading -> {
+                                items(3) { OrderTrackingSkeleton() }
                             }
-                        }
-                        animatedSelected != null -> {
-                            item(key = "selected-${animatedSelected.summary.id}") {
-                                SwipeToDeleteOrder(
-                                    orderFolio = animatedSelected.summary.folio.toString(),
-                                    onDelete = { onDeleteOrder(animatedSelected.summary.id) },
-                                ) {
-                                    OrderTrackingCard(
-                                        order = animatedSelected,
-                                        showEyebrow = true,
-                                        leadingImageUrl =
-                                            if (animatedSelected.isRental) {
-                                                null
-                                            } else {
-                                                itemImageUrls(animatedSelected, orderState.catalog)
-                                                    .firstOrNull { it != null }
-                                            },
-                                    )
-                                }
-                            }
-                            if (animatedSelected.canAnnounceArrival(
-                                    orderState.operationalStatus?.isDriveThru == true,
-                                )
-                            ) {
+                            state.orders.isEmpty() -> {
                                 item {
-                                    ArrivalNotice(
-                                        order = animatedSelected,
-                                        enabled = !state.acting,
-                                        onAnnounce = { onAnnounceArrival(animatedSelected.summary.id) },
+                                    EmptyState(
+                                        icon = Icons.Outlined.ReceiptLong,
+                                        title = "Sin pedidos activos",
+                                        message = "Cuando confirmes uno aparecerá aquí.",
+                                        actionLabel = "Pedir algo",
+                                        onAction = onOpenCatalog,
                                     )
                                 }
                             }
-                            item {
-                                TrackingSectionHead()
-                            }
-                            if (animatedSelected.isRental) {
-                                item { RentalTrackingTimeline(order = animatedSelected) }
-                            } else {
-                                item {
-                                    OrderTrackingTimeline(
-                                        current = animatedSelected.summary.state,
-                                        destination = animatedSelected.summary.destination,
-                                        paymentMethod = animatedSelected.summary.paymentMethod,
-                                        paymentStatus = animatedSelected.payment?.status,
-                                        spaceType = animatedSelected.summary.space?.type,
-                                        payAtEnd = animatedSelected.summary.payAtEnd,
-                                        skipsKitchen = animatedSelected.skipsKitchen,
-                                    )
-                                }
-                            }
-                            if (animatedSelected.summary.state == OrderState.CANCELED) {
-                                item { CancelReasonCard(animatedSelected) }
-                            }
-                            if (
-                                animatedSelected.summary.state == OrderState.READY &&
-                                animatedSelected.needsPickupQr(
-                                    orderState.operationalStatus?.deliveryRequiresQr != false,
-                                )
-                            ) {
-                                item { PickupCodeCard(animatedSelected) }
-                            }
-                            item {
-                                Text("Resumen", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
-                            }
-                            item {
-                                OrderDetailSummary(order = animatedSelected)
-                            }
-                            item {
-                                Button(
-                                    onClick = onViewReceipt,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape =
-                                        androidx.compose.foundation.shape
-                                            .RoundedCornerShape(18.dp),
-                                    colors =
-                                        ButtonDefaults.buttonColors(
-                                            containerColor = colors.paper2,
-                                            contentColor = colors.ink,
-                                        ),
-                                ) {
-                                    Text("Ver recibo", fontWeight = FontWeight.Black)
-                                }
-                            }
-                        }
-                        else -> {
-                            val activeOrders = state.orders.filter { it.isActiveForCustomer }
-                            val pastOrders = state.orders.filterNot { it.isActiveForCustomer }
-                            if (activeOrders.isNotEmpty()) {
-                                item(key = "section-active") { OrdersSectionLabel("EN CURSO") }
-                                itemsIndexed(activeOrders, key = { _, o -> o.summary.id }) { index, order ->
+                            animatedSelected != null -> {
+                                item(key = "selected-${animatedSelected.summary.id}") {
                                     SwipeToDeleteOrder(
-                                        orderFolio = order.summary.folio.toString(),
-                                        onDelete = { onDeleteOrder(order.summary.id) },
+                                        orderFolio = animatedSelected.summary.folio.toString(),
+                                        onDelete = { onDeleteOrder(animatedSelected.summary.id) },
                                     ) {
-                                        ActiveOrderCard(
-                                            order = order,
+                                        OrderTrackingCard(
+                                            order = animatedSelected,
+                                            showEyebrow = true,
                                             leadingImageUrl =
-                                                if (order.isRental) {
+                                                if (animatedSelected.isRental) {
                                                     null
                                                 } else {
-                                                    itemImageUrls(order, orderState.catalog)
+                                                    itemImageUrls(animatedSelected, orderState.catalog)
                                                         .firstOrNull { it != null }
                                                 },
-                                            onOpenFull = { onSelectOrder(order.summary.id) },
-                                            showArrival =
-                                                order.canAnnounceArrival(
-                                                    orderState.operationalStatus?.isDriveThru == true,
-                                                ),
-                                            arrivalEnabled = !state.acting,
-                                            onAnnounceArrival = { onAnnounceArrival(order.summary.id) },
-                                            deliveryRequiresQr =
-                                                orderState.operationalStatus?.deliveryRequiresQr != false,
-                                            canCallWaiter = canCallWaiter,
-                                            onCurrentWaiterCall = onCurrentWaiterCall,
-                                            onCallWaiter = onCallWaiter,
-                                            onCancelWaiter = onCancelWaiter,
                                         )
                                     }
-                                    if (index == 0) {
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        WaitingArcadeCard()
+                                }
+                                if (animatedSelected.canAnnounceArrival(
+                                        orderState.operationalStatus?.isDriveThru == true,
+                                    )
+                                ) {
+                                    item {
+                                        ArrivalNotice(
+                                            order = animatedSelected,
+                                            enabled = !state.acting,
+                                            onAnnounce = { onAnnounceArrival(animatedSelected.summary.id) },
+                                        )
+                                    }
+                                }
+                                item {
+                                    TrackingSectionHead()
+                                }
+                                if (animatedSelected.isRental) {
+                                    item { RentalTrackingTimeline(order = animatedSelected) }
+                                } else {
+                                    item {
+                                        OrderTrackingTimeline(
+                                            current = animatedSelected.summary.state,
+                                            destination = animatedSelected.summary.destination,
+                                            paymentMethod = animatedSelected.summary.paymentMethod,
+                                            paymentStatus = animatedSelected.payment?.status,
+                                            spaceType = animatedSelected.summary.space?.type,
+                                            payAtEnd = animatedSelected.summary.payAtEnd,
+                                            skipsKitchen = animatedSelected.skipsKitchen,
+                                        )
+                                    }
+                                }
+                                if (animatedSelected.summary.state == OrderState.CANCELED) {
+                                    item { CancelReasonCard(animatedSelected) }
+                                }
+                                if (
+                                    animatedSelected.summary.state == OrderState.READY &&
+                                    animatedSelected.needsPickupQr(
+                                        orderState.operationalStatus?.deliveryRequiresQr != false,
+                                    )
+                                ) {
+                                    item { PickupCodeCard(animatedSelected) }
+                                }
+                                item {
+                                    Text("Resumen", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                                }
+                                item {
+                                    OrderDetailSummary(order = animatedSelected)
+                                }
+                                item {
+                                    Button(
+                                        onClick = onViewReceipt,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape =
+                                            androidx.compose.foundation.shape
+                                                .RoundedCornerShape(18.dp),
+                                        colors =
+                                            ButtonDefaults.buttonColors(
+                                                containerColor = colors.paper2,
+                                                contentColor = colors.ink,
+                                            ),
+                                    ) {
+                                        Text("Ver recibo", fontWeight = FontWeight.Black)
                                     }
                                 }
                             }
-                            if (pastOrders.isNotEmpty()) {
-                                val pastEntries = groupOrdersBySession(pastOrders)
-                                val pastRow: @Composable (OrderDetail) -> Unit = { order ->
-                                    SwipeToDeleteOrder(
-                                        orderFolio = order.summary.folio.toString(),
-                                        onDelete = { onDeleteOrder(order.summary.id) },
-                                    ) {
-                                        PastOrderRow(
-                                            order = order,
-                                            imageUrls = itemImageUrls(order, orderState.catalog),
-                                            onClick = { onSelectOrder(order.summary.id) },
-                                        )
-                                    }
-                                }
-                                item(key = "section-past") { OrdersSectionLabel("ANTERIORES") }
-                                items(pastEntries.take(3), key = { it.key }) { entry ->
-                                    PastEntryContent(entry, pastRow)
-                                }
-                                if (showAllPast) {
-                                    items(pastEntries.drop(3), key = { it.key }) { entry ->
-                                        Box(modifier = Modifier.animateItem()) {
-                                            PastEntryContent(entry, pastRow)
+                            else -> {
+                                val activeOrders = state.orders.filter { it.isActiveForCustomer }
+                                val pastOrders = state.orders.filterNot { it.isActiveForCustomer }
+                                if (activeOrders.isNotEmpty()) {
+                                    item(key = "section-active") { OrdersSectionLabel("EN CURSO") }
+                                    itemsIndexed(activeOrders, key = { _, o -> o.summary.id }) { index, order ->
+                                        SwipeToDeleteOrder(
+                                            orderFolio = order.summary.folio.toString(),
+                                            onDelete = { onDeleteOrder(order.summary.id) },
+                                        ) {
+                                            ActiveOrderCard(
+                                                order = order,
+                                                leadingImageUrl =
+                                                    if (order.isRental) {
+                                                        null
+                                                    } else {
+                                                        itemImageUrls(order, orderState.catalog)
+                                                            .firstOrNull { it != null }
+                                                    },
+                                                onOpenFull = { onSelectOrder(order.summary.id) },
+                                                showArrival =
+                                                    order.canAnnounceArrival(
+                                                        orderState.operationalStatus?.isDriveThru == true,
+                                                    ),
+                                                arrivalEnabled = !state.acting,
+                                                onAnnounceArrival = { onAnnounceArrival(order.summary.id) },
+                                                deliveryRequiresQr =
+                                                    orderState.operationalStatus?.deliveryRequiresQr != false,
+                                                canCallWaiter = canCallWaiter,
+                                                onCurrentWaiterCall = onCurrentWaiterCall,
+                                                onCallWaiter = onCallWaiter,
+                                                onCancelWaiter = onCancelWaiter,
+                                            )
+                                        }
+                                        if (index == 0) {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            WaitingArcadeCard()
                                         }
                                     }
                                 }
-                                if (pastEntries.size > 3) {
-                                    item(key = "section-past-more") {
-                                        ShowMorePastOrdersButton(
-                                            hiddenCount = pastEntries.size - 3,
-                                            expanded = showAllPast,
-                                            onClick = {
-                                                haptics.impact()
-                                                showAllPast = !showAllPast
-                                            },
-                                        )
+                                if (pastOrders.isNotEmpty()) {
+                                    val pastEntries = groupOrdersBySession(pastOrders)
+                                    val pastRow: @Composable (OrderDetail) -> Unit = { order ->
+                                        SwipeToDeleteOrder(
+                                            orderFolio = order.summary.folio.toString(),
+                                            onDelete = { onDeleteOrder(order.summary.id) },
+                                        ) {
+                                            PastOrderRow(
+                                                order = order,
+                                                imageUrls = itemImageUrls(order, orderState.catalog),
+                                                onClick = { onSelectOrder(order.summary.id) },
+                                            )
+                                        }
+                                    }
+                                    item(key = "section-past") { OrdersSectionLabel("ANTERIORES") }
+                                    items(pastEntries.take(3), key = { it.key }) { entry ->
+                                        PastEntryContent(entry, pastRow)
+                                    }
+                                    if (showAllPast) {
+                                        items(pastEntries.drop(3), key = { it.key }) { entry ->
+                                            Box(modifier = Modifier.animateItem()) {
+                                                PastEntryContent(entry, pastRow)
+                                            }
+                                        }
+                                    }
+                                    if (pastEntries.size > 3) {
+                                        item(key = "section-past-more") {
+                                            ShowMorePastOrdersButton(
+                                                hiddenCount = pastEntries.size - 3,
+                                                expanded = showAllPast,
+                                                onClick = {
+                                                    haptics.impact()
+                                                    showAllPast = !showAllPast
+                                                },
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -548,7 +549,6 @@ fun StudentTrackingScreen(
                     }
                 }
             }
-        }
         }
         // Cuando la hoja llega arriba, la barra de estado queda sobre vidrio y no sobre el texto.
         Box(
@@ -1696,7 +1696,10 @@ private fun TableSessionCard(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
-            "${session.orders.first().summary.space?.name ?: "Mesa"} · " +
+            "${session.orders
+                .first()
+                .summary.space
+                ?.name ?: "Mesa"} · " +
                 "$count ${if (count == 1) "pedido" else "pedidos"}",
             color = colors.ink,
             fontWeight = FontWeight.Black,
@@ -1782,7 +1785,13 @@ private fun PastOrderRow(
         }
         Spacer(Modifier.width(10.dp))
         Column(horizontalAlignment = Alignment.End) {
-            Text(moneyLabel(summary.total), color = colors.ink, fontSize = 15.sp, fontWeight = FontWeight.Black, maxLines = 1)
+            Text(
+                moneyLabel(summary.total),
+                color = colors.ink,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+            )
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 3.dp)) {
                 Box(
                     Modifier
@@ -1790,7 +1799,13 @@ private fun PastOrderRow(
                         .background(stateDot, CircleShape),
                 )
                 Spacer(Modifier.width(5.dp))
-                Text(customerStateLabel(order), color = colors.muted, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(
+                    customerStateLabel(order),
+                    color = colors.muted,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                )
             }
         }
     }

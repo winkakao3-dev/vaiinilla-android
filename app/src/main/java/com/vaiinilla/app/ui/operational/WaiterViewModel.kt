@@ -5,8 +5,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
-import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.CartLine
+import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.OrderOrigin
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationAccess
@@ -282,10 +282,6 @@ class WaiterViewModel
             }
         }
 
-        /**
-         * Renta de mostrador de una cancha con precio: se aparta ([start] null = ahora; o el fin del
-         * turno para renovar) y se abre el cobro en efectivo. La renta se paga primero.
-         */
         /** Abre la hoja de pedido de mostrador; el catálogo se carga la primera vez. */
         fun openCounterOrder() {
             _uiState.value = _uiState.value.copy(counterOrderOpen = true, counterOrderError = null)
@@ -411,10 +407,10 @@ class WaiterViewModel
             _uiState.value = _uiState.value.copy(pendingRental = null)
             viewModelScope.launch(Dispatchers.IO) {
                 reservationRepository.cancel(
-                        access = ReservationAccess.Account,
-                        reservationId = reservation.id,
-                        idempotencyKey = UUID.randomUUID().toString(),
-                    )
+                    access = ReservationAccess.Account,
+                    reservationId = reservation.id,
+                    idempotencyKey = UUID.randomUUID().toString(),
+                )
             }
         }
 

@@ -38,7 +38,10 @@ class PickupJourneyPolicyTest {
         assertFalse(pickupCodeUseful(order(OrderState.READY, toSpace = true), deliveryRequiresQr = false))
         assertTrue(pickupCodeUseful(order(OrderState.READY, toSpace = true), deliveryRequiresQr = true))
         assertTrue(
-            pickupCodeUseful(order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH, toSpace = true), deliveryRequiresQr = false),
+            pickupCodeUseful(
+                order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH, toSpace = true),
+                deliveryRequiresQr = false,
+            ),
         )
     }
 

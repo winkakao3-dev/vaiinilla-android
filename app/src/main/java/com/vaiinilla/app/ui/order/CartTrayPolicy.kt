@@ -17,17 +17,50 @@ internal const val TRAY_MAX_ITEMS = 6
 
 private val drinkWords =
     listOf(
-        "cafe", "americano", "latte", "capuchino", "cappuccino", "espresso", "chocolate", "te", "tea", "matcha",
-        "chai", "agua", "jugo", "refresco", "soda", "frappe", "smoothie", "malteada", "limonada", "naranjada", "bebida",
+        "cafe",
+        "americano",
+        "latte",
+        "capuchino",
+        "cappuccino",
+        "espresso",
+        "chocolate",
+        "te",
+        "tea",
+        "matcha",
+        "chai",
+        "agua",
+        "jugo",
+        "refresco",
+        "soda",
+        "frappe",
+        "smoothie",
+        "malteada",
+        "limonada",
+        "naranjada",
+        "bebida",
     )
 private val pastryWords =
-    listOf("galletas?", "pan", "croissant", "cuernito", "donas?", "muffin", "pastel", "brownie", "concha", "panque", "rol", "cookies?")
+    listOf(
+        "galletas?",
+        "pan",
+        "croissant",
+        "cuernito",
+        "donas?",
+        "muffin",
+        "pastel",
+        "brownie",
+        "concha",
+        "panque",
+        "rol",
+        "cookies?",
+    )
 
 private fun String.plain(): String =
     Normalizer.normalize(lowercase(), Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "")
 
 internal fun trayItemKind(productName: String): TrayItemKind {
     val name = productName.plain()
+
     fun List<String>.matches() = any { Regex("\\b$it\\b").containsMatchIn(name) }
     // El pan va antes: "galleta de chocolate" es galleta, no bebida.
     return when {
@@ -39,5 +72,6 @@ internal fun trayItemKind(productName: String): TrayItemKind {
 
 internal fun traySlots(lines: List<CartLine>): List<TraySlot> =
     lines
-        .flatMap { line -> List(line.quantity.coerceAtLeast(0)) { i -> TraySlot("${line.key}#$i", trayItemKind(line.product.name)) } }
-        .take(TRAY_MAX_ITEMS)
+        .flatMap { line ->
+            List(line.quantity.coerceAtLeast(0)) { i -> TraySlot("${line.key}#$i", trayItemKind(line.product.name)) }
+        }.take(TRAY_MAX_ITEMS)

@@ -222,7 +222,18 @@ private fun DrawScope.drawCounter(
             center = Offset(x, shadeY + hair * 6),
         )
         drawLine(c.signInk, Offset(x, 0f), Offset(x, shadeY), strokeWidth = hair)
-        drawArc(c.signInk, 180f, 180f, true, topLeft = Offset(x - w * 0.045f, shadeY - hair * 2), size = Size(w * 0.09f, w * 0.06f))
+        drawArc(
+            c.signInk,
+            180f,
+            180f,
+            true,
+            topLeft = Offset(x - w * 0.045f, shadeY - hair * 2),
+            size =
+                Size(
+                    w * 0.09f,
+                    w * 0.06f,
+                ),
+        )
         drawCircle(c.windowLit, radius = hair * 3.5f, center = Offset(x, shadeY + w * 0.028f))
     }
 
@@ -233,34 +244,91 @@ private fun DrawScope.drawCounter(
     for (bx in listOf(0.03f, 0.23f)) {
         drawRect(c.facadeShade, topLeft = Offset(shelfX + w * bx, shelfY + hair * 5), size = Size(hair * 3, hair * 10))
     }
+
     fun jar(
         cx: Float,
         fill: Color,
     ) {
         val jw = w * 0.07f
         val jh = w * 0.085f
-        drawRoundRect(c.windowGlassLight.copy(alpha = 0.75f), Offset(cx - jw / 2f, shelfY - jh), Size(jw, jh), CornerRadius(hair * 5))
-        drawRoundRect(fill, Offset(cx - jw / 2f + hair * 2, shelfY - jh * 0.55f), Size(jw - hair * 4, jh * 0.55f - hair * 2), CornerRadius(hair * 4))
-        drawRoundRect(c.pot, Offset(cx - jw * 0.42f, shelfY - jh - hair * 4), Size(jw * 0.84f, hair * 5), CornerRadius(hair * 2))
+        drawRoundRect(
+            c.windowGlassLight.copy(alpha = 0.75f),
+            Offset(cx - jw / 2f, shelfY - jh),
+            Size(jw, jh),
+            CornerRadius(
+                hair * 5,
+            ),
+        )
+        drawRoundRect(
+            fill,
+            Offset(cx - jw / 2f + hair * 2, shelfY - jh * 0.55f),
+            Size(
+                jw - hair * 4,
+                jh * 0.55f - hair * 2,
+            ),
+            CornerRadius(hair * 4),
+        )
+        drawRoundRect(
+            c.pot,
+            Offset(cx - jw * 0.42f, shelfY - jh - hair * 4),
+            Size(jw * 0.84f, hair * 5),
+            CornerRadius(
+                hair * 2,
+            ),
+        )
     }
     jar(shelfX + w * 0.03f, CookieDough)
-    drawRoundRect(CounterCream, Offset(shelfX + w * 0.085f, shelfY - w * 0.05f), Size(w * 0.05f, w * 0.05f), CornerRadius(hair * 3))
-    drawRoundRect(CounterLime, Offset(shelfX + w * 0.145f, shelfY - w * 0.05f), Size(w * 0.05f, w * 0.05f), CornerRadius(hair * 3))
+    drawRoundRect(
+        CounterCream,
+        Offset(shelfX + w * 0.085f, shelfY - w * 0.05f),
+        Size(w * 0.05f, w * 0.05f),
+        CornerRadius(
+            hair * 3,
+        ),
+    )
+    drawRoundRect(
+        CounterLime,
+        Offset(shelfX + w * 0.145f, shelfY - w * 0.05f),
+        Size(w * 0.05f, w * 0.05f),
+        CornerRadius(
+            hair * 3,
+        ),
+    )
     jar(shelfX + w * 0.24f, CookieChip.copy(alpha = 0.85f))
 
     // Pizarra: el total del carrito escrito con gis.
     val boardLeft = w * 0.56f
     val boardTop = h * 0.105f
     val boardSize = Size(w * 0.37f, h * 0.115f)
-    drawRoundRect(c.shopShelf, Offset(boardLeft - hair * 4, boardTop - hair * 4), Size(boardSize.width + hair * 8, boardSize.height + hair * 8), CornerRadius(hair * 6))
+    drawRoundRect(
+        c.shopShelf,
+        Offset(boardLeft - hair * 4, boardTop - hair * 4),
+        Size(
+            boardSize.width + hair * 8,
+            boardSize.height + hair * 8,
+        ),
+        CornerRadius(hair * 6),
+    )
     drawRoundRect(c.signInk, Offset(boardLeft, boardTop), boardSize, CornerRadius(hair * 3))
     val chalk = c.signText
     val small =
         textMeasurer.measure(
             "TU BANDEJA",
-            TextStyle(color = chalk.copy(alpha = 0.75f), fontSize = (w * 0.03f / density / fontScale).sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp),
+            TextStyle(
+                color = chalk.copy(alpha = 0.75f),
+                fontSize = (w * 0.03f / density / fontScale).sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.5.sp,
+            ),
         )
-    drawText(small, topLeft = Offset(boardLeft + (boardSize.width - small.size.width) / 2f, boardTop + boardSize.height * 0.14f))
+    drawText(
+        small,
+        topLeft =
+            Offset(
+                boardLeft + (boardSize.width - small.size.width) / 2f,
+                boardTop + boardSize.height * 0.14f,
+            ),
+    )
     val big =
         textMeasurer.measure(
             m.total ?: "vacía",
@@ -271,8 +339,24 @@ private fun DrawScope.drawCounter(
                 fontWeight = FontWeight.Bold,
             ),
         )
-    drawText(big, topLeft = Offset(boardLeft + (boardSize.width - big.size.width) / 2f, boardTop + boardSize.height * 0.38f))
-    drawLine(chalk.copy(alpha = 0.35f), Offset(boardLeft + boardSize.width * 0.2f, boardTop + boardSize.height * 0.88f), Offset(boardLeft + boardSize.width * 0.8f, boardTop + boardSize.height * 0.88f), strokeWidth = hair * 1.5f, cap = StrokeCap.Round)
+    drawText(
+        big,
+        topLeft =
+            Offset(
+                boardLeft + (boardSize.width - big.size.width) / 2f,
+                boardTop + boardSize.height * 0.38f,
+            ),
+    )
+    drawLine(
+        chalk.copy(alpha = 0.35f),
+        Offset(boardLeft + boardSize.width * 0.2f, boardTop + boardSize.height * 0.88f),
+        Offset(
+            boardLeft + boardSize.width * 0.8f,
+            boardTop + boardSize.height * 0.88f,
+        ),
+        strokeWidth = hair * 1.5f,
+        cap = StrokeCap.Round,
+    )
 
     // Vaini detrás del mostrador: asoma de la cintura para arriba y el mostrador le tapa las piernas.
     // Vaini a la izquierda y la bandeja a su derecha, bajo la pizarra: así lo que pides no le tapa la cara.
@@ -294,7 +378,12 @@ private fun DrawScope.drawCounter(
         val q =
             textMeasurer.measure(
                 "?",
-                TextStyle(color = CounterLime, fontSize = (w * 0.09f / density / fontScale).sp, fontFamily = VaiinillaSerif, fontWeight = FontWeight.Bold),
+                TextStyle(
+                    color = CounterLime,
+                    fontSize = (w * 0.09f / density / fontScale).sp,
+                    fontFamily = VaiinillaSerif,
+                    fontWeight = FontWeight.Bold,
+                ),
             )
         val qy = vainiTop + box * 0.05f - m.questionBob * hair * 6
         drawText(q, topLeft = Offset(vainiX + box * 0.42f, qy))
@@ -303,11 +392,31 @@ private fun DrawScope.drawCounter(
     // Mostrador: cubierta de madera y frente a rayas lima, como el toldo de la tienda.
     val frontTop = counterTop + h * 0.012f
     drawRect(c.shopShelf, topLeft = Offset(0f, counterTop - h * 0.004f), size = Size(w, h * 0.016f))
-    drawLine(Color.White.copy(alpha = 0.25f), Offset(0f, counterTop - h * 0.004f), Offset(w, counterTop - h * 0.004f), strokeWidth = hair * 1.5f)
+    drawLine(
+        Color.White.copy(alpha = 0.25f),
+        Offset(0f, counterTop - h * 0.004f),
+        Offset(w, counterTop - h * 0.004f),
+        strokeWidth =
+            hair * 1.5f,
+    )
     val stripes = 16
     val stripe = w / stripes
     for (i in 0 until stripes) {
-        drawRect(if (i % 2 == 0) c.awning else c.awningDark, topLeft = Offset(i * stripe, frontTop), size = Size(stripe + 0.5f, h * COUNTER_BOTTOM_Y - frontTop))
+        drawRect(
+            if (i % 2 ==
+                0
+            ) {
+                c.awning
+            } else {
+                c.awningDark
+            },
+            topLeft = Offset(i * stripe, frontTop),
+            size =
+                Size(
+                    stripe + 0.5f,
+                    h * COUNTER_BOTTOM_Y - frontTop,
+                ),
+        )
     }
     drawRect(Color(0x26000000), topLeft = Offset(0f, frontTop), size = Size(w, hair * 3))
     drawRect(c.doorGreen, topLeft = Offset(0f, h * COUNTER_BOTTOM_Y - h * 0.01f), size = Size(w, h * 0.01f))
@@ -317,9 +426,24 @@ private fun DrawScope.drawCounter(
     val trayX = w * 0.71f
     val trayH = h * 0.012f
     val trayTop = counterTop - trayH
-    drawRoundRect(Color(0x33000000), Offset(trayX - trayW / 2f + hair * 2, trayTop + hair * 3), Size(trayW, trayH), CornerRadius(trayH / 2f))
+    drawRoundRect(
+        Color(0x33000000),
+        Offset(trayX - trayW / 2f + hair * 2, trayTop + hair * 3),
+        Size(trayW, trayH),
+        CornerRadius(
+            trayH / 2f,
+        ),
+    )
     drawRoundRect(c.pot, Offset(trayX - trayW / 2f, trayTop), Size(trayW, trayH), CornerRadius(trayH / 2f))
-    drawLine(Color.White.copy(alpha = 0.22f), Offset(trayX - trayW / 2f + trayH, trayTop + hair), Offset(trayX + trayW / 2f - trayH, trayTop + hair), strokeWidth = hair)
+    drawLine(
+        Color.White.copy(alpha = 0.22f),
+        Offset(trayX - trayW / 2f + trayH, trayTop + hair),
+        Offset(
+            trayX + trayW / 2f - trayH,
+            trayTop + hair,
+        ),
+        strokeWidth = hair,
+    )
     val unit = w * 0.088f
     val n = m.items.size
     val spacing = minOf(w * 0.092f, (trayW - unit) / (n - 1).coerceAtLeast(1))
@@ -328,7 +452,14 @@ private fun DrawScope.drawCounter(
         val cx = trayX + (i - (n - 1) / 2f) * spacing
         val base = trayTop - (1f - drop) * h * 0.16f
         val landed = (drop - 0.85f).coerceAtLeast(0f) / 0.15f
-        drawOval(Color(0x2A000000).copy(alpha = 0.16f * landed), Offset(cx - unit * 0.4f, trayTop - hair * 2), Size(unit * 0.8f, hair * 4))
+        drawOval(
+            Color(0x2A000000).copy(alpha = 0.16f * landed),
+            Offset(cx - unit * 0.4f, trayTop - hair * 2),
+            Size(
+                unit * 0.8f,
+                hair * 4,
+            ),
+        )
         drawTrayItem(kind, cx, base, unit, alpha = (drop * 3f).coerceIn(0f, 1f))
     }
 }
@@ -353,23 +484,73 @@ internal fun DrawScope.drawTrayItem(
                     close()
                 }
             drawPath(cup, CounterCream, alpha = alpha)
-            drawRect(CounterLime, topLeft = Offset(cx - u * 0.3f, top + u * 0.42f), size = Size(u * 0.6f, u * 0.26f), alpha = alpha)
-            drawRoundRect(CupLid, Offset(cx - u * 0.39f, top), Size(u * 0.78f, u * 0.14f), CornerRadius(hair * 2), alpha = alpha)
-            drawLine(CounterLime, Offset(cx + u * 0.06f, top), Offset(cx + u * 0.2f, top - u * 0.32f), strokeWidth = hair * 3, cap = StrokeCap.Round, alpha = alpha)
+            drawRect(
+                CounterLime,
+                topLeft = Offset(cx - u * 0.3f, top + u * 0.42f),
+                size = Size(u * 0.6f, u * 0.26f),
+                alpha = alpha,
+            )
+            drawRoundRect(
+                CupLid,
+                Offset(cx - u * 0.39f, top),
+                Size(u * 0.78f, u * 0.14f),
+                CornerRadius(hair * 2),
+                alpha = alpha,
+            )
+            drawLine(
+                CounterLime,
+                Offset(cx + u * 0.06f, top),
+                Offset(cx + u * 0.2f, top - u * 0.32f),
+                strokeWidth =
+                    hair * 3,
+                cap = StrokeCap.Round,
+                alpha = alpha,
+            )
         }
         TrayItemKind.PASTRY -> {
             val r = u * 0.38f
             val center = Offset(cx, base - r)
             drawCircle(CookieDough, radius = r, center = center, alpha = alpha)
-            drawCircle(Color.Black.copy(alpha = 0.08f), radius = r, center = center + Offset(0f, hair * 2), alpha = alpha, style = Stroke(hair * 2))
-            for ((dx, dy) in listOf(-0.15f to -0.12f, 0.14f to -0.18f, 0.02f to 0.1f, -0.18f to 0.16f, 0.18f to 0.12f)) {
+            drawCircle(
+                Color.Black.copy(alpha = 0.08f),
+                radius = r,
+                center = center + Offset(0f, hair * 2),
+                alpha = alpha,
+                style =
+                    Stroke(
+                        hair * 2,
+                    ),
+            )
+            for ((dx, dy) in listOf(
+                -0.15f to -0.12f,
+                0.14f to -0.18f,
+                0.02f to 0.1f,
+                -0.18f to 0.16f,
+                0.18f to 0.12f,
+            )) {
                 drawCircle(CookieChip, radius = u * 0.05f, center = center + Offset(dx * u, dy * u), alpha = alpha)
             }
         }
         TrayItemKind.PLATE -> {
             val plateH = u * 0.2f
-            drawArc(PlateFood, 180f, 180f, true, Offset(cx - u * 0.34f, base - plateH * 0.6f - u * 0.34f), Size(u * 0.68f, u * 0.68f), alpha = alpha)
-            drawCircle(PlateLeaf, radius = u * 0.07f, center = Offset(cx + u * 0.08f, base - plateH * 0.6f - u * 0.3f), alpha = alpha)
+            drawArc(
+                PlateFood,
+                180f,
+                180f,
+                true,
+                Offset(cx - u * 0.34f, base - plateH * 0.6f - u * 0.34f),
+                Size(
+                    u * 0.68f,
+                    u * 0.68f,
+                ),
+                alpha = alpha,
+            )
+            drawCircle(
+                PlateLeaf,
+                radius = u * 0.07f,
+                center = Offset(cx + u * 0.08f, base - plateH * 0.6f - u * 0.3f),
+                alpha = alpha,
+            )
             drawOval(PlateRim, Offset(cx - u * 0.5f, base - plateH), Size(u, plateH), alpha = alpha)
         }
     }

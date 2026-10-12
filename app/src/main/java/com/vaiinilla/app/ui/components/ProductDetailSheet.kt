@@ -17,17 +17,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.runtime.CompositionLocalProvider
-import com.vaiinilla.app.ui.order.trayItemKind
-import com.vaiinilla.app.ui.screens.LocalScene
-import com.vaiinilla.app.ui.screens.ProductIllustration
-import com.vaiinilla.app.ui.screens.ProductPhotoShadow
-import com.vaiinilla.app.ui.screens.glassEdge
-import com.vaiinilla.app.ui.screens.productTone
-import com.vaiinilla.app.ui.screens.TagCream
-import com.vaiinilla.app.ui.screens.TagInk
-import com.vaiinilla.app.ui.screens.TagLime
-import com.vaiinilla.app.ui.screens.scenePaletteForTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -71,6 +60,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -110,6 +100,16 @@ import com.vaiinilla.app.domain.model.CART_LINE_NOTE_MAX
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.ProductOption
+import com.vaiinilla.app.ui.order.trayItemKind
+import com.vaiinilla.app.ui.screens.LocalScene
+import com.vaiinilla.app.ui.screens.ProductIllustration
+import com.vaiinilla.app.ui.screens.ProductPhotoShadow
+import com.vaiinilla.app.ui.screens.TagCream
+import com.vaiinilla.app.ui.screens.TagInk
+import com.vaiinilla.app.ui.screens.TagLime
+import com.vaiinilla.app.ui.screens.glassEdge
+import com.vaiinilla.app.ui.screens.productTone
+import com.vaiinilla.app.ui.screens.scenePaletteForTheme
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -321,118 +321,118 @@ fun ProductDetailSheet(
             ) {
                 // Detrás del vidrio, la misma foto muy desenfocada ilumina la parte de arriba de la hoja.
                 CompositionLocalProvider(LocalScene provides scene, LocalVaiinillaColors provides colors) {
-                ProductPhotoShadow(
-                    product = product,
-                    tone = tone,
-                    shape = RoundedCornerShape(28.dp),
-                    modifier = Modifier.fillMaxWidth().height(330.dp),
-                    blur = 60.dp,
-                    drop = 40.dp,
-                    inset = 0.dp,
-                    strength = if (colors.isDark) 0.42f else 0.32f,
-                )
-                Column(modifier = Modifier.fillMaxSize()) {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.weight(1f).testTag("product-detail-scroll"),
-                        contentPadding =
-                            androidx.compose.foundation.layout
-                                .PaddingValues(bottom = 24.dp),
-                    ) {
-                        item {
-                            ProductHero(
-                                product = product,
-                                previewPrice = previewPrice,
-                                customized = isCustomized,
-                                onDismiss = ::requestDismiss,
-                            )
-                        }
-                        item {
-                            Column(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 20.dp, vertical = 18.dp),
-                            ) {
-                                Text(
-                                    text = categoryName.uppercase(),
-                                    color = colors.muted,
-                                    fontSize = 13.sp,
-                                    lineHeight = 17.sp,
-                                    fontWeight = FontWeight.Bold,
+                    ProductPhotoShadow(
+                        product = product,
+                        tone = tone,
+                        shape = RoundedCornerShape(28.dp),
+                        modifier = Modifier.fillMaxWidth().height(330.dp),
+                        blur = 60.dp,
+                        drop = 40.dp,
+                        inset = 0.dp,
+                        strength = if (colors.isDark) 0.42f else 0.32f,
+                    )
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.weight(1f).testTag("product-detail-scroll"),
+                            contentPadding =
+                                androidx.compose.foundation.layout
+                                    .PaddingValues(bottom = 24.dp),
+                        ) {
+                            item {
+                                ProductHero(
+                                    product = product,
+                                    previewPrice = previewPrice,
+                                    customized = isCustomized,
+                                    onDismiss = ::requestDismiss,
                                 )
-                                Text(
-                                    text = product.name,
-                                    color = colors.ink,
-                                    fontSize = 34.sp,
-                                    lineHeight = 38.sp,
-                                    fontWeight = FontWeight.Black,
-                                    letterSpacing = (-1.2).sp,
-                                    modifier = Modifier.padding(top = 4.dp),
-                                )
-                                if (product.description.isNotBlank()) {
+                            }
+                            item {
+                                Column(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 20.dp, vertical = 18.dp),
+                                ) {
                                     Text(
-                                        text = product.description,
+                                        text = categoryName.uppercase(),
                                         color = colors.muted,
-                                        fontSize = 16.sp,
-                                        lineHeight = 22.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        modifier = Modifier.padding(top = 6.dp),
+                                        fontSize = 13.sp,
+                                        lineHeight = 17.sp,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                    Text(
+                                        text = product.name,
+                                        color = colors.ink,
+                                        fontSize = 34.sp,
+                                        lineHeight = 38.sp,
+                                        fontWeight = FontWeight.Black,
+                                        letterSpacing = (-1.2).sp,
+                                        modifier = Modifier.padding(top = 4.dp),
+                                    )
+                                    if (product.description.isNotBlank()) {
+                                        Text(
+                                            text = product.description,
+                                            color = colors.muted,
+                                            fontSize = 16.sp,
+                                            lineHeight = 22.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier.padding(top = 6.dp),
+                                        )
+                                    }
+                                }
+                            }
+
+                            product.optionGroups.forEach { group ->
+                                item(key = "option-group-${group.id}") {
+                                    ProductOptionGroup(
+                                        group = group,
+                                        selectedOptionIds = selectedOptionIds,
+                                        onToggleOption = onToggleOption,
+                                        onClearOptionalGroup = onClearOptionalGroup,
+                                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                                     )
                                 }
                             }
-                        }
 
-                        product.optionGroups.forEach { group ->
-                            item(key = "option-group-${group.id}") {
-                                ProductOptionGroup(
-                                    group = group,
-                                    selectedOptionIds = selectedOptionIds,
-                                    onToggleOption = onToggleOption,
-                                    onClearOptionalGroup = onClearOptionalGroup,
+                            item(key = "product-notes") {
+                                EditorialNotesField(
+                                    value = notes,
+                                    onValueChange = { onNotesChange(it.take(CART_LINE_NOTE_MAX)) },
+                                    label = "Nota para cocina",
+                                    placeholder = "Ej. sin cebolla, salsa aparte",
                                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                                )
+                            }
+
+                            item {
+                                ProductMetaGrid(
+                                    ingredients = product.ingredients,
+                                    estimatedTime = estimatedTimeLabel(product.estimatedTimeMinutes),
+                                    allergens = product.allergens,
+                                    modifier = Modifier.padding(start = 20.dp, top = 16.dp, end = 20.dp),
                                 )
                             }
                         }
 
-                        item(key = "product-notes") {
-                            EditorialNotesField(
-                                value = notes,
-                                onValueChange = { onNotesChange(it.take(CART_LINE_NOTE_MAX)) },
-                                label = "Nota para cocina",
-                                placeholder = "Ej. sin cebolla, salsa aparte",
-                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                            )
-                        }
-
-                        item {
-                            ProductMetaGrid(
-                                ingredients = product.ingredients,
-                                estimatedTime = estimatedTimeLabel(product.estimatedTimeMinutes),
-                                allergens = product.allergens,
-                                modifier = Modifier.padding(start = 20.dp, top = 16.dp, end = 20.dp),
-                            )
-                        }
+                        ProductDetailDock(
+                            product = product,
+                            selectedOptionIds = selectedOptionIds,
+                            quantity = quantity,
+                            previewTotal = previewTotal,
+                            canAdd = canAdd,
+                            errorMessage = errorMessage,
+                            customized = isCustomized,
+                            onQuantityChange = { delta ->
+                                haptics.click()
+                                onQuantityChange(delta)
+                            },
+                            onAdd = {
+                                haptics.impact()
+                                onAdd()
+                            },
+                        )
                     }
-
-                    ProductDetailDock(
-                        product = product,
-                        selectedOptionIds = selectedOptionIds,
-                        quantity = quantity,
-                        previewTotal = previewTotal,
-                        canAdd = canAdd,
-                        errorMessage = errorMessage,
-                        customized = isCustomized,
-                        onQuantityChange = { delta ->
-                            haptics.click()
-                            onQuantityChange(delta)
-                        },
-                        onAdd = {
-                            haptics.impact()
-                            onAdd()
-                        },
-                    )
-                }
                 }
             }
         }
