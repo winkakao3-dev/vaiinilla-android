@@ -17,18 +17,16 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.draw.blur
 import com.vaiinilla.app.ui.order.trayItemKind
 import com.vaiinilla.app.ui.screens.LocalScene
-import com.vaiinilla.app.ui.screens.MenuShelfWall
+import com.vaiinilla.app.ui.screens.ProductIllustration
+import com.vaiinilla.app.ui.screens.productTone
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
 import com.vaiinilla.app.ui.screens.TagCream
 import com.vaiinilla.app.ui.screens.TagInk
 import com.vaiinilla.app.ui.screens.TagLime
-import com.vaiinilla.app.ui.screens.drawNiche
-import com.vaiinilla.app.ui.screens.drawTrayItem
-import com.vaiinilla.app.ui.screens.nicheShelfY
 import com.vaiinilla.app.ui.screens.scenePaletteForTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -148,6 +146,7 @@ fun ProductDetailSheet(
             ink2 = scene.ink.copy(alpha = 0.82f),
             muted = scene.muted,
         )
+    val tone = productTone(product)
     val reduceMotion = reducedMotion()
     val isCustomized = selectedOptionIds != defaultOptionIds
     val interactionSource = remember { MutableInteractionSource() }
@@ -315,15 +314,24 @@ fun ProductDetailSheet(
                             indication = null,
                             onClick = {},
                         ),
-                color = Color.Transparent,
+                color = scene.sheetSolid,
                 shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
                 border = BorderStroke(1.dp, scene.glassEdge),
                 shadowElevation = 24.dp,
             ) {
-                // La hoja es vidrio sobre la misma pared de repisas del menú.
+                // La foto ilumina la hoja con su color, como la luz bajo las tarjetas del menú.
                 CompositionLocalProvider(LocalScene provides scene, LocalVaiinillaColors provides colors) {
-                MenuShelfWall(Modifier.blur(24.dp))
-                Box(Modifier.fillMaxSize().background(scene.glassTint))
+                Box(
+                    Modifier.fillMaxSize().drawBehind {
+                        drawRect(
+                            Brush.radialGradient(
+                                listOf(tone.copy(alpha = if (colors.isDark) 0.34f else 0.22f), Color.Transparent),
+                                center = Offset(size.width / 2f, 170.dp.toPx()),
+                                radius = size.width * 0.95f,
+                            ),
+                        )
+                    },
+                )
                 Column(modifier = Modifier.fillMaxSize()) {
                     LazyColumn(
                         state = listState,
@@ -443,7 +451,7 @@ private fun ProductHero(
     val scene = LocalScene.current
     val kind = trayItemKind(product.name)
     val reduceMotion = reducedMotion()
-    // El producto baja a su repisa al abrir la ficha, como si lo acabaran de poner ahí.
+    // Sin foto, el dibujo del producto baja a su lugar al abrir la ficha.
     val drop = remember(product.id) { Animatable(if (reduceMotion) 1f else 0f) }
     LaunchedEffect(product.id) {
         drop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 260f))
@@ -456,31 +464,15 @@ private fun ProductHero(
                 .padding(start = 14.dp, end = 14.dp, top = 14.dp)
                 .height(300.dp)
                 .clip(heroShape)
+                .background(productTone(product).copy(alpha = 0.18f))
                 .border(1.dp, scene.glassEdge, heroShape),
     ) {
-        Canvas(Modifier.fillMaxSize()) { drawNiche(scene) }
         ProductImage(
             imageUrl = product.imageUrl,
             contentDescription = product.name,
             contentScale = ContentScale.Crop,
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(14.dp)
-                    .clip(RoundedCornerShape(20.dp)),
-            placeholder = { m ->
-                Canvas(m) {
-                    val shelfTop = nicheShelfY(size.height, 14.dp.toPx())
-                    val lift = (1f - drop.value) * size.height * 0.5f
-                    drawTrayItem(
-                        kind,
-                        size.width / 2f,
-                        shelfTop - lift,
-                        size.height * 0.36f,
-                        alpha = (drop.value * 2.5f).coerceIn(0f, 1f),
-                    )
-                }
-            },
+            modifier = Modifier.fillMaxSize(),
+            placeholder = { m -> ProductIllustration(kind, m, drop = { drop.value }) },
         )
 
         HeroActionButton(

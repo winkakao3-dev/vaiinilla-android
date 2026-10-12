@@ -97,6 +97,7 @@ import com.vaiinilla.app.ui.order.selectedProduct
 import com.vaiinilla.app.ui.order.selectedProductPreviewPrice
 import com.vaiinilla.app.ui.order.selectedProductPreviewTotal
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.AmoledLimeWash
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
@@ -340,12 +341,24 @@ private fun CatalogContent(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(scene.facade)
+                .background(colors.paper)
                 .pointerInput(Unit) {
                     detectTapGestures(onTap = { focusManager.clearFocus() })
                 },
     ) {
-        CompositionLocalProvider(LocalScene provides scene) { MenuShelfWall() }
+        if (themeMode == VaiinillaThemeMode.Amoled) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            androidx.compose.ui.graphics.Brush.radialGradient(
+                                colors = listOf(AmoledLimeWash, colors.paper),
+                                radius = 900f,
+                            ),
+                        ),
+            )
+        }
         PullToRefreshBox(
             isRefreshing = state.loading,
             onRefresh = onRefresh,
@@ -717,7 +730,6 @@ private fun ProductCard(
     product: Product,
     onClick: () -> Unit,
 ) {
-    val colors = LocalVaiinillaColors.current
     Column(
         modifier =
             Modifier
@@ -725,17 +737,7 @@ private fun ProductCard(
                 .padding(bottom = 14.dp)
                 .physicalPress(scale = PhysicalPressScale.ProductCard, onClick = onClick),
     ) {
-        ProductNiche(product = product)
-        Text(
-            text = product.name,
-            color = colors.ink,
-            fontWeight = FontWeight.Black,
-            fontSize = 17.sp,
-            lineHeight = 21.sp,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 2.dp, top = 12.dp, end = 2.dp),
-        )
+        ProductGlassCard(product = product)
     }
 }
 

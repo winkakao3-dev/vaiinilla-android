@@ -211,13 +211,17 @@ private fun CourtTile(
             )
         }
         Column {
+            val shortName = courtShortName(court.space.name)
+            // Solo un número se lee grande de lejos; un nombre completo va a tamaño de título.
+            val isNumber = shortName.all(Char::isDigit)
             Text(
-                courtShortName(court.space.name),
+                shortName,
                 color = ink,
-                fontSize = 34.sp,
+                fontSize = if (isNumber) 34.sp else 18.sp,
+                lineHeight = if (isNumber) 38.sp else 22.sp,
                 fontWeight = FontWeight.Black,
-                letterSpacing = (-1.2).sp,
-                maxLines = 1,
+                letterSpacing = if (isNumber) (-1.2).sp else (-0.2).sp,
+                maxLines = if (isNumber) 1 else 2,
                 overflow = TextOverflow.Ellipsis,
             )
             if (clock != null) {

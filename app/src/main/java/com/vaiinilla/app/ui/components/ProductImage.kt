@@ -20,7 +20,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -84,6 +87,81 @@ fun ProductImage(
         }
     }
 }
+
+/** El color que domina la foto del producto, para teñir la luz que la rodea. Null mientras no hay foto. */
+@Composable
+fun rememberProductTone(imageUrl: String): Color? {
+    val context = LocalContext.current
+    var tone by remember(imageUrl) { mutableStateOf(productToneCache[imageUrl]?.let(::Color)) }
+    LaunchedEffect(imageUrl) {
+        if (tone != null) return@LaunchedEffect
+        val argb =
+            withContext(Dispatchers.IO) {
+                val bitmap =
+                    if (productImageIsRemote(imageUrl)) {
+                        loadRemoteProductImage(imageUrl)?.asAndroidBitmap()
+                    } else {
+                        productImageResource(imageUrl)?.let { res ->
+                            BitmapFactory.decodeResource(context.resources, res, BitmapFactory.Options().apply { inSampleSize = 8 })
+                        }
+                    }
+                bitmap?.let { full ->
+                    val small = android.graphics.Bitmap.createScaledBitmap(full, TONE_SAMPLE, TONE_SAMPLE, true)
+                    val pixels = IntArray(TONE_SAMPLE * TONE_SAMPLE)
+                    small.getPixels(pixels, 0, TONE_SAMPLE, 0, 0, TONE_SAMPLE, TONE_SAMPLE)
+                    dominantTone(pixels)
+                }
+            }
+        if (argb != null) {
+            productToneCache[imageUrl] = argb
+            tone = Color(argb)
+        }
+    }
+    return tone
+}
+
+/**
+ * Promedio de los pixeles pesado por saturación: el fondo blanco o la mesa gris casi no cuentan, el
+ * producto sí. Si toda la foto es gris, queda el promedio simple.
+ */
+internal fun dominantTone(pixels: IntArray): Int? {
+    if (pixels.isEmpty()) return null
+    var r = 0.0
+    var g = 0.0
+    var b = 0.0
+    var weight = 0.0
+    var plainR = 0.0
+    var plainG = 0.0
+    var plainB = 0.0
+    for (p in pixels) {
+        val pr = (p shr 16 and 0xFF) / 255.0
+        val pg = (p shr 8 and 0xFF) / 255.0
+        val pb = (p and 0xFF) / 255.0
+        plainR += pr
+        plainG += pg
+        plainB += pb
+        val max = maxOf(pr, pg, pb)
+        val min = minOf(pr, pg, pb)
+        if (max < 0.12) continue
+        val sat = (max - min) / max
+        val w = sat * sat * max
+        r += pr * w
+        g += pg * w
+        b += pb * w
+        weight += w
+    }
+    val (fr, fg, fb) =
+        if (weight > pixels.size * 0.01) {
+            Triple(r / weight, g / weight, b / weight)
+        } else {
+            Triple(plainR / pixels.size, plainG / pixels.size, plainB / pixels.size)
+        }
+    fun channel(v: Double) = (v.coerceIn(0.0, 1.0) * 255).toInt()
+    return (0xFF shl 24) or (channel(fr) shl 16) or (channel(fg) shl 8) or channel(fb)
+}
+
+private const val TONE_SAMPLE = 16
+private val productToneCache = ConcurrentHashMap<String, Int>()
 
 private fun loadRemoteProductImage(imageUrl: String): ImageBitmap? {
     remoteProductImageCache.get(imageUrl)?.let { return it.asImageBitmap() }
