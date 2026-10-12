@@ -65,6 +65,17 @@ internal fun pickupCodeHint(order: OrderDetail): String =
     }
 
 /**
+ * "Mostrar código" solo sirve mientras el pedido sigue abierto. En mesa o cancha, además, el negocio
+ * debe pedir el QR al entregar, salvo que haya que pagar en Caja.
+ */
+internal fun pickupCodeUseful(
+    order: OrderDetail,
+    deliveryRequiresQr: Boolean,
+): Boolean =
+    order.summary.state in setOf(OrderState.PENDING_PAYMENT, OrderState.PAID, OrderState.PREPARING, OrderState.READY) &&
+        (order.summary.destination != OrderDestination.IN_SPACE || deliveryRequiresQr || order.cashPending())
+
+/**
  * El código se abre solo cuando hay que enseñarlo: listo para recoger en barra, o pago en efectivo
  * pendiente. En mesa o cancha lo lleva el mesero, así que no se abre solo.
  */

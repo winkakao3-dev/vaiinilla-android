@@ -117,6 +117,7 @@ import com.vaiinilla.app.ui.order.MOSAIC_FLIP_LENGTH
 import com.vaiinilla.app.ui.order.PickupStep
 import com.vaiinilla.app.ui.order.PurchaseCelebrationKind
 import com.vaiinilla.app.ui.order.mosaicCellStart
+import com.vaiinilla.app.ui.order.pickupCodeUseful
 import com.vaiinilla.app.ui.order.pickupCodeHint
 import com.vaiinilla.app.ui.order.pickupHint
 import com.vaiinilla.app.ui.order.pickupStep
@@ -467,7 +468,14 @@ private fun DrawScope.drawStorefront(
         val inset = hair * 3.5f
         val glassTop = top + inset
         val glassSize = Size(ww - inset * 2, wh - inset * 2)
-        if (lit) drawCircle(c.lampGlow.copy(alpha = c.lampGlow.alpha * 0.5f), radius = ww * 0.75f, center = Offset(cx, top + wh / 2f))
+        if (lit) {
+            val glowCenter = Offset(cx, top + wh / 2f)
+            drawCircle(
+                Brush.radialGradient(listOf(c.lampGlow.copy(alpha = c.lampGlow.alpha * 0.45f), Color.Transparent), glowCenter, ww * 0.8f),
+                radius = ww * 0.8f,
+                center = glowCenter,
+            )
+        }
         drawRect(
             if (lit) {
                 Brush.verticalGradient(listOf(c.windowLit, c.windowLitDeep), startY = glassTop, endY = glassTop + glassSize.height)
@@ -630,28 +638,43 @@ internal fun PickupJourneyScreen(
     onViewTracking: () -> Unit,
     celebration: PurchaseCelebrationKind? = null,
     onCelebrationFinished: () -> Unit = {},
+    deliveryRequiresQr: Boolean = true,
+    showTrackingButton: Boolean = true,
 ) {
     val palette = scenePaletteForTheme()
     CompositionLocalProvider(LocalScene provides palette) {
-        PickupJourney(order, qrPayload, onBack, onViewTracking, celebration, onCelebrationFinished)
+        PickupJourney(
+            order = order,
+            qrPayload = qrPayload,
+            onBack = onBack,
+            onViewTracking = onViewTracking.takeIf { showTrackingButton },
+            celebration = celebration,
+            onCelebrationFinished = onCelebrationFinished,
+            deliveryRequiresQr = deliveryRequiresQr,
+        )
     }
 }
+
+/** Color de fondo del Vainiverso a la hora del tema, para lo que rodea a la escena. */
+@Composable
+internal fun vainiversoStageColor(): Color = scenePaletteForTheme().stage
 
 @Composable
 private fun PickupJourney(
     order: OrderDetail,
     qrPayload: String?,
     onBack: () -> Unit,
-    onViewTracking: () -> Unit,
+    onViewTracking: (() -> Unit)?,
     celebration: PurchaseCelebrationKind?,
     onCelebrationFinished: () -> Unit,
+    deliveryRequiresQr: Boolean,
 ) {
     val palette = LocalScene.current
     val reduceMotion = reducedMotion()
     val haptics = LocalHapticFeedback.current
     val textMeasurer = rememberTextMeasurer()
     val matrix = remember(qrPayload) { qrPayload?.let { runCatching { QrCodeEncoder.encode(it) }.getOrNull() } }
-    val hasCode = matrix != null
+    val hasCode = matrix != null && pickupCodeUseful(order, deliveryRequiresQr)
     val state = order.summary.state
     val step = pickupStep(state)
     val ready = step == PickupStep.READY
@@ -696,6 +719,7 @@ private fun PickupJourney(
         val target = if (revealed) 1f else 0f
         if (reduceMotion) reveal.snapTo(target) else reveal.animateTo(target, spring(dampingRatio = 1f, stiffness = 14f))
     }
+    LaunchedEffect(hasCode) { if (!hasCode) revealed = false }
     BackHandler(enabled = revealed) { revealed = false }
     ScreenBrightnessBoost(active = revealed)
 
@@ -784,7 +808,7 @@ private fun PickupJourney(
             }
         }
 
-        if (mosaic != null && p > 0.3f) {
+        if (mosaic != null && hasCode && p > 0.3f) {
             Canvas(
                 modifier =
                     Modifier
@@ -1113,7 +1137,7 @@ private fun StatusSheet(
     hidden: Float,
     backdrop: DrawScope.() -> Unit,
     onShowCode: () -> Unit,
-    onViewTracking: () -> Unit,
+    onViewTracking: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val c = LocalScene.current
@@ -1206,11 +1230,15 @@ private fun StatusSheet(
             Spacer(Modifier.height(14.dp))
             OrderSummaryCard(order)
             Spacer(Modifier.height(14.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (hasCode) {
-                    PillButton("Mostrar código", primary = true, onClick = onShowCode, modifier = Modifier.weight(1f))
+            if (hasCode || onViewTracking != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (hasCode) {
+                        PillButton("Mostrar código", primary = true, onClick = onShowCode, modifier = Modifier.weight(1f))
+                    }
+                    if (onViewTracking != null) {
+                        PillButton("Seguir pedido", primary = !hasCode, onClick = onViewTracking, modifier = Modifier.weight(1f))
+                    }
                 }
-                PillButton("Seguir pedido", primary = !hasCode, onClick = onViewTracking, modifier = Modifier.weight(1f))
             }
         }
     }
@@ -1272,7 +1300,7 @@ private fun OrderSummaryCard(order: OrderDetail) {
 private fun PickupCodeSheet(
     order: OrderDetail,
     shown: Float,
-    onViewTracking: () -> Unit,
+    onViewTracking: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val c = LocalScene.current
@@ -1331,8 +1359,10 @@ private fun PickupCodeSheet(
                 Spacer(Modifier.width(6.dp))
                 Text("Subimos el brillo mientras está abierto.", color = c.muted, fontSize = 12.sp)
             }
-            Spacer(Modifier.height(14.dp))
-            PillButton("Seguir pedido", primary = true, onClick = onViewTracking, modifier = Modifier.fillMaxWidth())
+            if (onViewTracking != null) {
+                Spacer(Modifier.height(14.dp))
+                PillButton("Seguir pedido", primary = true, onClick = onViewTracking, modifier = Modifier.fillMaxWidth())
+            }
         }
     }
 }

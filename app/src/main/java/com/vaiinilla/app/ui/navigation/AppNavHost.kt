@@ -94,6 +94,8 @@ import com.vaiinilla.app.ui.sharedtable.SharedTableViewModel
 import com.vaiinilla.app.ui.support.SupportScreen
 import com.vaiinilla.app.ui.wallet.WalletViewModel
 import com.vaiinilla.app.ui.wallet.rememberWalletUiState
+import com.vaiinilla.app.ui.components.isRental
+import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -1318,7 +1320,9 @@ fun AppNavHost(
                 val context = LocalContext.current
                 LaunchedEffect(confirmationOrder?.summary?.id) {
                     val order = confirmationOrder ?: return@LaunchedEffect
-                    if (order.summary.paymentMethod == PaymentMethod.STRIPE) {
+                    // Un pedido viejo abierto desde Pedidos ya cobrado no debe reabrir el flujo de Stripe.
+                    val stripeStillOpen = isFreshConfirmation || !order.isStripePaymentConfirmedByBackend()
+                    if (order.summary.paymentMethod == PaymentMethod.STRIPE && stripeStillOpen) {
                         orderFlowViewModel.resumeStripePaymentConfirmation(order)
                     }
                 }
@@ -1375,7 +1379,14 @@ fun AppNavHost(
                     purchaseCelebration = orderState.purchaseCelebration,
                     onPurchaseCelebrationFinished = orderFlowViewModel::completePurchaseCelebration,
                     order = confirmationOrder,
+                    deliveryRequiresQr = orderState.operationalStatus?.deliveryRequiresQr != false,
+                    showTrackingButton = isFreshConfirmation,
                     onReturnToMenu = {
+                        // Abierto desde Pedidos: atrás regresa a la lista. La selección se limpia allá,
+                        // cuando esta pantalla ya salió, para no quedarse sin pedido a media animación.
+                        if (!isFreshConfirmation && navController.popBackStack(Routes.STUDENT_TRACKING, inclusive = false)) {
+                            return@OrderConfirmationScreen
+                        }
                         if (isFreshConfirmation) {
                             orderFlowViewModel.clearCreatedOrder()
                         }
@@ -1431,16 +1442,33 @@ fun AppNavHost(
                         operationalViewModel.setRole(OperationalRole.CLIENT)
                     }
                 }
+                // Los pedidos se abren en la pantalla de recogida (Vainiverso); solo las rentas
+                // conservan el detalle dentro de la lista. Al volver se suelta la selección.
+                LaunchedEffect(Unit) {
+                    if (operationalState.selectedOrder?.isRental == false) {
+                        delay(POP_ANIMATION_MILLIS.toLong() + 50)
+                        operationalViewModel.selectOrder(null)
+                    }
+                }
                 if (!venueAuthRequired) {
                     StudentTrackingScreen(
-                        state = operationalState,
+                        state =
+                            operationalState.takeIf { it.selectedOrder?.isRental != false }
+                                ?: operationalState.copy(selectedOrderId = null),
                         orderState = orderState,
                         onMenu = { navController.navigateStudent(Routes.CATALOG) },
                         onAssistant = {},
                         onWallet = { navController.navigateStudent(Routes.WALLET) },
                         onCart = { navController.navigateStudent(Routes.CART) },
                         onOpenCatalog = { navController.navigateStudent(Routes.CATALOG) },
-                        onSelectOrder = operationalViewModel::selectOrder,
+                        onSelectOrder = { id ->
+                            operationalViewModel.selectOrder(id)
+                            val rental = operationalState.orders.firstOrNull { it.summary.id == id }?.isRental == true
+                            if (!rental) {
+                                orderFlowViewModel.clearCreatedOrder()
+                                navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
+                            }
+                        },
                         onBackFromSelectedOrder = { operationalViewModel.selectOrder(null) },
                         onDeleteOrder = ::dismissClientOrder,
                         onViewReceipt = {

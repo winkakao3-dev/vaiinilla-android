@@ -804,7 +804,12 @@ private fun ActiveOrderCard(
     val summary = order.summary
     val reduceMotion = reducedMotion()
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        // Tocar la tarjeta abre el pedido; sus botones (mesero, seguimiento) siguen respondiendo aparte.
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onOpenFull),
         color = OrderTrackingCardBg,
         shape = RoundedCornerShape(24.dp),
     ) {

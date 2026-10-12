@@ -31,6 +31,18 @@ class PickupJourneyPolicyTest {
     }
 
     @Test
+    fun codeButtonOnlyWhileTheOrderIsOpen() {
+        assertTrue(pickupCodeUseful(order(OrderState.PREPARING), deliveryRequiresQr = false))
+        assertFalse(pickupCodeUseful(order(OrderState.DELIVERED), deliveryRequiresQr = true))
+        assertFalse(pickupCodeUseful(order(OrderState.CANCELED), deliveryRequiresQr = true))
+        assertFalse(pickupCodeUseful(order(OrderState.READY, toSpace = true), deliveryRequiresQr = false))
+        assertTrue(pickupCodeUseful(order(OrderState.READY, toSpace = true), deliveryRequiresQr = true))
+        assertTrue(
+            pickupCodeUseful(order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH, toSpace = true), deliveryRequiresQr = false),
+        )
+    }
+
+    @Test
     fun copyMatchesThePwa() {
         assertEquals("¡Listo!", pickupTitle(order(OrderState.READY)))
         assertEquals("Recógelo en la barra.", pickupHint(order(OrderState.READY)))

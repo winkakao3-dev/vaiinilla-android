@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -20,8 +19,6 @@ import com.vaiinilla.app.ui.order.PurchaseCelebration
 import com.vaiinilla.app.ui.order.STRIPE_ABANDON_VISIBLE_AFTER_MS
 import com.vaiinilla.app.ui.order.StripePaymentPhase
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
-
-private val TicketBg = Color(0xFF0D0D0D)
 
 internal fun confirmationTicketTitle(order: OrderDetail): String {
     val names = order.items.map { it.productName }
@@ -55,12 +52,14 @@ fun OrderConfirmationScreen(
     purchaseCelebration: PurchaseCelebration? = null,
     onPurchaseCelebrationFinished: (String) -> Unit = {},
     screenshotPrinted: Boolean = false,
+    deliveryRequiresQr: Boolean = true,
+    showTrackingButton: Boolean = true,
 ) {
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(TicketBg),
+                .background(vainiversoStageColor()),
     ) {
         if (order == null) return@Box
         val activeCelebration = purchaseCelebration?.takeIf { it.orderId == order.summary.id }
@@ -92,6 +91,8 @@ fun OrderConfirmationScreen(
             onViewTracking = onViewTracking,
             celebration = activeCelebration?.kind,
             onCelebrationFinished = { activeCelebration?.let { onPurchaseCelebrationFinished(it.orderId) } },
+            deliveryRequiresQr = deliveryRequiresQr,
+            showTrackingButton = showTrackingButton,
         )
     }
 }
