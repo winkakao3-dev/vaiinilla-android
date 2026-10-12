@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:standard:filename")
+
 package com.vaiinilla.app.domain.model
 
 /** Una fila de "Anteriores": un pedido suelto o todos los pedidos de una sesión de mesa. */

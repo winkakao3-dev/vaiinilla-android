@@ -33,13 +33,16 @@ class KeystoreGuestKeyVault(
         val iv = preferences.getString(KEY_IV, null) ?: return null
         val ciphertext = preferences.getString(KEY_CIPHERTEXT, null) ?: return null
         return runCatching {
-            Cipher.getInstance(TRANSFORMATION).apply {
-                init(
-                    Cipher.DECRYPT_MODE,
-                    getOrCreateSecretKey(),
-                    GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP)),
-                )
-            }.doFinal(Base64.decode(ciphertext, Base64.NO_WRAP)).toString(Charsets.UTF_8)
+            Cipher
+                .getInstance(TRANSFORMATION)
+                .apply {
+                    init(
+                        Cipher.DECRYPT_MODE,
+                        getOrCreateSecretKey(),
+                        GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP)),
+                    )
+                }.doFinal(Base64.decode(ciphertext, Base64.NO_WRAP))
+                .toString(Charsets.UTF_8)
         }.getOrElse {
             // Un cifrado que no abre (clave de Keystore perdida) no sirve: se olvida.
             clear()

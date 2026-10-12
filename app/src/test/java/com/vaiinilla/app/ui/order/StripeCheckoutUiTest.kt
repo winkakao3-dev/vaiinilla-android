@@ -298,6 +298,6 @@ class StripeCheckoutUiTest {
         }
 
         composeTestRule.onNodeWithText("¡Compra confirmada!").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Mostrando tu comprobante…").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Tu pago fue autorizado y tu pedido ya está en marcha.").assertIsDisplayed()
     }
 }

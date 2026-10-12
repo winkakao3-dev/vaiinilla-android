@@ -22,24 +22,30 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -62,6 +68,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -223,289 +230,318 @@ fun StudentTrackingScreen(
             throw e
         }
     }
-    Box(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(colors.paper),
-    ) {
-        PullToRefreshBox(
-            isRefreshing = false,
-            onRefresh = {
-                haptics.impact()
-                onRefresh()
-            },
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            AnimatedContent(
-                targetState = selected?.summary?.id,
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .offset {
-                            IntOffset(
-                                (detailBackShiftPx * detailBackSign * detailBackProgress).roundToInt(),
-                                0,
-                            )
-                        }.graphicsLayer {
-                            alpha = 1f - detailBackProgress * 0.12f
-                        },
-                transitionSpec = {
-                    if (reduceMotion) {
-                        fadeIn(animationSpec = tween(0)) togetherWith fadeOut(animationSpec = tween(0))
-                    } else if (targetState != null) {
-                        (
-                            slideInVertically(
-                                animationSpec = spring(dampingRatio = 0.82f, stiffness = 430f),
-                                initialOffsetY = { height -> height / 12 },
-                            ) +
-                                fadeIn(animationSpec = tween(durationMillis = 190)) +
-                                scaleIn(
-                                    initialScale = 0.985f,
-                                    animationSpec = spring(dampingRatio = 0.78f, stiffness = 520f),
-                                )
-                        ) togetherWith
-                            (
-                                slideOutVertically(
-                                    animationSpec = tween(durationMillis = 150),
-                                    targetOffsetY = { height -> -height / 22 },
-                                ) +
-                                    fadeOut(animationSpec = tween(durationMillis = 125)) +
-                                    scaleOut(targetScale = 0.992f, animationSpec = tween(durationMillis = 150))
-                            )
-                    } else {
-                        (
-                            slideInVertically(
-                                animationSpec = spring(dampingRatio = 0.84f, stiffness = 440f),
-                                initialOffsetY = { height -> -height / 18 },
-                            ) +
-                                fadeIn(animationSpec = tween(durationMillis = 190)) +
-                                scaleIn(
-                                    initialScale = 0.992f,
-                                    animationSpec = spring(dampingRatio = 0.8f, stiffness = 520f),
-                                )
-                        ) togetherWith
-                            (
-                                slideOutVertically(
-                                    animationSpec = tween(durationMillis = 145),
-                                    targetOffsetY = { height -> height / 14 },
-                                ) +
-                                    fadeOut(animationSpec = tween(durationMillis = 120)) +
-                                    scaleOut(targetScale = 0.985f, animationSpec = tween(durationMillis = 145))
-                            )
-                    }
+    // Vainiverso: la tienda arriba y la lista en una hoja de vidrio que sube sobre ella.
+    val palette = scenePaletteForTheme()
+    val listState = rememberLazyListState()
+    val glassColors =
+        colors.copy(
+            paper = Color.Transparent,
+            paper2 = palette.glassCard,
+            line = palette.glassLine,
+            ink = palette.ink,
+            muted = palette.muted,
+        )
+    val cheering = state.orders.any { it.isActiveForCustomer && it.summary.state == OrderState.READY }
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val windowPx = constraints.maxHeight * ORDERS_SCENE_WINDOW
+        val windowDp = with(density) { windowPx.toDp() }
+        val overview = selected == null
+        val sheetTop = {
+            when {
+                !overview -> 0f
+                listState.firstVisibleItemIndex == 0 -> windowPx - listState.firstVisibleItemScrollOffset
+                else -> 0f
+            }
+        }
+        CompositionLocalProvider(LocalScene provides palette) {
+            VainiversoStoreBackdrop(sheetTop = sheetTop, cheering = cheering)
+        }
+        CompositionLocalProvider(LocalVaiinillaColors provides glassColors) {
+            PullToRefreshBox(
+                isRefreshing = false,
+                onRefresh = {
+                    haptics.impact()
+                    onRefresh()
                 },
-                label = "orders-overview-detail",
-            ) { animatedSelectedId ->
-                val animatedSelected =
-                    animatedSelectedId?.let { id ->
-                        state.orders.firstOrNull { it.summary.id == id }
-                            ?: selected?.takeIf { it.summary.id == id }
-                    }
-                LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                AnimatedContent(
+                    targetState = selected?.summary?.id,
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .statusBarsPadding(),
-                    contentPadding =
-                        PaddingValues(
-                            start = 20.dp,
-                            end = 20.dp,
-                            top = 18.dp,
-                            bottom = VaiinillaBottomNavClearance + 48.dp,
-                        ),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    item {
-                        Column {
-                            Text("Mis pedidos", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 28.sp)
-                            orderState.guestVenue?.establishment?.name?.let { venueName ->
-                                Text(
-                                    venueName,
-                                    color = colors.muted,
-                                    fontSize = 13.sp,
-                                    modifier = Modifier.padding(top = 2.dp),
+                            .offset {
+                                IntOffset(
+                                    (detailBackShiftPx * detailBackSign * detailBackProgress).roundToInt(),
+                                    0,
                                 )
+                            }.graphicsLayer {
+                                alpha = 1f - detailBackProgress * 0.12f
+                            },
+                    transitionSpec = {
+                        if (reduceMotion) {
+                            fadeIn(animationSpec = tween(0)) togetherWith fadeOut(animationSpec = tween(0))
+                        } else if (targetState != null) {
+                            (
+                                slideInVertically(
+                                    animationSpec = spring(dampingRatio = 0.82f, stiffness = 430f),
+                                    initialOffsetY = { height -> height / 12 },
+                                ) +
+                                    fadeIn(animationSpec = tween(durationMillis = 190)) +
+                                    scaleIn(
+                                        initialScale = 0.985f,
+                                        animationSpec = spring(dampingRatio = 0.78f, stiffness = 520f),
+                                    )
+                            ) togetherWith
+                                (
+                                    slideOutVertically(
+                                        animationSpec = tween(durationMillis = 150),
+                                        targetOffsetY = { height -> -height / 22 },
+                                    ) +
+                                        fadeOut(animationSpec = tween(durationMillis = 125)) +
+                                        scaleOut(targetScale = 0.992f, animationSpec = tween(durationMillis = 150))
+                                )
+                        } else {
+                            (
+                                slideInVertically(
+                                    animationSpec = spring(dampingRatio = 0.84f, stiffness = 440f),
+                                    initialOffsetY = { height -> -height / 18 },
+                                ) +
+                                    fadeIn(animationSpec = tween(durationMillis = 190)) +
+                                    scaleIn(
+                                        initialScale = 0.992f,
+                                        animationSpec = spring(dampingRatio = 0.8f, stiffness = 520f),
+                                    )
+                            ) togetherWith
+                                (
+                                    slideOutVertically(
+                                        animationSpec = tween(durationMillis = 145),
+                                        targetOffsetY = { height -> height / 14 },
+                                    ) +
+                                        fadeOut(animationSpec = tween(durationMillis = 120)) +
+                                        scaleOut(targetScale = 0.985f, animationSpec = tween(durationMillis = 145))
+                                )
+                        }
+                    },
+                    label = "orders-overview-detail",
+                ) { animatedSelectedId ->
+                    val animatedSelected =
+                        animatedSelectedId?.let { id ->
+                            state.orders.firstOrNull { it.summary.id == id }
+                                ?: selected?.takeIf { it.summary.id == id }
+                        }
+                    val inOverview = animatedSelectedId == null
+                    val detailListState = rememberLazyListState()
+                    LazyColumn(
+                        state = if (inOverview) listState else detailListState,
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .then(if (inOverview) Modifier else Modifier.statusBarsPadding()),
+                        contentPadding =
+                            PaddingValues(
+                                start = 20.dp,
+                                end = 20.dp,
+                                top = if (inOverview) 0.dp else 18.dp,
+                                bottom = VaiinillaBottomNavClearance + 48.dp,
+                            ),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        if (inOverview) {
+                            // Ventana a la tienda: la hoja de vidrio empieza donde termina este hueco.
+                            item(key = "store-window") { Spacer(Modifier.height(windowDp)) }
+                        }
+                        item {
+                            Column {
+                                Text("Mis pedidos", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 28.sp)
+                                orderState.guestVenue?.establishment?.name?.let { venueName ->
+                                    Text(
+                                        venueName,
+                                        color = colors.muted,
+                                        fontSize = 13.sp,
+                                        modifier = Modifier.padding(top = 2.dp),
+                                    )
+                                }
                             }
                         }
-                    }
-                    if (animatedSelected == null) {
-                        item(key = "shared-table") { sharedTable() }
-                    }
+                        if (animatedSelected == null) {
+                            item(key = "shared-table") { sharedTable() }
+                        }
 
-                    when {
-                        state.orders.isEmpty() && state.loading -> {
-                            items(3) { OrderTrackingSkeleton() }
-                        }
-                        state.orders.isEmpty() -> {
-                            item {
-                                EmptyState(
-                                    icon = Icons.Outlined.ReceiptLong,
-                                    title = "Sin pedidos activos",
-                                    message = "Cuando confirmes uno aparecerá aquí.",
-                                    actionLabel = "Pedir algo",
-                                    onAction = onOpenCatalog,
-                                )
+                        when {
+                            state.orders.isEmpty() && state.loading -> {
+                                items(3) { OrderTrackingSkeleton() }
                             }
-                        }
-                        animatedSelected != null -> {
-                            item(key = "selected-${animatedSelected.summary.id}") {
-                                SwipeToDeleteOrder(
-                                    orderFolio = animatedSelected.summary.folio.toString(),
-                                    onDelete = { onDeleteOrder(animatedSelected.summary.id) },
-                                ) {
-                                    OrderTrackingCard(
-                                        order = animatedSelected,
-                                        showEyebrow = true,
-                                        leadingImageUrl =
-                                            if (animatedSelected.isRental) {
-                                                null
-                                            } else {
-                                                itemImageUrls(animatedSelected, orderState.catalog)
-                                                    .firstOrNull { it != null }
-                                            },
-                                    )
-                                }
-                            }
-                            if (animatedSelected.canAnnounceArrival(
-                                    orderState.operationalStatus?.isDriveThru == true,
-                                )
-                            ) {
+                            state.orders.isEmpty() -> {
                                 item {
-                                    ArrivalNotice(
-                                        order = animatedSelected,
-                                        enabled = !state.acting,
-                                        onAnnounce = { onAnnounceArrival(animatedSelected.summary.id) },
+                                    EmptyState(
+                                        icon = Icons.Outlined.ReceiptLong,
+                                        title = "Sin pedidos activos",
+                                        message = "Cuando confirmes uno aparecerá aquí.",
+                                        actionLabel = "Pedir algo",
+                                        onAction = onOpenCatalog,
                                     )
                                 }
                             }
-                            item {
-                                TrackingSectionHead()
-                            }
-                            if (animatedSelected.isRental) {
-                                item { RentalTrackingTimeline(order = animatedSelected) }
-                            } else {
-                                item {
-                                    OrderTrackingTimeline(
-                                        current = animatedSelected.summary.state,
-                                        destination = animatedSelected.summary.destination,
-                                        paymentMethod = animatedSelected.summary.paymentMethod,
-                                        paymentStatus = animatedSelected.payment?.status,
-                                        spaceType = animatedSelected.summary.space?.type,
-                                        payAtEnd = animatedSelected.summary.payAtEnd,
-                                        skipsKitchen = animatedSelected.skipsKitchen,
-                                    )
-                                }
-                            }
-                            if (animatedSelected.summary.state == OrderState.CANCELED) {
-                                item { CancelReasonCard(animatedSelected) }
-                            }
-                            if (
-                                animatedSelected.summary.state == OrderState.READY &&
-                                animatedSelected.needsPickupQr(
-                                    orderState.operationalStatus?.deliveryRequiresQr != false,
-                                )
-                            ) {
-                                item { PickupCodeCard(animatedSelected) }
-                            }
-                            item {
-                                Text("Resumen", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
-                            }
-                            item {
-                                OrderDetailSummary(order = animatedSelected)
-                            }
-                            item {
-                                Button(
-                                    onClick = onViewReceipt,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape =
-                                        androidx.compose.foundation.shape
-                                            .RoundedCornerShape(18.dp),
-                                    colors =
-                                        ButtonDefaults.buttonColors(
-                                            containerColor = colors.paper2,
-                                            contentColor = colors.ink,
-                                        ),
-                                ) {
-                                    Text("Ver recibo", fontWeight = FontWeight.Black)
-                                }
-                            }
-                        }
-                        else -> {
-                            val activeOrders = state.orders.filter { it.isActiveForCustomer }
-                            val pastOrders = state.orders.filterNot { it.isActiveForCustomer }
-                            if (activeOrders.isNotEmpty()) {
-                                item(key = "section-active") { OrdersSectionLabel("EN CURSO") }
-                                itemsIndexed(activeOrders, key = { _, o -> o.summary.id }) { index, order ->
+                            animatedSelected != null -> {
+                                item(key = "selected-${animatedSelected.summary.id}") {
                                     SwipeToDeleteOrder(
-                                        orderFolio = order.summary.folio.toString(),
-                                        onDelete = { onDeleteOrder(order.summary.id) },
+                                        orderFolio = animatedSelected.summary.folio.toString(),
+                                        onDelete = { onDeleteOrder(animatedSelected.summary.id) },
                                     ) {
-                                        ActiveOrderCard(
-                                            order = order,
+                                        OrderTrackingCard(
+                                            order = animatedSelected,
+                                            showEyebrow = true,
                                             leadingImageUrl =
-                                                if (order.isRental) {
+                                                if (animatedSelected.isRental) {
                                                     null
                                                 } else {
-                                                    itemImageUrls(order, orderState.catalog)
+                                                    itemImageUrls(animatedSelected, orderState.catalog)
                                                         .firstOrNull { it != null }
                                                 },
-                                            onOpenFull = { onSelectOrder(order.summary.id) },
-                                            showArrival =
-                                                order.canAnnounceArrival(
-                                                    orderState.operationalStatus?.isDriveThru == true,
-                                                ),
-                                            arrivalEnabled = !state.acting,
-                                            onAnnounceArrival = { onAnnounceArrival(order.summary.id) },
-                                            deliveryRequiresQr =
-                                                orderState.operationalStatus?.deliveryRequiresQr != false,
-                                            canCallWaiter = canCallWaiter,
-                                            onCurrentWaiterCall = onCurrentWaiterCall,
-                                            onCallWaiter = onCallWaiter,
-                                            onCancelWaiter = onCancelWaiter,
                                         )
                                     }
-                                    if (index == 0) {
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        WaitingArcadeCard()
+                                }
+                                if (animatedSelected.canAnnounceArrival(
+                                        orderState.operationalStatus?.isDriveThru == true,
+                                    )
+                                ) {
+                                    item {
+                                        ArrivalNotice(
+                                            order = animatedSelected,
+                                            enabled = !state.acting,
+                                            onAnnounce = { onAnnounceArrival(animatedSelected.summary.id) },
+                                        )
+                                    }
+                                }
+                                item {
+                                    TrackingSectionHead()
+                                }
+                                if (animatedSelected.isRental) {
+                                    item { RentalTrackingTimeline(order = animatedSelected) }
+                                } else {
+                                    item {
+                                        OrderTrackingTimeline(
+                                            current = animatedSelected.summary.state,
+                                            destination = animatedSelected.summary.destination,
+                                            paymentMethod = animatedSelected.summary.paymentMethod,
+                                            paymentStatus = animatedSelected.payment?.status,
+                                            spaceType = animatedSelected.summary.space?.type,
+                                            payAtEnd = animatedSelected.summary.payAtEnd,
+                                            skipsKitchen = animatedSelected.skipsKitchen,
+                                        )
+                                    }
+                                }
+                                if (animatedSelected.summary.state == OrderState.CANCELED) {
+                                    item { CancelReasonCard(animatedSelected) }
+                                }
+                                if (
+                                    animatedSelected.summary.state == OrderState.READY &&
+                                    animatedSelected.needsPickupQr(
+                                        orderState.operationalStatus?.deliveryRequiresQr != false,
+                                    )
+                                ) {
+                                    item { PickupCodeCard(animatedSelected) }
+                                }
+                                item {
+                                    Text("Resumen", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                                }
+                                item {
+                                    OrderDetailSummary(order = animatedSelected)
+                                }
+                                item {
+                                    Button(
+                                        onClick = onViewReceipt,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape =
+                                            androidx.compose.foundation.shape
+                                                .RoundedCornerShape(18.dp),
+                                        colors =
+                                            ButtonDefaults.buttonColors(
+                                                containerColor = colors.paper2,
+                                                contentColor = colors.ink,
+                                            ),
+                                    ) {
+                                        Text("Ver recibo", fontWeight = FontWeight.Black)
                                     }
                                 }
                             }
-                            if (pastOrders.isNotEmpty()) {
-                                val pastEntries = groupOrdersBySession(pastOrders)
-                                val pastRow: @Composable (OrderDetail) -> Unit = { order ->
-                                    SwipeToDeleteOrder(
-                                        orderFolio = order.summary.folio.toString(),
-                                        onDelete = { onDeleteOrder(order.summary.id) },
-                                    ) {
-                                        PastOrderRow(
-                                            order = order,
-                                            imageUrls = itemImageUrls(order, orderState.catalog),
-                                            onClick = { onSelectOrder(order.summary.id) },
-                                        )
-                                    }
-                                }
-                                item(key = "section-past") { OrdersSectionLabel("ANTERIORES") }
-                                items(pastEntries.take(3), key = { it.key }) { entry ->
-                                    PastEntryContent(entry, pastRow)
-                                }
-                                if (showAllPast) {
-                                    items(pastEntries.drop(3), key = { it.key }) { entry ->
-                                        Box(modifier = Modifier.animateItem()) {
-                                            PastEntryContent(entry, pastRow)
+                            else -> {
+                                val activeOrders = state.orders.filter { it.isActiveForCustomer }
+                                val pastOrders = state.orders.filterNot { it.isActiveForCustomer }
+                                if (activeOrders.isNotEmpty()) {
+                                    item(key = "section-active") { OrdersSectionLabel("EN CURSO") }
+                                    itemsIndexed(activeOrders, key = { _, o -> o.summary.id }) { index, order ->
+                                        SwipeToDeleteOrder(
+                                            orderFolio = order.summary.folio.toString(),
+                                            onDelete = { onDeleteOrder(order.summary.id) },
+                                        ) {
+                                            ActiveOrderCard(
+                                                order = order,
+                                                leadingImageUrl =
+                                                    if (order.isRental) {
+                                                        null
+                                                    } else {
+                                                        itemImageUrls(order, orderState.catalog)
+                                                            .firstOrNull { it != null }
+                                                    },
+                                                onOpenFull = { onSelectOrder(order.summary.id) },
+                                                showArrival =
+                                                    order.canAnnounceArrival(
+                                                        orderState.operationalStatus?.isDriveThru == true,
+                                                    ),
+                                                arrivalEnabled = !state.acting,
+                                                onAnnounceArrival = { onAnnounceArrival(order.summary.id) },
+                                                deliveryRequiresQr =
+                                                    orderState.operationalStatus?.deliveryRequiresQr != false,
+                                                canCallWaiter = canCallWaiter,
+                                                onCurrentWaiterCall = onCurrentWaiterCall,
+                                                onCallWaiter = onCallWaiter,
+                                                onCancelWaiter = onCancelWaiter,
+                                            )
+                                        }
+                                        if (index == 0) {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            WaitingArcadeCard()
                                         }
                                     }
                                 }
-                                if (pastEntries.size > 3) {
-                                    item(key = "section-past-more") {
-                                        ShowMorePastOrdersButton(
-                                            hiddenCount = pastEntries.size - 3,
-                                            expanded = showAllPast,
-                                            onClick = {
-                                                haptics.impact()
-                                                showAllPast = !showAllPast
-                                            },
-                                        )
+                                if (pastOrders.isNotEmpty()) {
+                                    val pastEntries = groupOrdersBySession(pastOrders)
+                                    val pastRow: @Composable (OrderDetail) -> Unit = { order ->
+                                        SwipeToDeleteOrder(
+                                            orderFolio = order.summary.folio.toString(),
+                                            onDelete = { onDeleteOrder(order.summary.id) },
+                                        ) {
+                                            PastOrderRow(
+                                                order = order,
+                                                imageUrls = itemImageUrls(order, orderState.catalog),
+                                                onClick = { onSelectOrder(order.summary.id) },
+                                            )
+                                        }
+                                    }
+                                    item(key = "section-past") { OrdersSectionLabel("ANTERIORES") }
+                                    items(pastEntries.take(3), key = { it.key }) { entry ->
+                                        PastEntryContent(entry, pastRow)
+                                    }
+                                    if (showAllPast) {
+                                        items(pastEntries.drop(3), key = { it.key }) { entry ->
+                                            Box(modifier = Modifier.animateItem()) {
+                                                PastEntryContent(entry, pastRow)
+                                            }
+                                        }
+                                    }
+                                    if (pastEntries.size > 3) {
+                                        item(key = "section-past-more") {
+                                            ShowMorePastOrdersButton(
+                                                hiddenCount = pastEntries.size - 3,
+                                                expanded = showAllPast,
+                                                onClick = {
+                                                    haptics.impact()
+                                                    showAllPast = !showAllPast
+                                                },
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -514,8 +550,18 @@ fun StudentTrackingScreen(
                 }
             }
         }
+        // Cuando la hoja llega arriba, la barra de estado queda sobre vidrio y no sobre el texto.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .windowInsetsTopHeight(WindowInsets.statusBars)
+                .graphicsLayer { alpha = if (sheetTop() < size.height) 1f else 0f }
+                .background(palette.stage.copy(alpha = 0.92f)),
+        )
     }
 }
+
+private const val ORDERS_SCENE_WINDOW = 0.4f
 
 @Composable
 private fun OrderTrackingSkeleton() {
@@ -758,7 +804,7 @@ private val OrderDetail.isActiveForCustomer: Boolean
 private fun customerStateLabel(order: OrderDetail): String =
     if (order.isRental) rentalStateLabel(order) else orderStateLabel(order.summary)
 
-internal val OrderTrackingCardBg = Color(0xFF1C1D1B)
+internal val OrderTrackingCardBg = Color(0xE01C1D1B)
 internal val OrderTrackingCardText = Color(0xFFF5F2E8)
 
 @Composable
@@ -804,7 +850,12 @@ private fun ActiveOrderCard(
     val summary = order.summary
     val reduceMotion = reducedMotion()
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        // Tocar la tarjeta abre el pedido; sus botones (mesero, seguimiento) siguen respondiendo aparte.
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onOpenFull),
         color = OrderTrackingCardBg,
         shape = RoundedCornerShape(24.dp),
     ) {
@@ -1638,13 +1689,17 @@ private fun TableSessionCard(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(22.dp))
+                .clip(RoundedCornerShape(26.dp))
                 .background(colors.paper2)
-                .padding(14.dp),
+                .border(1.dp, colors.line, RoundedCornerShape(26.dp))
+                .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
-            "${session.orders.first().summary.space?.name ?: "Mesa"} · " +
+            "${session.orders
+                .first()
+                .summary.space
+                ?.name ?: "Mesa"} · " +
                 "$count ${if (count == 1) "pedido" else "pedidos"}",
             color = colors.ink,
             fontWeight = FontWeight.Black,
@@ -1654,6 +1709,10 @@ private fun TableSessionCard(
     }
 }
 
+/**
+ * Pedido anterior en vidrio: la foto del primer producto, qué se pidió, a dónde y cómo se pagó, y el
+ * total con un punto de color por estado. Tocarlo abre la tienda con ese pedido.
+ */
 @Composable
 private fun PastOrderRow(
     order: OrderDetail,
@@ -1662,53 +1721,90 @@ private fun PastOrderRow(
 ) {
     val colors = LocalVaiinillaColors.current
     val summary = order.summary
-    val isReady = summary.state == OrderState.READY
-    val contentColor = if (isReady) colors.accentInk else OrderTrackingCardText
-    Surface(
+    val shape = RoundedCornerShape(22.dp)
+    val first = order.items.firstOrNull()
+    val title =
+        when {
+            first == null -> "Pedido #${summary.folio}"
+            order.items.size == 1 -> "${first.quantity} × ${first.productName}"
+            else -> "${first.productName} y ${order.items.size - 1} más"
+        }
+    val stateDot =
+        when (summary.state) {
+            OrderState.DELIVERED, OrderState.READY -> colors.accent
+            OrderState.CANCELED, OrderState.NOT_PICKED_UP -> colors.coral
+            else -> colors.muted.copy(alpha = 0.6f)
+        }
+    Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .physicalPress(onClick = onClick),
-        color = if (isReady) colors.accent else OrderTrackingCardBg,
-        shape = RoundedCornerShape(20.dp),
+                .clip(shape)
+                .background(colors.paper2)
+                .border(1.dp, colors.line, shape)
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "#${summary.folio}",
-                        color = contentColor,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Black,
-                    )
-                    Text(
-                        "${destinationDisplayLabel(order)} · ${orderPaymentLabel(summary)}",
-                        color = contentColor.copy(alpha = 0.62f),
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 2.dp),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+        Box {
+            OrderItemThumb(imageUrl = imageUrls.firstOrNull(), size = 52.dp, corner = 16.dp, tint = colors.muted)
+            if (imageUrls.size > 1) {
                 Text(
-                    moneyLabel(summary.total),
-                    color = contentColor,
-                    fontSize = 16.sp,
+                    "+${imageUrls.size - 1}",
+                    color = colors.accentInk,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Black,
-                    maxLines = 1,
-                    modifier = Modifier.padding(end = 12.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .offset(x = 4.dp, y = 4.dp)
+                            .clip(CircleShape)
+                            .background(colors.accent)
+                            .padding(horizontal = 5.dp, vertical = 1.dp),
                 )
-                OrderStatusPill(state = summary.state, onAccent = isReady, label = customerStateLabel(order))
             }
-            // Los thumbnails van en su propia línea: en la fila principal
-            // competían con total+pill y colapsaban el texto a cero.
-            if (imageUrls.isNotEmpty()) {
-                OrderThumbRow(
-                    imageUrls = imageUrls,
-                    onAccent = isReady,
-                    modifier = Modifier.padding(top = 10.dp),
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                color = colors.ink,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                "#${summary.folio} · ${destinationDisplayLabel(order)} · ${orderPaymentLabel(summary)}",
+                color = colors.muted,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                moneyLabel(summary.total),
+                color = colors.ink,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 3.dp)) {
+                Box(
+                    Modifier
+                        .size(7.dp)
+                        .background(stateDot, CircleShape),
+                )
+                Spacer(Modifier.width(5.dp))
+                Text(
+                    customerStateLabel(order),
+                    color = colors.muted,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
                 )
             }
         }
@@ -1732,6 +1828,7 @@ private fun OrderItemThumb(
     size: Dp,
     corner: Dp,
     placeholder: ImageVector = Icons.Outlined.Restaurant,
+    tint: Color = OrderTrackingCardText.copy(alpha = 0.55f),
 ) {
     Box(
         modifier =
@@ -1752,7 +1849,7 @@ private fun OrderItemThumb(
             Icon(
                 placeholder,
                 contentDescription = null,
-                tint = OrderTrackingCardText.copy(alpha = 0.55f),
+                tint = tint,
                 modifier = Modifier.size(size * 0.45f),
             )
         }

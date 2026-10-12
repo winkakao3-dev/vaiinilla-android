@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,15 +29,17 @@ fun ActiveOrderBanner(
 ) {
     val colors = LocalVaiinillaColors.current
     val isPreparing = statusLabel.equals("Preparando", ignoreCase = true)
-    val badgeBackground = if (isPreparing) colors.yolk else Color.White.copy(alpha = 0.33f)
-    val badgeText = if (isPreparing) colors.ink else colors.paper
+    val badgeBackground = if (isPreparing) colors.yolk else colors.accent
+    val badgeText = if (isPreparing) Color(0xFF1A1414) else colors.accentInk
+    val shape = RoundedCornerShape(24.dp)
     Surface(
         modifier =
             modifier
                 .fillMaxWidth()
                 .physicalPress(onClick = onClick),
-        color = colors.ink,
-        shape = RoundedCornerShape(24.dp),
+        color = colors.paper2,
+        shape = shape,
+        border = BorderStroke(1.dp, colors.line),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -54,7 +57,7 @@ fun ActiveOrderBanner(
                     )
                     Text(
                         text = "#$folio",
-                        color = colors.paper,
+                        color = colors.ink,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Black,
                         modifier = Modifier.padding(top = 4.dp),

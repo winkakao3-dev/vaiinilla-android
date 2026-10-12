@@ -53,7 +53,7 @@ object SupportCopy {
                 body =
                     "Si tu pedido no aparece, tardó más de lo indicado o tu saldo no se refleja " +
                         "después de una recarga, escríbenos con la hora aproximada " +
-                            "y el establecimiento donde lo hiciste.",
+                        "y el establecimiento donde lo hiciste.",
             ),
             SupportCard(
                 title = "Pagos",

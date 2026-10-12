@@ -44,11 +44,13 @@ import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.canCallWaiter
 import com.vaiinilla.app.ui.account.AccountDeletionViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.components.StudentTab
+import com.vaiinilla.app.ui.components.isRental
 import com.vaiinilla.app.ui.components.prefetchProductImages
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
@@ -1299,8 +1301,17 @@ fun AppNavHost(
             composable(Routes.CONFIRMATION) {
                 val isFreshConfirmation = orderState.createdOrder != null
                 val selectedOrder = operationalState.selectedOrder
+                // El pedido recién creado es una foto; el seleccionado se refresca con el polling y trae el estado
+                // actual (preparando, listo…). Si es el mismo pedido, gana el fresco sin perder el código local.
+                val refreshedCreated =
+                    orderState.createdOrder?.let { created ->
+                        selectedOrder
+                            ?.takeIf { it.summary.id == created.summary.id }
+                            ?.let { fresh -> fresh.copy(pickupToken = fresh.pickupToken ?: created.pickupToken) }
+                            ?: created
+                    }
                 val confirmationOrder =
-                    orderState.createdOrder
+                    refreshedCreated
                         ?: orderState.stripeObservedOrder?.takeIf {
                             selectedOrder == null || selectedOrder.summary.id == it.summary.id
                         }
@@ -1309,7 +1320,9 @@ fun AppNavHost(
                 val context = LocalContext.current
                 LaunchedEffect(confirmationOrder?.summary?.id) {
                     val order = confirmationOrder ?: return@LaunchedEffect
-                    if (order.summary.paymentMethod == PaymentMethod.STRIPE) {
+                    // Un pedido viejo abierto desde Pedidos ya cobrado no debe reabrir el flujo de Stripe.
+                    val stripeStillOpen = isFreshConfirmation || !order.isStripePaymentConfirmedByBackend()
+                    if (order.summary.paymentMethod == PaymentMethod.STRIPE && stripeStillOpen) {
                         orderFlowViewModel.resumeStripePaymentConfirmation(order)
                     }
                 }
@@ -1366,7 +1379,16 @@ fun AppNavHost(
                     purchaseCelebration = orderState.purchaseCelebration,
                     onPurchaseCelebrationFinished = orderFlowViewModel::completePurchaseCelebration,
                     order = confirmationOrder,
+                    deliveryRequiresQr = orderState.operationalStatus?.deliveryRequiresQr != false,
+                    showTrackingButton = isFreshConfirmation,
                     onReturnToMenu = {
+                        // Abierto desde Pedidos: atrás regresa a la lista. La selección se limpia allá,
+                        // cuando esta pantalla ya salió, para no quedarse sin pedido a media animación.
+                        if (!isFreshConfirmation &&
+                            navController.popBackStack(Routes.STUDENT_TRACKING, inclusive = false)
+                        ) {
+                            return@OrderConfirmationScreen
+                        }
                         if (isFreshConfirmation) {
                             orderFlowViewModel.clearCreatedOrder()
                         }
@@ -1422,16 +1444,33 @@ fun AppNavHost(
                         operationalViewModel.setRole(OperationalRole.CLIENT)
                     }
                 }
+                // Los pedidos se abren en la pantalla de recogida (Vainiverso); solo las rentas
+                // conservan el detalle dentro de la lista. Al volver se suelta la selección.
+                LaunchedEffect(Unit) {
+                    if (operationalState.selectedOrder?.isRental == false) {
+                        delay(POP_ANIMATION_MILLIS.toLong() + 50)
+                        operationalViewModel.selectOrder(null)
+                    }
+                }
                 if (!venueAuthRequired) {
                     StudentTrackingScreen(
-                        state = operationalState,
+                        state =
+                            operationalState.takeIf { it.selectedOrder?.isRental != false }
+                                ?: operationalState.copy(selectedOrderId = null),
                         orderState = orderState,
                         onMenu = { navController.navigateStudent(Routes.CATALOG) },
                         onAssistant = {},
                         onWallet = { navController.navigateStudent(Routes.WALLET) },
                         onCart = { navController.navigateStudent(Routes.CART) },
                         onOpenCatalog = { navController.navigateStudent(Routes.CATALOG) },
-                        onSelectOrder = operationalViewModel::selectOrder,
+                        onSelectOrder = { id ->
+                            operationalViewModel.selectOrder(id)
+                            val rental = operationalState.orders.firstOrNull { it.summary.id == id }?.isRental == true
+                            if (!rental) {
+                                orderFlowViewModel.clearCreatedOrder()
+                                navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
+                            }
+                        },
                         onBackFromSelectedOrder = { operationalViewModel.selectOrder(null) },
                         onDeleteOrder = ::dismissClientOrder,
                         onViewReceipt = {

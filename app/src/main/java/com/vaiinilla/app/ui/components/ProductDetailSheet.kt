@@ -16,6 +16,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -59,6 +60,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -98,6 +100,16 @@ import com.vaiinilla.app.domain.model.CART_LINE_NOTE_MAX
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.ProductOption
+import com.vaiinilla.app.ui.order.trayItemKind
+import com.vaiinilla.app.ui.screens.LocalScene
+import com.vaiinilla.app.ui.screens.ProductIllustration
+import com.vaiinilla.app.ui.screens.ProductPhotoShadow
+import com.vaiinilla.app.ui.screens.TagCream
+import com.vaiinilla.app.ui.screens.TagInk
+import com.vaiinilla.app.ui.screens.TagLime
+import com.vaiinilla.app.ui.screens.glassEdge
+import com.vaiinilla.app.ui.screens.productTone
+import com.vaiinilla.app.ui.screens.scenePaletteForTheme
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -123,7 +135,18 @@ fun ProductDetailSheet(
     onQuantityChange: (delta: Int) -> Unit,
     onAdd: () -> Unit,
 ) {
-    val colors = LocalVaiinillaColors.current
+    val scene = scenePaletteForTheme()
+    val baseColors = LocalVaiinillaColors.current
+    val colors =
+        baseColors.copy(
+            paper = scene.sheetSolid,
+            paper2 = scene.glassCard,
+            line = scene.glassLine,
+            ink = scene.ink,
+            ink2 = scene.ink.copy(alpha = 0.82f),
+            muted = scene.muted,
+        )
+    val tone = productTone(product)
     val reduceMotion = reducedMotion()
     val isCustomized = selectedOptionIds != defaultOptionIds
     val interactionSource = remember { MutableInteractionSource() }
@@ -291,111 +314,125 @@ fun ProductDetailSheet(
                             indication = null,
                             onClick = {},
                         ),
-                color = colors.paper,
+                color = scene.sheetSolid,
                 shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
+                border = BorderStroke(1.dp, scene.glassEdge),
                 shadowElevation = 24.dp,
             ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.weight(1f).testTag("product-detail-scroll"),
-                        contentPadding =
-                            androidx.compose.foundation.layout
-                                .PaddingValues(bottom = 24.dp),
-                    ) {
-                        item {
-                            ProductHero(
-                                product = product,
-                                previewPrice = previewPrice,
-                                customized = isCustomized,
-                                onDismiss = ::requestDismiss,
-                            )
-                        }
-                        item {
-                            Column(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 20.dp, vertical = 18.dp),
-                            ) {
-                                Text(
-                                    text = categoryName.uppercase(),
-                                    color = colors.muted,
-                                    fontSize = 13.sp,
-                                    lineHeight = 17.sp,
-                                    fontWeight = FontWeight.Bold,
+                // Detrás del vidrio, la misma foto muy desenfocada ilumina la parte de arriba de la hoja.
+                CompositionLocalProvider(LocalScene provides scene, LocalVaiinillaColors provides colors) {
+                    ProductPhotoShadow(
+                        product = product,
+                        tone = tone,
+                        shape = RoundedCornerShape(28.dp),
+                        modifier = Modifier.fillMaxWidth().height(330.dp),
+                        blur = 60.dp,
+                        drop = 40.dp,
+                        inset = 0.dp,
+                        strength = if (colors.isDark) 0.42f else 0.32f,
+                    )
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.weight(1f).testTag("product-detail-scroll"),
+                            contentPadding =
+                                androidx.compose.foundation.layout
+                                    .PaddingValues(bottom = 24.dp),
+                        ) {
+                            item {
+                                ProductHero(
+                                    product = product,
+                                    previewPrice = previewPrice,
+                                    customized = isCustomized,
+                                    onDismiss = ::requestDismiss,
                                 )
-                                Text(
-                                    text = product.name,
-                                    color = colors.ink,
-                                    fontSize = 34.sp,
-                                    lineHeight = 38.sp,
-                                    fontWeight = FontWeight.Black,
-                                    letterSpacing = (-1.2).sp,
-                                    modifier = Modifier.padding(top = 4.dp),
-                                )
-                                if (product.description.isNotBlank()) {
+                            }
+                            item {
+                                Column(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 20.dp, vertical = 18.dp),
+                                ) {
                                     Text(
-                                        text = product.description,
+                                        text = categoryName.uppercase(),
                                         color = colors.muted,
-                                        fontSize = 16.sp,
-                                        lineHeight = 22.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        modifier = Modifier.padding(top = 6.dp),
+                                        fontSize = 13.sp,
+                                        lineHeight = 17.sp,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                    Text(
+                                        text = product.name,
+                                        color = colors.ink,
+                                        fontSize = 34.sp,
+                                        lineHeight = 38.sp,
+                                        fontWeight = FontWeight.Black,
+                                        letterSpacing = (-1.2).sp,
+                                        modifier = Modifier.padding(top = 4.dp),
+                                    )
+                                    if (product.description.isNotBlank()) {
+                                        Text(
+                                            text = product.description,
+                                            color = colors.muted,
+                                            fontSize = 16.sp,
+                                            lineHeight = 22.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier.padding(top = 6.dp),
+                                        )
+                                    }
+                                }
+                            }
+
+                            product.optionGroups.forEach { group ->
+                                item(key = "option-group-${group.id}") {
+                                    ProductOptionGroup(
+                                        group = group,
+                                        selectedOptionIds = selectedOptionIds,
+                                        onToggleOption = onToggleOption,
+                                        onClearOptionalGroup = onClearOptionalGroup,
+                                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                                     )
                                 }
                             }
-                        }
 
-                        product.optionGroups.forEach { group ->
-                            item(key = "option-group-${group.id}") {
-                                ProductOptionGroup(
-                                    group = group,
-                                    selectedOptionIds = selectedOptionIds,
-                                    onToggleOption = onToggleOption,
-                                    onClearOptionalGroup = onClearOptionalGroup,
+                            item(key = "product-notes") {
+                                EditorialNotesField(
+                                    value = notes,
+                                    onValueChange = { onNotesChange(it.take(CART_LINE_NOTE_MAX)) },
+                                    label = "Nota para cocina",
+                                    placeholder = "Ej. sin cebolla, salsa aparte",
                                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                                )
+                            }
+
+                            item {
+                                ProductMetaGrid(
+                                    ingredients = product.ingredients,
+                                    estimatedTime = estimatedTimeLabel(product.estimatedTimeMinutes),
+                                    allergens = product.allergens,
+                                    modifier = Modifier.padding(start = 20.dp, top = 16.dp, end = 20.dp),
                                 )
                             }
                         }
 
-                        item(key = "product-notes") {
-                            EditorialNotesField(
-                                value = notes,
-                                onValueChange = { onNotesChange(it.take(CART_LINE_NOTE_MAX)) },
-                                label = "Nota para cocina",
-                                placeholder = "Ej. sin cebolla, salsa aparte",
-                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                            )
-                        }
-
-                        item {
-                            ProductMetaGrid(
-                                ingredients = product.ingredients,
-                                estimatedTime = estimatedTimeLabel(product.estimatedTimeMinutes),
-                                allergens = product.allergens,
-                                modifier = Modifier.padding(start = 20.dp, top = 16.dp, end = 20.dp),
-                            )
-                        }
+                        ProductDetailDock(
+                            product = product,
+                            selectedOptionIds = selectedOptionIds,
+                            quantity = quantity,
+                            previewTotal = previewTotal,
+                            canAdd = canAdd,
+                            errorMessage = errorMessage,
+                            customized = isCustomized,
+                            onQuantityChange = { delta ->
+                                haptics.click()
+                                onQuantityChange(delta)
+                            },
+                            onAdd = {
+                                haptics.impact()
+                                onAdd()
+                            },
+                        )
                     }
-
-                    ProductDetailDock(
-                        product = product,
-                        selectedOptionIds = selectedOptionIds,
-                        quantity = quantity,
-                        previewTotal = previewTotal,
-                        canAdd = canAdd,
-                        errorMessage = errorMessage,
-                        customized = isCustomized,
-                        onQuantityChange = { delta ->
-                            haptics.click()
-                            onQuantityChange(delta)
-                        },
-                        onAdd = {
-                            haptics.impact()
-                            onAdd()
-                        },
-                    )
                 }
             }
         }
@@ -410,20 +447,31 @@ private fun ProductHero(
     onDismiss: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    val scene = LocalScene.current
+    val kind = trayItemKind(product.name)
+    val reduceMotion = reducedMotion()
+    // Sin foto, el dibujo del producto baja a su lugar al abrir la ficha.
+    val drop = remember(product.id) { Animatable(if (reduceMotion) 1f else 0f) }
+    LaunchedEffect(product.id) {
+        drop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 260f))
+    }
+    val heroShape = RoundedCornerShape(28.dp)
     Box(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .padding(start = 14.dp, end = 14.dp, top = 14.dp)
                 .height(300.dp)
-                .clip(RoundedCornerShape(28.dp))
-                .background(colors.paper2),
+                .clip(heroShape)
+                .background(productTone(product).copy(alpha = 0.18f))
+                .glassEdge(scene.glassEdge, heroShape),
     ) {
         ProductImage(
             imageUrl = product.imageUrl,
             contentDescription = product.name,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
+            placeholder = { m -> ProductIllustration(kind, m, drop = { drop.value }) },
         )
 
         HeroActionButton(
@@ -457,8 +505,9 @@ private fun ProductHero(
         }
         Surface(
             modifier = Modifier.align(Alignment.BottomEnd).padding(14.dp),
-            color = colors.ink.copy(alpha = 0.94f),
-            shape = RoundedCornerShape(18.dp),
+            color = TagCream,
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(2.dp, TagLime),
         ) {
             AnimatedContent(
                 targetState = previewPrice,
@@ -475,7 +524,7 @@ private fun ProductHero(
             ) { price ->
                 Text(
                     moneyLabel(price),
-                    color = colors.paper,
+                    color = TagInk,
                     fontSize = 26.sp,
                     lineHeight = 30.sp,
                     fontWeight = FontWeight.Black,
@@ -500,7 +549,7 @@ private fun HeroActionButton(
             modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(colors.paper.copy(alpha = 0.90f)),
+                .background(colors.paper.copy(alpha = 0.82f)),
     ) {
         Icon(
             icon,
@@ -785,8 +834,9 @@ private fun ProductDetailDock(
                     indication = null,
                     onClick = {},
                 ),
-        color = colors.paper,
+        color = colors.paper.copy(alpha = 0.94f),
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        border = BorderStroke(1.dp, LocalScene.current.glassEdge),
         shadowElevation = 18.dp,
     ) {
         Column(
@@ -880,7 +930,7 @@ private fun ProductDetailDock(
             errorMessage?.let { message ->
                 Text(
                     message,
-                    color = Color(0xFF9D2E25),
+                    color = colors.coral,
                     fontSize = 12.sp,
                     lineHeight = 16.sp,
                     fontWeight = FontWeight.Bold,

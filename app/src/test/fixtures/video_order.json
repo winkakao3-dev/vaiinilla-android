@@ -1,0 +1,38 @@
+{
+ "data": {
+  "id": "9f023852-b234-4350-813d-7af67e9192ea",
+  "folio": 128,
+  "fecha_operativa": "2026-07-20",
+  "estado": "por_cobrar",
+  "metodo_pago": "efectivo",
+  "destino": "para_llevar",
+  "espacio": null,
+  "subtotal": "99.00",
+  "ahorro_combinado": "0.00",
+  "cashback_otorgado": "0.00",
+  "total": "99.00",
+  "version": 1,
+  "creado_en": "2026-07-20T15:05:00.000Z",
+  "actualizado_en": "2026-07-20T15:05:00.000Z",
+  "notas_cocina": "Sin cebolla",
+  "items": [
+   {
+    "id": 501,
+    "producto_id": 22,
+    "nombre_producto": "Tacos de Cochinita Pibil",
+    "estacion_preparacion": "cocina",
+    "cantidad": 1,
+    "precio_digital_unitario": "99.00",
+    "subtotal": "99.00",
+    "opciones": []
+   }
+  ]
+ },
+ "meta": {
+  "page": null,
+  "total_pages": null,
+  "total_items": null,
+  "cursor": null
+ },
+ "error": null
+}
