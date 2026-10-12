@@ -41,6 +41,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -126,10 +127,13 @@ fun SwipeToDeleteOrder(
                         )
                 },
         backgroundContent = {
+            // Solo se pinta al deslizar: las tarjetas de vidrio dejan ver lo que tienen detrás.
+            val swiping = dismissState.dismissDirection != SwipeToDismissBoxValue.Settled
             Box(
                 modifier =
                     Modifier
                         .fillMaxSize()
+                        .graphicsLayer { alpha = if (swiping) 1f else 0f }
                         .background(OrderDeleteBackground),
             ) {
                 DeleteOrderAction(

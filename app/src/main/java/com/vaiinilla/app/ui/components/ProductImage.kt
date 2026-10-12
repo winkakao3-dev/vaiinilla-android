@@ -6,6 +6,7 @@ import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -164,24 +165,29 @@ private fun decodeBoundedImage(bytes: ByteArray): android.graphics.Bitmap? {
 @Composable
 private fun ProductImagePlaceholder(modifier: Modifier) {
     val colors = LocalVaiinillaColors.current
-    Box(
+    BoxWithConstraints(
         modifier = modifier.background(colors.paper2),
         contentAlignment = Alignment.Center,
     ) {
+        // En miniaturas no cabe el texto: solo el ícono, a la escala de la miniatura.
+        val compact = maxWidth < 96.dp
+        val iconSize = if (compact) maxWidth * 0.42f else 34.dp
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             androidx.compose.material3.Icon(
                 imageVector = Icons.Outlined.Image,
                 contentDescription = null,
                 tint = colors.muted,
-                modifier = Modifier.size(34.dp),
+                modifier = Modifier.size(iconSize),
             )
-            androidx.compose.material3.Text(
-                text = "Sin foto",
-                color = colors.muted,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 6.dp),
-            )
+            if (!compact) {
+                androidx.compose.material3.Text(
+                    text = "Sin foto",
+                    color = colors.muted,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
         }
     }
 }
