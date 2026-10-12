@@ -1,15 +1,14 @@
 package com.vaiinilla.app.ui.screens
 
-import android.provider.Settings
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.EaseInOutSine
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -17,7 +16,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -81,9 +79,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -91,7 +87,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.R
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.Category
@@ -190,40 +185,54 @@ fun CartScreen(
             "${state.cartLines.size} productos"
         }
 
+    // Vainiverso: el mostrador con Vaini y la bandeja arriba; la lista en una hoja de vidrio que sube.
+    val palette = scenePaletteForTheme()
+    val listState = rememberLazyListState()
+    val glassColors =
+        colors.copy(
+            paper = Color.Transparent,
+            paper2 = palette.glassCard,
+            line = palette.glassLine,
+            ink = palette.ink,
+            muted = palette.muted,
+        )
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    val windowPx = constraints.maxHeight * CART_SCENE_WINDOW
+    val windowDp = with(density) { windowPx.toDp() }
+    val sheetTop = {
+        if (listState.firstVisibleItemIndex == 0) windowPx - listState.firstVisibleItemScrollOffset else 0f
+    }
+    CompositionLocalProvider(LocalScene provides palette) {
+        CartCounterBackdrop(
+            sheetTop = sheetTop,
+            lines = state.cartLines,
+            totalLabel = if (state.cartLines.isEmpty()) null else moneyLabel(state.cartPreviewTotal),
+        )
+    }
     PullToRefreshBox(
         isRefreshing = isRefreshing,
         onRefresh = onRefresh,
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(colors.paper)
                 .imePadding(),
     ) {
+        CompositionLocalProvider(LocalVaiinillaColors provides glassColors) {
         LazyColumn(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding(),
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
             contentPadding =
                 PaddingValues(
                     start = 20.dp,
                     end = 20.dp,
-                    top = 8.dp,
+                    top = 0.dp,
                     bottom = VaiinillaBottomNavClearance + 126.dp,
                 ),
             verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
+            item(key = "counter-window") { Spacer(Modifier.height(windowDp)) }
             item {
-                CartTopBar(
-                    onBack = {
-                        haptics.click()
-                        onMenu()
-                    },
-                    profileInitials = profileInitials,
-                    onOpenAccount = onOpenAccount,
-                )
-            }
-            item {
+                Spacer(Modifier.height(22.dp))
                 Text(
                     "REVISA Y CONFIRMA",
                     color = colors.muted,
@@ -341,6 +350,8 @@ fun CartScreen(
             }
         }
 
+        }
+
         if (shouldShowCheckoutDock(state.cartLines.isNotEmpty(), imeVisible)) {
             Box(
                 modifier =
@@ -407,7 +418,32 @@ fun CartScreen(
             )
         }
     }
+    // La barra de estado queda sobre vidrio cuando la hoja llega arriba; el regreso y la cuenta flotan encima.
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .windowInsetsTopHeight(WindowInsets.statusBars)
+            .graphicsLayer { alpha = if (sheetTop() < size.height) 1f else 0f }
+            .background(palette.stage.copy(alpha = 0.92f)),
+    )
+    Box(
+        Modifier
+            .statusBarsPadding()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+    ) {
+        CartTopBar(
+            onBack = {
+                haptics.click()
+                onMenu()
+            },
+            profileInitials = profileInitials,
+            onOpenAccount = onOpenAccount,
+        )
+    }
+    }
 }
+
+private const val CART_SCENE_WINDOW = 0.42f
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1487,7 +1523,6 @@ private fun EmptyCart(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        EmptyCartMascotScene()
         Text(
             "¿Qué se te antoja?",
             color = colors.ink,
@@ -1602,97 +1637,6 @@ private fun RecentOrderRow(
             tint = colors.muted,
             modifier = Modifier.padding(start = 4.dp).size(20.dp),
         )
-    }
-}
-
-// La mascota decidiendo qué pedir: el `?` lima flota suave y los glyphs
-// orbitan como en el asistente. Reduce Motion deja la escena estática.
-@Composable
-private fun EmptyCartMascotScene() {
-    val colors = LocalVaiinillaColors.current
-    val reduceMotion = rememberCartReduceMotion()
-    Box(
-        modifier = Modifier.fillMaxWidth().height(252.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        FloatingGlyph(
-            kind = VaiinillaGlyphKind.Note,
-            color = colors.muted,
-            accent = colors.accent,
-            sizeDp = 32.dp,
-            phase = 0.15f,
-            amplitudeDp = 7f,
-            durationMs = 7600,
-            reduceMotion = reduceMotion,
-            modifier = Modifier.align(Alignment.TopStart).padding(start = 26.dp, top = 34.dp),
-        )
-        FloatingGlyph(
-            kind = VaiinillaGlyphKind.Cup,
-            color = colors.muted,
-            accent = colors.accent,
-            sizeDp = 28.dp,
-            phase = 0.55f,
-            amplitudeDp = 6f,
-            durationMs = 6800,
-            reduceMotion = reduceMotion,
-            modifier = Modifier.align(Alignment.TopEnd).padding(end = 22.dp, top = 48.dp),
-        )
-        FloatingGlyph(
-            kind = VaiinillaGlyphKind.Spark,
-            color = colors.muted,
-            accent = colors.accent,
-            sizeDp = 19.dp,
-            phase = 0.85f,
-            amplitudeDp = 5f,
-            durationMs = 6000,
-            reduceMotion = reduceMotion,
-            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 40.dp, bottom = 26.dp),
-        )
-        EmptyCartMascotFigure(reduceMotion)
-    }
-}
-
-@Composable
-private fun EmptyCartMascotFigure(reduceMotion: Boolean) {
-    if (reduceMotion) {
-        Image(
-            painter = painterResource(R.drawable.mascot_question),
-            contentDescription = null,
-            modifier = Modifier.size(216.dp),
-        )
-        return
-    }
-    val transition = rememberInfiniteTransition(label = "emptyCartMascot")
-    val bob by
-        transition.animateFloat(
-            initialValue = -4f,
-            targetValue = 4f,
-            animationSpec =
-                infiniteRepeatable(
-                    animation = tween(1600, easing = EaseInOutSine),
-                    repeatMode = RepeatMode.Reverse,
-                ),
-            label = "emptyCartMascotBob",
-        )
-    Image(
-        painter = painterResource(R.drawable.mascot_question),
-        contentDescription = null,
-        modifier =
-            Modifier.size(216.dp).graphicsLayer {
-                translationY = bob.dp.toPx()
-            },
-    )
-}
-
-@Composable
-private fun rememberCartReduceMotion(): Boolean {
-    val context = LocalContext.current
-    return remember(context) {
-        Settings.Global.getFloat(
-            context.contentResolver,
-            Settings.Global.ANIMATOR_DURATION_SCALE,
-            1f,
-        ) < 0.01f
     }
 }
 

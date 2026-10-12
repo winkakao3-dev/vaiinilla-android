@@ -327,7 +327,7 @@ fun DrawScope.drawVaiinillaMascotRunner(
 /**
  * Vaini de pie dentro de una escena dibujada a mano (la fachada de recogida), en una caja de [boxPx].
  * [blink] escala los ojos en vertical (1 abiertos); [waveDegrees] levanta el brazo derecho;
- * [happy] cambia los ojos por `^ ^`.
+ * [happy] cambia los ojos por `^ ^`; [lookX] (-1 a 1) mueve la mirada a los lados.
  */
 fun DrawScope.drawVainiStanding(
     boxPx: Float,
@@ -338,6 +338,7 @@ fun DrawScope.drawVainiStanding(
     blink: Float = 1f,
     waveDegrees: Float = 0f,
     happy: Boolean = false,
+    lookX: Float = 0f,
 ) {
     val s = boxPx / 100f
     withTransform({ scale(s, s, pivot = Offset.Zero) }) {
@@ -360,8 +361,10 @@ fun DrawScope.drawVainiStanding(
             drawOval(Color(0x80FF8C78), topLeft = Offset(33.5f, 57f), size = androidx.compose.ui.geometry.Size(7f, 3.6f))
             drawOval(Color(0x80FF8C78), topLeft = Offset(59.5f, 57f), size = androidx.compose.ui.geometry.Size(7f, 3.6f))
         } else {
-            withTransform({ scale(1f, blink, pivot = Offset(40.1f, 52.5f)) }) { drawPath(MASCOT_EYE_LEFT, inkColor) }
-            withTransform({ scale(1f, blink, pivot = Offset(59.9f, 52.5f)) }) { drawPath(MASCOT_EYE_RIGHT, inkColor) }
+            withTransform({ translate(lookX.coerceIn(-1f, 1f) * 3.2f, 0f) }) {
+                withTransform({ scale(1f, blink, pivot = Offset(40.1f, 52.5f)) }) { drawPath(MASCOT_EYE_LEFT, inkColor) }
+                withTransform({ scale(1f, blink, pivot = Offset(59.9f, 52.5f)) }) { drawPath(MASCOT_EYE_RIGHT, inkColor) }
+            }
         }
     }
 }

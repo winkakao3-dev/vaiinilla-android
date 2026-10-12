@@ -486,7 +486,7 @@ internal fun VainiversoStoreBackdrop(
                 ),
             label = "wave",
         )
-    val drawScene: DrawScope.() -> Unit = {
+    VainiversoBackdrop(sheetTop = sheetTop, modifier = modifier) {
         val motion =
             SceneMotion(
                 blink = if (reduceMotion) 1f else blink.value,
@@ -497,6 +497,19 @@ internal fun VainiversoStoreBackdrop(
             drawStorefront(size, textMeasurer, palette, motion)
         }
     }
+}
+
+/**
+ * Cualquier escena del Vainiverso detrás de una lista: [drawScene] se pinta nítido arriba de [sheetTop]
+ * y borroso debajo, con el velo de vidrio encima. Va dentro de un `LocalScene` ya provisto.
+ */
+@Composable
+internal fun VainiversoBackdrop(
+    sheetTop: () -> Float,
+    modifier: Modifier = Modifier,
+    drawScene: DrawScope.() -> Unit,
+) {
+    val palette = LocalScene.current
     val glassShape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp)
     Box(
         modifier =
