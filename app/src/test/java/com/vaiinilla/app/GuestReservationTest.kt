@@ -69,7 +69,14 @@ class GuestReservationTest {
         val session = GuestReservationSession(api, store)
 
         assertEquals("jwt-renewed", session.bearer("demo").getOrThrow())
-        assertTrue(api.callsTo("publico/invitados/sesiones").single().body.orEmpty().contains("\"llave\":\"llave-1\""))
+        assertTrue(
+            api
+                .callsTo("publico/invitados/sesiones")
+                .single()
+                .body
+                .orEmpty()
+                .contains("\"llave\":\"llave-1\""),
+        )
     }
 
     @Test

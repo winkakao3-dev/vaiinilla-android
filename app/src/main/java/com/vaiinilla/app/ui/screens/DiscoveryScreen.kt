@@ -510,7 +510,8 @@ private fun LocalVideosSection(
                         .physicalPress(onClick = {
                             haptics.click()
                             openExternalVideo(context, video.url)
-                        }).padding(14.dp),
+                        })
+                        .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(

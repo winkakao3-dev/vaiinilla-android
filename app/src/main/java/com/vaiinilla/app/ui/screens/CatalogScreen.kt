@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -53,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -82,10 +82,8 @@ import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductCardSkeleton
 import com.vaiinilla.app.ui.components.ProductDetailSheet
-import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.SwipeToDeleteOrder
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
-import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.OrderFlowUiState
@@ -333,6 +331,15 @@ private fun CatalogContent(
             state.filteredProducts
         }
 
+    val scene = scenePaletteForTheme()
+    val shelfColors =
+        colors.copy(
+            paper = Color.Transparent,
+            paper2 = scene.glassCard,
+            line = scene.glassLine,
+            ink = scene.ink,
+            muted = scene.muted,
+        )
     Box(
         modifier =
             Modifier
@@ -361,80 +368,82 @@ private fun CatalogContent(
             modifier = Modifier.fillMaxSize(),
             indicator = {},
         ) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding(),
-                contentPadding =
-                    PaddingValues(
-                        start = 20.dp,
-                        end = 20.dp,
-                        top = 16.dp,
-                        bottom = VaiinillaBottomNavClearance + 48.dp,
-                    ),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    CatalogHeader(
-                        state = state,
-                        categories = sortedCategories,
-                        onSearchChange = onSearchChange,
-                        onCategorySelected = onCategorySelected,
-                        onOpenCart = onOpenCart,
-                        onChangeVenue = onChangeVenue,
-                        onOpenModes = onOpenModes,
-                        onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
-                        profileInitials = profileInitials,
-                        onOpenAccount = onOpenAccount,
-                    )
-                }
+            CompositionLocalProvider(LocalScene provides scene, LocalVaiinillaColors provides shelfColors) {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .statusBarsPadding(),
+                    contentPadding =
+                        PaddingValues(
+                            start = 20.dp,
+                            end = 20.dp,
+                            top = 16.dp,
+                            bottom = VaiinillaBottomNavClearance + 48.dp,
+                        ),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        CatalogHeader(
+                            state = state,
+                            categories = sortedCategories,
+                            onSearchChange = onSearchChange,
+                            onCategorySelected = onCategorySelected,
+                            onOpenCart = onOpenCart,
+                            onChangeVenue = onChangeVenue,
+                            onOpenModes = onOpenModes,
+                            onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
+                            profileInitials = profileInitials,
+                            onOpenAccount = onOpenAccount,
+                        )
+                    }
 
-                activeOrder?.let { order ->
-                    item(
-                        key = "active-order-${order.summary.id}",
-                        span = { GridItemSpan(maxLineSpan) },
-                    ) {
-                        SwipeToDeleteOrder(
-                            orderFolio = order.summary.folio.toString(),
-                            onDelete = { onDeleteOrder(order.summary.id) },
-                            modifier = Modifier.padding(bottom = 4.dp),
+                    activeOrder?.let { order ->
+                        item(
+                            key = "active-order-${order.summary.id}",
+                            span = { GridItemSpan(maxLineSpan) },
                         ) {
-                            ActiveOrderBanner(
-                                folio = order.summary.folio.toString(),
-                                statusLabel = order.summary.state.label,
-                                itemCount = order.items.sumOf { it.quantity },
-                                destination = order.summary.destination.label,
-                                onClick = onOpenTracking,
+                            SwipeToDeleteOrder(
+                                orderFolio = order.summary.folio.toString(),
+                                onDelete = { onDeleteOrder(order.summary.id) },
+                                modifier = Modifier.padding(bottom = 4.dp),
+                            ) {
+                                ActiveOrderBanner(
+                                    folio = order.summary.folio.toString(),
+                                    statusLabel = order.summary.state.label,
+                                    itemCount = order.items.sumOf { it.quantity },
+                                    destination = order.summary.destination.label,
+                                    onClick = onOpenTracking,
+                                )
+                            }
+                        }
+                    }
+
+                    if (courts.isNotEmpty()) {
+                        item(key = "courts-map", span = { GridItemSpan(maxLineSpan) }) {
+                            CourtsMapCard(
+                                courts = courts,
+                                onOpen = onOpenCourts,
+                                modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
                             )
                         }
                     }
-                }
 
-                if (courts.isNotEmpty()) {
-                    item(key = "courts-map", span = { GridItemSpan(maxLineSpan) }) {
-                        CourtsMapCard(
-                            courts = courts,
-                            onOpen = onOpenCourts,
-                            modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
-                        )
-                    }
-                }
-
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    MenuSectionHead()
-                }
-
-                if (filteredProducts.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
-                        EmptySearchState(onClearSearch = { onSearchChange("") })
+                        MenuSectionHead()
                     }
-                } else {
-                    items(filteredProducts, key = Product::id) { product ->
-                        Box(modifier = Modifier.animateItem().fillMaxWidth()) {
-                            ProductCard(product = product, onClick = { onProductSelected(product.id) })
+
+                    if (filteredProducts.isEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            EmptySearchState(onClearSearch = { onSearchChange("") })
+                        }
+                    } else {
+                        items(filteredProducts, key = Product::id) { product ->
+                            Box(modifier = Modifier.animateItem().fillMaxWidth()) {
+                                ProductCard(product = product, onClick = { onProductSelected(product.id) })
+                            }
                         }
                     }
                 }
@@ -612,7 +621,7 @@ private fun CatalogHeader(
                         ),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(profileInitials, color = colors.paper, fontWeight = FontWeight.Black)
+                Text(profileInitials, color = LocalScene.current.facade, fontWeight = FontWeight.Black)
             }
         }
 
@@ -713,7 +722,7 @@ private fun CategoryChip(
     ) {
         Text(
             text = label,
-            color = if (selected) colors.paper else colors.ink,
+            color = if (selected) LocalScene.current.facade else colors.ink,
             fontWeight = FontWeight.ExtraBold,
         )
     }
@@ -724,7 +733,6 @@ private fun ProductCard(
     product: Product,
     onClick: () -> Unit,
 ) {
-    val colors = LocalVaiinillaColors.current
     Column(
         modifier =
             Modifier
@@ -732,33 +740,7 @@ private fun ProductCard(
                 .padding(bottom = 14.dp)
                 .physicalPress(scale = PhysicalPressScale.ProductCard, onClick = onClick),
     ) {
-        ProductImage(
-            imageUrl = product.imageUrl,
-            contentDescription = product.name,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(24.dp)),
-        )
-        Text(
-            text = product.name,
-            color = colors.ink,
-            fontWeight = FontWeight.Black,
-            fontSize = 17.sp,
-            lineHeight = 21.sp,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 2.dp, top = 12.dp, end = 2.dp),
-        )
-        Text(
-            text = moneyLabel(product.digitalPrice),
-            color = colors.muted,
-            fontWeight = FontWeight.Bold,
-            fontSize = 15.sp,
-            lineHeight = 19.sp,
-            modifier = Modifier.padding(start = 2.dp, top = 4.dp, end = 2.dp),
-        )
+        ProductGlassCard(product = product)
     }
 }
 

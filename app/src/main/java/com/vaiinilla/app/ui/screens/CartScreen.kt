@@ -1,15 +1,11 @@
 package com.vaiinilla.app.ui.screens
 
-import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.EaseInOutSine
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -17,12 +13,12 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -36,10 +32,13 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -70,6 +69,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -81,9 +81,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -91,7 +89,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.R
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.Category
@@ -190,224 +187,280 @@ fun CartScreen(
             "${state.cartLines.size} productos"
         }
 
-    PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = onRefresh,
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(colors.paper)
-                .imePadding(),
-    ) {
-        LazyColumn(
+    // Vainiverso: el mostrador con Vaini y la bandeja arriba; la lista en una hoja de vidrio que sube.
+    val palette = scenePaletteForTheme()
+    val listState = rememberLazyListState()
+    val glassColors =
+        colors.copy(
+            paper = Color.Transparent,
+            paper2 = palette.glassCard,
+            line = palette.glassLine,
+            ink = palette.ink,
+            muted = palette.muted,
+        )
+    // Con varios productos el mostrador se asoma menos, para que el cobro se vea sin hacer scroll.
+    val sceneWindow by animateFloatAsState(
+        targetValue = cartSceneWindow(state.cartLines.size),
+        animationSpec = spring(dampingRatio = 0.9f, stiffness = 300f),
+        label = "cart-scene-window",
+    )
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val windowPx = constraints.maxHeight * sceneWindow
+        val windowDp = with(density) { windowPx.toDp() }
+        val sheetTop = {
+            if (listState.firstVisibleItemIndex == 0) windowPx - listState.firstVisibleItemScrollOffset else 0f
+        }
+        CompositionLocalProvider(LocalScene provides palette) {
+            CartCounterBackdrop(
+                sheetTop = sheetTop,
+                lines = state.cartLines,
+                totalLabel = if (state.cartLines.isEmpty()) null else moneyLabel(state.cartPreviewTotal),
+            )
+        }
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .statusBarsPadding(),
-            contentPadding =
-                PaddingValues(
-                    start = 20.dp,
-                    end = 20.dp,
-                    top = 8.dp,
-                    bottom = VaiinillaBottomNavClearance + 126.dp,
-                ),
-            verticalArrangement = Arrangement.spacedBy(0.dp),
+                    .imePadding(),
         ) {
-            item {
-                CartTopBar(
-                    onBack = {
-                        haptics.click()
-                        onMenu()
-                    },
-                    profileInitials = profileInitials,
-                    onOpenAccount = onOpenAccount,
-                )
-            }
-            item {
-                Text(
-                    "REVISA Y CONFIRMA",
-                    color = colors.muted,
-                    fontSize = 11.sp,
-                    lineHeight = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.2.sp,
-                )
-                Text(
-                    "Tu pedido",
-                    color = colors.ink,
-                    fontSize = 38.sp,
-                    lineHeight = 42.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-1.8).sp,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 24.dp),
-                )
-            }
-
-            if (state.cartLines.isEmpty()) {
-                item { EmptyCart(onMenu, recentOrders, onSelectOrder) }
-            } else {
-                item {
-                    CartSectionHead("Pedido", productCountLabel)
-                    CartItemsPanel(
-                        lines = state.cartLines,
-                        onQuantityChange = { lineKey, delta ->
-                            haptics.click()
-                            onQuantityChange(lineKey, delta)
-                        },
-                    )
-                }
-
-                item {
-                    Spacer(Modifier.height(22.dp))
-                    CartSectionHead(
-                        title = "Entrega",
-                        meta = if (canChooseInSpace) "Elige cómo recibirlo" else "Recoge en barra",
-                    )
-                    CheckoutDestinationPicker(
-                        selected = state.checkoutDestination,
-                        selectedSpaceName = state.selectedSpaceName,
-                        onSelect = {
-                            haptics.selection()
-                            onDestinationChange(it)
-                        },
-                        showInSpace = canChooseInSpace,
-                        spaceType = state.checkoutSpace?.type,
-                    )
-                }
-                if (state.checkoutDestination == OrderDestination.IN_SPACE && checkoutSpaces.isNotEmpty()) {
-                    item {
-                        Spacer(Modifier.height(14.dp))
-                        CheckoutSpacePicker(
-                            selectedSpaceId = state.checkoutSpace?.id ?: checkoutSpaces.first().id,
-                            spaces = checkoutSpaces,
-                            onSelect = {
-                                haptics.selection()
-                                onSpaceChange(it)
-                            },
-                            spaceType = state.checkoutSpace?.type,
-                        )
-                    }
-                }
-                if (state.guestEntryRequired) {
-                    item {
-                        Spacer(Modifier.height(16.dp))
-                        GuestNameField(
-                            value = state.guestName,
-                            onValueChange = onGuestNameChange,
-                        )
-                    }
-                }
-                item {
-                    Spacer(Modifier.height(16.dp))
-                    CartNotesField(
-                        value = state.kitchenNotes,
-                        onValueChange = onNotesChange,
-                    )
-                }
-                item {
-                    Spacer(Modifier.height(16.dp))
-                    OrderSummaryCard(state = state)
-                }
-                val blockerMessage =
-                    when {
-                        state.hasUnresolvedStripePayment ->
-                            "Tienes un pago Stripe pendiente. Resuélvelo antes de crear otro pedido para evitar cobros duplicados."
-                        state.requiresOperationalReady && !guestAuthRequired && state.operationalStatus != null ->
-                            state.operationalBlockerMessage
-                        else -> null
-                    }
-                if (blockerMessage != null && blockerMessage != state.createOrderError) {
-                    item {
-                        Spacer(Modifier.height(12.dp))
-                        WarningBanner(
-                            message = blockerMessage,
-                            actionLabel = if (state.hasUnresolvedStripePayment) "Revisar pago pendiente" else null,
-                            actionLoading = state.resolvingPendingStripePayment,
-                            onAction =
-                                if (state.hasUnresolvedStripePayment) {
-                                    onResolvePendingStripePayment
-                                } else {
-                                    null
-                                },
-                        )
-                    }
-                }
-                state.createOrderError?.let { error ->
-                    item {
-                        Spacer(Modifier.height(12.dp))
-                        ErrorBanner(message = error)
-                    }
-                }
-            }
-        }
-
-        if (shouldShowCheckoutDock(state.cartLines.isNotEmpty(), imeVisible)) {
-            Box(
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.navigationBars)
-                        .padding(
-                            start = 16.dp,
-                            end = 16.dp,
-                            bottom = VaiinillaBottomNavClearance + 2.dp,
+            CompositionLocalProvider(LocalVaiinillaColors provides glassColors) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding =
+                        PaddingValues(
+                            start = 20.dp,
+                            end = 20.dp,
+                            top = 0.dp,
+                            bottom = VaiinillaBottomNavClearance + 126.dp,
                         ),
-            ) {
-                if (state.hasUnresolvedStripePayment) {
-                    CheckoutDockButton(
-                        label = "Continuar pago pendiente",
-                        subtitle = "Abre tu pedido anterior y revisa Stripe",
-                        price = "Abrir",
-                        enabled = !state.resolvingPendingStripePayment,
-                        loading = state.resolvingPendingStripePayment,
-                        loadingLabel = "Buscando tu pago",
-                        loadingSubtitle = "Consultando el pedido pendiente…",
-                        onClick = {
-                            haptics.impact()
-                            onResolvePendingStripePayment()
-                        },
-                    )
-                } else {
-                    CheckoutDockButton(
-                        label = confirmLabel(guestAuthRequired),
-                        subtitle = "$productCountLabel · $destinationLabel",
-                        price = moneyLabel(state.cartPreviewTotal),
-                        enabled = canConfirm,
-                        loading = state.creatingOrder,
-                        onClick = {
-                            haptics.impact()
-                            paymentDialogOpen = true
-                        },
-                    )
+                    verticalArrangement = Arrangement.spacedBy(0.dp),
+                ) {
+                    item(key = "counter-window") { Spacer(Modifier.height(windowDp)) }
+                    // Con productos, el pizarrón del mostrador ya dice "Tu bandeja": el título sobra y quita espacio al cobro.
+                    if (state.cartLines.isEmpty()) {
+                        item {
+                            Spacer(Modifier.height(22.dp))
+                            Text(
+                                "REVISA Y CONFIRMA",
+                                color = colors.muted,
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 2.2.sp,
+                            )
+                            Text(
+                                "Tu pedido",
+                                color = colors.ink,
+                                fontSize = 38.sp,
+                                lineHeight = 42.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = (-1.8).sp,
+                                modifier = Modifier.padding(top = 4.dp, bottom = 24.dp),
+                            )
+                        }
+                    } else {
+                        item { Spacer(Modifier.height(18.dp)) }
+                    }
+
+                    if (state.cartLines.isEmpty()) {
+                        item { EmptyCart(onMenu, recentOrders, onSelectOrder) }
+                    } else {
+                        item {
+                            CartSectionHead("Pedido", productCountLabel)
+                            CartItemsPanel(
+                                lines = state.cartLines,
+                                onQuantityChange = { lineKey, delta ->
+                                    haptics.click()
+                                    onQuantityChange(lineKey, delta)
+                                },
+                            )
+                        }
+
+                        item {
+                            Spacer(Modifier.height(22.dp))
+                            CartSectionHead(
+                                title = "Entrega",
+                                meta = if (canChooseInSpace) "Elige cómo recibirlo" else "Recoge en barra",
+                            )
+                            CheckoutDestinationPicker(
+                                selected = state.checkoutDestination,
+                                selectedSpaceName = state.selectedSpaceName,
+                                onSelect = {
+                                    haptics.selection()
+                                    onDestinationChange(it)
+                                },
+                                showInSpace = canChooseInSpace,
+                                spaceType = state.checkoutSpace?.type,
+                            )
+                        }
+                        if (state.checkoutDestination == OrderDestination.IN_SPACE && checkoutSpaces.isNotEmpty()) {
+                            item {
+                                Spacer(Modifier.height(14.dp))
+                                CheckoutSpacePicker(
+                                    selectedSpaceId = state.checkoutSpace?.id ?: checkoutSpaces.first().id,
+                                    spaces = checkoutSpaces,
+                                    onSelect = {
+                                        haptics.selection()
+                                        onSpaceChange(it)
+                                    },
+                                    spaceType = state.checkoutSpace?.type,
+                                )
+                            }
+                        }
+                        if (state.guestEntryRequired) {
+                            item {
+                                Spacer(Modifier.height(16.dp))
+                                GuestNameField(
+                                    value = state.guestName,
+                                    onValueChange = onGuestNameChange,
+                                )
+                            }
+                        }
+                        item {
+                            Spacer(Modifier.height(16.dp))
+                            CartNotesField(
+                                value = state.kitchenNotes,
+                                onValueChange = onNotesChange,
+                            )
+                        }
+                        item {
+                            Spacer(Modifier.height(16.dp))
+                            OrderSummaryCard(state = state)
+                        }
+                        val blockerMessage =
+                            when {
+                                state.hasUnresolvedStripePayment ->
+                                    "Tienes un pago Stripe pendiente. " +
+                                        "Resuélvelo antes de crear otro pedido para evitar cobros duplicados."
+                                state.requiresOperationalReady &&
+                                    !guestAuthRequired &&
+                                    state.operationalStatus != null ->
+                                    state.operationalBlockerMessage
+                                else -> null
+                            }
+                        if (blockerMessage != null && blockerMessage != state.createOrderError) {
+                            item {
+                                Spacer(Modifier.height(12.dp))
+                                WarningBanner(
+                                    message = blockerMessage,
+                                    actionLabel =
+                                        if (state.hasUnresolvedStripePayment) "Revisar pago pendiente" else null,
+                                    actionLoading = state.resolvingPendingStripePayment,
+                                    onAction =
+                                        if (state.hasUnresolvedStripePayment) {
+                                            onResolvePendingStripePayment
+                                        } else {
+                                            null
+                                        },
+                                )
+                            }
+                        }
+                        state.createOrderError?.let { error ->
+                            item {
+                                Spacer(Modifier.height(12.dp))
+                                ErrorBanner(message = error)
+                            }
+                        }
+                    }
                 }
             }
-        }
 
-        if (paymentDialogOpen) {
-            PaymentMethodOverlay(
-                balanceAffordable = state.isBalancePaymentAffordable(walletBalance),
-                showBalance = !guestCheckout,
-                walletBalance = walletBalance,
-                payAtEndAvailable = state.canPayAtEnd,
-                cardAvailable = state.canPayWithCard,
-                onDismiss = { paymentDialogOpen = false },
-                onSelectPayAtEnd = {
-                    paymentDialogOpen = false
-                    haptics.selection()
-                    onPayAtEnd()
-                    onConfirm()
+            if (shouldShowCheckoutDock(state.cartLines.isNotEmpty(), imeVisible)) {
+                Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.navigationBars)
+                            .padding(
+                                start = 16.dp,
+                                end = 16.dp,
+                                bottom = VaiinillaBottomNavClearance + 2.dp,
+                            ),
+                ) {
+                    if (state.hasUnresolvedStripePayment) {
+                        CheckoutDockButton(
+                            label = "Continuar pago pendiente",
+                            subtitle = "Abre tu pedido anterior y revisa Stripe",
+                            price = "Abrir",
+                            enabled = !state.resolvingPendingStripePayment,
+                            loading = state.resolvingPendingStripePayment,
+                            loadingLabel = "Buscando tu pago",
+                            loadingSubtitle = "Consultando el pedido pendiente…",
+                            onClick = {
+                                haptics.impact()
+                                onResolvePendingStripePayment()
+                            },
+                        )
+                    } else {
+                        CheckoutDockButton(
+                            label = confirmLabel(guestAuthRequired),
+                            subtitle = "$productCountLabel · $destinationLabel",
+                            price = moneyLabel(state.cartPreviewTotal),
+                            enabled = canConfirm,
+                            loading = state.creatingOrder,
+                            onClick = {
+                                haptics.impact()
+                                paymentDialogOpen = true
+                            },
+                        )
+                    }
+                }
+            }
+
+            if (paymentDialogOpen) {
+                PaymentMethodOverlay(
+                    balanceAffordable = state.isBalancePaymentAffordable(walletBalance),
+                    showBalance = !guestCheckout,
+                    walletBalance = walletBalance,
+                    payAtEndAvailable = state.canPayAtEnd,
+                    cardAvailable = state.canPayWithCard,
+                    onDismiss = { paymentDialogOpen = false },
+                    onSelectPayAtEnd = {
+                        paymentDialogOpen = false
+                        haptics.selection()
+                        onPayAtEnd()
+                        onConfirm()
+                    },
+                    onSelect = { method ->
+                        paymentDialogOpen = false
+                        haptics.selection()
+                        onPaymentChange(method)
+                        onConfirm()
+                    },
+                )
+            }
+        }
+        // La barra de estado queda sobre vidrio cuando la hoja llega arriba; el regreso y la cuenta flotan encima.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .windowInsetsTopHeight(WindowInsets.statusBars)
+                .graphicsLayer { alpha = if (sheetTop() < size.height) 1f else 0f }
+                .background(palette.stage.copy(alpha = 0.92f)),
+        )
+        Box(
+            Modifier
+                .statusBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+        ) {
+            CartTopBar(
+                onBack = {
+                    haptics.click()
+                    onMenu()
                 },
-                onSelect = { method ->
-                    paymentDialogOpen = false
-                    haptics.selection()
-                    onPaymentChange(method)
-                    onConfirm()
-                },
+                profileInitials = profileInitials,
+                onOpenAccount = onOpenAccount,
             )
         }
     }
 }
+
+/** Fracción de la pantalla para el mostrador: con más de un producto baja a lo justo para ver a Vaini. */
+internal fun cartSceneWindow(lineCount: Int): Float = if (lineCount > 1) 0.3f else 0.42f
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1487,7 +1540,6 @@ private fun EmptyCart(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        EmptyCartMascotScene()
         Text(
             "¿Qué se te antoja?",
             color = colors.ink,
@@ -1602,97 +1654,6 @@ private fun RecentOrderRow(
             tint = colors.muted,
             modifier = Modifier.padding(start = 4.dp).size(20.dp),
         )
-    }
-}
-
-// La mascota decidiendo qué pedir: el `?` lima flota suave y los glyphs
-// orbitan como en el asistente. Reduce Motion deja la escena estática.
-@Composable
-private fun EmptyCartMascotScene() {
-    val colors = LocalVaiinillaColors.current
-    val reduceMotion = rememberCartReduceMotion()
-    Box(
-        modifier = Modifier.fillMaxWidth().height(252.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        FloatingGlyph(
-            kind = VaiinillaGlyphKind.Note,
-            color = colors.muted,
-            accent = colors.accent,
-            sizeDp = 32.dp,
-            phase = 0.15f,
-            amplitudeDp = 7f,
-            durationMs = 7600,
-            reduceMotion = reduceMotion,
-            modifier = Modifier.align(Alignment.TopStart).padding(start = 26.dp, top = 34.dp),
-        )
-        FloatingGlyph(
-            kind = VaiinillaGlyphKind.Cup,
-            color = colors.muted,
-            accent = colors.accent,
-            sizeDp = 28.dp,
-            phase = 0.55f,
-            amplitudeDp = 6f,
-            durationMs = 6800,
-            reduceMotion = reduceMotion,
-            modifier = Modifier.align(Alignment.TopEnd).padding(end = 22.dp, top = 48.dp),
-        )
-        FloatingGlyph(
-            kind = VaiinillaGlyphKind.Spark,
-            color = colors.muted,
-            accent = colors.accent,
-            sizeDp = 19.dp,
-            phase = 0.85f,
-            amplitudeDp = 5f,
-            durationMs = 6000,
-            reduceMotion = reduceMotion,
-            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 40.dp, bottom = 26.dp),
-        )
-        EmptyCartMascotFigure(reduceMotion)
-    }
-}
-
-@Composable
-private fun EmptyCartMascotFigure(reduceMotion: Boolean) {
-    if (reduceMotion) {
-        Image(
-            painter = painterResource(R.drawable.mascot_question),
-            contentDescription = null,
-            modifier = Modifier.size(216.dp),
-        )
-        return
-    }
-    val transition = rememberInfiniteTransition(label = "emptyCartMascot")
-    val bob by
-        transition.animateFloat(
-            initialValue = -4f,
-            targetValue = 4f,
-            animationSpec =
-                infiniteRepeatable(
-                    animation = tween(1600, easing = EaseInOutSine),
-                    repeatMode = RepeatMode.Reverse,
-                ),
-            label = "emptyCartMascotBob",
-        )
-    Image(
-        painter = painterResource(R.drawable.mascot_question),
-        contentDescription = null,
-        modifier =
-            Modifier.size(216.dp).graphicsLayer {
-                translationY = bob.dp.toPx()
-            },
-    )
-}
-
-@Composable
-private fun rememberCartReduceMotion(): Boolean {
-    val context = LocalContext.current
-    return remember(context) {
-        Settings.Global.getFloat(
-            context.contentResolver,
-            Settings.Global.ANIMATOR_DURATION_SCALE,
-            1f,
-        ) < 0.01f
     }
 }
 
