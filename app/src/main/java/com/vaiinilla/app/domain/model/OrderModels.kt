@@ -233,6 +233,10 @@ val OrderDetail.skipsKitchen: Boolean
 
 const val PREPARING_SKIPPED_NOTE = "No aplica: este pedido no pasa por cocina."
 
+/** Comandas que Cocina pone en preparación de una vez (mismo criterio que el panel web). */
+val List<OrderDetail>.pendingForKitchen: List<OrderDetail>
+    get() = filter { it.summary.state == OrderState.PENDING_PAYMENT || it.summary.state == OrderState.PAID }
+
 /** Lo que sí se prepara: un artículo quitado no encabeza la tarjeta. */
 val OrderDetail.activeItems: List<OrderItem>
     get() = items.filter { it.rejection == null }

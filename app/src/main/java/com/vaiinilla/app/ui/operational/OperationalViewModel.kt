@@ -22,6 +22,7 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.itemRejectionNotice
+import com.vaiinilla.app.domain.model.pendingForKitchen
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.WalletClient
 import com.vaiinilla.app.domain.repository.CallReason
@@ -817,6 +818,62 @@ class OperationalViewModel
                     idempotencyKey = MutationIdempotency.orderCancellation(orderId, version, motivo),
                 ).getOrThrow()
             }
+        }
+
+        /**
+         * Cocina pone todas las comandas pendientes en preparación de una vez. Corre en secuencia
+         * (cada pedido con su versión fresca y su llave propia); un fallo no detiene a los demás.
+         */
+        fun startAllPending() {
+            if (_uiState.value.acting) return
+            val role = _uiState.value.role ?: return
+            val pending = _uiState.value.orders.pendingForKitchen
+            if (pending.isEmpty()) return
+            val generation = roleGeneration
+            mutationErrorVisible = false
+            _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
+            mutationJob =
+                viewModelScope.launch {
+                    var failed = 0
+                    for (order in pending) {
+                        val orderId = order.summary.id
+                        val version = freshVersion(orderId, order.summary.version)
+                        val result =
+                            runCatchingCancellable {
+                                withContext(Dispatchers.IO) {
+                                    transitionOrder(
+                                        orderId = orderId,
+                                        targetState = OrderState.PREPARING,
+                                        expectedVersion = version,
+                                        idempotencyKey =
+                                            MutationIdempotency.orderTransition(
+                                                orderId,
+                                                OrderState.PREPARING.wireValue,
+                                                version,
+                                                pickupToken = null,
+                                            ),
+                                    ).getOrThrow()
+                                }
+                            }
+                        if (generation != roleGeneration || _uiState.value.role != role) return@launch
+                        result
+                            .onSuccess { updated -> mergeOrder(updated) }
+                            .onFailure { failed++ }
+                    }
+                    _uiState.value = _uiState.value.copy(acting = false)
+                    if (failed > 0) {
+                        showMutationError("No se pudieron poner $failed de ${pending.size} comandas en preparación.")
+                    }
+                }
+        }
+
+        private fun mergeOrder(order: OrderDetail) {
+            val updated = _uiState.value.orders.filterNot { it.summary.id == order.summary.id } + order
+            _uiState.value =
+                _uiState.value.copy(
+                    orders = updated.sortedByDescending { it.summary.updatedAt },
+                    selectedOrderId = order.summary.id,
+                )
         }
 
         fun markReady(

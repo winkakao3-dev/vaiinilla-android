@@ -5,13 +5,16 @@ import android.widget.ImageView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
@@ -110,6 +113,7 @@ import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.activeItems
+import com.vaiinilla.app.domain.model.pendingForKitchen
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.TipChoice
@@ -1966,6 +1970,7 @@ fun KitchenOperationalScreen(
     onReject: (orderId: String, version: Int, reason: String) -> Unit = { _, _, _ -> },
     onRejectItem: (orderId: String, itemId: Int, version: Int, reason: String) -> Unit = { _, _, _, _ -> },
     onItemRejectionNoticed: () -> Unit = {},
+    onStartAllPending: () -> Unit = {},
     onChangeMode: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
     assistantUserKey: String = "kitchen",
@@ -2443,6 +2448,28 @@ fun KitchenOperationalScreen(
                                 )
                             }
                         }
+                    }
+                }
+            }
+
+            // Todas las comandas pendientes pasan a preparación de una vez (como en el panel web).
+            item {
+                val pendingCount = state.orders.pendingForKitchen.size
+                AnimatedVisibility(
+                    visible = pendingCount > 0 && restrictedMode != RestrictedMode.READ_ONLY,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically(),
+                ) {
+                    ActionPill(
+                        label = "Poner todo en preparación",
+                        enabled = !state.acting,
+                        loading = state.acting,
+                        colors = colors,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                        primary = false,
+                    ) {
+                        haptics.impact()
+                        onStartAllPending()
                     }
                 }
             }

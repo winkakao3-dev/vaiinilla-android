@@ -1538,6 +1538,7 @@ fun AppNavHost(
                         onReject = operationalViewModel::rejectOrder,
                         onRejectItem = operationalViewModel::rejectItem,
                         onItemRejectionNoticed = operationalViewModel::consumeItemRejectionNotice,
+                        onStartAllPending = operationalViewModel::startAllPending,
                         onChangeMode =
                             if (authorizedAccessState.hasMultipleModes) {
                                 returnToModes(navController, operationalViewModel)
