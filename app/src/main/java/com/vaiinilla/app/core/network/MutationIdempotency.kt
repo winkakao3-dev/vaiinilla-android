@@ -32,6 +32,14 @@ internal object MutationIdempotency {
         reason: String,
     ): String = derive("cancel", orderId, expectedVersion.toString(), reason.trim())
 
+    /** Misma identidad que el backend usa en `hashRequest`: pedido, artículo, versión y motivo. */
+    fun itemRejection(
+        orderId: String,
+        itemId: Int,
+        expectedVersion: Int,
+        reason: String,
+    ): String = derive("item-reject", orderId, itemId.toString(), expectedVersion.toString(), reason.trim())
+
     fun cashCollection(
         orderId: String,
         amountReceived: String,

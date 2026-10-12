@@ -23,6 +23,8 @@ data class OperationalUiState(
     val walletReloadReceipt: WalletReloadReceipt? = null,
     val catalog: Catalog? = null,
     val cashChangeNotice: String? = null,
+    /** Aviso tras quitar un artículo: qué pasa con el dinero. */
+    val itemRejectionNotice: String? = null,
     /** Hoja de cierre de caja; null mientras está cerrada. */
     val closeCash: CloseCashUi? = null,
 ) {

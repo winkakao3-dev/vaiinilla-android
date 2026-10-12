@@ -187,6 +187,38 @@ data class OrderItemRejection(
     val amount: String,
 )
 
+/** Cómo se devuelve lo que ya se pagó por un artículo quitado (contrato de rechazos). */
+enum class ItemRefundMethod(
+    val wireValue: String,
+) {
+    /** No se había pagado: solo baja el total. */
+    NONE("ninguno"),
+
+    /** El efectivo sale del cajón. */
+    CASH("efectivo"),
+
+    /** Reembolso parcial a la tarjeta. */
+    STRIPE("stripe"),
+
+    /** Caja la devuelve a mano y la confirma después. */
+    MANUAL("manual"),
+    ;
+
+    companion object {
+        fun fromWire(value: String): ItemRefundMethod? = entries.firstOrNull { it.wireValue == value }
+    }
+}
+
+/** Resultado de quitar un artículo: el pedido ya sin ese artículo y la devolución que toca. */
+data class ItemRejectionOutcome(
+    val order: OrderDetail,
+    val itemId: Int,
+    val amount: String,
+    val refundMethod: ItemRefundMethod,
+    /** Solo con [ItemRefundMethod.MANUAL]: cómo se pagó, p. ej. "efectivo+stripe". */
+    val manualRefundOriginalMethod: String? = null,
+)
+
 /**
  * Sin artículos de cocina el pedido no se prepara: el backend lo pasa solo a listo. El seguimiento
  * marca "Preparando" como omitido (no aplica) en vez de hecho. Si el estado ya es preparando, sí aplica.

@@ -58,6 +58,42 @@ data class CancelOrderEnvelopeDto(
     val error: JsonElement? = null,
 )
 
+/** Cuerpo de `POST pedidos/:id/articulos/:itemId/rechazos`: el backend rechaza campos extra. */
+@Serializable
+data class ItemRejectionRequestDto(
+    @SerialName("version_esperada") val expectedVersion: Int,
+    @SerialName("motivo") val reason: String,
+)
+
+@Serializable
+data class ItemRejectionDto(
+    @SerialName("pedido_item_id") val itemId: Int,
+    @SerialName("motivo") val reason: String,
+    @SerialName("monto") val amount: String,
+    @SerialName("metodo_reembolso") val refundMethod: String,
+    @SerialName("stripe_refund_id") val stripeRefundId: String? = null,
+)
+
+/** Solo viene con `metodo_reembolso = manual`: la devolución que Caja debe entregar. */
+@Serializable
+data class PendingItemRefundDto(
+    @SerialName("metodo_original") val originalMethod: String,
+)
+
+@Serializable
+data class ItemRejectionDataDto(
+    @SerialName("pedido") val order: OrderDetailDto,
+    @SerialName("rechazo") val rejection: ItemRejectionDto,
+    @SerialName("devolucion") val refund: PendingItemRefundDto? = null,
+)
+
+@Serializable
+data class ItemRejectionEnvelopeDto(
+    val data: ItemRejectionDataDto,
+    val meta: MetaDto,
+    val error: JsonElement? = null,
+)
+
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class CashCollectionRequestDto(

@@ -1491,6 +1491,8 @@ fun AppNavHost(
                         onOpenWalletUserQr = { walletUserQrOpen = true },
                         onReloadWallet = operationalViewModel::reloadWallet,
                         onCashChangeNoticed = operationalViewModel::consumeCashChangeNotice,
+                        onRejectItem = operationalViewModel::rejectItem,
+                        onItemRejectionNoticed = operationalViewModel::consumeItemRejectionNotice,
                         onScanDeliver = { orderId, version ->
                             pendingPickupDelivery = PendingPickupDelivery(orderId, version)
                         },
@@ -1534,6 +1536,8 @@ fun AppNavHost(
                         onStart = operationalViewModel::startKitchen,
                         onReady = operationalViewModel::markReady,
                         onReject = operationalViewModel::rejectOrder,
+                        onRejectItem = operationalViewModel::rejectItem,
+                        onItemRejectionNoticed = operationalViewModel::consumeItemRejectionNotice,
                         onChangeMode =
                             if (authorizedAccessState.hasMultipleModes) {
                                 returnToModes(navController, operationalViewModel)

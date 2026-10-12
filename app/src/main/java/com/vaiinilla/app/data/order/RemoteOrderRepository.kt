@@ -6,6 +6,7 @@ import com.vaiinilla.app.core.security.PickupTokenStore
 import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.CreatedOrder
+import com.vaiinilla.app.domain.model.ItemRejectionOutcome
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
@@ -138,6 +139,22 @@ class RemoteOrderRepository(
                 headers = mapOf("Idempotency-Key" to idempotencyKey),
             ).mapCatching { contractJson.parseCancelledOrder(it) }
             .mapCatching { pickupTokenStore.attach(it) }
+            .mapApiErrors()
+
+    override fun rejectItem(
+        orderId: String,
+        itemId: Int,
+        expectedVersion: Int,
+        reason: String,
+        idempotencyKey: String,
+    ): Result<ItemRejectionOutcome> =
+        apiClient
+            .post(
+                path = "pedidos/$orderId/articulos/$itemId/rechazos",
+                body = contractJson.encodeItemRejection(expectedVersion, reason),
+                headers = mapOf("Idempotency-Key" to idempotencyKey),
+            ).mapCatching { contractJson.parseItemRejection(it) }
+            .mapCatching { outcome -> outcome.copy(order = pickupTokenStore.attach(outcome.order)) }
             .mapApiErrors()
 
     private fun <T> Result<T>.mapApiErrors(): Result<T> =

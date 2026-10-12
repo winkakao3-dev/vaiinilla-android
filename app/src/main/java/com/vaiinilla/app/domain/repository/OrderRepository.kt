@@ -3,6 +3,7 @@ package com.vaiinilla.app.domain.repository
 import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.CreatedOrder
+import com.vaiinilla.app.domain.model.ItemRejectionOutcome
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
@@ -56,6 +57,16 @@ interface OrderRepository {
         reason: String,
         idempotencyKey: String,
     ): Result<OrderDetail> = Result.failure(UnsupportedOperationException("Cancelar pedidos no está disponible."))
+
+    /** Quita un artículo con motivo; el total baja y la parte pagada se devuelve según su método. */
+    fun rejectItem(
+        orderId: String,
+        itemId: Int,
+        expectedVersion: Int,
+        reason: String,
+        idempotencyKey: String,
+    ): Result<ItemRejectionOutcome> =
+        Result.failure(UnsupportedOperationException("Quitar artículos no está disponible."))
 }
 
 class OrderRepositoryException(
