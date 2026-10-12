@@ -1,0 +1,115 @@
+{
+ "data": {
+  "categorias": [
+   {
+    "id": 20,
+    "nombre": "Comida",
+    "orden": 1
+   },
+   {
+    "id": 21,
+    "nombre": "Desayunos",
+    "orden": 2
+   }
+  ],
+  "productos": [
+   {
+    "id": 22,
+    "categoria_id": 20,
+    "estacion_preparacion": "cocina",
+    "nombre": "Tacos de Cochinita Pibil",
+    "descripcion": "Cochinita pibil en tortilla con cebolla morada.",
+    "ingredientes": null,
+    "alergenos": null,
+    "tiempo_estimado_min": 8,
+    "precio_mostrador": "99.00",
+    "precio_digital": "99.00",
+    "disponible": true,
+    "imagen_url": "https://lyhidclkdpfgxnabevia.supabase.co/storage/v1/object/public/catalogo-productos/establecimientos/aee6756c-3465-4792-b056-f9fc613c7416/productos/22/9e2a2dab-dab0-4bbe-bb8f-67a3fd947e84.jpg",
+    "grupos_opcion": []
+   },
+   {
+    "id": 23,
+    "categoria_id": 20,
+    "estacion_preparacion": "cocina",
+    "nombre": "Pozole",
+    "descripcion": "Pozole rojo con rábano, lechuga y orégano.",
+    "ingredientes": null,
+    "alergenos": null,
+    "tiempo_estimado_min": 8,
+    "precio_mostrador": "132.00",
+    "precio_digital": "132.00",
+    "disponible": true,
+    "imagen_url": "https://lyhidclkdpfgxnabevia.supabase.co/storage/v1/object/public/catalogo-productos/establecimientos/aee6756c-3465-4792-b056-f9fc613c7416/productos/23/39275362-f4fc-4f69-894a-2a17ca20e87d.jpg",
+    "grupos_opcion": []
+   },
+   {
+    "id": 24,
+    "categoria_id": 20,
+    "estacion_preparacion": "cocina",
+    "nombre": "Taquitos de Trompo",
+    "descripcion": "Taquitos de trompo con piña y salsa.",
+    "ingredientes": null,
+    "alergenos": null,
+    "tiempo_estimado_min": 8,
+    "precio_mostrador": "99.00",
+    "precio_digital": "99.00",
+    "disponible": true,
+    "imagen_url": "https://lyhidclkdpfgxnabevia.supabase.co/storage/v1/object/public/catalogo-productos/establecimientos/aee6756c-3465-4792-b056-f9fc613c7416/productos/24/10457857-e1c7-45ec-b193-3bfd2998bbb6.jpg",
+    "grupos_opcion": []
+   },
+   {
+    "id": 26,
+    "categoria_id": 20,
+    "estacion_preparacion": "cocina",
+    "nombre": "Fettuccine",
+    "descripcion": "Fettuccine en salsa cremosa de la casa.",
+    "ingredientes": null,
+    "alergenos": null,
+    "tiempo_estimado_min": 8,
+    "precio_mostrador": "110.00",
+    "precio_digital": "110.00",
+    "disponible": true,
+    "imagen_url": "https://lyhidclkdpfgxnabevia.supabase.co/storage/v1/object/public/catalogo-productos/establecimientos/aee6756c-3465-4792-b056-f9fc613c7416/productos/26/220ec10d-05ae-4415-af4f-b86ff1c41e9d.jpg",
+    "grupos_opcion": []
+   },
+   {
+    "id": 27,
+    "categoria_id": 21,
+    "estacion_preparacion": "cocina",
+    "nombre": "Panqueques con Fruta",
+    "descripcion": "Panqueques con fruta fresca y miel.",
+    "ingredientes": null,
+    "alergenos": null,
+    "tiempo_estimado_min": 8,
+    "precio_mostrador": "132.00",
+    "precio_digital": "132.00",
+    "disponible": true,
+    "imagen_url": "https://lyhidclkdpfgxnabevia.supabase.co/storage/v1/object/public/catalogo-productos/establecimientos/aee6756c-3465-4792-b056-f9fc613c7416/productos/27/fc4320a0-af7e-4e7b-a405-222de53dc038.jpg",
+    "grupos_opcion": []
+   },
+   {
+    "id": 28,
+    "categoria_id": 21,
+    "estacion_preparacion": "cocina",
+    "nombre": "Huevos benedictinos sobre Muffin Inglés",
+    "descripcion": "Huevos benedictinos sobre muffin inglés.",
+    "ingredientes": null,
+    "alergenos": null,
+    "tiempo_estimado_min": 8,
+    "precio_mostrador": "89.00",
+    "precio_digital": "89.00",
+    "disponible": true,
+    "imagen_url": "https://lyhidclkdpfgxnabevia.supabase.co/storage/v1/object/public/catalogo-productos/establecimientos/aee6756c-3465-4792-b056-f9fc613c7416/productos/28/c6b8e843-885c-4044-8c3a-fba349c8ff1b.jpg",
+    "grupos_opcion": []
+   }
+  ]
+ },
+ "meta": {
+  "page": null,
+  "total_pages": null,
+  "total_items": 3,
+  "cursor": "2026-07-20T15:00:00.000Z|103"
+ },
+ "error": null
+}
