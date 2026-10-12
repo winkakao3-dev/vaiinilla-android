@@ -15,6 +15,12 @@ object SpaceCopy {
             else -> "Mesa"
         }
 
+    /**
+     * Espacios compartibles: varias personas piden a la misma cuenta y eligen quién son antes de pedir.
+     * La mesa y la barra lo son; cancha, carril y asiento no (el QR lleva directo al menú). Sin tipo es mesa.
+     */
+    fun isSharable(type: String?): Boolean = type == null || type == "mesa" || type == "barra"
+
     /** Cómo nombra el cliente su lugar: "tu mesa", "tu cancha"... */
     fun yourPlace(type: String?): String =
         when (type) {

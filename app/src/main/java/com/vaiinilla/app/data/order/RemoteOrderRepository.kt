@@ -9,6 +9,7 @@ import com.vaiinilla.app.domain.model.CreatedOrder
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.OrderTrackingLink
 import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
@@ -37,6 +38,25 @@ class RemoteOrderRepository(
             .get("pedidos/$orderId")
             .mapCatching { contractJson.parseOrderDetail(it) }
             .mapCatching { pickupTokenStore.attach(it) }
+            .mapApiErrors()
+
+    override fun trackingByLink(token: String): Result<OrderDetail> =
+        if (!OrderTrackingLink.isValidToken(token)) {
+            Result.failure(OrderRepositoryException("NOT_FOUND", "Pedido no encontrado."))
+        } else {
+            apiClient
+                .getPublic("publico/seguimiento/$token")
+                .mapCatching(contractJson::parseOrderDetail)
+                .mapCatching { pickupTokenStore.attach(it) }
+                .mapApiErrors()
+        }
+
+    override fun pickupQr(orderId: String): Result<String> =
+        apiClient
+            .get("pedidos/$orderId/qr")
+            .mapCatching { raw ->
+                requireNotNull(contractJson.parsePickupQr(raw)) { "El QR de recogida no llegó." }
+            }.onSuccess { token -> pickupTokenStore.save(orderId, token) }
             .mapApiErrors()
 
     override fun listOrders(

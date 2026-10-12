@@ -134,6 +134,29 @@ class QrPayloadParserTest {
     }
 
     @Test
+    fun `tracking link QR becomes the order tracking token`() {
+        val token = "A".repeat(43)
+        assertEquals(
+            QrPayload.Tracking(token),
+            QrPayloadParser.parse("https://vaiinilla.app/seguimiento/$token").getOrThrow(),
+        )
+    }
+
+    @Test
+    fun `a malformed tracking link is not read as a tracking token or a slug`() {
+        listOf(
+            "https://vaiinilla.app/seguimiento/corto",
+            "https://vaiinilla.app/seguimiento/${"A".repeat(43)}/extra",
+        ).forEach { url ->
+            assertEquals(QrPayload.SpaceToken(url), QrPayloadParser.parse(url).getOrThrow())
+        }
+        assertEquals(
+            QrPayload.SpaceToken("https://vaiinilla.app/seguimiento"),
+            QrPayloadParser.parse("https://vaiinilla.app/seguimiento").getOrThrow(),
+        )
+    }
+
+    @Test
     fun `empty QR is rejected`() {
         assertTrue(QrPayloadParser.parse(" ").isFailure)
     }

@@ -94,6 +94,14 @@ class OrderContractJson
             return envelope.data.toDomain()
         }
 
+        /** El token de recogida, o null si la respuesta no trae uno utilizable. */
+        fun parsePickupQr(raw: String): String? {
+            val envelope = json.decodeFromString<PickupQrEnvelopeDto>(raw)
+            requireEnvelopeSuccess(envelope.error)
+            val raw = envelope.data?.qrToken ?: return null
+            return raw.trim().takeIf { it.isNotEmpty() }
+        }
+
         fun parseOrderList(raw: String): List<OrderDetail> {
             val envelope = json.decodeFromString<OrderListEnvelopeDto>(raw)
             requireEnvelopeSuccess(envelope.error)

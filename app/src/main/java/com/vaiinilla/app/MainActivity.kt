@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.rememberNavController
 import com.vaiinilla.app.core.notifications.OrderAdvanceNotifier
 import com.vaiinilla.app.core.notifications.OrderNotificationTarget
+import com.vaiinilla.app.domain.model.OrderTrackingLink
 import com.vaiinilla.app.ui.navigation.AppNavHost
 import com.vaiinilla.app.ui.theme.ThemePreferences
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
@@ -28,6 +29,7 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private var pendingEstablishmentSlug by mutableStateOf<String?>(null)
     private var pendingSpaceToken by mutableStateOf<String?>(null)
+    private var pendingTrackingToken by mutableStateOf<String?>(null)
     private var pendingInvitationToken by mutableStateOf<String?>(null)
     private var pendingOrderId by mutableStateOf<String?>(null)
     private var pendingOrderTarget by mutableStateOf<OrderNotificationTarget?>(null)
@@ -90,9 +92,11 @@ class MainActivity : ComponentActivity() {
                     navController = rememberNavController(),
                     pendingEstablishmentSlug = pendingEstablishmentSlug,
                     pendingSpaceToken = pendingSpaceToken,
+                    pendingTrackingToken = pendingTrackingToken,
                     pendingInvitationToken = pendingInvitationToken,
                     onDeepLinkConsumed = { pendingEstablishmentSlug = null },
                     onSpaceLinkConsumed = { pendingSpaceToken = null },
+                    onTrackingLinkConsumed = { pendingTrackingToken = null },
                     onInvitationConsumed = { pendingInvitationToken = null },
                     pendingOrderId = pendingOrderId,
                     pendingOrderTarget = pendingOrderTarget,
@@ -132,6 +136,7 @@ class MainActivity : ComponentActivity() {
     private fun captureDeepLink(source: Intent?) {
         pendingEstablishmentSlug = establishmentSlugFrom(source)
         pendingSpaceToken = spaceTokenFrom(source)
+        pendingTrackingToken = trackingTokenFrom(source)
         pendingInvitationToken = invitationTokenFrom(source)
         val orderId = orderIdFrom(source)
         val targetExtra = source?.getStringExtra(OrderAdvanceNotifier.EXTRA_NOTIFICATION_TARGET)
@@ -171,6 +176,19 @@ class MainActivity : ComponentActivity() {
                     ESTABLISHMENT_SLUG.matches(it) &&
                     it !in RESERVED_PATH_ROOTS
             }
+        }
+
+        fun trackingTokenFrom(intent: Intent?): String? {
+            val data = intent?.data ?: return null
+            return trackingTokenFrom(data)
+        }
+
+        /** `https://vaiinilla.app/seguimiento/<token>`: el enlace de un pedido de invitado. */
+        fun trackingTokenFrom(uri: Uri): String? {
+            if (!isTrustedAppUri(uri)) return null
+            val segments = uri.pathSegments
+            if (segments.size != 2 || segments[0] != "seguimiento") return null
+            return segments[1].takeIf { OrderTrackingLink.isValidToken(it) }
         }
 
         fun spaceTokenFrom(intent: Intent?): String? {
@@ -230,7 +248,7 @@ class MainActivity : ComponentActivity() {
                     addDataAuthority("www.vaiinilla.app", null)
                 },
             )
-        private val RESERVED_PATH_ROOTS = setOf("e", "u", "invitaciones")
+        private val RESERVED_PATH_ROOTS = setOf("e", "u", "invitaciones", "seguimiento")
         private const val MAX_ESTABLISHMENT_SLUG_LENGTH = 100
         private const val MAX_INVITATION_TOKEN_LENGTH = 4_096
         private const val MAX_SPACE_TOKEN_LENGTH = 256

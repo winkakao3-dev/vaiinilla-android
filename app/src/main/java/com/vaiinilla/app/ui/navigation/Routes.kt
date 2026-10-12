@@ -16,6 +16,10 @@ object Routes {
     const val AUTH_FORGOT = "auth/forgot?returnRoute={returnRoute}"
     const val STAFF_INVITATION = "staff/invitation?token={token}"
     const val STAFF_MODES = "staff/modes"
+    const val ORDER_TRACKING = "seguimiento/{token}"
+
+    /** "¿Quién eres?" de una mesa compartida, antes de llegar al menú. Usa la venue ya entrada. */
+    const val TABLE_WHO = "mesa/quien"
     const val STUDENT_TRACKING = "student/tracking"
     const val ASSISTANT = "assistant"
     const val ASSISTANT_CHAT = "assistant/chat"
@@ -41,6 +45,8 @@ object Routes {
     fun authForgotRoute(returnRoute: String = CART): String = "auth/forgot?returnRoute=${Uri.encode(returnRoute)}"
 
     fun staffInvitationRoute(token: String): String = "staff/invitation?token=${Uri.encode(token)}"
+
+    fun orderTrackingRoute(token: String): String = "seguimiento/${Uri.encode(token)}"
 
     const val CASHIER = "cashier"
     const val KITCHEN = "kitchen"

@@ -16,6 +16,14 @@ interface OrderRepository {
 
     fun getOrder(orderId: String): Result<OrderDetail>
 
+    /** Pedido de un invitado por su enlace de seguimiento (GET publico/seguimiento/:token), sin sesión. */
+    fun trackingByLink(token: String): Result<OrderDetail> =
+        Result.failure(UnsupportedOperationException("El seguimiento no está disponible."))
+
+    /** Token de recogida de un pedido pagado del propio cliente (GET /pedidos/:id/qr). */
+    fun pickupQr(orderId: String): Result<String> =
+        Result.failure(UnsupportedOperationException("El QR de recogida no está disponible."))
+
     fun listOrders(
         role: OperationalRole,
         updatedSince: String? = null,
