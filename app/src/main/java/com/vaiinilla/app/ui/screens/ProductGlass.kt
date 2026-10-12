@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
+import android.os.Build
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,9 +16,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -32,8 +36,8 @@ import com.vaiinilla.app.ui.order.TrayItemKind
 import com.vaiinilla.app.ui.order.trayItemKind
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
-// En el menú el Vainiverso es solo vidrio y luz: la foto del producto es la estrella y su color
-// ilumina el vidrio por debajo. No hay escena atrás ni Vaini.
+// En el menú el Vainiverso es solo vidrio y luz: la foto del producto es la estrella y su propia
+// imagen desenfocada es la luz que la rodea. No hay escena atrás ni Vaini.
 
 internal val TagCream = Color(0xFFF6EFDD)
 internal val TagInk = Color(0xFF1A1414)
@@ -51,24 +55,57 @@ internal fun fallbackTone(kind: TrayItemKind): Color =
 internal fun productTone(product: Product): Color =
     rememberProductTone(product.imageUrl) ?: fallbackTone(trayItemKind(product.name))
 
-/** Luz del color del producto que cae por debajo de su tarjeta. */
-internal fun Modifier.toneGlow(
+/**
+ * Sombra hecha de la propia foto: la misma imagen, desenfocada, más chica y un poco abajo, como las
+ * portadas de Apple Music. Así la luz trae los colores reales de cada parte del producto. Sin
+ * desenfoque (Android < 12) queda una sombra de elevación teñida con el color de la foto.
+ */
+@Composable
+internal fun ProductPhotoShadow(
+    product: Product,
     tone: Color,
-    strength: Float,
-): Modifier =
-    drawBehind {
-        val w = size.width
-        val center = Offset(w / 2f, size.height * 0.97f)
-        val radius = w * 0.62f
-        // El rectángulo cubre el círculo completo del degradado, así la luz se apaga sin dejar orilla.
-        drawRect(
-            Brush.radialGradient(listOf(tone.copy(alpha = strength), Color.Transparent), center, radius),
-            topLeft = Offset(center.x - radius, center.y - radius),
-            size = Size(radius * 2f, radius * 2f),
-        )
+    shape: Shape,
+    modifier: Modifier = Modifier,
+    blur: Dp = 26.dp,
+    drop: Dp = 12.dp,
+    inset: Dp = 12.dp,
+    strength: Float = 0.65f,
+) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        Box(
+            modifier
+                .padding(horizontal = inset)
+                .graphicsLayer {
+                    translationY = drop.toPx()
+                    alpha = strength
+                    clip = false
+                    renderEffect = BlurEffect(blur.toPx(), blur.toPx(), TileMode.Decal)
+                },
+        ) {
+            ProductImage(
+                imageUrl = product.imageUrl,
+                contentDescription = "",
+                modifier = Modifier.fillMaxSize().clip(shape),
+                placeholder = { m -> Box(m.background(tone)) },
+            )
+        }
+    } else {
+        Box(modifier.shadow(18.dp, shape, ambientColor = tone, spotColor = tone))
     }
+}
 
-/** Tarjeta del menú: la foto dentro de un vidrio que se tiñe del color del producto. */
+/** Canto de vidrio: brilla arriba, donde pega la luz, y se apaga hacia abajo. */
+internal fun Modifier.glassEdge(
+    edge: Color,
+    shape: Shape,
+): Modifier =
+    border(
+        1.dp,
+        Brush.verticalGradient(listOf(edge, edge.copy(alpha = edge.alpha * 0.2f))),
+        shape,
+    )
+
+/** Tarjeta del menú: la foto dentro de un vidrio, con la luz de la propia foto debajo. */
 @Composable
 internal fun ProductGlassCard(
     product: Product,
@@ -79,20 +116,22 @@ internal fun ProductGlassCard(
     val tone = productTone(product)
     val kind = trayItemKind(product.name)
     val shape = RoundedCornerShape(26.dp)
-    Box(modifier.fillMaxWidth().toneGlow(tone, if (colors.isDark) 0.42f else 0.3f)) {
+    Box(modifier.fillMaxWidth()) {
+        ProductPhotoShadow(
+            product = product,
+            tone = tone,
+            shape = shape,
+            modifier = Modifier.matchParentSize(),
+            drop = 14.dp,
+            strength = if (colors.isDark) 0.75f else 0.55f,
+        )
+        // Vidrio denso: la luz se ve alrededor y debajo, y adentro apenas tiñe.
         Column(
             Modifier
                 .fillMaxWidth()
                 .clip(shape)
-                .background(c.glassCard)
-                .drawBehind {
-                    drawRect(
-                        Brush.verticalGradient(
-                            listOf(Color.Transparent, tone.copy(alpha = 0.26f)),
-                            startY = size.height * 0.45f,
-                        ),
-                    )
-                }.border(1.dp, c.glassEdge, shape)
+                .background(c.glassTint)
+                .glassEdge(c.glassEdge, shape)
                 .padding(7.dp),
         ) {
             Box(

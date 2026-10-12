@@ -21,9 +21,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import com.vaiinilla.app.ui.order.trayItemKind
 import com.vaiinilla.app.ui.screens.LocalScene
 import com.vaiinilla.app.ui.screens.ProductIllustration
+import com.vaiinilla.app.ui.screens.ProductPhotoShadow
+import com.vaiinilla.app.ui.screens.glassEdge
 import com.vaiinilla.app.ui.screens.productTone
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.Brush
 import com.vaiinilla.app.ui.screens.TagCream
 import com.vaiinilla.app.ui.screens.TagInk
 import com.vaiinilla.app.ui.screens.TagLime
@@ -319,18 +319,17 @@ fun ProductDetailSheet(
                 border = BorderStroke(1.dp, scene.glassEdge),
                 shadowElevation = 24.dp,
             ) {
-                // La foto ilumina la hoja con su color, como la luz bajo las tarjetas del menú.
+                // Detrás del vidrio, la misma foto muy desenfocada ilumina la parte de arriba de la hoja.
                 CompositionLocalProvider(LocalScene provides scene, LocalVaiinillaColors provides colors) {
-                Box(
-                    Modifier.fillMaxSize().drawBehind {
-                        drawRect(
-                            Brush.radialGradient(
-                                listOf(tone.copy(alpha = if (colors.isDark) 0.34f else 0.22f), Color.Transparent),
-                                center = Offset(size.width / 2f, 170.dp.toPx()),
-                                radius = size.width * 0.95f,
-                            ),
-                        )
-                    },
+                ProductPhotoShadow(
+                    product = product,
+                    tone = tone,
+                    shape = RoundedCornerShape(28.dp),
+                    modifier = Modifier.fillMaxWidth().height(330.dp),
+                    blur = 60.dp,
+                    drop = 40.dp,
+                    inset = 0.dp,
+                    strength = if (colors.isDark) 0.42f else 0.32f,
                 )
                 Column(modifier = Modifier.fillMaxSize()) {
                     LazyColumn(
@@ -465,7 +464,7 @@ private fun ProductHero(
                 .height(300.dp)
                 .clip(heroShape)
                 .background(productTone(product).copy(alpha = 0.18f))
-                .border(1.dp, scene.glassEdge, heroShape),
+                .glassEdge(scene.glassEdge, heroShape),
     ) {
         ProductImage(
             imageUrl = product.imageUrl,
