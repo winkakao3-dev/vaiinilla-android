@@ -45,6 +45,24 @@ internal object MutationIdempotency {
 
     fun accountDeletion(uid: String): String = derive("account-deletion", uid)
 
+    /**
+     * Confirmar una devolución: el mismo reembolso con el mismo método reintenta con la misma clave.
+     * El backend no guarda los fallos (la clave queda libre), así que reintentar tras un error es seguro.
+     */
+    fun refundConfirmation(
+        refundId: String,
+        method: String,
+    ): String = derive("refund-confirm", refundId, method)
+
+    /** Cobrar una reserva en efectivo: el mismo cobro (mismo importe) reintenta con la misma clave. */
+    fun reservationPayment(
+        reservationId: String,
+        cashReceived: String,
+    ): String = derive("reservation-pay", reservationId, cashReceived)
+
+    /** Liberar una cancha: cancelar la misma reserva dos veces comparte clave. */
+    fun reservationCancellation(reservationId: String): String = derive("reservation-cancel", reservationId)
+
     private fun derive(
         operation: String,
         vararg parts: String?,

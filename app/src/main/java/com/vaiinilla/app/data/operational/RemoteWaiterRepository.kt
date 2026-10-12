@@ -18,6 +18,7 @@ import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.TableCall
+import com.vaiinilla.app.domain.repository.UnpaidAccounts
 import com.vaiinilla.app.domain.repository.WaiterBoard
 import com.vaiinilla.app.domain.repository.WaiterRepository
 
@@ -173,6 +174,12 @@ class RemoteWaiterRepository(
         apiClient
             .get("espacios/disponibilidad")
             .mapCatching(contractJson::parseAvailability)
+            .mapApiErrors()
+
+    override fun unpaidAccounts(): Result<UnpaidAccounts> =
+        apiClient
+            .get("espacios/cuentas-sin-pagar")
+            .mapCatching(contractJson::parseUnpaidAccounts)
             .mapApiErrors()
 
     override fun publicAvailability(slug: String): Result<List<SpaceAvailability>> =

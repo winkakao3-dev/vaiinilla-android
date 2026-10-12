@@ -107,7 +107,9 @@ import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.PendingRefund
 import com.vaiinilla.app.domain.model.PreparationStation
+import com.vaiinilla.app.domain.model.RefundMethod
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.TipChoice
@@ -140,6 +142,9 @@ import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
 import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.operational.CashierBookingsUiState
+import com.vaiinilla.app.ui.operational.CashierRefundsUiState
+import com.vaiinilla.app.ui.operational.CashierUnpaidUiState
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.theme.AccentInk
 import com.vaiinilla.app.ui.theme.Cream
@@ -271,6 +276,12 @@ fun CashierOperationalScreen(
     onCashChangeNoticed: () -> Unit = {},
     onChangeMode: (() -> Unit)? = null,
     onOpenAccounts: (() -> Unit)? = null,
+    refundsState: CashierRefundsUiState = CashierRefundsUiState(),
+    onConfirmRefund: (PendingRefund, RefundMethod) -> Unit = { _, _ -> },
+    onRefundNoticeShown: () -> Unit = {},
+    unpaidState: CashierUnpaidUiState = CashierUnpaidUiState(),
+    bookingsState: CashierBookingsUiState = CashierBookingsUiState(),
+    bookingsActions: CashierBookingsActions = CashierBookingsActions(),
     restrictedMode: RestrictedMode? = null,
     onToggleProductAvailable: (productId: Int, available: Boolean) -> Unit = { _, _ -> },
     onCreateCashierProduct: (CatalogProductDraft, ByteArray?, String?, String?, (String?) -> Unit) -> Unit =
@@ -519,6 +530,39 @@ fun CashierOperationalScreen(
                             )
                         }
                     }
+                }
+            }
+
+            val refundsVisible =
+                refundsState.refunds.isNotEmpty() ||
+                    refundsState.notice != null ||
+                    refundsState.errorMessage != null ||
+                    refundsState.loadError != null
+            if (refundsVisible) {
+                item(key = "pending-refunds") {
+                    CashierRefundsCard(
+                        state = refundsState,
+                        enabled = restrictedMode != RestrictedMode.READ_ONLY && !state.acting,
+                        onConfirm = onConfirmRefund,
+                        onNoticeShown = onRefundNoticeShown,
+                    )
+                }
+            }
+
+            val unpaidVisible = unpaidState.loadError != null || unpaidState.accounts?.accounts?.isNotEmpty() == true
+            if (unpaidVisible) {
+                item(key = "unpaid-accounts") {
+                    CashierUnpaidAccountsCard(state = unpaidState)
+                }
+            }
+
+            if (bookingsState.hasCourts) {
+                item(key = "court-bookings") {
+                    CashierBookingsCard(
+                        state = bookingsState,
+                        enabled = restrictedMode != RestrictedMode.READ_ONLY && !state.acting,
+                        actions = bookingsActions,
+                    )
                 }
             }
 

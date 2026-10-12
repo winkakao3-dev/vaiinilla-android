@@ -295,6 +295,9 @@ class CallsUnavailableException(
 interface WaiterRepository {
     fun board(): Result<WaiterBoard>
 
+    /** Cuentas abiertas (pagar al final) que nadie ha cobrado; `abandonada` = alguien se fue sin pagar. */
+    fun unpaidAccounts(): Result<UnpaidAccounts>
+
     fun transitionCall(
         call: TableCall,
         target: CallStatus,
@@ -374,3 +377,22 @@ interface WaiterRepository {
         idempotencyKey: String,
     ): Result<TableCall>
 }
+
+/** Cuenta abierta que nadie ha cobrado (GET /espacios/cuentas-sin-pagar). */
+data class UnpaidAccount(
+    val spaceId: Int,
+    val spaceName: String,
+    val orders: Int,
+    val total: String,
+    /** Horas enteras que lleva sin cobrarse. */
+    val hours: Int,
+    val clients: List<String>,
+    /** El espacio ya se liberó y la cuenta sigue sin pagar: alguien se fue sin pagar. */
+    val abandoned: Boolean,
+)
+
+data class UnpaidAccounts(
+    val accounts: List<UnpaidAccount>,
+    val total: String,
+    val abandonedCount: Int,
+)

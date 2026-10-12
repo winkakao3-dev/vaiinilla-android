@@ -19,6 +19,8 @@ import com.vaiinilla.app.domain.repository.SpaceSessionInfo
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.TableCallTaker
 import com.vaiinilla.app.domain.repository.TableSpace
+import com.vaiinilla.app.domain.repository.UnpaidAccount
+import com.vaiinilla.app.domain.repository.UnpaidAccounts
 import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
@@ -27,6 +29,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import java.math.BigDecimal
 import java.math.RoundingMode
 import javax.inject.Inject
@@ -151,6 +154,35 @@ data class NextReservationDto(
     val inicio: String,
     val fin: String,
     val estado: String? = null,
+)
+
+@Serializable
+data class UnpaidSpaceDto(
+    val id: Int,
+    val nombre: String,
+)
+
+@Serializable
+data class UnpaidAccountDto(
+    val espacio: UnpaidSpaceDto,
+    val pedidos: Int,
+    val total: String,
+    val horas: Int = 0,
+    val clientes: List<String> = emptyList(),
+    val abandonada: Boolean = false,
+)
+
+@Serializable
+data class UnpaidAccountsDto(
+    val cuentas: List<UnpaidAccountDto> = emptyList(),
+    val total: String = "0.00",
+    val abandonadas: Int = 0,
+)
+
+@Serializable
+data class UnpaidAccountsEnvelopeDto(
+    val data: UnpaidAccountsDto,
+    val error: JsonElement? = null,
 )
 
 @Serializable
@@ -462,6 +494,28 @@ class WaiterContractJson
             val envelope = json.decodeFromString<CallEnvelopeDto>(raw)
             require(envelope.error == null) { "La API devolvió un error en el envelope." }
             return envelope.data.toDomain()
+        }
+
+        fun parseUnpaidAccounts(raw: String): UnpaidAccounts {
+            val envelope = json.decodeFromString<UnpaidAccountsEnvelopeDto>(raw)
+            require(envelope.error == null || envelope.error is JsonNull) { "La API devolvió un error en el envelope." }
+            val data = envelope.data
+            return UnpaidAccounts(
+                accounts =
+                    data.cuentas.map { cuenta ->
+                        UnpaidAccount(
+                            spaceId = cuenta.espacio.id,
+                            spaceName = cuenta.espacio.nombre,
+                            orders = cuenta.pedidos,
+                            total = cuenta.total,
+                            hours = cuenta.horas,
+                            clients = cuenta.clientes,
+                            abandoned = cuenta.abandonada,
+                        )
+                    },
+                total = data.total,
+                abandonedCount = data.abandonadas,
+            )
         }
 
         fun parseAvailability(raw: String): List<SpaceAvailability> {
