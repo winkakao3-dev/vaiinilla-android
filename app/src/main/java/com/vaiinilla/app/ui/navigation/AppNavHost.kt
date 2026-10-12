@@ -1299,8 +1299,17 @@ fun AppNavHost(
             composable(Routes.CONFIRMATION) {
                 val isFreshConfirmation = orderState.createdOrder != null
                 val selectedOrder = operationalState.selectedOrder
+                // El pedido recién creado es una foto; el seleccionado se refresca con el polling y trae el estado
+                // actual (preparando, listo…). Si es el mismo pedido, gana el fresco sin perder el código local.
+                val refreshedCreated =
+                    orderState.createdOrder?.let { created ->
+                        selectedOrder
+                            ?.takeIf { it.summary.id == created.summary.id }
+                            ?.let { fresh -> fresh.copy(pickupToken = fresh.pickupToken ?: created.pickupToken) }
+                            ?: created
+                    }
                 val confirmationOrder =
-                    orderState.createdOrder
+                    refreshedCreated
                         ?: orderState.stripeObservedOrder?.takeIf {
                             selectedOrder == null || selectedOrder.summary.id == it.summary.id
                         }

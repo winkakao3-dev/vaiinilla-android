@@ -324,6 +324,48 @@ fun DrawScope.drawVaiinillaMascotRunner(
     }
 }
 
+/**
+ * Vaini de pie dentro de una escena dibujada a mano (la fachada de recogida), en una caja de [boxPx].
+ * [blink] escala los ojos en vertical (1 abiertos); [waveDegrees] levanta el brazo derecho;
+ * [happy] cambia los ojos por `^ ^`.
+ */
+fun DrawScope.drawVainiStanding(
+    boxPx: Float,
+    paperColor: Color,
+    accentColor: Color,
+    inkColor: Color,
+    shadowColor: Color = Color(0x26000000),
+    blink: Float = 1f,
+    waveDegrees: Float = 0f,
+    happy: Boolean = false,
+) {
+    val s = boxPx / 100f
+    withTransform({ scale(s, s, pivot = Offset.Zero) }) {
+        drawOval(shadowColor, topLeft = Offset(30f, 75.5f), size = androidx.compose.ui.geometry.Size(40f, 5f))
+        drawPath(MASCOT_ARM_LEFT, paperColor, style = Stroke(7f, cap = StrokeCap.Round))
+        withTransform({ rotate(waveDegrees, pivot = Offset(75.9f, 52.5f)) }) {
+            drawPath(MASCOT_ARM_RIGHT, paperColor, style = Stroke(7f, cap = StrokeCap.Round))
+        }
+        drawPath(MASCOT_LEG_LEFT, paperColor, style = Stroke(11.7f, cap = StrokeCap.Round))
+        drawPath(MASCOT_LEG_RIGHT, paperColor, style = Stroke(11.7f, cap = StrokeCap.Round))
+        withTransform({ translate(0f, 1.5f) }) { drawPath(MASCOT_BODY, shadowColor) }
+        drawPath(MASCOT_BODY, paperColor)
+        drawPath(MASCOT_FOLD, accentColor)
+        drawPath(MASCOT_BAR_TOP, accentColor)
+        drawPath(MASCOT_BAR_BOTTOM, accentColor)
+        if (happy) {
+            val stroke = Stroke(2.8f, cap = StrokeCap.Round)
+            drawPath(pathOf("M37.1 54.2Q40.1 48.6 43.1 54.2"), inkColor, style = stroke)
+            drawPath(pathOf("M56.9 54.2Q59.9 48.6 62.9 54.2"), inkColor, style = stroke)
+            drawOval(Color(0x80FF8C78), topLeft = Offset(33.5f, 57f), size = androidx.compose.ui.geometry.Size(7f, 3.6f))
+            drawOval(Color(0x80FF8C78), topLeft = Offset(59.5f, 57f), size = androidx.compose.ui.geometry.Size(7f, 3.6f))
+        } else {
+            withTransform({ scale(1f, blink, pivot = Offset(40.1f, 52.5f)) }) { drawPath(MASCOT_EYE_LEFT, inkColor) }
+            withTransform({ scale(1f, blink, pivot = Offset(59.9f, 52.5f)) }) { drawPath(MASCOT_EYE_RIGHT, inkColor) }
+        }
+    }
+}
+
 enum class VaiinillaGlyphKind { Cup, Leaf, Bean, Spark, Cube, Note }
 
 private val GLYPH_CUP_BODY =
