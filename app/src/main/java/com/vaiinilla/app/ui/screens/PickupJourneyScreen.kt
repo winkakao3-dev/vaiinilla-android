@@ -24,6 +24,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -47,14 +48,17 @@ import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -67,11 +71,17 @@ import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.PixelMap
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -90,6 +100,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
@@ -104,49 +115,198 @@ import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.order.MOSAIC_FLIP_LENGTH
 import com.vaiinilla.app.ui.order.PickupStep
+import com.vaiinilla.app.ui.order.PurchaseCelebrationKind
 import com.vaiinilla.app.ui.order.mosaicCellStart
 import com.vaiinilla.app.ui.order.pickupCodeHint
 import com.vaiinilla.app.ui.order.pickupHint
 import com.vaiinilla.app.ui.order.pickupStep
 import com.vaiinilla.app.ui.order.pickupTitle
 import com.vaiinilla.app.ui.order.shouldAutoRevealPickupCode
+import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-private val SkyTop = Color(0xFFEAE3D0)
-private val SkyBottom = Color(0xFFF4EFE2)
-private val Facade = Color(0xFFE6D3AE)
-private val FacadeShade = Color(0xFFD5BE92)
-private val FacadeLight = Color(0xFFF3E9D0)
-private val WindowFrame = Color(0xFFF8F2E2)
-private val WindowGlass = Color(0xFF7D96A0)
-private val WindowGlassLight = Color(0xFFA3B8BE)
-private val Awning = Color(0xFFB7D464)
-private val AwningDark = Color(0xFF9DBB4C)
-private val SignInk = Color(0xFF1F2716)
-private val SignCream = Color(0xFFF3EFE4)
-private val ShopLight = Color(0xFFFFF2D3)
-private val ShopLightDeep = Color(0xFFF2D9A2)
-private val ShopShelf = Color(0xFFD9B98A)
-private val DoorGreen = Color(0xFF2E3B1E)
-private val Sidewalk = Color(0xFFDCD3C1)
-private val Street = Color(0xFFC9C1B0)
-private val Leaf = Color(0xFF8DAF48)
-private val LeafDark = Color(0xFF6E9131)
-private val Pot = Color(0xFFB98A5E)
+/**
+ * Colores de la escena y del vidrio. El tema no oscurece la escena de día: es la misma tienda a otra hora
+ * (claro = día, oscuro = noche con las luces prendidas, AMOLED = medianoche con el letrero en neón).
+ */
+private class ScenePalette(
+    val skyTop: Color,
+    val skyBottom: Color,
+    val facade: Color,
+    val facadeShade: Color,
+    val facadeLight: Color,
+    val windowFrame: Color,
+    val windowGlass: Color,
+    val windowGlassLight: Color,
+    val windowLit: Color,
+    val windowLitDeep: Color,
+    val litWindows: Set<Int>,
+    val awning: Color,
+    val awningDark: Color,
+    val signInk: Color,
+    val signText: Color,
+    val signGlow: Color,
+    val shopLight: Color,
+    val shopLightDeep: Color,
+    val shopShelf: Color,
+    val lampGlow: Color,
+    val spill: Color,
+    val doorGreen: Color,
+    val sidewalk: Color,
+    val street: Color,
+    val leaf: Color,
+    val leafDark: Color,
+    val pot: Color,
+    val stage: Color,
+    val ink: Color,
+    val muted: Color,
+    val glassTint: Color,
+    val glassEdge: Color,
+    val glassLine: Color,
+    val glassCard: Color,
+    val glassButton: Color,
+    val sheetSolid: Color,
+)
 
-private val StagePaper = Color(0xFFF4F1E8)
-private val Ink = Color(0xFF151513)
-private val Muted = Color(0xFF6F6B62)
+private val Day =
+    ScenePalette(
+        skyTop = Color(0xFFEAE3D0),
+        skyBottom = Color(0xFFF4EFE2),
+        facade = Color(0xFFE6D3AE),
+        facadeShade = Color(0xFFD5BE92),
+        facadeLight = Color(0xFFF3E9D0),
+        windowFrame = Color(0xFFF8F2E2),
+        windowGlass = Color(0xFF7D96A0),
+        windowGlassLight = Color(0xFFA3B8BE),
+        windowLit = Color(0xFFFFE6A8),
+        windowLitDeep = Color(0xFFF2C46E),
+        litWindows = emptySet(),
+        awning = Color(0xFFB7D464),
+        awningDark = Color(0xFF9DBB4C),
+        signInk = Color(0xFF1F2716),
+        signText = Color(0xFFF3EFE4),
+        signGlow = Color.Transparent,
+        shopLight = Color(0xFFFFF2D3),
+        shopLightDeep = Color(0xFFF2D9A2),
+        shopShelf = Color(0xFFD9B98A),
+        lampGlow = Color(0x66FFE7A8),
+        spill = Color.Transparent,
+        doorGreen = Color(0xFF2E3B1E),
+        sidewalk = Color(0xFFDCD3C1),
+        street = Color(0xFFC9C1B0),
+        leaf = Color(0xFF8DAF48),
+        leafDark = Color(0xFF6E9131),
+        pot = Color(0xFFB98A5E),
+        stage = Color(0xFFF4F1E8),
+        ink = Color(0xFF151513),
+        muted = Color(0xFF6F6B62),
+        glassTint = Color(0xBDFBF8F1),
+        glassEdge = Color(0xA6FFFFFF),
+        glassLine = Color(0x1F151513),
+        glassCard = Color(0x99FFFFFF),
+        glassButton = Color(0x8CFFFFFF),
+        sheetSolid = Color(0xFFFBF8F0),
+    )
+
+private val Night =
+    ScenePalette(
+        skyTop = Color(0xFF141B2B),
+        skyBottom = Color(0xFF27304A),
+        facade = Color(0xFF4A4034),
+        facadeShade = Color(0xFF3A3229),
+        facadeLight = Color(0xFF5B4F40),
+        windowFrame = Color(0xFF6A5D4C),
+        windowGlass = Color(0xFF232C3D),
+        windowGlassLight = Color(0xFF34405A),
+        windowLit = Color(0xFFFFDC8F),
+        windowLitDeep = Color(0xFFE9A94F),
+        litWindows = setOf(0, 2),
+        awning = Color(0xFF7C9A34),
+        awningDark = Color(0xFF627C27),
+        signInk = Color(0xFF10140C),
+        signText = Color(0xFFFFE9B8),
+        signGlow = Color(0x33FFD98A),
+        shopLight = Color(0xFFFFE3A6),
+        shopLightDeep = Color(0xFFF0BE68),
+        shopShelf = Color(0xFFB08A58),
+        lampGlow = Color(0x99FFD27A),
+        spill = Color(0x59FFC86A),
+        doorGreen = Color(0xFF1A2312),
+        sidewalk = Color(0xFF3B3731),
+        street = Color(0xFF2A2724),
+        leaf = Color(0xFF5B7830),
+        leafDark = Color(0xFF425A21),
+        pot = Color(0xFF7A5A3C),
+        stage = Color(0xFF151513),
+        ink = Color(0xFFF3EFE4),
+        muted = Color(0xFFB8B3AA),
+        glassTint = Color(0xB31C1D1A),
+        glassEdge = Color(0x2EFFFFFF),
+        glassLine = Color(0x29F3EFE4),
+        glassCard = Color(0x1AFFFFFF),
+        glassButton = Color(0x1FFFFFFF),
+        sheetSolid = Color(0xFF1A1B19),
+    )
+
+private val Midnight =
+    ScenePalette(
+        skyTop = Color.Black,
+        skyBottom = Color.Black,
+        facade = Color(0xFF15120F),
+        facadeShade = Color(0xFF0C0A08),
+        facadeLight = Color(0xFF1E1A15),
+        windowFrame = Color(0xFF26211B),
+        windowGlass = Color(0xFF07080B),
+        windowGlassLight = Color(0xFF10131A),
+        windowLit = Color(0xFFE8B866),
+        windowLitDeep = Color(0xFFB9823A),
+        litWindows = setOf(2),
+        awning = Color(0xFF34421A),
+        awningDark = Color(0xFF283414),
+        signInk = Color.Black,
+        signText = Color(0xFFD4F27A),
+        signGlow = Color(0x66B7D464),
+        shopLight = Color(0xFFF5CF84),
+        shopLightDeep = Color(0xFFC98E3E),
+        shopShelf = Color(0xFF7E6140),
+        lampGlow = Color(0x80FFC861),
+        spill = Color(0x40FFB84D),
+        doorGreen = Color(0xFF0B1007),
+        sidewalk = Color(0xFF0E0D0C),
+        street = Color.Black,
+        leaf = Color(0xFF2F3F18),
+        leafDark = Color(0xFF212C10),
+        pot = Color(0xFF3E2E1F),
+        stage = Color.Black,
+        ink = Color(0xFFF3EFE4),
+        muted = Color(0xFFA19C93),
+        glassTint = Color(0xC70A0A0A),
+        glassEdge = Color(0x24FFFFFF),
+        glassLine = Color(0x24F3EFE4),
+        glassCard = Color(0x14FFFFFF),
+        glassButton = Color(0x1AFFFFFF),
+        sheetSolid = Color(0xFF0B0B0B),
+    )
+
+private val LocalScene = staticCompositionLocalOf { Day }
+
+@Composable
+private fun scenePaletteForTheme(): ScenePalette =
+    when (LocalVaiinillaThemeMode.current.resolveEffectiveMode(isSystemInDarkTheme())) {
+        VaiinillaThemeMode.Dark -> Night
+        VaiinillaThemeMode.Amoled -> Midnight
+        else -> Day
+    }
+
 private val Lime = Color(0xFFB7D464)
 private val LimeInk = Color(0xFF172008)
-private val GlassTint = Color(0xBDFBF8F1)
-private val GlassEdge = Color(0xA6FFFFFF)
-private val GlassLine = Color(0x1F151513)
 private val QrDark = Color(0xFF151513)
 private val QrLight = Color(0xFFFBF8F0)
 private val VainiCream = Color(0xFFF6EFDD)
@@ -154,15 +314,18 @@ private val VainiLime = Color(0xFFA8D52C)
 private val VainiInk = Color(0xFF1A1414)
 
 // Proporciones de la fachada, en fracción del alto de la pantalla.
-private const val CORNICE_Y = 0.285f
-private const val SIGN_TOP_Y = 0.298f
-private const val SIGN_BOTTOM_Y = 0.336f
-private const val AWNING_BOTTOM_Y = 0.372f
-private const val SHOP_BOTTOM_Y = 0.578f
-private const val SIDEWALK_BOTTOM_Y = 0.625f
+// La puerta y Vaini quedan arriba de donde llega la hoja de vidrio (~55 % del alto).
+private const val WINDOWS_TOP_Y = 0.07f
+private const val WINDOWS_HEIGHT = 0.094f
+private const val CORNICE_Y = 0.19f
+private const val SIGN_TOP_Y = 0.203f
+private const val SIGN_BOTTOM_Y = 0.241f
+private const val AWNING_BOTTOM_Y = 0.277f
+private const val SHOP_BOTTOM_Y = 0.49f
+private const val SIDEWALK_BOTTOM_Y = 0.535f
 
 // La cámara vuela hacia la puerta de la tienda.
-private const val FOCUS_Y = 0.47f
+private const val FOCUS_Y = 0.395f
 private const val ZOOM_MAX = 3.4f
 private const val CAMERA_FROM = 0.04f
 private const val CAMERA_TO = 0.5f
@@ -234,6 +397,7 @@ private fun buildMosaic(
     height: Float,
     density: Density,
     textMeasurer: TextMeasurer,
+    palette: ScenePalette,
 ): Mosaic {
     val camera = cameraAt(HANDOFF, width, height)
     val screenSide = width * 1.18f
@@ -247,7 +411,7 @@ private fun buildMosaic(
         Size(bitmap.width.toFloat(), bitmap.height.toFloat()),
     ) {
         withTransform({ scale(SAMPLE_SCALE, SAMPLE_SCALE, pivot = Offset.Zero) }) {
-            drawStorefront(Size(width, height), textMeasurer, SceneMotion())
+            drawStorefront(Size(width, height), textMeasurer, palette, SceneMotion())
         }
     }
     val pixels: PixelMap = bitmap.toPixelMap()
@@ -263,7 +427,7 @@ private fun buildMosaic(
                 )
             val x = (point.x * SAMPLE_SCALE).roundToInt()
             val y = (point.y * SAMPLE_SCALE).roundToInt()
-            if (x in 0 until pixels.width && y in 0 until pixels.height) pixels[x, y] else SkyBottom
+            if (x in 0 until pixels.width && y in 0 until pixels.height) pixels[x, y] else palette.skyBottom
         }
     return Mosaic(matrix, sceneCenter, sceneSide, sampled)
 }
@@ -271,70 +435,85 @@ private fun buildMosaic(
 private fun DrawScope.drawStorefront(
     stage: Size,
     textMeasurer: TextMeasurer,
+    c: ScenePalette,
     motion: SceneMotion,
 ) {
     val w = stage.width
     val h = stage.height
     val hair = 1.dp.toPx()
-    drawRect(Brush.verticalGradient(listOf(SkyTop, SkyBottom), endY = h * 0.6f), size = stage)
+    drawRect(Brush.verticalGradient(listOf(c.skyTop, c.skyBottom), endY = h * 0.6f), size = stage)
 
-    // Fachada de los pisos de arriba, con hiladas finas.
-    drawRect(Facade, size = Size(w, h * SHOP_BOTTOM_Y))
+    // Fachada del piso de arriba, con hiladas finas.
+    drawRect(c.facade, size = Size(w, h * SHOP_BOTTOM_Y))
     var course = h * 0.014f
     while (course < h * CORNICE_Y) {
-        drawLine(FacadeShade.copy(alpha = 0.32f), Offset(0f, course), Offset(w, course), strokeWidth = hair)
+        drawLine(c.facadeShade.copy(alpha = 0.32f), Offset(0f, course), Offset(w, course), strokeWidth = hair)
         course += h * 0.0185f
     }
     for (x in listOf(0.035f, 0.965f)) {
-        drawRect(FacadeLight, topLeft = Offset(w * x - w * 0.018f, 0f), size = Size(w * 0.036f, h * CORNICE_Y))
+        drawRect(c.facadeLight, topLeft = Offset(w * x - w * 0.018f, 0f), size = Size(w * 0.036f, h * CORNICE_Y))
     }
 
-    // Ventanas: dos pisos de tres.
-    for (row in 0..1) {
-        val top = h * (0.042f + row * 0.122f)
-        val wh = h * 0.094f
-        for (col in 0..2) {
-            val cx = w * (0.2f + col * 0.3f)
-            val ww = w * 0.17f
-            val left = cx - ww / 2f
-            drawRect(FacadeShade, topLeft = Offset(left - hair * 3, top - hair * 3), size = Size(ww + hair * 6, wh + hair * 6))
-            drawRect(WindowFrame, topLeft = Offset(left, top), size = Size(ww, wh))
-            val inset = hair * 3.5f
-            val glassTop = top + inset
-            val glassSize = Size(ww - inset * 2, wh - inset * 2)
-            drawRect(
+    // Tres ventanas; de noche algunas están prendidas.
+    val top = h * WINDOWS_TOP_Y
+    val wh = h * WINDOWS_HEIGHT
+    for (col in 0..2) {
+        val cx = w * (0.2f + col * 0.3f)
+        val ww = w * 0.17f
+        val left = cx - ww / 2f
+        val lit = col in c.litWindows
+        drawRect(c.facadeShade, topLeft = Offset(left - hair * 3, top - hair * 3), size = Size(ww + hair * 6, wh + hair * 6))
+        drawRect(c.windowFrame, topLeft = Offset(left, top), size = Size(ww, wh))
+        val inset = hair * 3.5f
+        val glassTop = top + inset
+        val glassSize = Size(ww - inset * 2, wh - inset * 2)
+        if (lit) drawCircle(c.lampGlow.copy(alpha = c.lampGlow.alpha * 0.5f), radius = ww * 0.75f, center = Offset(cx, top + wh / 2f))
+        drawRect(
+            if (lit) {
+                Brush.verticalGradient(listOf(c.windowLit, c.windowLitDeep), startY = glassTop, endY = glassTop + glassSize.height)
+            } else {
                 Brush.linearGradient(
-                    listOf(WindowGlass, WindowGlassLight, WindowGlass),
+                    listOf(c.windowGlass, c.windowGlassLight, c.windowGlass),
                     start = Offset(left, glassTop),
                     end = Offset(left + ww, glassTop + wh),
-                ),
-                topLeft = Offset(left + inset, glassTop),
-                size = glassSize,
-            )
-            drawLine(WindowFrame, Offset(cx, glassTop), Offset(cx, glassTop + glassSize.height), strokeWidth = hair * 3)
-            val mid = glassTop + glassSize.height * 0.42f
-            drawLine(WindowFrame, Offset(left + inset, mid), Offset(left + ww - inset, mid), strokeWidth = hair * 3)
-            drawRect(FacadeLight, topLeft = Offset(left - hair * 6, top + wh + hair * 2), size = Size(ww + hair * 12, hair * 6))
-        }
+                )
+            },
+            topLeft = Offset(left + inset, glassTop),
+            size = glassSize,
+        )
+        drawLine(c.windowFrame, Offset(cx, glassTop), Offset(cx, glassTop + glassSize.height), strokeWidth = hair * 3)
+        val mid = glassTop + glassSize.height * 0.42f
+        drawLine(c.windowFrame, Offset(left + inset, mid), Offset(left + ww - inset, mid), strokeWidth = hair * 3)
+        drawRect(c.facadeLight, topLeft = Offset(left - hair * 6, top + wh + hair * 2), size = Size(ww + hair * 12, hair * 6))
     }
 
     // Cornisa, letrero y toldo.
-    drawRect(FacadeLight, topLeft = Offset(0f, h * (CORNICE_Y - 0.012f)), size = Size(w, h * 0.016f))
-    drawLine(FacadeShade, Offset(0f, h * (CORNICE_Y + 0.004f)), Offset(w, h * (CORNICE_Y + 0.004f)), strokeWidth = hair * 2)
+    drawRect(c.facadeLight, topLeft = Offset(0f, h * (CORNICE_Y - 0.012f)), size = Size(w, h * 0.016f))
+    drawLine(c.facadeShade, Offset(0f, h * (CORNICE_Y + 0.004f)), Offset(w, h * (CORNICE_Y + 0.004f)), strokeWidth = hair * 2)
     val signLeft = w * 0.07f
     val signTop = h * SIGN_TOP_Y
     val signHeight = h * (SIGN_BOTTOM_Y - SIGN_TOP_Y)
-    drawRoundRect(SignInk, topLeft = Offset(signLeft, signTop), size = Size(w * 0.86f, signHeight), cornerRadius = CornerRadius(hair * 3))
+    if (c.signGlow.alpha > 0f) {
+        drawRoundRect(
+            c.signGlow,
+            topLeft = Offset(signLeft - hair * 10, signTop - hair * 8),
+            size = Size(w * 0.86f + hair * 20, signHeight + hair * 16),
+            cornerRadius = CornerRadius(hair * 14),
+        )
+    }
+    drawRoundRect(c.signInk, topLeft = Offset(signLeft, signTop), size = Size(w * 0.86f, signHeight), cornerRadius = CornerRadius(hair * 3))
     val signStyle =
         TextStyle(
-            color = SignCream,
+            color = c.signText,
             fontSize = (signHeight * 0.46f / density / fontScale).sp,
             fontFamily = VaiinillaSerif,
             fontWeight = FontWeight.Bold,
             letterSpacing = (signHeight * 0.08f / density / fontScale).sp,
         )
     val sign = textMeasurer.measure("VAIINILLA", signStyle)
-    drawText(sign, topLeft = Offset((w - sign.size.width) / 2f, signTop + (signHeight - sign.size.height) / 2f))
+    val signAt = Offset((w - sign.size.width) / 2f, signTop + (signHeight - sign.size.height) / 2f)
+    val neon = if (c.signGlow.alpha > 0f) Shadow(c.signText.copy(alpha = 0.8f), blurRadius = hair * 9) else null
+    drawText(sign, topLeft = signAt, shadow = neon)
     for (dot in listOf(0.2f, 0.8f)) {
         drawCircle(Lime, radius = hair * 3, center = Offset(w * dot, signTop + signHeight / 2f))
     }
@@ -346,12 +525,12 @@ private fun DrawScope.drawStorefront(
     val stripe = awningWidth / stripes
     for (i in 0 until stripes) {
         drawRect(
-            if (i % 2 == 0) Awning else AwningDark,
+            if (i % 2 == 0) c.awning else c.awningDark,
             topLeft = Offset(awningLeft + i * stripe, awningTop),
             size = Size(stripe + 0.5f, awningBottom - awningTop),
         )
         drawCircle(
-            if (i % 2 == 0) Awning else AwningDark,
+            if (i % 2 == 0) c.awning else c.awningDark,
             radius = stripe / 2f,
             center = Offset(awningLeft + i * stripe + stripe / 2f, awningBottom),
         )
@@ -362,24 +541,24 @@ private fun DrawScope.drawStorefront(
     val shopTop = awningBottom + h * 0.016f
     val shopBottom = h * SHOP_BOTTOM_Y
     val plinth = h * 0.03f
-    for ((from, to) in listOf(0.08f to 0.39f, 0.61f to 0.92f)) {
+    for ((from, to) in listOf(0.06f to 0.37f, 0.63f to 0.94f)) {
         val left = w * from
         val width = w * (to - from)
         val glassBottom = shopBottom - plinth
-        drawRect(DoorGreen, topLeft = Offset(left - hair * 3, shopTop - hair * 3), size = Size(width + hair * 6, glassBottom - shopTop + hair * 6))
+        drawRect(c.doorGreen, topLeft = Offset(left - hair * 3, shopTop - hair * 3), size = Size(width + hair * 6, glassBottom - shopTop + hair * 6))
         drawRect(
-            Brush.verticalGradient(listOf(ShopLight, ShopLightDeep), startY = shopTop, endY = glassBottom),
+            Brush.verticalGradient(listOf(c.shopLight, c.shopLightDeep), startY = shopTop, endY = glassBottom),
             topLeft = Offset(left, shopTop),
             size = Size(width, glassBottom - shopTop),
         )
         for (lamp in listOf(0.3f, 0.7f)) {
             val lx = left + width * lamp
-            drawLine(SignInk, Offset(lx, shopTop), Offset(lx, shopTop + h * 0.03f), strokeWidth = hair)
-            drawArc(SignInk, 180f, 180f, true, topLeft = Offset(lx - hair * 9, shopTop + h * 0.026f), size = Size(hair * 18, hair * 12))
-            drawCircle(Color(0x66FFE7A8), radius = hair * 16, center = Offset(lx, shopTop + h * 0.04f))
+            drawLine(c.signInk, Offset(lx, shopTop), Offset(lx, shopTop + h * 0.03f), strokeWidth = hair)
+            drawArc(c.signInk, 180f, 180f, true, topLeft = Offset(lx - hair * 9, shopTop + h * 0.026f), size = Size(hair * 18, hair * 12))
+            drawCircle(c.lampGlow, radius = hair * 16, center = Offset(lx, shopTop + h * 0.04f))
         }
         val shelfY = shopTop + (glassBottom - shopTop) * 0.62f
-        drawRect(ShopShelf, topLeft = Offset(left, shelfY), size = Size(width, hair * 4))
+        drawRect(c.shopShelf, topLeft = Offset(left, shelfY), size = Size(width, hair * 4))
         for (cup in 0..3) {
             val cx = left + width * (0.18f + cup * 0.21f)
             drawRoundRect(
@@ -389,18 +568,18 @@ private fun DrawScope.drawStorefront(
                 cornerRadius = CornerRadius(hair * 2),
             )
         }
-        drawRect(DoorGreen.copy(alpha = 0.18f), topLeft = Offset(left, glassBottom - hair * 2), size = Size(width, hair * 2))
-        drawRect(FacadeShade, topLeft = Offset(left - hair * 3, glassBottom + hair * 3), size = Size(width + hair * 6, plinth - hair * 3))
+        drawRect(c.doorGreen.copy(alpha = 0.18f), topLeft = Offset(left, glassBottom - hair * 2), size = Size(width, hair * 2))
+        drawRect(c.facadeShade, topLeft = Offset(left - hair * 3, glassBottom + hair * 3), size = Size(width + hair * 6, plinth - hair * 3))
     }
-    val doorLeft = w * 0.415f
-    val doorWidth = w * 0.17f
-    drawRect(DoorGreen, topLeft = Offset(doorLeft - hair * 4, shopTop - hair * 4), size = Size(doorWidth + hair * 8, shopBottom - shopTop + hair * 4))
+    val doorLeft = w * 0.395f
+    val doorWidth = w * 0.21f
+    drawRect(c.doorGreen, topLeft = Offset(doorLeft - hair * 4, shopTop - hair * 4), size = Size(doorWidth + hair * 8, shopBottom - shopTop + hair * 4))
     drawRect(
-        Brush.verticalGradient(listOf(ShopLightDeep, ShopLight), startY = shopTop, endY = shopBottom),
+        Brush.verticalGradient(listOf(c.shopLightDeep, c.shopLight), startY = shopTop, endY = shopBottom),
         topLeft = Offset(doorLeft, shopTop),
         size = Size(doorWidth, shopBottom - shopTop),
     )
-    val vainiBox = doorWidth * 0.92f
+    val vainiBox = doorWidth * 1.08f
     withTransform({ translate(doorLeft + (doorWidth - vainiBox) / 2f, shopBottom - vainiBox * 0.8f) }) {
         drawVainiStanding(
             boxPx = vainiBox,
@@ -413,32 +592,61 @@ private fun DrawScope.drawStorefront(
         )
     }
 
-    // Banqueta, macetas y calle.
-    drawRect(Sidewalk, topLeft = Offset(0f, shopBottom), size = Size(w, h * (SIDEWALK_BOTTOM_Y - SHOP_BOTTOM_Y)))
+    // Banqueta, macetas y calle. De noche la luz de la tienda cae sobre la banqueta.
+    drawRect(c.sidewalk, topLeft = Offset(0f, shopBottom), size = Size(w, h * (SIDEWALK_BOTTOM_Y - SHOP_BOTTOM_Y)))
     var slab = 0f
     while (slab < w) {
-        drawLine(Street.copy(alpha = 0.5f), Offset(slab, shopBottom), Offset(slab, h * SIDEWALK_BOTTOM_Y), strokeWidth = hair)
+        drawLine(c.street.copy(alpha = 0.5f), Offset(slab, shopBottom), Offset(slab, h * SIDEWALK_BOTTOM_Y), strokeWidth = hair)
         slab += w * 0.125f
     }
-    drawRect(Street, topLeft = Offset(0f, h * SIDEWALK_BOTTOM_Y), size = Size(w, h * (1f - SIDEWALK_BOTTOM_Y)))
+    drawRect(c.street, topLeft = Offset(0f, h * SIDEWALK_BOTTOM_Y), size = Size(w, h * (1f - SIDEWALK_BOTTOM_Y)))
+    if (c.spill.alpha > 0f) {
+        drawRect(
+            Brush.verticalGradient(listOf(c.spill, Color.Transparent), startY = shopBottom, endY = h * (SIDEWALK_BOTTOM_Y + 0.06f)),
+            topLeft = Offset(w * 0.04f, shopBottom),
+            size = Size(w * 0.92f, h * (SIDEWALK_BOTTOM_Y + 0.06f - SHOP_BOTTOM_Y)),
+        )
+    }
     drawRect(Color(0x14000000), topLeft = Offset(0f, h * SIDEWALK_BOTTOM_Y), size = Size(w, hair * 3))
-    for (x in listOf(0.045f, 0.955f)) {
+    for (x in listOf(0.03f, 0.97f)) {
         val cx = w * x
         val potTop = shopBottom - h * 0.012f
-        drawCircle(LeafDark, radius = w * 0.045f, center = Offset(cx, potTop - w * 0.035f))
-        drawCircle(Leaf, radius = w * 0.038f, center = Offset(cx - w * 0.012f, potTop - w * 0.05f))
-        drawRoundRect(Pot, topLeft = Offset(cx - w * 0.03f, potTop), size = Size(w * 0.06f, h * 0.03f), cornerRadius = CornerRadius(hair * 3))
+        drawCircle(c.leafDark, radius = w * 0.04f, center = Offset(cx, potTop - w * 0.032f))
+        drawCircle(c.leaf, radius = w * 0.034f, center = Offset(cx - w * 0.01f, potTop - w * 0.046f))
+        drawRoundRect(c.pot, topLeft = Offset(cx - w * 0.026f, potTop), size = Size(w * 0.052f, h * 0.026f), cornerRadius = CornerRadius(hair * 3))
     }
 }
 
-/** Pantalla de recogida: la tienda con el estado del pedido y, cuando toca, el QR que sale de la fachada. */
+/**
+ * Pantalla de recogida: la tienda con el estado del pedido y, cuando toca, el QR que sale de la fachada.
+ * Si hay [celebration], abre con la tarjeta de "¡Pedido recibido!" sobre la tienda desenfocada; la tarjeta
+ * cae y se vuelve la hoja de estado, sin cambiar de pantalla.
+ */
 @Composable
 internal fun PickupJourneyScreen(
     order: OrderDetail,
     qrPayload: String?,
     onBack: () -> Unit,
     onViewTracking: () -> Unit,
+    celebration: PurchaseCelebrationKind? = null,
+    onCelebrationFinished: () -> Unit = {},
 ) {
+    val palette = scenePaletteForTheme()
+    CompositionLocalProvider(LocalScene provides palette) {
+        PickupJourney(order, qrPayload, onBack, onViewTracking, celebration, onCelebrationFinished)
+    }
+}
+
+@Composable
+private fun PickupJourney(
+    order: OrderDetail,
+    qrPayload: String?,
+    onBack: () -> Unit,
+    onViewTracking: () -> Unit,
+    celebration: PurchaseCelebrationKind?,
+    onCelebrationFinished: () -> Unit,
+) {
+    val palette = LocalScene.current
     val reduceMotion = reducedMotion()
     val haptics = LocalHapticFeedback.current
     val textMeasurer = rememberTextMeasurer()
@@ -448,12 +656,36 @@ internal fun PickupJourneyScreen(
     val step = pickupStep(state)
     val ready = step == PickupStep.READY
 
+    // 1 = tarjeta de celebración al frente; 0 = ya es la hoja de estado.
+    val intro = remember(order.summary.id) { Animatable(if (celebration != null) 1f else 0f) }
+    val badge = remember(order.summary.id) { Animatable(if (celebration != null && !reduceMotion) 0f else 1f) }
+    val check = remember(order.summary.id) { Animatable(if (celebration != null && !reduceMotion) 0f else 1f) }
+    val latestOnCelebrationFinished by rememberUpdatedState(onCelebrationFinished)
+    LaunchedEffect(order.summary.id, celebration) {
+        if (celebration == null) return@LaunchedEffect
+        intro.snapTo(1f)
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        if (!reduceMotion) {
+            badge.snapTo(0f)
+            check.snapTo(0f)
+            launch { badge.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 380f)) }
+            launch {
+                delay(140)
+                check.animateTo(1f, spring(dampingRatio = 1f, stiffness = 90f))
+            }
+        }
+        delay(if (reduceMotion) 900 else 1700)
+        if (reduceMotion) intro.snapTo(0f) else intro.animateTo(0f, spring(dampingRatio = 0.92f, stiffness = 55f))
+        latestOnCelebrationFinished()
+    }
+    val celebrating = celebration != null
+
     var revealed by rememberSaveable(order.summary.id) { mutableStateOf(false) }
     val reveal = remember(order.summary.id) { Animatable(if (revealed) 1f else 0f) }
     var autoRevealedState by rememberSaveable(order.summary.id) { mutableStateOf<String?>(null) }
     val autoReveal = shouldAutoRevealPickupCode(order, hasCode)
-    LaunchedEffect(autoReveal, state) {
-        if (!autoReveal || autoRevealedState == state.wireValue) return@LaunchedEffect
+    LaunchedEffect(autoReveal, state, celebrating) {
+        if (celebrating || !autoReveal || autoRevealedState == state.wireValue) return@LaunchedEffect
         // Deja ver a Vaini saludar antes de volar hacia el código.
         delay(if (reduceMotion) 300 else 1500)
         autoRevealedState = state.wireValue
@@ -502,31 +734,34 @@ internal fun PickupJourneyScreen(
             ),
         label = "wave",
     )
+    val cheering = ready || intro.value > 0.02f
     val motion =
         SceneMotion(
             blink = if (reduceMotion) 1f else blink,
-            wave = if (ready && !reduceMotion) wave else 0f,
-            happy = ready,
+            wave = if (cheering && !reduceMotion) wave else 0f,
+            happy = cheering,
         )
 
     BoxWithConstraints(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(StagePaper),
+                .background(palette.stage),
     ) {
         val density = LocalDensity.current
         val widthPx = with(density) { maxWidth.toPx() }
         val heightPx = with(density) { maxHeight.toPx() }
         val stage = Size(widthPx, heightPx)
         val mosaic =
-            remember(matrix, widthPx, heightPx) {
-                matrix?.let { buildMosaic(it, widthPx, heightPx, density, textMeasurer) }
+            remember(matrix, widthPx, heightPx, palette) {
+                matrix?.let { buildMosaic(it, widthPx, heightPx, density, textMeasurer, palette) }
             }
         val p = reveal.value
         val camera = cameraAt(p, widthPx, heightPx)
         val sceneAlpha = 1f - segment(p, 0.46f, 0.62f)
         val speedBlur = if (p in 0.03f..0.5f) min(10f, abs(reveal.velocity) * 9f) else 0f
+        val introBlur = if (reduceMotion) 0f else intro.value * 18f
+        val sceneBlur = maxOf(speedBlur, introBlur)
 
         if (sceneAlpha > 0.001f) {
             Canvas(
@@ -540,12 +775,12 @@ internal fun PickupJourneyScreen(
                             translationX = camera.anchor.x - camera.focus.x * camera.zoom
                             translationY = camera.anchor.y - camera.focus.y * camera.zoom
                             alpha = sceneAlpha
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && speedBlur > 0.5f) {
-                                renderEffect = BlurEffect(speedBlur, speedBlur, TileMode.Clamp)
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && sceneBlur > 0.5f) {
+                                renderEffect = BlurEffect(sceneBlur, sceneBlur, TileMode.Clamp)
                             }
                         },
             ) {
-                drawStorefront(stage, textMeasurer, motion)
+                drawStorefront(stage, textMeasurer, palette, motion)
             }
         }
 
@@ -564,12 +799,25 @@ internal fun PickupJourneyScreen(
             order = order,
             step = step,
             hasCode = hasCode,
-            hidden = eased(p, 0f, 0.2f),
-            backdrop = { drawStorefront(stage, textMeasurer, motion) },
+            hidden = maxOf(eased(p, 0f, 0.2f), intro.value),
+            backdrop = { drawStorefront(stage, textMeasurer, palette, motion) },
             onShowCode = { revealed = true },
             onViewTracking = onViewTracking,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
+
+        if (intro.value > 0.001f && celebration != null) {
+            CelebrationCard(
+                order = order,
+                kind = celebration,
+                shown = intro.value,
+                badge = badge.value,
+                check = check.value,
+                dropPx = heightPx * 0.32f,
+                backdrop = { drawStorefront(stage, textMeasurer, palette, motion) },
+                modifier = Modifier.align(Alignment.Center),
+            )
+        }
 
         val pickupIn = eased(p, 0.8f, 1f)
         if (pickupIn > 0.001f) {
@@ -594,6 +842,124 @@ internal fun PickupJourneyScreen(
             )
         }
     }
+}
+
+/**
+ * La confirmación de compra, en vidrio sobre la tienda. Al irse ([shown] de 1 a 0) cae hacia la hoja de
+ * estado mientras la hoja sube, así se lee como la misma tarjeta que se acomoda abajo.
+ */
+@Composable
+private fun CelebrationCard(
+    order: OrderDetail,
+    kind: PurchaseCelebrationKind,
+    shown: Float,
+    badge: Float,
+    check: Float,
+    dropPx: Float,
+    backdrop: DrawScope.() -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val c = LocalScene.current
+    val paid = kind == PurchaseCelebrationKind.PAYMENT_CONFIRMED
+    val title = if (paid) "¡Compra confirmada!" else "¡Pedido recibido!"
+    val message = if (paid) "Tu pago fue autorizado y tu pedido ya está en marcha." else "Paga en Caja para continuar con tu pedido."
+    val leaving = 1f - shown
+    GlassPanel(
+        backdrop = backdrop,
+        shape = RoundedCornerShape(32.dp),
+        modifier =
+            modifier
+                .padding(horizontal = 20.dp)
+                .graphicsLayer {
+                    translationY = dropPx * leaving * leaving
+                    val scale = 1f - 0.08f * leaving
+                    scaleX = scale
+                    scaleY = scale
+                    alpha = (shown * 1.6f).coerceIn(0f, 1f)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && leaving > 0.05f) {
+                        val blur = leaving * 10.dp.toPx()
+                        renderEffect = BlurEffect(blur, blur, TileMode.Decal)
+                    }
+                },
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 22.dp, vertical = 26.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(116.dp)
+                        .graphicsLayer {
+                            scaleX = badge
+                            scaleY = badge
+                        }.clip(CircleShape)
+                        .background(c.glassCard)
+                        .border(1.dp, c.glassEdge, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Canvas(
+                    Modifier
+                        .size(84.dp)
+                        .semantics { contentDescription = title },
+                ) {
+                    drawCircle(Lime)
+                    drawCheck(check)
+                }
+            }
+            Spacer(Modifier.height(22.dp))
+            Text(
+                title,
+                color = c.ink,
+                fontSize = 30.sp,
+                lineHeight = 34.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-1).sp,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(message, color = c.muted, fontSize = 15.sp, lineHeight = 21.sp, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(18.dp))
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(c.glassCard)
+                        .border(1.dp, c.glassEdge, RoundedCornerShape(18.dp))
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Pedido #${order.summary.folio}",
+                    color = c.ink,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(moneyLabel(order.summary.total), color = c.ink, fontSize = 20.sp, fontWeight = FontWeight.Black)
+            }
+        }
+    }
+}
+
+/** Palomita que se dibuja de izquierda a derecha según [progress]. */
+private fun DrawScope.drawCheck(progress: Float) {
+    if (progress <= 0f) return
+    val w = size.width
+    val path =
+        Path().apply {
+            moveTo(w * 0.29f, w * 0.52f)
+            lineTo(w * 0.44f, w * 0.66f)
+            lineTo(w * 0.72f, w * 0.37f)
+        }
+    val measure = PathMeasure().apply { setPath(path, false) }
+    val partial = Path()
+    measure.getSegment(0f, measure.length * progress.coerceIn(0f, 1f), partial, true)
+    drawPath(partial, LimeInk, style = Stroke(width = w * 0.085f, cap = StrokeCap.Round, join = StrokeJoin.Round))
 }
 
 private fun DrawScope.drawMosaic(
@@ -657,20 +1023,21 @@ private fun GlassCircleButton(
     closing: Float,
     onClick: () -> Unit,
 ) {
+    val c = LocalScene.current
     Box(
         modifier =
             Modifier
                 .size(42.dp)
                 .clip(CircleShape)
-                .background(GlassTint)
-                .border(1.dp, GlassEdge, CircleShape)
+                .background(c.glassTint)
+                .border(1.dp, c.glassEdge, CircleShape)
                 .physicalPress(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
             contentDescription = if (closing < 0.5f) "Regresar" else null,
-            tint = Ink,
+            tint = c.ink,
             modifier =
                 Modifier.graphicsLayer {
                     alpha = 1f - closing
@@ -682,7 +1049,7 @@ private fun GlassCircleButton(
         Icon(
             imageVector = Icons.Filled.Close,
             contentDescription = if (closing >= 0.5f) "Cerrar código" else null,
-            tint = Ink,
+            tint = c.ink,
             modifier =
                 Modifier.graphicsLayer {
                     alpha = closing
@@ -699,16 +1066,22 @@ private fun GlassCircleButton(
 private fun GlassPanel(
     modifier: Modifier = Modifier,
     backdrop: (DrawScope.() -> Unit)?,
+    shape: RoundedCornerShape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
     content: @Composable () -> Unit,
 ) {
+    val c = LocalScene.current
+    var left by remember { mutableFloatStateOf(0f) }
     var top by remember { mutableFloatStateOf(0f) }
-    val shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp)
     val frosted = backdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     Box(
         modifier =
             modifier
                 .fillMaxWidth()
-                .onGloballyPositioned { top = it.positionInRoot().y }
+                .onGloballyPositioned {
+                    val at = it.positionInRoot()
+                    left = at.x
+                    top = at.y
+                }
                 .clip(shape),
     ) {
         if (frosted && backdrop != null) {
@@ -718,15 +1091,15 @@ private fun GlassPanel(
                         .matchParentSize()
                         .blur(26.dp),
             ) {
-                withTransform({ translate(0f, -top) }) { backdrop() }
+                withTransform({ translate(-left, -top) }) { backdrop() }
             }
         }
         Box(
             modifier =
                 Modifier
                     .matchParentSize()
-                    .background(if (frosted) GlassTint else QrLight)
-                    .border(1.dp, GlassEdge, shape),
+                    .background(if (frosted) c.glassTint else c.sheetSolid)
+                    .border(1.dp, c.glassEdge, shape),
         )
         content()
     }
@@ -743,6 +1116,7 @@ private fun StatusSheet(
     onViewTracking: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val c = LocalScene.current
     var height by remember { mutableFloatStateOf(0f) }
     val entrance = remember { Animatable(0f) }
     val reduceMotion = reducedMotion()
@@ -776,10 +1150,10 @@ private fun StatusSheet(
                 Modifier
                     .align(Alignment.CenterHorizontally)
                     .size(width = 36.dp, height = 4.dp)
-                    .background(GlassLine, CircleShape),
+                    .background(c.glassLine, CircleShape),
             )
             Spacer(Modifier.height(12.dp))
-            Text("Pedido #${order.summary.folio}", color = Muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("Pedido #${order.summary.folio}", color = c.muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             AnimatedContent(
                 targetState = pickupTitle(order),
                 transitionSpec = {
@@ -790,7 +1164,7 @@ private fun StatusSheet(
             ) { title ->
                 Text(
                     title,
-                    color = Ink,
+                    color = c.ink,
                     fontSize = 34.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = (-1.2).sp,
@@ -801,7 +1175,7 @@ private fun StatusSheet(
                 transitionSpec = { fadeIn(spring(stiffness = 180f)) togetherWith fadeOut(spring(stiffness = 300f)) },
                 label = "pickup_hint",
             ) { hint ->
-                Text(hint, color = Muted, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(hint, color = c.muted, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             if (step != null) {
                 Spacer(Modifier.height(14.dp))
@@ -815,13 +1189,13 @@ private fun StatusSheet(
                                     .height(5.dp),
                             ) {
                                 val r = CornerRadius(size.height / 2f)
-                                drawRoundRect(GlassLine, cornerRadius = r)
-                                if (fill > 0f) drawRoundRect(Ink, size = Size(size.width * fill, size.height), cornerRadius = r)
+                                drawRoundRect(c.glassLine, cornerRadius = r)
+                                if (fill > 0f) drawRoundRect(c.ink, size = Size(size.width * fill, size.height), cornerRadius = r)
                             }
                             Spacer(Modifier.height(6.dp))
                             Text(
                                 item.label,
-                                color = lerp(Muted, Ink, fill),
+                                color = lerp(c.muted, c.ink, fill),
                                 fontSize = 11.sp,
                                 fontWeight = if (item == step) FontWeight.Black else FontWeight.SemiBold,
                             )
@@ -844,14 +1218,15 @@ private fun StatusSheet(
 
 @Composable
 private fun OrderSummaryCard(order: OrderDetail) {
+    val c = LocalScene.current
     val shape = RoundedCornerShape(18.dp)
     Column(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .clip(shape)
-                .background(Color(0x99FFFFFF))
-                .border(1.dp, GlassEdge, shape)
+                .background(c.glassCard)
+                .border(1.dp, c.glassEdge, shape)
                 .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
         val visible = order.items.take(2)
@@ -859,7 +1234,7 @@ private fun OrderSummaryCard(order: OrderDetail) {
             Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "${item.quantity} × ${item.productName}",
-                    color = Ink,
+                    color = c.ink,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -867,24 +1242,24 @@ private fun OrderSummaryCard(order: OrderDetail) {
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(Modifier.width(8.dp))
-                Text(moneyLabel(item.subtotal), color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Black)
+                Text(moneyLabel(item.subtotal), color = c.ink, fontSize = 14.sp, fontWeight = FontWeight.Black)
             }
         }
         val hidden = order.items.size - visible.size
-        if (hidden > 0) Text("+$hidden más", color = Muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        if (hidden > 0) Text("+$hidden más", color = c.muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         Box(
             Modifier
                 .padding(vertical = 6.dp)
                 .fillMaxWidth()
                 .height(1.dp)
-                .background(GlassLine),
+                .background(c.glassLine),
         )
         Text(
             when (order.summary.destination) {
                 OrderDestination.IN_SPACE -> "A ${order.summary.space?.name ?: "tu espacio"}"
                 OrderDestination.TAKE_AWAY -> "Para llevar · recoge en barra"
             } + " · " + moneyLabel(order.summary.total),
-            color = Muted,
+            color = c.muted,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
@@ -900,6 +1275,7 @@ private fun PickupCodeSheet(
     onViewTracking: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val c = LocalScene.current
     var height by remember { mutableFloatStateOf(0f) }
     GlassPanel(
         backdrop = null,
@@ -921,7 +1297,7 @@ private fun PickupCodeSheet(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "#${order.summary.folio}",
-                    color = Ink,
+                    color = c.ink,
                     fontSize = 40.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = (-1.6).sp,
@@ -939,21 +1315,21 @@ private fun PickupCodeSheet(
                             .padding(horizontal = 10.dp, vertical = 5.dp),
                 )
             }
-            Text("Código de recogida", color = Muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("Código de recogida", color = c.muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(10.dp))
-            Text(pickupCodeHint(order), color = Ink, fontSize = 16.sp, fontWeight = FontWeight.Black)
+            Text(pickupCodeHint(order), color = c.ink, fontSize = 16.sp, fontWeight = FontWeight.Black)
             Text(
                 order.items.joinToString(" · ") { it.productName },
-                color = Muted,
+                color = c.muted,
                 fontSize = 13.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.LightMode, contentDescription = null, tint = Muted, modifier = Modifier.size(14.dp))
+                Icon(Icons.Outlined.LightMode, contentDescription = null, tint = c.muted, modifier = Modifier.size(14.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Subimos el brillo mientras está abierto.", color = Muted, fontSize = 12.sp)
+                Text("Subimos el brillo mientras está abierto.", color = c.muted, fontSize = 12.sp)
             }
             Spacer(Modifier.height(14.dp))
             PillButton("Seguir pedido", primary = true, onClick = onViewTracking, modifier = Modifier.fillMaxWidth())
@@ -968,20 +1344,21 @@ private fun PillButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val c = LocalScene.current
     val shape = RoundedCornerShape(18.dp)
     Box(
         modifier =
             modifier
                 .height(50.dp)
                 .clip(shape)
-                .background(if (primary) Lime else Color(0x8CFFFFFF))
-                .border(1.dp, if (primary) Color.Transparent else GlassLine, shape)
+                .background(if (primary) Lime else c.glassButton)
+                .border(1.dp, if (primary) Color.Transparent else c.glassLine, shape)
                 .physicalPress(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             label,
-            color = if (primary) LimeInk else Ink,
+            color = if (primary) LimeInk else c.ink,
             fontSize = 16.sp,
             fontWeight = FontWeight.Black,
             letterSpacing = (-0.3).sp,

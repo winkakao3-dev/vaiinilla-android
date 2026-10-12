@@ -64,14 +64,6 @@ fun OrderConfirmationScreen(
     ) {
         if (order == null) return@Box
         val activeCelebration = purchaseCelebration?.takeIf { it.orderId == order.summary.id }
-        if (activeCelebration != null) {
-            PurchaseSuccessScreen(
-                order = order,
-                kind = activeCelebration.kind,
-                onFinished = { onPurchaseCelebrationFinished(activeCelebration.orderId) },
-            )
-            return@Box
-        }
         val stripeOrder = order.summary.paymentMethod == PaymentMethod.STRIPE
         val stripeConfirmed = stripeOrder && order.isStripePaymentConfirmedByBackend()
         // Stripe orders must never expose the pickup QR before the backend
@@ -98,6 +90,8 @@ fun OrderConfirmationScreen(
             qrPayload = confirmationTicketQrPayload(order),
             onBack = onReturnToMenu,
             onViewTracking = onViewTracking,
+            celebration = activeCelebration?.kind,
+            onCelebrationFinished = { activeCelebration?.let { onPurchaseCelebrationFinished(it.orderId) } },
         )
     }
 }
