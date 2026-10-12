@@ -44,7 +44,6 @@ import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
-import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.canCallWaiter
 import com.vaiinilla.app.ui.account.AccountDeletionViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
@@ -56,6 +55,7 @@ import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
 import com.vaiinilla.app.ui.operational.CourtsViewModel
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
+import com.vaiinilla.app.ui.operational.WaiterAlert
 import com.vaiinilla.app.ui.operational.WaiterViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.canPayWithCard
@@ -1608,9 +1608,9 @@ fun AppNavHost(
                         waiterViewModel.onVisible()
                         onDispose { waiterViewModel.onHidden() }
                     }
-                    var alertCall by remember { mutableStateOf<TableCall?>(null) }
+                    var newAlert by remember { mutableStateOf<WaiterAlert?>(null) }
                     LaunchedEffect(Unit) {
-                        waiterViewModel.newCallEvents.collect { call -> alertCall = call }
+                        waiterViewModel.newAlertEvents.collect { alert -> newAlert = alert }
                     }
                     WaiterOperationalScreen(
                         state = waiterState,
@@ -1634,8 +1634,8 @@ fun AppNavHost(
                         onOpenCounterOrder = waiterViewModel::openCounterOrder,
                         onCloseCounterOrder = waiterViewModel::closeCounterOrder,
                         onSubmitCounterOrder = waiterViewModel::submitCounterOrder,
-                        newCallTable = alertCall,
-                        onAlertConsumed = { alertCall = null },
+                        newAlert = newAlert,
+                        onAlertConsumed = { newAlert = null },
                         onChangeMode =
                             if (authorizedAccessState.hasMultipleModes) {
                                 returnToModes(navController, operationalViewModel)

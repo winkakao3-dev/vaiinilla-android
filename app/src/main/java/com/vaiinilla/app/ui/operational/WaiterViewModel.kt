@@ -79,12 +79,12 @@ class WaiterViewModel
         private val _uiState = mutableStateOf(WaiterUiState())
         val uiState: State<WaiterUiState> = _uiState
 
-        private val _newCallEvents = MutableSharedFlow<TableCall>(extraBufferCapacity = 8)
-        val newCallEvents: SharedFlow<TableCall> = _newCallEvents
+        private val _newAlertEvents = MutableSharedFlow<WaiterAlert>(extraBufferCapacity = 8)
+        val newAlertEvents: SharedFlow<WaiterAlert> = _newAlertEvents
 
         private var pollingJob: Job? = null
         private var openSpaceId: Int? = null
-        private var knownCallIds: Set<String>? = null
+        private var seenAlertKeys: Set<String>? = null
         private var visible = false
         private var toastClearJob: Job? = null
         private var counterOrderKey: CounterOrderKey? = null
@@ -119,7 +119,7 @@ class WaiterViewModel
                                 loading = false,
                                 errorMessage = null,
                             )
-                        detectNewCalls(board.tables)
+                        detectNewAlerts(board.tables)
                     },
                     onFailure = { error ->
                         _uiState.value =
@@ -132,18 +132,14 @@ class WaiterViewModel
             }
         }
 
-        private fun detectNewCalls(tables: List<BoardTable>) {
-            val pending = tables.mapNotNull { it.call }.filter { it.status == CallStatus.PENDIENTE }
-            val known = knownCallIds
-            if (known != null) {
-                val fresh = pending.filter { it.id !in known }
-                if (fresh.isNotEmpty()) {
-                    val first = fresh.first()
-                    _newCallEvents.tryEmit(first)
-                    showToast("${first.space.name} te llama · ${first.reason.staffLabel}")
-                }
-            }
-            knownCallIds = pending.map { it.id }.toSet()
+        /** La primera carga solo marca lo visto; después avisa una vez por pedido listo o llamada nueva. */
+        private fun detectNewAlerts(tables: List<BoardTable>) {
+            val seen = seenAlertKeys
+            seenAlertKeys = waiterAlertKeys(tables)
+            if (seen == null) return
+            val first = newWaiterAlerts(tables, seen).firstOrNull() ?: return
+            _newAlertEvents.tryEmit(first)
+            showToast(first.title)
         }
 
         fun markGoing(call: TableCall) {
@@ -563,7 +559,7 @@ class WaiterViewModel
                                         deliveryRequiresQr = board.deliveryRequiresQr,
                                         errorMessage = null,
                                     )
-                                detectNewCalls(board.tables)
+                                detectNewAlerts(board.tables)
                                 openSpaceId?.let { loadSpaceDetail(it, silent = true) }
                             },
                             onFailure = { error ->

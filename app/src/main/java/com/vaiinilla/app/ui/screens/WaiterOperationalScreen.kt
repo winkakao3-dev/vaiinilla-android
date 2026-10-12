@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.screens
 
 import android.content.Context
+import android.media.AudioManager
 import android.media.RingtoneManager
 import android.os.Build
 import android.os.VibrationEffect
@@ -117,6 +118,7 @@ import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.components.waiterAssistantGuides
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
+import com.vaiinilla.app.ui.operational.WaiterAlert
 import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
@@ -158,7 +160,7 @@ fun WaiterOperationalScreen(
     onOpenCounterOrder: () -> Unit = {},
     onCloseCounterOrder: () -> Unit = {},
     onSubmitCounterOrder: (List<CartLine>, String) -> Unit = { _, _ -> },
-    newCallTable: TableCall? = null,
+    newAlert: WaiterAlert? = null,
     onAlertConsumed: () -> Unit = {},
     onChangeMode: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
@@ -203,8 +205,8 @@ fun WaiterOperationalScreen(
         }
     }
 
-    LaunchedEffect(newCallTable) {
-        if (newCallTable != null) {
+    LaunchedEffect(newAlert) {
+        if (newAlert != null) {
             playWaiterAlert(context)
             onAlertConsumed()
         }
@@ -1327,11 +1329,17 @@ private fun WaiterDeliverSheet(
     }
 }
 
+/** Tono corto del sistema y vibración breve. En silencio no hay nada; en vibrar, solo vibra. */
 private fun playWaiterAlert(context: Context) {
-    try {
-        val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-        RingtoneManager.getRingtone(context, uri)?.play()
-    } catch (_: Exception) {
+    val ringerMode =
+        context.getSystemService(AudioManager::class.java)?.ringerMode ?: AudioManager.RINGER_MODE_NORMAL
+    if (ringerMode == AudioManager.RINGER_MODE_SILENT) return
+    if (ringerMode == AudioManager.RINGER_MODE_NORMAL) {
+        try {
+            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            RingtoneManager.getRingtone(context, uri)?.play()
+        } catch (_: Exception) {
+        }
     }
     try {
         val pattern = longArrayOf(0, 120, 80, 120)
