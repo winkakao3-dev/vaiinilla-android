@@ -35,6 +35,8 @@ import com.vaiinilla.app.data.operational.RemoteWaiterRepository
 import com.vaiinilla.app.data.operational.WaiterContractJson
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.data.order.RemoteOrderRepository
+import com.vaiinilla.app.data.refunds.RefundContractJson
+import com.vaiinilla.app.data.refunds.RemoteRefundRepository
 import com.vaiinilla.app.data.reservations.RemoteReservationRepository
 import com.vaiinilla.app.data.reservations.ReservationContractJson
 import com.vaiinilla.app.data.sharedtable.RemoteSharedTableRepository
@@ -51,6 +53,7 @@ import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
 import com.vaiinilla.app.domain.repository.DeviceIdentity
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.repository.OrderRepository
+import com.vaiinilla.app.domain.repository.RefundRepository
 import com.vaiinilla.app.domain.repository.ReservationRepository
 import com.vaiinilla.app.domain.repository.SharedTableRepository
 import com.vaiinilla.app.domain.repository.WaiterRepository
@@ -142,6 +145,13 @@ object VaiinillaModule {
         waiterContractJson: WaiterContractJson,
         orderContractJson: OrderContractJson,
     ): WaiterRepository = RemoteWaiterRepository(apiClient, waiterContractJson, orderContractJson)
+
+    @Provides
+    @Singleton
+    fun provideRefundRepository(
+        apiClient: VaiinillaApiClient,
+        refundContractJson: RefundContractJson,
+    ): RefundRepository = RemoteRefundRepository(apiClient, refundContractJson)
 
     @Provides
     @Singleton

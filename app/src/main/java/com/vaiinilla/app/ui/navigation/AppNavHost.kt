@@ -52,6 +52,9 @@ import com.vaiinilla.app.ui.components.prefetchProductImages
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
+import com.vaiinilla.app.ui.operational.CashierBookingsViewModel
+import com.vaiinilla.app.ui.operational.CashierRefundsViewModel
+import com.vaiinilla.app.ui.operational.CashierUnpaidAccountsViewModel
 import com.vaiinilla.app.ui.operational.CourtsViewModel
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
@@ -68,6 +71,7 @@ import com.vaiinilla.app.ui.reservations.ReservationsViewModel
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
 import com.vaiinilla.app.ui.screens.AuthorizedModeScreen
 import com.vaiinilla.app.ui.screens.CartScreen
+import com.vaiinilla.app.ui.screens.CashierBookingsActions
 import com.vaiinilla.app.ui.screens.CashierOperationalScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.DiscoveryScreen
@@ -123,6 +127,9 @@ fun AppNavHost(
     val operationalViewModel: OperationalViewModel = viewModel()
     val waiterViewModel: WaiterViewModel = viewModel()
     val courtsViewModel: CourtsViewModel = viewModel()
+    val cashierRefundsViewModel: CashierRefundsViewModel = viewModel()
+    val cashierUnpaidViewModel: CashierUnpaidAccountsViewModel = viewModel()
+    val cashierBookingsViewModel: CashierBookingsViewModel = viewModel()
     val reservationsViewModel: ReservationsViewModel = viewModel()
     val sharedTableViewModel: SharedTableViewModel = viewModel()
     val studentAuthViewModel: StudentAuthViewModel = viewModel()
@@ -133,6 +140,9 @@ fun AppNavHost(
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
     val waiterState by waiterViewModel.uiState
+    val cashierRefundsState by cashierRefundsViewModel.uiState
+    val cashierUnpaidState by cashierUnpaidViewModel.uiState
+    val cashierBookingsState by cashierBookingsViewModel.uiState
     val studentAuthState by studentAuthViewModel.state
     val authorizedAccessState by authorizedAccessViewModel.state
     val discoveryState by discoveryViewModel.state
@@ -1479,8 +1489,34 @@ fun AppNavHost(
                 }
                 if (authorizedCashier) {
                     OperationalPresenceLifecycle(OperationalRole.CASHIER, operationalViewModel)
+                    DisposableEffect(Unit) {
+                        cashierRefundsViewModel.onVisible()
+                        cashierUnpaidViewModel.onVisible()
+                        cashierBookingsViewModel.onVisible()
+                        onDispose {
+                            cashierRefundsViewModel.onHidden()
+                            cashierUnpaidViewModel.onHidden()
+                        }
+                    }
                     CashierOperationalScreen(
                         state = operationalState,
+                        refundsState = cashierRefundsState,
+                        onConfirmRefund = cashierRefundsViewModel::confirm,
+                        onRefundNoticeShown = cashierRefundsViewModel::dismissNotice,
+                        unpaidState = cashierUnpaidState,
+                        bookingsState = cashierBookingsState,
+                        bookingsActions =
+                            CashierBookingsActions(
+                                onRefresh = cashierBookingsViewModel::refresh,
+                                onStartPayment = cashierBookingsViewModel::startPayment,
+                                onReceivedChange = cashierBookingsViewModel::onReceivedChange,
+                                onSubmitPayment = cashierBookingsViewModel::submitPayment,
+                                onDismissPayment = cashierBookingsViewModel::dismissPayment,
+                                onAskCancel = cashierBookingsViewModel::askCancel,
+                                onDismissCancel = cashierBookingsViewModel::dismissCancel,
+                                onConfirmCancel = cashierBookingsViewModel::confirmCancel,
+                                onNoticeShown = cashierBookingsViewModel::dismissNotice,
+                            ),
                         onBack = returnToModes(navController, operationalViewModel),
                         onOpenCashSession = operationalViewModel::openCashRegister,
                         onRequestCloseCash = operationalViewModel::requestCloseCash,
