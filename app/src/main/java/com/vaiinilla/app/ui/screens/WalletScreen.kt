@@ -71,6 +71,8 @@ import com.vaiinilla.app.ui.wallet.WalletRemoteUiState
 fun WalletScreen(
     remoteState: WalletRemoteUiState = WalletRemoteUiState(),
     userId: String? = null,
+    /** Si el dueño apagó el saldo, la cartera no ofrece recargar con QR. */
+    rechargeAvailable: Boolean = true,
     onRetry: () -> Unit = {},
     onMenu: () -> Unit,
     onAssistant: () -> Unit,
@@ -139,7 +141,7 @@ fun WalletScreen(
                     subtitle = "Ver actividad",
                     onClick = onOrders,
                 )
-                WalletAction(
+                if (rechargeAvailable) WalletAction(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Outlined.QrCode2,
                     title = "Recargar",

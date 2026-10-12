@@ -11,6 +11,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -116,7 +117,9 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.canCreateOrder
 import com.vaiinilla.app.ui.order.canPayAtEnd
+import com.vaiinilla.app.ui.order.canPayWithBalance
 import com.vaiinilla.app.ui.order.canPayWithCard
+import com.vaiinilla.app.ui.order.cardSurchargeLabel
 import com.vaiinilla.app.ui.order.cartPreviewTotal
 import com.vaiinilla.app.ui.order.checkoutSpace
 import com.vaiinilla.app.ui.order.checkoutSpaces
@@ -250,6 +253,7 @@ fun CartScreen(
                     CartSectionHead("Pedido", productCountLabel)
                     CartItemsPanel(
                         lines = state.cartLines,
+                        paymentMethod = state.checkoutPayment,
                         onQuantityChange = { lineKey, delta ->
                             haptics.click()
                             onQuantityChange(lineKey, delta)
@@ -387,10 +391,11 @@ fun CartScreen(
         if (paymentDialogOpen) {
             PaymentMethodOverlay(
                 balanceAffordable = state.isBalancePaymentAffordable(walletBalance),
-                showBalance = !guestCheckout,
+                showBalance = !guestCheckout && state.canPayWithBalance,
                 walletBalance = walletBalance,
                 payAtEndAvailable = state.canPayAtEnd,
                 cardAvailable = state.canPayWithCard,
+                cardFee = state.cardSurchargeLabel,
                 onDismiss = { paymentDialogOpen = false },
                 onSelectPayAtEnd = {
                     paymentDialogOpen = false
@@ -421,6 +426,8 @@ private fun PaymentMethodOverlay(
     onSelect: (PaymentMethod) -> Unit,
     /** "Pago con Stripe" solo si el dueño activó la tarjeta en su panel (el cobro sigue intacto). */
     cardAvailable: Boolean = false,
+    /** Comisión que paga el cliente con tarjeta; se explica solo cuando la tarjeta está seleccionada. */
+    cardFee: String? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     var selectedMethod by remember { mutableStateOf<PaymentMethod?>(null) }
@@ -495,6 +502,19 @@ private fun PaymentMethodOverlay(
                         modifier = Modifier.size(16.dp),
                     )
                 }
+            }
+
+            AnimatedVisibility(
+                visible = cardFee != null && selectedMethod == PaymentMethod.STRIPE,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                Text(
+                    text = "Incluye comisión por tarjeta ${moneyLabel(cardFee.orEmpty())}.",
+                    color = colors.muted,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                )
             }
 
             // Payment Options styled as cards
@@ -891,6 +911,7 @@ private fun confirmLabel(guestAuthRequired: Boolean): String =
 @Composable
 private fun CartItemsPanel(
     lines: List<CartLine>,
+    paymentMethod: PaymentMethod,
     onQuantityChange: (lineKey: String, delta: Int) -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -903,6 +924,7 @@ private fun CartItemsPanel(
             lines.forEachIndexed { index, line ->
                 CartLineRow(
                     line = line,
+                    paymentMethod = paymentMethod,
                     onMinus = { onQuantityChange(line.key, -1) },
                     onPlus = { onQuantityChange(line.key, 1) },
                 )
@@ -923,6 +945,7 @@ private fun CartItemsPanel(
 @Composable
 private fun CartLineRow(
     line: CartLine,
+    paymentMethod: PaymentMethod,
     onMinus: () -> Unit,
     onPlus: () -> Unit,
 ) {
@@ -1001,7 +1024,7 @@ private fun CartLineRow(
                 label = "cart_item_price_ticker",
             ) { animatedQuantity ->
                 Text(
-                    moneyLabel(Money.cartLinePreview(line.copy(quantity = animatedQuantity))),
+                    moneyLabel(Money.cartLinePreview(line.copy(quantity = animatedQuantity), paymentMethod)),
                     color = colors.ink,
                     fontSize = 20.sp,
                     lineHeight = 24.sp,

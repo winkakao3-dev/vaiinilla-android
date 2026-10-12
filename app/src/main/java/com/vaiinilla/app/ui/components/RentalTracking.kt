@@ -58,6 +58,12 @@ fun rentalStep(
 fun OrderDetail.isLiveRental(now: Instant = Instant.now()): Boolean =
     rentalStep(this, now).let { it != null && it != RentalStep.DONE }
 
+/** La comida se entrega en la cancha solo mientras la renta está en juego. */
+fun canOrderFoodAtCourt(
+    order: OrderDetail,
+    now: Instant = Instant.now(),
+): Boolean = order.isRental && rentalStep(order, now) == RentalStep.PLAYING
+
 fun rentalStateLabel(
     order: OrderDetail,
     now: Instant = Instant.now(),

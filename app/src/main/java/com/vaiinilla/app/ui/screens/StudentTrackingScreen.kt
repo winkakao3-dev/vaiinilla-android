@@ -133,6 +133,7 @@ import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.canAnnounceArrival
+import com.vaiinilla.app.ui.components.canOrderFoodAtCourt
 import com.vaiinilla.app.ui.components.destinationDisplayLabel
 import com.vaiinilla.app.ui.components.isLiveRental
 import com.vaiinilla.app.ui.components.isRental
@@ -181,6 +182,8 @@ fun StudentTrackingScreen(
     onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
+    /** Renta en juego: un toque lleva al menú con la cancha como destino de la comida. */
+    onOrderFoodAtCourt: (() -> Unit)? = null,
     /** La mesa compartida, arriba de la lista (vacía si el cliente no está en una mesa). */
     sharedTable: @Composable () -> Unit = {},
 ) {
@@ -463,6 +466,7 @@ fun StudentTrackingScreen(
                                             onCurrentWaiterCall = onCurrentWaiterCall,
                                             onCallWaiter = onCallWaiter,
                                             onCancelWaiter = onCancelWaiter,
+                                            onOrderFoodAtCourt = onOrderFoodAtCourt,
                                         )
                                     }
                                     if (index == 0) {
@@ -798,6 +802,8 @@ private fun ActiveOrderCard(
     onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
+    /** Renta en juego: pedir comida para la cancha. */
+    onOrderFoodAtCourt: (() -> Unit)? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     var expanded by rememberSaveable(order.summary.id) { mutableStateOf(false) }
@@ -938,6 +944,12 @@ private fun ActiveOrderCard(
             }
             if (summary.state == OrderState.READY && order.needsPickupQr(deliveryRequiresQr)) {
                 InlinePickupQr(order = order)
+            }
+            if (onOrderFoodAtCourt != null && canOrderFoodAtCourt(order)) {
+                RentalCourtFoodButton(
+                    courtName = summary.space?.name,
+                    onClick = onOrderFoodAtCourt,
+                )
             }
             if (showArrival) {
                 ArrivalNotice(order = order, enabled = arrivalEnabled, onAnnounce = onAnnounceArrival, onDark = true)
@@ -1497,6 +1509,40 @@ private fun CompactTrackingSteps(
             },
         currentIndex = current.trackingIndex,
     )
+}
+
+/** Durante la renta: un toque lleva al menú con la cancha como destino de la comida. */
+@Composable
+private fun RentalCourtFoodButton(
+    courtName: String?,
+    onClick: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp).arrive(0, key = courtName),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().physicalPress(scale = PhysicalPressScale.Small, onClick = onClick),
+            color = colors.accent,
+            contentColor = colors.accentInk,
+            shape = RoundedCornerShape(26.dp),
+        ) {
+            Box(modifier = Modifier.height(48.dp), contentAlignment = Alignment.Center) {
+                Text(
+                    text = "Pedir comida a ${courtName ?: "tu cancha"}",
+                    fontWeight = FontWeight.Black,
+                    fontSize = 15.sp,
+                )
+            }
+        }
+        Text(
+            text = "Tu comida se te llevará a tu ${courtName ?: "cancha"}.",
+            color = OrderTrackingCardText.copy(alpha = 0.55f),
+            fontSize = 12.sp,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+    }
 }
 
 @Composable

@@ -12,6 +12,7 @@ import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
 import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.ui.components.RentalStep
+import com.vaiinilla.app.ui.components.canOrderFoodAtCourt
 import com.vaiinilla.app.ui.components.destinationDisplayLabel
 import com.vaiinilla.app.ui.components.isLiveRental
 import com.vaiinilla.app.ui.components.isRental
@@ -101,6 +102,15 @@ class RentalTrackingTest {
         assertTrue(order.isLiveRental(during))
         assertFalse(order.isLiveRental(after))
         assertEquals("En juego", rentalStateLabel(order, during))
+    }
+
+    @Test
+    fun `la comida se pide en la cancha solo mientras la renta esta en juego`() {
+        val order = rental(orderState = "entregado", reservationState = "confirmada")
+        assertFalse(canOrderFoodAtCourt(order, beforeStart))
+        assertTrue(canOrderFoodAtCourt(order, during))
+        assertFalse(canOrderFoodAtCourt(order, after))
+        assertFalse(canOrderFoodAtCourt(rental(withReservation = false), during))
     }
 
     @Test

@@ -64,6 +64,7 @@ import com.vaiinilla.app.ui.operational.WaiterAlert
 import com.vaiinilla.app.ui.operational.WaiterViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.OrderLinkTrackingViewModel
+import com.vaiinilla.app.ui.order.canPayWithBalance
 import com.vaiinilla.app.ui.order.canPayWithCard
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.isEstablishmentSwitch
@@ -995,6 +996,7 @@ fun AppNavHost(
                     userId =
                         walletRemoteState.data?.wallet?.userId
                             ?: studentAuthState.session?.uid,
+                    rechargeAvailable = orderState.canPayWithBalance,
                     onRetry = walletViewModel::refresh,
                     onMenu = { navController.navigateStudent(Routes.CATALOG) },
                     onAssistant = {},
@@ -1049,6 +1051,7 @@ fun AppNavHost(
                         walletRemoteState.data?.wallet?.userId
                             ?: studentAuthState.session?.uid,
                     signedIn = studentAuthState.session != null,
+                    rechargeAvailable = orderState.canPayWithBalance,
                     hasStaffModes = hasStaffModes,
                     onOpenStaffModes = {
                         navController.navigate(Routes.STAFF_MODES) {
@@ -1520,6 +1523,11 @@ fun AppNavHost(
                         onAnnounceArrival = operationalViewModel::announceArrival,
                         onCallWaiter = operationalViewModel::callWaiter,
                         onCancelWaiter = operationalViewModel::cancelWaiterCall,
+                        onOrderFoodAtCourt = {
+                            // La cancha en juego pasa a ser destino del carrito al volver al menú.
+                            orderFlowViewModel.refreshRentedCourt()
+                            navController.navigateStudent(Routes.CATALOG)
+                        },
                         sharedTable = {
                             // Solo consulta la mesa mientras Mis pedidos está a la vista.
                             DisposableEffect(Unit) {

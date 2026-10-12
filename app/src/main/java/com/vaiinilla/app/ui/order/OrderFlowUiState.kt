@@ -126,8 +126,17 @@ val OrderFlowUiState.filteredProducts: List<Product>
 val OrderFlowUiState.cartItemCount: Int
     get() = cartLines.sumOf(CartLine::quantity)
 
+/** Total del método elegido: solo la tarjeta lleva la comisión; sin método elegido, el de mostrador. */
 val OrderFlowUiState.cartPreviewTotal: String
-    get() = Money.cartPreview(cartLines)
+    get() = Money.cartPreview(cartLines, checkoutPayment)
+
+/** Comisión por tarjeta que paga el cliente (la diferencia con mostrador); `null` si no hay. */
+val OrderFlowUiState.cardSurchargeLabel: String?
+    get() {
+        val card = Money.parse(Money.cartPreview(cartLines, PaymentMethod.STRIPE))
+        val counter = Money.parse(Money.cartPreview(cartLines, PaymentMethod.CASH))
+        return (card - counter).takeIf { it.signum() > 0 }?.let(Money::format)
+    }
 
 val OrderFlowUiState.selectedProductPreviewPrice: String
     get() = selectedProduct?.let { Money.productUnitPreview(it, selectedOptionIds) } ?: "0.00"
@@ -182,12 +191,13 @@ val OrderFlowUiState.selectedSpaceName: String
     get() = checkoutSpace?.name ?: "Escanea el QR de tu mesa"
 
 /**
- * Whether the known wallet balance can cover the cart. Unknown or unparsable
- * values stay affordable: the backend remains the authoritative check.
+ * Whether the known wallet balance can cover the cart. The balance pays the counter price, never
+ * the card price. Unknown or unparsable values stay affordable: the backend remains the authoritative check.
  */
 fun OrderFlowUiState.isBalancePaymentAffordable(walletBalance: String?): Boolean {
     val balance = walletBalance?.let { runCatching { Money.parse(it) }.getOrNull() } ?: return true
-    val total = runCatching { Money.parse(cartPreviewTotal) }.getOrNull() ?: return true
+    val balanceTotal = Money.cartPreview(cartLines, PaymentMethod.BALANCE)
+    val total = runCatching { Money.parse(balanceTotal) }.getOrNull() ?: return true
     return balance >= total
 }
 
@@ -217,6 +227,10 @@ val OrderFlowUiState.payAtEndForNextRound: Boolean
 /** ¿Se ofrece pagar con tarjeta? Solo si el dueño la activó en su panel. */
 val OrderFlowUiState.canPayWithCard: Boolean
     get() = operationalStatus?.acceptsCard == true
+
+/** ¿Se ofrece pagar con saldo Vaiinilla? No si el dueño lo apagó en su panel (`permite_saldo`). */
+val OrderFlowUiState.canPayWithBalance: Boolean
+    get() = operationalStatus?.allowsBalance != false
 
 enum class StripePaymentPhase {
     IDLE,

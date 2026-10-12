@@ -44,6 +44,8 @@ data class OperationalStatusDto(
     @SerialName("permite_pago_al_final") val allowsPayAtEnd: Boolean = false,
     /** Un servidor anterior no lo envía: no se ofrece la tarjeta. */
     @SerialName("acepta_tarjeta") val acceptsCard: Boolean = false,
+    /** El dueño puede apagar el saldo; un servidor anterior no lo envía y el saldo sigue disponible. */
+    @SerialName("permite_saldo") val allowsBalance: Boolean = true,
     /** Un servidor anterior no lo envía: se toma como cafetería. */
     @SerialName("tipo") val businessType: String = "cafeteria",
     /** Un servidor anterior no lo envía: sin franjas. */
