@@ -1,21 +1,17 @@
 package com.vaiinilla.app.data.di
 
-import android.content.Context
 import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.core.auth.ActiveSessionRefresher
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
 import com.vaiinilla.app.core.network.VaiinillaApiClient
-import com.vaiinilla.app.core.security.AndroidKeyStoreSessionStore
 import com.vaiinilla.app.core.security.PickupTokenStore
-import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.core.security.SharedPreferencesPickupTokenStore
 import com.vaiinilla.app.data.account.RemoteAccountDeletionRepository
 import com.vaiinilla.app.data.auth.ContextoExchanger
 import com.vaiinilla.app.data.auth.SesionesContextoExchange
 import com.vaiinilla.app.data.auth.student.AccessEmailApi
-import com.vaiinilla.app.data.auth.student.FirebaseStudentAuthRepository
 import com.vaiinilla.app.data.auth.student.RemoteAccessEmailApi
 import com.vaiinilla.app.data.auth.student.RemoteStudentEnrollmentApi
 import com.vaiinilla.app.data.auth.student.RemoteStudentEnrollmentRepository
@@ -24,7 +20,6 @@ import com.vaiinilla.app.data.catalog.RemoteCatalogRepository
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.discovery.RemoteDiscoveryRepository
 import com.vaiinilla.app.data.guest.GuestReservationSession
-import com.vaiinilla.app.data.location.FusedDeviceLocationProvider
 import com.vaiinilla.app.data.mode.AuthorizedAccessApi
 import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessApi
 import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessRepository
@@ -43,7 +38,6 @@ import com.vaiinilla.app.data.wallet.RemoteWalletRepository
 import com.vaiinilla.app.domain.account.AccountDeletionRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
-import com.vaiinilla.app.domain.location.DeviceLocationProvider
 import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
@@ -58,7 +52,6 @@ import com.vaiinilla.app.domain.repository.WalletRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
@@ -81,12 +74,6 @@ object VaiinillaModule {
             versionName = BuildConfig.VERSION_NAME,
             versionCode = BuildConfig.VERSION_CODE,
         )
-
-    @Provides
-    @Singleton
-    fun provideSecureSessionStore(
-        @ApplicationContext context: Context,
-    ): SecureSessionStore = AndroidKeyStoreSessionStore(context)
 
     @Provides
     @Singleton
@@ -167,12 +154,6 @@ object VaiinillaModule {
 
     @Provides
     @Singleton
-    fun provideDeviceLocationProvider(
-        @ApplicationContext context: Context,
-    ): DeviceLocationProvider = FusedDeviceLocationProvider(context)
-
-    @Provides
-    @Singleton
     fun provideAuthorizedAccessApi(api: RemoteAuthorizedAccessApi): AuthorizedAccessApi = api
 
     @Provides
@@ -186,10 +167,6 @@ object VaiinillaModule {
     @Provides
     @Singleton
     fun provideContextoExchanger(exchange: SesionesContextoExchange): ContextoExchanger = exchange
-
-    @Provides
-    @Singleton
-    fun provideStudentAuthRepository(repository: FirebaseStudentAuthRepository): StudentAuthRepository = repository
 
     @Provides
     @Singleton
