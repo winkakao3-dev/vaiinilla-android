@@ -46,11 +46,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.AutoMode
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.DarkMode
-import androidx.compose.material.icons.outlined.Diamond
-import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.QrCodeScanner
@@ -59,7 +55,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -470,43 +465,17 @@ fun CashierOperationalScreen(
                             )
                         }
 
-                        // Quick Theme Switcher Button
-                        IconButton(
-                            onClick = {
-                                haptics.selection()
-                                val next =
-                                    when (themeMode) {
-                                        VaiinillaThemeMode.Light -> VaiinillaThemeMode.Dark
-                                        VaiinillaThemeMode.Dark -> VaiinillaThemeMode.Amoled
-                                        VaiinillaThemeMode.Amoled -> VaiinillaThemeMode.Light
-                                        VaiinillaThemeMode.System -> VaiinillaThemeMode.Dark
-                                    }
-                                themeChanger?.invoke(next)
-                            },
-                            modifier =
-                                Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(colors.cardBackground)
-                                    .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp)),
-                        ) {
-                            Icon(
-                                imageVector =
-                                    when (themeMode) {
-                                        VaiinillaThemeMode.Light -> Icons.Outlined.LightMode
-                                        VaiinillaThemeMode.Dark -> Icons.Outlined.DarkMode
-                                        VaiinillaThemeMode.Amoled -> Icons.Outlined.Diamond
-                                        VaiinillaThemeMode.System -> Icons.Outlined.AutoMode
-                                    },
-                                contentDescription = "Cambiar tema",
-                                tint = colors.textPrimary,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-
-                        CashierAvatarMenu(
+                        StaffAvatarMenu(
                             initials = "CJ",
                             colors = colors,
+                            themeMode = themeMode,
+                            onThemeChange =
+                                themeChanger?.let { change ->
+                                    { mode ->
+                                        haptics.selection()
+                                        change(mode)
+                                    }
+                                },
                             onChangeMode = {
                                 haptics.impact()
                                 onChangeMode?.invoke() ?: onBack()
@@ -1654,59 +1623,22 @@ fun KitchenOperationalScreen(
                             )
                         }
 
-                        // Quick Theme Switcher Button
-                        IconButton(
-                            onClick = {
-                                haptics.selection()
-                                val next =
-                                    when (themeMode) {
-                                        VaiinillaThemeMode.Light -> VaiinillaThemeMode.Dark
-                                        VaiinillaThemeMode.Dark -> VaiinillaThemeMode.Amoled
-                                        VaiinillaThemeMode.Amoled -> VaiinillaThemeMode.Light
-                                        VaiinillaThemeMode.System -> VaiinillaThemeMode.Dark
+                        StaffAvatarMenu(
+                            initials = "CK",
+                            colors = colors,
+                            themeMode = themeMode,
+                            onThemeChange =
+                                themeChanger?.let { change ->
+                                    { mode ->
+                                        haptics.selection()
+                                        change(mode)
                                     }
-                                themeChanger?.invoke(next)
+                                },
+                            onChangeMode = {
+                                haptics.impact()
+                                onChangeMode?.invoke() ?: onBack()
                             },
-                            modifier =
-                                Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(colors.cardBackground)
-                                    .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp)),
-                        ) {
-                            Icon(
-                                imageVector =
-                                    when (themeMode) {
-                                        VaiinillaThemeMode.Light -> Icons.Outlined.LightMode
-                                        VaiinillaThemeMode.Dark -> Icons.Outlined.DarkMode
-                                        VaiinillaThemeMode.Amoled -> Icons.Outlined.Diamond
-                                        VaiinillaThemeMode.System -> Icons.Outlined.AutoMode
-                                    },
-                                contentDescription = "Cambiar tema",
-                                tint = colors.textPrimary,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-
-                        // Account / Role chip
-                        Box(
-                            modifier =
-                                Modifier
-                                    .physicalPress(scale = PhysicalPressScale.Small) {
-                                        haptics.impact()
-                                        onChangeMode?.invoke() ?: onBack()
-                                    }.size(width = 48.dp, height = 40.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(colors.textPrimary),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                "CK",
-                                color = colors.background,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                            )
-                        }
+                        )
                     }
                 }
             }

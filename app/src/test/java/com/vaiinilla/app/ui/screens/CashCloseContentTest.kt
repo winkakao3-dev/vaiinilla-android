@@ -1,6 +1,10 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -78,5 +82,38 @@ class CashCloseContentTest {
             .performTouchInput { swipeRight() }
         composeTestRule.waitForIdle()
         assertEquals(emptyList<String>(), closes)
+    }
+
+    @Test
+    fun `si el servidor rechaza el cierre se puede volver a deslizar`() {
+        var state by mutableStateOf(CloseCashUi())
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                CashCloseContent(
+                    state = state,
+                    colors = rememberOperationalColors(),
+                    onDismiss = {},
+                    onConfirm = {
+                        closes += it
+                        state = CloseCashUi(closing = true)
+                    },
+                    onOpenAccounts = null,
+                )
+            }
+        }
+        composeTestRule.onNode(hasSetTextAction()).performTextInput("725.5")
+        composeTestRule
+            .onNodeWithContentDescription(
+                "Desliza para cerrar con $725.50",
+            ).performTouchInput { swipeRight() }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithContentDescription("Cerrando…").assertIsNotEnabled()
+
+        composeTestRule.runOnIdle { state = CloseCashUi(errorMessage = "Sin conexión") }
+        composeTestRule
+            .onNodeWithContentDescription("Desliza para cerrar con $725.50")
+            .assertIsEnabled()
+            .performSemanticsAction(SemanticsActions.OnClick)
+        assertEquals(listOf("725.50", "725.50"), closes)
     }
 }

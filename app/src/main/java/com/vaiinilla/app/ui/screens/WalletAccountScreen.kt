@@ -54,7 +54,7 @@ import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
 /** Nombres de tema en palabras de todos los días; "Amoled" es jerga de pantallas. */
-private fun themeModeName(mode: VaiinillaThemeMode): String =
+internal fun themeModeName(mode: VaiinillaThemeMode): String =
     when (mode) {
         VaiinillaThemeMode.System -> "Automático"
         VaiinillaThemeMode.Light -> "Día"

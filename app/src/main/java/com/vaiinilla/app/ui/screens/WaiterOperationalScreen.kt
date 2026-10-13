@@ -47,11 +47,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.AutoMode
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.DarkMode
-import androidx.compose.material.icons.outlined.Diamond
-import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -127,7 +123,6 @@ import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
-import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.delay
 import java.time.Instant
 
@@ -300,57 +295,22 @@ fun WaiterOperationalScreen(
                                 touchSize = 56.dp,
                             )
                         }
-                        IconButton(
-                            onClick = {
-                                haptics.selection()
-                                val next =
-                                    when (themeMode) {
-                                        VaiinillaThemeMode.Light -> VaiinillaThemeMode.Dark
-                                        VaiinillaThemeMode.Dark -> VaiinillaThemeMode.Amoled
-                                        VaiinillaThemeMode.Amoled -> VaiinillaThemeMode.Light
-                                        VaiinillaThemeMode.System -> VaiinillaThemeMode.Dark
+                        StaffAvatarMenu(
+                            initials = roleChip,
+                            colors = colors,
+                            themeMode = themeMode,
+                            onThemeChange =
+                                themeChanger?.let { change ->
+                                    { mode ->
+                                        haptics.selection()
+                                        change(mode)
                                     }
-                                themeChanger?.invoke(next)
+                                },
+                            onChangeMode = {
+                                haptics.impact()
+                                onChangeMode?.invoke() ?: onBack()
                             },
-                            modifier =
-                                Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(colors.cardBackground)
-                                    .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp)),
-                        ) {
-                            Icon(
-                                imageVector =
-                                    when (themeMode) {
-                                        VaiinillaThemeMode.Light -> Icons.Outlined.LightMode
-                                        VaiinillaThemeMode.Dark -> Icons.Outlined.DarkMode
-                                        VaiinillaThemeMode.Amoled -> Icons.Outlined.Diamond
-                                        VaiinillaThemeMode.System -> Icons.Outlined.AutoMode
-                                    },
-                                contentDescription = "Cambiar tema",
-                                tint = colors.textPrimary,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                        Box(
-                            modifier =
-                                Modifier
-                                    .size(width = 48.dp, height = 40.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(colors.textPrimary)
-                                    .clickable {
-                                        haptics.impact()
-                                        onChangeMode?.invoke() ?: onBack()
-                                    },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                roleChip,
-                                color = colors.background,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                            )
-                        }
+                        )
                     }
                 }
             }
