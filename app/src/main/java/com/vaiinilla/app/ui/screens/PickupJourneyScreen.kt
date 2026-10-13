@@ -105,7 +105,6 @@ import com.vaiinilla.app.core.qr.QrCodeEncoder
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.ui.components.moneyLabel
-import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.order.MOSAIC_FLIP_LENGTH
 import com.vaiinilla.app.ui.order.PickupStep
@@ -117,6 +116,8 @@ import com.vaiinilla.app.ui.order.pickupHint
 import com.vaiinilla.app.ui.order.pickupStep
 import com.vaiinilla.app.ui.order.pickupTitle
 import com.vaiinilla.app.ui.order.shouldAutoRevealPickupCode
+import com.vaiinilla.app.ui.theme.SeaGlassButton
+import com.vaiinilla.app.ui.theme.SeaGlassTone
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.PI
@@ -665,21 +666,22 @@ private fun GlassCircleButton(
     closing: Float,
     onClick: () -> Unit,
 ) {
-    val c = LocalScene.current
-    Box(
-        modifier =
-            Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(c.glassTint)
-                .border(1.dp, c.glassEdge, CircleShape)
-                .physicalPress(onClick = onClick),
-        contentAlignment = Alignment.Center,
+    SeaGlassButton(
+        tone = SeaGlassTone.vainilla,
+        onClick = onClick,
+        modifier = Modifier.size(42.dp),
+        shape = CircleShape,
     ) {
+        BackCloseIcons(closing)
+    }
+}
+
+@Composable
+private fun BackCloseIcons(closing: Float) {
+    Box(contentAlignment = Alignment.Center) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
             contentDescription = if (closing < 0.5f) "Regresar" else null,
-            tint = c.ink,
             modifier =
                 Modifier.graphicsLayer {
                     alpha = 1f - closing
@@ -691,7 +693,6 @@ private fun GlassCircleButton(
         Icon(
             imageVector = Icons.Filled.Close,
             contentDescription = if (closing >= 0.5f) "Cerrar código" else null,
-            tint = c.ink,
             modifier =
                 Modifier.graphicsLayer {
                     alpha = closing
@@ -1037,25 +1038,12 @@ private fun PillButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val c = LocalScene.current
-    val shape = RoundedCornerShape(18.dp)
-    Box(
-        modifier =
-            modifier
-                .height(50.dp)
-                .clip(shape)
-                .background(if (primary) Lime else c.glassButton)
-                .border(1.dp, if (primary) Color.Transparent else c.glassLine, shape)
-                .physicalPress(onClick = onClick),
-        contentAlignment = Alignment.Center,
+    SeaGlassButton(
+        tone = if (primary) SeaGlassTone.lima else SeaGlassTone.vainilla,
+        onClick = onClick,
+        modifier = modifier.height(50.dp),
     ) {
-        Text(
-            label,
-            color = if (primary) LimeInk else c.ink,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Black,
-            letterSpacing = (-0.3).sp,
-        )
+        Text(label, fontSize = 16.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.3).sp)
     }
 }
 
