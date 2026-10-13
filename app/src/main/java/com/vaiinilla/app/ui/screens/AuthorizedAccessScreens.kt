@@ -51,7 +51,6 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.ui.components.AuthHeroSheetScaffold
 import com.vaiinilla.app.ui.components.AuthInkSubmitButton
 import com.vaiinilla.app.ui.components.EditorialAccentButton
-import com.vaiinilla.app.ui.components.EditorialPrimaryButton
 import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.mode.AuthorizedAccessUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -159,12 +158,7 @@ fun InvitationAcceptanceScreen(
                     )
                 } ?: run {
                     Text("Necesitas una cuenta verificada para continuar.", color = colors.muted)
-                    EditorialPrimaryButton(
-                        text = "Iniciar sesión o registrarme",
-                        onClick = onAuthenticate,
-                        background = colors.ink,
-                        contentColor = colors.paper,
-                    )
+                    EditorialAccentButton(text = "Iniciar sesión o registrarme", onClick = onAuthenticate)
                 }
             }
             item {

@@ -14,7 +14,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,7 +36,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.ShoppingCart
@@ -47,7 +45,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -63,6 +60,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -78,10 +76,13 @@ import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.ui.components.ActiveOrderBanner
 import com.vaiinilla.app.ui.components.CourtsMapCard
+import com.vaiinilla.app.ui.components.EditorialAccentButton
+import com.vaiinilla.app.ui.components.EditorialSearchField
 import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductCardSkeleton
 import com.vaiinilla.app.ui.components.ProductDetailSheet
+import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.SwipeToDeleteOrder
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.physicalPress
@@ -97,6 +98,8 @@ import com.vaiinilla.app.ui.theme.AmoledLimeWash
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
+import com.vaiinilla.app.ui.theme.SeaGlassButton
+import com.vaiinilla.app.ui.theme.SeaGlassTone
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
@@ -335,6 +338,7 @@ private fun CatalogContent(
     val shelfColors =
         colors.copy(
             paper = Color.Transparent,
+            solidPaper = colors.onInk,
             paper2 = scene.glassCard,
             line = scene.glassLine,
             ink = scene.ink,
@@ -609,53 +613,15 @@ private fun CatalogHeader(
                 }
             }
             Spacer(Modifier.size(10.dp))
-            Box(
-                modifier =
-                    Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(15.dp))
-                        .background(colors.ink)
-                        .combinedClickable(
-                            onClick = onOpenAccount,
-                            onLongClick = onCycleTheme,
-                        ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(profileInitials, color = LocalScene.current.facade, fontWeight = FontWeight.Black)
-            }
+            ProfileInitialsButton(profileInitials, onClick = onOpenAccount, onLongClick = onCycleTheme)
         }
 
         Spacer(Modifier.height(16.dp))
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = colors.paper2,
-            shape = RoundedCornerShape(19.dp),
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 15.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Outlined.Search, contentDescription = null, tint = colors.muted)
-                Spacer(Modifier.size(10.dp))
-                BasicTextField(
-                    value = state.searchQuery,
-                    onValueChange = onSearchChange,
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    textStyle =
-                        androidx.compose.ui.text
-                            .TextStyle(color = colors.ink),
-                    decorationBox = { input ->
-                        Box {
-                            if (state.searchQuery.isBlank()) {
-                                Text("Buscar productos…", color = colors.muted)
-                            }
-                            input()
-                        }
-                    },
-                )
-            }
-        }
+        EditorialSearchField(
+            value = state.searchQuery,
+            onValueChange = onSearchChange,
+            placeholder = "Buscar productos…",
+        )
 
         if (onOpenModes != null) {
             Row(
@@ -671,8 +637,12 @@ private fun CatalogHeader(
             }
         }
 
-        Spacer(Modifier.height(14.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Spacer(Modifier.height(6.dp))
+        // Como en iOS: 8 dp arriba y abajo para que la sombra de los chips no se corte en el borde de la fila.
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(vertical = 8.dp, horizontal = 2.dp),
+        ) {
             item {
                 CategoryChip(
                     label = "Todo",
@@ -711,19 +681,16 @@ private fun CategoryChip(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val colors = LocalVaiinillaColors.current
-    Box(
-        modifier =
-            Modifier
-                .clip(RoundedCornerShape(13.dp))
-                .background(if (selected) colors.ink else colors.paper2)
-                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+    SeaGlassButton(
+        tone = if (selected) SeaGlassTone.lima else SeaGlassTone.vainilla,
+        onClick = onClick,
+        modifier = Modifier.height(38.dp),
     ) {
         Text(
             text = label,
-            color = if (selected) LocalScene.current.facade else colors.ink,
-            fontWeight = FontWeight.ExtraBold,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
     }
 }
@@ -855,12 +822,6 @@ private fun CatalogError(
     ) {
         Text("No pudimos abrir el menú", color = colors.ink, fontWeight = FontWeight.Black)
         Text(message, color = colors.muted, modifier = Modifier.padding(top = 8.dp))
-        Button(
-            onClick = onRetry,
-            modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = colors.accent, contentColor = colors.accentInk),
-        ) {
-            Text("Reintentar", fontWeight = FontWeight.Black)
-        }
+        EditorialAccentButton(text = "Reintentar", onClick = onRetry, modifier = Modifier.padding(top = 20.dp))
     }
 }

@@ -1,7 +1,9 @@
 package com.vaiinilla.app.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,10 +15,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -26,16 +30,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.SeaGlassButton
+import com.vaiinilla.app.ui.theme.SeaGlassTone
+import com.vaiinilla.app.ui.theme.seaGlass
+import com.vaiinilla.app.ui.theme.seaGlassInk
+import com.vaiinilla.app.ui.theme.seaGlassNight
 
+/** Búsqueda en vidrio vainilla, como `EditorialSearchField` en iOS: la tinta de la pieza y una equis para limpiar. */
 @Composable
 fun EditorialSearchField(
     value: String,
@@ -43,36 +56,55 @@ fun EditorialSearchField(
     placeholder: String,
     modifier: Modifier = Modifier,
 ) {
-    val colors = LocalVaiinillaColors.current
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = colors.paper2,
-        shape = RoundedCornerShape(19.dp),
+    val ink = seaGlassInk(SeaGlassTone.vainilla)
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(54.dp)
+                .seaGlass(SeaGlassTone.vainilla, CircleShape, seaGlassNight())
+                .padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 15.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Outlined.Search, contentDescription = null, tint = colors.muted, modifier = Modifier.size(19.dp))
+        Icon(Icons.Outlined.Search, contentDescription = null, tint = ink, modifier = Modifier.size(19.dp))
+        Spacer(Modifier.size(10.dp))
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .semantics { contentDescription = placeholder },
+            singleLine = true,
+            textStyle = TextStyle(color = ink, fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold),
+            cursorBrush = SolidColor(ink),
+            decorationBox = { input ->
+                Box {
+                    if (value.isEmpty()) {
+                        Text(
+                            placeholder,
+                            color = ink.copy(alpha = 0.75f),
+                            fontSize = 14.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    input()
+                }
+            },
+        )
+        if (value.isNotEmpty()) {
             Spacer(Modifier.size(10.dp))
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
+            SeaGlassButton(
+                tone = SeaGlassTone.vainilla.picked,
+                onClick = { onValueChange("") },
                 modifier =
                     Modifier
-                        .weight(1f)
-                        .semantics { contentDescription = placeholder },
-                singleLine = true,
-                textStyle = TextStyle(color = colors.ink, fontSize = 14.sp),
-                decorationBox = { input ->
-                    Box {
-                        if (value.isBlank()) {
-                            Text(placeholder, color = colors.muted, fontSize = 14.sp)
-                        }
-                        input()
-                    }
-                },
-            )
+                        .size(30.dp)
+                        .semantics { contentDescription = "Limpiar búsqueda" },
+                shape = CircleShape,
+            ) {
+                Icon(Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(14.dp))
+            }
         }
     }
 }
@@ -111,6 +143,7 @@ fun EditorialTextField(
                 visualTransformation =
                     if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
                 textStyle = TextStyle(color = colors.ink, fontSize = 14.sp, lineHeight = 20.sp),
+                cursorBrush = SolidColor(colors.ink),
                 decorationBox = { input ->
                     Box {
                         if (value.isBlank()) {
@@ -150,6 +183,7 @@ fun EditorialNotesField(
                 onValueChange = onValueChange,
                 modifier = Modifier.fillMaxWidth(),
                 textStyle = TextStyle(color = colors.ink, fontSize = 14.sp, lineHeight = 20.sp),
+                cursorBrush = SolidColor(colors.ink),
                 decorationBox = { input ->
                     Box {
                         if (value.isBlank()) {
@@ -202,6 +236,7 @@ fun EditorialPrimaryButton(
     }
 }
 
+/** La acción principal: cápsula de vidrio lima de 54, como `VaiinillaPrimaryButtonStyle` en iOS. */
 @Composable
 fun EditorialAccentButton(
     text: String,
@@ -209,15 +244,36 @@ fun EditorialAccentButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    val colors = LocalVaiinillaColors.current
-    EditorialPrimaryButton(
-        text = text,
+    SeaGlassCapsuleButton(SeaGlassTone.lima, text, onClick, modifier, enabled)
+}
+
+/** La acción secundaria: cápsula de vidrio vainilla de 54, como `VaiinillaSecondaryButtonStyle` en iOS. */
+@Composable
+fun EditorialSecondaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    SeaGlassCapsuleButton(SeaGlassTone.vainilla, text, onClick, modifier, enabled)
+}
+
+@Composable
+private fun SeaGlassCapsuleButton(
+    tone: SeaGlassTone,
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier,
+    enabled: Boolean,
+) {
+    SeaGlassButton(
+        tone = tone,
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.fillMaxWidth().height(54.dp),
         enabled = enabled,
-        background = colors.accent,
-        contentColor = colors.accentInk,
-    )
+    ) {
+        Text(text, fontWeight = FontWeight.Black, fontSize = 17.sp, modifier = Modifier.padding(horizontal = 18.dp))
+    }
 }
 
 @Composable
@@ -336,13 +392,51 @@ fun EditorialConfirmSheet(
                 Spacer(Modifier.height(18.dp))
                 EditorialAccentButton(text = confirmLabel, onClick = onConfirm)
                 Spacer(Modifier.height(8.dp))
-                EditorialPrimaryButton(
-                    text = dismissLabel,
-                    onClick = onDismiss,
-                    background = colors.paper2,
-                    contentColor = colors.ink,
-                )
+                EditorialSecondaryButton(text = dismissLabel, onClick = onDismiss)
             }
         }
+    }
+}
+
+/** Círculo de vidrio vainilla con un ícono (regresar, cerrar), como el `chromeButton` de iOS. */
+@Composable
+fun GlassCircleButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Dp = 42.dp,
+    iconSize: Dp = 20.dp,
+) {
+    SeaGlassButton(
+        tone = SeaGlassTone.vainilla,
+        onClick = onClick,
+        modifier = modifier.size(size).semantics { this.contentDescription = contentDescription },
+        shape = CircleShape,
+    ) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(iconSize))
+    }
+}
+
+/** Las iniciales de la cuenta en un círculo vainilla de 42. Mantener presionado cambia el tema, como en iOS. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun ProfileInitialsButton(
+    initials: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
+) {
+    Box(
+        modifier =
+            modifier
+                .size(42.dp)
+                .seaGlass(SeaGlassTone.vainilla, CircleShape, seaGlassNight())
+                .clip(CircleShape)
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                .semantics { contentDescription = "Cuenta" },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(initials, color = seaGlassInk(SeaGlassTone.vainilla), fontSize = 13.sp, fontWeight = FontWeight.Black)
     }
 }

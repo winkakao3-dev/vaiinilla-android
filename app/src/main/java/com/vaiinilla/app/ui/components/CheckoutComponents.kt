@@ -287,7 +287,7 @@ fun CheckoutSpacePicker(
                 val chipBackground =
                     animateSelectionColor(if (selected) colors.ink else colors.paper2, "space-chip-background")
                 val chipContent =
-                    animateSelectionColor(if (selected) colors.paper else colors.ink, "space-chip-content")
+                    animateSelectionColor(if (selected) colors.onInk else colors.ink, "space-chip-content")
                 Surface(
                     modifier =
                         Modifier
@@ -331,7 +331,7 @@ private fun DestinationOption(
     val colors = LocalVaiinillaColors.current
     val haptics = LocalHapticFeedback.current
     val selectedBackground = if (colors.isDark) colors.paper2 else colors.ink
-    val selectedForeground = if (colors.isDark) colors.ink else colors.paper
+    val selectedForeground = if (colors.isDark) colors.ink else colors.onInk
     val background =
         animateSelectionColor(if (selected) selectedBackground else colors.paper2, "destination-background")
     val foreground = animateSelectionColor(if (selected) selectedForeground else colors.ink, "destination-foreground")

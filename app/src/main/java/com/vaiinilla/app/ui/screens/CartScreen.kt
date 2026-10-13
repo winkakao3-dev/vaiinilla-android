@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
@@ -56,11 +57,10 @@ import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Remove
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -103,9 +103,12 @@ import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.ui.components.CheckoutDestinationPicker
 import com.vaiinilla.app.ui.components.CheckoutSpaceOption
 import com.vaiinilla.app.ui.components.CheckoutSpacePicker
+import com.vaiinilla.app.ui.components.EditorialAccentButton
+import com.vaiinilla.app.ui.components.GlassCircleButton
 import com.vaiinilla.app.ui.components.NumberTicker
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
+import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
@@ -123,6 +126,8 @@ import com.vaiinilla.app.ui.order.operationalBlockerMessage
 import com.vaiinilla.app.ui.order.requiresOperationalReady
 import com.vaiinilla.app.ui.order.selectedSpaceName
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.SeaGlassButton
+import com.vaiinilla.app.ui.theme.SeaGlassTone
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import java.math.BigDecimal
@@ -193,6 +198,7 @@ fun CartScreen(
     val glassColors =
         colors.copy(
             paper = Color.Transparent,
+            solidPaper = colors.onInk,
             paper2 = palette.glassCard,
             line = palette.glassLine,
             ink = palette.ink,
@@ -855,7 +861,6 @@ private fun CartTopBar(
     profileInitials: String,
     onOpenAccount: () -> Unit,
 ) {
-    val colors = LocalVaiinillaColors.current
     Row(
         modifier =
             Modifier
@@ -865,38 +870,13 @@ private fun CartTopBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(colors.paper2)
-                    .physicalPress(scale = PhysicalPressScale.Small, onClick = onBack),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
-                contentDescription = "Volver",
-                tint = colors.ink,
-                modifier = Modifier.size(21.dp),
-            )
-        }
-        Box(
-            modifier =
-                Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(colors.paper2)
-                    .physicalPress(scale = PhysicalPressScale.Small, onClick = onOpenAccount),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                profileInitials,
-                color = colors.ink,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
-            )
-        }
+        GlassCircleButton(
+            icon = Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
+            contentDescription = "Volver",
+            onClick = onBack,
+            iconSize = 22.dp,
+        )
+        ProfileInitialsButton(profileInitials, onClick = onOpenAccount)
     }
 }
 
@@ -1092,7 +1072,7 @@ private fun QuantityStepper(
     val foreground =
         when {
             colors.isDark -> Color(0xFFF5F1E5)
-            else -> colors.paper
+            else -> colors.onInk
         }
     Surface(
         color = background,
@@ -1271,104 +1251,70 @@ private fun CheckoutDockButton(
     loadingSubtitle: String = "Un momento…",
     onClick: () -> Unit,
 ) {
-    val colors = LocalVaiinillaColors.current
-    val dockBackground = if (colors.isDark) colors.paper2 else colors.ink
-    Surface(
+    // Como `CheckoutDockButton` en iOS: una pieza de vidrio redondeada de 74, lima si se puede pedir.
+    SeaGlassButton(
+        tone = if (enabled || loading) SeaGlassTone.lima else SeaGlassTone.vainilla,
+        onClick = onClick,
         modifier =
             Modifier
+                .padding(bottom = 8.dp)
                 .fillMaxWidth()
-                .height(94.dp),
-        color = dockBackground,
-        shape = RoundedCornerShape(30.dp),
-        shadowElevation = if (enabled) 12.dp else 0.dp,
+                .height(74.dp),
+        shape = RoundedCornerShape(28.dp),
+        enabled = enabled && !loading,
     ) {
-        Surface(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(10.dp)
-                    .physicalPress(
-                        enabled = enabled && !loading,
-                        scale = PhysicalPressScale.Default,
-                        onClick = onClick,
-                    ),
-            color = if (enabled) colors.accent else colors.paper2,
-            shape = RoundedCornerShape(22.dp),
+        val ink = LocalContentColor.current
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                if (loading) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            loadingLabel,
-                            color = colors.accentInk,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                        )
-                        Text(
-                            loadingSubtitle,
-                            color = colors.accentInk.copy(alpha = 0.72f),
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(top = 2.dp),
-                        )
-                    }
-                    CircularProgressIndicator(
-                        color = colors.accentInk,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(20.dp),
+            if (loading) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(loadingLabel, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(
+                        loadingSubtitle,
+                        color = ink.copy(alpha = 0.72f),
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 2.dp),
                     )
-                } else {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            label,
-                            color = if (enabled) colors.accentInk else colors.muted,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            lineHeight = 22.sp,
-                            maxLines = 1,
-                        )
-                        Text(
-                            subtitle,
-                            color = if (enabled) colors.accentInk.copy(alpha = 0.72f) else colors.muted,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp,
-                            modifier = Modifier.padding(top = 2.dp),
-                            maxLines = 1,
-                        )
-                    }
-                    Box(
-                        modifier =
-                            Modifier
-                                .padding(horizontal = 16.dp)
-                                .width(1.dp)
-                                .height(34.dp)
-                                .background(colors.ink.copy(alpha = 0.14f)),
+                }
+                CircularProgressIndicator(color = ink, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+            } else {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(label, fontWeight = FontWeight.Bold, fontSize = 18.sp, lineHeight = 22.sp, maxLines = 1)
+                    Text(
+                        subtitle,
+                        color = if (enabled) ink.copy(alpha = 0.72f) else ink,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        modifier = Modifier.padding(top = 2.dp),
+                        maxLines = 1,
                     )
-                    AnimatedContent(
-                        targetState = price,
-                        transitionSpec = {
-                            if (targetState > initialState) {
-                                (slideInVertically { height -> height } + fadeIn()) togetherWith
-                                    (slideOutVertically { height -> -height } + fadeOut())
-                            } else {
-                                (slideInVertically { height -> -height } + fadeIn()) togetherWith
-                                    (slideOutVertically { height -> height } + fadeOut())
-                            }.using(SizeTransform(clip = false))
-                        },
-                        label = "checkout_price_ticker",
-                    ) { p ->
-                        Text(
-                            p,
-                            color = if (enabled) colors.accentInk else colors.muted,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp,
-                        )
-                    }
+                }
+                Box(
+                    modifier =
+                        Modifier
+                            .padding(horizontal = 16.dp)
+                            .width(1.dp)
+                            .height(34.dp)
+                            .background(ink.copy(alpha = 0.2f)),
+                )
+                AnimatedContent(
+                    targetState = price,
+                    transitionSpec = {
+                        if (targetState > initialState) {
+                            (slideInVertically { height -> height } + fadeIn()) togetherWith
+                                (slideOutVertically { height -> -height } + fadeOut())
+                        } else {
+                            (slideInVertically { height -> -height } + fadeIn()) togetherWith
+                                (slideOutVertically { height -> height } + fadeOut())
+                        }.using(SizeTransform(clip = false))
+                    },
+                    label = "checkout_price_ticker",
+                ) { p ->
+                    Text(p, color = ink, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 }
             }
         }
@@ -1483,7 +1429,7 @@ private fun WarningBanner(
             if (actionLabel != null && onAction != null) {
                 Surface(
                     color = colors.ink,
-                    contentColor = colors.paper,
+                    contentColor = colors.onInk,
                     shape = RoundedCornerShape(999.dp),
                     modifier =
                         Modifier.physicalPress(
@@ -1499,14 +1445,14 @@ private fun WarningBanner(
                     ) {
                         if (actionLoading) {
                             CircularProgressIndicator(
-                                color = colors.paper,
+                                color = colors.onInk,
                                 strokeWidth = 2.dp,
                                 modifier = Modifier.size(14.dp),
                             )
                         }
                         Text(
                             text = if (actionLoading) "Abriendo pago…" else actionLabel,
-                            color = colors.paper,
+                            color = colors.onInk,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                         )
@@ -1554,18 +1500,11 @@ private fun EmptyCart(
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 6.dp),
         )
-        Button(
+        EditorialAccentButton(
+            text = "Ver menú",
             onClick = onMenu,
-            colors =
-                ButtonDefaults.buttonColors(
-                    containerColor = colors.accent,
-                    contentColor = colors.accentInk,
-                ),
-            modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
-            shape = RoundedCornerShape(18.dp),
-        ) {
-            Text("Ver menú", fontWeight = FontWeight.Black)
-        }
+            modifier = Modifier.padding(top = 20.dp).widthIn(max = 270.dp),
+        )
 
         if (recentOrders.isNotEmpty()) {
             Text(

@@ -24,7 +24,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.ui.auth.student.StudentAuthUiState
 import com.vaiinilla.app.ui.components.EditorialAccentButton
-import com.vaiinilla.app.ui.components.EditorialPrimaryButton
+import com.vaiinilla.app.ui.components.EditorialSecondaryButton
 import com.vaiinilla.app.ui.components.EditorialSectionHead
 import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -84,7 +84,7 @@ fun StudentVerifyEmailScreen(
                         onClick = onCheckVerified,
                         enabled = !state.loading,
                     )
-                    EditorialPrimaryButton(
+                    EditorialSecondaryButton(
                         text =
                             if (state.resendLockedUntilMs > System.currentTimeMillis()) {
                                 "Reenviar correo (espera)"
@@ -93,8 +93,6 @@ fun StudentVerifyEmailScreen(
                             },
                         onClick = onResend,
                         enabled = !state.loading && state.resendLockedUntilMs <= System.currentTimeMillis(),
-                        background = colors.paper2,
-                        contentColor = colors.ink,
                     )
                 }
             }

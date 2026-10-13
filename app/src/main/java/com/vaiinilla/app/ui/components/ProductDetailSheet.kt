@@ -37,7 +37,6 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -53,10 +52,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Remove
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -71,7 +67,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
@@ -82,9 +77,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.text
@@ -111,6 +104,8 @@ import com.vaiinilla.app.ui.screens.glassEdge
 import com.vaiinilla.app.ui.screens.productTone
 import com.vaiinilla.app.ui.screens.scenePaletteForTheme
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.SeaGlassButton
+import com.vaiinilla.app.ui.theme.SeaGlassTone
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
@@ -542,22 +537,7 @@ private fun HeroActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = LocalVaiinillaColors.current
-    IconButton(
-        onClick = onClick,
-        modifier =
-            modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(colors.paper.copy(alpha = 0.82f)),
-    ) {
-        Icon(
-            icon,
-            contentDescription = description,
-            tint = colors.ink,
-            modifier = Modifier.size(25.dp),
-        )
-    }
+    GlassCircleButton(icon, description, onClick, modifier, size = 46.dp, iconSize = 21.dp)
 }
 
 @Composable
@@ -666,51 +646,28 @@ private fun ProductOptionTile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = LocalVaiinillaColors.current
-    Row(
+    // Como en iOS: una pieza de vidrio redondeada de 20, lima la elegida.
+    SeaGlassButton(
+        tone = if (selected) SeaGlassTone.lima else SeaGlassTone.vainilla,
+        onClick = onClick,
         modifier =
             modifier
-                .heightIn(min = 64.dp)
-                .clip(RoundedCornerShape(19.dp))
-                .background(if (selected) colors.accent else colors.paper2)
-                .border(
-                    width = 1.dp,
-                    color = if (selected) colors.accent else colors.line,
-                    shape = RoundedCornerShape(19.dp),
-                ).clickable(onClick = onClick)
-                .semantics {
-                    role = Role.RadioButton
-                    this.selected = selected
-                }.padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
+                .heightIn(min = 60.dp)
+                .semantics { this.selected = selected },
+        shape = RoundedCornerShape(20.dp),
     ) {
         Text(
             label,
-            color = if (selected) colors.accentInk else colors.ink,
             fontSize = 15.sp,
             lineHeight = 19.sp,
             fontWeight = FontWeight.Bold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).padding(start = 16.dp, top = 12.dp, bottom = 12.dp),
         )
-        if (selected) {
-            Box(
-                modifier =
-                    Modifier
-                        .padding(start = 8.dp)
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .background(colors.accentInk),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Rounded.Check,
-                    contentDescription = null,
-                    tint = colors.accent,
-                    modifier = Modifier.size(17.dp),
-                )
+        Box(modifier = Modifier.padding(start = 8.dp, end = 12.dp).size(28.dp), contentAlignment = Alignment.Center) {
+            if (selected) {
+                Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -875,21 +832,14 @@ private fun ProductDetailDock(
                 )
             }
             Spacer(Modifier.height(10.dp))
-            Button(
+            SeaGlassButton(
+                tone = SeaGlassTone.lima,
                 onClick = onAdd,
                 enabled = canAdd,
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                shape = RoundedCornerShape(18.dp),
-                colors =
-                    ButtonDefaults.buttonColors(
-                        containerColor = colors.accent,
-                        contentColor = colors.accentInk,
-                        disabledContainerColor = colors.paper2,
-                        disabledContentColor = colors.muted,
-                    ),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -991,34 +941,7 @@ private fun QuantityButton(
     description: String,
     onClick: () -> Unit,
 ) {
-    val colors = LocalVaiinillaColors.current
-    val buttonScale = remember { Animatable(1f) }
-    val scope = rememberCoroutineScope()
-    IconButton(
-        onClick = {
-            scope.launch {
-                buttonScale.snapTo(0.85f)
-                buttonScale.animateTo(
-                    targetValue = 1f,
-                    animationSpec = spring(dampingRatio = 0.45f, stiffness = 500f),
-                )
-            }
-            onClick()
-        },
-        modifier =
-            Modifier
-                .size(48.dp)
-                .scale(buttonScale.value)
-                .clip(RoundedCornerShape(15.dp))
-                .background(colors.ink),
-    ) {
-        Icon(
-            icon,
-            contentDescription = description,
-            tint = colors.paper,
-            modifier = Modifier.size(22.dp),
-        )
-    }
+    GlassCircleButton(icon, description, onClick, size = 46.dp, iconSize = 19.dp)
 }
 
 private fun estimatedTimeLabel(minutes: Int): String =

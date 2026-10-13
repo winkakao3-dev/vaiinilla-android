@@ -16,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.auth.student.StudentAuthMfaFactor
@@ -104,19 +106,30 @@ fun TotpMfaChallengeForm(
                 )
             }
         }
-        EditorialPrimaryButton(
-            text = "Verificar código",
-            onClick = onSubmit,
-            enabled = !loading && code.length == 6 && selectedFactorUid != null,
-            background = submitBackground,
-            contentColor = submitContentColor,
-        )
-        EditorialPrimaryButton(
-            text = "Cancelar",
-            onClick = onCancel,
-            enabled = !loading,
-            background = colors.paper2,
-            contentColor = colors.ink,
+        val canSubmit = !loading && code.length == 6 && selectedFactorUid != null
+        if (submitBackground != null) {
+            EditorialPrimaryButton(
+                text = "Verificar código",
+                onClick = onSubmit,
+                enabled = canSubmit,
+                background = submitBackground,
+                contentColor = submitContentColor,
+            )
+        } else {
+            EditorialAccentButton(text = "Verificar código", onClick = onSubmit, enabled = canSubmit)
+        }
+        Text(
+            "Cancelar",
+            color = colors.muted,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            textDecoration = TextDecoration.Underline,
+            textAlign = TextAlign.Center,
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .physicalPress(enabled = !loading, onClick = onCancel)
+                    .padding(vertical = 10.dp),
         )
     }
 }

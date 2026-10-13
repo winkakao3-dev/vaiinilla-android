@@ -16,6 +16,7 @@ import com.vaiinilla.app.arcade.ArcadeSession
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.repository.canCallWaiter
 import com.vaiinilla.app.ui.arcade.ArcadeStage
 import com.vaiinilla.app.ui.auth.student.StudentAuthUiState
 import com.vaiinilla.app.ui.components.StudentTab
@@ -518,6 +519,50 @@ class AlumnoScreenshotTest {
         }
         composeTestRule.waitForIdle()
         composeTestRule.onRoot().captureRoboImage("23_cart_empty_dark.png")
+    }
+
+    @Test
+    fun `22_tracking_mesa_entregada`() {
+        val delivered =
+            ScreenshotFixtures.sampleOrder(
+                state = OrderState.DELIVERED,
+                destination = OrderDestination.IN_SPACE,
+                spaceId = 4,
+            )
+        val order =
+            delivered.copy(
+                summary =
+                    delivered.summary.copy(
+                        updatedAt =
+                            java.time.Instant
+                                .now()
+                                .minusSeconds(30 * 60)
+                                .toString(),
+                    ),
+            )
+        val trackingState = ScreenshotFixtures.trackingState(order, selected = false)
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                ScreenshotWithStudentNav(activeTab = StudentTab.ORDERS, cartCount = 0) {
+                    StudentTrackingScreen(
+                        state = trackingState,
+                        orderState = ScreenshotFixtures.catalogLoadedState(),
+                        onMenu = {},
+                        onAssistant = {},
+                        onWallet = {},
+                        onCart = {},
+                        onOpenCatalog = {},
+                        onSelectOrder = {},
+                        canCallWaiter = ::canCallWaiter,
+                        onCurrentWaiterCall = { Result.success(null) },
+                        onCallWaiter = { _, _, _ -> Result.failure(IllegalStateException()) },
+                        onCancelWaiter = { Result.failure(IllegalStateException()) },
+                    )
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onRoot().captureRoboImage("22_tracking_mesa_entregada.png")
     }
 }
 
