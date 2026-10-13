@@ -1,7 +1,9 @@
 package com.vaiinilla.app.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,12 +31,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -389,5 +393,48 @@ fun EditorialConfirmSheet(
                 EditorialSecondaryButton(text = dismissLabel, onClick = onDismiss)
             }
         }
+    }
+}
+
+/** Círculo de vidrio vainilla con un ícono (regresar, cerrar), como el `chromeButton` de iOS. */
+@Composable
+fun GlassCircleButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Dp = 42.dp,
+    iconSize: Dp = 20.dp,
+) {
+    SeaGlassButton(
+        tone = SeaGlassTone.vainilla,
+        onClick = onClick,
+        modifier = modifier.size(size).semantics { this.contentDescription = contentDescription },
+        shape = CircleShape,
+    ) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(iconSize))
+    }
+}
+
+/** Las iniciales de la cuenta en un círculo vainilla de 42. Mantener presionado cambia el tema, como en iOS. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun ProfileInitialsButton(
+    initials: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
+) {
+    Box(
+        modifier =
+            modifier
+                .size(42.dp)
+                .seaGlass(SeaGlassTone.vainilla, CircleShape, seaGlassNight())
+                .clip(CircleShape)
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                .semantics { contentDescription = "Cuenta" },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(initials, color = seaGlassInk(SeaGlassTone.vainilla), fontSize = 13.sp, fontWeight = FontWeight.Black)
     }
 }

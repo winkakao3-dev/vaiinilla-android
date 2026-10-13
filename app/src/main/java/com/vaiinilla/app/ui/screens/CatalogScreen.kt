@@ -14,7 +14,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,7 +35,6 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
@@ -63,7 +61,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -85,6 +82,7 @@ import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductCardSkeleton
 import com.vaiinilla.app.ui.components.ProductDetailSheet
+import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.SwipeToDeleteOrder
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.physicalPress
@@ -104,9 +102,6 @@ import com.vaiinilla.app.ui.theme.SeaGlassButton
 import com.vaiinilla.app.ui.theme.SeaGlassTone
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
-import com.vaiinilla.app.ui.theme.seaGlass
-import com.vaiinilla.app.ui.theme.seaGlassInk
-import com.vaiinilla.app.ui.theme.seaGlassNight
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -617,25 +612,7 @@ private fun CatalogHeader(
                 }
             }
             Spacer(Modifier.size(10.dp))
-            Box(
-                modifier =
-                    Modifier
-                        .size(42.dp)
-                        .seaGlass(SeaGlassTone.vainilla, CircleShape, seaGlassNight())
-                        .clip(CircleShape)
-                        .combinedClickable(
-                            onClick = onOpenAccount,
-                            onLongClick = onCycleTheme,
-                        ).semantics { contentDescription = "Cuenta" },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    profileInitials,
-                    color = seaGlassInk(SeaGlassTone.vainilla),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Black,
-                )
-            }
+            ProfileInitialsButton(profileInitials, onClick = onOpenAccount, onLongClick = onCycleTheme)
         }
 
         Spacer(Modifier.height(16.dp))
