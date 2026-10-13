@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -60,18 +58,11 @@ fun EmptyState(
                 modifier = Modifier.padding(top = 6.dp),
             )
             if (actionLabel != null && onAction != null) {
-                Button(
+                EditorialAccentButton(
+                    text = actionLabel,
                     onClick = onAction,
-                    colors =
-                        ButtonDefaults.buttonColors(
-                            containerColor = colors.accent,
-                            contentColor = colors.accentInk,
-                        ),
                     modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
-                    shape = RoundedCornerShape(18.dp),
-                ) {
-                    Text(actionLabel, fontWeight = FontWeight.Black)
-                }
+                )
             }
         }
     }
