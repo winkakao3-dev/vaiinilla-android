@@ -600,6 +600,7 @@ private fun EmptySearchState(onClearSearch: () -> Unit) {
         message = "Prueba otra palabra o categoría.",
         actionLabel = "Limpiar búsqueda",
         onAction = onClearSearch,
+        quietAction = true,
     )
 }
 

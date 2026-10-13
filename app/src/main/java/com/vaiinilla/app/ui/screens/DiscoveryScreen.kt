@@ -54,6 +54,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Backspace
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.NearMe
@@ -67,6 +68,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -74,6 +76,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -104,6 +107,7 @@ import com.vaiinilla.app.ui.components.EditorialConfirmSheet
 import com.vaiinilla.app.ui.components.EditorialSearchField
 import com.vaiinilla.app.ui.components.EditorialSecondaryButton
 import com.vaiinilla.app.ui.components.GlassCircleButton
+import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -129,6 +133,8 @@ fun DiscoveryScreen(
     onQueryChange: (String) -> Unit,
     onSpaceTokenChange: (String) -> Unit,
     onOpenQrScanner: () -> Unit = {},
+    /** Sube cuando otra pantalla (el escáner sin cámara) pide escribir el código de mesa. */
+    tableCodeRequest: Int = 0,
     onSelectEstablishment: (PublicEstablishment) -> Unit,
     onResolveSpace: () -> Unit,
     onConfirmSwitch: () -> Unit,
@@ -160,6 +166,9 @@ fun DiscoveryScreen(
         }
     }
     var codeSheetOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(tableCodeRequest) {
+        if (tableCodeRequest > 0) codeSheetOpen = true
+    }
     var tokenError by remember { mutableStateOf(false) }
     var pendingSelection by remember { mutableStateOf<PublicEstablishment?>(null) }
     var selectedFilter by remember { mutableStateOf(VenueFilter.ALL) }
@@ -1421,23 +1430,38 @@ private fun VenueNoticeCard(
     )
 }
 
-/** Tecla del código de mesa en vidrio, como `keypadButton` en iOS. */
+/** Tecla plana del código de mesa: el teclado es herramienta, no acción; no lleva vidrio ni color. */
 @Composable
 private fun KeypadKey(
-    label: String,
-    tone: SeaGlassTone,
     modifier: Modifier = Modifier,
+    description: String? = null,
     onClick: () -> Unit,
+    content: @Composable () -> Unit,
 ) {
-    SeaGlassButton(
-        tone = tone,
-        onClick = onClick,
-        modifier = modifier.height(46.dp),
-        shape = RoundedCornerShape(14.dp),
+    val colors = LocalVaiinillaColors.current
+    Box(
+        modifier =
+            modifier
+                .height(52.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(colors.paper2)
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .then(if (description != null) Modifier.semantics { contentDescription = description } else Modifier),
+        contentAlignment = Alignment.Center,
     ) {
-        Text(label, fontSize = if (label.length > 1) 13.sp else 20.sp, fontWeight = FontWeight.Bold)
+        CompositionLocalProvider(LocalContentColor provides colors.ink) { content() }
     }
 }
+
+/** Largo de los códigos de mesa impresos junto al QR. */
+internal const val TABLE_CODE_LENGTH = 4
+
+/** Se valida solo al completar el código: una vez por código, nunca mientras ya se está validando. */
+internal fun shouldAutoResolveTableCode(
+    previous: String,
+    next: String,
+    resolving: Boolean,
+): Boolean = !resolving && previous.length < TABLE_CODE_LENGTH && next.length == TABLE_CODE_LENGTH
 
 @Composable
 private fun SpaceCodeSheet(
@@ -1453,6 +1477,13 @@ private fun SpaceCodeSheet(
     val dragOffsetY = remember { Animatable(0f) }
     val density = LocalDensity.current
     val dismissThresholdPx = with(density) { 90.dp.toPx() }
+    // onResolve lee el código del estado de la pantalla: se llama ya recompuesto con el dígito nuevo.
+    val latestResolve by rememberUpdatedState(onResolve)
+    var previousToken by remember { mutableStateOf(token) }
+    LaunchedEffect(token) {
+        if (shouldAutoResolveTableCode(previousToken, token, resolving)) latestResolve()
+        previousToken = token
+    }
 
     // Preview del back predictivo, igual que la ficha de producto: la hoja sigue
     // al dedo y el scrim se abre para asomar discovery; al soltar se cierra.
@@ -1599,7 +1630,7 @@ private fun SpaceCodeSheet(
                                             if (isFilled) {
                                                 colors.ink
                                             } else if (isCurrent) {
-                                                colors.accent
+                                                colors.muted
                                             } else {
                                                 colors.line
                                             },
@@ -1646,10 +1677,10 @@ private fun SpaceCodeSheet(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         rowKeys.forEach { digit ->
-                            KeypadKey(digit, SeaGlassTone.vainilla, Modifier.weight(1f)) {
+                            KeypadKey(Modifier.weight(1f), onClick = {
                                 haptics.click()
                                 if (token.length < 8) onTokenChange(token + digit)
-                            }
+                            }) { Text(digit, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
                         }
                     }
                 }
@@ -1657,18 +1688,15 @@ private fun SpaceCodeSheet(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    KeypadKey("BORRAR", SeaGlassTone.horchata, Modifier.weight(1f)) {
-                        haptics.click()
-                        if (token.isNotEmpty()) onTokenChange(token.dropLast(1))
-                    }
-                    KeypadKey("0", SeaGlassTone.vainilla, Modifier.weight(1f)) {
+                    Spacer(Modifier.weight(1f))
+                    KeypadKey(Modifier.weight(1f), onClick = {
                         haptics.click()
                         if (token.length < 8) onTokenChange(token + "0")
-                    }
-                    KeypadKey("LISTO", SeaGlassTone.lima, Modifier.weight(1f)) {
+                    }) { Text("0", fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+                    KeypadKey(Modifier.weight(1f), description = "Borrar", onClick = {
                         haptics.click()
-                        if (canResolve) onResolve()
-                    }
+                        if (token.isNotEmpty()) onTokenChange(token.dropLast(1))
+                    }) { Icon(Icons.AutoMirrored.Outlined.Backspace, contentDescription = null) }
                 }
             }
 

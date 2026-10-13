@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -53,6 +54,7 @@ import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.isRental
 import com.vaiinilla.app.ui.components.prefetchProductImages
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
+import com.vaiinilla.app.ui.discovery.QrScannerAlternative
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
 import com.vaiinilla.app.ui.operational.CourtsViewModel
@@ -335,6 +337,8 @@ fun AppNavHost(
         )
     }
     var qrScannerOpen by remember { mutableStateOf(false) }
+    // Cada aumento abre la hoja del código de mesa en Descubrir (alternativa al QR sin cámara).
+    var tableCodeRequest by remember { mutableIntStateOf(0) }
     var walletUserQrOpen by remember { mutableStateOf(false) }
     var pendingPickupDelivery by remember { mutableStateOf<PendingPickupDelivery?>(null) }
 
@@ -658,6 +662,7 @@ fun AppNavHost(
 
             composable(Routes.DISCOVERY) {
                 DiscoveryScreen(
+                    tableCodeRequest = tableCodeRequest,
                     state = discoveryState,
                     onQueryChange = discoveryViewModel::updateQuery,
                     onSpaceTokenChange = discoveryViewModel::updateSpaceToken,
@@ -695,6 +700,11 @@ fun AppNavHost(
                 if (qrScannerOpen) {
                     QrScannerDialog(
                         onClose = { qrScannerOpen = false },
+                        alternative =
+                            QrScannerAlternative("Escribir código de mesa") {
+                                qrScannerOpen = false
+                                tableCodeRequest++
+                            },
                         onPayload = { rawValue ->
                             qrScannerOpen = false
                             discoveryViewModel.resolveQrPayload(
@@ -1711,6 +1721,8 @@ fun AppNavHost(
         QrScannerDialog(
             onClose = { walletUserQrOpen = false },
             helperText = "Apunta al QR de cuenta que muestra el alumno",
+            // El buscador por nombre vive en la hoja de recarga que abrió el escáner: cerrar regresa a él.
+            alternative = QrScannerAlternative("Buscar cliente por nombre") { walletUserQrOpen = false },
             onPayload = { rawValue ->
                 walletUserQrOpen = false
                 operationalViewModel.resolveWalletUserQr(rawValue)
