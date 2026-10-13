@@ -1381,6 +1381,9 @@ fun AppNavHost(
                     order = confirmationOrder,
                     deliveryRequiresQr = orderState.operationalStatus?.deliveryRequiresQr != false,
                     showTrackingButton = isFreshConfirmation,
+                    onCurrentWaiterCall = operationalViewModel::currentWaiterCall,
+                    onCallWaiter = operationalViewModel::callWaiter,
+                    onCancelWaiter = operationalViewModel::cancelWaiterCall,
                     onReturnToMenu = {
                         // Abierto desde Pedidos: atrás regresa a la lista. La selección se limpia allá,
                         // cuando esta pantalla ya salió, para no quedarse sin pedido a media animación.

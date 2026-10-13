@@ -104,6 +104,9 @@ import com.google.zxing.common.BitMatrix
 import com.vaiinilla.app.core.qr.QrCodeEncoder
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.repository.CallReason
+import com.vaiinilla.app.domain.repository.TableCall
+import com.vaiinilla.app.domain.repository.openTableCallSpaceId
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.order.MOSAIC_FLIP_LENGTH
@@ -252,6 +255,9 @@ internal fun PickupJourneyScreen(
     onCelebrationFinished: () -> Unit = {},
     deliveryRequiresQr: Boolean = true,
     showTrackingButton: Boolean = true,
+    onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
+    onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
+    onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
 ) {
     val palette = scenePaletteForTheme()
     CompositionLocalProvider(LocalScene provides palette) {
@@ -263,6 +269,9 @@ internal fun PickupJourneyScreen(
             celebration = celebration,
             onCelebrationFinished = onCelebrationFinished,
             deliveryRequiresQr = deliveryRequiresQr,
+            onCurrentWaiterCall = onCurrentWaiterCall,
+            onCallWaiter = onCallWaiter,
+            onCancelWaiter = onCancelWaiter,
         )
     }
 }
@@ -276,6 +285,9 @@ private fun PickupJourney(
     celebration: PurchaseCelebrationKind?,
     onCelebrationFinished: () -> Unit,
     deliveryRequiresQr: Boolean,
+    onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
+    onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
+    onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
 ) {
     val palette = LocalScene.current
     val reduceMotion = reducedMotion()
@@ -441,6 +453,9 @@ private fun PickupJourney(
             backdrop = { drawStorefront(stage, textMeasurer, palette, motion) },
             onShowCode = { revealed = true },
             onViewTracking = onViewTracking,
+            onCurrentWaiterCall = onCurrentWaiterCall,
+            onCallWaiter = onCallWaiter,
+            onCancelWaiter = onCancelWaiter,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
 
@@ -756,6 +771,9 @@ private fun StatusSheet(
     backdrop: DrawScope.() -> Unit,
     onShowCode: () -> Unit,
     onViewTracking: (() -> Unit)?,
+    onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
+    onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
+    onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
     modifier: Modifier = Modifier,
 ) {
     val c = LocalScene.current
@@ -873,6 +891,17 @@ private fun StatusSheet(
             }
             Spacer(Modifier.height(14.dp))
             OrderSummaryCard(order)
+            val tableSpaceId = openTableCallSpaceId(order)
+            if (tableSpaceId != null && onCurrentWaiterCall != null && onCallWaiter != null && onCancelWaiter != null) {
+                CallWaiterButton(
+                    spaceId = tableSpaceId,
+                    orderId = order.summary.id,
+                    onCurrent = onCurrentWaiterCall,
+                    onCall = onCallWaiter,
+                    onCancel = onCancelWaiter,
+                    textColor = c.ink,
+                )
+            }
             Spacer(Modifier.height(14.dp))
             if (hasCode || onViewTracking != null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
