@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -176,12 +177,22 @@ private fun JoinTable(
         fontSize = 13.sp,
         modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
     )
-    EditorialTextField(
-        value = state.aliasInput,
-        onValueChange = onAliasChange,
-        label = "Tu nombre en la mesa",
-        placeholder = "Ana",
-    )
+    // La tarjeta es oscura en cualquier tema: el campo toma el texto de la tarjeta, como en iOS.
+    CompositionLocalProvider(
+        LocalVaiinillaColors provides
+            LocalVaiinillaColors.current.copy(
+                ink = OrderTrackingCardText,
+                muted = OrderTrackingCardText.copy(alpha = 0.55f),
+                line = Color.White.copy(alpha = 0.18f),
+            ),
+    ) {
+        EditorialTextField(
+            value = state.aliasInput,
+            onValueChange = onAliasChange,
+            label = "Tu nombre en la mesa",
+            placeholder = "Ana",
+        )
+    }
     Spacer(Modifier.height(12.dp))
     EditorialAccentButton(text = "Unirme a la mesa", onClick = onJoin, enabled = state.canJoin)
 }

@@ -143,6 +143,7 @@ fun EditorialTextField(
                 visualTransformation =
                     if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
                 textStyle = TextStyle(color = colors.ink, fontSize = 14.sp, lineHeight = 20.sp),
+                cursorBrush = SolidColor(colors.ink),
                 decorationBox = { input ->
                     Box {
                         if (value.isBlank()) {
@@ -182,6 +183,7 @@ fun EditorialNotesField(
                 onValueChange = onValueChange,
                 modifier = Modifier.fillMaxWidth(),
                 textStyle = TextStyle(color = colors.ink, fontSize = 14.sp, lineHeight = 20.sp),
+                cursorBrush = SolidColor(colors.ink),
                 decorationBox = { input ->
                     Box {
                         if (value.isBlank()) {
