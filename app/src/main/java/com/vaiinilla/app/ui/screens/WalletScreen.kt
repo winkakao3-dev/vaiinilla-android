@@ -276,8 +276,9 @@ private fun WalletBalanceHero(
     }
 }
 
+/** El código personal en grande, para que caja lo escanee al recargar. */
 @Composable
-private fun WalletQrDialog(
+internal fun WalletQrDialog(
     qrValue: String?,
     onDismiss: () -> Unit,
 ) {

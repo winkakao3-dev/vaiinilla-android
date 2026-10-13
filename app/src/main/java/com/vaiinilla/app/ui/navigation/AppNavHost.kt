@@ -96,6 +96,7 @@ import com.vaiinilla.app.ui.screens.WalletScreen
 import com.vaiinilla.app.ui.screens.WelcomeBootStage
 import com.vaiinilla.app.ui.screens.rememberReduceMotion
 import com.vaiinilla.app.ui.sharedtable.SharedTableViewModel
+import com.vaiinilla.app.ui.support.SupportLastOrder
 import com.vaiinilla.app.ui.support.SupportScreen
 import com.vaiinilla.app.ui.wallet.WalletViewModel
 import com.vaiinilla.app.ui.wallet.rememberWalletUiState
@@ -1049,10 +1050,23 @@ fun AppNavHost(
             }
 
             composable(Routes.SUPPORT) {
+                val lastOrder =
+                    operationalState.orders.firstOrNull()?.takeIf {
+                        operationalState.role ==
+                            OperationalRole.CLIENT
+                    }
                 SupportScreen(
                     onBack = { navController.popBackStack() },
                     termsUrl = studentAuthState.termsUrl,
                     privacyUrl = studentAuthState.privacyUrl,
+                    lastOrder =
+                        lastOrder?.let {
+                            SupportLastOrder(
+                                title = "Pedido #${it.summary.folio}",
+                                detail = "${it.summary.state.label} · ${it.summary.destination.label}",
+                            )
+                        },
+                    onOpenLastOrder = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
                 )
             }
 
