@@ -61,7 +61,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -2960,11 +2959,13 @@ internal fun KitchenRejectContent(
                     ) { reason = quick }
                 }
             }
-            OutlinedTextField(
+            OperationalField(
                 value = reason,
                 onValueChange = { reason = it.take(240) },
-                label = { Text("Motivo") },
-                modifier = Modifier.fillMaxWidth(),
+                label = "Motivo",
+                colors = colors,
+                placeholder = "Escríbelo o toca uno de arriba",
+                singleLine = false,
             )
         }
         Box(modifier = Modifier.arrive(2)) {

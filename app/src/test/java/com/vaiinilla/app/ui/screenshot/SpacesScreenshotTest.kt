@@ -175,7 +175,6 @@ class SpacesScreenshotTest {
                 colors = colors,
                 onOpenTurn = {},
                 onExtend = {},
-                onCollect = { _, _, _, _, _ -> },
                 onRelease = {},
                 onDismissCollection = {},
                 rentable = rentable,
