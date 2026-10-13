@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -26,7 +27,6 @@ import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
@@ -36,10 +36,9 @@ import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.ShoppingCart
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -61,11 +60,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.vaiinilla.app.ui.components.GlassCircleButton
 import com.vaiinilla.app.ui.components.SkeletonBlock
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.SeaGlassButton
+import com.vaiinilla.app.ui.theme.SeaGlassTone
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import com.vaiinilla.app.ui.wallet.WalletRemoteUiState
@@ -154,6 +156,7 @@ fun WalletScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         WalletAction(
+                            tone = SeaGlassTone.lima,
                             modifier = Modifier.weight(1f),
                             icon = Icons.Outlined.ShoppingCart,
                             title = "Pagar",
@@ -161,6 +164,7 @@ fun WalletScreen(
                             onClick = onCart,
                         )
                         WalletAction(
+                            tone = SeaGlassTone.cielo,
                             modifier = Modifier.weight(1f),
                             icon = Icons.AutoMirrored.Outlined.ReceiptLong,
                             title = "Pedidos",
@@ -168,6 +172,7 @@ fun WalletScreen(
                             onClick = onOrders,
                         )
                         WalletAction(
+                            tone = SeaGlassTone.lavanda,
                             modifier = Modifier.weight(1f),
                             icon = Icons.Outlined.QrCode2,
                             title = "Recargar",
@@ -331,78 +336,63 @@ private fun WalletBalanceHero(
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
                 )
-                Button(
+                SeaGlassButton(
+                    tone = SeaGlassTone.vainilla,
                     onClick = onRetry,
-                    colors =
-                        ButtonDefaults.buttonColors(
-                            containerColor = colors.ink,
-                            contentColor = colors.onInk,
-                        ),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.padding(top = 12.dp),
+                    modifier = Modifier.padding(top = 12.dp).height(46.dp),
                 ) {
-                    Text("Reintentar", fontWeight = FontWeight.Black)
+                    Text(
+                        "Reintentar",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.padding(horizontal = 22.dp),
+                    )
                 }
             }
         }
     }
 }
 
+/** Una acción de la cartera: pieza de vidrio redondeada de 22 en su tono, como `walletAction` en iOS. */
 @Composable
 private fun WalletAction(
+    tone: SeaGlassTone,
     modifier: Modifier,
     icon: ImageVector,
     title: String,
     subtitle: String,
     onClick: () -> Unit,
 ) {
-    val colors = LocalVaiinillaColors.current
-
-    Surface(
-        modifier = modifier.height(168.dp),
+    SeaGlassButton(
+        tone = tone,
         onClick = onClick,
-        color = colors.paper2,
-        shape = RoundedCornerShape(26.dp),
+        modifier = modifier.heightIn(min = 126.dp),
+        shape = RoundedCornerShape(22.dp),
     ) {
         Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(vertical = 18.dp, horizontal = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 14.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
         ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(56.dp)
-                        .background(colors.accent, RoundedCornerShape(20.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = colors.accentInk,
-                    modifier = Modifier.size(28.dp),
-                )
+            Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+                Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(24.dp))
             }
-            Spacer(Modifier.height(14.dp))
             Text(
                 text = title,
-                color = colors.ink,
-                fontWeight = FontWeight.Bold,
-                fontSize = 17.sp,
+                fontWeight = FontWeight.Black,
+                fontSize = 14.sp,
+                maxLines = 1,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.padding(top = 10.dp),
             )
-            Spacer(Modifier.height(3.dp))
             Text(
                 text = subtitle,
-                color = colors.muted,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
+                color = LocalContentColor.current.copy(alpha = 0.8f),
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 11.sp,
+                lineHeight = 14.sp,
+                maxLines = 2,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.padding(top = 3.dp),
             )
         }
     }
@@ -436,19 +426,13 @@ private fun WalletQrDialog(
                         fontSize = 22.sp,
                         modifier = Modifier.align(Alignment.Center),
                     )
-                    Surface(
+                    GlassCircleButton(
+                        icon = Icons.Outlined.Close,
+                        contentDescription = "Cerrar",
                         onClick = onDismiss,
-                        color = colors.paper2,
-                        shape = CircleShape,
                         modifier = Modifier.align(Alignment.CenterEnd),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Close,
-                            contentDescription = "Cerrar",
-                            tint = colors.ink,
-                            modifier = Modifier.padding(9.dp).size(20.dp),
-                        )
-                    }
+                        iconSize = 18.dp,
+                    )
                 }
 
                 Text(
