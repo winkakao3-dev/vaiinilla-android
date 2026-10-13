@@ -12,21 +12,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.keyframes
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
@@ -36,7 +25,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -50,19 +38,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Backspace
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material.icons.outlined.Bolt
-import androidx.compose.material.icons.outlined.NearMe
 import androidx.compose.material.icons.outlined.Nfc
 import androidx.compose.material.icons.outlined.QrCodeScanner
-import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.Tag
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -72,22 +56,19 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -103,6 +84,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicVideo
+import com.vaiinilla.app.ui.components.ChoiceChip
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
 import com.vaiinilla.app.ui.components.EditorialSearchField
 import com.vaiinilla.app.ui.components.EditorialSecondaryButton
@@ -110,7 +92,6 @@ import com.vaiinilla.app.ui.components.GlassCircleButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.physicalPress
-import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.discovery.DiscoveryUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -118,14 +99,9 @@ import com.vaiinilla.app.ui.theme.SeaGlassButton
 import com.vaiinilla.app.ui.theme.SeaGlassTone
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
-import com.vaiinilla.app.ui.theme.seaGlass
-import com.vaiinilla.app.ui.theme.seaGlassInk
-import com.vaiinilla.app.ui.theme.seaGlassNight
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.math.roundToInt
 
 @Composable
 fun DiscoveryScreen(
@@ -170,11 +146,7 @@ fun DiscoveryScreen(
         if (tableCodeRequest > 0) codeSheetOpen = true
     }
     var tokenError by remember { mutableStateOf(false) }
-    var pendingSelection by remember { mutableStateOf<PublicEstablishment?>(null) }
     var selectedFilter by remember { mutableStateOf(VenueFilter.ALL) }
-    var dockPulseCount by remember { mutableIntStateOf(0) }
-    var dockHeightPx by remember { mutableStateOf(0) }
-    val dockHeight = with(LocalDensity.current) { dockHeightPx.toDp() }
 
     BackHandler(enabled = state.pendingSwitch != null) { onDismissSwitch() }
 
@@ -182,7 +154,7 @@ fun DiscoveryScreen(
         remember(state.establishments, selectedFilter) {
             state.establishments.filter { est ->
                 when (selectedFilter) {
-                    VenueFilter.ALL, VenueFilter.OPEN -> true
+                    VenueFilter.ALL -> true
                     VenueFilter.FREE -> !est.clientIdRequired
                     VenueFilter.ID_REQUIRED -> est.clientIdRequired
                 }
@@ -190,15 +162,29 @@ fun DiscoveryScreen(
         }
 
     val activeId = state.selected?.establishment?.id
-    val selection =
-        pendingSelection
-            ?: state.selected?.establishment
-            ?: filteredEstablishments.firstOrNull()
-            ?: state.establishments.firstOrNull()
+    val enterVenue: (PublicEstablishment) -> Unit = { target ->
+        haptics.click()
+        if (target.id != activeId) onSelectEstablishment(target) else onContinueSelected()
+    }
+    // Con un solo lugar no hay nada que elegir: se entra directo, una sola vez (al volver no rebota).
+    var autoOpened by rememberSaveable { mutableStateOf(false) }
+    val onlyVenue =
+        onlyVenueToAutoOpen(
+            establishments = state.establishments,
+            query = state.query,
+            loading = state.loading,
+            hasActiveVenue = state.selected != null,
+        )
+    LaunchedEffect(onlyVenue?.id) {
+        if (onlyVenue != null && !autoOpened) {
+            autoOpened = true
+            onSelectEstablishment(onlyVenue)
+        }
+    }
     // Los videos viven en la lista: el venue guardado en sesión no los trae.
-    val selectionVideos =
+    val activeVideos =
         state.establishments
-            .firstOrNull { it.id == selection?.id }
+            .firstOrNull { it.id == activeId }
             ?.localVideos
             .orEmpty()
 
@@ -234,10 +220,16 @@ fun DiscoveryScreen(
                             onBack()
                         },
                     )
-                } else {
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(12.dp))
                 }
-                Spacer(Modifier.weight(1f))
+                Text(
+                    "Dónde pedir",
+                    color = colors.ink,
+                    fontSize = 24.sp,
+                    lineHeight = 28.sp,
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.weight(1f),
+                )
                 ProfileInitialsButton(
                     initials = profileInitials,
                     onClick = {
@@ -254,45 +246,15 @@ fun DiscoveryScreen(
                         start = 20.dp,
                         end = 20.dp,
                         top = 0.dp,
-                        bottom = if (dockHeightPx > 0) dockHeight + 26.dp else 216.dp,
+                        bottom = 32.dp,
                     ),
             ) {
-                item {
-                    Text(
-                        "LOCALIZACIÓN",
-                        color = if (colors.isDark) colors.accent else colors.accentInk,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.8.sp,
-                        modifier = Modifier.padding(top = 6.dp),
-                    )
-                    Text(
-                        "¿Dónde comes hoy?",
-                        color = colors.ink,
-                        fontSize = 34.sp,
-                        lineHeight = 38.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.6).sp,
-                        modifier = Modifier.padding(top = 6.dp, bottom = 6.dp),
-                    )
-                    Text(
-                        if (state.selected != null) {
-                            "Cambia cuando quieras o entra con el QR de tu mesa."
-                        } else {
-                            "Elige tu cafetería para mostrarte el menú correcto y los tiempos exactos de barra."
-                        },
-                        color = colors.muted,
-                        fontSize = 13.5.sp,
-                        lineHeight = 19.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
                 item {
                     EditorialSearchField(
                         value = state.query,
                         onValueChange = onQueryChange,
                         placeholder = "Buscar cafetería, facultad o campus…",
-                        modifier = Modifier.padding(top = 18.dp),
+                        modifier = Modifier.padding(top = 4.dp),
                     )
                 }
                 item {
@@ -371,87 +333,35 @@ fun DiscoveryScreen(
                         }
                     }
                 } else {
-                    val recommended = filteredEstablishments.first()
-                    val others = filteredEstablishments.filterNot { it.id == recommended.id }
-                    item {
-                        SectionHeading(
-                            label = if (state.nearbyOrigin != null) "MÁS CERCA DE TI" else "RECOMENDADA PARA TI",
-                            modifier = Modifier.padding(top = 20.dp),
+                    items(filteredEstablishments, key = { it.id }) { establishment ->
+                        VenueRow(
+                            establishment = establishment,
+                            active = activeId == establishment.id,
+                            onClick = { enterVenue(establishment) },
+                            modifier = Modifier.animateItem(),
                         )
-                    }
-                    item {
-                        RecommendedVenueCard(
-                            establishment = recommended,
-                            selected = selection?.id == recommended.id,
-                            active = activeId == recommended.id,
-                            onClick = {
-                                haptics.selection()
-                                pendingSelection = recommended
-                                dockPulseCount++
-                            },
-                        )
-                    }
-                    if (others.isNotEmpty()) {
-                        item {
-                            SectionHeading(
-                                label = "OTRAS SEDES DISPONIBLES",
-                                trailing = "${others.size} activas",
-                                modifier = Modifier.padding(top = 20.dp, bottom = 2.dp),
-                            )
-                        }
-                        items(others, key = { it.id }) { establishment ->
-                            VenueSelectRow(
-                                establishment = establishment,
-                                selected = selection?.id == establishment.id,
-                                active = activeId == establishment.id,
-                                onClick = {
-                                    haptics.selection()
-                                    pendingSelection = establishment
-                                    dockPulseCount++
-                                },
-                            )
-                        }
                     }
                 }
-                if (selectionVideos.isNotEmpty()) {
+                if (activeVideos.isNotEmpty()) {
                     item {
                         LocalVideosSection(
-                            videos = selectionVideos,
+                            videos = activeVideos,
                             modifier = Modifier.padding(top = 20.dp),
                         )
                     }
                 }
                 item {
-                    QuickAccessCard(
+                    QuickAccessRow(
                         onOpenQrScanner = onOpenQrScanner,
                         onUseCode = {
                             haptics.click()
                             codeSheetOpen = true
                         },
-                        modifier = Modifier.padding(top = 22.dp),
+                        modifier = Modifier.padding(top = 24.dp),
                     )
                 }
             }
         }
-
-        VenueDock(
-            selection = selection,
-            isActive = selection != null && selection.id == activeId,
-            dockPulseCount = dockPulseCount,
-            onContinue = {
-                val target = selection ?: return@VenueDock
-                haptics.click()
-                if (target.id != activeId) {
-                    onSelectEstablishment(target)
-                } else {
-                    onContinueSelected()
-                }
-            },
-            modifier =
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .onSizeChanged { dockHeightPx = it.height },
-        )
 
         if (state.pendingSwitch != null) {
             Box(
@@ -590,7 +500,6 @@ enum class VenueFilter(
     val label: String,
 ) {
     ALL("Todas"),
-    OPEN("Abiertas ahora"),
     FREE("Acceso libre"),
     ID_REQUIRED("Con matrícula"),
 }
@@ -611,236 +520,45 @@ private fun FilterChipsBar(
             modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-                // Aire para la sombra del vidrio.
-                .padding(start = 2.dp, end = 2.dp, top = 6.dp, bottom = 10.dp),
+                .padding(start = 2.dp, end = 2.dp, top = 10.dp, bottom = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        VenueFilterChip(
+        ChoiceChip(
             label = if (nearbyLocating) "Ubicándote…" else "Cerca de mí",
             selected = nearbyActive,
             onClick = onToggleNearby,
-            leadingIcon = Icons.Outlined.NearMe,
         )
         VenueFilter.entries.forEach { filter ->
-            VenueFilterChip(
+            ChoiceChip(
                 label = filter.label,
                 selected = filter == selectedFilter,
                 onClick = {
                     haptics.selection()
                     onSelectFilter(filter)
                 },
-                showOpenDot = filter == VenueFilter.OPEN,
             )
         }
     }
 }
 
+/** Un lugar de la lista: toda la fila entra. Solo datos reales; sin tiempos ni distancias inventadas. */
 @Composable
-private fun VenueFilterChip(
-    label: String,
-    selected: Boolean,
+private fun VenueRow(
+    establishment: PublicEstablishment,
+    active: Boolean,
     onClick: () -> Unit,
-    leadingIcon: ImageVector? = null,
-    showOpenDot: Boolean = false,
-) {
-    val colors = LocalVaiinillaColors.current
-    SeaGlassButton(
-        tone = if (selected) SeaGlassTone.lima else SeaGlassTone.vainilla,
-        onClick = onClick,
-        modifier = Modifier.height(38.dp).semantics { this.selected = selected },
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 15.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            if (showOpenDot) {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(6.dp)
-                            .clip(CircleShape)
-                            .background(colors.accent),
-                )
-            }
-            leadingIcon?.let {
-                Icon(it, contentDescription = null, modifier = Modifier.size(14.dp))
-            }
-            Text(label, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-@Composable
-private fun CheckDot(
-    selected: Boolean,
-    size: androidx.compose.ui.unit.Dp = 26.dp,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
-    Box(
+    val access =
+        if (establishment.clientIdRequired) "${establishment.clientIdLabel} requerida" else "Acceso libre"
+    Row(
         modifier =
             modifier
-                .size(size)
-                .clip(CircleShape)
-                .background(if (selected) colors.accent else Color.Transparent)
-                .border(
-                    1.6.dp,
-                    if (selected) colors.accent else colors.line,
-                    CircleShape,
-                ),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (selected) {
-            Icon(
-                Icons.Rounded.Check,
-                contentDescription = null,
-                tint = colors.accentInk,
-                modifier = Modifier.size(size * 0.55f),
-            )
-        }
-    }
-}
-
-@Composable
-private fun RecommendedVenueCard(
-    establishment: PublicEstablishment,
-    selected: Boolean,
-    active: Boolean,
-    onClick: () -> Unit,
-) {
-    val colors = LocalVaiinillaColors.current
-    val meta =
-        if (establishment.clientIdRequired) {
-            "${establishment.clientIdLabel} requerida"
-        } else {
-            "Acceso libre"
-        }
-    Row(
-        modifier =
-            Modifier
                 .fillMaxWidth()
-                .padding(top = 8.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(if (selected) (if (colors.isDark) colors.paper2 else Color.White) else colors.paper2)
-                .border(
-                    width = if (selected) 2.dp else 1.dp,
-                    color = if (selected) colors.ink else colors.line,
-                    shape = RoundedCornerShape(20.dp),
-                ).physicalPress(onClick = onClick)
-                .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(15.dp))
-                    .background(colors.paper),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.Outlined.Storefront,
-                contentDescription = null,
-                tint = colors.ink2,
-                modifier = Modifier.size(24.dp),
-            )
-        }
-        Column(
-            modifier = Modifier.padding(start = 13.dp).weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    establishment.name,
-                    color = colors.ink,
-                    fontSize = 16.5.sp,
-                    lineHeight = 21.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                if (active) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .padding(start = 7.dp)
-                                .size(7.dp)
-                                .clip(CircleShape)
-                                .background(colors.accent),
-                    )
-                }
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    meta,
-                    color = colors.ink2,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier =
-                        Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(colors.paper)
-                            .padding(horizontal = 7.dp, vertical = 3.dp),
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                ) {
-                    Text("🚶", fontSize = 11.sp)
-                    Text(
-                        "3 min",
-                        color = colors.muted,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                }
-            }
-            Text(
-                "Menú del día · Terraza disponible",
-                color = colors.muted,
-                fontSize = 11.sp,
-            )
-        }
-        CheckDot(
-            selected = selected,
-            size = 26.dp,
-            modifier = Modifier.padding(start = 10.dp),
-        )
-    }
-}
-
-@Composable
-private fun VenueSelectRow(
-    establishment: PublicEstablishment,
-    selected: Boolean,
-    active: Boolean,
-    onClick: () -> Unit,
-) {
-    val colors = LocalVaiinillaColors.current
-    val meta =
-        if (establishment.clientIdRequired) {
-            "${establishment.clientIdLabel} requerida"
-        } else {
-            "Acceso libre"
-        }
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(if (selected) (if (colors.isDark) colors.paper2 else Color.White) else colors.paper2)
-                .border(
-                    width = if (selected) 2.dp else 1.dp,
-                    color = if (selected) colors.ink else colors.line,
-                    shape = RoundedCornerShape(20.dp),
-                ).physicalPress(onClick = onClick)
-                .padding(14.dp),
+                .heightIn(min = 72.dp)
+                .physicalPress(scale = PhysicalPressScale.ProductCard, onClick = onClick)
+                .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -848,444 +566,102 @@ private fun VenueSelectRow(
                 Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(colors.paper),
+                    .background(colors.paper2),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                Icons.Outlined.Storefront,
-                contentDescription = null,
-                tint = colors.ink2,
-                modifier = Modifier.size(22.dp),
+            Text(
+                establishment.name.take(1).uppercase(),
+                color = colors.muted,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Black,
             )
         }
-        Column(
-            modifier = Modifier.padding(start = 13.dp).weight(1f),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    establishment.name,
-                    color = colors.ink,
-                    fontSize = 15.5.sp,
-                    lineHeight = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                if (active) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .padding(start = 7.dp)
-                                .size(7.dp)
-                                .clip(CircleShape)
-                                .background(colors.accent),
-                    )
-                }
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    meta,
-                    color = colors.ink2,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier =
-                        Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(colors.paper)
-                            .padding(horizontal = 7.dp, vertical = 2.5.dp),
-                )
-                Text(
-                    "Campus",
-                    color = colors.muted,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
+        Column(modifier = Modifier.padding(horizontal = 14.dp).weight(1f)) {
+            Text(
+                establishment.name,
+                color = colors.ink,
+                fontSize = 17.sp,
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                if (active) "Aquí estás · $access" else access,
+                color = colors.muted,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                modifier = Modifier.padding(top = 2.dp),
+            )
         }
-        CheckDot(
-            selected = selected,
-            size = 26.dp,
-            modifier = Modifier.padding(start = 10.dp),
+        Icon(
+            Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+            contentDescription = null,
+            tint = colors.muted,
         )
     }
 }
 
+/** Con un solo lugar disponible (sin buscar y sin lugar activo) no hay nada que elegir. */
+internal fun onlyVenueToAutoOpen(
+    establishments: List<PublicEstablishment>,
+    query: String,
+    loading: Boolean,
+    hasActiveVenue: Boolean,
+): PublicEstablishment? = establishments.singleOrNull()?.takeIf { !loading && query.isBlank() && !hasActiveVenue }
+
+/** ¿Ya estás en la mesa? QR o código como acción secundaria, debajo de la lista. */
 @Composable
-private fun VenueDock(
-    selection: PublicEstablishment?,
-    isActive: Boolean,
-    dockPulseCount: Int = 0,
-    onContinue: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val night = seaGlassNight()
-    val colors = LocalVaiinillaColors.current
-    val density = LocalDensity.current
-    val scope = rememberCoroutineScope()
-    val haptics = rememberVaiinillaHaptics()
-    val reduceMotion = reducedMotion()
-    val enabled = selection != null
-    val knobSize = 56.dp
-    val trackPadding = 4.dp
-    val dragX = remember { Animatable(0f) }
-    var directDragX by remember { mutableFloatStateOf(0f) }
-    var isDragging by remember { mutableStateOf(false) }
-    var isDone by remember { mutableStateOf(false) }
-    var showTip by remember { mutableStateOf(false) }
-    var motionJob by remember { mutableStateOf<Job?>(null) }
-    var maxDragPx by remember { mutableStateOf(0f) }
-    var labelWidthPx by remember { mutableStateOf(0f) }
-    var trackHeightPx by remember { mutableStateOf(0f) }
-
-    // Pulse animation on venue card selection (1.02x scale for 150ms)
-    val dockScale = remember { Animatable(1f) }
-    LaunchedEffect(dockPulseCount) {
-        if (dockPulseCount > 0) {
-            dockScale.animateTo(1.02f, tween(80, easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)))
-            dockScale.animateTo(1f, tween(120, easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)))
-        }
-    }
-
-    LaunchedEffect(showTip) {
-        if (showTip) {
-            delay(1600)
-            showTip = false
-        }
-    }
-
-    // Knob "nudge" cada ~3.4s mientras está armado — enseña el gesto.
-    val idleMotion = rememberInfiniteTransition(label = "dock-idle")
-    val nudge by idleMotion.animateFloat(
-        initialValue = 0f,
-        targetValue = 0f,
-        animationSpec =
-            infiniteRepeatable(
-                animation =
-                    keyframes {
-                        durationMillis = 3400
-                        0f at 0
-                        0f at 2448
-                        8f at 2720
-                        6f at 3060
-                        0f at 3400
-                    },
-                repeatMode = RepeatMode.Restart,
-            ),
-        label = "dock-nudge",
-    )
-
-    // Anillo expansivo al confirmar.
-    val ringProgress = remember { Animatable(0f) }
-    LaunchedEffect(isDone) {
-        if (isDone) {
-            ringProgress.snapTo(0f)
-            ringProgress.animateTo(1f, tween(800, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)))
-        }
-    }
-
-    fun settleKnob(
-        target: Float,
-        onArrive: (() -> Unit)? = null,
-    ) {
-        motionJob?.cancel()
-        motionJob =
-            scope.launch {
-                dragX.snapTo(target)
-                isDragging = false
-                if (target >= maxDragPx * 0.70f) {
-                    haptics.click()
-                    dragX.animateTo(
-                        maxDragPx,
-                        spring(stiffness = Spring.StiffnessMedium),
-                    )
-                    isDone = true
-                    delay(if (reduceMotion) 120 else 550)
-                    onContinue()
-                    isDone = false
-                    dragX.snapTo(0f)
-                } else {
-                    dragX.animateTo(
-                        0f,
-                        spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                    )
-                }
-            }
-    }
-
-    Box(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        0f to colors.paper.copy(alpha = 0f),
-                        0.3f to colors.paper.copy(alpha = 0.95f),
-                        1f to colors.paper,
-                    ),
-                ).padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 12.dp)
-                .navigationBarsPadding(),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            if (showTip) {
-                Row(
-                    modifier =
-                        Modifier
-                            .padding(bottom = 8.dp)
-                            .clip(RoundedCornerShape(99.dp))
-                            .background(colors.ink)
-                            .padding(horizontal = 13.dp, vertical = 7.dp),
-                ) {
-                    Text(
-                        "Desliza → no toques",
-                        color = colors.accent2,
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(64.dp)
-                        .graphicsLayer {
-                            scaleX = dockScale.value
-                            scaleY = dockScale.value
-                        }.seaGlass(SeaGlassTone.vainilla, RoundedCornerShape(percent = 50), night)
-                        .onSizeChanged { newSize ->
-                            trackHeightPx = newSize.height.toFloat()
-                            maxDragPx =
-                                (
-                                    newSize.width -
-                                        with(density) { (knobSize + trackPadding * 2).toPx() }
-                                ).coerceAtLeast(0f)
-                        }.semantics { contentDescription = "Desliza para entrar" }
-                        .pointerInput(maxDragPx, enabled) {
-                            detectTapGestures {
-                                if (!isDone) showTip = true
-                            }
-                        }.then(
-                            if (enabled && !isDone) {
-                                Modifier.pointerInput(maxDragPx) {
-                                    detectHorizontalDragGestures(
-                                        onDragStart = {
-                                            motionJob?.cancel()
-                                            showTip = false
-                                            directDragX = dragX.value.coerceIn(0f, maxDragPx)
-                                            isDragging = true
-                                        },
-                                        onDragEnd = {
-                                            val releaseX = directDragX.coerceIn(0f, maxDragPx)
-                                            settleKnob(releaseX)
-                                        },
-                                        onDragCancel = {
-                                            val releaseX = directDragX.coerceIn(0f, maxDragPx)
-                                            settleKnob(0f)
-                                        },
-                                    ) { change, dragAmount ->
-                                        change.consume()
-                                        directDragX =
-                                            (directDragX + dragAmount)
-                                                .coerceIn(0f, maxDragPx)
-                                    }
-                                }
-                            } else {
-                                Modifier
-                            },
-                        ),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                val knobPx = with(density) { knobSize.toPx() }
-                val padPx = with(density) { trackPadding.toPx() }
-                val knobPress =
-                    animateFloatAsState(
-                        targetValue = if (isDragging) 1f else 0f,
-                        animationSpec = if (reduceMotion) snap() else spring(dampingRatio = 0.44f, stiffness = 420f),
-                        label = "knobPress",
-                    )
-                val knobInk = seaGlassInk(SeaGlassTone.lima)
-                val nudgePx = with(density) { nudge.dp.toPx() }
-                val baseX = if (isDragging) directDragX else dragX.value
-                val canNudge = enabled && !isDragging && !isDone && !reduceMotion
-                val knobX = baseX + if (canNudge) nudgePx else 0f
-                val progress = (baseX / maxDragPx.coerceAtLeast(1f)).coerceIn(0f, 1f)
-
-                // Vidrio lima del borde del carril hasta debajo de la perilla. Sin el empujoncito de
-                // espera: la perilla tapa la punta y el vidrio no se vuelve a pintar en cada cuadro.
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxHeight()
-                            .width(with(density) { (baseX + knobPx + padPx * 2).toDp() })
-                            .seaGlass(
-                                if (enabled) SeaGlassTone.lima.picked else SeaGlassTone.vainilla,
-                                RoundedCornerShape(percent = 50),
-                                night,
-                                grounded = false,
-                            ),
-                )
-
-                // Dynamic label matching prototype (two-line centered)
-                val eyebrow =
-                    when {
-                        selection == null -> "ELIGE UNA CAFETERÍA"
-                        isDone -> "CAFETERÍA ACTIVA"
-                        progress >= 0.70f -> "SUELTA PARA ENTRAR"
-                        else -> "DESLIZA PARA ENTRAR"
-                    }
-
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(start = 54.dp, end = 24.dp)
-                            .alpha(
-                                if (isDone) {
-                                    1f
-                                } else {
-                                    (1f - (progress / 0.8f)).coerceIn(0f, 1f)
-                                },
-                            ),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Text(
-                        eyebrow,
-                        color = colors.muted,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.2.sp,
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(top = 1.dp),
-                    ) {
-                        Text(
-                            (selection?.name ?: "—").uppercase(),
-                            color = colors.ink,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 0.5.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            "›››",
-                            color = colors.muted,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = (-1).sp,
-                        )
-                    }
-                }
-
-                // Anillo expansivo al confirmar.
-                if (isDone) {
-                    val ringScale = 0.9f + ringProgress.value * 1.5f
-                    Box(
-                        modifier =
-                            Modifier
-                                .offset { IntOffset(padPx.roundToInt(), 0) }
-                                .size(knobSize)
-                                .graphicsLayer {
-                                    scaleX = ringScale
-                                    scaleY = ringScale
-                                    alpha = (0.9f * (1f - ringProgress.value))
-                                }.border(
-                                    2.5.dp,
-                                    colors.accent,
-                                    CircleShape,
-                                ),
-                    )
-                }
-
-                // Perilla de vidrio lima que se hunde mientras se arrastra.
-                Box(
-                    modifier =
-                        Modifier
-                            .offset { IntOffset((knobX + padPx).roundToInt(), 0) }
-                            .size(knobSize)
-                            .graphicsLayer {
-                                val scale = 1f - 0.04f * knobPress.value
-                                scaleX = scale
-                                scaleY = scale
-                            }.seaGlass(SeaGlassTone.lima, CircleShape, night, pressed = knobPress),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        if (isDone) Icons.Rounded.Check else Icons.AutoMirrored.Rounded.ArrowForward,
-                        contentDescription = null,
-                        tint = knobInk,
-                        modifier = Modifier.size(if (isDone) 24.dp else 22.dp),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuickAccessCard(
+private fun QuickAccessRow(
     onOpenQrScanner: () -> Unit,
     onUseCode: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
-    Column(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(22.dp))
-                .background(colors.paper2)
-                .padding(16.dp),
-    ) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            "¿Ya estás en tu mesa?",
+            color = colors.muted,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Icon(
-                Icons.Outlined.Bolt,
-                contentDescription = null,
-                tint = colors.accent,
-                modifier = Modifier.size(16.dp),
-            )
-            Text(
-                "ACCESO RÁPIDO EN MESA",
-                color = colors.muted,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 1.3.sp,
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            DiscoveryActionTile(
-                icon = Icons.Outlined.QrCodeScanner,
-                title = "Escanear QR",
-                tone = SeaGlassTone.lima,
-                modifier = Modifier.weight(1f),
-                onClick = onOpenQrScanner,
-            )
-            DiscoveryActionTile(
-                icon = Icons.Outlined.Tag,
-                title = "Usar código",
-                tone = SeaGlassTone.cielo,
-                modifier = Modifier.weight(1f),
-                onClick = onUseCode,
-            )
+            QuickAccessButton(Icons.Outlined.QrCodeScanner, "Escanear QR", Modifier.weight(1f), onOpenQrScanner)
+            QuickAccessButton(Icons.Outlined.Tag, "Usar código", Modifier.weight(1f), onUseCode)
         }
+    }
+}
+
+@Composable
+private fun QuickAccessButton(
+    icon: ImageVector,
+    label: String,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Row(
+        modifier =
+            modifier
+                .heightIn(min = 52.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .border(1.dp, colors.line, RoundedCornerShape(16.dp))
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Icon(icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(20.dp))
+        Text(
+            label,
+            color = colors.ink,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 8.dp),
+        )
     }
 }
 

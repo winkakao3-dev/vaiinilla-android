@@ -61,7 +61,7 @@ class DiscoveryCompactLayoutTest {
         )
 
     @Test
-    fun `discovery shows recommended card and every other venue`() {
+    fun `discovery lists every venue as a row and keeps QR and code reachable`() {
         composeTestRule.setContent {
             ScreenshotTheme {
                 DiscoveryScreen(
@@ -83,15 +83,14 @@ class DiscoveryCompactLayoutTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("¿Dónde comes hoy?").assertIsDisplayed()
-        composeTestRule.onNodeWithText("RECOMENDADA PARA TI").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Dónde pedir").assertIsDisplayed()
         composeTestRule.onAllNodesWithText("saulP1").assertCountEquals(1)
-        composeTestRule.onAllNodesWithText("OTRAS SEDES DISPONIBLES").assertCountEquals(1)
+        composeTestRule.onNodeWithText("Aquí estás · Acceso libre").assertIsDisplayed()
         composeTestRule.onAllNodesWithText("America").assertCountEquals(1)
         composeTestRule.onAllNodesWithText("Cafetería Sur").assertCountEquals(1)
         composeTestRule.onAllNodesWithText("Escanear QR").assertCountEquals(1)
         composeTestRule.onAllNodesWithText("Usar código").assertCountEquals(1)
-        composeTestRule.onNodeWithText("DESLIZA PARA ENTRAR").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Abiertas ahora").assertCountEquals(0)
     }
 
     @Test
@@ -122,7 +121,7 @@ class DiscoveryCompactLayoutTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onAllNodesWithText("ACCESO RÁPIDO EN MESA").assertCountEquals(1)
+        composeTestRule.onAllNodesWithText("¿Ya estás en tu mesa?").assertCountEquals(1)
         composeTestRule.onAllNodesWithText("Escanear QR").assertCountEquals(1)
         composeTestRule.onAllNodesWithText("Usar código").assertCountEquals(1)
     }
