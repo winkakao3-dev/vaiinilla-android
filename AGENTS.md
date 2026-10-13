@@ -18,17 +18,12 @@
 
 ## Performance en esta Mac (8 GB RAM — crítico)
 
-`gradle.properties` pide `-Xmx3072m` para el daemon + `-Xmx2048m` para el Kotlin
-daemon: en esta Mac de 8 GB eso provoca memory pressure y los compiles se van a
-20+ min. Pasar heaps menores por línea de comando hace el build ~40x más rápido
-(32 s por flavor):
-
-```bash
-./gradlew <tasks> \
-  -Dorg.gradle.jvmargs="-Xmx2048m -XX:+UseG1GC" \
-  -Dkotlin.daemon.jvmargs="-Xmx1408m" \
-  --console=plain
-```
+`gradle.properties` pide 3 GB para Gradle y 2 GB para Kotlin, pensados para el CI.
+En una Mac de 8 GB pon los límites en `~/.gradle/gradle.properties`, que gana sobre
+el del repo (Gradle 2 GB, Kotlin 1 GB, `org.gradle.workers.max=2`, sin paralelo), y
+compila con `vbuild`. **No pases `-Dorg.gradle.jvmargs` ni `kotlin.daemon.jvmargs`
+por línea de comandos**: un valor distinto al del daemon vivo levanta un segundo
+daemon. Gradle con 1.5 GB truena al unir el dex del APK.
 
 Notas:
 
