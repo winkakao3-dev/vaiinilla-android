@@ -592,6 +592,73 @@ fun StudentTrackingScreen(
 
 private const val ORDERS_SCENE_WINDOW = 0.4f
 
+/** Mis pedidos mientras la cuenta todavía no está lista en este lugar: carga, error o entrar, nunca en blanco. */
+@Composable
+fun OrdersAccessGate(
+    loading: Boolean,
+    errorMessage: String?,
+    onRetry: () -> Unit,
+    onSignIn: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    val gate =
+        when {
+            loading -> OrdersGate.Loading
+            errorMessage != null -> OrdersGate.Error
+            else -> OrdersGate.SignIn
+        }
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(colors.paper)
+                .statusBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(top = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text("Mis pedidos", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 28.sp)
+        AnimatedContent(
+            targetState = gate,
+            transitionSpec = {
+                (
+                    fadeIn(
+                        spring(stiffness = 500f),
+                    ) + slideInVertically(spring(dampingRatio = 0.85f)) { it / 16 }
+                ) togetherWith
+                    fadeOut(spring(stiffness = 700f))
+            },
+            label = "orders-access-gate",
+        ) { current ->
+            when (current) {
+                OrdersGate.Loading ->
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        repeat(3) { OrderTrackingSkeleton() }
+                    }
+                OrdersGate.Error ->
+                    EmptyState(
+                        icon = Icons.Outlined.ReceiptLong,
+                        title = "No pudimos abrir tus pedidos",
+                        // El detalle técnico del error no le sirve a quien pide: se dice qué hacer.
+                        message = "Revisa tu conexión e inténtalo otra vez.",
+                        actionLabel = "Reintentar",
+                        onAction = onRetry,
+                    )
+                OrdersGate.SignIn ->
+                    EmptyState(
+                        icon = Icons.Outlined.ReceiptLong,
+                        title = "Entra para ver tus pedidos",
+                        message = "Tus pedidos de este lugar se guardan en tu cuenta.",
+                        actionLabel = "Entrar",
+                        onAction = onSignIn,
+                    )
+            }
+        }
+    }
+}
+
+private enum class OrdersGate { Loading, Error, SignIn }
+
 @Composable
 private fun OrderTrackingSkeleton() {
     val colors = LocalVaiinillaColors.current

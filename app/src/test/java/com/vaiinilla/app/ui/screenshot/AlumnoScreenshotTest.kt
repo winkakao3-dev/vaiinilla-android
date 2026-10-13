@@ -122,9 +122,6 @@ class AlumnoScreenshotTest {
                 ScreenshotWithStudentNav(activeTab = StudentTab.WALLET, cartCount = 0) {
                     WalletScreen(
                         onMenu = {},
-                        onAssistant = {},
-                        onOrders = {},
-                        onCart = {},
                     )
                 }
             }

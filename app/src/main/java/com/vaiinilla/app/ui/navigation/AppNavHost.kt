@@ -76,6 +76,7 @@ import com.vaiinilla.app.ui.screens.DiscoveryScreen
 import com.vaiinilla.app.ui.screens.InvitationAcceptanceScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
+import com.vaiinilla.app.ui.screens.OrdersAccessGate
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
 import com.vaiinilla.app.ui.screens.SharedTableCard
 import com.vaiinilla.app.ui.screens.StudentAuthLandingScreen
@@ -922,9 +923,6 @@ fun AppNavHost(
                             ?: studentAuthState.session?.uid,
                     onRetry = walletViewModel::refresh,
                     onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                    onAssistant = {},
-                    onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                    onCart = { navController.navigateStudent(Routes.CART) },
                 )
             }
 
@@ -1505,6 +1503,18 @@ fun AppNavHost(
                                 onLeave = sharedTableViewModel::leave,
                             )
                         },
+                    )
+                } else {
+                    OrdersAccessGate(
+                        loading = studentAuthState.loading,
+                        errorMessage = studentAuthState.errorMessage,
+                        onRetry = {
+                            studentAuthViewModel.ensureVenueContext(
+                                onReady = { operationalViewModel.setRole(OperationalRole.CLIENT) },
+                                onNeedsAuth = { navigateStudentAuth(Routes.STUDENT_TRACKING) },
+                            )
+                        },
+                        onSignIn = { navigateStudentAuth(Routes.STUDENT_TRACKING) },
                     )
                 }
             }
