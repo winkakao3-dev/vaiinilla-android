@@ -16,9 +16,11 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -50,21 +52,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.outlined.Bolt
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.NearMe
+import androidx.compose.material.icons.outlined.Nfc
 import androidx.compose.material.icons.outlined.QrCodeScanner
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -81,7 +81,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -90,10 +89,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
@@ -103,13 +101,22 @@ import androidx.core.content.ContextCompat
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicVideo
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
+import com.vaiinilla.app.ui.components.EditorialSearchField
+import com.vaiinilla.app.ui.components.EditorialSecondaryButton
+import com.vaiinilla.app.ui.components.GlassCircleButton
+import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.discovery.DiscoveryUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.SeaGlassButton
+import com.vaiinilla.app.ui.theme.SeaGlassTone
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
+import com.vaiinilla.app.ui.theme.seaGlass
+import com.vaiinilla.app.ui.theme.seaGlassInk
+import com.vaiinilla.app.ui.theme.seaGlassNight
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -205,37 +212,30 @@ fun DiscoveryScreen(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
-                        .padding(horizontal = 8.dp),
+                        .height(58.dp)
+                        .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (onBack != null) {
-                    IconButton(
+                    GlassCircleButton(
+                        icon = Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = "Volver",
                         onClick = {
                             haptics.click()
                             onBack()
                         },
-                    ) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
-                    }
+                    )
                 } else {
                     Spacer(Modifier.width(8.dp))
                 }
                 Spacer(Modifier.weight(1f))
-                Box(
-                    modifier =
-                        Modifier
-                            .size(42.dp)
-                            .clip(RoundedCornerShape(15.dp))
-                            .background(colors.ink)
-                            .clickable {
-                                haptics.click()
-                                onOpenAccount()
-                            },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(profileInitials, color = colors.onInk, fontWeight = FontWeight.Black)
-                }
+                ProfileInitialsButton(
+                    initials = profileInitials,
+                    onClick = {
+                        haptics.click()
+                        onOpenAccount()
+                    },
+                )
             }
 
             LazyColumn(
@@ -279,9 +279,10 @@ fun DiscoveryScreen(
                     )
                 }
                 item {
-                    DiscoverySearchField(
+                    EditorialSearchField(
                         value = state.query,
                         onValueChange = onQueryChange,
+                        placeholder = "Buscar cafetería, facultad o campus…",
                         modifier = Modifier.padding(top = 18.dp),
                     )
                 }
@@ -600,7 +601,9 @@ private fun FilterChipsBar(
         modifier =
             modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
+                .horizontalScroll(rememberScrollState())
+                // Aire para la sombra del vidrio.
+                .padding(start = 2.dp, end = 2.dp, top = 6.dp, bottom = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         VenueFilterChip(
@@ -632,41 +635,30 @@ private fun VenueFilterChip(
     showOpenDot: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
-    val tint = if (selected) colors.onInk else colors.ink
-    Row(
-        modifier =
-            Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .background(if (selected) colors.ink else colors.paper2)
-                .then(
-                    if (!selected) {
-                        Modifier.border(1.dp, colors.line, RoundedCornerShape(12.dp))
-                    } else {
-                        Modifier
-                    },
-                ).clickable(onClick = onClick)
-                .padding(horizontal = 13.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
+    SeaGlassButton(
+        tone = if (selected) SeaGlassTone.lima else SeaGlassTone.vainilla,
+        onClick = onClick,
+        modifier = Modifier.height(38.dp).semantics { this.selected = selected },
     ) {
-        if (showOpenDot) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(colors.accent),
-            )
+        Row(
+            modifier = Modifier.padding(horizontal = 15.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            if (showOpenDot) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(colors.accent),
+                )
+            }
+            leadingIcon?.let {
+                Icon(it, contentDescription = null, modifier = Modifier.size(14.dp))
+            }
+            Text(label, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         }
-        leadingIcon?.let {
-            Icon(it, contentDescription = null, tint = tint, modifier = Modifier.size(14.dp))
-        }
-        Text(
-            label,
-            color = tint,
-            fontSize = 12.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
-        )
     }
 }
 
@@ -922,6 +914,7 @@ private fun VenueDock(
     onContinue: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val night = seaGlassNight()
     val colors = LocalVaiinillaColors.current
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
@@ -1057,9 +1050,7 @@ private fun VenueDock(
                         .graphicsLayer {
                             scaleX = dockScale.value
                             scaleY = dockScale.value
-                        }.clip(RoundedCornerShape(32.dp))
-                        .background(colors.paper2)
-                        .border(1.dp, colors.line, RoundedCornerShape(32.dp))
+                        }.seaGlass(SeaGlassTone.vainilla, RoundedCornerShape(percent = 50), night)
                         .onSizeChanged { newSize ->
                             trackHeightPx = newSize.height.toFloat()
                             maxDragPx =
@@ -1105,30 +1096,31 @@ private fun VenueDock(
             ) {
                 val knobPx = with(density) { knobSize.toPx() }
                 val padPx = with(density) { trackPadding.toPx() }
+                val knobPress =
+                    animateFloatAsState(
+                        targetValue = if (isDragging) 1f else 0f,
+                        animationSpec = if (reduceMotion) snap() else spring(dampingRatio = 0.44f, stiffness = 420f),
+                        label = "knobPress",
+                    )
+                val knobInk = seaGlassInk(SeaGlassTone.lima)
                 val nudgePx = with(density) { nudge.dp.toPx() }
                 val baseX = if (isDragging) directDragX else dragX.value
                 val canNudge = enabled && !isDragging && !isDone && !reduceMotion
                 val knobX = baseX + if (canNudge) nudgePx else 0f
                 val progress = (baseX / maxDragPx.coerceAtLeast(1f)).coerceIn(0f, 1f)
 
-                // Relleno lima que crece bajo el knob (empieza en 64dp)
+                // Vidrio lima del borde del carril hasta debajo de la perilla. Sin el empujoncito de
+                // espera: la perilla tapa la punta y el vidrio no se vuelve a pintar en cada cuadro.
                 Box(
                     modifier =
                         Modifier
                             .fillMaxHeight()
-                            .width(
-                                with(density) {
-                                    (knobX + knobPx + padPx * 2).toDp()
-                                },
-                            ).clip(RoundedCornerShape(32.dp))
-                            .background(
-                                if (enabled) {
-                                    Brush.horizontalGradient(
-                                        listOf(colors.accent2, colors.accent),
-                                    )
-                                } else {
-                                    SolidColor(colors.line)
-                                },
+                            .width(with(density) { (baseX + knobPx + padPx * 2).toDp() })
+                            .seaGlass(
+                                if (enabled) SeaGlassTone.lima.picked else SeaGlassTone.vainilla,
+                                RoundedCornerShape(percent = 50),
+                                night,
+                                grounded = false,
                             ),
                 )
 
@@ -1208,29 +1200,25 @@ private fun VenueDock(
                     )
                 }
 
-                // Flecha sobre el fill lima (sin bola propia enfrente, perfectamente centrada).
+                // Perilla de vidrio lima que se hunde mientras se arrastra.
                 Box(
                     modifier =
                         Modifier
                             .offset { IntOffset((knobX + padPx).roundToInt(), 0) }
-                            .size(knobSize),
+                            .size(knobSize)
+                            .graphicsLayer {
+                                val scale = 1f - 0.04f * knobPress.value
+                                scaleX = scale
+                                scaleY = scale
+                            }.seaGlass(SeaGlassTone.lima, CircleShape, night, pressed = knobPress),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (isDone) {
-                        Icon(
-                            Icons.Rounded.Check,
-                            contentDescription = null,
-                            tint = colors.ink,
-                            modifier = Modifier.size(24.dp),
-                        )
-                    } else {
-                        Icon(
-                            Icons.AutoMirrored.Rounded.ArrowForward,
-                            contentDescription = null,
-                            tint = colors.ink,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
+                    Icon(
+                        if (isDone) Icons.Rounded.Check else Icons.AutoMirrored.Rounded.ArrowForward,
+                        contentDescription = null,
+                        tint = knobInk,
+                        modifier = Modifier.size(if (isDone) 24.dp else 22.dp),
+                    )
                 }
             }
         }
@@ -1274,64 +1262,20 @@ private fun QuickAccessCard(
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Box(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(colors.paper)
-                        .border(1.dp, colors.line, RoundedCornerShape(14.dp))
-                        .physicalPress(onClick = onOpenQrScanner),
-                contentAlignment = Alignment.Center,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Icon(
-                        Icons.Outlined.QrCodeScanner,
-                        contentDescription = null,
-                        tint = colors.ink,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Text(
-                        "Escanear QR",
-                        color = colors.ink,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
-            Box(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(colors.paper)
-                        .border(1.dp, colors.line, RoundedCornerShape(14.dp))
-                        .physicalPress(onClick = onUseCode),
-                contentAlignment = Alignment.Center,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Icon(
-                        Icons.Outlined.Tag,
-                        contentDescription = null,
-                        tint = colors.ink,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Text(
-                        "Usar código",
-                        color = colors.ink,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
+            DiscoveryActionTile(
+                icon = Icons.Outlined.QrCodeScanner,
+                title = "Escanear QR",
+                tone = SeaGlassTone.lima,
+                modifier = Modifier.weight(1f),
+                onClick = onOpenQrScanner,
+            )
+            DiscoveryActionTile(
+                icon = Icons.Outlined.Tag,
+                title = "Usar código",
+                tone = SeaGlassTone.cielo,
+                modifier = Modifier.weight(1f),
+                onClick = onUseCode,
+            )
         }
     }
 }
@@ -1381,31 +1325,35 @@ private fun VenueEmptyState(
             modifier = Modifier.padding(top = 6.dp),
         )
         if (!entry) {
-            Box(
-                modifier =
-                    Modifier
-                        .padding(top = 14.dp)
-                        .fillMaxWidth()
-                        .height(46.dp)
-                        .clip(RoundedCornerShape(15.dp))
-                        .background(colors.paper)
-                        .border(1.dp, colors.line, RoundedCornerShape(15.dp))
-                        .physicalPress(onClick = onClearQuery),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("Limpiar búsqueda", color = colors.ink, fontSize = 13.sp, fontWeight = FontWeight.Black)
-            }
+            EditorialSecondaryButton(
+                text = "Limpiar búsqueda",
+                onClick = onClearQuery,
+                modifier = Modifier.padding(top = 14.dp),
+            )
         }
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            EntryOption("Escanear QR", main = true, modifier = Modifier.weight(1f), onClick = onOpenQrScanner)
-            EntryOption("Escribir código", main = false, modifier = Modifier.weight(1f), onClick = onOpenCode)
+            DiscoveryActionTile(
+                icon = Icons.Outlined.QrCodeScanner,
+                title = "Escanear QR",
+                tone = SeaGlassTone.lima,
+                modifier = Modifier.weight(1f),
+                onClick = onOpenQrScanner,
+            )
+            DiscoveryActionTile(
+                icon = Icons.Outlined.Tag,
+                title = "Usar código",
+                tone = SeaGlassTone.cielo,
+                modifier = Modifier.weight(1f),
+                onClick = onOpenCode,
+            )
             if (nfcSupported) {
-                EntryOption(
-                    "Acercar NFC",
-                    main = false,
+                DiscoveryActionTile(
+                    icon = Icons.Outlined.Nfc,
+                    title = "NFC",
+                    tone = SeaGlassTone.lavanda,
                     modifier = Modifier.weight(1f),
                     onClick = { nfcHint = !nfcHint },
                 )
@@ -1424,33 +1372,29 @@ private fun VenueEmptyState(
     }
 }
 
+/** Acceso de entrada en vidrio, como `actionButton` de GuestDiscoveryView en iOS. */
 @Composable
-private fun EntryOption(
-    label: String,
-    main: Boolean,
+private fun DiscoveryActionTile(
+    icon: ImageVector,
+    title: String,
+    tone: SeaGlassTone,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    val colors = LocalVaiinillaColors.current
-    Box(
-        modifier =
-            modifier
-                .height(52.dp)
-                .clip(RoundedCornerShape(15.dp))
-                .background(if (main) colors.accent else colors.paper)
-                .border(1.dp, if (main) colors.accent else colors.line, RoundedCornerShape(15.dp))
-                .physicalPress(onClick = onClick)
-                .padding(horizontal = 6.dp),
-        contentAlignment = Alignment.Center,
+    SeaGlassButton(
+        tone = tone,
+        onClick = onClick,
+        modifier = modifier.height(66.dp),
+        shape = RoundedCornerShape(20.dp),
     ) {
-        Text(
-            label,
-            color = if (main) colors.accentInk else colors.ink,
-            fontSize = 12.5.sp,
-            lineHeight = 15.sp,
-            fontWeight = FontWeight.Black,
-            textAlign = TextAlign.Center,
-        )
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp))
+            Text(title, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        }
     }
 }
 
@@ -1477,79 +1421,21 @@ private fun VenueNoticeCard(
     )
 }
 
+/** Tecla del código de mesa en vidrio, como `keypadButton` en iOS. */
 @Composable
-private fun DiscoverySearchField(
-    value: String,
-    onValueChange: (String) -> Unit,
+private fun KeypadKey(
+    label: String,
+    tone: SeaGlassTone,
     modifier: Modifier = Modifier,
+    onClick: () -> Unit,
 ) {
-    val colors = LocalVaiinillaColors.current
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .height(60.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(colors.paper2)
-                .border(1.dp, colors.line, RoundedCornerShape(20.dp))
-                .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    SeaGlassButton(
+        tone = tone,
+        onClick = onClick,
+        modifier = modifier.height(46.dp),
+        shape = RoundedCornerShape(14.dp),
     ) {
-        Icon(
-            Icons.Outlined.Search,
-            contentDescription = null,
-            tint = colors.ink2,
-            modifier = Modifier.size(21.dp),
-        )
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier =
-                Modifier
-                    .padding(start = 11.dp)
-                    .weight(1f)
-                    .semantics { contentDescription = "Buscar cafetería, facultad o campus" },
-            singleLine = true,
-            textStyle =
-                TextStyle(
-                    color = colors.ink,
-                    fontSize = 15.sp,
-                    lineHeight = 19.sp,
-                    fontWeight = FontWeight.Bold,
-                ),
-            cursorBrush = SolidColor(colors.ink),
-            decorationBox = { input ->
-                Box {
-                    if (value.isBlank()) {
-                        Text(
-                            "Buscar cafetería, facultad o campus…",
-                            color = colors.muted,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                    input()
-                }
-            },
-        )
-        if (value.isNotBlank()) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(11.dp))
-                        .background(colors.paper)
-                        .clickable { onValueChange("") },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Outlined.Close,
-                    contentDescription = "Limpiar búsqueda",
-                    tint = colors.ink,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-        }
+        Text(label, fontSize = if (label.length > 1) 13.sp else 20.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -1748,7 +1634,7 @@ private fun SpaceCodeSheet(
             // Keypad 3x4
             Column(
                 modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 listOf(
                     listOf("1", "2", "3"),
@@ -1760,25 +1646,9 @@ private fun SpaceCodeSheet(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         rowKeys.forEach { digit ->
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .weight(1f)
-                                        .height(46.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(colors.paper2)
-                                        .physicalPress {
-                                            haptics.click()
-                                            if (token.length < 8) onTokenChange(token + digit)
-                                        },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    digit,
-                                    color = colors.ink,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                )
+                            KeypadKey(digit, SeaGlassTone.vainilla, Modifier.weight(1f)) {
+                                haptics.click()
+                                if (token.length < 8) onTokenChange(token + digit)
                             }
                         }
                     }
@@ -1787,98 +1657,41 @@ private fun SpaceCodeSheet(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    // Borrar / Clear
-                    Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(colors.paper2)
-                                .physicalPress {
-                                    haptics.click()
-                                    if (token.isNotEmpty()) onTokenChange(token.dropLast(1))
-                                },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            "BORRAR",
-                            color = colors.muted,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
+                    KeypadKey("BORRAR", SeaGlassTone.horchata, Modifier.weight(1f)) {
+                        haptics.click()
+                        if (token.isNotEmpty()) onTokenChange(token.dropLast(1))
                     }
-                    // "0"
-                    Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(colors.paper2)
-                                .physicalPress {
-                                    haptics.click()
-                                    if (token.length < 8) onTokenChange(token + "0")
-                                },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            "0",
-                            color = colors.ink,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
+                    KeypadKey("0", SeaGlassTone.vainilla, Modifier.weight(1f)) {
+                        haptics.click()
+                        if (token.length < 8) onTokenChange(token + "0")
                     }
-                    // OK / Listo
-                    Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(colors.accent)
-                                .physicalPress(enabled = canResolve) {
-                                    haptics.click()
-                                    if (canResolve) onResolve()
-                                },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            "LISTO",
-                            color = colors.accentInk,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
+                    KeypadKey("LISTO", SeaGlassTone.lima, Modifier.weight(1f)) {
+                        haptics.click()
+                        if (canResolve) onResolve()
                     }
                 }
             }
 
             // Confirmar y sentarme
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp)
-                        .height(50.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(if (canResolve) colors.ink else colors.ink.copy(alpha = 0.4f))
-                        .physicalPress(enabled = canResolve, onClick = onResolve),
-                contentAlignment = Alignment.Center,
+            SeaGlassButton(
+                tone = SeaGlassTone.lima,
+                onClick = onResolve,
+                modifier = Modifier.fillMaxWidth().padding(top = 14.dp).height(52.dp),
+                enabled = canResolve,
             ) {
                 if (resolving) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(18.dp),
                         strokeWidth = 2.dp,
-                        color = colors.onInk,
+                        color = LocalContentColor.current,
                     )
-                } else {
-                    Text(
-                        "Confirmar y sentarme",
-                        color = colors.onInk,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
+                    Spacer(Modifier.width(8.dp))
                 }
+                Text(
+                    if (resolving) "Validando…" else "Confirmar y sentarme",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                )
             }
 
             Box(
