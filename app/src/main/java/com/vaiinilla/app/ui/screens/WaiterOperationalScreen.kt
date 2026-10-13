@@ -101,6 +101,7 @@ import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.TableState
 import com.vaiinilla.app.domain.repository.sortWaiterTables
 import com.vaiinilla.app.domain.repository.tableState
+import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.NumberTicker
 import com.vaiinilla.app.ui.components.OperationalAssistantHost
 import com.vaiinilla.app.ui.components.OperationalAssistantPalette
@@ -453,18 +454,11 @@ fun WaiterOperationalScreen(
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
                             )
-                            Button(
+                            EditorialAccentButton(
+                                text = "Reintentar",
                                 onClick = onRefresh,
-                                colors =
-                                    ButtonDefaults.buttonColors(
-                                        containerColor = colors.accentLime,
-                                        contentColor = colors.accentInk,
-                                    ),
-                                shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(48.dp),
-                            ) {
-                                Text("Reintentar", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            }
+                                modifier = Modifier.padding(top = 12.dp),
+                            )
                         }
                     }
                 }
