@@ -16,14 +16,7 @@ object Money {
     fun productUnitPreview(
         product: Product,
         selectedOptionIds: Set<Int>,
-    ): String {
-        val optionPrices =
-            product.optionGroups
-                .flatMap(OptionGroup::options)
-                .filter { it.id in selectedOptionIds }
-                .fold(BigDecimal.ZERO) { total, option -> total + parse(option.extraPrice) }
-        return format(parse(product.digitalPrice) + optionPrices)
-    }
+    ): String = format(parse(product.digitalPrice) + optionExtras(product, selectedOptionIds))
 
     fun cartLinePreview(line: CartLine): String =
         format(
@@ -34,4 +27,23 @@ object Money {
         format(
             lines.fold(BigDecimal.ZERO) { total, line -> total + parse(cartLinePreview(line)) },
         )
+
+    /** Lo que se cobra en mostrador: precio de mostrador más extras. El servidor confirma el total. */
+    fun counterPreview(lines: List<CartLine>): String =
+        format(
+            lines.fold(BigDecimal.ZERO) { total, line ->
+                total +
+                    (parse(line.product.counterPrice) + optionExtras(line.product, line.selectedOptionIds)) *
+                    line.quantity.toBigDecimal()
+            },
+        )
+
+    private fun optionExtras(
+        product: Product,
+        selectedOptionIds: Set<Int>,
+    ): BigDecimal =
+        product.optionGroups
+            .flatMap(OptionGroup::options)
+            .filter { it.id in selectedOptionIds }
+            .fold(BigDecimal.ZERO) { total, option -> total + parse(option.extraPrice) }
 }

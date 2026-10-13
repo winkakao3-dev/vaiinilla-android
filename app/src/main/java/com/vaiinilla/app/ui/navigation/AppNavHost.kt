@@ -48,6 +48,7 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.canCallWaiter
+import com.vaiinilla.app.domain.repository.hasPendingAccount
 import com.vaiinilla.app.ui.account.AccountDeletionViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.components.StudentTab
@@ -74,6 +75,7 @@ import com.vaiinilla.app.ui.screens.AuthorizedModeScreen
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CashierOperationalScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
+import com.vaiinilla.app.ui.screens.CounterOrderSheet
 import com.vaiinilla.app.ui.screens.DiscoveryScreen
 import com.vaiinilla.app.ui.screens.InvitationAcceptanceScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
@@ -94,6 +96,7 @@ import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
 import com.vaiinilla.app.ui.screens.WalletPaymentMethodsScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
 import com.vaiinilla.app.ui.screens.WelcomeBootStage
+import com.vaiinilla.app.ui.screens.rememberOperationalColors
 import com.vaiinilla.app.ui.screens.rememberReduceMotion
 import com.vaiinilla.app.ui.sharedtable.SharedTableViewModel
 import com.vaiinilla.app.ui.support.SupportLastOrder
@@ -1554,6 +1557,8 @@ fun AppNavHost(
                 }
                 if (authorizedCashier) {
                     OperationalPresenceLifecycle(OperationalRole.CASHIER, operationalViewModel)
+                    // Una sola lectura del tablero para el contador de mesas; el sondeo es del tablero.
+                    LaunchedEffect(Unit) { waiterViewModel.refresh() }
                     CashierOperationalScreen(
                         state = operationalState,
                         onBack = returnToModes(navController, operationalViewModel),
@@ -1590,7 +1595,20 @@ fun AppNavHost(
                         onUploadCashierProductImage = operationalViewModel::uploadCashierProductImage,
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "cashier",
+                        onNewCounterOrder = waiterViewModel::openCounterOrder,
+                        pendingSpaces =
+                            waiterState.tables.takeIf { it.isNotEmpty() }?.count { it.hasPendingAccount() },
+                        notice = waiterState.toastMessage,
                     )
+                    if (waiterState.counterOrderOpen) {
+                        CounterOrderSheet(
+                            state = waiterState,
+                            colors = rememberOperationalColors(),
+                            onDismiss = waiterViewModel::closeCounterOrder,
+                            onSubmit = waiterViewModel::submitCounterOrder,
+                            submitAction = "Crear pedido",
+                        )
+                    }
                 }
             }
 

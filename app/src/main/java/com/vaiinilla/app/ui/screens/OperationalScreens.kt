@@ -276,6 +276,12 @@ fun CashierOperationalScreen(
         { _, _, _, _, _ -> },
     onUploadCashierProductImage: (Int, ByteArray, String, String) -> Unit = { _, _, _, _ -> },
     assistantUserKey: String = "cashier",
+    /** Abre el pedido de mostrador; null lo oculta. */
+    onNewCounterOrder: (() -> Unit)? = null,
+    /** Mesas y canchas con cuenta sin cobrar; null mientras no se sabe. */
+    pendingSpaces: Int? = null,
+    /** Aviso que llega de fuera (por ejemplo, el folio del pedido de mostrador). */
+    notice: String? = null,
 ) {
     val colors = rememberOperationalColors()
     val reduceMotion = reducedMotion()
@@ -332,12 +338,12 @@ fun CashierOperationalScreen(
             onCashChangeNoticed()
         }
     }
+    LaunchedEffect(notice) { notice?.let { toastMessage = it } }
     var assistantPulse by remember { mutableIntStateOf(0) }
+    var walletSheetOpen by remember { mutableStateOf(false) }
 
     // Caja solo actúa sobre pedidos por cobrar o listos para entregar; el resto es de cocina.
     var selectedCashierOrderId by remember { mutableStateOf<String?>(null) }
-    var walletSearch by remember { mutableStateOf("") }
-    var walletAmount by remember { mutableStateOf("") }
     val canReloadWallet =
         state.cashSessionOpen == true &&
             !state.acting &&
@@ -346,10 +352,10 @@ fun CashierOperationalScreen(
         state.orders.filter {
             it.summary.state == OrderState.PENDING_PAYMENT || it.summary.state == OrderState.READY
         }
+    // Bajo "Por cobrar" solo van pedidos por cobrar o por entregar; nunca uno ya entregado.
     val recentOrder =
         actionableCashierOrders.firstOrNull { it.summary.id == selectedCashierOrderId }
             ?: actionableCashierOrders.firstOrNull()
-            ?: state.orders.firstOrNull()
     val queuedCashierOrders =
         actionableCashierOrders.filterNot { it.summary.id == recentOrder?.summary?.id }
     val products = state.catalog?.products.orEmpty()
@@ -498,134 +504,44 @@ fun CashierOperationalScreen(
                             )
                         }
 
-                        // Account / Role chip
-                        Box(
-                            modifier =
-                                Modifier
-                                    .physicalPress(scale = PhysicalPressScale.Small) {
-                                        haptics.impact()
-                                        onChangeMode?.invoke() ?: onBack()
-                                    }.size(width = 48.dp, height = 40.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(colors.textPrimary),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                "DR",
-                                color = colors.background,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (onOpenAccounts != null) {
-                item(key = "accounts-entry") {
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = colors.cardBackground,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .border(1.dp, colors.cardBorder, RoundedCornerShape(20.dp))
-                                .physicalPress {
-                                    haptics.selection()
-                                    onOpenAccounts()
+                        CashierAvatarMenu(
+                            initials = "CJ",
+                            colors = colors,
+                            onChangeMode = {
+                                haptics.impact()
+                                onChangeMode?.invoke() ?: onBack()
+                            },
+                            onCloseCash =
+                                if (state.cashSessionOpen == true) {
+                                    {
+                                        haptics.selection()
+                                        onRequestCloseCash()
+                                    }
+                                } else {
+                                    null
                                 },
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    "Cuentas de mesas y canchas",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp,
-                                    color = colors.textPrimary,
-                                )
-                                Text(
-                                    "Cobra la cuenta al irse y libera el espacio.",
-                                    fontSize = 12.5.sp,
-                                    color = colors.textSecondary,
-                                    modifier = Modifier.padding(top = 2.dp),
-                                )
-                            }
-                            Text("›", fontSize = 26.sp, fontWeight = FontWeight.Light, color = colors.textSecondary)
-                        }
+                        )
                     }
                 }
             }
 
-            if (state.cashSessionOpen == true) {
-                item(key = "close-cash-entry") {
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = colors.cardBackground,
-                        modifier =
-                            Modifier
-                                .animateItem()
-                                .fillMaxWidth()
-                                .border(1.dp, colors.cardBorder, RoundedCornerShape(20.dp))
-                                .physicalPress {
-                                    haptics.selection()
-                                    onRequestCloseCash()
-                                },
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    "Cerrar caja",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp,
-                                    color = colors.textPrimary,
-                                )
-                                Text(
-                                    "Cuenta el efectivo y termina el turno.",
-                                    fontSize = 12.5.sp,
-                                    color = colors.textSecondary,
-                                    modifier = Modifier.padding(top = 2.dp),
-                                )
+            item(key = "cashier-actions") {
+                CashierQuickActions(
+                    colors = colors,
+                    enabled = restrictedMode != RestrictedMode.READ_ONLY,
+                    onNewOrder =
+                        onNewCounterOrder?.let { open ->
+                            {
+                                haptics.selection()
+                                open()
                             }
-                            Text("›", fontSize = 26.sp, fontWeight = FontWeight.Light, color = colors.textSecondary)
-                        }
-                    }
-                }
-            }
-
-            // Title & Subtitle
-            item {
-                Column(modifier = Modifier.padding(top = 4.dp)) {
-                    Text(
-                        "TURNO DE HOY",
-                        color = colors.textSecondary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
-                        letterSpacing = 1.6.sp,
-                    )
-                    Text(
-                        "Caja en control.",
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 32.sp,
-                        letterSpacing = (-1.2).sp,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                    Text(
-                        "Entrega pedidos y mantén el menú disponible para todos.",
-                        color = colors.textSecondary,
-                        fontSize = 14.sp,
-                        lineHeight = 19.sp,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                }
+                        },
+                    onReload = {
+                        haptics.selection()
+                        walletSheetOpen = true
+                    },
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
 
             // Session Alert if Closed
@@ -679,29 +595,21 @@ fun CashierOperationalScreen(
                 }
             }
 
-            // Pedido reciente section header
-            if (recentOrder == null) {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Bottom,
-                    ) {
-                        Text(
-                            "Pedido reciente",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp,
-                            color = colors.textPrimary,
-                        )
-                        val recentStatus = "Al día"
-                        Text(
-                            text = recentStatus,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.textSecondary,
-                        )
-                    }
+            if (onOpenAccounts != null) {
+                item(key = "spaces-entry") {
+                    CashierSpacesEntry(
+                        pendingSpaces = pendingSpaces,
+                        colors = colors,
+                        onClick = {
+                            haptics.selection()
+                            onOpenAccounts()
+                        },
+                    )
                 }
+            }
+
+            item(key = "queue-header") {
+                CashierQueueHeader(count = actionableCashierOrders.size, colors = colors)
             }
 
             // Hero Recent Order Card or Empty State
@@ -972,59 +880,13 @@ fun CashierOperationalScreen(
                             TicketZigzag()
                         }
                     } else {
-                        Surface(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .border(1.dp, colors.cardBorder, RoundedCornerShape(26.dp)),
-                            shape = RoundedCornerShape(26.dp),
-                            color = colors.cardBackground,
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(28.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Text(
-                                    "No hay pedidos pendientes",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    color = colors.textPrimary,
-                                )
-                                Text(
-                                    text = "Los pedidos que entren por ventanilla o app aparecerán aquí.",
-                                    fontSize = 13.sp,
-                                    color = colors.textSecondary,
-                                    textAlign = TextAlign.Center,
-                                )
-                            }
-                        }
+                        CashierQueueEmpty(colors = colors)
                     }
                 }
             }
 
             // Pending-in-caja queue: every other order awaiting payment or pickup.
             if (queuedCashierOrders.isNotEmpty()) {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Bottom,
-                    ) {
-                        Text(
-                            "Pendientes en caja",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp,
-                            color = colors.textPrimary,
-                        )
-                        Text(
-                            "${queuedCashierOrders.size} pedidos",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.textSecondary,
-                        )
-                    }
-                }
                 items(queuedCashierOrders, key = { it.summary.id }) { order ->
                     val queueTitle =
                         order.items
@@ -1055,272 +917,6 @@ fun CashierOperationalScreen(
                             toastMessage = "Pedido #${order.summary.folio} seleccionado"
                         },
                     )
-                }
-            }
-
-            // Recargas de saldo: buscar cliente, escribir monto y registrar el efectivo.
-            item {
-                Surface(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .border(1.dp, colors.cardBorder, RoundedCornerShape(26.dp)),
-                    shape = RoundedCornerShape(26.dp),
-                    color = colors.cardBackground,
-                ) {
-                    Column(modifier = Modifier.padding(18.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    "Recargar saldo",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp,
-                                    color = colors.textPrimary,
-                                )
-                                Text(
-                                    "Busca al cliente o escanea el QR de su cuenta.",
-                                    fontSize = 12.sp,
-                                    color = colors.textSecondary,
-                                )
-                            }
-                            IconButton(
-                                onClick = {
-                                    haptics.impact()
-                                    onOpenWalletUserQr()
-                                },
-                                enabled = restrictedMode != RestrictedMode.READ_ONLY,
-                                modifier =
-                                    Modifier
-                                        .size(44.dp)
-                                        .clip(RoundedCornerShape(14.dp))
-                                        .background(colors.cardInner)
-                                        .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp)),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.QrCodeScanner,
-                                    contentDescription = "Escanear QR del cliente",
-                                    tint = colors.textPrimary,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            BasicTextField(
-                                value = walletSearch,
-                                onValueChange = { walletSearch = it },
-                                singleLine = true,
-                                enabled = !state.walletSearchLoading,
-                                textStyle =
-                                    TextStyle(
-                                        color = colors.textPrimary,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                    ),
-                                cursorBrush = SolidColor(colors.textPrimary),
-                                modifier =
-                                    Modifier
-                                        .weight(1f)
-                                        .height(46.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(colors.cardInner)
-                                        .border(1.dp, colors.cardBorder, RoundedCornerShape(12.dp)),
-                                decorationBox = { inner ->
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .padding(horizontal = 14.dp),
-                                        contentAlignment = Alignment.CenterStart,
-                                    ) {
-                                        if (walletSearch.isEmpty()) {
-                                            Text(
-                                                "Nombre o identificador",
-                                                color = colors.textSecondary,
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                            )
-                                        }
-                                        inner()
-                                    }
-                                },
-                            )
-                            Button(
-                                onClick = {
-                                    haptics.selection()
-                                    onSearchWalletClients(walletSearch)
-                                },
-                                enabled = !state.walletSearchLoading && walletSearch.trim().length >= 2,
-                                colors =
-                                    ButtonDefaults.buttonColors(
-                                        containerColor = colors.cardInner,
-                                        contentColor = colors.textPrimary,
-                                    ),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.height(46.dp),
-                            ) {
-                                Text(
-                                    if (state.walletSearchLoading) "Buscando…" else "Buscar",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
-                                )
-                            }
-                        }
-
-                        BasicTextField(
-                            value = walletAmount,
-                            onValueChange = { raw -> walletAmount = raw.filter { it.isDigit() || it == '.' } },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            enabled = canReloadWallet,
-                            textStyle =
-                                TextStyle(
-                                    color = colors.textPrimary,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                ),
-                            cursorBrush = SolidColor(colors.textPrimary),
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp)
-                                    .height(46.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(colors.cardInner)
-                                    .border(1.dp, colors.cardBorder, RoundedCornerShape(12.dp)),
-                            decorationBox = { inner ->
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxSize()
-                                            .padding(horizontal = 14.dp),
-                                    contentAlignment = Alignment.CenterStart,
-                                ) {
-                                    if (walletAmount.isEmpty()) {
-                                        Text(
-                                            "Monto en efectivo · ej. 100.00",
-                                            color = colors.textSecondary,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                        )
-                                    }
-                                    inner()
-                                }
-                            },
-                        )
-
-                        if (state.walletClients.isEmpty() &&
-                            walletSearch.trim().length >= 2 &&
-                            !state.walletSearchLoading
-                        ) {
-                            Text(
-                                "Sin clientes coincidentes en este establecimiento.",
-                                fontSize = 12.sp,
-                                color = colors.textSecondary,
-                                modifier = Modifier.padding(top = 10.dp),
-                            )
-                        }
-                        state.walletClients.forEach { client ->
-                            Row(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 10.dp)
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(colors.cardInner)
-                                        .border(1.dp, colors.cardBorder, RoundedCornerShape(16.dp))
-                                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        client.name,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        color = colors.textPrimary,
-                                    )
-                                    client.contextualId?.let { identifier ->
-                                        Text(
-                                            identifier,
-                                            fontSize = 12.sp,
-                                            color = colors.textSecondary,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    }
-                                }
-                                Spacer(Modifier.width(10.dp))
-                                Button(
-                                    onClick = {
-                                        haptics.impact()
-                                        onReloadWallet(client.userId, walletAmount)
-                                    },
-                                    enabled = canReloadWallet && walletAmount.isNotBlank(),
-                                    colors =
-                                        ButtonDefaults.buttonColors(
-                                            containerColor = colors.accentLime,
-                                            contentColor = colors.accentInk,
-                                            disabledContainerColor = colors.cardBorder,
-                                            disabledContentColor = colors.textSecondary,
-                                        ),
-                                    shape = RoundedCornerShape(12.dp),
-                                ) {
-                                    Text(
-                                        "Abonar",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
-                                    )
-                                }
-                            }
-                        }
-
-                        state.walletReloadReceipt?.let { receipt ->
-                            Row(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 10.dp)
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(colors.accentLime.copy(alpha = 0.18f))
-                                        .border(
-                                            1.dp,
-                                            colors.accentLime.copy(alpha = 0.5f),
-                                            RoundedCornerShape(16.dp),
-                                        ).padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Check,
-                                    contentDescription = null,
-                                    tint = colors.textPrimary,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                                Column {
-                                    Text(
-                                        "Recarga registrada",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
-                                        color = colors.textPrimary,
-                                    )
-                                    Text(
-                                        "Saldo: $${receipt.previousBalance} + $${receipt.amount} = $${receipt.newBalance}",
-                                        fontSize = 12.sp,
-                                        color = colors.textSecondary,
-                                    )
-                                }
-                            }
-                        }
-                    }
                 }
             }
 
@@ -1446,7 +1042,19 @@ fun CashierOperationalScreen(
             badgeContentColor = colors.accentInk,
         )
 
-        // Sheet: Add Product
+        if (walletSheetOpen) {
+            WalletReloadSheet(
+                clients = state.walletClients,
+                searching = state.walletSearchLoading,
+                receipt = state.walletReloadReceipt,
+                canReload = canReloadWallet,
+                colors = colors,
+                onSearch = onSearchWalletClients,
+                onScan = onOpenWalletUserQr,
+                onReload = onReloadWallet,
+                onDismiss = { walletSheetOpen = false },
+            )
+        }
         state.closeCash?.let { closeState ->
             CashCloseSheet(
                 state = closeState,
@@ -1824,13 +1432,14 @@ private fun ProductGridCard(
                     }
                 }
                 val switchSpec = if (reducedMotion()) snap<Color>() else spring(stiffness = Spring.StiffnessMedium)
+                // Disponible se marca en tinta: el lima de Caja queda para cobrar.
                 val switchBackground by animateColorAsState(
-                    if (product.available) colors.accentLime else colors.cardBackground,
+                    if (product.available) colors.textPrimary else colors.cardBackground,
                     switchSpec,
                     label = "availability-background",
                 )
                 val switchTint by animateColorAsState(
-                    if (product.available) colors.accentInk else colors.textMuted,
+                    if (product.available) colors.background else colors.textMuted,
                     switchSpec,
                     label = "availability-tint",
                 )
@@ -1883,7 +1492,7 @@ private fun ProductGridCard(
                     "$${product.digitalPrice}",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = if (colors.isDark) colors.accentLime else colors.highlightBorder,
+                    color = colors.textPrimary,
                 )
                 Box(
                     modifier =
