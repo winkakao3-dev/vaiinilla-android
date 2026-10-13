@@ -67,7 +67,7 @@ class CartCompactLayoutTest {
         composeTestRule.onAllNodesWithText("Tarjeta").assertCountEquals(0)
         composeTestRule.onAllNodesWithText("Sin costo de entrega").assertCountEquals(0)
         composeTestRule.onNodeWithText("Añadir nota para cocina").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Subtotal").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Total").assertIsDisplayed()
         composeTestRule.onNodeWithText("Pagar").assertIsDisplayed().performClick()
         composeTestRule.onNodeWithText("¿Cómo quieres pagar?").assertIsDisplayed()
         composeTestRule.onNodeWithText("Pago en caja").assertIsDisplayed()

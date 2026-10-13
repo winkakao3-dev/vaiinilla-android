@@ -340,7 +340,7 @@ private fun DestinationOption(
             if (selected) selectedForeground.copy(alpha = 0.78f) else colors.muted,
             "destination-secondary",
         )
-    val borderColor = animateSelectionColor(if (selected) colors.accent else colors.line, "destination-border")
+    val borderColor = animateSelectionColor(if (selected) selectedBackground else colors.line, "destination-border")
     val iconTile =
         animateSelectionColor(
             if (selected) selectedForeground.copy(alpha = 0.10f) else colors.paper,
@@ -382,13 +382,13 @@ private fun DestinationOption(
                         Modifier
                             .size(30.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(colors.accent),
+                            .background(selectedForeground),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         Icons.Rounded.Check,
                         contentDescription = null,
-                        tint = colors.accentInk,
+                        tint = selectedBackground,
                         modifier = Modifier.size(17.dp),
                     )
                 }
@@ -422,7 +422,7 @@ private fun DestinationOption(
                 detail?.takeIf(String::isNotBlank)?.let { detailText ->
                     Text(
                         detailText,
-                        color = if (selected) colors.accent else secondary,
+                        color = secondary,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp,
                         lineHeight = 18.sp,
@@ -479,11 +479,11 @@ private fun PaymentOption(
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = LocalHapticFeedback.current
-    val background = animateSelectionColor(if (selected) colors.accent else colors.paper2, "payment-background")
+    val background = animateSelectionColor(if (selected) colors.ink else colors.paper2, "payment-background")
     val foreground =
         animateSelectionColor(
             when {
-                selected -> colors.accentInk
+                selected -> colors.onInk
                 !enabled -> colors.muted
                 else -> colors.ink
             },
@@ -491,7 +491,7 @@ private fun PaymentOption(
         )
     val borderColor =
         animateSelectionColor(
-            if (selected) colors.accent.copy(alpha = 0.95f) else colors.line,
+            if (selected) colors.ink else colors.line,
             "payment-border",
         )
     Surface(
@@ -507,7 +507,7 @@ private fun PaymentOption(
                     },
                 ).border(
                     width = 1.dp,
-                    color = if (selected) colors.accent.copy(alpha = 0.95f) else colors.line,
+                    color = borderColor,
                     shape = RoundedCornerShape(20.dp),
                 ).semantics {
                     role = Role.RadioButton
