@@ -119,7 +119,6 @@ class DiscoveryScreenshotTest {
                     onClearOptionalGroup = {},
                     onQuantityChange = {},
                     onAddProduct = {},
-                    onOpenCart = {},
                     onChangeVenue = {},
                 )
             }

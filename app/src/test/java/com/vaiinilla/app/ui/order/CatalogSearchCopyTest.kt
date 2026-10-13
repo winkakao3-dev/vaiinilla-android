@@ -37,7 +37,6 @@ class CatalogSearchCopyTest {
                     onClearOptionalGroup = {},
                     onQuantityChange = {},
                     onAddProduct = {},
-                    onOpenCart = {},
                 )
             }
         }

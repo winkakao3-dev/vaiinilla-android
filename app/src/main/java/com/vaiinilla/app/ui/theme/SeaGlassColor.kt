@@ -85,6 +85,10 @@ internal data class SeaGlassTone(
     val picked: SeaGlassTone
         get() = SeaGlassTone(hue, chroma * 0.6, lift + 0.06)
 
+    /** Vainilla y horchata: el vidrio de las superficies y los controles secundarios, sin color propio. */
+    val isNeutral: Boolean
+        get() = chroma < 0.06
+
     companion object {
         val lima = SeaGlassTone(128.0, 0.13)
         val matcha = SeaGlassTone(145.0, 0.08)
@@ -148,7 +152,7 @@ internal fun seaGlassShades(
     night: Boolean,
 ): SeaGlassShades {
     val dayGlass = !night || tone.hue == SeaGlassTone.lima.hue
-    val smoky = !dayGlass && tone.chroma < 0.06
+    val smoky = !dayGlass && tone.isNeutral
     val l = if (dayGlass) 0.86 + tone.lift else (if (smoky) 0.3 else 0.45) + tone.lift * 0.5
     val c = if (smoky) 0.004 else tone.chroma
     val h = tone.hue

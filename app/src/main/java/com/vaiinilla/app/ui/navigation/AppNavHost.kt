@@ -781,7 +781,6 @@ fun AppNavHost(
                     onSelectedNotesChange = orderFlowViewModel::updateSelectedNotes,
                     onQuantityChange = orderFlowViewModel::changeSelectedQuantity,
                     onAddProduct = orderFlowViewModel::addSelectedProductToCart,
-                    onOpenCart = { navController.navigateStudent(Routes.CART) },
                     onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
                     onDeleteOrder = ::dismissClientOrder,
                     onOpenWallet = { navController.navigateStudent(Routes.WALLET) },

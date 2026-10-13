@@ -156,7 +156,6 @@ class VideoScreenshotTest {
                 onClearOptionalGroup = {},
                 onQuantityChange = {},
                 onAddProduct = {},
-                onOpenCart = {},
             )
         }
     }

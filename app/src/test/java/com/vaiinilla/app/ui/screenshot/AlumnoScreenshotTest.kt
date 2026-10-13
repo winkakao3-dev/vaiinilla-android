@@ -85,7 +85,6 @@ class AlumnoScreenshotTest {
                         onClearOptionalGroup = {},
                         onQuantityChange = {},
                         onAddProduct = {},
-                        onOpenCart = {},
                     )
                 }
             }
@@ -151,7 +150,6 @@ class AlumnoScreenshotTest {
                         onClearOptionalGroup = {},
                         onQuantityChange = {},
                         onAddProduct = {},
-                        onOpenCart = {},
                     )
                 }
             }
@@ -428,7 +426,6 @@ class AlumnoScreenshotTest {
                         onClearOptionalGroup = {},
                         onQuantityChange = {},
                         onAddProduct = {},
-                        onOpenCart = {},
                     )
                 }
             }

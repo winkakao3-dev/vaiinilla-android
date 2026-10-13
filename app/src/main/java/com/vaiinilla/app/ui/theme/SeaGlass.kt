@@ -66,14 +66,15 @@ internal fun seaGlassInk(tone: SeaGlassTone): Color = seaGlassShades(tone, seaGl
 
 /**
  * La pieza de vidrio detrás de un contenido. [pressed] (0–1) la baja hacia el piso. [grounded] = false quita la
- * sombra: una pieza dentro de otra (el segmento elegido). La sombra se sale del marco, así que el contenedor no
- * debe recortar a sus límites.
+ * sombra: una pieza dentro de otra (el segmento elegido). Solo las piezas con color proyectan sombra; las neutras
+ * son vidrio plano sobre la hoja, para que el volumen marque la acción principal. La sombra se sale del marco, así
+ * que el contenedor no debe recortar a sus límites.
  */
 internal fun Modifier.seaGlass(
     tone: SeaGlassTone,
     shape: Shape,
     night: Boolean,
-    grounded: Boolean = true,
+    grounded: Boolean = !tone.isNeutral,
     pressed: State<Float>? = null,
 ): Modifier = this then SeaGlassElement(tone, shape, night, grounded, pressed)
 

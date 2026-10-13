@@ -27,7 +27,7 @@ import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
 import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.SpaceSessionInfo
 import com.vaiinilla.app.domain.repository.TableSpace
-import com.vaiinilla.app.ui.components.CourtsMapCard
+import com.vaiinilla.app.ui.components.CourtsBanner
 import com.vaiinilla.app.ui.operational.CloseCashUi
 import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.screens.CashCloseContent
@@ -457,19 +457,19 @@ class SpacesScreenshotTest {
     }
 
     @Test
-    fun `spaces_courts_map_light`() {
-        capture("spaces_courts_map_light.png") {
+    fun `spaces_courts_banner_light`() {
+        capture("spaces_courts_banner_light.png") {
             Box(Modifier.fillMaxSize().background(LocalVaiinillaColors.current.paper).padding(20.dp)) {
-                CourtsMapCard(courts = courts)
+                CourtsBanner(courts = courts, onOpen = {})
             }
         }
     }
 
     @Test
-    fun `spaces_courts_map_dark`() {
-        capture("spaces_courts_map_dark.png", mode = VaiinillaThemeMode.Dark) {
+    fun `spaces_courts_banner_dark`() {
+        capture("spaces_courts_banner_dark.png", mode = VaiinillaThemeMode.Dark) {
             Box(Modifier.fillMaxSize().background(LocalVaiinillaColors.current.paper).padding(20.dp)) {
-                CourtsMapCard(courts = courts)
+                CourtsBanner(courts = courts, onOpen = {})
             }
         }
     }

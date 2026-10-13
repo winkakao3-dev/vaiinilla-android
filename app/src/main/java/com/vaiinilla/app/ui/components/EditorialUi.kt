@@ -1,5 +1,8 @@
 package com.vaiinilla.app.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,18 +24,23 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -48,7 +56,10 @@ import com.vaiinilla.app.ui.theme.seaGlass
 import com.vaiinilla.app.ui.theme.seaGlassInk
 import com.vaiinilla.app.ui.theme.seaGlassNight
 
-/** Búsqueda en vidrio vainilla, como `EditorialSearchField` en iOS: la tinta de la pieza y una equis para limpiar. */
+/**
+ * Búsqueda: un campo plano y nítido sobre la hoja, de la misma familia que las opciones sin elegir. El volumen queda
+ * para la acción principal.
+ */
 @Composable
 fun EditorialSearchField(
     value: String,
@@ -56,14 +67,16 @@ fun EditorialSearchField(
     placeholder: String,
     modifier: Modifier = Modifier,
 ) {
-    val ink = seaGlassInk(SeaGlassTone.vainilla)
+    val colors = LocalVaiinillaColors.current
+    val ink = colors.ink
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(54.dp)
-                .seaGlass(SeaGlassTone.vainilla, CircleShape, seaGlassNight())
-                .padding(horizontal = 18.dp),
+                .height(50.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(colors.paper2)
+                .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(Icons.Outlined.Search, contentDescription = null, tint = ink, modifier = Modifier.size(19.dp))
@@ -83,7 +96,7 @@ fun EditorialSearchField(
                     if (value.isEmpty()) {
                         Text(
                             placeholder,
-                            color = ink.copy(alpha = 0.75f),
+                            color = colors.muted,
                             fontSize = 14.5.sp,
                             fontWeight = FontWeight.SemiBold,
                         )
@@ -94,16 +107,17 @@ fun EditorialSearchField(
         )
         if (value.isNotEmpty()) {
             Spacer(Modifier.size(10.dp))
-            SeaGlassButton(
-                tone = SeaGlassTone.vainilla.picked,
-                onClick = { onValueChange("") },
+            Box(
                 modifier =
                     Modifier
-                        .size(30.dp)
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(colors.line)
+                        .physicalPress(scale = PhysicalPressScale.Small, onClick = { onValueChange("") })
                         .semantics { contentDescription = "Limpiar búsqueda" },
-                shape = CircleShape,
+                contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(14.dp))
+                Icon(Icons.Rounded.Close, contentDescription = null, tint = ink, modifier = Modifier.size(14.dp))
             }
         }
     }
@@ -437,6 +451,57 @@ fun ProfileInitialsButton(
                 .semantics { contentDescription = "Cuenta" },
         contentAlignment = Alignment.Center,
     ) {
-        Text(initials, color = seaGlassInk(SeaGlassTone.vainilla), fontSize = 13.sp, fontWeight = FontWeight.Black)
+        // Sin nombre no hay iniciales: la persona como ícono, nunca un "?" que se lee como ayuda.
+        if (initials.isBlank() || initials == "?") {
+            Icon(
+                Icons.Rounded.Person,
+                contentDescription = null,
+                tint = seaGlassInk(SeaGlassTone.vainilla),
+                modifier = Modifier.size(22.dp),
+            )
+        } else {
+            Text(initials, color = seaGlassInk(SeaGlassTone.vainilla), fontSize = 13.sp, fontWeight = FontWeight.Black)
+        }
+    }
+}
+
+/**
+ * Una opción que se elige (categoría, segmento, filtro): plana y nítida. La elegida se rellena de tinta, no de lima:
+ * el lima es solo de la acción principal de la pantalla. El cambio se funde con un resorte.
+ */
+@Composable
+fun ChoiceChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    height: Dp = 38.dp,
+    shape: Shape = RoundedCornerShape(percent = 50),
+    contentPadding: Dp = 16.dp,
+) {
+    val colors = LocalVaiinillaColors.current
+    val fill by animateFloatAsState(
+        targetValue = if (selected) 1f else 0f,
+        animationSpec = if (reducedMotion()) snap() else spring(dampingRatio = 0.8f, stiffness = 520f),
+        label = "choice-chip-fill",
+    )
+    Box(
+        modifier =
+            modifier
+                .heightIn(min = height)
+                .clip(shape)
+                .background(lerp(colors.paper2, colors.ink, fill))
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .semantics { this.selected = selected },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            color = lerp(colors.ink, colors.onInk, fill),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 2,
+            modifier = Modifier.padding(horizontal = contentPadding, vertical = 8.dp),
+        )
     }
 }
