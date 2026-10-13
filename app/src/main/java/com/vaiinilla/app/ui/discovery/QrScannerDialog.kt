@@ -34,6 +34,8 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -66,7 +68,8 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import com.vaiinilla.app.ui.components.EditorialAccentButton
-import com.vaiinilla.app.ui.components.EditorialPrimaryButton
+import com.vaiinilla.app.ui.components.EditorialSecondaryButton
+import com.vaiinilla.app.ui.components.GlassCircleButton
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -126,14 +129,12 @@ fun QrScannerDialog(
                         color = Color.White.copy(alpha = 0.72f),
                         modifier = Modifier.padding(top = 8.dp),
                     )
-                    EditorialPrimaryButton(
+                    EditorialAccentButton(
                         text = "Intentar de nuevo",
                         onClick = { cameraError = null },
-                        background = Color.White,
-                        contentColor = Color.Black,
                         modifier = Modifier.padding(top = 20.dp),
                     )
-                    EditorialAccentButton(
+                    EditorialSecondaryButton(
                         text = "Cerrar",
                         onClick = onClose,
                         modifier = Modifier.padding(top = 8.dp),
@@ -155,14 +156,12 @@ fun QrScannerDialog(
                         color = Color.White.copy(alpha = 0.72f),
                         modifier = Modifier.padding(top = 8.dp),
                     )
-                    EditorialPrimaryButton(
+                    EditorialAccentButton(
                         text = "Intentar de nuevo",
                         onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
-                        background = Color.White,
-                        contentColor = Color.Black,
                         modifier = Modifier.padding(top = 20.dp),
                     )
-                    EditorialAccentButton(
+                    EditorialSecondaryButton(
                         text = "Cerrar",
                         onClick = onClose,
                         modifier = Modifier.padding(top = 8.dp),
@@ -377,7 +376,13 @@ private fun CameraQrPreview(
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
             )
-            EditorialAccentButton(text = "Cerrar", onClick = onClose)
+            GlassCircleButton(
+                icon = Icons.Outlined.Close,
+                contentDescription = "Cerrar",
+                onClick = onClose,
+                size = 40.dp,
+                iconSize = 16.dp,
+            )
         }
         Text(
             if (helperText == "Apunta al QR del comedor o de la mesa") {
