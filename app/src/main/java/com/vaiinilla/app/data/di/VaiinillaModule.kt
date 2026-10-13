@@ -7,7 +7,6 @@ import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.security.PickupTokenStore
-import com.vaiinilla.app.core.security.SharedPreferencesPickupTokenStore
 import com.vaiinilla.app.data.account.RemoteAccountDeletionRepository
 import com.vaiinilla.app.data.auth.ContextoExchanger
 import com.vaiinilla.app.data.auth.SesionesContextoExchange
@@ -74,10 +73,6 @@ object VaiinillaModule {
             versionName = BuildConfig.VERSION_NAME,
             versionCode = BuildConfig.VERSION_CODE,
         )
-
-    @Provides
-    @Singleton
-    fun providePickupTokenStore(store: SharedPreferencesPickupTokenStore): PickupTokenStore = store
 
     @Provides
     @Singleton
