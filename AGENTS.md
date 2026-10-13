@@ -25,6 +25,10 @@ compila con `vbuild`. **No pases `-Dorg.gradle.jvmargs` ni `kotlin.daemon.jvmarg
 por línea de comandos**: un valor distinto al del daemon vivo levanta un segundo
 daemon. Gradle con 1.5 GB truena al unir el dex del APK.
 
+Gradle y Kotlin vivos ocupan hasta 4.2 GB de RAM real (heap más metaspace y código
+nativo). Apágalos (`vbuild parar` o `./gradlew --stop`) antes de prender el emulador
+o el Chrome de pruebas: con los dos encima la Mac entra en swap pesado.
+
 Notas:
 
 - No pipear Gradle a `tail` en builds largos: oculta el progreso hasta el final.
