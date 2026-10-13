@@ -1,6 +1,7 @@
 package com.vaiinilla.app.jvmroles
 
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
+import com.vaiinilla.app.core.security.PickupTokenStore
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthSession
@@ -24,6 +25,30 @@ class RoleSessionStore : SecureSessionStore {
 
     override fun clear() {
         ActiveRole.current?.let(tokens::remove)
+    }
+}
+
+/** Tokens de recogida por rol, en memoria: el real cifra con AndroidKeyStore, que Robolectric no tiene. */
+class RolePickupTokenStore : PickupTokenStore {
+    private val tokens = ConcurrentHashMap<HarnessRole, ConcurrentHashMap<String, String>>()
+
+    private fun current(): ConcurrentHashMap<String, String>? =
+        ActiveRole.current?.let {
+            tokens.getOrPut(it) { ConcurrentHashMap() }
+        }
+
+    override fun save(
+        orderId: String,
+        pickupToken: String,
+    ) {
+        if (orderId.isBlank() || pickupToken.isBlank()) return
+        current()?.put(orderId, pickupToken)
+    }
+
+    override fun read(orderId: String): String? = current()?.get(orderId)
+
+    override fun clear() {
+        current()?.clear()
     }
 }
 

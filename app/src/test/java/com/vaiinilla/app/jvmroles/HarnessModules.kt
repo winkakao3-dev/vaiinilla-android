@@ -1,5 +1,6 @@
 package com.vaiinilla.app.jvmroles
 
+import com.vaiinilla.app.core.security.PickupTokenStore
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.di.AuthModule
 import com.vaiinilla.app.data.di.DeviceModule
@@ -17,6 +18,10 @@ object HarnessAuthModule {
     @Provides
     @Singleton
     fun provideSecureSessionStore(): SecureSessionStore = RoleSessionStore()
+
+    @Provides
+    @Singleton
+    fun providePickupTokenStore(): PickupTokenStore = RolePickupTokenStore()
 
     @Provides
     @Singleton

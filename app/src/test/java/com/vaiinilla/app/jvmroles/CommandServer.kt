@@ -41,7 +41,10 @@ class CommandServer(
     init {
         stateFile.parentFile?.mkdirs()
         stateFile.delete()
-        Files.createFile(stateFile.toPath(), PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")))
+        Files.createFile(
+            stateFile.toPath(),
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")),
+        )
         stateFile.writeText(
             JSONObject()
                 .put("port", server.localPort)

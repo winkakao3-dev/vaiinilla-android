@@ -44,7 +44,8 @@ class SandboxIdentities
             val customToken = customTokenFor(role)
             val body = JSONObject().put("token", customToken).put("returnSecureToken", true).toString()
             val json = post("$IDENTITY_URL$apiKey", body, "application/json")
-            val identity = identityFrom(json.getString("idToken"), json.getString("refreshToken"), json.getString("expiresIn"))
+            val identity =
+                identityFrom(json.getString("idToken"), json.getString("refreshToken"), json.getString("expiresIn"))
             identities[role] = identity
             return identity.session
         }
@@ -60,7 +61,8 @@ class SandboxIdentities
             }
             val body = "grant_type=refresh_token&refresh_token=${URLEncoder.encode(current.refreshToken, "UTF-8")}"
             val json = post("$SECURE_TOKEN_URL$apiKey", body, "application/x-www-form-urlencoded")
-            val refreshed = identityFrom(json.getString("id_token"), json.getString("refresh_token"), json.getString("expires_in"))
+            val refreshed =
+                identityFrom(json.getString("id_token"), json.getString("refresh_token"), json.getString("expires_in"))
             identities[role] = refreshed
             return refreshed.idToken
         }
@@ -104,7 +106,12 @@ class SandboxIdentities
                     // verificado solo del lado del cliente; el backend valida el ID token, igual que en la web del staff.
                     emailVerified = claims.optBoolean("email_verified", false) || provider == "custom",
                 )
-            return Identity(session, idToken, refreshToken, System.currentTimeMillis() + expiresInSeconds.toLong() * 1000)
+            return Identity(
+                session,
+                idToken,
+                refreshToken,
+                System.currentTimeMillis() + expiresInSeconds.toLong() * 1000,
+            )
         }
 
         private fun post(
@@ -125,8 +132,17 @@ class SandboxIdentities
             val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
             if (status !in 200..299) {
                 // Firebase responde {"error":{"message":"..."}} sin datos sensibles; test-setup podría traer tokens.
-                val detail = if (showErrorBody) runCatching { JSONObject(text).getJSONObject("error").getString("message") }.getOrNull() else null
-                throw IllegalStateException("POST ${URL(url).host}${URL(url).path} respondió $status${detail?.let { ": $it" }.orEmpty()}")
+                val detail =
+                    if (showErrorBody) {
+                        runCatching {
+                            JSONObject(text).getJSONObject("error").getString("message")
+                        }.getOrNull()
+                    } else {
+                        null
+                    }
+                throw IllegalStateException(
+                    "POST ${URL(url).host}${URL(url).path} respondió $status${detail?.let { ": $it" }.orEmpty()}",
+                )
             }
             return JSONObject(text)
         }
