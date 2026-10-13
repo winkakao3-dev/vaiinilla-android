@@ -236,6 +236,7 @@ fun StudentTrackingScreen(
     val glassColors =
         colors.copy(
             paper = Color.Transparent,
+            solidPaper = colors.onInk,
             paper2 = palette.glassCard,
             line = palette.glassLine,
             ink = palette.ink,

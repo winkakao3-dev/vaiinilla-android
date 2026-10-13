@@ -1015,7 +1015,7 @@ private fun QuantityButton(
         Icon(
             icon,
             contentDescription = description,
-            tint = colors.paper,
+            tint = colors.onInk,
             modifier = Modifier.size(22.dp),
         )
     }

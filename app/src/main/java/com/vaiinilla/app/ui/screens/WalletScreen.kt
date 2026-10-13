@@ -102,6 +102,7 @@ fun WalletScreen(
     val glassColors =
         colors.copy(
             paper = Color.Transparent,
+            solidPaper = colors.onInk,
             paper2 = palette.glassCard,
             line = palette.glassLine,
             ink = palette.ink,
@@ -335,7 +336,7 @@ private fun WalletBalanceHero(
                     colors =
                         ButtonDefaults.buttonColors(
                             containerColor = colors.ink,
-                            contentColor = colors.paper,
+                            contentColor = colors.onInk,
                         ),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.padding(top = 12.dp),

@@ -234,7 +234,7 @@ fun DiscoveryScreen(
                             },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(profileInitials, color = colors.paper, fontWeight = FontWeight.Black)
+                    Text(profileInitials, color = colors.onInk, fontWeight = FontWeight.Black)
                 }
             }
 
@@ -632,7 +632,7 @@ private fun VenueFilterChip(
     showOpenDot: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
-    val tint = if (selected) colors.paper else colors.ink
+    val tint = if (selected) colors.onInk else colors.ink
     Row(
         modifier =
             Modifier
@@ -1869,12 +1869,12 @@ private fun SpaceCodeSheet(
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp,
-                        color = colors.paper,
+                        color = colors.onInk,
                     )
                 } else {
                     Text(
                         "Confirmar y sentarme",
-                        color = colors.paper,
+                        color = colors.onInk,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                     )

@@ -198,6 +198,7 @@ fun CartScreen(
     val glassColors =
         colors.copy(
             paper = Color.Transparent,
+            solidPaper = colors.onInk,
             paper2 = palette.glassCard,
             line = palette.glassLine,
             ink = palette.ink,
@@ -1071,7 +1072,7 @@ private fun QuantityStepper(
     val foreground =
         when {
             colors.isDark -> Color(0xFFF5F1E5)
-            else -> colors.paper
+            else -> colors.onInk
         }
     Surface(
         color = background,
@@ -1428,7 +1429,7 @@ private fun WarningBanner(
             if (actionLabel != null && onAction != null) {
                 Surface(
                     color = colors.ink,
-                    contentColor = colors.paper,
+                    contentColor = colors.onInk,
                     shape = RoundedCornerShape(999.dp),
                     modifier =
                         Modifier.physicalPress(
@@ -1444,14 +1445,14 @@ private fun WarningBanner(
                     ) {
                         if (actionLoading) {
                             CircularProgressIndicator(
-                                color = colors.paper,
+                                color = colors.onInk,
                                 strokeWidth = 2.dp,
                                 modifier = Modifier.size(14.dp),
                             )
                         }
                         Text(
                             text = if (actionLoading) "Abriendo pago…" else actionLabel,
-                            color = colors.paper,
+                            color = colors.onInk,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                         )

@@ -338,6 +338,7 @@ private fun CatalogContent(
     val shelfColors =
         colors.copy(
             paper = Color.Transparent,
+            solidPaper = colors.onInk,
             paper2 = scene.glassCard,
             line = scene.glassLine,
             ink = scene.ink,

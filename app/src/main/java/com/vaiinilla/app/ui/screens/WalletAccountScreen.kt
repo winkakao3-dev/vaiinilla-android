@@ -90,7 +90,7 @@ fun WalletAccountScreen(
     onRetryAccountDeletion: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
-    val qrCaptionColor = if (colors.isDark) colors.paper else colors.muted
+    val qrCaptionColor = if (colors.isDark) colors.onInk else colors.muted
     val haptics = rememberVaiinillaHaptics()
     val currentMode = LocalVaiinillaThemeMode.current
     val onThemeModeChange = LocalVaiinillaThemeModeChanger.current
@@ -320,7 +320,7 @@ fun WalletAccountScreen(
                                 text = "Eliminar cuenta",
                                 onClick = onRequestAccountDeletion,
                                 background = colors.coral,
-                                contentColor = colors.paper,
+                                contentColor = colors.onInk,
                             )
                             val uriHandler = LocalUriHandler.current
                             TextButton(
@@ -419,7 +419,7 @@ private fun AccountDeletionConfirmationDialog(
                     text = "Eliminar mi cuenta",
                     onClick = onConfirm,
                     background = colors.coral,
-                    contentColor = colors.paper,
+                    contentColor = colors.onInk,
                 )
                 EditorialSecondaryButton(
                     text = "Cancelar",
@@ -469,7 +469,7 @@ private fun AccountDeletionReauthenticationDialog(
                     onClick = { onSubmit(password) },
                     enabled = !busy,
                     background = colors.coral,
-                    contentColor = colors.paper,
+                    contentColor = colors.onInk,
                 )
                 EditorialSecondaryButton(
                     text = "Cancelar",
@@ -556,7 +556,7 @@ private fun AccountDeletionErrorDialog(
                         text = "Reintentar",
                         onClick = onRetry,
                         background = colors.coral,
-                        contentColor = colors.paper,
+                        contentColor = colors.onInk,
                     )
                 }
                 EditorialSecondaryButton(

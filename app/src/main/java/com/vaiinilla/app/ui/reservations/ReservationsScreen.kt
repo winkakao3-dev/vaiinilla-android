@@ -402,7 +402,7 @@ private fun CourtStrip(
                 label = "court-bg",
             )
             val ink by animateColorAsState(
-                if (selected) colors.paper else colors.ink,
+                if (selected) colors.onInk else colors.ink,
                 SPRING_COLOR,
                 label = "court-ink",
             )
@@ -1046,7 +1046,7 @@ private fun Chip(
     )
     val ink by animateColorAsState(
         when {
-            selected -> colors.paper
+            selected -> colors.onInk
             enabled -> colors.ink
             else -> colors.muted.copy(alpha = 0.55f)
         },

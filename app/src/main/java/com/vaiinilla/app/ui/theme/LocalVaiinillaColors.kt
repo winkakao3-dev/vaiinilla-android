@@ -26,7 +26,15 @@ data class VaiinillaColors(
     val navTextIdle: Color,
     val navTextActive: Color,
     val isDark: Boolean = false,
-)
+    /** El papel sólido aunque una hoja de vidrio vuelva transparente [paper]; ver [onInk]. */
+    val solidPaper: Color? = null,
+) {
+    /**
+     * Texto e íconos sobre una superficie de tinta (botón negro, opción elegida). Dentro de las hojas de vidrio
+     * [paper] es transparente, así que no sirve como color de texto. Igual que `onInk` en iOS.
+     */
+    val onInk: Color get() = solidPaper ?: paper
+}
 
 val LocalVaiinillaColors =
     staticCompositionLocalOf {

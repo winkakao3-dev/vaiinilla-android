@@ -918,7 +918,7 @@ private fun OrderSummaryCard(order: OrderDetail) {
                     color = c.ink,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
