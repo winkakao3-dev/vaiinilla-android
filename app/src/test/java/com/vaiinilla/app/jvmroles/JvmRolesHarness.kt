@@ -95,13 +95,22 @@ class JvmRolesHarness {
         val stateFile = File(System.getProperty("jvmroles.stateFile") ?: error("Falta -Djvmroles.stateFile"))
         CommandServer(stateFile).use { server ->
             println("jvm-roles listo en ${stateFile.path}")
+            val idleMinutes = System.getProperty("jvmroles.idleMinutes")?.toLongOrNull() ?: IDLE_LIMIT_MINUTES
+            val idleLimitMillis = idleMinutes * 60_000
+            var lastCommandAt = System.currentTimeMillis()
             while (true) {
                 val command = server.queue.poll(IDLE_STEP_MILLIS, TimeUnit.MILLISECONDS)
                 if (command == null) {
-                    // Sin comandos la app sigue viva: el polling y las animaciones avanzan a tiempo real.
-                    pump(IDLE_STEP_MILLIS, realTime = false)
+                    if (System.currentTimeMillis() - lastCommandAt > idleLimitMillis) {
+                        println("jvm-roles se apaga: sin comandos en $idleMinutes min")
+                        break
+                    }
+                    // En espera solo corre el looper (red y polling de los viewmodels). El reloj de Compose se queda
+                    // quieto: si avanzara, una animación infinita dibujaría cuadros sin parar con nadie mirando.
+                    shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(IDLE_STEP_MILLIS))
                     continue
                 }
+                lastCommandAt = System.currentTimeMillis()
                 println("> ${command.name} ${command.args.joinToString(" ")}")
                 val reply =
                     runCatching { CommandServer.Reply(true, run(command)) }
@@ -311,6 +320,7 @@ class JvmRolesHarness {
 
     private companion object {
         const val IDLE_STEP_MILLIS = 100L
+        const val IDLE_LIMIT_MINUTES = 15L
         const val FRAME_STEP_MILLIS = 50L
         const val POLL_STEP_MILLIS = 250L
         const val SETTLE_MILLIS = 1_500L
