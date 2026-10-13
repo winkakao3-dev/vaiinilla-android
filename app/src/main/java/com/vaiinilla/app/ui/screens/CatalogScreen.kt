@@ -365,14 +365,21 @@ private fun CatalogContent(
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         CatalogHeader(
                             state = state,
-                            categories = sortedCategories,
                             onSearchChange = onSearchChange,
-                            onCategorySelected = onCategorySelected,
                             onChangeVenue = onChangeVenue,
                             onOpenModes = onOpenModes,
                             onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
                             profileInitials = profileInitials,
                             onOpenAccount = onOpenAccount,
+                        )
+                    }
+                    // Las categorías se quedan arriba al bajar por el menú: cambiar de sección no obliga a regresar.
+                    stickyHeader(key = "categories") {
+                        CategoryChips(
+                            categories = sortedCategories,
+                            selectedCategoryId = state.selectedCategoryId,
+                            onCategorySelected = onCategorySelected,
+                            modifier = Modifier.fillMaxWidth().background(colors.paper),
                         )
                     }
 
@@ -455,9 +462,7 @@ private fun CatalogContent(
 @Composable
 private fun CatalogHeader(
     state: OrderFlowUiState,
-    categories: List<Category>,
     onSearchChange: (String) -> Unit,
-    onCategorySelected: (Int?) -> Unit,
     onChangeVenue: () -> Unit,
     onOpenModes: (() -> Unit)?,
     onCycleTheme: () -> Unit,
@@ -539,27 +544,34 @@ private fun CatalogHeader(
                 }
             }
         }
+    }
+}
 
-        Spacer(Modifier.height(6.dp))
-        // Como en iOS: 8 dp arriba y abajo para que la sombra de los chips no se corte en el borde de la fila.
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(vertical = 8.dp, horizontal = 2.dp),
-        ) {
-            item {
-                ChoiceChip(
-                    label = "Todo",
-                    selected = state.selectedCategoryId == null,
-                    onClick = { onCategorySelected(null) },
-                )
-            }
-            items(categories, key = Category::id) { category ->
-                ChoiceChip(
-                    label = category.name,
-                    selected = state.selectedCategoryId == category.id,
-                    onClick = { onCategorySelected(category.id) },
-                )
-            }
+@Composable
+private fun CategoryChips(
+    categories: List<Category>,
+    selectedCategoryId: Int?,
+    onCategorySelected: (Int?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(vertical = 8.dp, horizontal = 2.dp),
+    ) {
+        item {
+            ChoiceChip(
+                label = "Todo",
+                selected = selectedCategoryId == null,
+                onClick = { onCategorySelected(null) },
+            )
+        }
+        items(categories, key = Category::id) { category ->
+            ChoiceChip(
+                label = category.name,
+                selected = selectedCategoryId == category.id,
+                onClick = { onCategorySelected(category.id) },
+            )
         }
     }
 }

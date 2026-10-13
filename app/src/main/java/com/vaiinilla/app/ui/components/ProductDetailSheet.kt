@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.WarningAmber
@@ -77,7 +78,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -315,8 +318,14 @@ fun ProductDetailSheet(
                         Modifier
                             .fillMaxWidth()
                             .height(HeroHeight + HaloFade)
-                            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                            .drawWithContent {
+                            .graphicsLayer {
+                                compositingStrategy = CompositingStrategy.Offscreen
+                                // Sube con la foto al hacer scroll; si no, quedaría un fantasma detrás del texto.
+                                val photoOnScreen = listState.firstVisibleItemIndex == 0
+                                translationY =
+                                    if (photoOnScreen) -listState.firstVisibleItemScrollOffset.toFloat() else 0f
+                                alpha = if (photoOnScreen) 1f else 0f
+                            }.drawWithContent {
                                 drawContent()
                                 drawRect(
                                     Brush.verticalGradient(
@@ -907,7 +916,20 @@ private fun QuantityButton(
     description: String,
     onClick: () -> Unit,
 ) {
-    GlassCircleButton(icon, description, onClick, size = 46.dp, iconSize = 19.dp)
+    // Plano y neutro: el único volumen de la hoja es "Agregar".
+    val colors = LocalVaiinillaColors.current
+    Box(
+        modifier =
+            Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(colors.ink.copy(alpha = 0.06f))
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(19.dp))
+    }
 }
 
 private val HeroHeight = 300.dp
