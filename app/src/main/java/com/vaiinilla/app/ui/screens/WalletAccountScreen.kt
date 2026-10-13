@@ -50,6 +50,7 @@ import com.vaiinilla.app.ui.components.AuthAccessField
 import com.vaiinilla.app.ui.components.AuthAccessFieldKind
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialPrimaryButton
+import com.vaiinilla.app.ui.components.EditorialSecondaryButton
 import com.vaiinilla.app.ui.components.TotpMfaChallengeForm
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.components.WalletScreenShell
@@ -281,27 +282,21 @@ fun WalletAccountScreen(
             ) {
                 if (hasStaffModes) {
                     EditorialAccentButton(text = "Cambiar a modo personal", onClick = onOpenStaffModes)
-                    EditorialPrimaryButton(
+                    EditorialSecondaryButton(
                         text = "Cambiar de tienda",
                         onClick = onChangeVenue,
-                        background = colors.paper2,
-                        contentColor = colors.ink,
                     )
                 } else {
                     EditorialAccentButton(text = "Cambiar de tienda", onClick = onChangeVenue)
                 }
-                EditorialPrimaryButton(
+                EditorialSecondaryButton(
                     text = "Ayuda y soporte",
                     onClick = onOpenSupport,
-                    background = colors.paper2,
-                    contentColor = colors.ink,
                 )
                 if (signedIn) {
-                    EditorialPrimaryButton(
+                    EditorialSecondaryButton(
                         text = "Cerrar sesión",
                         onClick = onSignOut,
-                        background = colors.paper2,
-                        contentColor = colors.ink,
                     )
                     Surface(
                         modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
@@ -426,11 +421,9 @@ private fun AccountDeletionConfirmationDialog(
                     background = colors.coral,
                     contentColor = colors.paper,
                 )
-                EditorialPrimaryButton(
+                EditorialSecondaryButton(
                     text = "Cancelar",
                     onClick = onDismiss,
-                    background = colors.paper2,
-                    contentColor = colors.ink,
                 )
             }
         }
@@ -478,12 +471,10 @@ private fun AccountDeletionReauthenticationDialog(
                     background = colors.coral,
                     contentColor = colors.paper,
                 )
-                EditorialPrimaryButton(
+                EditorialSecondaryButton(
                     text = "Cancelar",
                     onClick = onDismiss,
                     enabled = !busy,
-                    background = colors.paper2,
-                    contentColor = colors.ink,
                 )
             }
         }
@@ -568,11 +559,9 @@ private fun AccountDeletionErrorDialog(
                         contentColor = colors.paper,
                     )
                 }
-                EditorialPrimaryButton(
+                EditorialSecondaryButton(
                     text = "Cancelar",
                     onClick = onDismiss,
-                    background = colors.paper2,
-                    contentColor = colors.ink,
                 )
             }
         }
