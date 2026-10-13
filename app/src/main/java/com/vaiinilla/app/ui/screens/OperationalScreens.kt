@@ -1241,8 +1241,6 @@ private fun elapsedShort(
     }
 }
 
-private fun formatTimer(ms: Long?): String = ms?.let { "%d:%02d".format(it / 60_000, (it % 60_000) / 1_000) } ?: "--:--"
-
 @Composable
 private fun TicketZigzag() {
     Canvas(modifier = Modifier.fillMaxWidth().height(11.dp)) {
@@ -1713,34 +1711,6 @@ fun KitchenOperationalScreen(
                 }
             }
 
-            // Title & Subtitle
-            item {
-                Column(modifier = Modifier.padding(top = 4.dp)) {
-                    Text(
-                        "COMANDAS EN VIVO",
-                        color = colors.textSecondary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
-                        letterSpacing = 1.6.sp,
-                    )
-                    Text(
-                        "Una comanda a la vez.",
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 32.sp,
-                        letterSpacing = (-1.2).sp,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                    Text(
-                        "Cambia el estado cuando el trabajo real cambie. El equipo verá la actualización.",
-                        color = colors.textSecondary,
-                        fontSize = 14.sp,
-                        lineHeight = 19.sp,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                }
-            }
-
             // En preparación Section Label
             if (activeOrder == null) {
                 item {
@@ -1780,14 +1750,6 @@ fun KitchenOperationalScreen(
                             SpaceCopy
                                 .staffDestination(activeOrder.summary.destination, activeOrder.summary.space)
                                 .uppercase()
-                        val stateLabel =
-                            if (isReady) {
-                                "LISTA"
-                            } else if (isPreparing) {
-                                "EN PREPARACIÓN"
-                            } else {
-                                "NUEVA"
-                            }
                         Column(modifier = Modifier.fillMaxWidth()) {
                             Surface(
                                 modifier =
@@ -1806,7 +1768,7 @@ fun KitchenOperationalScreen(
                                     ) {
                                         Column {
                                             Text(
-                                                "$stateLabel · $destLabel${arrivalSuffix(activeOrder)}",
+                                                "$destLabel${arrivalSuffix(activeOrder)}",
                                                 color = TicketMuted,
                                                 fontSize = 9.5.sp,
                                                 fontWeight = FontWeight.ExtraBold,
@@ -1827,23 +1789,12 @@ fun KitchenOperationalScreen(
                                                     color = TicketInk,
                                                 )
                                             }
-                                            Row(
-                                                verticalAlignment = Alignment.Bottom,
+                                            KitchenAgeText(
+                                                createdAt = activeOrder.summary.createdAt,
+                                                ink = TicketInk,
+                                                muted = TicketMuted,
                                                 modifier = Modifier.padding(top = 2.dp),
-                                            ) {
-                                                Text(
-                                                    formatTimer(elapsedSinceMs(activeOrder.summary.createdAt)),
-                                                    fontSize = 19.sp,
-                                                    fontWeight = FontWeight.Black,
-                                                    color = TicketInk,
-                                                )
-                                                Text(
-                                                    "  en cocina",
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = TicketMuted,
-                                                )
-                                            }
+                                            )
                                         }
                                         StampLabel(
                                             text =
@@ -2339,105 +2290,46 @@ private fun AddProductSheet(
                 )
             }
 
-            // Station segmented control
             val stations =
                 listOf(
                     PreparationStation.CASHIER to "Barra / Bebidas",
                     PreparationStation.KITCHEN to "Cocina caliente",
                 )
-            SlidingSegments(
-                labels = stations.map { it.second },
-                selectedIndex = stations.indexOfFirst { it.first == selectedStation }.coerceAtLeast(0),
-                onSelect = { index ->
-                    haptics.selection()
-                    selectedStation = stations[index].first
-                },
-                trackColor = colors.cardInner,
-                indicatorColor = colors.accentLime,
-                selectedContentColor = colors.accentInk,
-                idleContentColor = colors.textSecondary,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !saving,
-                verticalPadding = 11.dp,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Se prepara en", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+                SlidingSegments(
+                    labels = stations.map { it.second },
+                    selectedIndex = stations.indexOfFirst { it.first == selectedStation }.coerceAtLeast(0),
+                    onSelect = { index ->
+                        haptics.selection()
+                        selectedStation = stations[index].first
+                    },
+                    trackColor = colors.cardInner,
+                    indicatorColor = colors.textPrimary,
+                    selectedContentColor = colors.background,
+                    idleContentColor = colors.textSecondary,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !saving,
+                    verticalPadding = 11.dp,
+                )
+            }
 
-            // Name input
-            BasicTextField(
+            OperationalField(
                 value = name,
                 onValueChange = { name = it },
-                singleLine = true,
-                textStyle =
-                    TextStyle(
-                        color = colors.textPrimary,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    ),
-                cursorBrush = SolidColor(colors.textPrimary),
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(colors.cardInner)
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                decorationBox = { inner ->
-                    Column {
-                        Text(
-                            "NOMBRE",
-                            fontSize = 9.5.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.sp,
-                            color = colors.textMuted,
-                        )
-                        Box {
-                            if (name.isEmpty()) {
-                                Text(
-                                    "Ej. Matcha frío con avena",
-                                    color = colors.textMuted,
-                                    fontSize = 15.sp,
-                                )
-                            }
-                            inner()
-                        }
-                    }
-                },
+                label = "Nombre",
+                colors = colors,
+                placeholder = "Ej. Matcha frío con avena",
+                enabled = !saving,
             )
-
-            // Price input
-            BasicTextField(
+            OperationalField(
                 value = priceStr,
                 onValueChange = { priceStr = it.filter { char -> char.isDigit() } },
-                singleLine = true,
-                textStyle =
-                    TextStyle(
-                        color = colors.textPrimary,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    ),
-                cursorBrush = SolidColor(colors.textPrimary),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(colors.cardInner)
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                decorationBox = { inner ->
-                    Column {
-                        Text(
-                            "PRECIO ($)",
-                            fontSize = 9.5.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.sp,
-                            color = colors.textMuted,
-                        )
-                        Box {
-                            if (priceStr.isEmpty()) {
-                                Text("Ej. 65", color = colors.textMuted, fontSize = 15.sp)
-                            }
-                            inner()
-                        }
-                    }
-                },
+                label = "Precio",
+                colors = colors,
+                placeholder = "Ej. 65",
+                enabled = !saving,
+                keyboardType = KeyboardType.Number,
             )
 
             if (submitted && !errorMessage.isNullOrBlank()) {
