@@ -130,7 +130,14 @@ internal fun StoreEntranceOverlay(
             }
             StoreEntranceOutcome.FAILED -> {
                 finishing = true
-                if (!reduceMotion) launch { p.animateTo(START_WITHOUT_CODE, spring(dampingRatio = 1f, stiffness = 60f)) }
+                if (!reduceMotion) {
+                    launch {
+                        p.animateTo(
+                            START_WITHOUT_CODE,
+                            spring(dampingRatio = 1f, stiffness = 60f),
+                        )
+                    }
+                }
                 delay(if (reduceMotion) 0 else 450)
                 fade.animateTo(0f, tween(500))
                 latestOnFinished()
@@ -181,7 +188,9 @@ internal fun StoreEntranceOverlay(
         val t = smooth(progress, 0.5f, 0.88f)
         val zoom = SceneCurve.lerp(1f, DOOR_ZOOM, t * t)
         // Se entra por la puerta o, desde el plano, se baja a tu mesa.
-        val focus = mine?.let { FloorPlanLayout.table(it.index, stage) } ?: Offset(stage.width / 2f, stage.height * DOOR_FOCUS_Y)
+        val focus =
+            mine?.let { FloorPlanLayout.table(it.index, stage) }
+                ?: Offset(stage.width / 2f, stage.height * DOOR_FOCUS_Y)
         val anchor = Offset(focus.x, SceneCurve.lerp(focus.y, stage.height / 2f, t))
         val camera = SceneCamera(zoom, anchor, focus)
         val sceneAlpha = if (mosaic == null) 1f else smooth(progress, 0.34f, 0.48f)
@@ -309,4 +318,3 @@ private fun DrawScope.drawEntranceMosaic(
         smooth(p, start, start + 0.14f)
     }
 }
-

@@ -161,7 +161,10 @@ internal fun DrawScope.drawFloorPlan(
             tick % 14 == 13 -> PixelVainiPose.BLINK
             else -> PixelVainiPose.REST
         }
-    drawPixels(FloorPlanArt.vaini(pose), cellRect(FloorPlanLayout.vainiCell, FloorPlanArt.VAINI_WIDTH, FloorPlanArt.VAINI_HEIGHT, stage))
+    drawPixels(
+        FloorPlanArt.vaini(pose),
+        cellRect(FloorPlanLayout.vainiCell, FloorPlanArt.VAINI_WIDTH, FloorPlanArt.VAINI_HEIGHT, stage),
+    )
     if (tick == null) return
     drawPixels(
         FloorPlanArt.cat(art, tailUp = tick % 12 >= 9),
@@ -272,7 +275,13 @@ private data class PixelRgb(
         t: Float,
     ) = PixelRgb(r + (other.r - r) * t, g + (other.g - g) * t, b + (other.b - b) * t, a)
 
-    val packed: Int get() = Color(r.coerceIn(0f, 1f), g.coerceIn(0f, 1f), b.coerceIn(0f, 1f), a.coerceIn(0f, 1f)).toArgb()
+    val packed: Int get() =
+        Color(
+            r.coerceIn(0f, 1f),
+            g.coerceIn(0f, 1f),
+            b.coerceIn(0f, 1f),
+            a.coerceIn(0f, 1f),
+        ).toArgb()
 }
 
 private val PixelLime = Color(0xFFB7D464)
@@ -479,7 +488,11 @@ internal object FloorPlanArt {
 
     /** Vaini de cuerpo entero, parado sobre sus dos patitas (afuera de la barra). */
     fun standingVaini(pose: PixelVainiPose): ImageBitmap =
-        PixelCache.image("vaini-standing-$pose", VAINI_WIDTH, STANDING_VAINI_HEIGHT) { paintVaini(this, pose, legs = true) }
+        PixelCache.image(
+            "vaini-standing-$pose",
+            VAINI_WIDTH,
+            STANDING_VAINI_HEIGHT,
+        ) { paintVaini(this, pose, legs = true) }
 
     private fun paintVaini(
         canvas: PlanPixels,

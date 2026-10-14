@@ -172,7 +172,15 @@ private fun DrawScope.drawKitchenBack(
             Size(jarWidth, g.height * 0.07f),
             CornerRadius(hair * 2),
         )
-        drawRect(c.shopShelf, topLeft = Offset(jarLeft - hair, jarTop - hair * 2), size = Size(jarWidth + hair * 2, hair * 3))
+        drawRect(
+            c.shopShelf,
+            topLeft = Offset(jarLeft - hair, jarTop - hair * 2),
+            size =
+                Size(
+                    jarWidth + hair * 2,
+                    hair * 3,
+                ),
+        )
     }
 
     // La campana sobre Vaini y su luz, que cae sobre la barra.
@@ -261,7 +269,11 @@ private fun DrawScope.drawKitchenFront(
     drawRect(Color.Black.copy(alpha = 0.18f), topLeft = Offset(g.left, frontTop), size = frontSize)
     var plank = g.left + g.width / 6f
     while (plank < g.right) {
-        drawRect(Color.Black.copy(alpha = 0.12f), topLeft = Offset(plank, frontTop), size = Size(hair, frontSize.height))
+        drawRect(
+            Color.Black.copy(alpha = 0.12f),
+            topLeft = Offset(plank, frontTop),
+            size = Size(hair, frontSize.height),
+        )
         plank += g.width / 6f
     }
     drawRect(c.shopShelf, topLeft = Offset(g.left, top), size = Size(g.width, slab))

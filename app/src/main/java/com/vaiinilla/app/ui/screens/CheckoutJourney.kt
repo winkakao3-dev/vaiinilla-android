@@ -182,7 +182,9 @@ private fun CheckoutTicketFlight(
     val glass = SceneCurve.segment(t, 0.86f, 0.97f)
     val words = SceneCurve.segment(t, 0.74f, 0.88f)
     // Se arranca con un saltito y se endereza mientras vuela.
-    val hop = with(density) { -10.dp.toPx() } * sin(PI.toFloat() * SceneCurve.segment(t, CHECKOUT_PRINTED, CHECKOUT_PRINTED + 0.1f))
+    val hop =
+        with(density) { -10.dp.toPx() } *
+            sin(PI.toFloat() * SceneCurve.segment(t, CHECKOUT_PRINTED, CHECKOUT_PRINTED + 0.1f))
     val tilt = -3f * sin(PI.toFloat() * SceneCurve.segment(t, CHECKOUT_PRINTED, 0.9f))
     val lift = sin(PI.toFloat() * morph)
     val radius = SceneCurve.lerp(3f, 32f, morph).dp

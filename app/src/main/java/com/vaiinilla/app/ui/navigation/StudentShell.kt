@@ -92,7 +92,8 @@ fun StudentShellHost(
     val entry by navController.currentBackStackEntryAsState()
     val route = entry?.destination?.route
     val activeTab = studentTabForRoute(route)
-    val showNav = shouldShowStudentNav(route, catalogDetailOpen, cartHasItems = cartCount > 0, walletCodeOpen = walletCodeOpen)
+    val showNav =
+        shouldShowStudentNav(route, catalogDetailOpen, cartHasItems = cartCount > 0, walletCodeOpen = walletCodeOpen)
 
     val hazeState = rememberHazeState()
     val colors = LocalVaiinillaColors.current

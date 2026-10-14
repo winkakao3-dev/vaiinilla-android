@@ -79,6 +79,7 @@ import com.vaiinilla.app.ui.screens.CashierOperationalScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.CounterOrderSheet
 import com.vaiinilla.app.ui.screens.DiscoveryScreen
+import com.vaiinilla.app.ui.screens.FloorTable
 import com.vaiinilla.app.ui.screens.InvitationAcceptanceScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.LocalScene
@@ -86,7 +87,6 @@ import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.OrdersAccessGate
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
 import com.vaiinilla.app.ui.screens.SharedTableCard
-import com.vaiinilla.app.ui.screens.FloorTable
 import com.vaiinilla.app.ui.screens.StoreEntrance
 import com.vaiinilla.app.ui.screens.StoreEntranceOutcome
 import com.vaiinilla.app.ui.screens.StoreEntranceOverlay

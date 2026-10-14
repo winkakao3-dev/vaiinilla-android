@@ -227,7 +227,12 @@ private fun WalletCodeChrome(
                 WaitingForReload()
                 Spacer(Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.LightMode, contentDescription = null, tint = c.muted, modifier = Modifier.size(13.dp))
+                    Icon(
+                        Icons.Outlined.LightMode,
+                        contentDescription = null,
+                        tint = c.muted,
+                        modifier = Modifier.size(13.dp),
+                    )
                     Spacer(Modifier.width(6.dp))
                     Text(
                         "Subimos el brillo mientras está abierto. El código solo identifica tu cuenta.",
