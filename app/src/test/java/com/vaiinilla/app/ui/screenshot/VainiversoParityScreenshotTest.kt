@@ -1,8 +1,12 @@
 package com.vaiinilla.app.ui.screenshot
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.vaiinilla.app.core.qr.QrCodeEncoder
@@ -14,8 +18,13 @@ import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
+import com.vaiinilla.app.ui.order.TrayItemKind
 import com.vaiinilla.app.ui.screens.CheckoutStage
+import com.vaiinilla.app.ui.screens.KitchenPeek
 import com.vaiinilla.app.ui.screens.LocalScene
+import com.vaiinilla.app.ui.screens.SceneMotion
+import com.vaiinilla.app.ui.screens.drawStorefront
+import com.vaiinilla.app.ui.screens.kitchenCamera
 import com.vaiinilla.app.ui.screens.StoreEntrance
 import com.vaiinilla.app.ui.screens.StoreEntranceOutcome
 import com.vaiinilla.app.ui.screens.StoreEntranceOverlay
@@ -166,4 +175,36 @@ class VainiversoParityScreenshotTest {
 
     @Test
     fun `checkout_printed_night`() = capture("checkout_3_printed_night", VaiinillaThemeMode.Dark) { Checkout(0.6f) }
+
+    @Composable
+    private fun Kitchen(
+        peek: Float,
+        lit: Float,
+        item: TrayItemKind = TrayItemKind.DRINK,
+    ) {
+        val palette = LocalScene.current
+        val textMeasurer = rememberTextMeasurer()
+        Canvas(Modifier.fillMaxSize()) {
+            val camera = kitchenCamera(peek, size)
+            val kitchen = KitchenPeek(item = item, lit = lit, alpha = (peek / 0.25f).coerceAtMost(1f), steam = 0.3f)
+            drawContext.transform.translate(camera.translation.x, camera.translation.y)
+            drawContext.transform.scale(camera.zoom, camera.zoom, androidx.compose.ui.geometry.Offset.Zero)
+            drawStorefront(size, textMeasurer, palette, SceneMotion(happy = lit > 0.5f, wave = if (lit > 0.5f) -112f else 0f), kitchen)
+        }
+    }
+
+    @Test
+    fun `kitchen_halfway_day`() = capture("kitchen_1_halfway_day") { Kitchen(0.5f, 0f) }
+
+    @Test
+    fun `kitchen_preparing_day`() = capture("kitchen_2_preparing_day") { Kitchen(1f, 0f) }
+
+    @Test
+    fun `kitchen_ready_day`() = capture("kitchen_3_ready_day") { Kitchen(1f, 1f, TrayItemKind.PLATE) }
+
+    @Test
+    fun `kitchen_preparing_night`() = capture("kitchen_2_preparing_night", VaiinillaThemeMode.Dark) { Kitchen(1f, 0f) }
+
+    @Test
+    fun `kitchen_ready_night`() = capture("kitchen_3_ready_night", VaiinillaThemeMode.Dark) { Kitchen(1f, 1f) }
 }

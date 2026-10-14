@@ -8,12 +8,14 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -105,30 +107,34 @@ import com.google.zxing.common.BitMatrix
 import com.vaiinilla.app.core.qr.QrCodeEncoder
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.openTableCallSpaceId
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.order.MOSAIC_FLIP_LENGTH
+import com.vaiinilla.app.ui.order.PickupPlace
 import com.vaiinilla.app.ui.order.PickupStep
 import com.vaiinilla.app.ui.order.PurchaseCelebrationKind
 import com.vaiinilla.app.ui.order.mosaicCellStart
 import com.vaiinilla.app.ui.order.pickupCodeHint
 import com.vaiinilla.app.ui.order.pickupCodeUseful
 import com.vaiinilla.app.ui.order.pickupHint
+import com.vaiinilla.app.ui.order.pickupPlace
 import com.vaiinilla.app.ui.order.pickupStep
 import com.vaiinilla.app.ui.order.pickupTitle
 import com.vaiinilla.app.ui.order.shouldAutoRevealPickupCode
+import com.vaiinilla.app.ui.order.trayItemKind
 import com.vaiinilla.app.ui.theme.SeaGlassButton
 import com.vaiinilla.app.ui.theme.SeaGlassTone
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private val Lime = Color(0xFFB7D464)
 private val LimeInk = Color(0xFF172008)
@@ -301,8 +307,42 @@ private fun PickupJourney(
     val reveal = remember(order.summary.id) { Animatable(if (revealed) 1f else 0f) }
     var autoRevealedState by rememberSaveable(order.summary.id) { mutableStateOf<String?>(null) }
     val autoReveal = shouldAutoRevealPickupCode(order, hasCode)
-    LaunchedEffect(autoReveal, state, celebrating) {
-        if (celebrating || !autoReveal || autoRevealedState == state.wireValue) return@LaunchedEffect
+    // Asomados a la cocina por la vitrina mientras se prepara (`KitchenPeekScene`), y el letrero de "Listo".
+    val peek = remember(order.summary.id) { Animatable(0f) }
+    val kitchenLit = remember(order.summary.id) { Animatable(0f) }
+    val place = pickupPlace(order)
+
+    // Sale de la vitrina a la tienda completa. El código siempre vuela desde ahí: el mosaico es de la fachada.
+    suspend fun leaveKitchen() {
+        if (peek.value <= 0f) return
+        if (reduceMotion) peek.snapTo(0f) else peek.animateTo(0f, spring(dampingRatio = 1f, stiffness = 22f))
+    }
+
+    // Un solo dueño de la cámara entre estados: se asoma a la cocina mientras se prepara; al estar listo prende
+    // el letrero, sale a la puerta y, si toca, abre el código.
+    LaunchedEffect(state, place, celebrating, autoReveal, revealed) {
+        if (celebrating) return@LaunchedEffect
+        if (place == PickupPlace.KITCHEN) {
+            if (revealed || peek.value >= 1f) return@LaunchedEffect
+            kitchenLit.snapTo(0f)
+            // La tienda se queda un momento antes de asomarse: se lee como el mismo lugar y no como un corte.
+            delay(if (reduceMotion) 0 else 900)
+            if (reduceMotion) peek.snapTo(1f) else peek.animateTo(1f, spring(dampingRatio = 1f, stiffness = 12f))
+            return@LaunchedEffect
+        }
+        if (peek.value > 0f && !revealed) {
+            if (state == OrderState.READY) {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (reduceMotion) {
+                    kitchenLit.snapTo(1f)
+                } else {
+                    launch { kitchenLit.animateTo(1f, spring(dampingRatio = 1f, stiffness = 30f)) }
+                }
+                delay(if (reduceMotion) 400 else 1300)
+            }
+            leaveKitchen()
+        }
+        if (!autoReveal || autoRevealedState == state.wireValue) return@LaunchedEffect
         // Deja ver a Vaini saludar antes de volar hacia el código.
         delay(if (reduceMotion) 300 else 1500)
         autoRevealedState = state.wireValue
@@ -310,6 +350,7 @@ private fun PickupJourney(
         revealed = true
     }
     LaunchedEffect(revealed) {
+        if (revealed) leaveKitchen()
         val target = if (revealed) 1f else 0f
         if (reduceMotion) {
             reveal.snapTo(
@@ -358,6 +399,12 @@ private fun PickupJourney(
             ),
         label = "wave",
     )
+    val steamPhase by idle.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart),
+        label = "steam",
+    )
     val cheering = ready || intro.value > 0.02f
     val motion =
         SceneMotion(
@@ -381,9 +428,35 @@ private fun PickupJourney(
                 matrix?.let { buildMosaic(it, widthPx, heightPx, density, textMeasurer, palette) }
             }
         val p = reveal.value
-        val camera = cameraAt(p, widthPx, heightPx)
+        val peeking = peek.value > 0.0001f
+        val camera = if (peeking) kitchenCamera(peek.value, stage) else cameraAt(p, widthPx, heightPx)
+        val kitchenAlpha = segment(peek.value, 0f, 0.25f)
+        val kitchen =
+            if (kitchenAlpha > 0.001f) {
+                KitchenPeek(
+                    item = trayItemKind(order.items.firstOrNull()?.productName.orEmpty()),
+                    lit = kitchenLit.value,
+                    alpha = kitchenAlpha,
+                    steam = steamPhase,
+                    steamMoving = !reduceMotion,
+                )
+            } else {
+                null
+            }
+        // La hoja de vidrio deja ver lo mismo que la cámara: la cocina cuando está asomada.
+        val drawWorld: DrawScope.() -> Unit = {
+            if (peeking) {
+                withTransform({
+                    translate(camera.translation.x, camera.translation.y)
+                    scale(camera.zoom, camera.zoom, pivot = Offset.Zero)
+                }) { drawStorefront(stage, textMeasurer, palette, motion, kitchen) }
+            } else {
+                drawStorefront(stage, textMeasurer, palette, motion)
+            }
+        }
         val sceneAlpha = 1f - segment(p, 0.46f, 0.62f)
-        val speedBlur = if (p in 0.03f..0.5f) min(10f, abs(reveal.velocity) * 9f) else 0f
+        val peekBlur = if (reduceMotion) 0f else 6f * sin(PI.toFloat() * peek.value)
+        val speedBlur = maxOf(if (p in 0.03f..0.5f) min(10f, abs(reveal.velocity) * 9f) else 0f, peekBlur)
         val introBlur = if (reduceMotion) 0f else intro.value * 18f
         val sceneBlur = maxOf(speedBlur, introBlur)
 
@@ -404,7 +477,7 @@ private fun PickupJourney(
                             }
                         },
             ) {
-                drawStorefront(stage, textMeasurer, palette, motion)
+                drawStorefront(stage, textMeasurer, palette, motion, kitchen)
             }
         }
 
@@ -424,7 +497,7 @@ private fun PickupJourney(
             step = step,
             hasCode = hasCode,
             hidden = maxOf(eased(p, 0f, 0.2f), intro.value),
-            backdrop = { drawStorefront(stage, textMeasurer, palette, motion) },
+            backdrop = drawWorld,
             onShowCode = { revealed = true },
             onViewTracking = onViewTracking,
             onCurrentWaiterCall = onCurrentWaiterCall,
@@ -446,7 +519,7 @@ private fun PickupJourney(
                 badge = badge.value,
                 check = check.value,
                 dropPx = heightPx * 0.32f,
-                backdrop = { drawStorefront(stage, textMeasurer, palette, motion) },
+                backdrop = drawWorld,
                 appear = eased(checkout.value, 0.9f, 1f),
                 onPlaced = { cardRect = it },
                 modifier = Modifier.align(Alignment.Center),

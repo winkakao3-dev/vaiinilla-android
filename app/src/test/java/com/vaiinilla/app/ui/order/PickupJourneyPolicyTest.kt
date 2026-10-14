@@ -2,15 +2,18 @@ package com.vaiinilla.app.ui.order
 
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderReservation
 import com.vaiinilla.app.domain.model.OrderSpace
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.ReservationState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
 
 class PickupJourneyPolicyTest {
     @Test
@@ -70,6 +73,31 @@ class PickupJourneyPolicyTest {
         val center = mosaicCellStart(14, 14, size)
         val corner = mosaicCellStart(0, 0, size)
         assertTrue(center < corner)
+    }
+
+    @Test
+    fun eachOrderIsFollowedInItsPlace() {
+        assertEquals(PickupPlace.STOREFRONT, pickupPlace(order(OrderState.PAID)))
+        assertEquals(PickupPlace.KITCHEN, pickupPlace(order(OrderState.PREPARING)))
+        assertEquals(PickupPlace.STOREFRONT, pickupPlace(order(OrderState.READY)))
+        assertEquals(PickupPlace.TABLE, pickupPlace(order(OrderState.PREPARING, toSpace = true)))
+        val toCourt = order(OrderState.PREPARING, toSpace = true)
+        val courtSpace = toCourt.summary.copy(space = OrderSpace(id = 9, name = "Cancha 1", type = "cancha"))
+        assertEquals(PickupPlace.KITCHEN, pickupPlace(toCourt.copy(summary = courtSpace)))
+        val start = Instant.parse("2026-10-14T18:00:00Z")
+        val rental =
+            order(OrderState.DELIVERED).copy(
+                reservation =
+                    OrderReservation(
+                        id = "r",
+                        space = null,
+                        start = start,
+                        end = start.plusSeconds(3600),
+                        durationMinutes = 60,
+                        state = ReservationState.CONFIRMED,
+                    ),
+            )
+        assertEquals(PickupPlace.COURT, pickupPlace(rental))
     }
 
     private fun order(

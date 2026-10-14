@@ -108,3 +108,30 @@ internal fun mosaicCellStart(
 internal const val MOSAIC_FLIP_FROM = 0.42f
 internal const val MOSAIC_FLIP_SPREAD = 0.3f
 internal const val MOSAIC_FLIP_LENGTH = 0.14f
+
+/** El lugar del mundo donde se sigue un pedido, como `PickupPlace` en iOS. */
+internal enum class PickupPlace {
+    /** La fachada de la tienda; el QR sale de ella. */
+    STOREFRONT,
+
+    /** Asomados por la vitrina mientras se prepara un pedido para llevar. */
+    KITCHEN,
+
+    /** El lugar visto desde arriba, con la mesa (o el espacio) a donde llega el pedido. */
+    TABLE,
+
+    /** La cancha rentada vista desde arriba. */
+    COURT,
+}
+
+/** Los espacios que se ven en el plano con mesas; una cancha no tiene mesas. */
+internal fun spaceHasTables(type: String): Boolean = type != "cancha"
+
+internal fun pickupPlace(order: OrderDetail): PickupPlace =
+    when {
+        order.reservation != null -> PickupPlace.COURT
+        order.summary.destination == OrderDestination.IN_SPACE &&
+            spaceHasTables(order.summary.space?.type ?: "mesa") -> PickupPlace.TABLE
+        order.summary.state == OrderState.PREPARING -> PickupPlace.KITCHEN
+        else -> PickupPlace.STOREFRONT
+    }
