@@ -125,8 +125,11 @@ internal fun ProductGlassCard(
             tone = tone,
             shape = shape,
             modifier = Modifier.matchParentSize(),
-            drop = 14.dp,
-            strength = if (colors.isDark) 0.75f else 0.55f,
+            // En la cuadrícula la luz se queda pegada a la tarjeta; la ficha abierta usa la suya, más amplia.
+            blur = 16.dp,
+            drop = 6.dp,
+            inset = 18.dp,
+            strength = if (colors.isDark) 0.45f else 0.35f,
         )
         // Vidrio denso: la luz se ve alrededor y debajo, y adentro apenas tiñe.
         Column(

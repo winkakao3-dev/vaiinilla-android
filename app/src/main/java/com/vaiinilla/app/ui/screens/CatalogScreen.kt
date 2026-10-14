@@ -39,13 +39,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.CartLine
@@ -354,8 +360,8 @@ private fun CatalogContent(
                             .statusBarsPadding(),
                     contentPadding =
                         PaddingValues(
-                            start = 20.dp,
-                            end = 20.dp,
+                            start = CatalogSideMargin,
+                            end = CatalogSideMargin,
                             top = 16.dp,
                             bottom = VaiinillaBottomNavClearance + 48.dp,
                         ),
@@ -379,7 +385,12 @@ private fun CatalogContent(
                             categories = sortedCategories,
                             selectedCategoryId = state.selectedCategoryId,
                             onCategorySelected = onCategorySelected,
-                            modifier = Modifier.fillMaxWidth().background(colors.paper),
+                            modifier =
+                                Modifier
+                                    .bleedHorizontally(CatalogSideMargin)
+                                    .fadeBelow(colors.paper, 16.dp)
+                                    .background(colors.paper),
+                            sideMargin = CatalogSideMargin,
                         )
                     }
 
@@ -547,17 +558,49 @@ private fun CatalogHeader(
     }
 }
 
+private val CatalogSideMargin = 20.dp
+
+/** Ocupa también el margen lateral de la cuadrícula, para que la barra fija llegue de borde a borde. */
+private fun Modifier.bleedHorizontally(margin: Dp): Modifier =
+    layout { measurable, constraints ->
+        val extra = (margin * 2).roundToPx()
+        val width = constraints.maxWidth + extra
+        val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
+        layout(constraints.maxWidth, placeable.height) { placeable.place(-extra / 2, 0) }
+    }
+
+/** Un degradado del color de fondo bajo la barra: los productos se desvanecen al pasar, sin un corte. */
+private fun Modifier.fadeBelow(
+    color: Color,
+    height: Dp,
+): Modifier =
+    drawWithContent {
+        drawContent()
+        drawRect(
+            brush =
+                Brush.verticalGradient(
+                    listOf(color, color.copy(alpha = 0f)),
+                    startY = size.height,
+                    endY =
+                        size.height + height.toPx(),
+                ),
+            topLeft = Offset(0f, size.height),
+            size = Size(size.width, height.toPx()),
+        )
+    }
+
 @Composable
 private fun CategoryChips(
     categories: List<Category>,
     selectedCategoryId: Int?,
     onCategorySelected: (Int?) -> Unit,
     modifier: Modifier = Modifier,
+    sideMargin: Dp = 0.dp,
 ) {
     LazyRow(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(vertical = 8.dp, horizontal = 2.dp),
+        contentPadding = PaddingValues(vertical = 8.dp, horizontal = sideMargin + 2.dp),
     ) {
         item {
             ChoiceChip(

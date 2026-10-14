@@ -15,12 +15,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -44,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
@@ -55,6 +58,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 private val OrderDeleteBackground = Color(0xFFFF8686)
 private val OrderDeleteInk = Color(0xFF1C1C1A)
@@ -62,6 +66,8 @@ private val OrderDeleteDialogBackground = Color(0xFFF8F4E9)
 private val OrderDeleteDialogSupporting = Color(0xFF5C5A54)
 private val OrderDeleteCancelBackground = Color(0xFFE7E2D8)
 private val OrderDeleteShape = RoundedCornerShape(28.dp)
+private val OrderDeleteGap = 8.dp
+private val OrderDeleteActionWidth = 112.dp
 private val OrderDeleteDialogShape = RoundedCornerShape(28.dp)
 
 /**
@@ -127,27 +133,30 @@ fun SwipeToDeleteOrder(
                         )
                 },
         backgroundContent = {
-            // Solo se pinta al deslizar: las tarjetas de vidrio dejan ver lo que tienen detrás.
-            val swiping = dismissState.dismissDirection != SwipeToDismissBoxValue.Settled
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { alpha = if (swiping) 1f else 0f }
-                        .background(OrderDeleteBackground),
-            ) {
-                DeleteOrderAction(
-                    modifier =
-                        Modifier
-                            .align(Alignment.CenterStart)
-                            .padding(start = 14.dp),
-                )
-                DeleteOrderAction(
-                    modifier =
-                        Modifier
-                            .align(Alignment.CenterEnd)
-                            .padding(end = 14.dp),
-                )
+            // Las tarjetas son de vidrio y dejan ver lo que tienen detrás: el rojo no va debajo de la
+            // tarjeta, crece solo en el hueco que ella deja al deslizarse, separado por un respiro.
+            val offsetPx = runCatching { dismissState.requireOffset() }.getOrDefault(0f)
+            val revealed = with(LocalDensity.current) { (abs(offsetPx).toDp() - OrderDeleteGap).coerceAtLeast(0.dp) }
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (revealed > 0.dp) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .align(if (offsetPx > 0f) Alignment.CenterStart else Alignment.CenterEnd)
+                                .width(revealed)
+                                .fillMaxHeight()
+                                .clip(OrderDeleteShape)
+                                .background(OrderDeleteBackground),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        DeleteOrderAction(
+                            modifier =
+                                Modifier
+                                    .wrapContentWidth(unbounded = true)
+                                    .graphicsLayer { alpha = (revealed / OrderDeleteActionWidth).coerceIn(0f, 1f) },
+                        )
+                    }
+                }
             }
         },
         content = {
@@ -173,7 +182,7 @@ fun SwipeToDeleteOrder(
 @Composable
 private fun DeleteOrderAction(modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier.width(112.dp),
+        modifier = modifier.width(OrderDeleteActionWidth),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
