@@ -28,16 +28,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -62,6 +61,7 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.AccountSplit
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.Reservation
+import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.TipChoice
 import com.vaiinilla.app.domain.model.TipPercents
 import com.vaiinilla.app.domain.model.amountFor
@@ -80,6 +80,7 @@ import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.clockText
 import com.vaiinilla.app.ui.components.millisUntil
+import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.turnFraction
@@ -210,12 +211,13 @@ private fun statePalette(
     state: SpaceAvailabilityState,
     colors: OperationalColors,
 ): StatePalette {
+    // Solo el punto lleva color: la píldora es neutra para no competir con Cobrar.
     val (container, content) =
         when (state) {
-            SpaceAvailabilityState.LIBRE -> colors.pillBackground to colors.textSecondary
-            SpaceAvailabilityState.OCUPADA -> colors.accentLime to colors.accentInk
-            SpaceAvailabilityState.EN_GRACIA -> StateAmber to StateAmberInk
-            SpaceAvailabilityState.POR_COBRAR -> StateCoral to Color.White
+            SpaceAvailabilityState.LIBRE -> colors.pillBackground to colors.textMuted
+            SpaceAvailabilityState.OCUPADA -> colors.pillBackground to colors.highlightBorder
+            SpaceAvailabilityState.EN_GRACIA -> colors.pillBackground to StateAmber
+            SpaceAvailabilityState.POR_COBRAR -> colors.pillBackground to StateCoral
         }
     return StatePalette(
         container = animateSelectionColor(container, "space-pill-container"),
@@ -256,7 +258,7 @@ private fun SpaceStatePill(
             },
             label = "space-pill-label",
         ) { label ->
-            Text(label, color = palette.content, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(label, color = colors.textPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -282,26 +284,19 @@ internal fun WaiterSpaceSection(
     colors: OperationalColors,
     onOpenTurn: (Int?) -> Unit,
     onExtend: (Int) -> Unit,
-    onCollect: (
-        method: AccountPaymentMethod,
-        received: String?,
-        expectedTotal: String,
-        orderIds: List<String>?,
-        tip: String?,
-    ) -> Unit,
     onRelease: () -> Unit,
     onDismissCollection: () -> Unit,
     /** Cancha con precio: se renta y se cobra en lugar de abrir o alargar el turno a mano. */
     rentable: Boolean = false,
     onRent: (minutes: Int, start: Instant?) -> Unit = { _, _ -> },
-    /** Abonos por monto o partes iguales; null los oculta. */
-    onAbono: AbonoHandler? = null,
+    /** "Cobrar cuenta": la hoja que contiene la sección cambia al cobro. */
+    onStartCollect: () -> Unit = {},
+    /** Precio por hora del tablero: el detalle de la sesión no lo trae. */
+    pricePerHour: String? = null,
 ) {
-    var collecting by remember { mutableStateOf(false) }
     // Solo el botón que se tocó muestra su progreso; los demás quedan quietos.
     var busyKey by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(acting) { if (!acting) busyKey = null }
-    LaunchedEffect(lastCollection) { if (lastCollection != null) collecting = false }
     val isCourt = space.type == "cancha"
     val enabled = !acting && !readOnly
 
@@ -393,23 +388,15 @@ internal fun WaiterSpaceSection(
 
         if (session == null) {
             if (isCourt && rentable) {
-                Text(
-                    "Rentar ahora · se cobra al rentar",
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.5.sp,
-                    color = colors.textSecondary,
+                RentalDurationPicker(
+                    title = "Rentar ahora",
+                    verb = "Rentar",
+                    pricePerHour = pricePerHour ?: availability.pricePerHour,
+                    enabled = enabled,
+                    colors = colors,
                     modifier = Modifier.padding(top = 14.dp),
+                    onConfirm = { minutes -> onRent(minutes, null) },
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    TurnDurations.forEach { minutes ->
-                        ChipButton(rentalLabel(minutes), enabled, colors, Modifier.weight(1f)) {
-                            onRent(minutes, null)
-                        }
-                    }
-                }
             } else if (isCourt) {
                 Text(
                     "Abrir turno",
@@ -477,16 +464,19 @@ internal fun WaiterSpaceSection(
                     RollingText(
                         text = "$${account.pending}",
                         style = TextStyle(fontSize = 30.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.8).sp),
-                        color = if (hasPending) StateCoral else colors.textSecondary,
+                        color = if (hasPending) colors.textPrimary else colors.textSecondary,
                     )
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("Total", color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    RollingText(
-                        text = "$${account.total}",
-                        style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold),
-                        color = colors.textPrimary,
-                    )
+                // El total solo aporta si ya se cobró una parte; si no, repite lo que falta.
+                if (account.total.moneyOrZero().compareTo(pending) != 0) {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("Total", color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        RollingText(
+                            text = "$${account.total}",
+                            style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold),
+                            color = colors.textPrimary,
+                        )
+                    }
                 }
             }
             AnimatedVisibility(
@@ -501,7 +491,7 @@ internal fun WaiterSpaceSection(
                     loading = false,
                     colors = colors,
                     modifier = Modifier.padding(top = 14.dp),
-                ) { collecting = true }
+                ) { onStartCollect() }
             }
             val context = LocalContext.current
             ActionPill(
@@ -525,22 +515,18 @@ internal fun WaiterSpaceSection(
         SectionCard(colors, Modifier.arrive(2)) {
             if (rentable) {
                 // Renovar = rentar el siguiente horario pegado al turno y cobrarlo.
-                Text(
-                    "Renovar · se cobra al renovar",
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.5.sp,
-                    color = colors.textSecondary,
+                RentalDurationPicker(
+                    title = "Renovar",
+                    verb = "Renovar",
+                    pricePerHour = pricePerHour ?: availability.pricePerHour,
+                    enabled = enabled,
+                    colors = colors,
+                    renewal = true,
+                    primary = !hasPending,
+                    onConfirm = { minutes ->
+                        onRent(minutes, session.endsAt?.let { runCatching { Instant.parse(it) }.getOrNull() })
+                    },
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    TurnDurations.forEach { minutes ->
-                        ChipButton("+${rentalLabel(minutes)}", enabled, colors, Modifier.weight(1f)) {
-                            onRent(minutes, session.endsAt?.let { runCatching { Instant.parse(it) }.getOrNull() })
-                        }
-                    }
-                }
             } else if (isCourt || session.endsAt != null) {
                 Text(
                     if (session.endsAt == null) "Iniciar turno" else "Alargar turno",
@@ -560,45 +546,27 @@ internal fun WaiterSpaceSection(
                     }
                 }
             }
-            ActionPill(
-                label = "Liberar espacio",
-                enabled = enabled && !hasPending,
-                loading = acting && busyKey == "release",
-                colors = colors,
-                primary = !hasPending,
-                modifier = Modifier.padding(top = if (rentable || isCourt || session.endsAt != null) 14.dp else 0.dp),
-            ) {
-                busyKey = "release"
-                onRelease()
-            }
+            // Liberar aparece hasta que la cuenta está cobrada; antes, la hoja ya dice por qué no.
             AnimatedVisibility(
-                visible = hasPending,
+                visible = !hasPending,
                 enter =
                     fadeIn(spring(stiffness = 300f)) + expandVertically(spring(stiffness = Spring.StiffnessMediumLow)),
                 exit = fadeOut(spring(stiffness = 500f)) + shrinkVertically(spring(stiffness = Spring.StiffnessMedium)),
             ) {
-                Text(
-                    "Cobra la cuenta para poder liberar el espacio.",
-                    fontSize = 12.sp,
-                    color = colors.textSecondary,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
+                ActionPill(
+                    label = "Liberar espacio",
+                    enabled = enabled,
+                    loading = acting && busyKey == "release",
+                    colors = colors,
+                    primary = false,
+                    modifier =
+                        Modifier.padding(top = if (rentable || isCourt || session.endsAt != null) 14.dp else 0.dp),
+                ) {
+                    busyKey = "release"
+                    onRelease()
+                }
             }
         }
-    }
-
-    if (collecting && account != null) {
-        CollectAccountSheet(
-            total = account.pending,
-            payable = account.orders.filter { it.pending && it.payAtEnd },
-            confirming = acting,
-            colors = colors,
-            onDismiss = { if (!acting) collecting = false },
-            onConfirm = { method, received, expected, ids, tip -> onCollect(method, received, expected, ids, tip) },
-            remaining = account.remaining,
-            paidIn = account.paidIn,
-            onAbono = onAbono,
-        )
     }
 }
 
@@ -608,16 +576,14 @@ private fun SectionCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    // Sin caja: la hoja ya es la superficie; los bloques se separan con aire y una línea.
     val reduced = reducedMotion()
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = colors.cardBackground,
-        modifier = modifier.fillMaxWidth().border(1.dp, colors.cardBorder, RoundedCornerShape(18.dp)),
-    ) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        HorizontalDivider(color = colors.cardBorder, thickness = 1.dp)
         Column(
             modifier =
                 Modifier
-                    .padding(16.dp)
+                    .padding(top = 14.dp)
                     .animateContentSize(
                         if (reduced) snap() else spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow),
                     ),
@@ -632,12 +598,6 @@ private fun AccountOrderRow(
     colors: OperationalColors,
     modifier: Modifier = Modifier,
 ) {
-    val pillBackground =
-        animateSelectionColor(
-            if (order.pending) StateCoral.copy(alpha = 0.16f) else colors.pillBackground,
-            "order-pill-bg",
-        )
-    val pillInk = animateSelectionColor(if (order.pending) StateCoral else colors.textSecondary, "order-pill-ink")
     Row(
         modifier = modifier.fillMaxWidth().padding(top = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -657,15 +617,10 @@ private fun AccountOrderRow(
             Text("$${order.total}", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = colors.textPrimary)
             Text(
                 if (order.pending) "sin cobrar" else "cobrado",
-                fontSize = 11.sp,
+                fontSize = 11.5.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = pillInk,
-                modifier =
-                    Modifier
-                        .padding(top = 3.dp)
-                        .clip(CircleShape)
-                        .background(pillBackground)
-                        .padding(horizontal = 9.dp, vertical = 3.dp),
+                color = colors.textSecondary,
+                modifier = Modifier.padding(top = 2.dp),
             )
         }
     }
@@ -762,11 +717,15 @@ internal fun ChipButton(
     colors: OperationalColors,
     modifier: Modifier = Modifier,
     selected: Boolean = false,
+    /** Un segundo renglón, como el precio de una duración. */
+    detail: String? = null,
     onClick: () -> Unit,
 ) {
     val shape = RoundedCornerShape(14.dp)
-    val container = animateSelectionColor(if (selected) colors.accentLime else colors.cardInner, "chip-container")
-    val ink = animateSelectionColor(if (selected) colors.accentInk else colors.textPrimary, "chip-ink")
+    // Lo elegido va en tinta: el lima queda para la acción principal de la hoja.
+    val container = animateSelectionColor(if (selected) colors.textPrimary else colors.cardInner, "chip-container")
+    val ink = animateSelectionColor(if (selected) colors.background else colors.textPrimary, "chip-ink")
+    val detailInk = animateSelectionColor(if (selected) colors.background else colors.textSecondary, "chip-detail")
     val alpha by animateFloatAsState(
         targetValue = if (enabled) 1f else 0.45f,
         animationSpec = if (reducedMotion()) snap() else spring(stiffness = Spring.StiffnessMedium),
@@ -777,21 +736,26 @@ internal fun ChipButton(
             modifier
                 .physicalPress(enabled = enabled, onClick = onClick)
                 .graphicsLayer { this.alpha = alpha }
-                .height(48.dp)
+                .height(if (detail != null) 58.dp else 48.dp)
                 .clip(shape)
                 .background(container)
-                .border(1.dp, if (selected) colors.accentLime else colors.cardBorder, shape),
+                .border(1.dp, if (selected) colors.textPrimary else colors.cardBorder, shape),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            label,
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-            color = ink,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            modifier = Modifier.padding(horizontal = 14.dp),
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                label,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = ink,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                modifier = Modifier.padding(horizontal = 14.dp),
+            )
+            if (detail != null) {
+                Text(detail, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = detailInk, maxLines = 1)
+            }
+        }
     }
 }
 
@@ -878,50 +842,6 @@ internal fun quickCashAmounts(total: BigDecimal): List<BigDecimal> =
         .distinct()
         .sorted()
         .take(3)
-
-/**
- * Cobro de la cuenta en una hoja (como el resto de la app): el total en grande, atajos de billete,
- * el efectivo recibido y el cambio que rueda mientras se escribe. El total viaja al servidor como
- * `total_esperado`: si mientras tanto se pidió algo más, lo rechaza y no se entrega mal el cambio.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CollectAccountSheet(
-    total: String,
-    payable: List<AccountOrder>,
-    confirming: Boolean,
-    colors: OperationalColors,
-    onDismiss: () -> Unit,
-    onConfirm: (
-        method: AccountPaymentMethod,
-        received: String?,
-        expectedTotal: String,
-        orderIds: List<String>?,
-        tip: String?,
-    ) -> Unit,
-    remaining: String? = null,
-    paidIn: String = "0.00",
-    onAbono: AbonoHandler? = null,
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.background,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-    ) {
-        CollectAccountContent(
-            total = total,
-            payable = payable,
-            confirming = confirming,
-            colors = colors,
-            onConfirm = onConfirm,
-            remaining = remaining,
-            paidIn = paidIn,
-            onAbono = onAbono,
-        )
-    }
-}
 
 /**
  * El contenido de la hoja de cobro, aparte de la hoja: así se puede probar y capturar.
@@ -1076,19 +996,18 @@ internal fun CollectAccountContent(
                     )
                 }
                 if (split == SplitMode.AMOUNT) {
-                    OutlinedTextField(
+                    OperationalField(
                         value = abonoText,
                         onValueChange = { raw ->
                             abonoText = raw.filter { c -> c.isDigit() || c == '.' }
                             typed = null
                         },
-                        label = { Text("Monto de este abono") },
-                        supportingText = { Text("Falta $${Money.format(remainingAmount)}") },
+                        label = "Monto de este abono",
+                        colors = colors,
+                        supporting = "Falta $${Money.format(remainingAmount)}",
                         isError = abonoText.isNotBlank() && !abonoValid,
-                        singleLine = true,
                         enabled = !confirming,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.fillMaxWidth(),
+                        keyboardType = KeyboardType.Decimal,
                     )
                 }
                 if (split == SplitMode.PARTS) {
@@ -1208,17 +1127,16 @@ internal fun CollectAccountContent(
                 }
                 val custom = tipChoice as? TipChoice.Custom
                 if (custom != null) {
-                    OutlinedTextField(
+                    OperationalField(
                         value = custom.amount,
                         onValueChange = { raw ->
                             tipChoice = TipChoice.Custom(raw.filter { c -> c.isDigit() || c == '.' })
                             typed = null
                         },
-                        label = { Text("Monto de la propina") },
-                        singleLine = true,
+                        label = "Monto de la propina",
+                        colors = colors,
                         enabled = !confirming,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.fillMaxWidth(),
+                        keyboardType = KeyboardType.Decimal,
                     )
                 }
             }
@@ -1256,14 +1174,13 @@ internal fun CollectAccountContent(
                         ) { typed = Money.format(amount) }
                     }
                 }
-                OutlinedTextField(
+                OperationalField(
                     value = text,
                     onValueChange = { typed = it.filter { c -> c.isDigit() || c == '.' } },
-                    label = { Text("Otro monto") },
-                    singleLine = true,
+                    label = "Otro monto",
+                    colors = colors,
                     enabled = !confirming,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(),
+                    keyboardType = KeyboardType.Decimal,
                 )
             }
             Column(modifier = Modifier.arrive(2)) {
@@ -1275,7 +1192,7 @@ internal fun CollectAccountContent(
                 )
                 RollingText(
                     text = "$${Money.format((difference ?: BigDecimal.ZERO).abs())}",
-                    style = TextStyle(fontSize = 34.sp, fontWeight = FontWeight.Black, letterSpacing = (-1).sp),
+                    style = TextStyle(fontSize = 44.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.4).sp),
                     color = changeInk,
                 )
             }
@@ -1394,7 +1311,17 @@ private fun SplitOrdersPicker(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Checkbox(checked = checked, onCheckedChange = null, enabled = enabled)
+                Checkbox(
+                    checked = checked,
+                    onCheckedChange = null,
+                    enabled = enabled,
+                    colors =
+                        CheckboxDefaults.colors(
+                            checkedColor = colors.textPrimary,
+                            checkmarkColor = colors.background,
+                            uncheckedColor = colors.textSecondary,
+                        ),
+                )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         "#${order.folio} · ${order.clientName ?: "Cliente"}" +
@@ -1422,6 +1349,74 @@ private fun rentalLabel(minutes: Int): String =
         minutes > 60 -> "${minutes / 60} h ${minutes % 60}"
         else -> "$minutes min"
     }
+
+/** Lo que cuesta rentar esos minutos, con la misma regla que el servidor; null sin precio. */
+internal fun rentalPrice(
+    pricePerHour: String?,
+    minutes: Int,
+): String? = pricePerHour?.let { runCatching { moneyLabel(ReservationSlots.amountFor(it, minutes)) }.getOrNull() }
+
+/** "Rentar 1 h · $150": el botón repite lo elegido y su precio antes de cobrar. */
+internal fun rentalActionLabel(
+    verb: String,
+    minutes: Int,
+    pricePerHour: String?,
+): String = listOfNotNull("$verb ${rentalLabel(minutes)}", rentalPrice(pricePerHour, minutes)).joinToString(" · ")
+
+/**
+ * Duraciones con su precio para rentar o renovar una cancha. Tocar una duración solo la marca;
+ * el cobro empieza con el botón de abajo, que dice qué se renta y cuánto cuesta.
+ */
+@Composable
+internal fun RentalDurationPicker(
+    title: String,
+    verb: String,
+    pricePerHour: String?,
+    enabled: Boolean,
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+    renewal: Boolean = false,
+    /** Con una cuenta por cobrar, Cobrar es la acción principal y esta queda como secundaria. */
+    primary: Boolean = true,
+    onConfirm: (minutes: Int) -> Unit,
+) {
+    var chosen by remember { mutableStateOf<Int?>(null) }
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(title, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp, color = colors.textSecondary)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            TurnDurations.forEach { minutes ->
+                ChipButton(
+                    label = (if (renewal) "+" else "") + rentalLabel(minutes),
+                    enabled = enabled,
+                    colors = colors,
+                    modifier = Modifier.weight(1f),
+                    selected = chosen == minutes,
+                    detail = rentalPrice(pricePerHour, minutes),
+                ) { chosen = minutes }
+            }
+        }
+        AnimatedVisibility(
+            visible = chosen != null,
+            enter = fadeIn(spring(stiffness = 300f)) + expandVertically(spring(stiffness = Spring.StiffnessMediumLow)),
+            exit = fadeOut(spring(stiffness = 500f)) + shrinkVertically(spring(stiffness = Spring.StiffnessMedium)),
+        ) {
+            // El último valor elegido se queda mientras el botón se va, para que no parpadee.
+            var shown by remember { mutableIntStateOf(TurnDurations.first()) }
+            chosen?.let { shown = it }
+            ActionPill(
+                label = rentalActionLabel(verb, shown, pricePerHour),
+                enabled = enabled,
+                loading = false,
+                colors = colors,
+                primary = primary,
+                modifier = Modifier.padding(top = 12.dp),
+            ) { chosen?.let(onConfirm) }
+        }
+    }
+}
 
 /**
  * Cobro en efectivo de una renta de mostrador: el total es lo que paga el cliente (el precio de la

@@ -15,6 +15,8 @@ import com.vaiinilla.app.domain.model.OrderUser
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
+import com.vaiinilla.app.domain.repository.CallReason
+import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.ui.order.PurchaseCelebration
 import com.vaiinilla.app.ui.order.STRIPE_ABANDON_VISIBLE_AFTER_MS
 import com.vaiinilla.app.ui.order.StripePaymentPhase
@@ -54,6 +56,9 @@ fun OrderConfirmationScreen(
     screenshotPrinted: Boolean = false,
     deliveryRequiresQr: Boolean = true,
     showTrackingButton: Boolean = true,
+    onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
+    onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
+    onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
 ) {
     Box(
         modifier =
@@ -93,6 +98,9 @@ fun OrderConfirmationScreen(
             onCelebrationFinished = { activeCelebration?.let { onPurchaseCelebrationFinished(it.orderId) } },
             deliveryRequiresQr = deliveryRequiresQr,
             showTrackingButton = showTrackingButton,
+            onCurrentWaiterCall = onCurrentWaiterCall,
+            onCallWaiter = onCallWaiter,
+            onCancelWaiter = onCancelWaiter,
         )
     }
 }

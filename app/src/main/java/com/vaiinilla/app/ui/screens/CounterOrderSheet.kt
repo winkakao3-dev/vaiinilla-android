@@ -1,14 +1,12 @@
 package com.vaiinilla.app.ui.screens
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,26 +16,28 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -48,18 +48,26 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.ContractRules
+import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.ui.components.NumberTicker
+import com.vaiinilla.app.ui.components.PhysicalPressScale
+import com.vaiinilla.app.ui.components.ProductImage
+import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.operational.WaiterUiState
 
@@ -95,9 +103,35 @@ internal fun alternarOpcionMostrador(
 private fun opcionesValidas(linea: CartLine): Boolean =
     runCatching { ContractRules.validateSelections(linea.product, linea.selectedOptionIds) }.isSuccess
 
+/** Lo que dice la barra fija: cuántos artículos, cuánto y qué pasa al tocar. */
+internal fun counterOrderBarLabel(
+    lines: List<CartLine>,
+    action: String,
+): String {
+    val count = lines.sumOf { it.quantity }
+    val items = if (count == 1) "1 artículo" else "$count artículos"
+    return "$items · ${moneyLabel(Money.counterPreview(lines))} · $action"
+}
+
+/** Productos cuyo nombre contiene lo buscado, sin importar acentos ni mayúsculas. */
+internal fun counterOrderMatches(
+    products: List<Product>,
+    query: String,
+): List<Product> {
+    val needle = query.trim().foldAccents()
+    if (needle.isEmpty()) return products
+    return products.filter { it.name.foldAccents().contains(needle) }
+}
+
+private fun String.foldAccents(): String =
+    java.text.Normalizer
+        .normalize(lowercase(), java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{M}+"), "")
+
 /**
  * Pedido de mostrador: el staff arma el pedido para un cliente que no usa la app. Solo efectivo, que se cobra en
- * Caja. El total y el folio los calcula el servidor; aquí no se suma nada.
+ * Caja. Una cuadrícula de productos (un toque suma uno), un buscador y una barra fija con el conteo y el total
+ * de mostrador; el total final lo confirma el servidor.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,32 +140,46 @@ internal fun CounterOrderSheet(
     colors: OperationalColors,
     onDismiss: () -> Unit,
     onSubmit: (List<CartLine>, String) -> Unit,
+    /** Qué hace el botón: el mesero lo manda a Caja; en Caja queda en "Por cobrar". */
+    submitAction: String = "Enviar a Caja",
 ) {
     var nombre by remember { mutableStateOf("") }
+    var buscar by remember { mutableStateOf("") }
     var lineas by remember { mutableStateOf<Map<Int, CartLine>>(emptyMap()) }
-    val reduceMotion = reducedMotion()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val catalogo = state.counterCatalog
     val productos = catalogo?.products.orEmpty().filter { it.available }
+    val visibles = counterOrderMatches(productos, buscar)
     val opcionesInvalidas =
         lineas.values
             .filter { linea -> !opcionesValidas(linea) }
             .map { it.product.name }
     val puedeEnviar = lineas.isNotEmpty() && opcionesInvalidas.isEmpty() && !state.counterOrderSending
 
-    fun agregar(producto: Product) {
-        lineas = lineas + (producto.id to CartLine(producto, 1, opcionesIniciales(producto)))
+    fun sumar(producto: Product) {
+        val actual = lineas[producto.id]
+        lineas =
+            if (actual == null) {
+                lineas + (producto.id to CartLine(producto, 1, opcionesIniciales(producto)))
+            } else {
+                lineas +
+                    (
+                        producto.id to
+                            actual.copy(quantity = (actual.quantity + 1).coerceAtMost(COUNTER_LINE_QUANTITY_MAX))
+                    )
+            }
     }
 
-    fun quitar(productoId: Int) {
-        lineas = lineas - productoId
-    }
-
-    fun cambiar(
-        productoId: Int,
-        transformar: (CartLine) -> CartLine,
-    ) {
-        lineas[productoId]?.let { lineas = lineas + (productoId to transformar(it)) }
+    fun restar(productoId: Int) {
+        val actual = lineas[productoId] ?: return
+        lineas =
+            if (actual.quantity <=
+                1
+            ) {
+                lineas - productoId
+            } else {
+                lineas + (productoId to actual.copy(quantity = actual.quantity - 1))
+            }
     }
 
     ModalBottomSheet(
@@ -140,236 +188,300 @@ internal fun CounterOrderSheet(
         containerColor = colors.background,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
     ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth().heightIn(max = 640.dp).padding(horizontal = 22.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(bottom = 36.dp),
-        ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "Pedido de mostrador",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 22.sp,
-                        color = colors.textPrimary,
-                    )
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .background(colors.cardBackground)
-                                .border(1.dp, colors.cardBorder, CircleShape)
-                                .clickable { onDismiss() },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            Icons.Outlined.Close,
-                            contentDescription = "Cerrar",
-                            tint = colors.textPrimary,
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
-                }
-            }
-            item {
-                OutlinedTextField(
-                    value = nombre,
-                    onValueChange = { if (it.length <= CUSTOMER_NAME_MAX) nombre = it },
-                    label = { Text("Nombre del cliente (opcional)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+        Column(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.92f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Pedido de mostrador",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp,
+                    color = colors.textPrimary,
                 )
-            }
-            if (catalogo == null) {
-                item {
-                    Text(
-                        state.counterOrderError ?: "Cargando menú…",
-                        color = colors.textSecondary,
-                        fontSize = 13.sp,
+                Box(
+                    modifier =
+                        Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(colors.cardBackground)
+                            .border(1.dp, colors.cardBorder, CircleShape)
+                            .clickable { onDismiss() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Outlined.Close,
+                        contentDescription = "Cerrar",
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(16.dp),
                     )
                 }
             }
-            catalogo?.categories?.sortedBy { it.order }?.forEach { categoria ->
-                val delaCategoria = productos.filter { it.categoryId == categoria.id }
-                if (delaCategoria.isEmpty()) return@forEach
-                item(key = "categoria-${categoria.id}") {
-                    Text(
-                        categoria.name.uppercase(),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        color = colors.textSecondary,
-                    )
-                }
-                items(delaCategoria, key = { "producto-${it.id}" }) { producto ->
-                    val linea = lineas[producto.id]
-                    ProductoMostradorRow(
-                        modifier = Modifier.animateItem(),
-                        producto = producto,
-                        linea = linea,
-                        colors = colors,
-                        onAgregar = { agregar(producto) },
-                        onQuitar = { quitar(producto.id) },
-                        onCantidad = { delta ->
-                            cambiar(producto.id) {
-                                it.copy(quantity = (it.quantity + delta).coerceIn(1, COUNTER_LINE_QUANTITY_MAX))
-                            }
-                        },
-                        onOpcion = { grupo, opcionId ->
-                            cambiar(producto.id) {
-                                it.copy(
-                                    selectedOptionIds = alternarOpcionMostrador(it.selectedOptionIds, grupo, opcionId),
-                                )
-                            }
-                        },
-                    )
-                }
-            }
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (opcionesInvalidas.isNotEmpty()) {
+            OperationalField(
+                value = buscar,
+                onValueChange = { buscar = it },
+                label = "Buscar en el menú",
+                colors = colors,
+                modifier = Modifier.padding(horizontal = 22.dp).padding(top = 12.dp),
+            )
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                if (catalogo == null) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
                         Text(
-                            "Revisa las opciones obligatorias de ${opcionesInvalidas.joinToString()}.",
-                            color = MaterialTheme.colorScheme.error,
+                            state.counterOrderError ?: "Cargando menú…",
+                            color = colors.textSecondary,
                             fontSize = 13.sp,
                         )
                     }
-                    state.counterOrderError?.let { mensaje ->
-                        Text(mensaje, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                } else if (visibles.isEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Text("Nada con “${buscar.trim()}” en el menú.", color = colors.textSecondary, fontSize = 13.sp)
                     }
-                    Text(
-                        "Se cobra en efectivo en Caja. El total lo calcula el servidor.",
-                        color = colors.textSecondary,
-                        fontSize = 12.sp,
+                }
+                items(visibles, key = { "producto-${it.id}" }) { producto ->
+                    ProductoMostradorTile(
+                        modifier = Modifier.animateItem(),
+                        producto = producto,
+                        cantidad = lineas[producto.id]?.quantity ?: 0,
+                        colors = colors,
+                        onSumar = { sumar(producto) },
+                        onRestar = { restar(producto.id) },
                     )
-                    Button(
-                        onClick = { onSubmit(lineas.values.toList(), nombre) },
-                        enabled = puedeEnviar,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = colors.accentLime,
-                                contentColor = colors.accentInk,
-                                disabledContainerColor = colors.cardInner,
-                                disabledContentColor = colors.textMuted,
-                            ),
-                    ) {
-                        AnimatedContent(
-                            targetState = state.counterOrderSending,
-                            transitionSpec = {
-                                if (reduceMotion) {
-                                    fadeIn(snap()) togetherWith fadeOut(snap())
-                                } else {
-                                    (fadeIn(MorphSpring) + scaleIn(MorphSpring, initialScale = 0.92f)) togetherWith
-                                        fadeOut(MorphSpring)
+                }
+                val conOpciones = lineas.values.filter { it.product.optionGroups.isNotEmpty() }
+                if (conOpciones.isNotEmpty()) {
+                    item(key = "opciones-titulo", span = { GridItemSpan(maxLineSpan) }) {
+                        Text(
+                            "Opciones",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = colors.textPrimary,
+                            modifier = Modifier.animateItem().padding(top = 8.dp),
+                        )
+                    }
+                    items(
+                        conOpciones,
+                        key = { "opciones-${it.product.id}" },
+                        span = { GridItemSpan(maxLineSpan) },
+                    ) { linea ->
+                        OpcionesMostrador(
+                            modifier = Modifier.animateItem(),
+                            linea = linea,
+                            colors = colors,
+                            onOpcion = { grupo, opcionId ->
+                                lineas[linea.product.id]?.let {
+                                    lineas =
+                                        lineas +
+                                        (
+                                            linea.product.id to
+                                                it.copy(
+                                                    selectedOptionIds =
+                                                        alternarOpcionMostrador(it.selectedOptionIds, grupo, opcionId),
+                                                )
+                                        )
                                 }
                             },
-                            contentAlignment = Alignment.Center,
-                            label = "enviar-a-caja",
-                        ) { enviando ->
-                            Text(
-                                if (enviando) "Enviando…" else "Enviar a Caja",
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
+                        )
                     }
+                }
+                item(key = "nombre", span = { GridItemSpan(maxLineSpan) }) {
+                    OperationalField(
+                        value = nombre,
+                        onValueChange = { if (it.length <= CUSTOMER_NAME_MAX) nombre = it },
+                        label = "Nombre del cliente (opcional)",
+                        colors = colors,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
+            }
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .background(colors.background)
+                        .padding(horizontal = 22.dp)
+                        .navigationBarsPadding()
+                        .padding(top = 8.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (opcionesInvalidas.isNotEmpty()) {
+                    Text(
+                        "Elige las opciones obligatorias de ${opcionesInvalidas.joinToString()}.",
+                        color = CounterError,
+                        fontSize = 13.sp,
+                    )
+                }
+                state.counterOrderError?.takeIf { catalogo != null }?.let { mensaje ->
+                    Text(mensaje, color = CounterError, fontSize = 13.sp)
+                }
+                ActionPill(
+                    label =
+                        if (lineas.isEmpty()) {
+                            "Toca un producto para agregarlo"
+                        } else {
+                            counterOrderBarLabel(lineas.values.toList(), submitAction)
+                        },
+                    enabled = puedeEnviar,
+                    loading = state.counterOrderSending,
+                    colors = colors,
+                ) { onSubmit(lineas.values.toList(), nombre) }
+            }
+        }
+    }
+}
+
+private val CounterError = Color(0xFFE5645A)
+
+/** Ficha de un producto: un toque suma uno; con algo en el pedido muestra el contador y un botón para restar. */
+@Composable
+private fun ProductoMostradorTile(
+    modifier: Modifier = Modifier,
+    producto: Product,
+    cantidad: Int,
+    colors: OperationalColors,
+    onSumar: () -> Unit,
+    onRestar: () -> Unit,
+) {
+    val shape = RoundedCornerShape(18.dp)
+    val border = animateSelectionColor(if (cantidad > 0) colors.textPrimary else colors.cardBorder, "tile-border")
+    Box(modifier = modifier.fillMaxWidth()) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .physicalPress(enabled = cantidad < COUNTER_LINE_QUANTITY_MAX, onClick = onSumar)
+                    .semantics { contentDescription = "Agregar ${producto.name}" }
+                    .clip(shape)
+                    .background(colors.cardBackground)
+                    .border(if (cantidad > 0) 2.dp else 1.dp, border, shape),
+        ) {
+            ProductImage(
+                imageUrl = producto.imageUrl,
+                contentDescription = producto.name,
+                modifier = Modifier.fillMaxWidth().height(92.dp),
+                placeholder = { placeholderModifier ->
+                    Box(placeholderModifier.background(colors.cardInner), contentAlignment = Alignment.Center) {
+                        Text(
+                            producto.name
+                                .trim()
+                                .firstOrNull()
+                                ?.uppercase()
+                                .orEmpty(),
+                            color = colors.textMuted,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 34.sp,
+                        )
+                    }
+                },
+            )
+            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                Text(
+                    producto.name,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    lineHeight = 17.sp,
+                    color = colors.textPrimary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    moneyLabel(producto.counterPrice),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        }
+        androidx.compose.animation.AnimatedVisibility(
+            visible = cantidad > 0,
+            enter = scaleIn(spring(dampingRatio = 0.55f, stiffness = 600f)) + fadeIn(),
+            exit = scaleOut(spring(stiffness = 700f)) + fadeOut(),
+            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+        ) {
+            Row(
+                modifier =
+                    Modifier
+                        .clip(CircleShape)
+                        .background(colors.textPrimary),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .physicalPress(scale = PhysicalPressScale.Small, onClick = onRestar)
+                            .semantics { contentDescription = "Quitar uno de ${producto.name}" }
+                            .size(34.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("−", color = colors.background, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                }
+                NumberTicker(value = cantidad, label = "counter-tile-count") { value ->
+                    Text(
+                        "$value",
+                        color = colors.background,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        modifier = Modifier.padding(end = 12.dp),
+                    )
                 }
             }
         }
     }
 }
 
+/** Las opciones de un producto ya agregado, con la misma regla del carrito del cliente; lo elegido en tinta. */
 @Composable
-private fun ProductoMostradorRow(
+private fun OpcionesMostrador(
     modifier: Modifier = Modifier,
-    producto: Product,
-    linea: CartLine?,
+    linea: CartLine,
     colors: OperationalColors,
-    onAgregar: () -> Unit,
-    onQuitar: () -> Unit,
-    onCantidad: (Int) -> Unit,
     onOpcion: (OptionGroup, Int) -> Unit,
 ) {
-    Column(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(colors.cardBackground)
-                .border(1.dp, colors.cardBorder, RoundedCornerShape(16.dp))
-                .padding(12.dp)
-                .animateContentSize(spring(dampingRatio = 0.8f, stiffness = 380f)),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(producto.name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.textPrimary)
-                Text(moneyLabel(producto.counterPrice), fontSize = 13.sp, color = colors.textSecondary)
-            }
-            if (linea == null) {
-                Text(
-                    "Agregar",
-                    modifier =
-                        Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(colors.accentLime)
-                            .pressableScale { onAgregar() }
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                    color = colors.accentInk,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                )
-            } else {
-                Text(
-                    "Quitar",
-                    modifier = Modifier.pressableScale { onQuitar() }.padding(8.dp),
-                    color = colors.textSecondary,
-                    fontSize = 13.sp,
-                )
-            }
-        }
-        if (linea != null) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                StepperMostrador(
-                    etiqueta = "Cantidad de ${producto.name}",
-                    cantidad = linea.quantity,
-                    colors = colors,
-                    onCantidad = onCantidad,
-                )
-            }
-            producto.optionGroups.forEach { grupo ->
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(linea.product.name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
+        linea.product.optionGroups.forEach { grupo ->
+            Text(
+                grupo.name + if (grupo.minimumSelections >= 1) " · obligatorio" else " · opcional",
+                fontSize = 12.sp,
+                color = colors.textSecondary,
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                grupo.options.forEach { opcion ->
+                    val elegida = opcion.id in linea.selectedOptionIds
+                    val fondo =
+                        animateSelectionColor(if (elegida) colors.textPrimary else colors.cardInner, "opcion-fondo")
+                    val tinta =
+                        animateSelectionColor(if (elegida) colors.background else colors.textPrimary, "opcion-tinta")
                     Text(
-                        grupo.name + if (grupo.minimumSelections >= 1) " · obligatorio" else " · opcional",
-                        fontSize = 12.sp,
-                        color = colors.textSecondary,
+                        opcion.name,
+                        modifier =
+                            Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(fondo)
+                                .border(
+                                    1.dp,
+                                    if (elegida) colors.textPrimary else colors.cardBorder,
+                                    RoundedCornerShape(10.dp),
+                                ).selectable(
+                                    selected = elegida,
+                                    role = Role.Checkbox,
+                                    onClick = { onOpcion(grupo, opcion.id) },
+                                ).padding(horizontal = 12.dp, vertical = 8.dp),
+                        color = tinta,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        grupo.options.forEach { opcion ->
-                            val elegida = opcion.id in linea.selectedOptionIds
-                            Text(
-                                opcion.name,
-                                modifier =
-                                    Modifier
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(if (elegida) colors.accentLime else colors.cardInner)
-                                        .selectable(
-                                            selected = elegida,
-                                            role = Role.Checkbox,
-                                            onClick = { onOpcion(grupo, opcion.id) },
-                                        ).padding(horizontal = 10.dp, vertical = 6.dp),
-                                color = if (elegida) colors.accentInk else colors.textPrimary,
-                                fontSize = 13.sp,
-                            )
-                        }
-                    }
                 }
             }
         }
@@ -422,37 +534,4 @@ private fun Modifier.pressableScale(
             indication = LocalIndication.current,
             onClick = onClick,
         )
-}
-
-@Composable
-private fun StepperMostrador(
-    etiqueta: String,
-    cantidad: Int,
-    colors: OperationalColors,
-    onCantidad: (Int) -> Unit,
-) {
-    Row(
-        modifier = Modifier.semantics { contentDescription = etiqueta },
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            "−",
-            modifier =
-                Modifier
-                    .pressableScale(enabled = cantidad > 1) { onCantidad(-1) }
-                    .padding(horizontal = 12.dp),
-            color = if (cantidad > 1) colors.textPrimary else colors.textMuted,
-            fontWeight = FontWeight.Bold,
-        )
-        Text("$cantidad", color = colors.textPrimary, fontWeight = FontWeight.Bold)
-        Text(
-            "+",
-            modifier =
-                Modifier
-                    .pressableScale(enabled = cantidad < COUNTER_LINE_QUANTITY_MAX) { onCantidad(1) }
-                    .padding(horizontal = 12.dp),
-            color = if (cantidad < COUNTER_LINE_QUANTITY_MAX) colors.textPrimary else colors.textMuted,
-            fontWeight = FontWeight.Bold,
-        )
-    }
 }

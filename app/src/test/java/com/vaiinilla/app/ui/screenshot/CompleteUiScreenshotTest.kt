@@ -225,7 +225,6 @@ class CompleteUiScreenshotTest {
                     onClearOptionalGroup = {},
                     onQuantityChange = {},
                     onAddProduct = {},
-                    onOpenCart = {},
                 )
             }
         }
@@ -384,7 +383,6 @@ class CompleteUiScreenshotTest {
                     onClearOptionalGroup = {},
                     onQuantityChange = {},
                     onAddProduct = {},
-                    onOpenCart = {},
                 )
             }
         }

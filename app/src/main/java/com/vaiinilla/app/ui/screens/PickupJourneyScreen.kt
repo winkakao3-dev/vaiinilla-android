@@ -104,8 +104,10 @@ import com.google.zxing.common.BitMatrix
 import com.vaiinilla.app.core.qr.QrCodeEncoder
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.repository.CallReason
+import com.vaiinilla.app.domain.repository.TableCall
+import com.vaiinilla.app.domain.repository.openTableCallSpaceId
 import com.vaiinilla.app.ui.components.moneyLabel
-import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.order.MOSAIC_FLIP_LENGTH
 import com.vaiinilla.app.ui.order.PickupStep
@@ -117,6 +119,8 @@ import com.vaiinilla.app.ui.order.pickupHint
 import com.vaiinilla.app.ui.order.pickupStep
 import com.vaiinilla.app.ui.order.pickupTitle
 import com.vaiinilla.app.ui.order.shouldAutoRevealPickupCode
+import com.vaiinilla.app.ui.theme.SeaGlassButton
+import com.vaiinilla.app.ui.theme.SeaGlassTone
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.PI
@@ -251,6 +255,9 @@ internal fun PickupJourneyScreen(
     onCelebrationFinished: () -> Unit = {},
     deliveryRequiresQr: Boolean = true,
     showTrackingButton: Boolean = true,
+    onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
+    onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
+    onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
 ) {
     val palette = scenePaletteForTheme()
     CompositionLocalProvider(LocalScene provides palette) {
@@ -262,6 +269,9 @@ internal fun PickupJourneyScreen(
             celebration = celebration,
             onCelebrationFinished = onCelebrationFinished,
             deliveryRequiresQr = deliveryRequiresQr,
+            onCurrentWaiterCall = onCurrentWaiterCall,
+            onCallWaiter = onCallWaiter,
+            onCancelWaiter = onCancelWaiter,
         )
     }
 }
@@ -275,6 +285,9 @@ private fun PickupJourney(
     celebration: PurchaseCelebrationKind?,
     onCelebrationFinished: () -> Unit,
     deliveryRequiresQr: Boolean,
+    onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
+    onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
+    onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
 ) {
     val palette = LocalScene.current
     val reduceMotion = reducedMotion()
@@ -440,6 +453,9 @@ private fun PickupJourney(
             backdrop = { drawStorefront(stage, textMeasurer, palette, motion) },
             onShowCode = { revealed = true },
             onViewTracking = onViewTracking,
+            onCurrentWaiterCall = onCurrentWaiterCall,
+            onCallWaiter = onCallWaiter,
+            onCancelWaiter = onCancelWaiter,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
 
@@ -665,21 +681,22 @@ private fun GlassCircleButton(
     closing: Float,
     onClick: () -> Unit,
 ) {
-    val c = LocalScene.current
-    Box(
-        modifier =
-            Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(c.glassTint)
-                .border(1.dp, c.glassEdge, CircleShape)
-                .physicalPress(onClick = onClick),
-        contentAlignment = Alignment.Center,
+    SeaGlassButton(
+        tone = SeaGlassTone.vainilla,
+        onClick = onClick,
+        modifier = Modifier.size(42.dp),
+        shape = CircleShape,
     ) {
+        BackCloseIcons(closing)
+    }
+}
+
+@Composable
+private fun BackCloseIcons(closing: Float) {
+    Box(contentAlignment = Alignment.Center) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
             contentDescription = if (closing < 0.5f) "Regresar" else null,
-            tint = c.ink,
             modifier =
                 Modifier.graphicsLayer {
                     alpha = 1f - closing
@@ -691,7 +708,6 @@ private fun GlassCircleButton(
         Icon(
             imageVector = Icons.Filled.Close,
             contentDescription = if (closing >= 0.5f) "Cerrar código" else null,
-            tint = c.ink,
             modifier =
                 Modifier.graphicsLayer {
                     alpha = closing
@@ -755,6 +771,9 @@ private fun StatusSheet(
     backdrop: DrawScope.() -> Unit,
     onShowCode: () -> Unit,
     onViewTracking: (() -> Unit)?,
+    onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
+    onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
+    onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
     modifier: Modifier = Modifier,
 ) {
     val c = LocalScene.current
@@ -872,6 +891,17 @@ private fun StatusSheet(
             }
             Spacer(Modifier.height(14.dp))
             OrderSummaryCard(order)
+            val tableSpaceId = openTableCallSpaceId(order)
+            if (tableSpaceId != null && onCurrentWaiterCall != null && onCallWaiter != null && onCancelWaiter != null) {
+                CallWaiterButton(
+                    spaceId = tableSpaceId,
+                    orderId = order.summary.id,
+                    onCurrent = onCurrentWaiterCall,
+                    onCall = onCallWaiter,
+                    onCancel = onCancelWaiter,
+                    textColor = c.ink,
+                )
+            }
             Spacer(Modifier.height(14.dp))
             if (hasCode || onViewTracking != null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -918,7 +948,7 @@ private fun OrderSummaryCard(order: OrderDetail) {
                     color = c.ink,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
@@ -1037,25 +1067,12 @@ private fun PillButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val c = LocalScene.current
-    val shape = RoundedCornerShape(18.dp)
-    Box(
-        modifier =
-            modifier
-                .height(50.dp)
-                .clip(shape)
-                .background(if (primary) Lime else c.glassButton)
-                .border(1.dp, if (primary) Color.Transparent else c.glassLine, shape)
-                .physicalPress(onClick = onClick),
-        contentAlignment = Alignment.Center,
+    SeaGlassButton(
+        tone = if (primary) SeaGlassTone.lima else SeaGlassTone.vainilla,
+        onClick = onClick,
+        modifier = modifier.height(50.dp),
     ) {
-        Text(
-            label,
-            color = if (primary) LimeInk else c.ink,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Black,
-            letterSpacing = (-0.3).sp,
-        )
+        Text(label, fontSize = 16.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.3).sp)
     }
 }
 

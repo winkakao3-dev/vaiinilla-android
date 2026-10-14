@@ -4,6 +4,7 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.ReservationState
+import java.time.Duration
 import java.time.Instant
 
 enum class CallReason(
@@ -251,6 +252,10 @@ fun BoardTable.tableState(): TableState =
         else -> TableState.FREE
     }
 
+/** El espacio tiene una cuenta abierta con algo sin cobrar. */
+fun BoardTable.hasPendingAccount(): Boolean =
+    availability?.let { it.state != SpaceAvailabilityState.LIBRE && !it.settled } == true
+
 fun sortWaiterTables(tables: List<BoardTable>): List<BoardTable> =
     tables.sortedWith(
         compareBy<BoardTable> {
@@ -287,6 +292,23 @@ fun callWaiterSpaceId(
 }
 
 fun canCallWaiter(order: OrderDetail): Boolean = callWaiterSpaceId(order) != null
+
+/**
+ * La mesa a la que todavía se puede llamar: el backend acepta la llamada hasta 2 h después de entregar el
+ * pedido, y la última actualización de un pedido entregado es la entrega. Las rentas no tienen esa ventana.
+ * Sin una fecha legible no se ofrece el botón.
+ */
+fun openTableCallSpaceId(
+    order: OrderDetail,
+    now: Instant = Instant.now(),
+): Int? {
+    val spaceId = callWaiterSpaceId(order, now) ?: return null
+    if (order.summary.state != OrderState.DELIVERED || order.reservation != null) return spaceId
+    val deliveredAt = runCatching { Instant.parse(order.summary.updatedAt) }.getOrNull() ?: return null
+    return spaceId.takeIf { Duration.between(deliveredAt, now) <= tableCallWindowAfterDelivery }
+}
+
+private val tableCallWindowAfterDelivery: Duration = Duration.ofHours(2)
 
 class CallsUnavailableException(
     message: String = "Llamar al mesero todavía no está disponible en esta cafetería.",

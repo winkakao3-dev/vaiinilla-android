@@ -2,17 +2,18 @@ package com.vaiinilla.app.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,6 +37,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
@@ -53,14 +56,14 @@ import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Receipt
+import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Remove
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -82,6 +85,10 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -103,10 +110,14 @@ import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.ui.components.CheckoutDestinationPicker
 import com.vaiinilla.app.ui.components.CheckoutSpaceOption
 import com.vaiinilla.app.ui.components.CheckoutSpacePicker
+import com.vaiinilla.app.ui.components.EditorialAccentButton
+import com.vaiinilla.app.ui.components.GlassCircleButton
 import com.vaiinilla.app.ui.components.NumberTicker
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
+import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
+import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
@@ -123,6 +134,8 @@ import com.vaiinilla.app.ui.order.operationalBlockerMessage
 import com.vaiinilla.app.ui.order.requiresOperationalReady
 import com.vaiinilla.app.ui.order.selectedSpaceName
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.SeaGlassButton
+import com.vaiinilla.app.ui.theme.SeaGlassTone
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import java.math.BigDecimal
@@ -157,6 +170,7 @@ fun CartScreen(
     val haptics = rememberVaiinillaHaptics()
     val density = LocalDensity.current
     val imeVisible = WindowInsets.ime.getBottom(density) > 0
+    val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     var paymentDialogOpen by remember { mutableStateOf(false) }
     BackHandler(enabled = paymentDialogOpen) {
         paymentDialogOpen = false
@@ -193,6 +207,7 @@ fun CartScreen(
     val glassColors =
         colors.copy(
             paper = Color.Transparent,
+            solidPaper = colors.onInk,
             paper2 = palette.glassCard,
             line = palette.glassLine,
             ink = palette.ink,
@@ -234,7 +249,13 @@ fun CartScreen(
                             start = 20.dp,
                             end = 20.dp,
                             top = 0.dp,
-                            bottom = VaiinillaBottomNavClearance + 126.dp,
+                            // Con productos la barra de pestañas se va y el botón de pagar toma su lugar.
+                            bottom =
+                                if (state.cartLines.isEmpty()) {
+                                    VaiinillaBottomNavClearance + 48.dp
+                                } else {
+                                    navBarBottom + 120.dp
+                                },
                         ),
                     verticalArrangement = Arrangement.spacedBy(0.dp),
                 ) {
@@ -279,22 +300,28 @@ fun CartScreen(
                             )
                         }
 
-                        item {
-                            Spacer(Modifier.height(22.dp))
-                            CartSectionHead(
-                                title = "Entrega",
-                                meta = if (canChooseInSpace) "Elige cómo recibirlo" else "Recoge en barra",
-                            )
-                            CheckoutDestinationPicker(
-                                selected = state.checkoutDestination,
-                                selectedSpaceName = state.selectedSpaceName,
-                                onSelect = {
-                                    haptics.selection()
-                                    onDestinationChange(it)
-                                },
-                                showInSpace = canChooseInSpace,
-                                spaceType = state.checkoutSpace?.type,
-                            )
+                        if (!canChooseInSpace) {
+                            item {
+                                Spacer(Modifier.height(18.dp))
+                                PickupLine(
+                                    readyInMinutes = state.cartLines.maxOfOrNull { it.product.estimatedTimeMinutes },
+                                )
+                            }
+                        } else {
+                            item {
+                                Spacer(Modifier.height(22.dp))
+                                CartSectionHead(title = "Entrega", meta = "Elige cómo recibirlo")
+                                CheckoutDestinationPicker(
+                                    selected = state.checkoutDestination,
+                                    selectedSpaceName = state.selectedSpaceName,
+                                    onSelect = {
+                                        haptics.selection()
+                                        onDestinationChange(it)
+                                    },
+                                    showInSpace = canChooseInSpace,
+                                    spaceType = state.checkoutSpace?.type,
+                                )
+                            }
                         }
                         if (state.checkoutDestination == OrderDestination.IN_SPACE && checkoutSpaces.isNotEmpty()) {
                             item {
@@ -375,11 +402,7 @@ fun CartScreen(
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
                             .windowInsetsPadding(WindowInsets.navigationBars)
-                            .padding(
-                                start = 16.dp,
-                                end = 16.dp,
-                                bottom = VaiinillaBottomNavClearance + 2.dp,
-                            ),
+                            .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
                 ) {
                     if (state.hasUnresolvedStripePayment) {
                         CheckoutDockButton(
@@ -413,6 +436,9 @@ fun CartScreen(
 
             if (paymentDialogOpen) {
                 PaymentMethodOverlay(
+                    total = moneyLabel(state.cartPreviewTotal),
+                    initialMethod = state.checkoutPayment,
+                    initialPayAtEnd = state.checkoutPayAtEnd,
                     balanceAffordable = state.isBalancePaymentAffordable(walletBalance),
                     showBalance = !guestCheckout,
                     walletBalance = walletBalance,
@@ -465,6 +491,9 @@ internal fun cartSceneWindow(lineCount: Int): Float = if (lineCount > 1) 0.3f el
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PaymentMethodOverlay(
+    total: String,
+    initialMethod: PaymentMethod,
+    initialPayAtEnd: Boolean,
     balanceAffordable: Boolean,
     showBalance: Boolean,
     walletBalance: String?,
@@ -476,8 +505,17 @@ private fun PaymentMethodOverlay(
     cardAvailable: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
-    var selectedMethod by remember { mutableStateOf<PaymentMethod?>(null) }
-    var payAtEndSelected by remember { mutableStateOf(false) }
+    // Arranca con el último método que usó, si hoy sigue disponible: pagar vuelve a ser un toque.
+    val initialAllowed =
+        when (initialMethod) {
+            PaymentMethod.CASH -> true
+            PaymentMethod.BALANCE -> showBalance && balanceAffordable
+            PaymentMethod.STRIPE -> cardAvailable
+        }
+    var payAtEndSelected by remember { mutableStateOf(initialPayAtEnd && payAtEndAvailable) }
+    var selectedMethod by remember {
+        mutableStateOf(if (!payAtEndSelected && initialAllowed) initialMethod else null)
+    }
     var selectionLocked by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val hasSelection = selectedMethod != null || payAtEndSelected
@@ -558,8 +596,7 @@ private fun PaymentMethodOverlay(
                     PaymentMethodCardOption(
                         icon = Icons.Outlined.Receipt,
                         title = "Pagar al final",
-                        subtitle = "Pide lo que quieras y paga toda la cuenta al irte.",
-                        badgeText = "Cuenta",
+                        subtitle = "Pide lo que quieras y paga toda la cuenta al irte",
                         selected = payAtEndSelected,
                         enabled = !selectionLocked,
                         onClick = {
@@ -571,8 +608,7 @@ private fun PaymentMethodOverlay(
                 PaymentMethodCardOption(
                     icon = Icons.Outlined.Payments,
                     title = "Pago en caja",
-                    subtitle = "Paga en Caja antes de preparar tu pedido.",
-                    badgeText = "Efectivo",
+                    subtitle = "Pagas en caja y se prepara al pagar",
                     selected = selectedMethod == PaymentMethod.CASH,
                     enabled = !selectionLocked,
                     onClick = {
@@ -586,12 +622,11 @@ private fun PaymentMethodOverlay(
                         icon = Icons.Outlined.AccountBalanceWallet,
                         title = "Saldo Vaiinilla",
                         subtitle =
-                            if (balanceAffordable) {
-                                "Usa el saldo disponible de tu cuenta."
-                            } else {
-                                "Saldo insuficiente · Disponible: $${walletBalance.orEmpty()}"
+                            when {
+                                walletBalance == null -> "Usa el saldo de tu cuenta"
+                                balanceAffordable -> "Disponible: ${moneyLabel(walletBalance)}"
+                                else -> "No alcanza · tienes ${moneyLabel(walletBalance)}"
                             },
-                        badgeText = "Saldo",
                         selected = selectedMethod == PaymentMethod.BALANCE,
                         enabled = !selectionLocked && balanceAffordable,
                         onClick = {
@@ -604,8 +639,7 @@ private fun PaymentMethodOverlay(
                     PaymentMethodCardOption(
                         icon = Icons.Outlined.CreditCard,
                         title = "Pago con Stripe",
-                        subtitle = "Tarjeta de débito o crédito · Pago seguro con Stripe.",
-                        badgeText = "Stripe",
+                        subtitle = "Débito o crédito, aquí mismo",
                         selected = selectedMethod == PaymentMethod.STRIPE,
                         enabled = !selectionLocked,
                         onClick = {
@@ -634,14 +668,7 @@ private fun PaymentMethodOverlay(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
-                        text =
-                            if (payAtEndSelected) {
-                                "Continuar con pagar al final"
-                            } else if (selectedMethod != null) {
-                                "Continuar con ${selectedMethod.paymentDialogLabel()}"
-                            } else {
-                                "Selecciona método de pago"
-                            },
+                        text = paymentActionLabel(selectedMethod, payAtEndSelected, total),
                         color = if (hasSelection) colors.accentInk else colors.muted,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Black,
@@ -657,31 +684,25 @@ private fun PaymentMethodCardOption(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    badgeText: String,
     selected: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
-    val borderColor by animateColorAsState(
-        targetValue = if (selected) colors.accent else colors.paper2,
-        animationSpec = tween(160),
-        label = "paymentCardBorder",
-    )
-    val borderWidth = if (selected) 2.dp else 1.dp
-    val cardBg by animateColorAsState(
-        targetValue = if (selected) colors.accent.copy(alpha = 0.08f) else colors.paper2.copy(alpha = 0.5f),
-        animationSpec = tween(160),
-        label = "paymentCardBg",
-    )
-
+    val borderColor = animateSelectionColor(if (selected) colors.ink else colors.line, "payment-card-border")
+    val borderWidth by animateDpAsState(if (selected) 1.5.dp else 1.dp, label = "payment-card-border-width")
+    val radioFill = animateSelectionColor(if (selected) colors.ink else Color.Transparent, "payment-card-radio")
     Surface(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .border(borderWidth, borderColor, RoundedCornerShape(20.dp))
-                .physicalPress(enabled = enabled, onClick = onClick),
-        color = cardBg,
+                .physicalPress(enabled = enabled, onClick = onClick)
+                .semantics {
+                    role = Role.RadioButton
+                    this.selected = selected
+                },
+        color = colors.paper2,
         shape = RoundedCornerShape(20.dp),
     ) {
         Row(
@@ -689,79 +710,47 @@ private fun PaymentMethodCardOption(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(46.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(if (selected) colors.accent else colors.paper),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = if (selected) colors.accentInk else colors.ink,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (enabled) colors.ink else colors.muted,
+                modifier = Modifier.size(24.dp),
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    color = colors.ink,
+                    color = if (enabled) colors.ink else colors.muted,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     softWrap = false,
                 )
-                Row(
-                    modifier = Modifier.padding(top = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .clip(CircleShape)
-                                .background(if (selected) colors.accent.copy(alpha = 0.22f) else colors.paper)
-                                .padding(horizontal = 10.dp, vertical = 3.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = badgeText,
-                            color = if (selected) colors.accentInk else colors.muted,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            softWrap = false,
-                        )
-                    }
-                    Text(
-                        text = subtitle,
-                        color = colors.muted,
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
+                Text(
+                    text = subtitle,
+                    color = colors.muted,
+                    fontSize = 13.sp,
+                    lineHeight = 17.sp,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
             }
             Box(
                 modifier =
                     Modifier
-                        .size(24.dp)
+                        .size(22.dp)
                         .clip(CircleShape)
-                        .background(if (selected) colors.accent else Color.Transparent)
-                        .border(
-                            width = if (selected) 0.dp else 1.5.dp,
-                            color = if (selected) Color.Transparent else colors.muted.copy(alpha = 0.4f),
-                            shape = CircleShape,
-                        ),
+                        .background(radioFill)
+                        .border(1.5.dp, if (selected) Color.Transparent else colors.line, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                if (selected) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = selected,
+                    enter = scaleIn(spring(dampingRatio = 0.55f, stiffness = 600f)) + fadeIn(),
+                    exit = scaleOut() + fadeOut(),
+                ) {
                     Icon(
                         imageVector = Icons.Rounded.Check,
                         contentDescription = null,
-                        tint = colors.accentInk,
+                        tint = colors.onInk,
                         modifier = Modifier.size(14.dp),
                     )
                 }
@@ -770,12 +759,18 @@ private fun PaymentMethodCardOption(
     }
 }
 
-private fun PaymentMethod?.paymentDialogLabel(): String =
-    when (this) {
-        PaymentMethod.CASH -> "pago en caja"
-        PaymentMethod.BALANCE -> "Saldo Vaiinilla"
-        PaymentMethod.STRIPE -> "Stripe"
-        null -> ""
+/** El botón dice lo que pasa al tocarlo: con efectivo se pide y se paga después en caja. */
+internal fun paymentActionLabel(
+    method: PaymentMethod?,
+    payAtEnd: Boolean,
+    total: String,
+): String =
+    when {
+        payAtEnd -> "Pedir · pagas al final"
+        method == PaymentMethod.CASH -> "Pedir · pagas $total en caja"
+        method == PaymentMethod.BALANCE -> "Pagar $total con saldo"
+        method == PaymentMethod.STRIPE -> "Pagar $total"
+        else -> "Elige cómo pagar"
     }
 
 @Preview(name = "Carrito", showBackground = true, widthDp = 411, heightDp = 891)
@@ -855,7 +850,6 @@ private fun CartTopBar(
     profileInitials: String,
     onOpenAccount: () -> Unit,
 ) {
-    val colors = LocalVaiinillaColors.current
     Row(
         modifier =
             Modifier
@@ -865,38 +859,13 @@ private fun CartTopBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(colors.paper2)
-                    .physicalPress(scale = PhysicalPressScale.Small, onClick = onBack),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
-                contentDescription = "Volver",
-                tint = colors.ink,
-                modifier = Modifier.size(21.dp),
-            )
-        }
-        Box(
-            modifier =
-                Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(colors.paper2)
-                    .physicalPress(scale = PhysicalPressScale.Small, onClick = onOpenAccount),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                profileInitials,
-                color = colors.ink,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
-            )
-        }
+        GlassCircleButton(
+            icon = Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
+            contentDescription = "Volver",
+            onClick = onBack,
+            iconSize = 22.dp,
+        )
+        ProfileInitialsButton(profileInitials, onClick = onOpenAccount)
     }
 }
 
@@ -930,6 +899,34 @@ private fun CartSectionHead(
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.End,
             modifier = Modifier.padding(start = 16.dp),
+        )
+    }
+}
+
+/** Con una sola forma de entrega no hay nada que elegir: se dice en una línea. */
+@Composable
+private fun PickupLine(readyInMinutes: Int?) {
+    val colors = LocalVaiinillaColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(
+            Icons.Outlined.ShoppingBag,
+            contentDescription = null,
+            tint = colors.ink,
+            modifier = Modifier.size(20.dp),
+        )
+        Text(
+            listOfNotNull(
+                "Para llevar · recoges en barra",
+                readyInMinutes?.takeIf { it > 0 }?.let { "listo en ~$it min" },
+            ).joinToString(" · "),
+            color = colors.ink,
+            fontSize = 15.sp,
+            lineHeight = 20.sp,
+            fontWeight = FontWeight.SemiBold,
         )
     }
 }
@@ -1006,6 +1003,7 @@ private fun CartLineRow(
                 Modifier
                     .size(76.dp)
                     .clip(RoundedCornerShape(18.dp)),
+            placeholder = { m -> ProductMonogram(line.product.name, m) },
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -1078,26 +1076,10 @@ private fun QuantityStepper(
     onPlus: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
-    val background =
-        when {
-            colors.isDark -> Color(0xFF141514)
-            else -> colors.ink
-        }
-    val border =
-        if (colors.isDark) {
-            BorderStroke(1.dp, Color(0x38FFFFFF))
-        } else {
-            null
-        }
-    val foreground =
-        when {
-            colors.isDark -> Color(0xFFF5F1E5)
-            else -> colors.paper
-        }
+    val foreground = colors.ink
     Surface(
-        color = background,
+        color = colors.ink.copy(alpha = 0.06f),
         shape = RoundedCornerShape(22.dp),
-        border = border,
     ) {
         Row(
             modifier = Modifier.height(44.dp).padding(horizontal = 4.dp),
@@ -1271,104 +1253,70 @@ private fun CheckoutDockButton(
     loadingSubtitle: String = "Un momento…",
     onClick: () -> Unit,
 ) {
-    val colors = LocalVaiinillaColors.current
-    val dockBackground = if (colors.isDark) colors.paper2 else colors.ink
-    Surface(
+    // Como `CheckoutDockButton` en iOS: una pieza de vidrio redondeada de 74, lima si se puede pedir.
+    SeaGlassButton(
+        tone = if (enabled || loading) SeaGlassTone.lima else SeaGlassTone.vainilla,
+        onClick = onClick,
         modifier =
             Modifier
+                .padding(bottom = 8.dp)
                 .fillMaxWidth()
-                .height(94.dp),
-        color = dockBackground,
-        shape = RoundedCornerShape(30.dp),
-        shadowElevation = if (enabled) 12.dp else 0.dp,
+                .height(74.dp),
+        shape = RoundedCornerShape(28.dp),
+        enabled = enabled && !loading,
     ) {
-        Surface(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(10.dp)
-                    .physicalPress(
-                        enabled = enabled && !loading,
-                        scale = PhysicalPressScale.Default,
-                        onClick = onClick,
-                    ),
-            color = if (enabled) colors.accent else colors.paper2,
-            shape = RoundedCornerShape(22.dp),
+        val ink = LocalContentColor.current
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                if (loading) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            loadingLabel,
-                            color = colors.accentInk,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                        )
-                        Text(
-                            loadingSubtitle,
-                            color = colors.accentInk.copy(alpha = 0.72f),
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(top = 2.dp),
-                        )
-                    }
-                    CircularProgressIndicator(
-                        color = colors.accentInk,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(20.dp),
+            if (loading) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(loadingLabel, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(
+                        loadingSubtitle,
+                        color = ink.copy(alpha = 0.72f),
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 2.dp),
                     )
-                } else {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            label,
-                            color = if (enabled) colors.accentInk else colors.muted,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            lineHeight = 22.sp,
-                            maxLines = 1,
-                        )
-                        Text(
-                            subtitle,
-                            color = if (enabled) colors.accentInk.copy(alpha = 0.72f) else colors.muted,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp,
-                            modifier = Modifier.padding(top = 2.dp),
-                            maxLines = 1,
-                        )
-                    }
-                    Box(
-                        modifier =
-                            Modifier
-                                .padding(horizontal = 16.dp)
-                                .width(1.dp)
-                                .height(34.dp)
-                                .background(colors.ink.copy(alpha = 0.14f)),
+                }
+                CircularProgressIndicator(color = ink, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+            } else {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(label, fontWeight = FontWeight.Bold, fontSize = 18.sp, lineHeight = 22.sp, maxLines = 1)
+                    Text(
+                        subtitle,
+                        color = if (enabled) ink.copy(alpha = 0.72f) else ink,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        modifier = Modifier.padding(top = 2.dp),
+                        maxLines = 1,
                     )
-                    AnimatedContent(
-                        targetState = price,
-                        transitionSpec = {
-                            if (targetState > initialState) {
-                                (slideInVertically { height -> height } + fadeIn()) togetherWith
-                                    (slideOutVertically { height -> -height } + fadeOut())
-                            } else {
-                                (slideInVertically { height -> -height } + fadeIn()) togetherWith
-                                    (slideOutVertically { height -> height } + fadeOut())
-                            }.using(SizeTransform(clip = false))
-                        },
-                        label = "checkout_price_ticker",
-                    ) { p ->
-                        Text(
-                            p,
-                            color = if (enabled) colors.accentInk else colors.muted,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp,
-                        )
-                    }
+                }
+                Box(
+                    modifier =
+                        Modifier
+                            .padding(horizontal = 16.dp)
+                            .width(1.dp)
+                            .height(34.dp)
+                            .background(ink.copy(alpha = 0.2f)),
+                )
+                AnimatedContent(
+                    targetState = price,
+                    transitionSpec = {
+                        if (targetState > initialState) {
+                            (slideInVertically { height -> height } + fadeIn()) togetherWith
+                                (slideOutVertically { height -> -height } + fadeOut())
+                        } else {
+                            (slideInVertically { height -> -height } + fadeIn()) togetherWith
+                                (slideOutVertically { height -> height } + fadeOut())
+                        }.using(SizeTransform(clip = false))
+                    },
+                    label = "checkout_price_ticker",
+                ) { p ->
+                    Text(p, color = ink, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 }
             }
         }
@@ -1378,27 +1326,13 @@ private fun CheckoutDockButton(
 @Composable
 private fun OrderSummaryCard(state: OrderFlowUiState) {
     val colors = LocalVaiinillaColors.current
-    val destinationLabel =
-        when (state.checkoutDestination) {
-            OrderDestination.TAKE_AWAY -> "Para llevar"
-            OrderDestination.IN_SPACE -> state.selectedSpaceName.ifBlank { "Comer aquí" }
-        }
+    // Entrega siempre cuesta $0, así que subtotal y total eran el mismo número dos veces: queda el total.
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = colors.paper2,
         shape = RoundedCornerShape(24.dp),
     ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-            SummaryRow("Subtotal", moneyLabel(state.cartPreviewTotal))
-            SummaryRow("Entrega · $destinationLabel", "$0")
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                        .height(1.dp)
-                        .background(colors.line),
-            )
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1429,34 +1363,6 @@ private fun OrderSummaryCard(state: OrderFlowUiState) {
 }
 
 @Composable
-private fun SummaryRow(
-    label: String,
-    value: String,
-) {
-    val colors = LocalVaiinillaColors.current
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            label,
-            color = colors.muted,
-            fontSize = 14.sp,
-            lineHeight = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Text(
-            value,
-            color = colors.ink,
-            fontSize = 14.sp,
-            lineHeight = 18.sp,
-            fontWeight = FontWeight.Bold,
-        )
-    }
-}
-
-@Composable
 private fun WarningBanner(
     message: String,
     actionLabel: String? = null,
@@ -1483,7 +1389,7 @@ private fun WarningBanner(
             if (actionLabel != null && onAction != null) {
                 Surface(
                     color = colors.ink,
-                    contentColor = colors.paper,
+                    contentColor = colors.onInk,
                     shape = RoundedCornerShape(999.dp),
                     modifier =
                         Modifier.physicalPress(
@@ -1499,14 +1405,14 @@ private fun WarningBanner(
                     ) {
                         if (actionLoading) {
                             CircularProgressIndicator(
-                                color = colors.paper,
+                                color = colors.onInk,
                                 strokeWidth = 2.dp,
                                 modifier = Modifier.size(14.dp),
                             )
                         }
                         Text(
                             text = if (actionLoading) "Abriendo pago…" else actionLabel,
-                            color = colors.paper,
+                            color = colors.onInk,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                         )
@@ -1554,18 +1460,11 @@ private fun EmptyCart(
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 6.dp),
         )
-        Button(
+        EditorialAccentButton(
+            text = "Ver menú",
             onClick = onMenu,
-            colors =
-                ButtonDefaults.buttonColors(
-                    containerColor = colors.accent,
-                    contentColor = colors.accentInk,
-                ),
-            modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
-            shape = RoundedCornerShape(18.dp),
-        ) {
-            Text("Ver menú", fontWeight = FontWeight.Black)
-        }
+            modifier = Modifier.padding(top = 20.dp).widthIn(max = 270.dp),
+        )
 
         if (recentOrders.isNotEmpty()) {
             Text(

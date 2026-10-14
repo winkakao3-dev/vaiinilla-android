@@ -31,13 +31,11 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -45,18 +43,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.outlined.Eco
-import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Remove
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -71,10 +62,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -82,9 +77,8 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.text
@@ -100,17 +94,15 @@ import com.vaiinilla.app.domain.model.CART_LINE_NOTE_MAX
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.ProductOption
-import com.vaiinilla.app.ui.order.trayItemKind
 import com.vaiinilla.app.ui.screens.LocalScene
-import com.vaiinilla.app.ui.screens.ProductIllustration
+import com.vaiinilla.app.ui.screens.ProductMonogram
 import com.vaiinilla.app.ui.screens.ProductPhotoShadow
-import com.vaiinilla.app.ui.screens.TagCream
-import com.vaiinilla.app.ui.screens.TagInk
-import com.vaiinilla.app.ui.screens.TagLime
 import com.vaiinilla.app.ui.screens.glassEdge
 import com.vaiinilla.app.ui.screens.productTone
 import com.vaiinilla.app.ui.screens.scenePaletteForTheme
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.SeaGlassButton
+import com.vaiinilla.app.ui.theme.SeaGlassTone
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
@@ -319,18 +311,42 @@ fun ProductDetailSheet(
                 border = BorderStroke(1.dp, scene.glassEdge),
                 shadowElevation = 24.dp,
             ) {
-                // Detrás del vidrio, la misma foto muy desenfocada ilumina la parte de arriba de la hoja.
+                // La luz de la foto se queda pegada a la foto: un halo corto bajo su borde, no un fondo de color
+                // para toda la hoja. Sin foto no hay halo.
                 CompositionLocalProvider(LocalScene provides scene, LocalVaiinillaColors provides colors) {
-                    ProductPhotoShadow(
-                        product = product,
-                        tone = tone,
-                        shape = RoundedCornerShape(28.dp),
-                        modifier = Modifier.fillMaxWidth().height(330.dp),
-                        blur = 60.dp,
-                        drop = 40.dp,
-                        inset = 0.dp,
-                        strength = if (colors.isDark) 0.42f else 0.32f,
-                    )
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(HeroHeight + HaloFade)
+                            .graphicsLayer {
+                                compositingStrategy = CompositingStrategy.Offscreen
+                                // Sube con la foto al hacer scroll; si no, quedaría un fantasma detrás del texto.
+                                val photoOnScreen = listState.firstVisibleItemIndex == 0
+                                translationY =
+                                    if (photoOnScreen) -listState.firstVisibleItemScrollOffset.toFloat() else 0f
+                                alpha = if (photoOnScreen) 1f else 0f
+                            }.drawWithContent {
+                                drawContent()
+                                drawRect(
+                                    Brush.verticalGradient(
+                                        0.7f to Color.Black,
+                                        1f to Color.Transparent,
+                                    ),
+                                    blendMode = BlendMode.DstIn,
+                                )
+                            },
+                    ) {
+                        ProductPhotoShadow(
+                            product = product,
+                            tone = tone,
+                            shape = RoundedCornerShape(28.dp),
+                            modifier = Modifier.fillMaxWidth().padding(top = 14.dp).height(HeroHeight),
+                            blur = 28.dp,
+                            drop = 14.dp,
+                            inset = 34.dp,
+                            strength = if (colors.isDark) 0.36f else 0.28f,
+                        )
+                    }
                     Column(modifier = Modifier.fillMaxSize()) {
                         LazyColumn(
                             state = listState,
@@ -355,20 +371,18 @@ fun ProductDetailSheet(
                                             .padding(horizontal = 20.dp, vertical = 18.dp),
                                 ) {
                                     Text(
-                                        text = categoryName.uppercase(),
-                                        color = colors.muted,
-                                        fontSize = 13.sp,
-                                        lineHeight = 17.sp,
-                                        fontWeight = FontWeight.Bold,
-                                    )
-                                    Text(
                                         text = product.name,
                                         color = colors.ink,
-                                        fontSize = 34.sp,
-                                        lineHeight = 38.sp,
+                                        fontSize = 32.sp,
+                                        lineHeight = 36.sp,
                                         fontWeight = FontWeight.Black,
-                                        letterSpacing = (-1.2).sp,
-                                        modifier = Modifier.padding(top = 4.dp),
+                                        letterSpacing = (-1.1).sp,
+                                    )
+                                    ProductFactsLine(
+                                        previewPrice = previewPrice,
+                                        estimatedMinutes = product.estimatedTimeMinutes,
+                                        categoryName = categoryName,
+                                        modifier = Modifier.padding(top = 6.dp),
                                     )
                                     if (product.description.isNotBlank()) {
                                         Text(
@@ -399,18 +413,17 @@ fun ProductDetailSheet(
                                 EditorialNotesField(
                                     value = notes,
                                     onValueChange = { onNotesChange(it.take(CART_LINE_NOTE_MAX)) },
-                                    label = "Nota para cocina",
+                                    label = "Nota para cocina (opcional)",
                                     placeholder = "Ej. sin cebolla, salsa aparte",
                                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                                 )
                             }
 
                             item {
-                                ProductMetaGrid(
+                                ProductDetails(
                                     ingredients = product.ingredients,
-                                    estimatedTime = estimatedTimeLabel(product.estimatedTimeMinutes),
                                     allergens = product.allergens,
-                                    modifier = Modifier.padding(start = 20.dp, top = 16.dp, end = 20.dp),
+                                    modifier = Modifier.padding(start = 20.dp, top = 12.dp, end = 20.dp),
                                 )
                             }
                         }
@@ -448,22 +461,15 @@ private fun ProductHero(
 ) {
     val colors = LocalVaiinillaColors.current
     val scene = LocalScene.current
-    val kind = trayItemKind(product.name)
-    val reduceMotion = reducedMotion()
-    // Sin foto, el dibujo del producto baja a su lugar al abrir la ficha.
-    val drop = remember(product.id) { Animatable(if (reduceMotion) 1f else 0f) }
-    LaunchedEffect(product.id) {
-        drop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 260f))
-    }
     val heroShape = RoundedCornerShape(28.dp)
     Box(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .padding(start = 14.dp, end = 14.dp, top = 14.dp)
-                .height(300.dp)
+                .height(HeroHeight)
                 .clip(heroShape)
-                .background(productTone(product).copy(alpha = 0.18f))
+                .background(colors.paper2)
                 .glassEdge(scene.glassEdge, heroShape),
     ) {
         ProductImage(
@@ -471,15 +477,10 @@ private fun ProductHero(
             contentDescription = product.name,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
-            placeholder = { m -> ProductIllustration(kind, m, drop = { drop.value }) },
+            placeholder = { m -> ProductMonogram(product.name, m) },
         )
 
-        HeroActionButton(
-            icon = Icons.AutoMirrored.Rounded.ArrowBack,
-            description = "Volver",
-            onClick = onDismiss,
-            modifier = Modifier.align(Alignment.TopStart).padding(14.dp),
-        )
+        // Una sola salida: atrás es el gesto del sistema.
         HeroActionButton(
             icon = Icons.Rounded.Close,
             description = "Cerrar",
@@ -487,15 +488,16 @@ private fun ProductHero(
             modifier = Modifier.align(Alignment.TopEnd).padding(14.dp),
         )
 
-        if (customized) {
-            Surface(
-                modifier = Modifier.align(Alignment.BottomStart).padding(14.dp),
-                color = colors.accent,
-                shape = RoundedCornerShape(14.dp),
-            ) {
+        AnimatedVisibility(
+            visible = customized,
+            enter = fadeIn() + scaleIn(initialScale = 0.9f),
+            exit = fadeOut() + scaleOut(targetScale = 0.9f),
+            modifier = Modifier.align(Alignment.BottomStart).padding(14.dp),
+        ) {
+            Surface(color = colors.ink, shape = RoundedCornerShape(14.dp)) {
                 Text(
                     "Personalizado",
-                    color = colors.accentInk,
+                    color = colors.onInk,
                     fontSize = 12.sp,
                     lineHeight = 16.sp,
                     fontWeight = FontWeight.Bold,
@@ -503,34 +505,55 @@ private fun ProductHero(
                 )
             }
         }
-        Surface(
-            modifier = Modifier.align(Alignment.BottomEnd).padding(14.dp),
-            color = TagCream,
-            shape = RoundedCornerShape(14.dp),
-            border = BorderStroke(2.dp, TagLime),
-        ) {
-            AnimatedContent(
-                targetState = previewPrice,
-                transitionSpec = {
-                    if (targetState > initialState) {
-                        (slideInVertically { height -> height } + fadeIn()) togetherWith
-                            (slideOutVertically { height -> -height } + fadeOut())
-                    } else {
-                        (slideInVertically { height -> -height } + fadeIn()) togetherWith
-                            (slideOutVertically { height -> height } + fadeOut())
-                    }.using(SizeTransform(clip = false))
-                },
-                label = "hero_price_ticker",
-            ) { price ->
-                Text(
-                    moneyLabel(price),
-                    color = TagInk,
-                    fontSize = 26.sp,
-                    lineHeight = 30.sp,
-                    fontWeight = FontWeight.Black,
-                    modifier = Modifier.padding(horizontal = 17.dp, vertical = 13.dp),
-                )
-            }
+    }
+}
+
+/** Precio, tiempo y categoría en una sola línea, como Chick-fil-A: los datos se leen sin tarjetas. */
+@Composable
+private fun ProductFactsLine(
+    previewPrice: String,
+    estimatedMinutes: Int,
+    categoryName: String,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        AnimatedContent(
+            targetState = previewPrice,
+            transitionSpec = {
+                if (targetState > initialState) {
+                    (slideInVertically { height -> height } + fadeIn()) togetherWith
+                        (slideOutVertically { height -> -height } + fadeOut())
+                } else {
+                    (slideInVertically { height -> -height } + fadeIn()) togetherWith
+                        (slideOutVertically { height -> height } + fadeOut())
+                }.using(SizeTransform(clip = false))
+            },
+            label = "facts_price_ticker",
+        ) { price ->
+            Text(
+                moneyLabel(price),
+                color = colors.ink,
+                fontSize = 17.sp,
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.Black,
+            )
+        }
+        val rest =
+            listOfNotNull(
+                estimatedMinutes.takeIf { it > 0 }?.let { "listo en ~${estimatedTimeLabel(it)}" },
+                categoryName.takeIf { it.isNotBlank() },
+            ).joinToString(" · ")
+        if (rest.isNotEmpty()) {
+            Text(
+                " · $rest",
+                color = colors.muted,
+                fontSize = 15.sp,
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -542,22 +565,7 @@ private fun HeroActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = LocalVaiinillaColors.current
-    IconButton(
-        onClick = onClick,
-        modifier =
-            modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(colors.paper.copy(alpha = 0.82f)),
-    ) {
-        Icon(
-            icon,
-            contentDescription = description,
-            tint = colors.ink,
-            modifier = Modifier.size(25.dp),
-        )
-    }
+    GlassCircleButton(icon, description, onClick, modifier, size = 46.dp, iconSize = 21.dp)
 }
 
 @Composable
@@ -666,141 +674,55 @@ private fun ProductOptionTile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = LocalVaiinillaColors.current
-    Row(
-        modifier =
-            modifier
-                .heightIn(min = 64.dp)
-                .clip(RoundedCornerShape(19.dp))
-                .background(if (selected) colors.accent else colors.paper2)
-                .border(
-                    width = 1.dp,
-                    color = if (selected) colors.accent else colors.line,
-                    shape = RoundedCornerShape(19.dp),
-                ).clickable(onClick = onClick)
-                .semantics {
-                    role = Role.RadioButton
-                    this.selected = selected
-                }.padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            label,
-            color = if (selected) colors.accentInk else colors.ink,
-            fontSize = 15.sp,
-            lineHeight = 19.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        if (selected) {
-            Box(
-                modifier =
-                    Modifier
-                        .padding(start = 8.dp)
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .background(colors.accentInk),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Rounded.Check,
-                    contentDescription = null,
-                    tint = colors.accent,
-                    modifier = Modifier.size(17.dp),
-                )
-            }
-        }
-    }
+    // La elegida se rellena de tinta: el lima queda solo para "Agregar".
+    ChoiceChip(
+        label = label,
+        selected = selected,
+        onClick = onClick,
+        modifier = modifier,
+        height = 56.dp,
+        shape = RoundedCornerShape(20.dp),
+    )
 }
 
+/** Ingredientes y alérgenos como texto. Si el negocio no capturó nada, no se muestra nada. */
 @Composable
-private fun ProductMetaGrid(
+private fun ProductDetails(
     ingredients: String,
-    estimatedTime: String,
     allergens: String,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalVaiinillaColors.current
     val hasRelevantAllergens =
         allergens.isNotBlank() &&
             !allergens.startsWith("Sin ", ignoreCase = true)
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            ProductMetaCard(
-                icon = Icons.Outlined.Eco,
-                label = "Ingredientes",
-                value = ingredients.ifBlank { "Consulta en cafetería" },
-                modifier = Modifier.weight(1f),
-            )
-            ProductMetaCard(
-                icon = Icons.Outlined.Schedule,
-                label = "Tiempo estimado",
-                value = estimatedTime,
-                modifier = Modifier.weight(1f),
+    if (ingredients.isBlank() && !hasRelevantAllergens) return
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (ingredients.isNotBlank()) {
+            Text(
+                "Lleva: $ingredients",
+                color = colors.ink2,
+                fontSize = 15.sp,
+                lineHeight = 21.sp,
             )
         }
         if (hasRelevantAllergens) {
-            ProductMetaCard(
-                icon = Icons.Outlined.WarningAmber,
-                label = "Alérgenos",
-                value = allergens,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-    }
-}
-
-@Composable
-private fun ProductMetaCard(
-    icon: ImageVector,
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalVaiinillaColors.current
-    Surface(
-        modifier = modifier.heightIn(min = 94.dp),
-        color = colors.paper2,
-        shape = RoundedCornerShape(20.dp),
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(30.dp)
-                        .clip(CircleShape)
-                        .background(colors.accent),
-                contentAlignment = Alignment.Center,
-            ) {
+            Row(verticalAlignment = Alignment.Top) {
                 Icon(
-                    icon,
+                    Icons.Outlined.WarningAmber,
                     contentDescription = null,
-                    tint = colors.accentInk,
-                    modifier = Modifier.size(18.dp),
+                    tint = colors.ink2,
+                    modifier = Modifier.padding(top = 1.dp).size(18.dp),
+                )
+                Text(
+                    "Alérgenos: $allergens",
+                    color = colors.ink2,
+                    fontSize = 15.sp,
+                    lineHeight = 21.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 8.dp),
                 )
             }
-            Text(
-                label,
-                color = colors.ink,
-                fontSize = 14.sp,
-                lineHeight = 18.sp,
-                fontWeight = FontWeight.Black,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-            Text(
-                value,
-                color = colors.ink2,
-                fontSize = 13.sp,
-                lineHeight = 17.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 2.dp),
-            )
         }
     }
 }
@@ -823,7 +745,7 @@ private fun ProductDetailDock(
             .flatMap { it.options }
             .filter { it.id in selectedOptionIds }
             .joinToString(" · ") { it.name }
-            .ifBlank { "Sin opciones adicionales" }
+            .ifBlank { "Sin extras" }
 
     Surface(
         modifier =
@@ -850,6 +772,16 @@ private fun ProductDetailDock(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                    if (product.optionGroups.isEmpty()) {
+                        Text(
+                            "Cantidad",
+                            color = colors.ink,
+                            fontSize = 17.sp,
+                            lineHeight = 21.sp,
+                            fontWeight = FontWeight.Black,
+                        )
+                        return@Column
+                    }
                     Text(
                         if (customized) "Tu personalización" else "Tu selección",
                         color = colors.muted,
@@ -875,21 +807,14 @@ private fun ProductDetailDock(
                 )
             }
             Spacer(Modifier.height(10.dp))
-            Button(
+            SeaGlassButton(
+                tone = SeaGlassTone.lima,
                 onClick = onAdd,
                 enabled = canAdd,
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                shape = RoundedCornerShape(18.dp),
-                colors =
-                    ButtonDefaults.buttonColors(
-                        containerColor = colors.accent,
-                        contentColor = colors.accentInk,
-                        disabledContainerColor = colors.paper2,
-                        disabledContentColor = colors.muted,
-                    ),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -991,35 +916,24 @@ private fun QuantityButton(
     description: String,
     onClick: () -> Unit,
 ) {
+    // Plano y neutro: el único volumen de la hoja es "Agregar".
     val colors = LocalVaiinillaColors.current
-    val buttonScale = remember { Animatable(1f) }
-    val scope = rememberCoroutineScope()
-    IconButton(
-        onClick = {
-            scope.launch {
-                buttonScale.snapTo(0.85f)
-                buttonScale.animateTo(
-                    targetValue = 1f,
-                    animationSpec = spring(dampingRatio = 0.45f, stiffness = 500f),
-                )
-            }
-            onClick()
-        },
+    Box(
         modifier =
             Modifier
-                .size(48.dp)
-                .scale(buttonScale.value)
-                .clip(RoundedCornerShape(15.dp))
-                .background(colors.ink),
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(colors.ink.copy(alpha = 0.06f))
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            icon,
-            contentDescription = description,
-            tint = colors.paper,
-            modifier = Modifier.size(22.dp),
-        )
+        Icon(icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(19.dp))
     }
 }
+
+private val HeroHeight = 300.dp
+private val HaloFade = 96.dp
 
 private fun estimatedTimeLabel(minutes: Int): String =
     when (minutes) {

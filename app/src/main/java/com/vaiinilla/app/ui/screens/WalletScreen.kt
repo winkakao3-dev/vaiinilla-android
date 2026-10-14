@@ -8,7 +8,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -26,22 +25,17 @@ import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.automirrored.outlined.MenuBook
-import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.ShoppingCart
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -52,7 +46,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -61,11 +54,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.vaiinilla.app.ui.components.GlassCircleButton
 import com.vaiinilla.app.ui.components.SkeletonBlock
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
+import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.SeaGlassButton
+import com.vaiinilla.app.ui.theme.SeaGlassTone
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import com.vaiinilla.app.ui.wallet.WalletRemoteUiState
@@ -80,9 +77,6 @@ fun WalletScreen(
     userId: String? = null,
     onRetry: () -> Unit = {},
     onMenu: () -> Unit,
-    onAssistant: () -> Unit,
-    onOrders: () -> Unit,
-    onCart: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
     var qrDialogOpen by remember { mutableStateOf(false) }
@@ -102,6 +96,7 @@ fun WalletScreen(
     val glassColors =
         colors.copy(
             paper = Color.Transparent,
+            solidPaper = colors.onInk,
             paper2 = palette.glassCard,
             line = palette.glassLine,
             ink = palette.ink,
@@ -130,64 +125,39 @@ fun WalletScreen(
             ) {
                 item(key = "home-window") { Spacer(Modifier.height(windowDp + 20.dp)) }
                 item {
-                    Text(
-                        text = "Cartera",
-                        color = colors.ink,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 23.sp,
-                    )
-                }
-
-                item {
-                    Spacer(Modifier.height(26.dp))
                     WalletBalanceHero(
                         remoteState = remoteState,
                         onRetry = onRetry,
+                        onRecharge = { qrDialogOpen = true },
                     )
                 }
 
-                item {
-                    Spacer(Modifier.height(24.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        WalletAction(
-                            modifier = Modifier.weight(1f),
-                            icon = Icons.Outlined.ShoppingCart,
-                            title = "Pagar",
-                            subtitle = "Usar saldo",
-                            onClick = onCart,
-                        )
-                        WalletAction(
-                            modifier = Modifier.weight(1f),
-                            icon = Icons.AutoMirrored.Outlined.ReceiptLong,
-                            title = "Pedidos",
-                            subtitle = "Ver actividad",
-                            onClick = onOrders,
-                        )
-                        WalletAction(
-                            modifier = Modifier.weight(1f),
-                            icon = Icons.Outlined.QrCode2,
-                            title = "Recargar",
-                            subtitle = "Mostrar QR",
-                            onClick = { qrDialogOpen = true },
-                        )
-                    }
-                }
-
-                remoteState.data?.movements?.takeIf { it.isNotEmpty() }?.let { movements ->
+                val movements = remoteState.data?.movements
+                if (movements != null) {
                     item {
-                        Spacer(Modifier.height(32.dp))
+                        Spacer(Modifier.height(30.dp))
                         Text(
-                            text = "Movimientos",
+                            text = "Movimientos recientes",
                             color = colors.ink,
                             fontWeight = FontWeight.Black,
                             fontSize = 19.sp,
                         )
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(4.dp))
                     }
-
+                    if (movements.isEmpty()) {
+                        item {
+                            Text(
+                                text = "Aquí verás tus recargas y lo que pagues con saldo.",
+                                color = colors.muted,
+                                fontSize = 14.sp,
+                                lineHeight = 20.sp,
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
+                            TextButton(onClick = onMenu, contentPadding = PaddingValues(0.dp)) {
+                                Text("Ver el menú", color = colors.ink, fontWeight = FontWeight.Black)
+                            }
+                        }
+                    }
                     items(movements.take(12), key = { it.id }) { movement ->
                         WalletMovementRow(
                             type = movement.type,
@@ -195,60 +165,6 @@ fun WalletScreen(
                             amount = movement.amount,
                             balanceAfter = movement.balanceAfter,
                         )
-                    }
-                }
-
-                item {
-                    Spacer(Modifier.height(28.dp))
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = onMenu,
-                        color = colors.paper2,
-                        shape = RoundedCornerShape(20.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 15.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .size(44.dp)
-                                        .background(colors.paper, RoundedCornerShape(14.dp)),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Outlined.MenuBook,
-                                    contentDescription = null,
-                                    tint = colors.ink,
-                                    modifier = Modifier.size(22.dp),
-                                )
-                            }
-                            Column(
-                                modifier =
-                                    Modifier
-                                        .weight(1f)
-                                        .padding(horizontal = 14.dp),
-                            ) {
-                                Text(
-                                    text = "Abrir menú",
-                                    color = colors.ink,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 14.sp,
-                                )
-                                Text(
-                                    text = "Usa tu saldo en tu siguiente pedido",
-                                    color = colors.muted,
-                                    fontSize = 12.sp,
-                                    modifier = Modifier.padding(top = 3.dp),
-                                )
-                            }
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
-                                contentDescription = null,
-                                tint = colors.muted,
-                            )
-                        }
                     }
                 }
 
@@ -271,13 +187,19 @@ private const val WALLET_SCENE_WINDOW = 0.4f
 private fun WalletBalanceHero(
     remoteState: WalletRemoteUiState,
     onRetry: () -> Unit,
+    onRecharge: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
 
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (remoteState.data != null || remoteState.loading) {
+            Text(
+                text = "Saldo Vaiinilla",
+                color = colors.muted,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+            )
+        }
         when {
             remoteState.data != null -> {
                 AnimatedContent(
@@ -294,121 +216,69 @@ private fun WalletBalanceHero(
                     label = "wallet_balance_ticker",
                 ) { balance ->
                     Text(
-                        text = "$$balance",
+                        text = moneyLabel(balance),
                         color = colors.ink,
                         fontWeight = FontWeight.Black,
-                        fontSize = 46.sp,
-                        lineHeight = 50.sp,
-                        letterSpacing = (-1.4).sp,
+                        fontSize = 52.sp,
+                        lineHeight = 58.sp,
+                        letterSpacing = (-1.6).sp,
                     )
                 }
-                Text(
-                    text = "Saldo Vaiinilla",
-                    color = colors.muted,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
+                SeaGlassButton(
+                    tone = SeaGlassTone.lima,
+                    onClick = onRecharge,
+                    modifier = Modifier.fillMaxWidth().padding(top = 18.dp).height(54.dp),
+                ) {
+                    Icon(Icons.Outlined.QrCode2, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Text(
+                        "Recargar en caja",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
             }
 
             remoteState.loading -> {
+                Spacer(Modifier.height(8.dp))
                 SkeletonBlock(
-                    modifier = Modifier.size(width = 150.dp, height = 44.dp),
+                    modifier = Modifier.size(width = 170.dp, height = 50.dp),
                     corner = 14.dp,
                 )
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(18.dp))
                 SkeletonBlock(
-                    modifier = Modifier.size(width = 96.dp, height = 14.dp),
-                    corner = 7.dp,
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    corner = 27.dp,
                 )
             }
 
             else -> {
+                // El error del servidor habla de "contexto operativo"; aquí se dice qué pasó y qué hacer.
                 Text(
-                    text = remoteState.error ?: "No se pudo consultar el saldo.",
+                    text = "No pudimos cargar tu saldo",
+                    color = colors.ink,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 20.sp,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+                Text(
+                    text = "Revisa tu conexión o vuelve a entrar al lugar desde el menú.",
                     color = colors.muted,
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
+                    modifier = Modifier.padding(top = 4.dp),
                 )
-                Button(
-                    onClick = onRetry,
-                    colors =
-                        ButtonDefaults.buttonColors(
-                            containerColor = colors.ink,
-                            contentColor = colors.paper,
-                        ),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.padding(top = 12.dp),
-                ) {
-                    Text("Reintentar", fontWeight = FontWeight.Black)
+                TextButton(onClick = onRetry, contentPadding = PaddingValues(0.dp)) {
+                    Text("Reintentar", color = colors.ink, fontWeight = FontWeight.Black)
                 }
             }
         }
     }
 }
 
+/** El código personal en grande, para que caja lo escanee al recargar. */
 @Composable
-private fun WalletAction(
-    modifier: Modifier,
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit,
-) {
-    val colors = LocalVaiinillaColors.current
-
-    Surface(
-        modifier = modifier.height(168.dp),
-        onClick = onClick,
-        color = colors.paper2,
-        shape = RoundedCornerShape(26.dp),
-    ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(vertical = 18.dp, horizontal = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(56.dp)
-                        .background(colors.accent, RoundedCornerShape(20.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = colors.accentInk,
-                    modifier = Modifier.size(28.dp),
-                )
-            }
-            Spacer(Modifier.height(14.dp))
-            Text(
-                text = title,
-                color = colors.ink,
-                fontWeight = FontWeight.Bold,
-                fontSize = 17.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(3.dp))
-            Text(
-                text = subtitle,
-                color = colors.muted,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-    }
-}
-
-@Composable
-private fun WalletQrDialog(
+internal fun WalletQrDialog(
     qrValue: String?,
     onDismiss: () -> Unit,
 ) {
@@ -435,19 +305,13 @@ private fun WalletQrDialog(
                         fontSize = 22.sp,
                         modifier = Modifier.align(Alignment.Center),
                     )
-                    Surface(
+                    GlassCircleButton(
+                        icon = Icons.Outlined.Close,
+                        contentDescription = "Cerrar",
                         onClick = onDismiss,
-                        color = colors.paper2,
-                        shape = CircleShape,
                         modifier = Modifier.align(Alignment.CenterEnd),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Close,
-                            contentDescription = "Cerrar",
-                            tint = colors.ink,
-                            modifier = Modifier.padding(9.dp).size(20.dp),
-                        )
-                    }
+                        iconSize = 18.dp,
+                    )
                 }
 
                 Text(
@@ -523,16 +387,13 @@ private fun WalletMovementRow(
                 modifier =
                     Modifier
                         .size(44.dp)
-                        .background(
-                            if (isDebit) colors.paper2 else colors.accent2,
-                            RoundedCornerShape(15.dp),
-                        ),
+                        .background(colors.paper2, RoundedCornerShape(15.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (isDebit) colors.ink else colors.accentInk,
+                    tint = colors.ink,
                     modifier = Modifier.size(21.dp),
                 )
             }
@@ -550,7 +411,7 @@ private fun WalletMovementRow(
                     fontSize = 14.sp,
                 )
                 Text(
-                    text = "Saldo después: \$$balanceAfter",
+                    text = "Saldo después: ${moneyLabel(balanceAfter)}",
                     color = colors.muted,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(top = 3.dp),
@@ -558,8 +419,8 @@ private fun WalletMovementRow(
             }
 
             Text(
-                text = "\$$amount",
-                color = if (isDebit) colors.ink else colors.accent,
+                text = if (isDebit) "−${moneyLabel(amount.removePrefix("-"))}" else "+${moneyLabel(amount)}",
+                color = colors.ink,
                 fontWeight = FontWeight.Black,
                 fontSize = 15.sp,
             )
@@ -590,7 +451,7 @@ private fun movementLabel(
 @Composable
 private fun WalletScreenLightPreview() {
     VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
-        WalletScreen(onMenu = {}, onAssistant = {}, onOrders = {}, onCart = {})
+        WalletScreen(onMenu = {})
     }
 }
 
@@ -598,6 +459,6 @@ private fun WalletScreenLightPreview() {
 @Composable
 private fun WalletScreenDarkPreview() {
     VaiinillaTheme(themeMode = VaiinillaThemeMode.Dark) {
-        WalletScreen(onMenu = {}, onAssistant = {}, onOrders = {}, onCart = {})
+        WalletScreen(onMenu = {})
     }
 }

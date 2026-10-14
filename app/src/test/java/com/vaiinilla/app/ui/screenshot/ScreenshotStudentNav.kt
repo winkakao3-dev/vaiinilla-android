@@ -7,6 +7,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
+import com.vaiinilla.app.ui.navigation.routeForStudentTab
+import com.vaiinilla.app.ui.navigation.shouldShowStudentNav
 
 /** Overlay persistent-style student nav for Roborazzi screens that compose a single screen. */
 @Composable
@@ -17,12 +19,21 @@ fun ScreenshotWithStudentNav(
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         content()
-        VaiinillaBottomNav(
-            activeTab = activeTab,
-            cartCount = cartCount,
-            onTabSelected = {},
-            enableDrag = false,
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
+        // Misma regla que la app: con productos, el carrito no lleva barra de pestañas.
+        val showNav =
+            shouldShowStudentNav(
+                route = routeForStudentTab(activeTab),
+                catalogDetailOpen = false,
+                cartHasItems = cartCount > 0,
+            )
+        if (showNav) {
+            VaiinillaBottomNav(
+                activeTab = activeTab,
+                cartCount = cartCount,
+                onTabSelected = {},
+                enableDrag = false,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
     }
 }

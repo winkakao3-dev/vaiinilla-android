@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.Density
@@ -60,7 +61,7 @@ class DiscoveryCompactLayoutTest {
         )
 
     @Test
-    fun `discovery shows recommended card and every other venue`() {
+    fun `discovery lists every venue as a row and keeps QR and code reachable`() {
         composeTestRule.setContent {
             ScreenshotTheme {
                 DiscoveryScreen(
@@ -82,15 +83,14 @@ class DiscoveryCompactLayoutTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("¿Dónde comes hoy?").assertIsDisplayed()
-        composeTestRule.onNodeWithText("RECOMENDADA PARA TI").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Dónde pedir").assertIsDisplayed()
         composeTestRule.onAllNodesWithText("saulP1").assertCountEquals(1)
-        composeTestRule.onAllNodesWithText("OTRAS SEDES DISPONIBLES").assertCountEquals(1)
+        composeTestRule.onNodeWithText("Aquí estás · Acceso libre").assertIsDisplayed()
         composeTestRule.onAllNodesWithText("America").assertCountEquals(1)
         composeTestRule.onAllNodesWithText("Cafetería Sur").assertCountEquals(1)
         composeTestRule.onAllNodesWithText("Escanear QR").assertCountEquals(1)
         composeTestRule.onAllNodesWithText("Usar código").assertCountEquals(1)
-        composeTestRule.onNodeWithText("DESLIZA PARA ENTRAR").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Abiertas ahora").assertCountEquals(0)
     }
 
     @Test
@@ -121,23 +121,23 @@ class DiscoveryCompactLayoutTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onAllNodesWithText("ACCESO RÁPIDO EN MESA").assertCountEquals(1)
+        composeTestRule.onAllNodesWithText("¿Ya estás en tu mesa?").assertCountEquals(1)
         composeTestRule.onAllNodesWithText("Escanear QR").assertCountEquals(1)
         composeTestRule.onAllNodesWithText("Usar código").assertCountEquals(1)
     }
 
     @Test
-    fun `sin negocios en la lista ofrece escanear QR, escribir codigo o acercar NFC`() {
+    fun `sin negocios en la lista ofrece escanear QR, usar codigo o NFC`() {
         setNfcFeature(supported = true)
         setEmptyDiscovery()
 
         composeTestRule.onNodeWithText("Escanea el QR de tu mesa o de la tienda").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Escribir código").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Acercar NFC").performClick()
+        composeTestRule.onAllNodesWithText("Escanear QR").onLast().assertIsDisplayed()
+        composeTestRule.onNodeWithText("NFC").performClick()
         composeTestRule
             .onNodeWithText("Acerca la parte de atrás de tu teléfono a la etiqueta de la mesa: Vaiinilla se abre sola.")
             .assertIsDisplayed()
-        composeTestRule.onNodeWithText("Escribir código").performClick()
+        composeTestRule.onAllNodesWithText("Usar código").onLast().performClick()
         composeTestRule.onNodeWithText("Escribe los 4 dígitos que aparecen junto al QR de tu mesa.").assertIsDisplayed()
     }
 
@@ -146,8 +146,8 @@ class DiscoveryCompactLayoutTest {
         setNfcFeature(supported = false)
         setEmptyDiscovery()
 
-        composeTestRule.onNodeWithText("Escribir código").assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("Acercar NFC").assertCountEquals(0)
+        composeTestRule.onAllNodesWithText("Usar código").onLast().assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("NFC").assertCountEquals(0)
     }
 
     private fun setNfcFeature(supported: Boolean) {

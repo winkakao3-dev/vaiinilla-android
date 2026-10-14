@@ -328,6 +328,12 @@ android {
                     file("src/test/fixtures").absolutePath,
                 )
                 it.systemProperties["robolectric.pixelCopyRenderMode"] = "hardware"
+                // El arnés jvm-roles corre como un java suelto, sin Gradle vivo: `vbuild jvm-roles` pide aquí su classpath.
+                it.doFirst {
+                    System.getenv("JVM_ROLES_CLASSPATH_FILE")?.let { out ->
+                        File(out).writeText((this as Test).classpath.asPath)
+                    }
+                }
             }
         }
     }
@@ -408,6 +414,8 @@ dependencies {
     testImplementation(libs.roborazzi)
     testImplementation(libs.roborazzi.compose)
     testImplementation(libs.roborazzi.junit.rule)
+    testImplementation(libs.hilt.android.testing)
+    kspTest(libs.hilt.compiler)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

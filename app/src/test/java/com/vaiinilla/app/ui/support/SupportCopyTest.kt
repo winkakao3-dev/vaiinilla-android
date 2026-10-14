@@ -34,4 +34,11 @@ class SupportCopyTest {
             SupportCopy.cards[2].body,
         )
     }
+
+    @Test
+    fun `search narrows topics by title or answer and an empty search shows them all`() {
+        assertEquals(SupportCopy.cards, supportTopicsMatching("  "))
+        assertEquals(listOf("Pagos"), supportTopicsMatching("stripe").map { it.title })
+        assertEquals(emptyList<SupportCard>(), supportTopicsMatching("zzz"))
+    }
 }

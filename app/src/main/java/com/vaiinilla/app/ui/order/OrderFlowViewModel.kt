@@ -769,8 +769,8 @@ class OrderFlowViewModel
                                 cartLines = emptyList(),
                                 kitchenNotes = "",
                                 // La mesa se conserva para pedir otra ronda sin volver a escanear;
-                                // si la ronda fue a la cuenta, la siguiente arranca igual.
-                                checkoutPayment = PaymentMethod.CASH,
+                                // si la ronda fue a la cuenta, la siguiente arranca igual. El método de pago
+                                // también se conserva: la hoja de pago lo trae marcado la próxima vez.
                                 checkoutPayAtEnd = _uiState.value.payAtEndForNextRound,
                                 createdOrder = created.order,
                                 stripeObservedOrder = null,

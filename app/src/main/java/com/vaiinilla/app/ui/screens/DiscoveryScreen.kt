@@ -12,19 +12,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.keyframes
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
@@ -34,7 +25,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -48,52 +38,44 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Backspace
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material.icons.outlined.Bolt
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.NearMe
+import androidx.compose.material.icons.outlined.Nfc
 import androidx.compose.material.icons.outlined.QrCodeScanner
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.Tag
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
@@ -102,19 +84,24 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicVideo
+import com.vaiinilla.app.ui.components.ChoiceChip
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
+import com.vaiinilla.app.ui.components.EditorialSearchField
+import com.vaiinilla.app.ui.components.EditorialSecondaryButton
+import com.vaiinilla.app.ui.components.GlassCircleButton
+import com.vaiinilla.app.ui.components.PhysicalPressScale
+import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.physicalPress
-import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.discovery.DiscoveryUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.SeaGlassButton
+import com.vaiinilla.app.ui.theme.SeaGlassTone
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.math.roundToInt
 
 @Composable
 fun DiscoveryScreen(
@@ -122,6 +109,8 @@ fun DiscoveryScreen(
     onQueryChange: (String) -> Unit,
     onSpaceTokenChange: (String) -> Unit,
     onOpenQrScanner: () -> Unit = {},
+    /** Sube cuando otra pantalla (el escáner sin cámara) pide escribir el código de mesa. */
+    tableCodeRequest: Int = 0,
     onSelectEstablishment: (PublicEstablishment) -> Unit,
     onResolveSpace: () -> Unit,
     onConfirmSwitch: () -> Unit,
@@ -153,12 +142,11 @@ fun DiscoveryScreen(
         }
     }
     var codeSheetOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(tableCodeRequest) {
+        if (tableCodeRequest > 0) codeSheetOpen = true
+    }
     var tokenError by remember { mutableStateOf(false) }
-    var pendingSelection by remember { mutableStateOf<PublicEstablishment?>(null) }
     var selectedFilter by remember { mutableStateOf(VenueFilter.ALL) }
-    var dockPulseCount by remember { mutableIntStateOf(0) }
-    var dockHeightPx by remember { mutableStateOf(0) }
-    val dockHeight = with(LocalDensity.current) { dockHeightPx.toDp() }
 
     BackHandler(enabled = state.pendingSwitch != null) { onDismissSwitch() }
 
@@ -166,7 +154,7 @@ fun DiscoveryScreen(
         remember(state.establishments, selectedFilter) {
             state.establishments.filter { est ->
                 when (selectedFilter) {
-                    VenueFilter.ALL, VenueFilter.OPEN -> true
+                    VenueFilter.ALL -> true
                     VenueFilter.FREE -> !est.clientIdRequired
                     VenueFilter.ID_REQUIRED -> est.clientIdRequired
                 }
@@ -174,15 +162,29 @@ fun DiscoveryScreen(
         }
 
     val activeId = state.selected?.establishment?.id
-    val selection =
-        pendingSelection
-            ?: state.selected?.establishment
-            ?: filteredEstablishments.firstOrNull()
-            ?: state.establishments.firstOrNull()
+    val enterVenue: (PublicEstablishment) -> Unit = { target ->
+        haptics.click()
+        if (target.id != activeId) onSelectEstablishment(target) else onContinueSelected()
+    }
+    // Con un solo lugar no hay nada que elegir: se entra directo, una sola vez (al volver no rebota).
+    var autoOpened by rememberSaveable { mutableStateOf(false) }
+    val onlyVenue =
+        onlyVenueToAutoOpen(
+            establishments = state.establishments,
+            query = state.query,
+            loading = state.loading,
+            hasActiveVenue = state.selected != null,
+        )
+    LaunchedEffect(onlyVenue?.id) {
+        if (onlyVenue != null && !autoOpened) {
+            autoOpened = true
+            onSelectEstablishment(onlyVenue)
+        }
+    }
     // Los videos viven en la lista: el venue guardado en sesión no los trae.
-    val selectionVideos =
+    val activeVideos =
         state.establishments
-            .firstOrNull { it.id == selection?.id }
+            .firstOrNull { it.id == activeId }
             ?.localVideos
             .orEmpty()
 
@@ -205,37 +207,36 @@ fun DiscoveryScreen(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
-                        .padding(horizontal = 8.dp),
+                        .height(58.dp)
+                        .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (onBack != null) {
-                    IconButton(
+                    GlassCircleButton(
+                        icon = Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = "Volver",
                         onClick = {
                             haptics.click()
                             onBack()
                         },
-                    ) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
-                    }
-                } else {
-                    Spacer(Modifier.width(8.dp))
+                    )
+                    Spacer(Modifier.width(12.dp))
                 }
-                Spacer(Modifier.weight(1f))
-                Box(
-                    modifier =
-                        Modifier
-                            .size(42.dp)
-                            .clip(RoundedCornerShape(15.dp))
-                            .background(colors.ink)
-                            .clickable {
-                                haptics.click()
-                                onOpenAccount()
-                            },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(profileInitials, color = colors.paper, fontWeight = FontWeight.Black)
-                }
+                Text(
+                    "Dónde pedir",
+                    color = colors.ink,
+                    fontSize = 24.sp,
+                    lineHeight = 28.sp,
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.weight(1f),
+                )
+                ProfileInitialsButton(
+                    initials = profileInitials,
+                    onClick = {
+                        haptics.click()
+                        onOpenAccount()
+                    },
+                )
             }
 
             LazyColumn(
@@ -245,44 +246,15 @@ fun DiscoveryScreen(
                         start = 20.dp,
                         end = 20.dp,
                         top = 0.dp,
-                        bottom = if (dockHeightPx > 0) dockHeight + 26.dp else 216.dp,
+                        bottom = 32.dp,
                     ),
             ) {
                 item {
-                    Text(
-                        "LOCALIZACIÓN",
-                        color = if (colors.isDark) colors.accent else colors.accentInk,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.8.sp,
-                        modifier = Modifier.padding(top = 6.dp),
-                    )
-                    Text(
-                        "¿Dónde comes hoy?",
-                        color = colors.ink,
-                        fontSize = 34.sp,
-                        lineHeight = 38.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.6).sp,
-                        modifier = Modifier.padding(top = 6.dp, bottom = 6.dp),
-                    )
-                    Text(
-                        if (state.selected != null) {
-                            "Cambia cuando quieras o entra con el QR de tu mesa."
-                        } else {
-                            "Elige tu cafetería para mostrarte el menú correcto y los tiempos exactos de barra."
-                        },
-                        color = colors.muted,
-                        fontSize = 13.5.sp,
-                        lineHeight = 19.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-                item {
-                    DiscoverySearchField(
+                    EditorialSearchField(
                         value = state.query,
                         onValueChange = onQueryChange,
-                        modifier = Modifier.padding(top = 18.dp),
+                        placeholder = "Buscar cafetería, facultad o campus…",
+                        modifier = Modifier.padding(top = 4.dp),
                     )
                 }
                 item {
@@ -361,87 +333,35 @@ fun DiscoveryScreen(
                         }
                     }
                 } else {
-                    val recommended = filteredEstablishments.first()
-                    val others = filteredEstablishments.filterNot { it.id == recommended.id }
-                    item {
-                        SectionHeading(
-                            label = if (state.nearbyOrigin != null) "MÁS CERCA DE TI" else "RECOMENDADA PARA TI",
-                            modifier = Modifier.padding(top = 20.dp),
+                    items(filteredEstablishments, key = { it.id }) { establishment ->
+                        VenueRow(
+                            establishment = establishment,
+                            active = activeId == establishment.id,
+                            onClick = { enterVenue(establishment) },
+                            modifier = Modifier.animateItem(),
                         )
-                    }
-                    item {
-                        RecommendedVenueCard(
-                            establishment = recommended,
-                            selected = selection?.id == recommended.id,
-                            active = activeId == recommended.id,
-                            onClick = {
-                                haptics.selection()
-                                pendingSelection = recommended
-                                dockPulseCount++
-                            },
-                        )
-                    }
-                    if (others.isNotEmpty()) {
-                        item {
-                            SectionHeading(
-                                label = "OTRAS SEDES DISPONIBLES",
-                                trailing = "${others.size} activas",
-                                modifier = Modifier.padding(top = 20.dp, bottom = 2.dp),
-                            )
-                        }
-                        items(others, key = { it.id }) { establishment ->
-                            VenueSelectRow(
-                                establishment = establishment,
-                                selected = selection?.id == establishment.id,
-                                active = activeId == establishment.id,
-                                onClick = {
-                                    haptics.selection()
-                                    pendingSelection = establishment
-                                    dockPulseCount++
-                                },
-                            )
-                        }
                     }
                 }
-                if (selectionVideos.isNotEmpty()) {
+                if (activeVideos.isNotEmpty()) {
                     item {
                         LocalVideosSection(
-                            videos = selectionVideos,
+                            videos = activeVideos,
                             modifier = Modifier.padding(top = 20.dp),
                         )
                     }
                 }
                 item {
-                    QuickAccessCard(
+                    QuickAccessRow(
                         onOpenQrScanner = onOpenQrScanner,
                         onUseCode = {
                             haptics.click()
                             codeSheetOpen = true
                         },
-                        modifier = Modifier.padding(top = 22.dp),
+                        modifier = Modifier.padding(top = 24.dp),
                     )
                 }
             }
         }
-
-        VenueDock(
-            selection = selection,
-            isActive = selection != null && selection.id == activeId,
-            dockPulseCount = dockPulseCount,
-            onContinue = {
-                val target = selection ?: return@VenueDock
-                haptics.click()
-                if (target.id != activeId) {
-                    onSelectEstablishment(target)
-                } else {
-                    onContinueSelected()
-                }
-            },
-            modifier =
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .onSizeChanged { dockHeightPx = it.height },
-        )
 
         if (state.pendingSwitch != null) {
             Box(
@@ -580,7 +500,6 @@ enum class VenueFilter(
     val label: String,
 ) {
     ALL("Todas"),
-    OPEN("Abiertas ahora"),
     FREE("Acceso libre"),
     ID_REQUIRED("Con matrícula"),
 }
@@ -600,246 +519,46 @@ private fun FilterChipsBar(
         modifier =
             modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
+                .horizontalScroll(rememberScrollState())
+                .padding(start = 2.dp, end = 2.dp, top = 10.dp, bottom = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        VenueFilterChip(
+        ChoiceChip(
             label = if (nearbyLocating) "Ubicándote…" else "Cerca de mí",
             selected = nearbyActive,
             onClick = onToggleNearby,
-            leadingIcon = Icons.Outlined.NearMe,
         )
         VenueFilter.entries.forEach { filter ->
-            VenueFilterChip(
+            ChoiceChip(
                 label = filter.label,
                 selected = filter == selectedFilter,
                 onClick = {
                     haptics.selection()
                     onSelectFilter(filter)
                 },
-                showOpenDot = filter == VenueFilter.OPEN,
             )
         }
     }
 }
 
+/** Un lugar de la lista: toda la fila entra. Solo datos reales; sin tiempos ni distancias inventadas. */
 @Composable
-private fun VenueFilterChip(
-    label: String,
-    selected: Boolean,
+private fun VenueRow(
+    establishment: PublicEstablishment,
+    active: Boolean,
     onClick: () -> Unit,
-    leadingIcon: ImageVector? = null,
-    showOpenDot: Boolean = false,
-) {
-    val colors = LocalVaiinillaColors.current
-    val tint = if (selected) colors.paper else colors.ink
-    Row(
-        modifier =
-            Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .background(if (selected) colors.ink else colors.paper2)
-                .then(
-                    if (!selected) {
-                        Modifier.border(1.dp, colors.line, RoundedCornerShape(12.dp))
-                    } else {
-                        Modifier
-                    },
-                ).clickable(onClick = onClick)
-                .padding(horizontal = 13.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
-    ) {
-        if (showOpenDot) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(colors.accent),
-            )
-        }
-        leadingIcon?.let {
-            Icon(it, contentDescription = null, tint = tint, modifier = Modifier.size(14.dp))
-        }
-        Text(
-            label,
-            color = tint,
-            fontSize = 12.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
-        )
-    }
-}
-
-@Composable
-private fun CheckDot(
-    selected: Boolean,
-    size: androidx.compose.ui.unit.Dp = 26.dp,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
-    Box(
+    val access =
+        if (establishment.clientIdRequired) "${establishment.clientIdLabel} requerida" else "Acceso libre"
+    Row(
         modifier =
             modifier
-                .size(size)
-                .clip(CircleShape)
-                .background(if (selected) colors.accent else Color.Transparent)
-                .border(
-                    1.6.dp,
-                    if (selected) colors.accent else colors.line,
-                    CircleShape,
-                ),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (selected) {
-            Icon(
-                Icons.Rounded.Check,
-                contentDescription = null,
-                tint = colors.accentInk,
-                modifier = Modifier.size(size * 0.55f),
-            )
-        }
-    }
-}
-
-@Composable
-private fun RecommendedVenueCard(
-    establishment: PublicEstablishment,
-    selected: Boolean,
-    active: Boolean,
-    onClick: () -> Unit,
-) {
-    val colors = LocalVaiinillaColors.current
-    val meta =
-        if (establishment.clientIdRequired) {
-            "${establishment.clientIdLabel} requerida"
-        } else {
-            "Acceso libre"
-        }
-    Row(
-        modifier =
-            Modifier
                 .fillMaxWidth()
-                .padding(top = 8.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(if (selected) (if (colors.isDark) colors.paper2 else Color.White) else colors.paper2)
-                .border(
-                    width = if (selected) 2.dp else 1.dp,
-                    color = if (selected) colors.ink else colors.line,
-                    shape = RoundedCornerShape(20.dp),
-                ).physicalPress(onClick = onClick)
-                .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(15.dp))
-                    .background(colors.paper),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.Outlined.Storefront,
-                contentDescription = null,
-                tint = colors.ink2,
-                modifier = Modifier.size(24.dp),
-            )
-        }
-        Column(
-            modifier = Modifier.padding(start = 13.dp).weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    establishment.name,
-                    color = colors.ink,
-                    fontSize = 16.5.sp,
-                    lineHeight = 21.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                if (active) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .padding(start = 7.dp)
-                                .size(7.dp)
-                                .clip(CircleShape)
-                                .background(colors.accent),
-                    )
-                }
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    meta,
-                    color = colors.ink2,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier =
-                        Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(colors.paper)
-                            .padding(horizontal = 7.dp, vertical = 3.dp),
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                ) {
-                    Text("🚶", fontSize = 11.sp)
-                    Text(
-                        "3 min",
-                        color = colors.muted,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                }
-            }
-            Text(
-                "Menú del día · Terraza disponible",
-                color = colors.muted,
-                fontSize = 11.sp,
-            )
-        }
-        CheckDot(
-            selected = selected,
-            size = 26.dp,
-            modifier = Modifier.padding(start = 10.dp),
-        )
-    }
-}
-
-@Composable
-private fun VenueSelectRow(
-    establishment: PublicEstablishment,
-    selected: Boolean,
-    active: Boolean,
-    onClick: () -> Unit,
-) {
-    val colors = LocalVaiinillaColors.current
-    val meta =
-        if (establishment.clientIdRequired) {
-            "${establishment.clientIdLabel} requerida"
-        } else {
-            "Acceso libre"
-        }
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(if (selected) (if (colors.isDark) colors.paper2 else Color.White) else colors.paper2)
-                .border(
-                    width = if (selected) 2.dp else 1.dp,
-                    color = if (selected) colors.ink else colors.line,
-                    shape = RoundedCornerShape(20.dp),
-                ).physicalPress(onClick = onClick)
-                .padding(14.dp),
+                .heightIn(min = 72.dp)
+                .physicalPress(scale = PhysicalPressScale.ProductCard, onClick = onClick)
+                .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -847,492 +566,102 @@ private fun VenueSelectRow(
                 Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(colors.paper),
+                    .background(colors.paper2),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                Icons.Outlined.Storefront,
-                contentDescription = null,
-                tint = colors.ink2,
-                modifier = Modifier.size(22.dp),
+            Text(
+                establishment.name.take(1).uppercase(),
+                color = colors.muted,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Black,
             )
         }
-        Column(
-            modifier = Modifier.padding(start = 13.dp).weight(1f),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    establishment.name,
-                    color = colors.ink,
-                    fontSize = 15.5.sp,
-                    lineHeight = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                if (active) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .padding(start = 7.dp)
-                                .size(7.dp)
-                                .clip(CircleShape)
-                                .background(colors.accent),
-                    )
-                }
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    meta,
-                    color = colors.ink2,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier =
-                        Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(colors.paper)
-                            .padding(horizontal = 7.dp, vertical = 2.5.dp),
-                )
-                Text(
-                    "Campus",
-                    color = colors.muted,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
+        Column(modifier = Modifier.padding(horizontal = 14.dp).weight(1f)) {
+            Text(
+                establishment.name,
+                color = colors.ink,
+                fontSize = 17.sp,
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                if (active) "Aquí estás · $access" else access,
+                color = colors.muted,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                modifier = Modifier.padding(top = 2.dp),
+            )
         }
-        CheckDot(
-            selected = selected,
-            size = 26.dp,
-            modifier = Modifier.padding(start = 10.dp),
+        Icon(
+            Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+            contentDescription = null,
+            tint = colors.muted,
         )
     }
 }
 
+/** Con un solo lugar disponible (sin buscar y sin lugar activo) no hay nada que elegir. */
+internal fun onlyVenueToAutoOpen(
+    establishments: List<PublicEstablishment>,
+    query: String,
+    loading: Boolean,
+    hasActiveVenue: Boolean,
+): PublicEstablishment? = establishments.singleOrNull()?.takeIf { !loading && query.isBlank() && !hasActiveVenue }
+
+/** ¿Ya estás en la mesa? QR o código como acción secundaria, debajo de la lista. */
 @Composable
-private fun VenueDock(
-    selection: PublicEstablishment?,
-    isActive: Boolean,
-    dockPulseCount: Int = 0,
-    onContinue: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalVaiinillaColors.current
-    val density = LocalDensity.current
-    val scope = rememberCoroutineScope()
-    val haptics = rememberVaiinillaHaptics()
-    val reduceMotion = reducedMotion()
-    val enabled = selection != null
-    val knobSize = 56.dp
-    val trackPadding = 4.dp
-    val dragX = remember { Animatable(0f) }
-    var directDragX by remember { mutableFloatStateOf(0f) }
-    var isDragging by remember { mutableStateOf(false) }
-    var isDone by remember { mutableStateOf(false) }
-    var showTip by remember { mutableStateOf(false) }
-    var motionJob by remember { mutableStateOf<Job?>(null) }
-    var maxDragPx by remember { mutableStateOf(0f) }
-    var labelWidthPx by remember { mutableStateOf(0f) }
-    var trackHeightPx by remember { mutableStateOf(0f) }
-
-    // Pulse animation on venue card selection (1.02x scale for 150ms)
-    val dockScale = remember { Animatable(1f) }
-    LaunchedEffect(dockPulseCount) {
-        if (dockPulseCount > 0) {
-            dockScale.animateTo(1.02f, tween(80, easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)))
-            dockScale.animateTo(1f, tween(120, easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)))
-        }
-    }
-
-    LaunchedEffect(showTip) {
-        if (showTip) {
-            delay(1600)
-            showTip = false
-        }
-    }
-
-    // Knob "nudge" cada ~3.4s mientras está armado — enseña el gesto.
-    val idleMotion = rememberInfiniteTransition(label = "dock-idle")
-    val nudge by idleMotion.animateFloat(
-        initialValue = 0f,
-        targetValue = 0f,
-        animationSpec =
-            infiniteRepeatable(
-                animation =
-                    keyframes {
-                        durationMillis = 3400
-                        0f at 0
-                        0f at 2448
-                        8f at 2720
-                        6f at 3060
-                        0f at 3400
-                    },
-                repeatMode = RepeatMode.Restart,
-            ),
-        label = "dock-nudge",
-    )
-
-    // Anillo expansivo al confirmar.
-    val ringProgress = remember { Animatable(0f) }
-    LaunchedEffect(isDone) {
-        if (isDone) {
-            ringProgress.snapTo(0f)
-            ringProgress.animateTo(1f, tween(800, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)))
-        }
-    }
-
-    fun settleKnob(
-        target: Float,
-        onArrive: (() -> Unit)? = null,
-    ) {
-        motionJob?.cancel()
-        motionJob =
-            scope.launch {
-                dragX.snapTo(target)
-                isDragging = false
-                if (target >= maxDragPx * 0.70f) {
-                    haptics.click()
-                    dragX.animateTo(
-                        maxDragPx,
-                        spring(stiffness = Spring.StiffnessMedium),
-                    )
-                    isDone = true
-                    delay(if (reduceMotion) 120 else 550)
-                    onContinue()
-                    isDone = false
-                    dragX.snapTo(0f)
-                } else {
-                    dragX.animateTo(
-                        0f,
-                        spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                    )
-                }
-            }
-    }
-
-    Box(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        0f to colors.paper.copy(alpha = 0f),
-                        0.3f to colors.paper.copy(alpha = 0.95f),
-                        1f to colors.paper,
-                    ),
-                ).padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 12.dp)
-                .navigationBarsPadding(),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            if (showTip) {
-                Row(
-                    modifier =
-                        Modifier
-                            .padding(bottom = 8.dp)
-                            .clip(RoundedCornerShape(99.dp))
-                            .background(colors.ink)
-                            .padding(horizontal = 13.dp, vertical = 7.dp),
-                ) {
-                    Text(
-                        "Desliza → no toques",
-                        color = colors.accent2,
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(64.dp)
-                        .graphicsLayer {
-                            scaleX = dockScale.value
-                            scaleY = dockScale.value
-                        }.clip(RoundedCornerShape(32.dp))
-                        .background(colors.paper2)
-                        .border(1.dp, colors.line, RoundedCornerShape(32.dp))
-                        .onSizeChanged { newSize ->
-                            trackHeightPx = newSize.height.toFloat()
-                            maxDragPx =
-                                (
-                                    newSize.width -
-                                        with(density) { (knobSize + trackPadding * 2).toPx() }
-                                ).coerceAtLeast(0f)
-                        }.semantics { contentDescription = "Desliza para entrar" }
-                        .pointerInput(maxDragPx, enabled) {
-                            detectTapGestures {
-                                if (!isDone) showTip = true
-                            }
-                        }.then(
-                            if (enabled && !isDone) {
-                                Modifier.pointerInput(maxDragPx) {
-                                    detectHorizontalDragGestures(
-                                        onDragStart = {
-                                            motionJob?.cancel()
-                                            showTip = false
-                                            directDragX = dragX.value.coerceIn(0f, maxDragPx)
-                                            isDragging = true
-                                        },
-                                        onDragEnd = {
-                                            val releaseX = directDragX.coerceIn(0f, maxDragPx)
-                                            settleKnob(releaseX)
-                                        },
-                                        onDragCancel = {
-                                            val releaseX = directDragX.coerceIn(0f, maxDragPx)
-                                            settleKnob(0f)
-                                        },
-                                    ) { change, dragAmount ->
-                                        change.consume()
-                                        directDragX =
-                                            (directDragX + dragAmount)
-                                                .coerceIn(0f, maxDragPx)
-                                    }
-                                }
-                            } else {
-                                Modifier
-                            },
-                        ),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                val knobPx = with(density) { knobSize.toPx() }
-                val padPx = with(density) { trackPadding.toPx() }
-                val nudgePx = with(density) { nudge.dp.toPx() }
-                val baseX = if (isDragging) directDragX else dragX.value
-                val canNudge = enabled && !isDragging && !isDone && !reduceMotion
-                val knobX = baseX + if (canNudge) nudgePx else 0f
-                val progress = (baseX / maxDragPx.coerceAtLeast(1f)).coerceIn(0f, 1f)
-
-                // Relleno lima que crece bajo el knob (empieza en 64dp)
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxHeight()
-                            .width(
-                                with(density) {
-                                    (knobX + knobPx + padPx * 2).toDp()
-                                },
-                            ).clip(RoundedCornerShape(32.dp))
-                            .background(
-                                if (enabled) {
-                                    Brush.horizontalGradient(
-                                        listOf(colors.accent2, colors.accent),
-                                    )
-                                } else {
-                                    SolidColor(colors.line)
-                                },
-                            ),
-                )
-
-                // Dynamic label matching prototype (two-line centered)
-                val eyebrow =
-                    when {
-                        selection == null -> "ELIGE UNA CAFETERÍA"
-                        isDone -> "CAFETERÍA ACTIVA"
-                        progress >= 0.70f -> "SUELTA PARA ENTRAR"
-                        else -> "DESLIZA PARA ENTRAR"
-                    }
-
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(start = 54.dp, end = 24.dp)
-                            .alpha(
-                                if (isDone) {
-                                    1f
-                                } else {
-                                    (1f - (progress / 0.8f)).coerceIn(0f, 1f)
-                                },
-                            ),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Text(
-                        eyebrow,
-                        color = colors.muted,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.2.sp,
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(top = 1.dp),
-                    ) {
-                        Text(
-                            (selection?.name ?: "—").uppercase(),
-                            color = colors.ink,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 0.5.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            "›››",
-                            color = colors.muted,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = (-1).sp,
-                        )
-                    }
-                }
-
-                // Anillo expansivo al confirmar.
-                if (isDone) {
-                    val ringScale = 0.9f + ringProgress.value * 1.5f
-                    Box(
-                        modifier =
-                            Modifier
-                                .offset { IntOffset(padPx.roundToInt(), 0) }
-                                .size(knobSize)
-                                .graphicsLayer {
-                                    scaleX = ringScale
-                                    scaleY = ringScale
-                                    alpha = (0.9f * (1f - ringProgress.value))
-                                }.border(
-                                    2.5.dp,
-                                    colors.accent,
-                                    CircleShape,
-                                ),
-                    )
-                }
-
-                // Flecha sobre el fill lima (sin bola propia enfrente, perfectamente centrada).
-                Box(
-                    modifier =
-                        Modifier
-                            .offset { IntOffset((knobX + padPx).roundToInt(), 0) }
-                            .size(knobSize),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (isDone) {
-                        Icon(
-                            Icons.Rounded.Check,
-                            contentDescription = null,
-                            tint = colors.ink,
-                            modifier = Modifier.size(24.dp),
-                        )
-                    } else {
-                        Icon(
-                            Icons.AutoMirrored.Rounded.ArrowForward,
-                            contentDescription = null,
-                            tint = colors.ink,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuickAccessCard(
+private fun QuickAccessRow(
     onOpenQrScanner: () -> Unit,
     onUseCode: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
-    Column(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(22.dp))
-                .background(colors.paper2)
-                .padding(16.dp),
-    ) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            "¿Ya estás en tu mesa?",
+            color = colors.muted,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Icon(
-                Icons.Outlined.Bolt,
-                contentDescription = null,
-                tint = colors.accent,
-                modifier = Modifier.size(16.dp),
-            )
-            Text(
-                "ACCESO RÁPIDO EN MESA",
-                color = colors.muted,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 1.3.sp,
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Box(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(colors.paper)
-                        .border(1.dp, colors.line, RoundedCornerShape(14.dp))
-                        .physicalPress(onClick = onOpenQrScanner),
-                contentAlignment = Alignment.Center,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Icon(
-                        Icons.Outlined.QrCodeScanner,
-                        contentDescription = null,
-                        tint = colors.ink,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Text(
-                        "Escanear QR",
-                        color = colors.ink,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
-            Box(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(colors.paper)
-                        .border(1.dp, colors.line, RoundedCornerShape(14.dp))
-                        .physicalPress(onClick = onUseCode),
-                contentAlignment = Alignment.Center,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Icon(
-                        Icons.Outlined.Tag,
-                        contentDescription = null,
-                        tint = colors.ink,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Text(
-                        "Usar código",
-                        color = colors.ink,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
+            QuickAccessButton(Icons.Outlined.QrCodeScanner, "Escanear QR", Modifier.weight(1f), onOpenQrScanner)
+            QuickAccessButton(Icons.Outlined.Tag, "Usar código", Modifier.weight(1f), onUseCode)
         }
+    }
+}
+
+@Composable
+private fun QuickAccessButton(
+    icon: ImageVector,
+    label: String,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Row(
+        modifier =
+            modifier
+                .heightIn(min = 52.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .border(1.dp, colors.line, RoundedCornerShape(16.dp))
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Icon(icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(20.dp))
+        Text(
+            label,
+            color = colors.ink,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 8.dp),
+        )
     }
 }
 
@@ -1381,31 +710,35 @@ private fun VenueEmptyState(
             modifier = Modifier.padding(top = 6.dp),
         )
         if (!entry) {
-            Box(
-                modifier =
-                    Modifier
-                        .padding(top = 14.dp)
-                        .fillMaxWidth()
-                        .height(46.dp)
-                        .clip(RoundedCornerShape(15.dp))
-                        .background(colors.paper)
-                        .border(1.dp, colors.line, RoundedCornerShape(15.dp))
-                        .physicalPress(onClick = onClearQuery),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("Limpiar búsqueda", color = colors.ink, fontSize = 13.sp, fontWeight = FontWeight.Black)
-            }
+            EditorialSecondaryButton(
+                text = "Limpiar búsqueda",
+                onClick = onClearQuery,
+                modifier = Modifier.padding(top = 14.dp),
+            )
         }
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            EntryOption("Escanear QR", main = true, modifier = Modifier.weight(1f), onClick = onOpenQrScanner)
-            EntryOption("Escribir código", main = false, modifier = Modifier.weight(1f), onClick = onOpenCode)
+            DiscoveryActionTile(
+                icon = Icons.Outlined.QrCodeScanner,
+                title = "Escanear QR",
+                tone = SeaGlassTone.lima,
+                modifier = Modifier.weight(1f),
+                onClick = onOpenQrScanner,
+            )
+            DiscoveryActionTile(
+                icon = Icons.Outlined.Tag,
+                title = "Usar código",
+                tone = SeaGlassTone.cielo,
+                modifier = Modifier.weight(1f),
+                onClick = onOpenCode,
+            )
             if (nfcSupported) {
-                EntryOption(
-                    "Acercar NFC",
-                    main = false,
+                DiscoveryActionTile(
+                    icon = Icons.Outlined.Nfc,
+                    title = "NFC",
+                    tone = SeaGlassTone.lavanda,
                     modifier = Modifier.weight(1f),
                     onClick = { nfcHint = !nfcHint },
                 )
@@ -1424,33 +757,29 @@ private fun VenueEmptyState(
     }
 }
 
+/** Acceso de entrada en vidrio, como `actionButton` de GuestDiscoveryView en iOS. */
 @Composable
-private fun EntryOption(
-    label: String,
-    main: Boolean,
+private fun DiscoveryActionTile(
+    icon: ImageVector,
+    title: String,
+    tone: SeaGlassTone,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    val colors = LocalVaiinillaColors.current
-    Box(
-        modifier =
-            modifier
-                .height(52.dp)
-                .clip(RoundedCornerShape(15.dp))
-                .background(if (main) colors.accent else colors.paper)
-                .border(1.dp, if (main) colors.accent else colors.line, RoundedCornerShape(15.dp))
-                .physicalPress(onClick = onClick)
-                .padding(horizontal = 6.dp),
-        contentAlignment = Alignment.Center,
+    SeaGlassButton(
+        tone = tone,
+        onClick = onClick,
+        modifier = modifier.height(66.dp),
+        shape = RoundedCornerShape(20.dp),
     ) {
-        Text(
-            label,
-            color = if (main) colors.accentInk else colors.ink,
-            fontSize = 12.5.sp,
-            lineHeight = 15.sp,
-            fontWeight = FontWeight.Black,
-            textAlign = TextAlign.Center,
-        )
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp))
+            Text(title, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        }
     }
 }
 
@@ -1477,81 +806,38 @@ private fun VenueNoticeCard(
     )
 }
 
+/** Tecla plana del código de mesa: el teclado es herramienta, no acción; no lleva vidrio ni color. */
 @Composable
-private fun DiscoverySearchField(
-    value: String,
-    onValueChange: (String) -> Unit,
+private fun KeypadKey(
     modifier: Modifier = Modifier,
+    description: String? = null,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
-    Row(
+    Box(
         modifier =
             modifier
-                .fillMaxWidth()
-                .height(60.dp)
-                .clip(RoundedCornerShape(20.dp))
+                .height(52.dp)
+                .clip(RoundedCornerShape(14.dp))
                 .background(colors.paper2)
-                .border(1.dp, colors.line, RoundedCornerShape(20.dp))
-                .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .then(if (description != null) Modifier.semantics { contentDescription = description } else Modifier),
+        contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            Icons.Outlined.Search,
-            contentDescription = null,
-            tint = colors.ink2,
-            modifier = Modifier.size(21.dp),
-        )
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier =
-                Modifier
-                    .padding(start = 11.dp)
-                    .weight(1f)
-                    .semantics { contentDescription = "Buscar cafetería, facultad o campus" },
-            singleLine = true,
-            textStyle =
-                TextStyle(
-                    color = colors.ink,
-                    fontSize = 15.sp,
-                    lineHeight = 19.sp,
-                    fontWeight = FontWeight.Bold,
-                ),
-            cursorBrush = SolidColor(colors.ink),
-            decorationBox = { input ->
-                Box {
-                    if (value.isBlank()) {
-                        Text(
-                            "Buscar cafetería, facultad o campus…",
-                            color = colors.muted,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                    input()
-                }
-            },
-        )
-        if (value.isNotBlank()) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(11.dp))
-                        .background(colors.paper)
-                        .clickable { onValueChange("") },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Outlined.Close,
-                    contentDescription = "Limpiar búsqueda",
-                    tint = colors.ink,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-        }
+        CompositionLocalProvider(LocalContentColor provides colors.ink) { content() }
     }
 }
+
+/** Largo de los códigos de mesa impresos junto al QR. */
+internal const val TABLE_CODE_LENGTH = 4
+
+/** Se valida solo al completar el código: una vez por código, nunca mientras ya se está validando. */
+internal fun shouldAutoResolveTableCode(
+    previous: String,
+    next: String,
+    resolving: Boolean,
+): Boolean = !resolving && previous.length < TABLE_CODE_LENGTH && next.length == TABLE_CODE_LENGTH
 
 @Composable
 private fun SpaceCodeSheet(
@@ -1567,6 +853,13 @@ private fun SpaceCodeSheet(
     val dragOffsetY = remember { Animatable(0f) }
     val density = LocalDensity.current
     val dismissThresholdPx = with(density) { 90.dp.toPx() }
+    // onResolve lee el código del estado de la pantalla: se llama ya recompuesto con el dígito nuevo.
+    val latestResolve by rememberUpdatedState(onResolve)
+    var previousToken by remember { mutableStateOf(token) }
+    LaunchedEffect(token) {
+        if (shouldAutoResolveTableCode(previousToken, token, resolving)) latestResolve()
+        previousToken = token
+    }
 
     // Preview del back predictivo, igual que la ficha de producto: la hoja sigue
     // al dedo y el scrim se abre para asomar discovery; al soltar se cierra.
@@ -1713,7 +1006,7 @@ private fun SpaceCodeSheet(
                                             if (isFilled) {
                                                 colors.ink
                                             } else if (isCurrent) {
-                                                colors.accent
+                                                colors.muted
                                             } else {
                                                 colors.line
                                             },
@@ -1748,7 +1041,7 @@ private fun SpaceCodeSheet(
             // Keypad 3x4
             Column(
                 modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 listOf(
                     listOf("1", "2", "3"),
@@ -1760,26 +1053,10 @@ private fun SpaceCodeSheet(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         rowKeys.forEach { digit ->
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .weight(1f)
-                                        .height(46.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(colors.paper2)
-                                        .physicalPress {
-                                            haptics.click()
-                                            if (token.length < 8) onTokenChange(token + digit)
-                                        },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    digit,
-                                    color = colors.ink,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                            }
+                            KeypadKey(Modifier.weight(1f), onClick = {
+                                haptics.click()
+                                if (token.length < 8) onTokenChange(token + digit)
+                            }) { Text(digit, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
                         }
                     }
                 }
@@ -1787,98 +1064,38 @@ private fun SpaceCodeSheet(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    // Borrar / Clear
-                    Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(colors.paper2)
-                                .physicalPress {
-                                    haptics.click()
-                                    if (token.isNotEmpty()) onTokenChange(token.dropLast(1))
-                                },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            "BORRAR",
-                            color = colors.muted,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                    // "0"
-                    Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(colors.paper2)
-                                .physicalPress {
-                                    haptics.click()
-                                    if (token.length < 8) onTokenChange(token + "0")
-                                },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            "0",
-                            color = colors.ink,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                    // OK / Listo
-                    Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(colors.accent)
-                                .physicalPress(enabled = canResolve) {
-                                    haptics.click()
-                                    if (canResolve) onResolve()
-                                },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            "LISTO",
-                            color = colors.accentInk,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
+                    Spacer(Modifier.weight(1f))
+                    KeypadKey(Modifier.weight(1f), onClick = {
+                        haptics.click()
+                        if (token.length < 8) onTokenChange(token + "0")
+                    }) { Text("0", fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+                    KeypadKey(Modifier.weight(1f), description = "Borrar", onClick = {
+                        haptics.click()
+                        if (token.isNotEmpty()) onTokenChange(token.dropLast(1))
+                    }) { Icon(Icons.AutoMirrored.Outlined.Backspace, contentDescription = null) }
                 }
             }
 
             // Confirmar y sentarme
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp)
-                        .height(50.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(if (canResolve) colors.ink else colors.ink.copy(alpha = 0.4f))
-                        .physicalPress(enabled = canResolve, onClick = onResolve),
-                contentAlignment = Alignment.Center,
+            SeaGlassButton(
+                tone = SeaGlassTone.lima,
+                onClick = onResolve,
+                modifier = Modifier.fillMaxWidth().padding(top = 14.dp).height(52.dp),
+                enabled = canResolve,
             ) {
                 if (resolving) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(18.dp),
                         strokeWidth = 2.dp,
-                        color = colors.paper,
+                        color = LocalContentColor.current,
                     )
-                } else {
-                    Text(
-                        "Confirmar y sentarme",
-                        color = colors.paper,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
+                    Spacer(Modifier.width(8.dp))
                 }
+                Text(
+                    if (resolving) "Validando…" else "Confirmar y sentarme",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                )
             }
 
             Box(

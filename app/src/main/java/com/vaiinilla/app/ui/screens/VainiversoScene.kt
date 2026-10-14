@@ -82,7 +82,10 @@ internal class ScenePalette(
     val glassCard: Color,
     val glassButton: Color,
     val sheetSolid: Color,
-)
+) {
+    /** De noche la tienda tiene luces encendidas; igual que `isNight` en iOS. */
+    val isNight: Boolean get() = litWindows.isNotEmpty()
+}
 
 private val Day =
     ScenePalette(

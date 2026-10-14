@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,7 +46,6 @@ import com.vaiinilla.app.domain.model.SharedTableAmounts
 import com.vaiinilla.app.domain.model.SharedTableOrder
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.ui.components.EditorialAccentButton
-import com.vaiinilla.app.ui.components.EditorialPrimaryButton
 import com.vaiinilla.app.ui.components.EditorialTextField
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.arrive
@@ -54,6 +54,8 @@ import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.sharedtable.SharedTableUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.SeaGlassButton
+import com.vaiinilla.app.ui.theme.SeaGlassTone
 import java.math.BigDecimal
 
 /**
@@ -175,12 +177,22 @@ private fun JoinTable(
         fontSize = 13.sp,
         modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
     )
-    EditorialTextField(
-        value = state.aliasInput,
-        onValueChange = onAliasChange,
-        label = "Tu nombre en la mesa",
-        placeholder = "Ana",
-    )
+    // La tarjeta es oscura en cualquier tema: el campo toma el texto de la tarjeta, como en iOS.
+    CompositionLocalProvider(
+        LocalVaiinillaColors provides
+            LocalVaiinillaColors.current.copy(
+                ink = OrderTrackingCardText,
+                muted = OrderTrackingCardText.copy(alpha = 0.55f),
+                line = Color.White.copy(alpha = 0.18f),
+            ),
+    ) {
+        EditorialTextField(
+            value = state.aliasInput,
+            onValueChange = onAliasChange,
+            label = "Tu nombre en la mesa",
+            placeholder = "Ana",
+        )
+    }
     Spacer(Modifier.height(12.dp))
     EditorialAccentButton(text = "Unirme a la mesa", onClick = onJoin, enabled = state.canJoin)
 }
@@ -263,14 +275,14 @@ private fun TableContent(
         )
     }
     Spacer(Modifier.height(12.dp))
-    EditorialPrimaryButton(
-        text = "Salir de la $noun",
+    SeaGlassButton(
+        tone = SeaGlassTone.vainilla,
         onClick = onLeave,
+        modifier = Modifier.fillMaxWidth().height(50.dp),
         enabled = !busy,
-        background = Color.Transparent,
-        contentColor = OrderTrackingCardText,
-        modifier = Modifier.border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(18.dp)),
-    )
+    ) {
+        Text("Salir de la $noun", fontSize = 14.sp, fontWeight = FontWeight.Black)
+    }
 }
 
 @Composable

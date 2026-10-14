@@ -4,26 +4,24 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PointOfSale
 import androidx.compose.material.icons.outlined.Restaurant
@@ -36,23 +34,23 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.model.OperationalRole
-import com.vaiinilla.app.ui.components.AuthHeroSheetScaffold
-import com.vaiinilla.app.ui.components.AuthInkSubmitButton
 import com.vaiinilla.app.ui.components.EditorialAccentButton
-import com.vaiinilla.app.ui.components.EditorialPrimaryButton
 import com.vaiinilla.app.ui.components.EmptyState
+import com.vaiinilla.app.ui.components.SettingsGroup
+import com.vaiinilla.app.ui.components.SettingsRow
+import com.vaiinilla.app.ui.components.SettingsTrailing
+import com.vaiinilla.app.ui.components.SkeletonBlock
+import com.vaiinilla.app.ui.components.WalletScreenShell
+import com.vaiinilla.app.ui.components.WalletSubflowTopBar
 import com.vaiinilla.app.ui.mode.AuthorizedAccessUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
@@ -159,12 +157,7 @@ fun InvitationAcceptanceScreen(
                     )
                 } ?: run {
                     Text("Necesitas una cuenta verificada para continuar.", color = colors.muted)
-                    EditorialPrimaryButton(
-                        text = "Iniciar sesión o registrarme",
-                        onClick = onAuthenticate,
-                        background = colors.ink,
-                        contentColor = colors.paper,
-                    )
+                    EditorialAccentButton(text = "Iniciar sesión o registrarme", onClick = onAuthenticate)
                 }
             }
             item {
@@ -221,135 +214,87 @@ fun AuthorizedModeScreen(
     val activeContext = state.activeContext
     val staffModes = state.modes.filter { it.role != OperationalRole.CLIENT }
     val clientMode = state.modes.firstOrNull { it.role == OperationalRole.CLIENT }
-    AuthHeroSheetScaffold(
-        kicker = "Personal",
-        title = "Cómo vas a entrar.",
-        intro = "Sólo ves los roles de esta cuenta. Caja, Cocina y Mesero son accesos aparte.",
-        loading = state.loading,
-        showBack = true,
-        onBack = onBack,
-        kickerIcon = Icons.Outlined.Badge,
-    ) {
-        if (!state.loading && staffModes.isEmpty() && state.errorMessage == null) {
-            EmptyState(
-                icon = Icons.Outlined.VpnKey,
-                title = "Sin modos de personal",
-                message = "Cuando administración te invite a Caja, Cocina o Mesero, aparecen aquí.",
-            )
-        }
-        staffModes.forEach { mode ->
-            val isActive =
-                activeContext?.role == mode.role &&
-                    activeContext.establishmentId == mode.establishmentId &&
-                    activeContext.membershipId == mode.membershipId
-            StaffModeCard(
-                mode = mode,
-                isActive = isActive,
-                enabled = !state.loading,
-                onSelect = { onSelectMode(mode) },
-            )
-            Spacer(Modifier.height(10.dp))
-        }
-        state.errorMessage?.let { error ->
-            Spacer(Modifier.height(6.dp))
-            Surface(
-                color = colors.coral.copy(alpha = 0.16f),
-                shape = RoundedCornerShape(16.dp),
+    // Una lista sencilla como la de Cuenta: sin encabezado de color ni lema, solo cómo entrar.
+    WalletScreenShell(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .padding(bottom = 28.dp),
+        ) {
+            WalletSubflowTopBar(title = "Modos", onBack = onBack)
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp).padding(top = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(22.dp),
             ) {
-                Text(
-                    error,
-                    color = colors.ink,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(14.dp),
-                )
-            }
-            Spacer(Modifier.height(10.dp))
-        }
-        state.message?.let { message ->
-            Text(message, color = colors.accent, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(10.dp))
-        }
-        Spacer(Modifier.height(14.dp))
-        Text(
-            "¿Entrar como alumno?",
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() },
-                        onClick = {
-                            if (clientMode != null) onSelectMode(clientMode) else onReturnToClient()
-                        },
-                    ),
-            color = colors.muted,
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
-            textAlign = TextAlign.Center,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(Modifier.height(14.dp))
-        Text(
-            "Cerrar sesión",
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() },
+                if (state.loading && staffModes.isEmpty()) {
+                    SkeletonBlock(modifier = Modifier.fillMaxWidth().height(120.dp), corner = 20.dp)
+                }
+                if (!state.loading && staffModes.isEmpty() && state.errorMessage == null) {
+                    EmptyState(
+                        icon = Icons.Outlined.VpnKey,
+                        title = "Sin modos de personal",
+                        message = "Cuando administración te invite a Caja, Cocina o Mesero, aparecen aquí.",
+                    )
+                }
+                if (staffModes.isNotEmpty()) {
+                    SettingsGroup(title = "Personal") {
+                        staffModes.forEachIndexed { index, mode ->
+                            val isActive =
+                                activeContext?.role == mode.role &&
+                                    activeContext.establishmentId == mode.establishmentId &&
+                                    activeContext.membershipId == mode.membershipId
+                            SettingsRow(
+                                title =
+                                    if (isActive) {
+                                        "Continuar como ${mode.role.label}"
+                                    } else {
+                                        "Entrar como ${mode.role.label}"
+                                    },
+                                subtitle = mode.establishmentName,
+                                icon = staffModeIcon(mode.role),
+                                trailing = SettingsTrailing.Check,
+                                checked = isActive,
+                                enabled = !state.loading,
+                                onClick = { onSelectMode(mode) },
+                                showDivider = index != staffModes.lastIndex,
+                            )
+                        }
+                    }
+                }
+                state.errorMessage?.let { error ->
+                    Surface(color = colors.coral.copy(alpha = 0.16f), shape = RoundedCornerShape(16.dp)) {
+                        Text(
+                            error,
+                            color = colors.ink,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(14.dp),
+                        )
+                    }
+                }
+                state.message?.let { message ->
+                    Text(message, color = colors.muted, fontWeight = FontWeight.SemiBold)
+                }
+                SettingsGroup(title = "Cliente") {
+                    SettingsRow(
+                        title = "Pedir como cliente",
+                        icon = Icons.Outlined.Person,
+                        onClick = { if (clientMode != null) onSelectMode(clientMode) else onReturnToClient() },
+                        showDivider = false,
+                    )
+                }
+                SettingsGroup(title = null) {
+                    SettingsRow(
+                        title = "Cerrar sesión",
+                        trailing = SettingsTrailing.None,
                         onClick = onSignOut,
-                    ),
-            color = colors.coral,
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
-            textAlign = TextAlign.Center,
-            fontWeight = FontWeight.Bold,
-        )
-    }
-}
-
-@Composable
-private fun StaffModeCard(
-    mode: AuthorizedMode,
-    isActive: Boolean,
-    enabled: Boolean,
-    onSelect: () -> Unit,
-) {
-    val colors = LocalVaiinillaColors.current
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(colors.paper)
-                .border(
-                    width = if (isActive) 2.dp else 1.dp,
-                    color = if (isActive) colors.accent.copy(alpha = 0.68f) else colors.line,
-                    shape = RoundedCornerShape(16.dp),
-                ).padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                staffModeIcon(mode.role),
-                contentDescription = null,
-                tint = if (isActive) colors.accent else colors.muted,
-                modifier = Modifier.size(22.dp),
-            )
-            Column(modifier = Modifier.padding(start = 10.dp).weight(1f)) {
-                Text(mode.role.label, color = colors.ink, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Text(mode.establishmentName, color = colors.muted, fontSize = 13.sp, lineHeight = 18.sp)
-                Text(staffModeBlurb(mode.role), color = colors.muted, fontSize = 12.sp, lineHeight = 16.sp)
-                if (isActive) {
-                    Text("Activo ahora", color = colors.accent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        showDivider = false,
+                    )
                 }
             }
         }
-        AuthInkSubmitButton(
-            text = if (isActive) "Continuar como ${mode.role.label}" else "Entrar como ${mode.role.label}",
-            onClick = onSelect,
-            enabled = enabled,
-        )
     }
 }
 
@@ -359,14 +304,6 @@ private fun staffModeIcon(role: OperationalRole) =
         OperationalRole.KITCHEN -> Icons.Outlined.Restaurant
         OperationalRole.WAITER -> Icons.Outlined.RoomService
         OperationalRole.CLIENT -> Icons.Outlined.Person
-    }
-
-private fun staffModeBlurb(role: OperationalRole) =
-    when (role) {
-        OperationalRole.CASHIER -> "Cobrar en efectivo y entregar en barra."
-        OperationalRole.KITCHEN -> "Preparar comandas y marcarlas listo."
-        OperationalRole.WAITER -> "Entregar pedidos en el espacio."
-        OperationalRole.CLIENT -> "Pedir menú, pedidos y saldo."
     }
 
 @Preview(name = "Invitación autorizada", showBackground = true, widthDp = 411, heightDp = 891)

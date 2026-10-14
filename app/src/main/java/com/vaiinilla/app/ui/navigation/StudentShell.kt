@@ -1,5 +1,13 @@
 package com.vaiinilla.app.ui.navigation
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +19,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
+import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
@@ -46,14 +55,17 @@ fun studentTabOrder(tab: StudentTab?): Int =
         StudentTab.ASSISTANT, null -> -1
     }
 
+/** Con productos, el carrito es un paso de cobro: su botón de pagar ocupa el lugar de la barra. */
 fun shouldShowStudentNav(
     route: String?,
     catalogDetailOpen: Boolean,
+    cartHasItems: Boolean = false,
 ): Boolean =
     studentTabForRoute(route) != null &&
         route != Routes.ASSISTANT &&
         route != Routes.ASSISTANT_CHAT &&
-        !(route == Routes.CATALOG && catalogDetailOpen)
+        !(route == Routes.CATALOG && catalogDetailOpen) &&
+        !(route == Routes.CART && cartHasItems)
 
 /**
  * Persistent student chrome — Compose equivalent of Flutter
@@ -74,7 +86,7 @@ fun StudentShellHost(
     val entry by navController.currentBackStackEntryAsState()
     val route = entry?.destination?.route
     val activeTab = studentTabForRoute(route)
-    val showNav = shouldShowStudentNav(route, catalogDetailOpen)
+    val showNav = shouldShowStudentNav(route, catalogDetailOpen, cartHasItems = cartCount > 0)
 
     val hazeState = rememberHazeState()
     val colors = LocalVaiinillaColors.current
@@ -84,19 +96,36 @@ fun StudentShellHost(
         ) {
             content()
         }
-        if (activeTab != null && showNav) {
-            VaiinillaBottomNav(
-                activeTab = activeTab,
-                cartCount = cartCount,
-                hazeState = hazeState,
-                enableDrag = true,
-                onTabPreparing = onPrepareStudent,
-                onTabSelected = { tab ->
-                    val target = routeForStudentTab(tab)
-                    onNavigateStudent(target)
-                },
+        val reduced = reducedMotion()
+        if (activeTab != null) {
+            AnimatedVisibility(
+                visible = showNav,
                 modifier = Modifier.align(Alignment.BottomCenter),
-            )
+                enter =
+                    if (reduced) {
+                        EnterTransition.None
+                    } else {
+                        slideInVertically(spring(dampingRatio = 0.85f, stiffness = 420f)) { it } + fadeIn()
+                    },
+                exit =
+                    if (reduced) {
+                        ExitTransition.None
+                    } else {
+                        slideOutVertically(spring(dampingRatio = 1f, stiffness = 520f)) { it } + fadeOut()
+                    },
+            ) {
+                VaiinillaBottomNav(
+                    activeTab = activeTab,
+                    cartCount = cartCount,
+                    hazeState = hazeState,
+                    enableDrag = true,
+                    onTabPreparing = onPrepareStudent,
+                    onTabSelected = { tab ->
+                        val target = routeForStudentTab(tab)
+                        onNavigateStudent(target)
+                    },
+                )
+            }
         }
     }
 }
