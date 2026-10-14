@@ -378,7 +378,7 @@ private fun PickupJourney(
     // Un solo dueño de la cámara entre estados: se asoma a la cocina mientras se prepara; al estar listo prende
     // el letrero, sale a la puerta y, si toca, abre el código.
     LaunchedEffect(state, place, celebrating, autoReveal, revealed) {
-        if (celebrating || scene is PickupScene.Court) return@LaunchedEffect
+        if (celebrating) return@LaunchedEffect
         if (scene is PickupScene.Table) {
             // Comer aquí: listo, el plato sale a la barra con un saltito; entregado, vuela a tu mesa y se asienta.
             val nowServed = if (state in ServedStates) 1f else 0f
