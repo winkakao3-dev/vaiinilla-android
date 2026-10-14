@@ -340,7 +340,8 @@ private fun DestinationOption(
             if (selected) selectedForeground.copy(alpha = 0.78f) else colors.muted,
             "destination-secondary",
         )
-    val borderColor = animateSelectionColor(if (selected) selectedBackground else colors.line, "destination-border")
+    // De noche la tarjeta elegida conserva el fondo de las demás: la marca es el contorno en tinta.
+    val borderColor = animateSelectionColor(if (selected) colors.ink else colors.line, "destination-border")
     val iconTile =
         animateSelectionColor(
             if (selected) selectedForeground.copy(alpha = 0.10f) else colors.paper,
