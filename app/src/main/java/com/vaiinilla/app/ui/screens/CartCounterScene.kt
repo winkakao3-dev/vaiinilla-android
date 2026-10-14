@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -31,6 +32,7 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
@@ -554,4 +556,227 @@ internal fun DrawScope.drawTrayItem(
             drawOval(PlateRim, Offset(cx - u * 0.5f, base - plateH), Size(u, plateH), alpha = alpha)
         }
     }
+}
+
+// Al pagar: la caja registradora está sobre el mostrador, a la derecha, fuera de cuadro en el carrito. Medidas en
+// anchos y altos de pantalla, como `CartCounterScene.swift` en iOS.
+
+private const val REGISTER_CENTER_X = 1.34f
+private const val REGISTER_WIDTH = 0.56f
+private const val REGISTER_HEIGHT = 0.095f
+private val LcdGreen = Color(0xFF2E3B1E)
+
+/** El cuerpo de la caja, en coordenadas de la escena. */
+private fun registerRect(stage: Size): Rect {
+    val w = stage.width * REGISTER_WIDTH
+    val h = stage.height * REGISTER_HEIGHT
+    val left = stage.width * REGISTER_CENTER_X - w / 2f
+    val bottom = stage.height * COUNTER_TOP_Y
+    return Rect(left, bottom - h, left + w, bottom)
+}
+
+/** La ranura por donde sale el ticket, arriba del cuerpo, a la izquierda de la pantallita. */
+internal fun registerSlot(stage: Size): Rect {
+    val body = registerRect(stage)
+    val left = body.left + stage.width * 0.03f
+    val top = body.top + stage.height * 0.004f
+    return Rect(left, top, left + stage.width * 0.32f, top + stage.height * 0.008f)
+}
+
+/** Del mostrador como en el carrito ([t] = 0) a la caja al centro y un poco más cerca ([t] = 1). */
+internal fun checkoutCamera(
+    t: Float,
+    stage: Size,
+): SceneCamera {
+    val slot = registerSlot(stage)
+    return SceneCamera.flight(
+        focus = Offset(slot.center.x, slot.top),
+        target = Offset(stage.width * 0.5f, stage.height * 0.56f),
+        zoom = 1.1f,
+        t = t,
+    )
+}
+
+/** El mostrador al pagar: todo ya en la bandeja, la cubierta sigue hasta la caja y la caja muestra el total. */
+internal fun DrawScope.drawCheckoutCounter(
+    stage: Size,
+    textMeasurer: TextMeasurer,
+    c: ScenePalette,
+    items: List<TrayItemKind>,
+    total: String,
+    happy: Boolean,
+) {
+    val w = stage.width
+    val h = stage.height
+    val hair = 1.dp.toPx()
+    val counterTop = h * COUNTER_TOP_Y
+    val tileTop = h * 0.205f
+    // Arriba de la escena (la cámara baja al acercarse a la caja) sigue la misma pared lisa.
+    // Encima del mostrador para que no se vea la orilla de la escena entre las dos.
+    drawRect(c.facadeLight, topLeft = Offset(-w, -h), size = Size(w * 4f, h + tileTop))
+    drawCounter(
+        stage = stage,
+        textMeasurer = textMeasurer,
+        c = c,
+        m =
+            CounterMotion(
+                blink = 1f,
+                lookX = 0.9f,
+                happy = happy,
+                questionBob = 0f,
+                showQuestion = false,
+                items = items.map { it to 1f },
+                total = total,
+            ),
+    )
+
+    // La pared sigue a la derecha, donde está la caja; empieza un pelo antes para que no quede costura.
+    val bayLeft = w - hair
+    val bayWidth = w * 0.9f
+    drawRect(c.facadeLight, topLeft = Offset(bayLeft, 0f), size = Size(bayWidth, tileTop))
+    drawRect(c.facade, topLeft = Offset(bayLeft, tileTop), size = Size(bayWidth, counterTop - tileTop))
+    val tile = w / 14f
+    var tx = bayLeft
+    while (tx < bayLeft + bayWidth) {
+        drawLine(c.facadeShade.copy(alpha = 0.45f), Offset(tx, tileTop), Offset(tx, counterTop), strokeWidth = hair)
+        tx += tile
+    }
+    var ty = tileTop
+    while (ty < counterTop) {
+        drawLine(
+            c.facadeShade.copy(alpha = 0.45f),
+            Offset(bayLeft, ty),
+            Offset(bayLeft + bayWidth, ty),
+            strokeWidth = hair,
+        )
+        ty += tile * 0.6f
+    }
+    drawRect(
+        c.sidewalk,
+        topLeft = Offset(bayLeft, h * COUNTER_BOTTOM_Y),
+        size = Size(bayWidth, h * (1f - COUNTER_BOTTOM_Y)),
+    )
+
+    // Letrero de gis sobre la caja.
+    val body = registerRect(stage)
+    val sign = Rect(body.center.x - w * 0.13f, h * 0.1f, body.center.x + w * 0.13f, h * 0.15f)
+    for (fraction in listOf(0.2f, 0.8f)) {
+        val x = sign.left + sign.width * fraction
+        drawLine(c.signInk, Offset(x, h * 0.06f), Offset(x, sign.top), strokeWidth = hair)
+    }
+    val frame = sign.inflate(hair * 3)
+    drawRoundRect(c.shopShelf, frame.topLeft, frame.size, CornerRadius(hair * 5))
+    drawRoundRect(c.signInk, sign.topLeft, sign.size, CornerRadius(hair * 3))
+    val label =
+        textMeasurer.measure(
+            "CAJA",
+            TextStyle(
+                color = c.signText,
+                fontSize = (sign.height * 0.5f / density / fontScale).sp,
+                fontFamily = VaiinillaSerif,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp,
+            ),
+        )
+    drawText(
+        label,
+        topLeft = Offset(sign.center.x - label.size.width / 2f, sign.center.y - label.size.height / 2f),
+    )
+
+    // La cubierta y el frente a rayas siguen hasta la caja.
+    val frontTop = counterTop + h * 0.012f
+    drawRect(c.shopShelf, topLeft = Offset(bayLeft, counterTop - h * 0.004f), size = Size(bayWidth, h * 0.016f))
+    drawLine(
+        Color.White.copy(alpha = 0.25f),
+        Offset(bayLeft, counterTop - h * 0.004f),
+        Offset(bayLeft + bayWidth, counterTop - h * 0.004f),
+        strokeWidth = hair * 1.5f,
+    )
+    val stripe = w / 16f
+    var i = 16
+    while (i * stripe < bayLeft + bayWidth) {
+        drawRect(
+            if (i % 2 == 0) c.awning else c.awningDark,
+            topLeft = Offset(i * stripe, frontTop),
+            size = Size(stripe + 0.5f, h * COUNTER_BOTTOM_Y - frontTop),
+        )
+        i++
+    }
+    drawRect(Color(0x26000000), topLeft = Offset(bayLeft, frontTop), size = Size(bayWidth, hair * 3))
+    drawRect(
+        c.doorGreen,
+        topLeft = Offset(bayLeft, h * COUNTER_BOTTOM_Y - h * 0.01f),
+        size = Size(bayWidth, h * 0.01f),
+    )
+
+    // La caja: cuerpo oscuro, teclas, cajón, la ranura del ticket y la pantallita con el total.
+    drawOval(
+        Color.Black.copy(alpha = 0.14f),
+        topLeft = Offset(body.left - hair * 4, body.bottom - hair * 4),
+        size = Size(body.width + hair * 8, hair * 9),
+    )
+    drawRoundRect(c.signInk, body.topLeft, body.size, CornerRadius(hair * 9))
+    drawRoundRect(
+        Color.White.copy(alpha = 0.14f),
+        Offset(body.left + hair * 6, body.top + hair),
+        Size(body.width - hair * 12, hair * 3),
+        CornerRadius(hair),
+    )
+    val keysTop = body.top + body.height * 0.26f
+    val key = body.width * 0.075f
+    for (row in 0 until 2) {
+        for (col in 0 until 5) {
+            drawRoundRect(
+                if (col == 4 && row == 1) SceneLime else CounterCream.copy(alpha = 0.9f),
+                Offset(body.left + body.width * 0.07f + col * key * 1.32f, keysTop + row * key * 0.92f),
+                Size(key, key * 0.62f),
+                CornerRadius(hair * 2),
+            )
+        }
+    }
+    val drawerTop = body.top + body.height * 0.7f
+    drawLine(
+        Color.White.copy(alpha = 0.16f),
+        Offset(body.left + hair * 4, drawerTop),
+        Offset(body.right - hair * 4, drawerTop),
+        strokeWidth = hair,
+    )
+    drawRoundRect(
+        Color.White.copy(alpha = 0.3f),
+        Offset(body.center.x - body.width * 0.08f, drawerTop + body.height * 0.1f),
+        Size(body.width * 0.16f, hair * 4),
+        CornerRadius(hair * 2),
+    )
+    val slot = registerSlot(stage)
+    drawRoundRect(Color.Black.copy(alpha = 0.6f), slot.topLeft, slot.size, CornerRadius(hair * 2))
+
+    val display =
+        Rect(
+            body.right - body.width * 0.3f,
+            body.top - h * 0.052f,
+            body.right - body.width * 0.04f,
+            body.top - h * 0.01f,
+        )
+    drawRect(
+        c.signInk,
+        topLeft = Offset(display.center.x - hair * 3, display.bottom),
+        size = Size(hair * 6, body.top - display.bottom),
+    )
+    drawRoundRect(c.signInk, display.topLeft, display.size, CornerRadius(hair * 5))
+    val lcd = display.deflate(hair * 4)
+    drawRoundRect(LcdGreen, lcd.topLeft, lcd.size, CornerRadius(hair * 2))
+    val amount =
+        textMeasurer.measure(
+            total,
+            TextStyle(
+                color = SceneLime,
+                fontSize = (lcd.height * 0.62f / density / fontScale).sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+            ),
+        )
+    drawText(
+        amount,
+        topLeft = Offset(lcd.right - hair * 4 - amount.size.width, lcd.center.y - amount.size.height / 2f),
+    )
 }

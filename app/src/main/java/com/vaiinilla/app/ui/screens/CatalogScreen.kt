@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -71,9 +72,11 @@ import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductCardSkeleton
 import com.vaiinilla.app.ui.components.ProductDetailSheet
+import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.SwipeToDeleteOrder
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
+import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.OrderFlowUiState
@@ -82,6 +85,7 @@ import com.vaiinilla.app.ui.order.isSelectedProductValid
 import com.vaiinilla.app.ui.order.selectedProduct
 import com.vaiinilla.app.ui.order.selectedProductPreviewPrice
 import com.vaiinilla.app.ui.order.selectedProductPreviewTotal
+import com.vaiinilla.app.ui.order.trayItemKind
 import com.vaiinilla.app.ui.theme.AmoledLimeWash
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
@@ -540,6 +544,7 @@ private fun CatalogHeader(
             value = state.searchQuery,
             onValueChange = onSearchChange,
             placeholder = "Buscar productos…",
+            seaGlass = true,
         )
 
         if (onOpenModes != null) {
@@ -600,13 +605,14 @@ private fun CategoryChips(
     LazyRow(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(vertical = 8.dp, horizontal = sideMargin + 2.dp),
+        contentPadding = PaddingValues(vertical = 10.dp, horizontal = sideMargin + 2.dp),
     ) {
         item {
             ChoiceChip(
                 label = "Todo",
                 selected = selectedCategoryId == null,
                 onClick = { onCategorySelected(null) },
+                seaGlass = true,
             )
         }
         items(categories, key = Category::id) { category ->
@@ -614,6 +620,7 @@ private fun CategoryChips(
                 label = category.name,
                 selected = selectedCategoryId == category.id,
                 onClick = { onCategorySelected(category.id) },
+                seaGlass = true,
             )
         }
     }
@@ -624,6 +631,9 @@ private fun ProductCard(
     product: Product,
     onClick: () -> Unit,
 ) {
+    val colors = LocalVaiinillaColors.current
+    val kind = remember(product.name) { trayItemKind(product.name) }
+    // Como antes del vidrio (y como iOS): la foto redondeada sobre el papel y, debajo, el nombre y el precio.
     Column(
         modifier =
             Modifier
@@ -631,7 +641,35 @@ private fun ProductCard(
                 .padding(bottom = 14.dp)
                 .physicalPress(scale = PhysicalPressScale.ProductCard, onClick = onClick),
     ) {
-        ProductGlassCard(product = product)
+        ProductImage(
+            imageUrl = product.imageUrl,
+            contentDescription = product.name,
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(colors.paper2),
+            placeholder = { m -> ProductIllustration(kind, m) },
+        )
+        Text(
+            text = product.name,
+            color = colors.ink,
+            fontWeight = FontWeight.Black,
+            fontSize = 17.sp,
+            lineHeight = 21.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 2.dp, top = 12.dp, end = 2.dp),
+        )
+        Text(
+            text = moneyLabel(product.digitalPrice),
+            color = colors.muted,
+            fontWeight = FontWeight.Bold,
+            fontSize = 15.sp,
+            lineHeight = 19.sp,
+            modifier = Modifier.padding(start = 2.dp, top = 4.dp, end = 2.dp),
+        )
     }
 }
 

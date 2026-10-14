@@ -24,6 +24,13 @@ class StudentShellTest {
     }
 
     @Test
+    fun `student nav gives way to the wallet code only while it is open in Cartera`() {
+        assertEquals(false, shouldShowStudentNav(Routes.WALLET, catalogDetailOpen = false, walletCodeOpen = true))
+        assertEquals(true, shouldShowStudentNav(Routes.WALLET, catalogDetailOpen = false, walletCodeOpen = false))
+        assertEquals(true, shouldShowStudentNav(Routes.CATALOG, catalogDetailOpen = false, walletCodeOpen = true))
+    }
+
+    @Test
     fun `studentTabForRoute maps student destinations`() {
         assertEquals(StudentTab.MENU, studentTabForRoute(Routes.CATALOG))
         assertEquals(StudentTab.ASSISTANT, studentTabForRoute(Routes.ASSISTANT))

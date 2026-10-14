@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -217,7 +218,7 @@ internal fun scenePaletteForTheme(): ScenePalette =
         else -> Day
     }
 
-private val SceneLime = Color(0xFFB7D464)
+internal val SceneLime = Color(0xFFB7D464)
 private val VainiCream = Color(0xFFF6EFDD)
 private val VainiLime = Color(0xFFA8D52C)
 private val VainiInk = Color(0xFF1A1414)
@@ -233,6 +234,23 @@ private const val AWNING_BOTTOM_Y = 0.277f
 private const val SHOP_BOTTOM_Y = 0.49f
 private const val SIDEWALK_BOTTOM_Y = 0.535f
 
+/** Las dos vitrinas de la planta baja, de izquierda a derecha, en fracción del ancho. */
+private val Vitrines = listOf(0.06f to 0.37f, 0.63f to 0.94f)
+
+/** El vidrio de una vitrina; por la de la izquierda (0) se ve la cocina (`KitchenPeek`). */
+internal fun vitrineGlass(
+    index: Int,
+    stage: Size,
+): Rect {
+    val (from, to) = Vitrines[index]
+    return Rect(
+        stage.width * from,
+        stage.height * (AWNING_BOTTOM_Y + 0.016f),
+        stage.width * to,
+        stage.height * (SHOP_BOTTOM_Y - 0.03f),
+    )
+}
+
 /** Movimiento de Vaini en la escena; la escena en sí es fija. */
 internal data class SceneMotion(
     val blink: Float = 1f,
@@ -245,6 +263,7 @@ internal fun DrawScope.drawStorefront(
     textMeasurer: TextMeasurer,
     c: ScenePalette,
     motion: SceneMotion,
+    kitchen: KitchenPeek? = null,
 ) {
     val w = stage.width
     val h = stage.height
@@ -395,7 +414,7 @@ internal fun DrawScope.drawStorefront(
     val shopTop = awningBottom + h * 0.016f
     val shopBottom = h * SHOP_BOTTOM_Y
     val plinth = h * 0.03f
-    for ((from, to) in listOf(0.06f to 0.37f, 0.63f to 0.94f)) {
+    for ((from, to) in Vitrines) {
         val left = w * from
         val width = w * (to - from)
         val glassBottom = shopBottom - plinth
@@ -460,6 +479,8 @@ internal fun DrawScope.drawStorefront(
                 ),
         )
     }
+    // Mientras se prepara, por la vitrina izquierda se ve la cocina, con Vaini adentro.
+    if (kitchen != null) drawKitchenPeek(stage, textMeasurer, c, kitchen, motion)
     val doorLeft = w * 0.395f
     val doorWidth = w * 0.21f
     drawRect(
@@ -477,16 +498,20 @@ internal fun DrawScope.drawStorefront(
         size = Size(doorWidth, shopBottom - shopTop),
     )
     val vainiBox = doorWidth * 1.08f
-    withTransform({ translate(doorLeft + (doorWidth - vainiBox) / 2f, shopBottom - vainiBox * 0.8f) }) {
-        drawVainiStanding(
-            boxPx = vainiBox,
-            paperColor = VainiCream,
-            accentColor = VainiLime,
-            inkColor = VainiInk,
-            blink = motion.blink,
-            waveDegrees = motion.wave,
-            happy = motion.happy,
-        )
+    val vainiLeft = doorLeft + (doorWidth - vainiBox) / 2f
+    val vainiTop = shopBottom - vainiBox * 0.8f
+    withLayerAlpha(Rect(0f, 0f, w, h), 1f - (kitchen?.alpha ?: 0f)) {
+        withTransform({ translate(vainiLeft, vainiTop) }) {
+            drawVainiStanding(
+                boxPx = vainiBox,
+                paperColor = VainiCream,
+                accentColor = VainiLime,
+                inkColor = VainiInk,
+                blink = motion.blink,
+                waveDegrees = motion.wave,
+                happy = motion.happy,
+            )
+        }
     }
 
     // Banqueta, macetas y calle. De noche la luz de la tienda cae sobre la banqueta.

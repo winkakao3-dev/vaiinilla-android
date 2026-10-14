@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.order
 
 import com.vaiinilla.app.domain.model.CartLine
+import com.vaiinilla.app.domain.model.OrderItem
 import java.text.Normalizer
 
 /** Cómo se dibuja un producto sobre la bandeja del carrito. */
@@ -74,4 +75,11 @@ internal fun traySlots(lines: List<CartLine>): List<TraySlot> =
     lines
         .flatMap { line ->
             List(line.quantity.coerceAtLeast(0)) { i -> TraySlot("${line.key}#$i", trayItemKind(line.product.name)) }
+        }.take(TRAY_MAX_ITEMS)
+
+/** Las mismas piezas para un pedido ya hecho: lo que la caja cobra al imprimir el ticket. */
+internal fun orderTraySlots(items: List<OrderItem>): List<TraySlot> =
+    items
+        .flatMap { item ->
+            List(item.quantity.coerceAtLeast(0)) { i -> TraySlot("${item.id}#$i", trayItemKind(item.productName)) }
         }.take(TRAY_MAX_ITEMS)
