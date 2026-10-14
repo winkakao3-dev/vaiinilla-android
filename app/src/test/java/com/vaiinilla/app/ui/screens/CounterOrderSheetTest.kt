@@ -1,5 +1,7 @@
 package com.vaiinilla.app.ui.screens
 
+import com.vaiinilla.app.domain.model.CartLine
+import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
@@ -38,6 +40,43 @@ class CounterOrderSheetTest {
         val producto = product(listOf(radio, multiple))
 
         assertEquals(setOf(11), opcionesIniciales(producto))
+    }
+
+    @Test
+    fun `la barra cuenta articulos y suma precio de mostrador mas extras`() {
+        val conExtra =
+            OptionGroup(
+                id = 9,
+                name = "Leche",
+                minimumSelections = 0,
+                maximumSelections = 1,
+                options = listOf(ProductOption(id = 91, name = "Avena", extraPrice = "7.50")),
+            )
+        val burrito = product(listOf(conExtra))
+        val lineas =
+            listOf(
+                CartLine(burrito, 2, setOf(91)),
+                CartLine(
+                    burrito.copy(id = 101, name = "Agua", counterPrice = "15.00", optionGroups = emptyList()),
+                    1,
+                    emptySet(),
+                ),
+            )
+        assertEquals("70.00", Money.counterPreview(lineas))
+        assertEquals("3 artículos · $70 · Crear pedido", counterOrderBarLabel(lineas, "Crear pedido"))
+        assertEquals("1 artículo · $15 · Enviar a Caja", counterOrderBarLabel(lineas.drop(1), "Enviar a Caja"))
+    }
+
+    @Test
+    fun `el buscador ignora acentos y mayusculas`() {
+        val menu =
+            listOf(
+                product(emptyList()).copy(id = 1, name = "Café americano"),
+                product(emptyList()).copy(id = 2, name = "Limonada rosa"),
+            )
+        assertEquals(listOf(1), counterOrderMatches(menu, "cafe").map { it.id })
+        assertEquals(listOf(2), counterOrderMatches(menu, "  LIMO ").map { it.id })
+        assertEquals(listOf(1, 2), counterOrderMatches(menu, "").map { it.id })
     }
 
     private fun group(

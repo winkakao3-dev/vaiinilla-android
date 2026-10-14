@@ -2,7 +2,11 @@ package com.vaiinilla.app.ui.discovery
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -38,6 +42,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -74,11 +79,18 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
+/** Otra forma de seguir sin cámara, distinta según quién abre el escáner. */
+data class QrScannerAlternative(
+    val label: String,
+    val onClick: () -> Unit,
+)
+
 @Composable
 fun QrScannerDialog(
     onClose: () -> Unit,
     onPayload: (String) -> Unit,
     helperText: String = "Apunta al QR del comedor o de la mesa",
+    alternative: QrScannerAlternative? = null,
 ) {
     val context = LocalContext.current
     var permissionGranted by remember {
@@ -150,27 +162,43 @@ fun QrScannerDialog(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text("Necesitamos la cámara para leer el QR.", color = Color.White)
                     Text(
-                        "También puedes cerrar y pegar el token manualmente.",
+                        "Para leer el QR necesitamos la cámara",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        "Si ya la negaste, actívala en los ajustes del teléfono.",
                         color = Color.White.copy(alpha = 0.72f),
+                        textAlign = TextAlign.Center,
                         modifier = Modifier.padding(top = 8.dp),
                     )
                     EditorialAccentButton(
-                        text = "Intentar de nuevo",
+                        text = "Permitir cámara",
                         onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
                         modifier = Modifier.padding(top = 20.dp),
                     )
-                    EditorialSecondaryButton(
-                        text = "Cerrar",
-                        onClick = onClose,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
+                    TextButton(onClick = { context.startActivity(appSettingsIntent(context)) }) {
+                        Text("Abrir ajustes", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                    alternative?.let { alt ->
+                        TextButton(onClick = alt.onClick) {
+                            Text(alt.label, color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    TextButton(onClick = onClose) {
+                        Text("Cerrar", color = Color.White.copy(alpha = 0.72f))
+                    }
                 }
             }
         }
     }
 }
+
+private fun appSettingsIntent(context: Context): Intent =
+    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
 @Composable
 @SuppressLint("UnsafeOptInUsageError")

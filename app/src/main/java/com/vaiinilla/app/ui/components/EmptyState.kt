@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,6 +26,8 @@ fun EmptyState(
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
+    /** Acción secundaria (p. ej. limpiar una búsqueda): texto en tinta, sin el lima de la acción principal. */
+    quietAction: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     Surface(
@@ -36,11 +39,12 @@ fun EmptyState(
             modifier = Modifier.padding(28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Surface(color = colors.accent, shape = RoundedCornerShape(25.dp)) {
+            // Ícono neutro: un estado vacío no es una acción, el color se queda para el botón.
+            Surface(color = colors.paper, shape = RoundedCornerShape(25.dp)) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = colors.accentInk,
+                    tint = colors.muted,
                     modifier = Modifier.padding(18.dp).size(36.dp),
                 )
             }
@@ -57,7 +61,11 @@ fun EmptyState(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 6.dp),
             )
-            if (actionLabel != null && onAction != null) {
+            if (actionLabel != null && onAction != null && quietAction) {
+                TextButton(onClick = onAction, modifier = Modifier.padding(top = 10.dp)) {
+                    Text(actionLabel, color = colors.ink, fontWeight = FontWeight.Black)
+                }
+            } else if (actionLabel != null && onAction != null) {
                 EditorialAccentButton(
                     text = actionLabel,
                     onClick = onAction,

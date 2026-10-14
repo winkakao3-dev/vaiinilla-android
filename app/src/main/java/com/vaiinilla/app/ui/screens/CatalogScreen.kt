@@ -1,18 +1,7 @@
 package com.vaiinilla.app.ui.screens
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -24,11 +13,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -38,32 +25,33 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.CartLine
@@ -75,7 +63,8 @@ import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.ui.components.ActiveOrderBanner
-import com.vaiinilla.app.ui.components.CourtsMapCard
+import com.vaiinilla.app.ui.components.ChoiceChip
+import com.vaiinilla.app.ui.components.CourtsBanner
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialSearchField
 import com.vaiinilla.app.ui.components.EmptyState
@@ -88,7 +77,6 @@ import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.OrderFlowUiState
-import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.filteredProducts
 import com.vaiinilla.app.ui.order.isSelectedProductValid
 import com.vaiinilla.app.ui.order.selectedProduct
@@ -98,8 +86,6 @@ import com.vaiinilla.app.ui.theme.AmoledLimeWash
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
-import com.vaiinilla.app.ui.theme.SeaGlassButton
-import com.vaiinilla.app.ui.theme.SeaGlassTone
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
@@ -118,7 +104,6 @@ fun CatalogScreen(
     onSelectedNotesChange: (String) -> Unit = {},
     onQuantityChange: (Int) -> Unit,
     onAddProduct: () -> Unit,
-    onOpenCart: () -> Unit,
     onOpenTracking: () -> Unit = {},
     onDeleteOrder: (String) -> Unit = {},
     onOpenWallet: () -> Unit = {},
@@ -161,10 +146,6 @@ fun CatalogScreen(
                 onSelectedNotesChange = onSelectedNotesChange,
                 onQuantityChange = onQuantityChange,
                 onAddProduct = onAddProduct,
-                onOpenCart = {
-                    haptics.click()
-                    onOpenCart()
-                },
                 onOpenTracking = onOpenTracking,
                 onDeleteOrder = onDeleteOrder,
                 onOpenWallet = onOpenWallet,
@@ -290,7 +271,6 @@ private fun CatalogScreenPreviewContent() {
         onClearOptionalGroup = {},
         onQuantityChange = {},
         onAddProduct = {},
-        onOpenCart = {},
         onOpenTracking = {},
         onOpenWallet = {},
         onChangeVenue = {},
@@ -312,7 +292,6 @@ private fun CatalogContent(
     onSelectedNotesChange: (String) -> Unit = {},
     onQuantityChange: (Int) -> Unit,
     onAddProduct: () -> Unit,
-    onOpenCart: () -> Unit,
     onOpenTracking: () -> Unit,
     onDeleteOrder: (String) -> Unit,
     onOpenWallet: () -> Unit,
@@ -381,8 +360,8 @@ private fun CatalogContent(
                             .statusBarsPadding(),
                     contentPadding =
                         PaddingValues(
-                            start = 20.dp,
-                            end = 20.dp,
+                            start = CatalogSideMargin,
+                            end = CatalogSideMargin,
                             top = 16.dp,
                             bottom = VaiinillaBottomNavClearance + 48.dp,
                         ),
@@ -392,15 +371,26 @@ private fun CatalogContent(
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         CatalogHeader(
                             state = state,
-                            categories = sortedCategories,
                             onSearchChange = onSearchChange,
-                            onCategorySelected = onCategorySelected,
-                            onOpenCart = onOpenCart,
                             onChangeVenue = onChangeVenue,
                             onOpenModes = onOpenModes,
                             onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
                             profileInitials = profileInitials,
                             onOpenAccount = onOpenAccount,
+                        )
+                    }
+                    // Las categorías se quedan arriba al bajar por el menú: cambiar de sección no obliga a regresar.
+                    stickyHeader(key = "categories") {
+                        CategoryChips(
+                            categories = sortedCategories,
+                            selectedCategoryId = state.selectedCategoryId,
+                            onCategorySelected = onCategorySelected,
+                            modifier =
+                                Modifier
+                                    .bleedHorizontally(CatalogSideMargin)
+                                    .fadeBelow(colors.paper, 16.dp)
+                                    .background(colors.paper),
+                            sideMargin = CatalogSideMargin,
                         )
                     }
 
@@ -425,18 +415,15 @@ private fun CatalogContent(
                         }
                     }
 
-                    if (courts.isNotEmpty()) {
-                        item(key = "courts-map", span = { GridItemSpan(maxLineSpan) }) {
-                            CourtsMapCard(
+                    // Al buscar solo quedan los resultados: las canchas no se filtran por texto.
+                    if (courts.isNotEmpty() && state.searchQuery.isBlank()) {
+                        item(key = "courts-banner", span = { GridItemSpan(maxLineSpan) }) {
+                            CourtsBanner(
                                 courts = courts,
                                 onOpen = onOpenCourts,
-                                modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
+                                modifier = Modifier.animateItem().padding(bottom = 6.dp),
                             )
                         }
-                    }
-
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        MenuSectionHead()
                     }
 
                     if (filteredProducts.isEmpty()) {
@@ -486,10 +473,7 @@ private fun CatalogContent(
 @Composable
 private fun CatalogHeader(
     state: OrderFlowUiState,
-    categories: List<Category>,
     onSearchChange: (String) -> Unit,
-    onCategorySelected: (Int?) -> Unit,
-    onOpenCart: () -> Unit,
     onChangeVenue: () -> Unit,
     onOpenModes: (() -> Unit)?,
     onCycleTheme: () -> Unit,
@@ -499,117 +483,52 @@ private fun CatalogHeader(
     val colors = LocalVaiinillaColors.current
     val venue = state.guestVenue
     Column {
+        // Un solo título: el lugar donde estás pidiendo, que también sirve para cambiarlo (como Wonder).
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "Menú de Vaiinilla",
-                    color = colors.muted,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 11.sp,
-                    letterSpacing = 1.2.sp,
-                )
-                Text(
-                    "¿Qué se te antoja?",
-                    color = colors.ink,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 16.sp,
-                )
-                if (venue != null) {
-                    val spaceLabel = venue.space?.let { "${it.name} · ${it.type}" }
-                    Row(
-                        modifier =
-                            Modifier
-                                .padding(top = 2.dp)
-                                .clip(RoundedCornerShape(999.dp))
-                                .clickable(onClick = onChangeVenue)
-                                .padding(end = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = spaceLabel ?: venue.establishment.name,
-                            color = colors.muted,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 11.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false),
-                        )
+            Column(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable(
+                            enabled = venue != null,
+                            onClickLabel = "Cambiar de cafetería",
+                            onClick = onChangeVenue,
+                        ),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = venue?.establishment?.name ?: "Menú",
+                        color = colors.ink,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 24.sp,
+                        lineHeight = 28.sp,
+                        letterSpacing = (-0.6).sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (venue != null) {
                         Icon(
                             Icons.Rounded.KeyboardArrowDown,
-                            contentDescription = "Cambiar de cafetería",
-                            tint = colors.muted,
-                            modifier = Modifier.size(15.dp),
+                            contentDescription = null,
+                            tint = colors.ink,
+                            modifier = Modifier.padding(start = 2.dp).size(22.dp),
                         )
                     }
                 }
-            }
-            val cartScale by animateFloatAsState(
-                targetValue = if (state.cartItemCount > 0) 1.08f else 1.0f,
-                animationSpec = spring(dampingRatio = 0.45f, stiffness = 400f),
-                label = "cart_bounce",
-            )
-            Box(modifier = Modifier.scale(cartScale)) {
-                IconButton(
-                    onClick = onOpenCart,
-                    modifier =
-                        Modifier
-                            .size(42.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(colors.paper2),
-                ) {
-                    Icon(Icons.Outlined.ShoppingCart, contentDescription = "Abrir carrito", tint = colors.ink)
-                }
-                if (state.cartItemCount > 0) {
-                    val badgeScale = remember { Animatable(1f) }
-                    LaunchedEffect(state.cartItemCount) {
-                        badgeScale.snapTo(1.4f)
-                        badgeScale.animateTo(
-                            targetValue = 1f,
-                            animationSpec =
-                                spring(
-                                    dampingRatio = 0.45f,
-                                    stiffness = 500f,
-                                ),
-                        )
-                    }
-                    Box(
-                        modifier =
-                            Modifier
-                                .align(Alignment.TopEnd)
-                                .offset(x = 8.dp, y = (-6).dp)
-                                .scale(badgeScale.value)
-                                .height(16.dp)
-                                .width(if (state.cartItemCount > 9) 20.dp else 16.dp)
-                                .clip(RoundedCornerShape(99.dp))
-                                .background(colors.coral)
-                                .border(2.dp, colors.paper2, RoundedCornerShape(99.dp)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        AnimatedContent(
-                            targetState = state.cartItemCount,
-                            transitionSpec = {
-                                if (targetState > initialState) {
-                                    (slideInVertically { height -> height } + fadeIn()) togetherWith
-                                        (slideOutVertically { height -> -height } + fadeOut())
-                                } else {
-                                    (slideInVertically { height -> -height } + fadeIn()) togetherWith
-                                        (slideOutVertically { height -> height } + fadeOut())
-                                }.using(SizeTransform(clip = false))
-                            },
-                            label = "catalog_badge_ticker",
-                        ) { count ->
-                            Text(
-                                text = count.coerceAtMost(99).toString(),
-                                color = Color(0xFF28100D),
-                                fontSize = 8.sp,
-                                lineHeight = 8.sp,
-                                fontWeight = FontWeight.Black,
-                            )
-                        }
-                    }
+                venue?.space?.let { space ->
+                    Text(
+                        text = "${space.name} · ${space.type}",
+                        color = colors.muted,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
             Spacer(Modifier.size(10.dp))
@@ -636,62 +555,67 @@ private fun CatalogHeader(
                 }
             }
         }
-
-        Spacer(Modifier.height(6.dp))
-        // Como en iOS: 8 dp arriba y abajo para que la sombra de los chips no se corte en el borde de la fila.
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(vertical = 8.dp, horizontal = 2.dp),
-        ) {
-            item {
-                CategoryChip(
-                    label = "Todo",
-                    selected = state.selectedCategoryId == null,
-                    onClick = { onCategorySelected(null) },
-                )
-            }
-            items(categories, key = Category::id) { category ->
-                CategoryChip(
-                    label = category.name,
-                    selected = state.selectedCategoryId == category.id,
-                    onClick = { onCategorySelected(category.id) },
-                )
-            }
-        }
     }
 }
 
-@Composable
-private fun MenuSectionHead() {
-    val colors = LocalVaiinillaColors.current
-    Text(
-        text = "Menú de hoy",
-        color = colors.ink,
-        fontWeight = FontWeight.Black,
-        fontSize = 38.sp,
-        lineHeight = 42.sp,
-        letterSpacing = (-1.4).sp,
-        modifier = Modifier.fillMaxWidth().padding(top = 28.dp, bottom = 8.dp),
-    )
-}
+private val CatalogSideMargin = 20.dp
+
+/** Ocupa también el margen lateral de la cuadrícula, para que la barra fija llegue de borde a borde. */
+private fun Modifier.bleedHorizontally(margin: Dp): Modifier =
+    layout { measurable, constraints ->
+        val extra = (margin * 2).roundToPx()
+        val width = constraints.maxWidth + extra
+        val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
+        layout(constraints.maxWidth, placeable.height) { placeable.place(-extra / 2, 0) }
+    }
+
+/** Un degradado del color de fondo bajo la barra: los productos se desvanecen al pasar, sin un corte. */
+private fun Modifier.fadeBelow(
+    color: Color,
+    height: Dp,
+): Modifier =
+    drawWithContent {
+        drawContent()
+        drawRect(
+            brush =
+                Brush.verticalGradient(
+                    listOf(color, color.copy(alpha = 0f)),
+                    startY = size.height,
+                    endY =
+                        size.height + height.toPx(),
+                ),
+            topLeft = Offset(0f, size.height),
+            size = Size(size.width, height.toPx()),
+        )
+    }
 
 @Composable
-private fun CategoryChip(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
+private fun CategoryChips(
+    categories: List<Category>,
+    selectedCategoryId: Int?,
+    onCategorySelected: (Int?) -> Unit,
+    modifier: Modifier = Modifier,
+    sideMargin: Dp = 0.dp,
 ) {
-    SeaGlassButton(
-        tone = if (selected) SeaGlassTone.lima else SeaGlassTone.vainilla,
-        onClick = onClick,
-        modifier = Modifier.height(38.dp),
+    LazyRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(vertical = 8.dp, horizontal = sideMargin + 2.dp),
     ) {
-        Text(
-            text = label,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp),
-        )
+        item {
+            ChoiceChip(
+                label = "Todo",
+                selected = selectedCategoryId == null,
+                onClick = { onCategorySelected(null) },
+            )
+        }
+        items(categories, key = Category::id) { category ->
+            ChoiceChip(
+                label = category.name,
+                selected = selectedCategoryId == category.id,
+                onClick = { onCategorySelected(category.id) },
+            )
+        }
     }
 }
 
@@ -719,6 +643,7 @@ private fun EmptySearchState(onClearSearch: () -> Unit) {
         message = "Prueba otra palabra o categoría.",
         actionLabel = "Limpiar búsqueda",
         onAction = onClearSearch,
+        quietAction = true,
     )
 }
 

@@ -67,7 +67,10 @@ class ProductDetailLayoutTest {
 
         composeTestRule.onNodeWithText("Agregar · $20").assertIsDisplayed()
         composeTestRule.onNodeWithText("Tamaño", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithText("Ingredientes", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
+        composeTestRule
+            .onNodeWithText("Lleva:", substring = true, useUnmergedTree = true)
+            .performScrollTo()
+            .assertIsDisplayed()
         composeTestRule.onNodeWithText("Agregar · $20").assertIsDisplayed()
     }
 

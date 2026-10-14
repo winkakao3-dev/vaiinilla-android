@@ -252,6 +252,10 @@ fun BoardTable.tableState(): TableState =
         else -> TableState.FREE
     }
 
+/** El espacio tiene una cuenta abierta con algo sin cobrar. */
+fun BoardTable.hasPendingAccount(): Boolean =
+    availability?.let { it.state != SpaceAvailabilityState.LIBRE && !it.settled } == true
+
 fun sortWaiterTables(tables: List<BoardTable>): List<BoardTable> =
     tables.sortedWith(
         compareBy<BoardTable> {

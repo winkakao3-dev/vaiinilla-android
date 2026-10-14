@@ -17,6 +17,13 @@ class StudentShellTest {
     }
 
     @Test
+    fun `student nav gives way to the pay button only when the cart has items`() {
+        assertEquals(false, shouldShowStudentNav(Routes.CART, catalogDetailOpen = false, cartHasItems = true))
+        assertEquals(true, shouldShowStudentNav(Routes.CART, catalogDetailOpen = false, cartHasItems = false))
+        assertEquals(true, shouldShowStudentNav(Routes.CATALOG, catalogDetailOpen = false, cartHasItems = true))
+    }
+
+    @Test
     fun `studentTabForRoute maps student destinations`() {
         assertEquals(StudentTab.MENU, studentTabForRoute(Routes.CATALOG))
         assertEquals(StudentTab.ASSISTANT, studentTabForRoute(Routes.ASSISTANT))

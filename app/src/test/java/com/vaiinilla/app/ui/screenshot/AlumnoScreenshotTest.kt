@@ -85,7 +85,6 @@ class AlumnoScreenshotTest {
                         onClearOptionalGroup = {},
                         onQuantityChange = {},
                         onAddProduct = {},
-                        onOpenCart = {},
                     )
                 }
             }
@@ -123,9 +122,6 @@ class AlumnoScreenshotTest {
                 ScreenshotWithStudentNav(activeTab = StudentTab.WALLET, cartCount = 0) {
                     WalletScreen(
                         onMenu = {},
-                        onAssistant = {},
-                        onOrders = {},
-                        onCart = {},
                     )
                 }
             }
@@ -151,7 +147,6 @@ class AlumnoScreenshotTest {
                         onClearOptionalGroup = {},
                         onQuantityChange = {},
                         onAddProduct = {},
-                        onOpenCart = {},
                     )
                 }
             }
@@ -428,7 +423,6 @@ class AlumnoScreenshotTest {
                         onClearOptionalGroup = {},
                         onQuantityChange = {},
                         onAddProduct = {},
-                        onOpenCart = {},
                     )
                 }
             }

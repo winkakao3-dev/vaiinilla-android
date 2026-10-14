@@ -1,10 +1,10 @@
 package com.vaiinilla.app.ui.screens
 
 import android.os.Build
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,17 +31,20 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.components.productImageIsRemote
+import com.vaiinilla.app.ui.components.productImageResource
 import com.vaiinilla.app.ui.components.rememberProductTone
 import com.vaiinilla.app.ui.order.TrayItemKind
 import com.vaiinilla.app.ui.order.trayItemKind
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 // En el menú el Vainiverso es solo vidrio y luz: la foto del producto es la estrella y su propia
-// imagen desenfocada es la luz que la rodea. No hay escena atrás ni Vaini.
+// imagen desenfocada es la luz que la rodea. No hay escena atrás ni Vaini. Sin foto no hay luz: el
+// color se gana con la foto, no tiñe el vidrio.
 
-internal val TagCream = Color(0xFFF6EFDD)
-internal val TagInk = Color(0xFF1A1414)
-internal val TagLime = Color(0xFFA8D52C)
+/** Si el producto trae una foto (remota o del paquete). Sin ella no hay luz de color ni tono de fondo. */
+internal fun hasProductPhoto(product: Product): Boolean =
+    productImageIsRemote(product.imageUrl) || productImageResource(product.imageUrl) != null
 
 /** Color de la luz cuando el producto aún no tiene foto, según lo que es. */
 internal fun fallbackTone(kind: TrayItemKind): Color =
@@ -58,7 +61,7 @@ internal fun productTone(product: Product): Color =
 /**
  * Sombra hecha de la propia foto: la misma imagen, desenfocada, más chica y un poco abajo, como las
  * portadas de Apple Music. Así la luz trae los colores reales de cada parte del producto. Sin
- * desenfoque (Android < 12) queda una sombra de elevación teñida con el color de la foto.
+ * desenfoque (Android < 12) queda una sombra de elevación teñida con el color de la foto. Sin foto no dibuja nada.
  */
 @Composable
 internal fun ProductPhotoShadow(
@@ -71,6 +74,7 @@ internal fun ProductPhotoShadow(
     inset: Dp = 12.dp,
     strength: Float = 0.65f,
 ) {
+    if (!hasProductPhoto(product)) return
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         Box(
             modifier
@@ -86,7 +90,7 @@ internal fun ProductPhotoShadow(
                 imageUrl = product.imageUrl,
                 contentDescription = "",
                 modifier = Modifier.fillMaxSize().clip(shape),
-                placeholder = { m -> Box(m.background(tone)) },
+                placeholder = {},
             )
         }
     } else {
@@ -114,7 +118,6 @@ internal fun ProductGlassCard(
     val colors = LocalVaiinillaColors.current
     val c = LocalScene.current
     val tone = productTone(product)
-    val kind = trayItemKind(product.name)
     val shape = RoundedCornerShape(26.dp)
     Box(modifier.fillMaxWidth()) {
         ProductPhotoShadow(
@@ -122,8 +125,11 @@ internal fun ProductGlassCard(
             tone = tone,
             shape = shape,
             modifier = Modifier.matchParentSize(),
-            drop = 14.dp,
-            strength = if (colors.isDark) 0.75f else 0.55f,
+            // En la cuadrícula la luz se queda pegada a la tarjeta; la ficha abierta usa la suya, más amplia.
+            blur = 16.dp,
+            drop = 6.dp,
+            inset = 18.dp,
+            strength = if (colors.isDark) 0.45f else 0.35f,
         )
         // Vidrio denso: la luz se ve alrededor y debajo, y adentro apenas tiñe.
         Column(
@@ -139,17 +145,13 @@ internal fun ProductGlassCard(
                     .fillMaxWidth()
                     .aspectRatio(1f)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(tone.copy(alpha = 0.16f)),
+                    .background(colors.paper2),
             ) {
                 ProductImage(
                     imageUrl = product.imageUrl,
                     contentDescription = product.name,
                     modifier = Modifier.fillMaxSize(),
-                    placeholder = { m -> ProductIllustration(kind, m) },
-                )
-                PriceTag(
-                    moneyLabel(product.digitalPrice),
-                    Modifier.align(Alignment.TopEnd).padding(8.dp),
+                    placeholder = { m -> ProductMonogram(product.name, m) },
                 )
             }
             Text(
@@ -160,42 +162,37 @@ internal fun ProductGlassCard(
                 lineHeight = 20.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 6.dp, top = 10.dp, end = 6.dp, bottom = 6.dp),
+                modifier = Modifier.padding(start = 6.dp, top = 10.dp, end = 6.dp),
+            )
+            Text(
+                text = moneyLabel(product.digitalPrice),
+                color = colors.muted,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+                modifier = Modifier.padding(start = 6.dp, top = 2.dp, end = 6.dp, bottom = 6.dp),
             )
         }
     }
 }
 
+/**
+ * Mientras el producto no tenga foto: un plano neutro con su inicial. No imita una foto ni repite el mismo dibujo en
+ * todo el menú, así cada producto se distingue por su nombre.
+ */
 @Composable
-private fun PriceTag(
-    label: String,
+internal fun ProductMonogram(
+    name: String,
     modifier: Modifier = Modifier,
 ) {
-    Text(
-        label,
-        color = TagInk,
-        fontSize = 13.sp,
-        fontWeight = FontWeight.Black,
-        modifier =
-            modifier
-                .clip(RoundedCornerShape(10.dp))
-                .background(TagCream)
-                .border(2.dp, TagLime, RoundedCornerShape(10.dp))
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-    )
-}
-
-/** Mientras el producto no tenga foto: el producto dibujado al centro. [drop] lo hace bajar al llegar. */
-@Composable
-internal fun ProductIllustration(
-    kind: TrayItemKind,
-    modifier: Modifier = Modifier,
-    drop: () -> Float = { 1f },
-) {
-    Canvas(modifier) {
-        val d = drop()
-        val u = minOf(size.width, size.height) * 0.4f
-        val base = size.height * 0.74f - (1f - d) * size.height * 0.4f
-        drawTrayItem(kind, size.width / 2f, base, u, alpha = (d * 2.5f).coerceIn(0f, 1f))
+    val colors = LocalVaiinillaColors.current
+    BoxWithConstraints(modifier.background(colors.paper2), contentAlignment = Alignment.Center) {
+        Text(
+            text = name.trim().firstOrNull()?.uppercase() ?: "",
+            color = colors.muted.copy(alpha = 0.55f),
+            fontWeight = FontWeight.Black,
+            fontSize = (maxWidth.value * 0.38f).sp,
+            letterSpacing = (-1).sp,
+        )
     }
 }

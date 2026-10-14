@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -47,12 +48,14 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.canCallWaiter
+import com.vaiinilla.app.domain.repository.hasPendingAccount
 import com.vaiinilla.app.ui.account.AccountDeletionViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.isRental
 import com.vaiinilla.app.ui.components.prefetchProductImages
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
+import com.vaiinilla.app.ui.discovery.QrScannerAlternative
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
 import com.vaiinilla.app.ui.operational.CourtsViewModel
@@ -72,10 +75,12 @@ import com.vaiinilla.app.ui.screens.AuthorizedModeScreen
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CashierOperationalScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
+import com.vaiinilla.app.ui.screens.CounterOrderSheet
 import com.vaiinilla.app.ui.screens.DiscoveryScreen
 import com.vaiinilla.app.ui.screens.InvitationAcceptanceScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
+import com.vaiinilla.app.ui.screens.OrdersAccessGate
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
 import com.vaiinilla.app.ui.screens.SharedTableCard
 import com.vaiinilla.app.ui.screens.StudentAuthLandingScreen
@@ -91,8 +96,10 @@ import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
 import com.vaiinilla.app.ui.screens.WalletPaymentMethodsScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
 import com.vaiinilla.app.ui.screens.WelcomeBootStage
+import com.vaiinilla.app.ui.screens.rememberOperationalColors
 import com.vaiinilla.app.ui.screens.rememberReduceMotion
 import com.vaiinilla.app.ui.sharedtable.SharedTableViewModel
+import com.vaiinilla.app.ui.support.SupportLastOrder
 import com.vaiinilla.app.ui.support.SupportScreen
 import com.vaiinilla.app.ui.wallet.WalletViewModel
 import com.vaiinilla.app.ui.wallet.rememberWalletUiState
@@ -334,6 +341,8 @@ fun AppNavHost(
         )
     }
     var qrScannerOpen by remember { mutableStateOf(false) }
+    // Cada aumento abre la hoja del código de mesa en Descubrir (alternativa al QR sin cámara).
+    var tableCodeRequest by remember { mutableIntStateOf(0) }
     var walletUserQrOpen by remember { mutableStateOf(false) }
     var pendingPickupDelivery by remember { mutableStateOf<PendingPickupDelivery?>(null) }
 
@@ -657,6 +666,7 @@ fun AppNavHost(
 
             composable(Routes.DISCOVERY) {
                 DiscoveryScreen(
+                    tableCodeRequest = tableCodeRequest,
                     state = discoveryState,
                     onQueryChange = discoveryViewModel::updateQuery,
                     onSpaceTokenChange = discoveryViewModel::updateSpaceToken,
@@ -694,6 +704,11 @@ fun AppNavHost(
                 if (qrScannerOpen) {
                     QrScannerDialog(
                         onClose = { qrScannerOpen = false },
+                        alternative =
+                            QrScannerAlternative("Escribir código de mesa") {
+                                qrScannerOpen = false
+                                tableCodeRequest++
+                            },
                         onPayload = { rawValue ->
                             qrScannerOpen = false
                             discoveryViewModel.resolveQrPayload(
@@ -781,7 +796,6 @@ fun AppNavHost(
                     onSelectedNotesChange = orderFlowViewModel::updateSelectedNotes,
                     onQuantityChange = orderFlowViewModel::changeSelectedQuantity,
                     onAddProduct = orderFlowViewModel::addSelectedProductToCart,
-                    onOpenCart = { navController.navigateStudent(Routes.CART) },
                     onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
                     onDeleteOrder = ::dismissClientOrder,
                     onOpenWallet = { navController.navigateStudent(Routes.WALLET) },
@@ -923,9 +937,6 @@ fun AppNavHost(
                             ?: studentAuthState.session?.uid,
                     onRetry = walletViewModel::refresh,
                     onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                    onAssistant = {},
-                    onOrders = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                    onCart = { navController.navigateStudent(Routes.CART) },
                 )
             }
 
@@ -1042,10 +1053,23 @@ fun AppNavHost(
             }
 
             composable(Routes.SUPPORT) {
+                val lastOrder =
+                    operationalState.orders.firstOrNull()?.takeIf {
+                        operationalState.role ==
+                            OperationalRole.CLIENT
+                    }
                 SupportScreen(
                     onBack = { navController.popBackStack() },
                     termsUrl = studentAuthState.termsUrl,
                     privacyUrl = studentAuthState.privacyUrl,
+                    lastOrder =
+                        lastOrder?.let {
+                            SupportLastOrder(
+                                title = "Pedido #${it.summary.folio}",
+                                detail = "${it.summary.state.label} · ${it.summary.destination.label}",
+                            )
+                        },
+                    onOpenLastOrder = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
                 )
             }
 
@@ -1507,6 +1531,18 @@ fun AppNavHost(
                             )
                         },
                     )
+                } else {
+                    OrdersAccessGate(
+                        loading = studentAuthState.loading,
+                        errorMessage = studentAuthState.errorMessage,
+                        onRetry = {
+                            studentAuthViewModel.ensureVenueContext(
+                                onReady = { operationalViewModel.setRole(OperationalRole.CLIENT) },
+                                onNeedsAuth = { navigateStudentAuth(Routes.STUDENT_TRACKING) },
+                            )
+                        },
+                        onSignIn = { navigateStudentAuth(Routes.STUDENT_TRACKING) },
+                    )
                 }
             }
 
@@ -1521,6 +1557,8 @@ fun AppNavHost(
                 }
                 if (authorizedCashier) {
                     OperationalPresenceLifecycle(OperationalRole.CASHIER, operationalViewModel)
+                    // Una sola lectura del tablero para el contador de mesas; el sondeo es del tablero.
+                    LaunchedEffect(Unit) { waiterViewModel.refresh() }
                     CashierOperationalScreen(
                         state = operationalState,
                         onBack = returnToModes(navController, operationalViewModel),
@@ -1557,7 +1595,20 @@ fun AppNavHost(
                         onUploadCashierProductImage = operationalViewModel::uploadCashierProductImage,
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "cashier",
+                        onNewCounterOrder = waiterViewModel::openCounterOrder,
+                        pendingSpaces =
+                            waiterState.tables.takeIf { it.isNotEmpty() }?.count { it.hasPendingAccount() },
+                        notice = waiterState.toastMessage,
                     )
+                    if (waiterState.counterOrderOpen) {
+                        CounterOrderSheet(
+                            state = waiterState,
+                            colors = rememberOperationalColors(),
+                            onDismiss = waiterViewModel::closeCounterOrder,
+                            onSubmit = waiterViewModel::submitCounterOrder,
+                            submitAction = "Crear pedido",
+                        )
+                    }
                 }
             }
 
@@ -1702,6 +1753,8 @@ fun AppNavHost(
         QrScannerDialog(
             onClose = { walletUserQrOpen = false },
             helperText = "Apunta al QR de cuenta que muestra el alumno",
+            // El buscador por nombre vive en la hoja de recarga que abrió el escáner: cerrar regresa a él.
+            alternative = QrScannerAlternative("Buscar cliente por nombre") { walletUserQrOpen = false },
             onPayload = { rawValue ->
                 walletUserQrOpen = false
                 operationalViewModel.resolveWalletUserQr(rawValue)
