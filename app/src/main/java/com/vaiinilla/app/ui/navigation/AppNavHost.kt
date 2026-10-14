@@ -542,6 +542,9 @@ fun AppNavHost(
             defaultValue = Routes.CART
         }
 
+    // El QR personal de la cartera abierto sobre la casita: la barra de abajo se va mientras tanto.
+    var walletCodeOpen by remember { mutableStateOf(false) }
+
     StudentShellHost(
         navController = navController,
         cartCount = orderState.cartItemCount,
@@ -599,6 +602,7 @@ fun AppNavHost(
             }
         },
         catalogDetailOpen = orderState.selectedProductId != null,
+        walletCodeOpen = walletCodeOpen,
     ) {
         NavHost(
             navController = navController,
@@ -937,6 +941,7 @@ fun AppNavHost(
                             ?: studentAuthState.session?.uid,
                     onRetry = walletViewModel::refresh,
                     onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                    onCodeOpenChange = { walletCodeOpen = it },
                 )
             }
 

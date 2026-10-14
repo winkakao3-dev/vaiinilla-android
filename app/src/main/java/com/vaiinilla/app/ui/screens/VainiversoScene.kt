@@ -217,7 +217,7 @@ internal fun scenePaletteForTheme(): ScenePalette =
         else -> Day
     }
 
-private val SceneLime = Color(0xFFB7D464)
+internal val SceneLime = Color(0xFFB7D464)
 private val VainiCream = Color(0xFFF6EFDD)
 private val VainiLime = Color(0xFFA8D52C)
 private val VainiInk = Color(0xFF1A1414)

@@ -2,6 +2,9 @@ package com.vaiinilla.app.ui.screens
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -38,15 +41,21 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -54,11 +63,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.vaiinilla.app.core.qr.QrCodeEncoder
 import com.vaiinilla.app.ui.components.GlassCircleButton
 import com.vaiinilla.app.ui.components.SkeletonBlock
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.SeaGlassButton
@@ -66,6 +77,7 @@ import com.vaiinilla.app.ui.theme.SeaGlassTone
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import com.vaiinilla.app.ui.wallet.WalletRemoteUiState
+import kotlinx.coroutines.delay
 
 /**
  * Wallet surface backed by the current contract. The API exposes only the
@@ -77,17 +89,51 @@ fun WalletScreen(
     userId: String? = null,
     onRetry: () -> Unit = {},
     onMenu: () -> Unit,
+    /** Avisa cuando el QR personal abre o cierra, para quitar la barra de abajo mientras tanto. */
+    onCodeOpenChange: (Boolean) -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
-    var qrDialogOpen by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
+    val reduceMotion = reducedMotion()
     val qrValue = userId?.trim()?.takeIf { it.isNotEmpty() }?.let(QrPayloadParser::encodeUser)
-
-    if (qrDialogOpen) {
-        WalletQrDialog(
-            qrValue = qrValue,
-            onDismiss = { qrDialogOpen = false },
-        )
+    val matrix = remember(qrValue) { qrValue?.let { runCatching { QrCodeEncoder.encode(it) }.getOrNull() } }
+    // El QR personal está abierto sobre la casita: el frasco se vuelve el código.
+    var codeOpen by rememberSaveable { mutableStateOf(false) }
+    // El saldo de antes de una recarga, mientras el QR se deshace de vuelta en el frasco.
+    var heldBalance by remember { mutableStateOf<String?>(null) }
+    val balance = remoteState.data?.wallet?.visibleBalance
+    val shownBalance = heldBalance ?: balance
+    val latestOnCodeOpenChange by rememberUpdatedState(onCodeOpenChange)
+    LaunchedEffect(codeOpen) { latestOnCodeOpenChange(codeOpen) }
+    DisposableEffect(Unit) { onDispose { latestOnCodeOpenChange(false) } }
+    // Mientras el código está abierto se pregunta por la recarga; al llegar, el código se cierra solo.
+    val latestOnRetry by rememberUpdatedState(onRetry)
+    LaunchedEffect(codeOpen) {
+        while (codeOpen) {
+            delay(CODE_POLL_MS)
+            latestOnRetry()
+        }
     }
+    var lastBalance by remember { mutableStateOf(balance) }
+    LaunchedEffect(balance) {
+        val before = lastBalance?.walletAmount()
+        val after = balance?.walletAmount()
+        val previous = lastBalance
+        if (balance != null) lastBalance = balance
+        if (codeOpen && before != null && after != null && after > before) {
+            // Caja registró la recarga: el código regresa al frasco y luego caen las monedas.
+            heldBalance = previous
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            codeOpen = false
+            delay(if (reduceMotion) 250 else 1700)
+            heldBalance = null
+        }
+    }
+    val sheetAway by animateFloatAsState(
+        targetValue = if (codeOpen) 1f else 0f,
+        animationSpec = if (reduceMotion) snap() else spring(dampingRatio = 0.9f, stiffness = 130f),
+        label = "wallet_sheet_away",
+    )
 
     // Vainiverso: la casita de Vaini con su frasco de tesoros arriba; la cartera en vidrio encima.
     val palette = scenePaletteForTheme()
@@ -109,12 +155,20 @@ fun WalletScreen(
             if (listState.firstVisibleItemIndex == 0) windowPx - listState.firstVisibleItemScrollOffset else 0f
         }
         CompositionLocalProvider(LocalScene provides palette) {
-            WalletJarBackdrop(sheetTop = sheetTop, balance = remoteState.data?.wallet?.visibleBalance)
+            WalletJarBackdrop(sheetTop = sheetTop, balance = shownBalance)
         }
         CompositionLocalProvider(LocalVaiinillaColors provides glassColors) {
             LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxSize(),
+                // La hoja baja mientras la cámara vuela al frasco, y regresa al cerrar el código.
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            translationY = size.height * 0.7f * sheetAway
+                            alpha = 1f - sheetAway
+                        },
+                userScrollEnabled = !codeOpen,
                 contentPadding =
                     PaddingValues(
                         start = 16.dp,
@@ -127,8 +181,14 @@ fun WalletScreen(
                 item {
                     WalletBalanceHero(
                         remoteState = remoteState,
+                        shownBalance = shownBalance,
                         onRetry = onRetry,
-                        onRecharge = { qrDialogOpen = true },
+                        onRecharge = {
+                            if (matrix != null && !codeOpen) {
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                codeOpen = true
+                            }
+                        },
                     )
                 }
 
@@ -178,14 +238,30 @@ fun WalletScreen(
                 .graphicsLayer { alpha = if (sheetTop() < size.height) 1f else 0f }
                 .background(palette.stage.copy(alpha = 0.92f)),
         )
+        if (matrix != null) {
+            CompositionLocalProvider(LocalScene provides palette) {
+                WalletCodeOverlay(
+                    matrix = matrix,
+                    shown = codeOpen,
+                    fill = jarFillLevel(shownBalance),
+                    label = shownBalance?.let { "$$it" },
+                    onClose = { codeOpen = false },
+                )
+            }
+        }
     }
 }
+
+private const val CODE_POLL_MS = 4_000L
+
+private fun String.walletAmount(): Double? = trim().replace(",", "").toDoubleOrNull()
 
 private const val WALLET_SCENE_WINDOW = 0.4f
 
 @Composable
 private fun WalletBalanceHero(
     remoteState: WalletRemoteUiState,
+    shownBalance: String?,
     onRetry: () -> Unit,
     onRecharge: () -> Unit,
 ) {
@@ -203,7 +279,7 @@ private fun WalletBalanceHero(
         when {
             remoteState.data != null -> {
                 AnimatedContent(
-                    targetState = remoteState.data.wallet.visibleBalance,
+                    targetState = shownBalance ?: remoteState.data.wallet.visibleBalance,
                     transitionSpec = {
                         if (targetState > initialState) {
                             (slideInVertically { height -> height } + fadeIn()) togetherWith

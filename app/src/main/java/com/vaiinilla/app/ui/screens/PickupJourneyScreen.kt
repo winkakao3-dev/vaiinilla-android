@@ -131,8 +131,6 @@ import kotlin.math.sin
 
 private val Lime = Color(0xFFB7D464)
 private val LimeInk = Color(0xFF172008)
-private val QrDark = Color(0xFF151513)
-private val QrLight = Color(0xFFFBF8F0)
 
 // La cámara vuela hacia la puerta de la tienda.
 private const val FOCUS_Y = 0.395f
@@ -140,7 +138,6 @@ private const val ZOOM_MAX = 3.4f
 private const val CAMERA_FROM = 0.04f
 private const val CAMERA_TO = 0.5f
 private const val HANDOFF = 0.4f
-private const val SAMPLE_SCALE = 0.25f
 
 private fun segment(
     p: Float,
@@ -160,38 +157,23 @@ private fun lerpF(
     t: Float,
 ): Float = a + (b - a) * t
 
-/** Cámara: `pantalla = anchor + (puntoEscena - focus) * zoom`. */
-private data class Camera(
-    val zoom: Float,
-    val anchor: Offset,
-    val focus: Offset,
-) {
-    fun toScreen(scene: Offset): Offset = anchor + (scene - focus) * zoom
-
-    fun toScene(screen: Offset): Offset = focus + (screen - anchor) / zoom
-}
-
 private fun cameraAt(
     p: Float,
     width: Float,
     height: Float,
-): Camera {
-    val t = eased(p, CAMERA_FROM, CAMERA_TO)
-    val focus = Offset(width * 0.5f, height * FOCUS_Y)
-    val target = Offset(width * 0.5f, height * 0.42f)
-    return Camera(
-        zoom = lerpF(1f, ZOOM_MAX, t),
-        anchor = focus + (target - focus) * t,
-        focus = focus,
+): SceneCamera =
+    SceneCamera.flight(
+        focus = Offset(width * 0.5f, height * FOCUS_Y),
+        target = Offset(width * 0.5f, height * 0.42f),
+        zoom = ZOOM_MAX,
+        t = eased(p, CAMERA_FROM, CAMERA_TO),
     )
-}
 
 /** Colores de la escena bajo cada bloque del mosaico, tal como se ve al pasar la cámara por [HANDOFF]. */
 private class Mosaic(
-    val matrix: BitMatrix,
+    val cells: SceneMosaic,
     val sceneCenter: Offset,
     val sceneSide: Float,
-    val sampled: Array<Color>,
 )
 
 private fun buildMosaic(
@@ -203,41 +185,13 @@ private fun buildMosaic(
     palette: ScenePalette,
 ): Mosaic {
     val camera = cameraAt(HANDOFF, width, height)
-    val screenSide = width * 1.18f
     val sceneCenter = camera.toScene(Offset(width * 0.5f, height * 0.42f))
-    val sceneSide = screenSide / camera.zoom
-    val bitmap =
-        ImageBitmap(
-            (width * SAMPLE_SCALE).roundToInt().coerceAtLeast(1),
-            (height * SAMPLE_SCALE).roundToInt().coerceAtLeast(1),
-        )
-    CanvasDrawScope().draw(
-        density,
-        LayoutDirection.Ltr,
-        androidx.compose.ui.graphics
-            .Canvas(bitmap),
-        Size(bitmap.width.toFloat(), bitmap.height.toFloat()),
-    ) {
-        withTransform({ scale(SAMPLE_SCALE, SAMPLE_SCALE, pivot = Offset.Zero) }) {
-            drawStorefront(Size(width, height), textMeasurer, palette, SceneMotion())
+    val sceneSide = width * 1.18f / camera.zoom
+    val cells =
+        SceneMosaic.build(matrix, Size(width, height), sceneCenter, sceneSide, density, palette.skyBottom) { stage ->
+            drawStorefront(stage, textMeasurer, palette, SceneMotion())
         }
-    }
-    val pixels: PixelMap = bitmap.toPixelMap()
-    val n = matrix.width
-    val sampled =
-        Array(n * n) { index ->
-            val col = index % n
-            val row = index / n
-            val point =
-                Offset(
-                    sceneCenter.x + ((col + 0.5f) / n - 0.5f) * sceneSide,
-                    sceneCenter.y + ((row + 0.5f) / n - 0.5f) * sceneSide,
-                )
-            val x = (point.x * SAMPLE_SCALE).roundToInt()
-            val y = (point.y * SAMPLE_SCALE).roundToInt()
-            if (x in 0 until pixels.width && y in 0 until pixels.height) pixels[x, y] else palette.skyBottom
-        }
-    return Mosaic(matrix, sceneCenter, sceneSide, sampled)
+    return Mosaic(cells, sceneCenter, sceneSide)
 }
 
 /**
@@ -422,8 +376,8 @@ private fun PickupJourney(
                             transformOrigin = TransformOrigin(0f, 0f)
                             scaleX = camera.zoom
                             scaleY = camera.zoom
-                            translationX = camera.anchor.x - camera.focus.x * camera.zoom
-                            translationY = camera.anchor.y - camera.focus.y * camera.zoom
+                            translationX = camera.translation.x
+                            translationY = camera.translation.y
                             alpha = sceneAlpha
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && sceneBlur > 0.5f) {
                                 renderEffect = BlurEffect(sceneBlur, sceneBlur, TileMode.Clamp)
@@ -625,55 +579,14 @@ private fun DrawScope.drawMosaic(
     p: Float,
     stage: Size,
 ) {
-    val n = mosaic.matrix.width
-    val camera = cameraAt(p, stage.width, stage.height)
-    val cameraCenter = camera.toScreen(mosaic.sceneCenter)
-    val cameraSide = mosaic.sceneSide * camera.zoom
-    val finalSide = min(stage.width * 0.74f, stage.height * 0.4f)
-    val finalCenter = Offset(stage.width * 0.5f, stage.height * 0.38f)
-    val settle = eased(p, 0.5f, 0.88f)
-    val side = lerpF(cameraSide, finalSide, settle)
-    val center = cameraCenter + (finalCenter - cameraCenter) * settle
-    val rect = Rect(center.x - side / 2f, center.y - side / 2f, center.x + side / 2f, center.y + side / 2f)
-    val cell = side / n
-    val gridAlpha = eased(p, 0.3f, 0.44f)
-
-    val cardAlpha = eased(p, 0.6f, 0.86f)
-    if (cardAlpha > 0f) {
-        val pad = cell * 1.6f
-        val radius = CornerRadius(24.dp.toPx())
-        drawRoundRect(
-            Color.Black.copy(alpha = 0.06f * cardAlpha),
-            topLeft = Offset(rect.left - pad, rect.top - pad + 10.dp.toPx()),
-            size = Size(side + pad * 2, side + pad * 2),
-            cornerRadius = radius,
-        )
-        drawRoundRect(
-            QrLight.copy(alpha = cardAlpha),
-            topLeft = Offset(rect.left - pad, rect.top - pad),
-            size = Size(side + pad * 2, side + pad * 2),
-            cornerRadius = radius,
-        )
-    }
-    // Las juntas entre bloques se ven mientras es mosaico y se cierran antes del final para que escanee.
-    val gap = cell * 0.08f * (1f - segment(p, 0.78f, 0.9f))
-    for (row in 0 until n) {
-        for (col in 0 until n) {
-            val start = mosaicCellStart(col, row, n)
-            val flip = eased(p, start, start + MOSAIC_FLIP_LENGTH)
-            val target = if (mosaic.matrix[col, row]) QrDark else QrLight
-            val color = lerp(mosaic.sampled[row * n + col], target, flip)
-            val bump = 1f - 0.22f * sin(PI.toFloat() * flip)
-            val size = (cell - gap) * bump
-            val cx = rect.left + (col + 0.5f) * cell
-            val cy = rect.top + (row + 0.5f) * cell
-            drawRect(
-                color.copy(alpha = color.alpha * gridAlpha),
-                topLeft = Offset(cx - size / 2f, cy - size / 2f),
-                size = Size(size + 0.5f, size + 0.5f),
-            )
-        }
-    }
+    drawFlightMosaic(
+        mosaic.cells,
+        mosaic.sceneCenter,
+        mosaic.sceneSide,
+        cameraAt(p, stage.width, stage.height),
+        qrCodeRect(stage),
+        p,
+    )
 }
 
 @Composable
@@ -721,7 +634,7 @@ private fun BackCloseIcons(closing: Float) {
 
 /** Vidrio esmerilado: la misma escena, desenfocada, detrás de un velo claro. Sin blur (Android < 12) queda un velo opaco. */
 @Composable
-private fun GlassPanel(
+internal fun GlassPanel(
     modifier: Modifier = Modifier,
     backdrop: (DrawScope.() -> Unit)?,
     shape: RoundedCornerShape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
@@ -1078,7 +991,7 @@ private fun PillButton(
 
 /** Sube el brillo al máximo mientras el código está a la vista y lo regresa al cerrar. */
 @Composable
-private fun ScreenBrightnessBoost(active: Boolean) {
+internal fun ScreenBrightnessBoost(active: Boolean) {
     val activity = LocalContext.current.findActivity() ?: return
     DisposableEffect(active, activity) {
         if (!active) return@DisposableEffect onDispose {}
