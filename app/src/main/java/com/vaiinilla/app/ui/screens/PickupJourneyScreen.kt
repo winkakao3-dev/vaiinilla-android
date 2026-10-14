@@ -83,6 +83,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
@@ -212,6 +213,7 @@ internal fun PickupJourneyScreen(
     onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
+    printsTicket: Boolean = false,
 ) {
     val palette = scenePaletteForTheme()
     CompositionLocalProvider(LocalScene provides palette) {
@@ -226,6 +228,7 @@ internal fun PickupJourneyScreen(
             onCurrentWaiterCall = onCurrentWaiterCall,
             onCallWaiter = onCallWaiter,
             onCancelWaiter = onCancelWaiter,
+            printsTicket = printsTicket,
         )
     }
 }
@@ -242,6 +245,7 @@ private fun PickupJourney(
     onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
+    printsTicket: Boolean = false,
 ) {
     val palette = LocalScene.current
     val reduceMotion = reducedMotion()
@@ -257,10 +261,26 @@ private fun PickupJourney(
     val intro = remember(order.summary.id) { Animatable(if (celebration != null) 1f else 0f) }
     val badge = remember(order.summary.id) { Animatable(if (celebration != null && !reduceMotion) 0f else 1f) }
     val check = remember(order.summary.id) { Animatable(if (celebration != null && !reduceMotion) 0f else 1f) }
+    // El tramo de la caja (`CheckoutStage`): 1 cuando ya no hay ticket que imprimir.
+    val printing = celebration != null && printsTicket && !reduceMotion
+    val checkout = remember(order.summary.id) { Animatable(if (printing) 0f else 1f) }
+    // Aparte de [checkout]: el resorte llega a 1 y el ticket sigue en escena hasta que acaba de volar.
+    var ticketOnStage by remember(order.summary.id) { mutableStateOf(printing) }
+    var cardRect by remember(order.summary.id) { mutableStateOf<Rect?>(null) }
     val latestOnCelebrationFinished by rememberUpdatedState(onCelebrationFinished)
     LaunchedEffect(order.summary.id, celebration) {
         if (celebration == null) return@LaunchedEffect
         intro.snapTo(1f)
+        if (ticketOnStage) {
+            // La caja imprime con un resorte; el ticket se arranca y sube con otro.
+            launch { checkout.animateTo(CHECKOUT_PRINTED, spring(dampingRatio = 1f, stiffness = 10f)) }
+            delay(2300)
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            launch { checkout.animateTo(1f, spring(dampingRatio = 1f, stiffness = 9f)) }
+            delay(1700)
+            checkout.snapTo(1f)
+            ticketOnStage = false
+        }
         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
         if (!reduceMotion) {
             badge.snapTo(0f)
@@ -413,7 +433,12 @@ private fun PickupJourney(
             modifier = Modifier.align(Alignment.BottomCenter),
         )
 
+        if (ticketOnStage) {
+            CheckoutStage(t = checkout.value, order = order, cardRect = cardRect, reduceMotion = reduceMotion)
+        }
+
         if (intro.value > 0.001f && celebration != null) {
+            // Mientras la caja imprime, la tarjeta espera invisible: el ticket vuela a su lugar y se vuelve ella.
             CelebrationCard(
                 order = order,
                 kind = celebration,
@@ -422,6 +447,8 @@ private fun PickupJourney(
                 check = check.value,
                 dropPx = heightPx * 0.32f,
                 backdrop = { drawStorefront(stage, textMeasurer, palette, motion) },
+                appear = eased(checkout.value, 0.9f, 1f),
+                onPlaced = { cardRect = it },
                 modifier = Modifier.align(Alignment.Center),
             )
         }
@@ -465,6 +492,8 @@ private fun CelebrationCard(
     dropPx: Float,
     backdrop: DrawScope.() -> Unit,
     modifier: Modifier = Modifier,
+    appear: Float = 1f,
+    onPlaced: (Rect) -> Unit = {},
 ) {
     val c = LocalScene.current
     val paid = kind == PurchaseCelebrationKind.PAYMENT_CONFIRMED
@@ -482,12 +511,13 @@ private fun CelebrationCard(
         modifier =
             modifier
                 .padding(horizontal = 20.dp)
+                .onGloballyPositioned { onPlaced(it.boundsInRoot()) }
                 .graphicsLayer {
                     translationY = dropPx * leaving * leaving
                     val scale = 1f - 0.08f * leaving
                     scaleX = scale
                     scaleY = scale
-                    alpha = (shown * 1.6f).coerceIn(0f, 1f)
+                    alpha = (shown * 1.6f).coerceIn(0f, 1f) * appear
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && leaving > 0.05f) {
                         val blur = leaving * 10.dp.toPx()
                         renderEffect = BlurEffect(blur, blur, TileMode.Decal)

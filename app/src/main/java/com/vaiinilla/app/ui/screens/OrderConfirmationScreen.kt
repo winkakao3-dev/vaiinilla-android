@@ -101,6 +101,8 @@ fun OrderConfirmationScreen(
             onCurrentWaiterCall = onCurrentWaiterCall,
             onCallWaiter = onCallWaiter,
             onCancelWaiter = onCancelWaiter,
+            // Las rentas de cancha no se cobran en la caja del mostrador: no imprimen ticket.
+            printsTicket = activeCelebration != null && order.reservation == null,
         )
     }
 }
