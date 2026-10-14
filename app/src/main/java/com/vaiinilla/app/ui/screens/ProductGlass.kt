@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.screens
 
 import android.os.Build
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -109,70 +110,18 @@ internal fun Modifier.glassEdge(
         shape,
     )
 
-/** Tarjeta del menú: la foto dentro de un vidrio, con la luz de la propia foto debajo. */
+/** Producto sin foto en la tarjeta del menú: el producto dibujado al centro. [drop] lo hace bajar al llegar. */
 @Composable
-internal fun ProductGlassCard(
-    product: Product,
+internal fun ProductIllustration(
+    kind: TrayItemKind,
     modifier: Modifier = Modifier,
+    drop: () -> Float = { 1f },
 ) {
-    val colors = LocalVaiinillaColors.current
-    val c = LocalScene.current
-    val tone = productTone(product)
-    val shape = RoundedCornerShape(26.dp)
-    Box(modifier.fillMaxWidth()) {
-        ProductPhotoShadow(
-            product = product,
-            tone = tone,
-            shape = shape,
-            modifier = Modifier.matchParentSize(),
-            // En la cuadrícula la luz se queda pegada a la tarjeta; la ficha abierta usa la suya, más amplia.
-            blur = 16.dp,
-            drop = 6.dp,
-            inset = 18.dp,
-            strength = if (colors.isDark) 0.45f else 0.35f,
-        )
-        // Vidrio denso: la luz se ve alrededor y debajo, y adentro apenas tiñe.
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .clip(shape)
-                .background(c.glassTint)
-                .glassEdge(c.glassEdge, shape)
-                .padding(7.dp),
-        ) {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(colors.paper2),
-            ) {
-                ProductImage(
-                    imageUrl = product.imageUrl,
-                    contentDescription = product.name,
-                    modifier = Modifier.fillMaxSize(),
-                    placeholder = { m -> ProductMonogram(product.name, m) },
-                )
-            }
-            Text(
-                text = product.name,
-                color = colors.ink,
-                fontWeight = FontWeight.Black,
-                fontSize = 16.sp,
-                lineHeight = 20.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 6.dp, top = 10.dp, end = 6.dp),
-            )
-            Text(
-                text = moneyLabel(product.digitalPrice),
-                color = colors.muted,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                lineHeight = 18.sp,
-                modifier = Modifier.padding(start = 6.dp, top = 2.dp, end = 6.dp, bottom = 6.dp),
-            )
-        }
+    Canvas(modifier) {
+        val d = drop()
+        val u = minOf(size.width, size.height) * 0.4f
+        val base = size.height * 0.74f - (1f - d) * size.height * 0.4f
+        drawTrayItem(kind, size.width / 2f, base, u, alpha = (d * 2.5f).coerceIn(0f, 1f))
     }
 }
 
