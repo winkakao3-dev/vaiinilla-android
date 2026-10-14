@@ -85,6 +85,8 @@ fun StudentShellHost(
     catalogDetailOpen: Boolean = false,
     /** El QR personal de la cartera está abierto sobre la casita: la barra se va mientras tanto. */
     walletCodeOpen: Boolean = false,
+    /** Lo que va encima de todo, también de la barra (la entrada a un lugar). */
+    overlay: @Composable () -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     val entry by navController.currentBackStackEntryAsState()
@@ -131,5 +133,6 @@ fun StudentShellHost(
                 )
             }
         }
+        overlay()
     }
 }

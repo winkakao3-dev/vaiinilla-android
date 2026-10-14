@@ -12,9 +12,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,10 +81,14 @@ import com.vaiinilla.app.ui.screens.CounterOrderSheet
 import com.vaiinilla.app.ui.screens.DiscoveryScreen
 import com.vaiinilla.app.ui.screens.InvitationAcceptanceScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
+import com.vaiinilla.app.ui.screens.LocalScene
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.OrdersAccessGate
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
 import com.vaiinilla.app.ui.screens.SharedTableCard
+import com.vaiinilla.app.ui.screens.StoreEntrance
+import com.vaiinilla.app.ui.screens.StoreEntranceOutcome
+import com.vaiinilla.app.ui.screens.StoreEntranceOverlay
 import com.vaiinilla.app.ui.screens.StudentAuthLandingScreen
 import com.vaiinilla.app.ui.screens.StudentForgotPasswordScreen
 import com.vaiinilla.app.ui.screens.StudentLoginScreen
@@ -98,6 +104,7 @@ import com.vaiinilla.app.ui.screens.WalletScreen
 import com.vaiinilla.app.ui.screens.WelcomeBootStage
 import com.vaiinilla.app.ui.screens.rememberOperationalColors
 import com.vaiinilla.app.ui.screens.rememberReduceMotion
+import com.vaiinilla.app.ui.screens.scenePaletteForTheme
 import com.vaiinilla.app.ui.sharedtable.SharedTableViewModel
 import com.vaiinilla.app.ui.support.SupportLastOrder
 import com.vaiinilla.app.ui.support.SupportScreen
@@ -309,6 +316,37 @@ fun AppNavHost(
         }
     }
 
+    // El QR personal de la cartera abierto sobre la casita: la barra de abajo se va mientras tanto.
+    var walletCodeOpen by remember { mutableStateOf(false) }
+
+    // Entrar a un lugar cruza la puerta de la tienda (`StoreEntranceOverlay`); el menú aparece al terminar.
+    var entrance by remember { mutableStateOf<StoreEntrance?>(null) }
+    var entranceEntered by remember { mutableStateOf(false) }
+    var entranceTimedOut by remember { mutableStateOf(false) }
+    LaunchedEffect(entrance?.id) {
+        if (entrance == null) return@LaunchedEffect
+        // Si el lugar nunca responde, la entrada no se queda tapando la pantalla.
+        delay(ENTRANCE_TIMEOUT_MS)
+        if (!entranceEntered) entranceTimedOut = true
+    }
+    val entranceOutcome =
+        when {
+            entranceEntered && orderState.loading -> StoreEntranceOutcome.WAITING
+            entranceEntered -> StoreEntranceOutcome.READY
+            entranceTimedOut -> StoreEntranceOutcome.FAILED
+            discoveryState.resolving -> StoreEntranceOutcome.WAITING
+            discoveryState.pendingSwitch != null ||
+                discoveryState.errorMessage != null ||
+                discoveryState.suspendedMessage != null -> StoreEntranceOutcome.FAILED
+            else -> StoreEntranceOutcome.WAITING
+        }
+
+    fun startEntrance(code: String?) {
+        entranceEntered = false
+        entranceTimedOut = false
+        entrance = StoreEntrance(code = code?.trim()?.takeIf { it.isNotEmpty() })
+    }
+
     fun enterVenueAndOpenCatalog(venue: GuestVenueContext) {
         val switchingEstablishment = isEstablishmentSwitch(orderState.guestVenue, venue)
         if (switchingEstablishment) {
@@ -318,11 +356,13 @@ fun AppNavHost(
         navController.navigate(Routes.CATALOG) {
             launchSingleTop = true
         }
+        entranceEntered = true
     }
 
     LaunchedEffect(pendingEstablishmentSlug) {
         val slug = pendingEstablishmentSlug?.trim().orEmpty()
         if (slug.isEmpty()) return@LaunchedEffect
+        startEntrance(slug)
         discoveryViewModel.openSlug(
             slug = slug,
             onEntered = { venue ->
@@ -334,6 +374,7 @@ fun AppNavHost(
     LaunchedEffect(pendingSpaceToken) {
         val token = pendingSpaceToken?.trim().orEmpty()
         if (token.isEmpty()) return@LaunchedEffect
+        startEntrance(token)
         discoveryViewModel.updateSpaceToken(token)
         discoveryViewModel.resolveSpaceToken(
             onEntered = ::enterVenueAndOpenCatalog,
@@ -542,9 +583,6 @@ fun AppNavHost(
             defaultValue = Routes.CART
         }
 
-    // El QR personal de la cartera abierto sobre la casita: la barra de abajo se va mientras tanto.
-    var walletCodeOpen by remember { mutableStateOf(false) }
-
     StudentShellHost(
         navController = navController,
         cartCount = orderState.cartItemCount,
@@ -601,8 +639,21 @@ fun AppNavHost(
                 StudentTab.ASSISTANT -> Unit
             }
         },
-        catalogDetailOpen = orderState.selectedProductId != null,
+        catalogDetailOpen = orderState.selectedProductId != null || entrance != null,
         walletCodeOpen = walletCodeOpen,
+        overlay = {
+            entrance?.let { current ->
+                CompositionLocalProvider(LocalScene provides scenePaletteForTheme()) {
+                    key(current.id) {
+                        StoreEntranceOverlay(
+                            entrance = current,
+                            outcome = entranceOutcome,
+                            onFinished = { if (entrance?.id == current.id) entrance = null },
+                        )
+                    }
+                }
+            }
+        },
     ) {
         NavHost(
             navController = navController,
@@ -676,20 +727,26 @@ fun AppNavHost(
                     onSpaceTokenChange = discoveryViewModel::updateSpaceToken,
                     onOpenQrScanner = { qrScannerOpen = true },
                     onSelectEstablishment = { establishment ->
+                        startEntrance(null)
                         discoveryViewModel.selectEstablishment(
                             establishment = establishment,
                             onEntered = ::enterVenueAndOpenCatalog,
                         )
+                        // Con carrito en otro lugar primero se confirma el cambio; la puerta espera a ese sí.
+                        if (discoveryViewModel.state.value.pendingSwitch != null) entrance = null
                     },
                     onResolveSpace = {
+                        startEntrance(discoveryState.spaceTokenInput)
                         discoveryViewModel.resolveSpaceToken(onEntered = ::enterVenueAndOpenCatalog)
                     },
                     onConfirmSwitch = {
+                        startEntrance(null)
                         discoveryViewModel.confirmPendingSwitch(::enterVenueAndOpenCatalog)
                     },
                     onDismissSwitch = discoveryViewModel::dismissPendingSwitch,
                     onContinueSelected = {
                         val selected = discoveryState.selected ?: return@DiscoveryScreen
+                        startEntrance(null)
                         enterVenueAndOpenCatalog(selected)
                     },
                     profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
@@ -715,6 +772,7 @@ fun AppNavHost(
                             },
                         onPayload = { rawValue ->
                             qrScannerOpen = false
+                            startEntrance(rawValue)
                             discoveryViewModel.resolveQrPayload(
                                 rawValue = rawValue,
                                 onEntered = ::enterVenueAndOpenCatalog,
@@ -1788,6 +1846,7 @@ fun AppNavHost(
 
 private const val AUTHORIZED_ACCESS_SYNC_INTERVAL_MS = 30_000L
 private const val WALLET_VISIBLE_REFRESH_MS = 8_000L
+private const val ENTRANCE_TIMEOUT_MS = 15_000L
 
 private fun NavHostController.navigateStudent(route: String) {
     navigate(route) {

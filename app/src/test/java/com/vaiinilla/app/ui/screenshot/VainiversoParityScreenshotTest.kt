@@ -8,6 +8,9 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import com.vaiinilla.app.core.qr.QrCodeEncoder
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import com.vaiinilla.app.ui.screens.LocalScene
+import com.vaiinilla.app.ui.screens.StoreEntrance
+import com.vaiinilla.app.ui.screens.StoreEntranceOutcome
+import com.vaiinilla.app.ui.screens.StoreEntranceOverlay
 import com.vaiinilla.app.ui.screens.WalletCodeOverlay
 import com.vaiinilla.app.ui.screens.jarFillLevel
 import com.vaiinilla.app.ui.screens.scenePaletteForTheme
@@ -66,4 +69,32 @@ class VainiversoParityScreenshotTest {
 
     @Test
     fun `wallet_code_night`() = capture("wallet_code_night", VaiinillaThemeMode.Dark) { WalletCode(1f) }
+
+    @Composable
+    private fun Entrance(at: Float) {
+        StoreEntranceOverlay(
+            entrance = StoreEntrance(code = "https://vaiinilla.app/e/sandbox-agentes"),
+            outcome = StoreEntranceOutcome.WAITING,
+            onFinished = {},
+            frozenAt = at,
+        )
+    }
+
+    @Test
+    fun `entrance_qr_day`() = capture("entrance_1_qr_day") { Entrance(0.08f) }
+
+    @Test
+    fun `entrance_mosaic_day`() = capture("entrance_2_mosaic_day") { Entrance(0.3f) }
+
+    @Test
+    fun `entrance_storefront_day`() = capture("entrance_3_storefront_day") { Entrance(0.5f) }
+
+    @Test
+    fun `entrance_door_day`() = capture("entrance_4_door_day") { Entrance(0.7f) }
+
+    @Test
+    fun `entrance_mosaic_night`() = capture("entrance_2_mosaic_night", VaiinillaThemeMode.Dark) { Entrance(0.3f) }
+
+    @Test
+    fun `entrance_storefront_night`() = capture("entrance_3_storefront_night", VaiinillaThemeMode.Dark) { Entrance(0.5f) }
 }
