@@ -527,6 +527,7 @@ private fun FilterChipsBar(
             label = if (nearbyLocating) "Ubicándote…" else "Cerca de mí",
             selected = nearbyActive,
             onClick = onToggleNearby,
+            seaGlass = true,
         )
         VenueFilter.entries.forEach { filter ->
             ChoiceChip(
@@ -536,6 +537,7 @@ private fun FilterChipsBar(
                     haptics.selection()
                     onSelectFilter(filter)
                 },
+                seaGlass = true,
             )
         }
     }

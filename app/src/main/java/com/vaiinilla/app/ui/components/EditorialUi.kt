@@ -57,8 +57,8 @@ import com.vaiinilla.app.ui.theme.seaGlassInk
 import com.vaiinilla.app.ui.theme.seaGlassNight
 
 /**
- * Búsqueda: un campo plano y nítido sobre la hoja, de la misma familia que las opciones sin elegir. El volumen queda
- * para la acción principal.
+ * Búsqueda. [seaGlass]: una pieza de vidrio vainilla, de la misma familia que las categorías sin elegir (menú y
+ * descubrir, como iOS); sin él, un campo plano sobre la hoja (la ayuda).
  */
 @Composable
 fun EditorialSearchField(
@@ -66,17 +66,23 @@ fun EditorialSearchField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
+    seaGlass: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
-    val ink = colors.ink
+    val ink = if (seaGlass) seaGlassInk(SeaGlassTone.vainilla) else colors.ink
+    val night = seaGlassNight()
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(50.dp)
-                .clip(RoundedCornerShape(18.dp))
-                .background(colors.paper2)
-                .padding(horizontal = 16.dp),
+                .height(if (seaGlass) 52.dp else 50.dp)
+                .then(
+                    if (seaGlass) {
+                        Modifier.seaGlass(SeaGlassTone.vainilla, CircleShape, night)
+                    } else {
+                        Modifier.clip(RoundedCornerShape(18.dp)).background(colors.paper2)
+                    },
+                ).padding(horizontal = if (seaGlass) 18.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(Icons.Outlined.Search, contentDescription = null, tint = ink, modifier = Modifier.size(19.dp))
@@ -96,7 +102,7 @@ fun EditorialSearchField(
                     if (value.isEmpty()) {
                         Text(
                             placeholder,
-                            color = colors.muted,
+                            color = if (seaGlass) ink.copy(alpha = 0.7f) else colors.muted,
                             fontSize = 14.5.sp,
                             fontWeight = FontWeight.SemiBold,
                         )
@@ -105,7 +111,20 @@ fun EditorialSearchField(
                 }
             },
         )
-        if (value.isNotEmpty()) {
+        if (value.isNotEmpty() && seaGlass) {
+            Spacer(Modifier.size(10.dp))
+            SeaGlassButton(
+                tone = SeaGlassTone.vainilla.picked,
+                onClick = { onValueChange("") },
+                modifier =
+                    Modifier
+                        .size(30.dp)
+                        .semantics { contentDescription = "Limpiar búsqueda" },
+                shape = CircleShape,
+            ) {
+                Icon(Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(14.dp))
+            }
+        } else if (value.isNotEmpty()) {
             Spacer(Modifier.size(10.dp))
             Box(
                 modifier =
@@ -466,8 +485,9 @@ fun ProfileInitialsButton(
 }
 
 /**
- * Una opción que se elige (categoría, segmento, filtro): plana y nítida. La elegida se rellena de tinta, no de lima:
- * el lima es solo de la acción principal de la pantalla. El cambio se funde con un resorte.
+ * Una opción que se elige (categoría, segmento, filtro). La elegida se rellena de tinta, no de lima: el lima es solo de
+ * la acción principal de la pantalla. El cambio se funde con un resorte. [seaGlass]: las sin elegir son piezas de
+ * vidrio vainilla (filas de categorías y filtros, como iOS); sin él, planas (las opciones dentro de una hoja).
  */
 @Composable
 fun ChoiceChip(
@@ -478,8 +498,11 @@ fun ChoiceChip(
     height: Dp = 38.dp,
     shape: Shape = RoundedCornerShape(percent = 50),
     contentPadding: Dp = 16.dp,
+    seaGlass: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
+    val night = seaGlassNight()
+    val restInk = if (seaGlass) seaGlassInk(SeaGlassTone.vainilla) else colors.ink
     val fill by animateFloatAsState(
         targetValue = if (selected) 1f else 0f,
         animationSpec = if (reducedMotion()) snap() else spring(dampingRatio = 0.8f, stiffness = 520f),
@@ -489,15 +512,16 @@ fun ChoiceChip(
         modifier =
             modifier
                 .heightIn(min = height)
+                .then(if (seaGlass) Modifier.seaGlass(SeaGlassTone.vainilla, shape, night) else Modifier)
                 .clip(shape)
-                .background(lerp(colors.paper2, colors.ink, fill))
+                .background(lerp(if (seaGlass) Color.Transparent else colors.paper2, colors.ink, fill))
                 .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
                 .semantics { this.selected = selected },
         contentAlignment = Alignment.Center,
     ) {
         Text(
             label,
-            color = lerp(colors.ink, colors.onInk, fill),
+            color = lerp(restInk, colors.onInk, fill),
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             maxLines = 2,

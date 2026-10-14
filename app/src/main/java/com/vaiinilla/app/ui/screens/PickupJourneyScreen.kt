@@ -8,12 +8,16 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -53,6 +57,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -67,22 +72,19 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
-import androidx.compose.ui.graphics.PixelMap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
@@ -97,42 +99,45 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.zxing.common.BitMatrix
 import com.vaiinilla.app.core.qr.QrCodeEncoder
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.openTableCallSpaceId
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.reducedMotion
-import com.vaiinilla.app.ui.order.MOSAIC_FLIP_LENGTH
+import com.vaiinilla.app.ui.components.rentalCourtName
+import com.vaiinilla.app.ui.components.rentalScheduleLabel
+import com.vaiinilla.app.ui.order.PickupPlace
 import com.vaiinilla.app.ui.order.PickupStep
 import com.vaiinilla.app.ui.order.PurchaseCelebrationKind
-import com.vaiinilla.app.ui.order.mosaicCellStart
+import com.vaiinilla.app.ui.order.courtLights
 import com.vaiinilla.app.ui.order.pickupCodeHint
 import com.vaiinilla.app.ui.order.pickupCodeUseful
 import com.vaiinilla.app.ui.order.pickupHint
+import com.vaiinilla.app.ui.order.pickupPlace
 import com.vaiinilla.app.ui.order.pickupStep
 import com.vaiinilla.app.ui.order.pickupTitle
 import com.vaiinilla.app.ui.order.shouldAutoRevealPickupCode
+import com.vaiinilla.app.ui.order.trayItemKind
 import com.vaiinilla.app.ui.theme.SeaGlassButton
 import com.vaiinilla.app.ui.theme.SeaGlassTone
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.Instant
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.min
-import kotlin.math.roundToInt
 import kotlin.math.sin
 
 private val Lime = Color(0xFFB7D464)
+private val ServedStates = setOf(OrderState.READY, OrderState.DELIVERED)
 private val LimeInk = Color(0xFF172008)
-private val QrDark = Color(0xFF151513)
-private val QrLight = Color(0xFFFBF8F0)
 
 // La cámara vuela hacia la puerta de la tienda.
 private const val FOCUS_Y = 0.395f
@@ -140,7 +145,6 @@ private const val ZOOM_MAX = 3.4f
 private const val CAMERA_FROM = 0.04f
 private const val CAMERA_TO = 0.5f
 private const val HANDOFF = 0.4f
-private const val SAMPLE_SCALE = 0.25f
 
 private fun segment(
     p: Float,
@@ -160,38 +164,46 @@ private fun lerpF(
     t: Float,
 ): Float = a + (b - a) * t
 
-/** Cámara: `pantalla = anchor + (puntoEscena - focus) * zoom`. */
-private data class Camera(
-    val zoom: Float,
-    val anchor: Offset,
-    val focus: Offset,
-) {
-    fun toScreen(scene: Offset): Offset = anchor + (scene - focus) * zoom
+/** Dónde del mundo se sigue el pedido: la tienda o tu mesa en el plano. */
+private sealed interface PickupScene {
+    fun focus(stage: Size): Offset
 
-    fun toScene(screen: Offset): Offset = focus + (screen - anchor) / zoom
+    data object Storefront : PickupScene {
+        override fun focus(stage: Size) = Offset(stage.width * 0.5f, stage.height * FOCUS_Y)
+    }
+
+    data class Table(
+        val table: FloorTable,
+    ) : PickupScene {
+        override fun focus(stage: Size) = FloorPlanLayout.table(table.index, stage)
+    }
+
+    data class Court(
+        val court: CourtRental,
+    ) : PickupScene {
+        override fun focus(stage: Size) = CourtLayout.center(stage)
+    }
 }
 
+/** La cámara de la recogida: vuela de la calle a la puerta de la tienda o a tu mesa en el plano. */
 private fun cameraAt(
     p: Float,
     width: Float,
     height: Float,
-): Camera {
-    val t = eased(p, CAMERA_FROM, CAMERA_TO)
-    val focus = Offset(width * 0.5f, height * FOCUS_Y)
-    val target = Offset(width * 0.5f, height * 0.42f)
-    return Camera(
-        zoom = lerpF(1f, ZOOM_MAX, t),
-        anchor = focus + (target - focus) * t,
-        focus = focus,
+    scene: PickupScene = PickupScene.Storefront,
+): SceneCamera =
+    SceneCamera.flight(
+        focus = scene.focus(Size(width, height)),
+        target = Offset(width * 0.5f, height * 0.42f),
+        zoom = ZOOM_MAX,
+        t = eased(p, CAMERA_FROM, CAMERA_TO),
     )
-}
 
 /** Colores de la escena bajo cada bloque del mosaico, tal como se ve al pasar la cámara por [HANDOFF]. */
 private class Mosaic(
-    val matrix: BitMatrix,
+    val cells: SceneMosaic,
     val sceneCenter: Offset,
     val sceneSide: Float,
-    val sampled: Array<Color>,
 )
 
 private fun buildMosaic(
@@ -201,43 +213,22 @@ private fun buildMosaic(
     density: Density,
     textMeasurer: TextMeasurer,
     palette: ScenePalette,
+    scene: PickupScene,
+    now: Instant,
 ): Mosaic {
-    val camera = cameraAt(HANDOFF, width, height)
-    val screenSide = width * 1.18f
+    val camera = cameraAt(HANDOFF, width, height, scene)
     val sceneCenter = camera.toScene(Offset(width * 0.5f, height * 0.42f))
-    val sceneSide = screenSide / camera.zoom
-    val bitmap =
-        ImageBitmap(
-            (width * SAMPLE_SCALE).roundToInt().coerceAtLeast(1),
-            (height * SAMPLE_SCALE).roundToInt().coerceAtLeast(1),
-        )
-    CanvasDrawScope().draw(
-        density,
-        LayoutDirection.Ltr,
-        androidx.compose.ui.graphics
-            .Canvas(bitmap),
-        Size(bitmap.width.toFloat(), bitmap.height.toFloat()),
-    ) {
-        withTransform({ scale(SAMPLE_SCALE, SAMPLE_SCALE, pivot = Offset.Zero) }) {
-            drawStorefront(Size(width, height), textMeasurer, palette, SceneMotion())
+    val sceneSide = width * 1.18f / camera.zoom
+    val outside = if (scene is PickupScene.Storefront) palette.skyBottom else palette.sidewalk
+    val cells =
+        SceneMosaic.build(matrix, Size(width, height), sceneCenter, sceneSide, density, outside) { stage ->
+            when (scene) {
+                is PickupScene.Table -> drawFloorPlan(stage, palette, scene.table)
+                is PickupScene.Court -> drawCourt(stage, palette, scene.court, now)
+                PickupScene.Storefront -> drawStorefront(stage, textMeasurer, palette, SceneMotion())
+            }
         }
-    }
-    val pixels: PixelMap = bitmap.toPixelMap()
-    val n = matrix.width
-    val sampled =
-        Array(n * n) { index ->
-            val col = index % n
-            val row = index / n
-            val point =
-                Offset(
-                    sceneCenter.x + ((col + 0.5f) / n - 0.5f) * sceneSide,
-                    sceneCenter.y + ((row + 0.5f) / n - 0.5f) * sceneSide,
-                )
-            val x = (point.x * SAMPLE_SCALE).roundToInt()
-            val y = (point.y * SAMPLE_SCALE).roundToInt()
-            if (x in 0 until pixels.width && y in 0 until pixels.height) pixels[x, y] else palette.skyBottom
-        }
-    return Mosaic(matrix, sceneCenter, sceneSide, sampled)
+    return Mosaic(cells, sceneCenter, sceneSide)
 }
 
 /**
@@ -258,6 +249,7 @@ internal fun PickupJourneyScreen(
     onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
+    printsTicket: Boolean = false,
 ) {
     val palette = scenePaletteForTheme()
     CompositionLocalProvider(LocalScene provides palette) {
@@ -272,6 +264,7 @@ internal fun PickupJourneyScreen(
             onCurrentWaiterCall = onCurrentWaiterCall,
             onCallWaiter = onCallWaiter,
             onCancelWaiter = onCancelWaiter,
+            printsTicket = printsTicket,
         )
     }
 }
@@ -288,6 +281,7 @@ private fun PickupJourney(
     onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
+    printsTicket: Boolean = false,
 ) {
     val palette = LocalScene.current
     val reduceMotion = reducedMotion()
@@ -296,17 +290,34 @@ private fun PickupJourney(
     val matrix = remember(qrPayload) { qrPayload?.let { runCatching { QrCodeEncoder.encode(it) }.getOrNull() } }
     val hasCode = matrix != null && pickupCodeUseful(order, deliveryRequiresQr)
     val state = order.summary.state
-    val step = pickupStep(state)
+    // Una renta no tiene pasos de cocina: se cuenta con la cancha y su reloj.
+    val step = if (order.reservation != null) null else pickupStep(state)
     val ready = step == PickupStep.READY
 
     // 1 = tarjeta de celebración al frente; 0 = ya es la hoja de estado.
     val intro = remember(order.summary.id) { Animatable(if (celebration != null) 1f else 0f) }
     val badge = remember(order.summary.id) { Animatable(if (celebration != null && !reduceMotion) 0f else 1f) }
     val check = remember(order.summary.id) { Animatable(if (celebration != null && !reduceMotion) 0f else 1f) }
+    // El tramo de la caja (`CheckoutStage`): 1 cuando ya no hay ticket que imprimir.
+    val printing = celebration != null && printsTicket && !reduceMotion
+    val checkout = remember(order.summary.id) { Animatable(if (printing) 0f else 1f) }
+    // Aparte de [checkout]: el resorte llega a 1 y el ticket sigue en escena hasta que acaba de volar.
+    var ticketOnStage by remember(order.summary.id) { mutableStateOf(printing) }
+    var cardRect by remember(order.summary.id) { mutableStateOf<Rect?>(null) }
     val latestOnCelebrationFinished by rememberUpdatedState(onCelebrationFinished)
     LaunchedEffect(order.summary.id, celebration) {
         if (celebration == null) return@LaunchedEffect
         intro.snapTo(1f)
+        if (ticketOnStage) {
+            // La caja imprime con un resorte; el ticket se arranca y sube con otro.
+            launch { checkout.animateTo(CHECKOUT_PRINTED, spring(dampingRatio = 1f, stiffness = 10f)) }
+            delay(2300)
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            launch { checkout.animateTo(1f, spring(dampingRatio = 1f, stiffness = 9f)) }
+            delay(1700)
+            checkout.snapTo(1f)
+            ticketOnStage = false
+        }
         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
         if (!reduceMotion) {
             badge.snapTo(0f)
@@ -327,8 +338,91 @@ private fun PickupJourney(
     val reveal = remember(order.summary.id) { Animatable(if (revealed) 1f else 0f) }
     var autoRevealedState by rememberSaveable(order.summary.id) { mutableStateOf<String?>(null) }
     val autoReveal = shouldAutoRevealPickupCode(order, hasCode)
-    LaunchedEffect(autoReveal, state, celebrating) {
-        if (celebrating || !autoReveal || autoRevealedState == state.wireValue) return@LaunchedEffect
+    // Asomados a la cocina por la vitrina mientras se prepara (`KitchenPeekScene`), y el letrero de "Listo".
+    val peek = remember(order.summary.id) { Animatable(0f) }
+    val kitchenLit = remember(order.summary.id) { Animatable(0f) }
+    val place = pickupPlace(order)
+    // Tu mesa en el plano cuando el pedido se come aquí; si no, se sigue en la tienda.
+    val scene =
+        remember(place, order.summary.space, order.reservation) {
+            val space = order.summary.space
+            val reservation = order.reservation
+            when {
+                place == PickupPlace.COURT && reservation != null ->
+                    PickupScene.Court(
+                        CourtRental(order.rentalCourtName ?: "Cancha", reservation.start, reservation.end),
+                    )
+                place == PickupPlace.TABLE ->
+                    PickupScene.Table(
+                        FloorTable.of(space?.id ?: 0, space?.name.orEmpty(), space?.type) ?: FloorTable(0, "Tu mesa"),
+                    )
+                else -> PickupScene.Storefront
+            }
+        }
+    // El reloj de la cancha: las líneas, las luces, el marcador y los textos cambian con el tiempo jugado.
+    val now by produceState(Instant.now(), scene) {
+        while (scene is PickupScene.Court) {
+            delay(1000)
+            value = Instant.now()
+        }
+    }
+    val served = remember(order.summary.id) { Animatable(if (state in ServedStates) 1f else 0f) }
+    val delivered = remember(order.summary.id) { Animatable(if (state == OrderState.DELIVERED) 1f else 0f) }
+
+    // Sale de la vitrina a la tienda completa. El código siempre vuela desde ahí: el mosaico es de la fachada.
+    suspend fun leaveKitchen() {
+        if (peek.value <= 0f) return
+        if (reduceMotion) peek.snapTo(0f) else peek.animateTo(0f, spring(dampingRatio = 1f, stiffness = 22f))
+    }
+
+    // Un solo dueño de la cámara entre estados: se asoma a la cocina mientras se prepara; al estar listo prende
+    // el letrero, sale a la puerta y, si toca, abre el código.
+    LaunchedEffect(state, place, celebrating, autoReveal, revealed) {
+        if (celebrating) return@LaunchedEffect
+        if (scene is PickupScene.Table) {
+            // Comer aquí: listo, el plato sale a la barra con un saltito; entregado, vuela a tu mesa y se asienta.
+            val nowServed = if (state in ServedStates) 1f else 0f
+            val nowDelivered = if (state == OrderState.DELIVERED) 1f else 0f
+            if (served.value != nowServed) {
+                if (nowServed == 1f) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                if (reduceMotion) {
+                    served.snapTo(nowServed)
+                } else {
+                    launch { served.animateTo(nowServed, spring(dampingRatio = 0.55f, stiffness = 220f)) }
+                    delay(700)
+                }
+            }
+            if (delivered.value != nowDelivered) {
+                if (nowDelivered == 1f) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (reduceMotion) {
+                    delivered.snapTo(nowDelivered)
+                } else {
+                    delivered.animateTo(nowDelivered, spring(dampingRatio = 1f, stiffness = 14f))
+                }
+            }
+            return@LaunchedEffect
+        }
+        if (place == PickupPlace.KITCHEN) {
+            if (revealed || peek.value >= 1f) return@LaunchedEffect
+            kitchenLit.snapTo(0f)
+            // La tienda se queda un momento antes de asomarse: se lee como el mismo lugar y no como un corte.
+            delay(if (reduceMotion) 0 else 900)
+            if (reduceMotion) peek.snapTo(1f) else peek.animateTo(1f, spring(dampingRatio = 1f, stiffness = 12f))
+            return@LaunchedEffect
+        }
+        if (peek.value > 0f && !revealed) {
+            if (state == OrderState.READY) {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (reduceMotion) {
+                    kitchenLit.snapTo(1f)
+                } else {
+                    launch { kitchenLit.animateTo(1f, spring(dampingRatio = 1f, stiffness = 30f)) }
+                }
+                delay(if (reduceMotion) 400 else 1300)
+            }
+            leaveKitchen()
+        }
+        if (!autoReveal || autoRevealedState == state.wireValue) return@LaunchedEffect
         // Deja ver a Vaini saludar antes de volar hacia el código.
         delay(if (reduceMotion) 300 else 1500)
         autoRevealedState = state.wireValue
@@ -336,6 +430,7 @@ private fun PickupJourney(
         revealed = true
     }
     LaunchedEffect(revealed) {
+        if (revealed) leaveKitchen()
         val target = if (revealed) 1f else 0f
         if (reduceMotion) {
             reveal.snapTo(
@@ -384,7 +479,27 @@ private fun PickupJourney(
             ),
         label = "wave",
     )
+    val steamPhase by idle.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart),
+        label = "steam",
+    )
     val cheering = ready || intro.value > 0.02f
+    val tick = rememberPixelTick(moving = !reduceMotion && scene !is PickupScene.Storefront)
+    // Los reflectores bajan con un fundido de 1.6 s en vez de saltar al cambiar de momento.
+    val courtLight by animateFloatAsState(
+        targetValue =
+            (scene as? PickupScene.Court)?.let {
+                courtLights(
+                    it.court.start,
+                    it.court.end,
+                    now,
+                ).lights.toFloat()
+            } ?: 0f,
+        animationSpec = if (reduceMotion) snap() else tween(1600),
+        label = "court_light",
+    )
     val motion =
         SceneMotion(
             blink = if (reduceMotion) 1f else blink,
@@ -403,13 +518,50 @@ private fun PickupJourney(
         val heightPx = with(density) { maxHeight.toPx() }
         val stage = Size(widthPx, heightPx)
         val mosaic =
-            remember(matrix, widthPx, heightPx, palette) {
-                matrix?.let { buildMosaic(it, widthPx, heightPx, density, textMeasurer, palette) }
+            remember(matrix, widthPx, heightPx, palette, scene) {
+                matrix?.let { buildMosaic(it, widthPx, heightPx, density, textMeasurer, palette, scene, now) }
             }
         val p = reveal.value
-        val camera = cameraAt(p, widthPx, heightPx)
+        val peeking = peek.value > 0.0001f
+        val camera = if (peeking) kitchenCamera(peek.value, stage) else cameraAt(p, widthPx, heightPx, scene)
+        val plate = FloorPlate(served.value, delivered.value)
+        val kitchenAlpha = segment(peek.value, 0f, 0.25f)
+        val kitchen =
+            if (kitchenAlpha > 0.001f) {
+                KitchenPeek(
+                    item =
+                        trayItemKind(
+                            order.items
+                                .firstOrNull()
+                                ?.productName
+                                .orEmpty(),
+                        ),
+                    lit = kitchenLit.value,
+                    alpha = kitchenAlpha,
+                    steam = steamPhase,
+                    steamMoving = !reduceMotion,
+                )
+            } else {
+                null
+            }
+        // La hoja de vidrio deja ver lo mismo que la cámara: la cocina cuando está asomada.
+        val drawWorld: DrawScope.() -> Unit = {
+            if (scene is PickupScene.Table) {
+                drawFloorPlan(stage, palette, scene.table, tick, cheering, plate)
+            } else if (scene is PickupScene.Court) {
+                drawCourt(stage, palette, scene.court, now, tick, courtLight)
+            } else if (peeking) {
+                withTransform({
+                    translate(camera.translation.x, camera.translation.y)
+                    scale(camera.zoom, camera.zoom, pivot = Offset.Zero)
+                }) { drawStorefront(stage, textMeasurer, palette, motion, kitchen) }
+            } else {
+                drawStorefront(stage, textMeasurer, palette, motion)
+            }
+        }
         val sceneAlpha = 1f - segment(p, 0.46f, 0.62f)
-        val speedBlur = if (p in 0.03f..0.5f) min(10f, abs(reveal.velocity) * 9f) else 0f
+        val peekBlur = if (reduceMotion) 0f else 6f * sin(PI.toFloat() * peek.value)
+        val speedBlur = maxOf(if (p in 0.03f..0.5f) min(10f, abs(reveal.velocity) * 9f) else 0f, peekBlur)
         val introBlur = if (reduceMotion) 0f else intro.value * 18f
         val sceneBlur = maxOf(speedBlur, introBlur)
 
@@ -422,15 +574,19 @@ private fun PickupJourney(
                             transformOrigin = TransformOrigin(0f, 0f)
                             scaleX = camera.zoom
                             scaleY = camera.zoom
-                            translationX = camera.anchor.x - camera.focus.x * camera.zoom
-                            translationY = camera.anchor.y - camera.focus.y * camera.zoom
+                            translationX = camera.translation.x
+                            translationY = camera.translation.y
                             alpha = sceneAlpha
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && sceneBlur > 0.5f) {
                                 renderEffect = BlurEffect(sceneBlur, sceneBlur, TileMode.Clamp)
                             }
                         },
             ) {
-                drawStorefront(stage, textMeasurer, palette, motion)
+                when (scene) {
+                    is PickupScene.Table -> drawFloorPlan(stage, palette, scene.table, tick, cheering, plate)
+                    is PickupScene.Court -> drawCourt(stage, palette, scene.court, now, tick, courtLight)
+                    PickupScene.Storefront -> drawStorefront(stage, textMeasurer, palette, motion, kitchen)
+                }
             }
         }
 
@@ -441,16 +597,17 @@ private fun PickupJourney(
                         .fillMaxSize()
                         .semantics { contentDescription = "Código QR del pedido ${order.summary.folio}" },
             ) {
-                drawMosaic(mosaic, p, stage)
+                drawMosaic(mosaic, p, stage, scene)
             }
         }
 
         StatusSheet(
             order = order,
             step = step,
+            now = now,
             hasCode = hasCode,
             hidden = maxOf(eased(p, 0f, 0.2f), intro.value),
-            backdrop = { drawStorefront(stage, textMeasurer, palette, motion) },
+            backdrop = drawWorld,
             onShowCode = { revealed = true },
             onViewTracking = onViewTracking,
             onCurrentWaiterCall = onCurrentWaiterCall,
@@ -459,7 +616,12 @@ private fun PickupJourney(
             modifier = Modifier.align(Alignment.BottomCenter),
         )
 
+        if (ticketOnStage) {
+            CheckoutStage(t = checkout.value, order = order, cardRect = cardRect, reduceMotion = reduceMotion)
+        }
+
         if (intro.value > 0.001f && celebration != null) {
+            // Mientras la caja imprime, la tarjeta espera invisible: el ticket vuela a su lugar y se vuelve ella.
             CelebrationCard(
                 order = order,
                 kind = celebration,
@@ -467,7 +629,9 @@ private fun PickupJourney(
                 badge = badge.value,
                 check = check.value,
                 dropPx = heightPx * 0.32f,
-                backdrop = { drawStorefront(stage, textMeasurer, palette, motion) },
+                backdrop = drawWorld,
+                appear = eased(checkout.value, 0.9f, 1f),
+                onPlaced = { cardRect = it },
                 modifier = Modifier.align(Alignment.Center),
             )
         }
@@ -511,6 +675,8 @@ private fun CelebrationCard(
     dropPx: Float,
     backdrop: DrawScope.() -> Unit,
     modifier: Modifier = Modifier,
+    appear: Float = 1f,
+    onPlaced: (Rect) -> Unit = {},
 ) {
     val c = LocalScene.current
     val paid = kind == PurchaseCelebrationKind.PAYMENT_CONFIRMED
@@ -528,12 +694,13 @@ private fun CelebrationCard(
         modifier =
             modifier
                 .padding(horizontal = 20.dp)
+                .onGloballyPositioned { onPlaced(it.boundsInRoot()) }
                 .graphicsLayer {
                     translationY = dropPx * leaving * leaving
                     val scale = 1f - 0.08f * leaving
                     scaleX = scale
                     scaleY = scale
-                    alpha = (shown * 1.6f).coerceIn(0f, 1f)
+                    alpha = (shown * 1.6f).coerceIn(0f, 1f) * appear
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && leaving > 0.05f) {
                         val blur = leaving * 10.dp.toPx()
                         renderEffect = BlurEffect(blur, blur, TileMode.Decal)
@@ -624,56 +791,16 @@ private fun DrawScope.drawMosaic(
     mosaic: Mosaic,
     p: Float,
     stage: Size,
+    scene: PickupScene,
 ) {
-    val n = mosaic.matrix.width
-    val camera = cameraAt(p, stage.width, stage.height)
-    val cameraCenter = camera.toScreen(mosaic.sceneCenter)
-    val cameraSide = mosaic.sceneSide * camera.zoom
-    val finalSide = min(stage.width * 0.74f, stage.height * 0.4f)
-    val finalCenter = Offset(stage.width * 0.5f, stage.height * 0.38f)
-    val settle = eased(p, 0.5f, 0.88f)
-    val side = lerpF(cameraSide, finalSide, settle)
-    val center = cameraCenter + (finalCenter - cameraCenter) * settle
-    val rect = Rect(center.x - side / 2f, center.y - side / 2f, center.x + side / 2f, center.y + side / 2f)
-    val cell = side / n
-    val gridAlpha = eased(p, 0.3f, 0.44f)
-
-    val cardAlpha = eased(p, 0.6f, 0.86f)
-    if (cardAlpha > 0f) {
-        val pad = cell * 1.6f
-        val radius = CornerRadius(24.dp.toPx())
-        drawRoundRect(
-            Color.Black.copy(alpha = 0.06f * cardAlpha),
-            topLeft = Offset(rect.left - pad, rect.top - pad + 10.dp.toPx()),
-            size = Size(side + pad * 2, side + pad * 2),
-            cornerRadius = radius,
-        )
-        drawRoundRect(
-            QrLight.copy(alpha = cardAlpha),
-            topLeft = Offset(rect.left - pad, rect.top - pad),
-            size = Size(side + pad * 2, side + pad * 2),
-            cornerRadius = radius,
-        )
-    }
-    // Las juntas entre bloques se ven mientras es mosaico y se cierran antes del final para que escanee.
-    val gap = cell * 0.08f * (1f - segment(p, 0.78f, 0.9f))
-    for (row in 0 until n) {
-        for (col in 0 until n) {
-            val start = mosaicCellStart(col, row, n)
-            val flip = eased(p, start, start + MOSAIC_FLIP_LENGTH)
-            val target = if (mosaic.matrix[col, row]) QrDark else QrLight
-            val color = lerp(mosaic.sampled[row * n + col], target, flip)
-            val bump = 1f - 0.22f * sin(PI.toFloat() * flip)
-            val size = (cell - gap) * bump
-            val cx = rect.left + (col + 0.5f) * cell
-            val cy = rect.top + (row + 0.5f) * cell
-            drawRect(
-                color.copy(alpha = color.alpha * gridAlpha),
-                topLeft = Offset(cx - size / 2f, cy - size / 2f),
-                size = Size(size + 0.5f, size + 0.5f),
-            )
-        }
-    }
+    drawFlightMosaic(
+        mosaic.cells,
+        mosaic.sceneCenter,
+        mosaic.sceneSide,
+        cameraAt(p, stage.width, stage.height, scene),
+        qrCodeRect(stage),
+        p,
+    )
 }
 
 @Composable
@@ -721,7 +848,7 @@ private fun BackCloseIcons(closing: Float) {
 
 /** Vidrio esmerilado: la misma escena, desenfocada, detrás de un velo claro. Sin blur (Android < 12) queda un velo opaco. */
 @Composable
-private fun GlassPanel(
+internal fun GlassPanel(
     modifier: Modifier = Modifier,
     backdrop: (DrawScope.() -> Unit)?,
     shape: RoundedCornerShape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
@@ -766,6 +893,7 @@ private fun GlassPanel(
 private fun StatusSheet(
     order: OrderDetail,
     step: PickupStep?,
+    now: Instant,
     hasCode: Boolean,
     hidden: Float,
     backdrop: DrawScope.() -> Unit,
@@ -827,7 +955,7 @@ private fun StatusSheet(
             Spacer(Modifier.height(12.dp))
             Text("Pedido #${order.summary.folio}", color = c.muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             AnimatedContent(
-                targetState = pickupTitle(order),
+                targetState = pickupTitle(order, now),
                 transitionSpec = {
                     (
                         fadeIn(spring(stiffness = 180f)) + scaleIn(spring(stiffness = 180f), initialScale = 0.92f) +
@@ -849,7 +977,7 @@ private fun StatusSheet(
                 )
             }
             AnimatedContent(
-                targetState = pickupHint(order),
+                targetState = pickupHint(order, now),
                 transitionSpec = { fadeIn(spring(stiffness = 180f)) togetherWith fadeOut(spring(stiffness = 300f)) },
                 label = "pickup_hint",
             ) { hint ->
@@ -966,9 +1094,11 @@ private fun OrderSummaryCard(order: OrderDetail) {
                 .background(c.glassLine),
         )
         Text(
-            when (order.summary.destination) {
-                OrderDestination.IN_SPACE -> "A ${order.summary.space?.name ?: "tu espacio"}"
-                OrderDestination.TAKE_AWAY -> "Para llevar · recoge en barra"
+            when {
+                order.reservation != null -> rentalScheduleLabel(order.reservation)
+                order.summary.destination == OrderDestination.IN_SPACE ->
+                    "A ${order.summary.space?.name ?: "tu espacio"}"
+                else -> "Para llevar · recoge en barra"
             } + " · " + moneyLabel(order.summary.total),
             color = c.muted,
             fontSize = 12.sp,
@@ -1078,7 +1208,7 @@ private fun PillButton(
 
 /** Sube el brillo al máximo mientras el código está a la vista y lo regresa al cerrar. */
 @Composable
-private fun ScreenBrightnessBoost(active: Boolean) {
+internal fun ScreenBrightnessBoost(active: Boolean) {
     val activity = LocalContext.current.findActivity() ?: return
     DisposableEffect(active, activity) {
         if (!active) return@DisposableEffect onDispose {}

@@ -60,8 +60,10 @@ fun shouldShowStudentNav(
     route: String?,
     catalogDetailOpen: Boolean,
     cartHasItems: Boolean = false,
+    walletCodeOpen: Boolean = false,
 ): Boolean =
     studentTabForRoute(route) != null &&
+        !(route == Routes.WALLET && walletCodeOpen) &&
         route != Routes.ASSISTANT &&
         route != Routes.ASSISTANT_CHAT &&
         !(route == Routes.CATALOG && catalogDetailOpen) &&
@@ -81,12 +83,17 @@ fun StudentShellHost(
     onNavigateStudent: (String) -> Unit,
     onPrepareStudent: (StudentTab) -> Unit = {},
     catalogDetailOpen: Boolean = false,
+    /** El QR personal de la cartera está abierto sobre la casita: la barra se va mientras tanto. */
+    walletCodeOpen: Boolean = false,
+    /** Lo que va encima de todo, también de la barra (la entrada a un lugar). */
+    overlay: @Composable () -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     val entry by navController.currentBackStackEntryAsState()
     val route = entry?.destination?.route
     val activeTab = studentTabForRoute(route)
-    val showNav = shouldShowStudentNav(route, catalogDetailOpen, cartHasItems = cartCount > 0)
+    val showNav =
+        shouldShowStudentNav(route, catalogDetailOpen, cartHasItems = cartCount > 0, walletCodeOpen = walletCodeOpen)
 
     val hazeState = rememberHazeState()
     val colors = LocalVaiinillaColors.current
@@ -127,5 +134,6 @@ fun StudentShellHost(
                 )
             }
         }
+        overlay()
     }
 }

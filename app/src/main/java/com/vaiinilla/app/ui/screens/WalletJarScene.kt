@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -53,7 +54,16 @@ internal fun jarFillLevel(balance: String?): Float {
     return (0.12 + 0.88 * ln(1 + value) / ln(1 + JAR_SCALE_MAX)).toFloat().coerceIn(0f, 1f)
 }
 
-private class JarMotion(
+/** El frasco de tesoros sobre la mesa; la cámara de "Recargar en caja" vuela hacia él. */
+internal fun walletJarRect(stage: Size): Rect {
+    val tableTop = stage.height * 0.285f
+    val jarW = stage.width * 0.24f
+    val jarH = stage.height * 0.12f
+    val left = stage.width * 0.48f + (stage.width * 0.4f - jarW) / 2f
+    return Rect(left, tableTop - jarH, left + jarW, tableTop)
+}
+
+internal class JarMotion(
     val blink: Float,
     val happy: Boolean,
     val fill: Float,
@@ -129,7 +139,7 @@ internal fun WalletJarBackdrop(
     }
 }
 
-private fun DrawScope.drawVainiHome(
+internal fun DrawScope.drawVainiHome(
     stage: Size,
     textMeasurer: TextMeasurer,
     c: ScenePalette,
@@ -277,10 +287,11 @@ private fun DrawScope.drawVainiHome(
     }
 
     // El frasco de tesoros: las monedas llegan hasta el nivel del saldo.
-    val jarW = w * 0.24f
-    val jarH = h * 0.12f
-    val jarLeft = tableLeft + (tableW - jarW) / 2f
-    val jarTop = tableTop - jarH
+    val jarFrame = walletJarRect(stage)
+    val jarW = jarFrame.width
+    val jarH = jarFrame.height
+    val jarLeft = jarFrame.left
+    val jarTop = jarFrame.top
     val inner = hair * 4
     val innerTop = jarTop + jarH * 0.12f
     val innerBottom = tableTop - inner
