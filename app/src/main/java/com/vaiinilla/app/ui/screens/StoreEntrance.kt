@@ -52,12 +52,18 @@ import kotlin.math.sqrt
 // Entrar a un lugar es la recogida al revés, como `StoreEntranceView.swift` en iOS: el QR que escaneaste se deshace
 // en un mosaico que se vuelve la fachada, Vaini saluda en la puerta y la cámara entra por ella hasta que la luz de la
 // tienda llena la pantalla. Ahí espera a que el menú esté listo y se desvanece sobre él. Si no se pudo entrar, la
-// cámara sale por la puerta de regreso y se desvanece sobre la calle.
+// cámara sale por la puerta de regreso y se desvanece sobre la calle. Con el QR de una mesa, el QR se vuelve el
+// plano del lugar visto desde arriba (`FloorPlanScene`) y la cámara baja a tu mesa.
 
-/** Una entrada en curso. [code]: lo que se escaneó, se escribió o llegó por enlace; sin código empieza en la fachada. */
+/**
+ * Una entrada en curso. [code]: lo que se escaneó, se escribió o llegó por enlace; sin código empieza en la fachada.
+ * [table]: la mesa del QR, si era de una. Llega cuando el lugar responde; si la escena ya apareció, se entra por la
+ * fachada.
+ */
 internal data class StoreEntrance(
     val code: String?,
     val id: String = UUID.randomUUID().toString(),
+    val table: FloorTable? = null,
 )
 
 internal enum class StoreEntranceOutcome { WAITING, READY, FAILED }
@@ -67,6 +73,9 @@ private const val DOOR_ZOOM = 12f
 private const val MOSAIC_CENTER_Y = 0.39f
 private const val HOLD_AT = 0.9f
 private const val START_WITHOUT_CODE = 0.42f
+
+/** Hasta aquí la entrada todavía puede volverse el plano de tu mesa: después ya se ve la fachada. */
+private const val TABLE_ADOPT_BEFORE = 0.34f
 
 private fun smooth(
     p: Float,
@@ -129,8 +138,14 @@ internal fun StoreEntranceOverlay(
         }
     }
 
+    var table by remember(entrance.id) { mutableStateOf(entrance.table) }
+    LaunchedEffect(entrance.table) {
+        val arrived = entrance.table ?: return@LaunchedEffect
+        if (table == null && (frozenAt ?: p.value) < TABLE_ADOPT_BEFORE) table = arrived
+    }
     val matrix = remember(entrance.code) { entrance.code?.let { runCatching { QrCodeEncoder.encode(it) }.getOrNull() } }
     val motion = rememberCheeringMotion(reduceMotion)
+    val tick = rememberPixelTick(moving = !reduceMotion && table != null)
     BoxWithConstraints(
         Modifier
             .fillMaxSize()
@@ -141,19 +156,32 @@ internal fun StoreEntranceOverlay(
             .semantics { contentDescription = "Entrando" },
     ) {
         val stage = with(density) { Size(maxWidth.toPx(), maxHeight.toPx()) }
-        val sceneCenter = Offset(stage.width / 2f, stage.height * MOSAIC_CENTER_Y)
+        val mine = table
+        // El cuadro de la escena que el QR cubre al deshacerse: la fachada o el plano completo.
+        val sceneCenter =
+            if (mine != null) {
+                Offset(stage.width / 2f, FloorPlanLayout.room(stage).center.y)
+            } else {
+                Offset(stage.width / 2f, stage.height * MOSAIC_CENTER_Y)
+            }
         val mosaic =
-            remember(matrix, stage, palette) {
+            remember(matrix, stage, palette, mine) {
                 matrix?.let {
-                    SceneMosaic.build(it, stage, sceneCenter, stage.width, density, palette.stage) { size ->
-                        drawStorefront(size, textMeasurer, palette, SceneMotion())
+                    val outside = if (mine != null) palette.sidewalk else palette.stage
+                    SceneMosaic.build(it, stage, sceneCenter, stage.width, density, outside) { size ->
+                        if (mine != null) {
+                            drawFloorPlan(size, palette, mine)
+                        } else {
+                            drawStorefront(size, textMeasurer, palette, SceneMotion())
+                        }
                     }
                 }
             }
         val progress = p.value
         val t = smooth(progress, 0.5f, 0.88f)
         val zoom = SceneCurve.lerp(1f, DOOR_ZOOM, t * t)
-        val focus = Offset(stage.width / 2f, stage.height * DOOR_FOCUS_Y)
+        // Se entra por la puerta o, desde el plano, se baja a tu mesa.
+        val focus = mine?.let { FloorPlanLayout.table(it.index, stage) } ?: Offset(stage.width / 2f, stage.height * DOOR_FOCUS_Y)
         val anchor = Offset(focus.x, SceneCurve.lerp(focus.y, stage.height / 2f, t))
         val camera = SceneCamera(zoom, anchor, focus)
         val sceneAlpha = if (mosaic == null) 1f else smooth(progress, 0.34f, 0.48f)
@@ -174,7 +202,13 @@ internal fun StoreEntranceOverlay(
                             renderEffect = BlurEffect(px, px, TileMode.Clamp)
                         }
                     },
-            ) { drawStorefront(size, textMeasurer, palette, motion()) }
+            ) {
+                if (mine != null) {
+                    drawFloorPlan(size, palette, mine, tick, cheering = true)
+                } else {
+                    drawStorefront(size, textMeasurer, palette, motion())
+                }
+            }
         }
         if (mosaic != null && progress < 0.56f) {
             Canvas(Modifier.fillMaxSize()) { drawEntranceMosaic(mosaic, progress, sceneCenter) }

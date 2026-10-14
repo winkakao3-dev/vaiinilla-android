@@ -86,6 +86,7 @@ import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.OrdersAccessGate
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
 import com.vaiinilla.app.ui.screens.SharedTableCard
+import com.vaiinilla.app.ui.screens.FloorTable
 import com.vaiinilla.app.ui.screens.StoreEntrance
 import com.vaiinilla.app.ui.screens.StoreEntranceOutcome
 import com.vaiinilla.app.ui.screens.StoreEntranceOverlay
@@ -355,6 +356,12 @@ fun AppNavHost(
         orderFlowViewModel.enterGuestVenue(venue)
         navController.navigate(Routes.CATALOG) {
             launchSingleTop = true
+        }
+        // Con el QR de una mesa, la entrada se vuelve el plano del lugar con tu mesa marcada.
+        val current = entrance
+        val space = venue.space
+        if (current?.code != null && current.table == null && space != null) {
+            FloorTable.of(space.id, space.name, space.type)?.let { entrance = current.copy(table = it) }
         }
         entranceEntered = true
     }

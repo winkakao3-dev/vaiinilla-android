@@ -137,6 +137,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private val Lime = Color(0xFFB7D464)
+private val ServedStates = setOf(OrderState.READY, OrderState.DELIVERED)
 private val LimeInk = Color(0xFF172008)
 
 // La cámara vuela hacia la puerta de la tienda.
@@ -164,13 +165,30 @@ private fun lerpF(
     t: Float,
 ): Float = a + (b - a) * t
 
+/** Dónde del mundo se sigue el pedido: la tienda o tu mesa en el plano. */
+private sealed interface PickupScene {
+    fun focus(stage: Size): Offset
+
+    data object Storefront : PickupScene {
+        override fun focus(stage: Size) = Offset(stage.width * 0.5f, stage.height * FOCUS_Y)
+    }
+
+    data class Table(
+        val table: FloorTable,
+    ) : PickupScene {
+        override fun focus(stage: Size) = FloorPlanLayout.table(table.index, stage)
+    }
+}
+
+/** La cámara de la recogida: vuela de la calle a la puerta de la tienda o a tu mesa en el plano. */
 private fun cameraAt(
     p: Float,
     width: Float,
     height: Float,
+    scene: PickupScene = PickupScene.Storefront,
 ): SceneCamera =
     SceneCamera.flight(
-        focus = Offset(width * 0.5f, height * FOCUS_Y),
+        focus = scene.focus(Size(width, height)),
         target = Offset(width * 0.5f, height * 0.42f),
         zoom = ZOOM_MAX,
         t = eased(p, CAMERA_FROM, CAMERA_TO),
@@ -190,13 +208,18 @@ private fun buildMosaic(
     density: Density,
     textMeasurer: TextMeasurer,
     palette: ScenePalette,
+    scene: PickupScene,
 ): Mosaic {
-    val camera = cameraAt(HANDOFF, width, height)
+    val camera = cameraAt(HANDOFF, width, height, scene)
     val sceneCenter = camera.toScene(Offset(width * 0.5f, height * 0.42f))
     val sceneSide = width * 1.18f / camera.zoom
+    val outside = if (scene is PickupScene.Table) palette.sidewalk else palette.skyBottom
     val cells =
-        SceneMosaic.build(matrix, Size(width, height), sceneCenter, sceneSide, density, palette.skyBottom) { stage ->
-            drawStorefront(stage, textMeasurer, palette, SceneMotion())
+        SceneMosaic.build(matrix, Size(width, height), sceneCenter, sceneSide, density, outside) { stage ->
+            when (scene) {
+                is PickupScene.Table -> drawFloorPlan(stage, palette, scene.table)
+                PickupScene.Storefront -> drawStorefront(stage, textMeasurer, palette, SceneMotion())
+            }
         }
     return Mosaic(cells, sceneCenter, sceneSide)
 }
@@ -311,6 +334,18 @@ private fun PickupJourney(
     val peek = remember(order.summary.id) { Animatable(0f) }
     val kitchenLit = remember(order.summary.id) { Animatable(0f) }
     val place = pickupPlace(order)
+    // Tu mesa en el plano cuando el pedido se come aquí; si no, se sigue en la tienda.
+    val scene =
+        remember(place, order.summary.space) {
+            val space = order.summary.space
+            if (place == PickupPlace.TABLE) {
+                PickupScene.Table(FloorTable.of(space?.id ?: 0, space?.name.orEmpty(), space?.type) ?: FloorTable(0, "Tu mesa"))
+            } else {
+                PickupScene.Storefront
+            }
+        }
+    val served = remember(order.summary.id) { Animatable(if (state in ServedStates) 1f else 0f) }
+    val delivered = remember(order.summary.id) { Animatable(if (state == OrderState.DELIVERED) 1f else 0f) }
 
     // Sale de la vitrina a la tienda completa. El código siempre vuela desde ahí: el mosaico es de la fachada.
     suspend fun leaveKitchen() {
@@ -322,6 +357,29 @@ private fun PickupJourney(
     // el letrero, sale a la puerta y, si toca, abre el código.
     LaunchedEffect(state, place, celebrating, autoReveal, revealed) {
         if (celebrating) return@LaunchedEffect
+        if (scene is PickupScene.Table) {
+            // Comer aquí: listo, el plato sale a la barra con un saltito; entregado, vuela a tu mesa y se asienta.
+            val nowServed = if (state in ServedStates) 1f else 0f
+            val nowDelivered = if (state == OrderState.DELIVERED) 1f else 0f
+            if (served.value != nowServed) {
+                if (nowServed == 1f) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                if (reduceMotion) {
+                    served.snapTo(nowServed)
+                } else {
+                    launch { served.animateTo(nowServed, spring(dampingRatio = 0.55f, stiffness = 220f)) }
+                    delay(700)
+                }
+            }
+            if (delivered.value != nowDelivered) {
+                if (nowDelivered == 1f) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (reduceMotion) {
+                    delivered.snapTo(nowDelivered)
+                } else {
+                    delivered.animateTo(nowDelivered, spring(dampingRatio = 1f, stiffness = 14f))
+                }
+            }
+            return@LaunchedEffect
+        }
         if (place == PickupPlace.KITCHEN) {
             if (revealed || peek.value >= 1f) return@LaunchedEffect
             kitchenLit.snapTo(0f)
@@ -406,6 +464,7 @@ private fun PickupJourney(
         label = "steam",
     )
     val cheering = ready || intro.value > 0.02f
+    val tick = rememberPixelTick(moving = !reduceMotion && scene is PickupScene.Table)
     val motion =
         SceneMotion(
             blink = if (reduceMotion) 1f else blink,
@@ -424,12 +483,13 @@ private fun PickupJourney(
         val heightPx = with(density) { maxHeight.toPx() }
         val stage = Size(widthPx, heightPx)
         val mosaic =
-            remember(matrix, widthPx, heightPx, palette) {
-                matrix?.let { buildMosaic(it, widthPx, heightPx, density, textMeasurer, palette) }
+            remember(matrix, widthPx, heightPx, palette, scene) {
+                matrix?.let { buildMosaic(it, widthPx, heightPx, density, textMeasurer, palette, scene) }
             }
         val p = reveal.value
         val peeking = peek.value > 0.0001f
-        val camera = if (peeking) kitchenCamera(peek.value, stage) else cameraAt(p, widthPx, heightPx)
+        val camera = if (peeking) kitchenCamera(peek.value, stage) else cameraAt(p, widthPx, heightPx, scene)
+        val plate = FloorPlate(served.value, delivered.value)
         val kitchenAlpha = segment(peek.value, 0f, 0.25f)
         val kitchen =
             if (kitchenAlpha > 0.001f) {
@@ -445,7 +505,9 @@ private fun PickupJourney(
             }
         // La hoja de vidrio deja ver lo mismo que la cámara: la cocina cuando está asomada.
         val drawWorld: DrawScope.() -> Unit = {
-            if (peeking) {
+            if (scene is PickupScene.Table) {
+                drawFloorPlan(stage, palette, scene.table, tick, cheering, plate)
+            } else if (peeking) {
                 withTransform({
                     translate(camera.translation.x, camera.translation.y)
                     scale(camera.zoom, camera.zoom, pivot = Offset.Zero)
@@ -477,7 +539,10 @@ private fun PickupJourney(
                             }
                         },
             ) {
-                drawStorefront(stage, textMeasurer, palette, motion, kitchen)
+                when (scene) {
+                    is PickupScene.Table -> drawFloorPlan(stage, palette, scene.table, tick, cheering, plate)
+                    PickupScene.Storefront -> drawStorefront(stage, textMeasurer, palette, motion, kitchen)
+                }
             }
         }
 
@@ -488,7 +553,7 @@ private fun PickupJourney(
                         .fillMaxSize()
                         .semantics { contentDescription = "Código QR del pedido ${order.summary.folio}" },
             ) {
-                drawMosaic(mosaic, p, stage)
+                drawMosaic(mosaic, p, stage, scene)
             }
         }
 
@@ -681,12 +746,13 @@ private fun DrawScope.drawMosaic(
     mosaic: Mosaic,
     p: Float,
     stage: Size,
+    scene: PickupScene,
 ) {
     drawFlightMosaic(
         mosaic.cells,
         mosaic.sceneCenter,
         mosaic.sceneSide,
-        cameraAt(p, stage.width, stage.height),
+        cameraAt(p, stage.width, stage.height, scene),
         qrCodeRect(stage),
         p,
     )

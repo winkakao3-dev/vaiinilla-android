@@ -135,3 +135,19 @@ internal fun pickupPlace(order: OrderDetail): PickupPlace =
         order.summary.state == OrderState.PREPARING -> PickupPlace.KITCHEN
         else -> PickupPlace.STOREFRONT
     }
+
+/** Mesas en el plano del Vainiverso (vista desde arriba del lugar). */
+internal const val FLOOR_TABLE_COUNT = 6
+
+/**
+ * Cuál mesa del plano es la tuya: la del número en el nombre ("Mesa 4" → la cuarta) o, si no tiene, una fija según
+ * el id, para que el mismo espacio caiga siempre en el mismo lugar.
+ */
+internal fun floorTableIndex(
+    name: String,
+    id: Int,
+): Int {
+    val number = Regex("\\d+").findAll(name).lastOrNull()?.value?.toIntOrNull()
+    if (number != null && number > 0) return (number - 1) % FLOOR_TABLE_COUNT
+    return kotlin.math.abs(id) % FLOOR_TABLE_COUNT
+}

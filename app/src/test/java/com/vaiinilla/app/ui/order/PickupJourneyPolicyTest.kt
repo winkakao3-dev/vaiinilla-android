@@ -100,6 +100,15 @@ class PickupJourneyPolicyTest {
         assertEquals(PickupPlace.COURT, pickupPlace(rental))
     }
 
+    @Test
+    fun yourTableIsTheOneNamedInTheSpace() {
+        assertEquals(3, floorTableIndex("Mesa 4", 99))
+        assertEquals(0, floorTableIndex("Mesa 1", 99))
+        assertEquals(1, floorTableIndex("Mesa 8", 99))
+        assertEquals(2, floorTableIndex("Terraza", 14))
+        assertEquals(5, floorTableIndex("Mesa 0", 5))
+    }
+
     private fun order(
         state: OrderState,
         payment: PaymentMethod = PaymentMethod.BALANCE,

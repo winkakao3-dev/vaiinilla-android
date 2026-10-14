@@ -20,6 +20,9 @@ import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import com.vaiinilla.app.ui.order.TrayItemKind
 import com.vaiinilla.app.ui.screens.CheckoutStage
+import com.vaiinilla.app.ui.screens.FloorPlate
+import com.vaiinilla.app.ui.screens.FloorTable
+import com.vaiinilla.app.ui.screens.drawFloorPlan
 import com.vaiinilla.app.ui.screens.KitchenPeek
 import com.vaiinilla.app.ui.screens.LocalScene
 import com.vaiinilla.app.ui.screens.SceneMotion
@@ -207,4 +210,46 @@ class VainiversoParityScreenshotTest {
 
     @Test
     fun `kitchen_ready_night`() = capture("kitchen_3_ready_night", VaiinillaThemeMode.Dark) { Kitchen(1f, 1f) }
+
+    private val mesa4 = FloorTable(index = 3, name = "Mesa 4")
+
+    @Composable
+    private fun Floor(plate: FloorPlate?) {
+        val palette = LocalScene.current
+        Canvas(Modifier.fillMaxSize()) { drawFloorPlan(size, palette, mesa4, tick = 1, cheering = plate != null, plate = plate) }
+    }
+
+    @Test
+    fun `floor_plan_day`() = capture("floor_1_plan_day") { Floor(null) }
+
+    @Test
+    fun `floor_served_day`() = capture("floor_2_served_day") { Floor(FloorPlate(1f, 0f)) }
+
+    @Test
+    fun `floor_flying_day`() = capture("floor_3_flying_day") { Floor(FloorPlate(1f, 0.5f)) }
+
+    @Test
+    fun `floor_delivered_night`() = capture("floor_4_delivered_night", VaiinillaThemeMode.Dark) { Floor(FloorPlate(1f, 1f)) }
+
+    @Test
+    fun `floor_plan_midnight`() = capture("floor_5_plan_midnight", VaiinillaThemeMode.Amoled) { Floor(null) }
+
+    @Composable
+    private fun TableEntrance(at: Float) {
+        StoreEntranceOverlay(
+            entrance = StoreEntrance(code = "https://vaiinilla.app/m/sandbox-mesa-4", table = mesa4),
+            outcome = StoreEntranceOutcome.WAITING,
+            onFinished = {},
+            frozenAt = at,
+        )
+    }
+
+    @Test
+    fun `table_entrance_mosaic_day`() = capture("table_entrance_1_mosaic_day") { TableEntrance(0.3f) }
+
+    @Test
+    fun `table_entrance_plan_day`() = capture("table_entrance_2_plan_day") { TableEntrance(0.5f) }
+
+    @Test
+    fun `table_entrance_descend_day`() = capture("table_entrance_3_descend_day") { TableEntrance(0.7f) }
 }
