@@ -11,9 +11,11 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -55,6 +57,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -69,21 +72,17 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
-import androidx.compose.ui.graphics.PixelMap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -100,7 +99,6 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.zxing.common.BitMatrix
@@ -113,11 +111,12 @@ import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.openTableCallSpaceId
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.reducedMotion
-import com.vaiinilla.app.ui.order.MOSAIC_FLIP_LENGTH
+import com.vaiinilla.app.ui.components.rentalCourtName
+import com.vaiinilla.app.ui.components.rentalScheduleLabel
 import com.vaiinilla.app.ui.order.PickupPlace
 import com.vaiinilla.app.ui.order.PickupStep
 import com.vaiinilla.app.ui.order.PurchaseCelebrationKind
-import com.vaiinilla.app.ui.order.mosaicCellStart
+import com.vaiinilla.app.ui.order.courtLights
 import com.vaiinilla.app.ui.order.pickupCodeHint
 import com.vaiinilla.app.ui.order.pickupCodeUseful
 import com.vaiinilla.app.ui.order.pickupHint
@@ -128,13 +127,13 @@ import com.vaiinilla.app.ui.order.shouldAutoRevealPickupCode
 import com.vaiinilla.app.ui.order.trayItemKind
 import com.vaiinilla.app.ui.theme.SeaGlassButton
 import com.vaiinilla.app.ui.theme.SeaGlassTone
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.time.Instant
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.min
-import kotlin.math.roundToInt
 import kotlin.math.sin
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 private val Lime = Color(0xFFB7D464)
 private val ServedStates = setOf(OrderState.READY, OrderState.DELIVERED)
@@ -178,6 +177,12 @@ private sealed interface PickupScene {
     ) : PickupScene {
         override fun focus(stage: Size) = FloorPlanLayout.table(table.index, stage)
     }
+
+    data class Court(
+        val court: CourtRental,
+    ) : PickupScene {
+        override fun focus(stage: Size) = CourtLayout.center(stage)
+    }
 }
 
 /** La cámara de la recogida: vuela de la calle a la puerta de la tienda o a tu mesa en el plano. */
@@ -209,15 +214,17 @@ private fun buildMosaic(
     textMeasurer: TextMeasurer,
     palette: ScenePalette,
     scene: PickupScene,
+    now: Instant,
 ): Mosaic {
     val camera = cameraAt(HANDOFF, width, height, scene)
     val sceneCenter = camera.toScene(Offset(width * 0.5f, height * 0.42f))
     val sceneSide = width * 1.18f / camera.zoom
-    val outside = if (scene is PickupScene.Table) palette.sidewalk else palette.skyBottom
+    val outside = if (scene is PickupScene.Storefront) palette.skyBottom else palette.sidewalk
     val cells =
         SceneMosaic.build(matrix, Size(width, height), sceneCenter, sceneSide, density, outside) { stage ->
             when (scene) {
                 is PickupScene.Table -> drawFloorPlan(stage, palette, scene.table)
+                is PickupScene.Court -> drawCourt(stage, palette, scene.court, now)
                 PickupScene.Storefront -> drawStorefront(stage, textMeasurer, palette, SceneMotion())
             }
         }
@@ -283,7 +290,8 @@ private fun PickupJourney(
     val matrix = remember(qrPayload) { qrPayload?.let { runCatching { QrCodeEncoder.encode(it) }.getOrNull() } }
     val hasCode = matrix != null && pickupCodeUseful(order, deliveryRequiresQr)
     val state = order.summary.state
-    val step = pickupStep(state)
+    // Una renta no tiene pasos de cocina: se cuenta con la cancha y su reloj.
+    val step = if (order.reservation != null) null else pickupStep(state)
     val ready = step == PickupStep.READY
 
     // 1 = tarjeta de celebración al frente; 0 = ya es la hoja de estado.
@@ -336,14 +344,28 @@ private fun PickupJourney(
     val place = pickupPlace(order)
     // Tu mesa en el plano cuando el pedido se come aquí; si no, se sigue en la tienda.
     val scene =
-        remember(place, order.summary.space) {
+        remember(place, order.summary.space, order.reservation) {
             val space = order.summary.space
-            if (place == PickupPlace.TABLE) {
-                PickupScene.Table(FloorTable.of(space?.id ?: 0, space?.name.orEmpty(), space?.type) ?: FloorTable(0, "Tu mesa"))
-            } else {
-                PickupScene.Storefront
+            val reservation = order.reservation
+            when {
+                place == PickupPlace.COURT && reservation != null ->
+                    PickupScene.Court(
+                        CourtRental(order.rentalCourtName ?: "Cancha", reservation.start, reservation.end),
+                    )
+                place == PickupPlace.TABLE ->
+                    PickupScene.Table(
+                        FloorTable.of(space?.id ?: 0, space?.name.orEmpty(), space?.type) ?: FloorTable(0, "Tu mesa"),
+                    )
+                else -> PickupScene.Storefront
             }
         }
+    // El reloj de la cancha: las líneas, las luces, el marcador y los textos cambian con el tiempo jugado.
+    val now by produceState(Instant.now(), scene) {
+        while (scene is PickupScene.Court) {
+            delay(1000)
+            value = Instant.now()
+        }
+    }
     val served = remember(order.summary.id) { Animatable(if (state in ServedStates) 1f else 0f) }
     val delivered = remember(order.summary.id) { Animatable(if (state == OrderState.DELIVERED) 1f else 0f) }
 
@@ -356,7 +378,7 @@ private fun PickupJourney(
     // Un solo dueño de la cámara entre estados: se asoma a la cocina mientras se prepara; al estar listo prende
     // el letrero, sale a la puerta y, si toca, abre el código.
     LaunchedEffect(state, place, celebrating, autoReveal, revealed) {
-        if (celebrating) return@LaunchedEffect
+        if (celebrating || scene is PickupScene.Court) return@LaunchedEffect
         if (scene is PickupScene.Table) {
             // Comer aquí: listo, el plato sale a la barra con un saltito; entregado, vuela a tu mesa y se asienta.
             val nowServed = if (state in ServedStates) 1f else 0f
@@ -464,7 +486,20 @@ private fun PickupJourney(
         label = "steam",
     )
     val cheering = ready || intro.value > 0.02f
-    val tick = rememberPixelTick(moving = !reduceMotion && scene is PickupScene.Table)
+    val tick = rememberPixelTick(moving = !reduceMotion && scene !is PickupScene.Storefront)
+    // Los reflectores bajan con un fundido de 1.6 s en vez de saltar al cambiar de momento.
+    val courtLight by animateFloatAsState(
+        targetValue =
+            (scene as? PickupScene.Court)?.let {
+                courtLights(
+                    it.court.start,
+                    it.court.end,
+                    now,
+                ).lights.toFloat()
+            } ?: 0f,
+        animationSpec = if (reduceMotion) snap() else tween(1600),
+        label = "court_light",
+    )
     val motion =
         SceneMotion(
             blink = if (reduceMotion) 1f else blink,
@@ -484,7 +519,7 @@ private fun PickupJourney(
         val stage = Size(widthPx, heightPx)
         val mosaic =
             remember(matrix, widthPx, heightPx, palette, scene) {
-                matrix?.let { buildMosaic(it, widthPx, heightPx, density, textMeasurer, palette, scene) }
+                matrix?.let { buildMosaic(it, widthPx, heightPx, density, textMeasurer, palette, scene, now) }
             }
         val p = reveal.value
         val peeking = peek.value > 0.0001f
@@ -494,7 +529,13 @@ private fun PickupJourney(
         val kitchen =
             if (kitchenAlpha > 0.001f) {
                 KitchenPeek(
-                    item = trayItemKind(order.items.firstOrNull()?.productName.orEmpty()),
+                    item =
+                        trayItemKind(
+                            order.items
+                                .firstOrNull()
+                                ?.productName
+                                .orEmpty(),
+                        ),
                     lit = kitchenLit.value,
                     alpha = kitchenAlpha,
                     steam = steamPhase,
@@ -507,6 +548,8 @@ private fun PickupJourney(
         val drawWorld: DrawScope.() -> Unit = {
             if (scene is PickupScene.Table) {
                 drawFloorPlan(stage, palette, scene.table, tick, cheering, plate)
+            } else if (scene is PickupScene.Court) {
+                drawCourt(stage, palette, scene.court, now, tick, courtLight)
             } else if (peeking) {
                 withTransform({
                     translate(camera.translation.x, camera.translation.y)
@@ -541,6 +584,7 @@ private fun PickupJourney(
             ) {
                 when (scene) {
                     is PickupScene.Table -> drawFloorPlan(stage, palette, scene.table, tick, cheering, plate)
+                    is PickupScene.Court -> drawCourt(stage, palette, scene.court, now, tick, courtLight)
                     PickupScene.Storefront -> drawStorefront(stage, textMeasurer, palette, motion, kitchen)
                 }
             }
@@ -560,6 +604,7 @@ private fun PickupJourney(
         StatusSheet(
             order = order,
             step = step,
+            now = now,
             hasCode = hasCode,
             hidden = maxOf(eased(p, 0f, 0.2f), intro.value),
             backdrop = drawWorld,
@@ -848,6 +893,7 @@ internal fun GlassPanel(
 private fun StatusSheet(
     order: OrderDetail,
     step: PickupStep?,
+    now: Instant,
     hasCode: Boolean,
     hidden: Float,
     backdrop: DrawScope.() -> Unit,
@@ -909,7 +955,7 @@ private fun StatusSheet(
             Spacer(Modifier.height(12.dp))
             Text("Pedido #${order.summary.folio}", color = c.muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             AnimatedContent(
-                targetState = pickupTitle(order),
+                targetState = pickupTitle(order, now),
                 transitionSpec = {
                     (
                         fadeIn(spring(stiffness = 180f)) + scaleIn(spring(stiffness = 180f), initialScale = 0.92f) +
@@ -931,7 +977,7 @@ private fun StatusSheet(
                 )
             }
             AnimatedContent(
-                targetState = pickupHint(order),
+                targetState = pickupHint(order, now),
                 transitionSpec = { fadeIn(spring(stiffness = 180f)) togetherWith fadeOut(spring(stiffness = 300f)) },
                 label = "pickup_hint",
             ) { hint ->
@@ -1048,9 +1094,11 @@ private fun OrderSummaryCard(order: OrderDetail) {
                 .background(c.glassLine),
         )
         Text(
-            when (order.summary.destination) {
-                OrderDestination.IN_SPACE -> "A ${order.summary.space?.name ?: "tu espacio"}"
-                OrderDestination.TAKE_AWAY -> "Para llevar · recoge en barra"
+            when {
+                order.reservation != null -> rentalScheduleLabel(order.reservation)
+                order.summary.destination == OrderDestination.IN_SPACE ->
+                    "A ${order.summary.space?.name ?: "tu espacio"}"
+                else -> "Para llevar · recoge en barra"
             } + " · " + moneyLabel(order.summary.total),
             color = c.muted,
             fontSize = 12.sp,

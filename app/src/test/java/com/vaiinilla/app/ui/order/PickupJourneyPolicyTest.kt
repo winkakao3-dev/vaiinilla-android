@@ -109,6 +109,45 @@ class PickupJourneyPolicyTest {
         assertEquals(5, floorTableIndex("Mesa 0", 5))
     }
 
+    @Test
+    fun courtLinesFollowTheTimePlayedAndTheLightsDimBeforeTheEnd() {
+        val start = Instant.ofEpochSecond(0)
+        val end = start.plusSeconds(60 * 60)
+        assertEquals(CourtLights(0.0, 0.3), courtLights(start, end, start.minusSeconds(60)))
+        assertEquals(CourtLights(0.5, 1.0), courtLights(start, end, start.plusSeconds(30 * 60)))
+        val grace = courtLights(start, end, end.minusSeconds(4 * 60))
+        assertEquals(0.4, grace.lights, 0.0)
+        assertEquals(56.0 / 60, grace.lines, 1e-9)
+        assertEquals(CourtLights(1.0, 0.0), courtLights(start, end, end))
+        assertEquals(CourtLights(1.0, 0.0), courtLights(end, start, start))
+    }
+
+    @Test
+    fun aRentalIsToldByTheCourtNotByTheOrderStatus() {
+        val start = Instant.ofEpochSecond(1_000_000)
+        val end = start.plusSeconds(3600)
+        val rental =
+            order(OrderState.DELIVERED).copy(
+                reservation =
+                    OrderReservation(
+                        id = "r",
+                        space = OrderSpace(id = 9, name = "Cancha 2", type = "cancha"),
+                        start = start,
+                        end = end,
+                        durationMinutes = 60,
+                        state = ReservationState.CONFIRMED,
+                    ),
+            )
+        assertEquals(CourtMoment.BOOKED, courtMoment(rental, start.minusSeconds(60)))
+        assertEquals("En juego", pickupTitle(rental, start.plusSeconds(20 * 60)))
+        assertEquals("Te quedan 40 min en Cancha 2.", pickupHint(rental, start.plusSeconds(20 * 60)))
+        assertEquals("Últimos minutos", pickupTitle(rental, end.minusSeconds(4 * 60 + 30)))
+        assertEquals("Quedan 5 min: los reflectores ya bajaron.", pickupHint(rental, end.minusSeconds(4 * 60 + 30)))
+        assertEquals("Terminada", pickupTitle(rental, end))
+        assertNull(courtMoment(order(OrderState.PREPARING), start))
+        assertEquals(1, courtMinutesLeft(end, end.minusSeconds(30)))
+    }
+
     private fun order(
         state: OrderState,
         payment: PaymentMethod = PaymentMethod.BALANCE,

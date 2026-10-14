@@ -4,6 +4,14 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.ui.components.RentalStep
+import com.vaiinilla.app.ui.components.rentalCourtName
+import com.vaiinilla.app.ui.components.rentalStep
+import com.vaiinilla.app.ui.components.rentalStepDescription
+import java.time.Duration
+import java.time.Instant
+import java.time.ZoneId
+import kotlin.math.ceil
 import kotlin.math.sqrt
 
 /** Los tres pasos de la barra de progreso de la recogida. */
@@ -28,17 +36,47 @@ private fun OrderDetail.cashPending(): Boolean =
 
 private fun OrderDetail.spaceName(): String = summary.space?.name?.takeIf { it.isNotBlank() } ?: "tu espacio"
 
-internal fun pickupTitle(order: OrderDetail): String =
-    when (order.summary.state) {
+internal fun pickupTitle(
+    order: OrderDetail,
+    now: Instant = Instant.now(),
+): String {
+    courtMoment(order, now)?.let { return it.title }
+    return when (order.summary.state) {
         OrderState.PENDING_PAYMENT -> if (order.cashPending()) "Por pagar" else "Pedido recibido"
         OrderState.PAID -> "Pedido recibido"
         OrderState.PREPARING -> "Preparando"
         OrderState.READY -> "¡Listo!"
         else -> order.summary.state.label
     }
+}
 
-/** Mismo copy que la PWA (`order-labels.ts`). */
-internal fun pickupHint(order: OrderDetail): String {
+/** Mismo copy que la PWA (`order-labels.ts`). Una renta se cuenta por la cancha, no por el estado del pedido. */
+internal fun pickupHint(
+    order: OrderDetail,
+    now: Instant = Instant.now(),
+    zone: ZoneId = ZoneId.systemDefault(),
+): String {
+    val moment = courtMoment(order, now)
+    val reservation = order.reservation
+    if (moment != null && reservation != null) {
+        val minutes = courtMinutesLeft(reservation.end, now)
+        return when (moment) {
+            CourtMoment.TO_PAY, CourtMoment.BOOKED -> {
+                val step = if (moment == CourtMoment.TO_PAY) RentalStep.TO_PAY else RentalStep.BOOKED
+                rentalStepDescription(
+                    step,
+                    reservation,
+                    order.summary.paymentMethod,
+                    null,
+                    zone,
+                    now.atZone(zone).toLocalDate(),
+                )
+            }
+            CourtMoment.PLAYING -> "Te quedan $minutes min en ${order.rentalCourtName ?: "tu cancha"}."
+            CourtMoment.LAST_MINUTES -> "Quedan $minutes min: los reflectores ya bajaron."
+            CourtMoment.DONE -> "Gracias por jugar."
+        }
+    }
     val state = order.summary.state
     val toSpace = order.summary.destination == OrderDestination.IN_SPACE
     return when {
@@ -147,7 +185,79 @@ internal fun floorTableIndex(
     name: String,
     id: Int,
 ): Int {
-    val number = Regex("\\d+").findAll(name).lastOrNull()?.value?.toIntOrNull()
+    val number =
+        Regex("\\d+")
+            .findAll(name)
+            .lastOrNull()
+            ?.value
+            ?.toIntOrNull()
     if (number != null && number > 0) return (number - 1) % FLOOR_TABLE_COUNT
     return kotlin.math.abs(id) % FLOOR_TABLE_COUNT
+}
+
+// Cancha: las luces del turno, como en iOS.
+
+/** Minutos antes del final en que bajan los reflectores: la gracia que avisa que el turno se acaba. */
+internal const val COURT_GRACE_MINUTES = 5L
+
+/** En qué va una renta, como se cuenta en la cancha: los últimos minutos son su propio momento. */
+internal enum class CourtMoment(
+    val title: String,
+) {
+    TO_PAY("Por pagar"),
+    BOOKED("Reservada"),
+    PLAYING("En juego"),
+    LAST_MINUTES("Últimos minutos"),
+    DONE("Terminada"),
+}
+
+/** `null` si no es renta o si se cayó (cancelada, vencida o en revisión). */
+internal fun courtMoment(
+    order: OrderDetail,
+    now: Instant,
+): CourtMoment? {
+    val step = rentalStep(order, now) ?: return null
+    val reservation = order.reservation ?: return null
+    return when (step) {
+        RentalStep.TO_PAY -> CourtMoment.TO_PAY
+        RentalStep.BOOKED -> CourtMoment.BOOKED
+        RentalStep.DONE -> CourtMoment.DONE
+        RentalStep.PLAYING ->
+            if (Duration.between(now, reservation.end) <= Duration.ofMinutes(COURT_GRACE_MINUTES)) {
+                CourtMoment.LAST_MINUTES
+            } else {
+                CourtMoment.PLAYING
+            }
+    }
+}
+
+/** Minutos que quedan de juego, redondeados hacia arriba (con 30 s quedan "1 min"). */
+internal fun courtMinutesLeft(
+    end: Instant,
+    now: Instant,
+): Int = ceil(Duration.between(now, end).toMillis() / 60_000.0).toInt().coerceAtLeast(0)
+
+/** Cómo se ve la cancha rentada: cuánto de las líneas ya se dibujó (el tiempo jugado) y cuánta luz dan los reflectores. */
+internal data class CourtLights(
+    val lines: Double,
+    val lights: Double,
+)
+
+/**
+ * Antes del turno las luces esperan bajas y sin líneas; jugando se dibujan con el tiempo y en la gracia bajan; al
+ * terminar se apagan.
+ */
+internal fun courtLights(
+    start: Instant,
+    end: Instant,
+    now: Instant,
+): CourtLights {
+    val total = Duration.between(start, end).toMillis()
+    if (total <= 0 || !now.isBefore(end)) return CourtLights(lines = 1.0, lights = 0.0)
+    if (now.isBefore(start)) return CourtLights(lines = 0.0, lights = 0.3)
+    val inGrace = Duration.between(now, end) <= Duration.ofMinutes(COURT_GRACE_MINUTES)
+    return CourtLights(
+        lines = Duration.between(start, now).toMillis().toDouble() / total,
+        lights = if (inGrace) 0.4 else 1.0,
+    )
 }

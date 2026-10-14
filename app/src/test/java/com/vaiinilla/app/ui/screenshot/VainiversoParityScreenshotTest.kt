@@ -6,8 +6,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.text.rememberTextMeasurer
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.vaiinilla.app.core.qr.QrCodeEncoder
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -20,19 +20,21 @@ import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import com.vaiinilla.app.ui.order.TrayItemKind
 import com.vaiinilla.app.ui.screens.CheckoutStage
+import com.vaiinilla.app.ui.screens.CourtRental
 import com.vaiinilla.app.ui.screens.FloorPlate
 import com.vaiinilla.app.ui.screens.FloorTable
-import com.vaiinilla.app.ui.screens.drawFloorPlan
 import com.vaiinilla.app.ui.screens.KitchenPeek
 import com.vaiinilla.app.ui.screens.LocalScene
 import com.vaiinilla.app.ui.screens.SceneMotion
-import com.vaiinilla.app.ui.screens.drawStorefront
-import com.vaiinilla.app.ui.screens.kitchenCamera
 import com.vaiinilla.app.ui.screens.StoreEntrance
 import com.vaiinilla.app.ui.screens.StoreEntranceOutcome
 import com.vaiinilla.app.ui.screens.StoreEntranceOverlay
 import com.vaiinilla.app.ui.screens.WalletCodeOverlay
+import com.vaiinilla.app.ui.screens.drawCourt
+import com.vaiinilla.app.ui.screens.drawFloorPlan
+import com.vaiinilla.app.ui.screens.drawStorefront
 import com.vaiinilla.app.ui.screens.jarFillLevel
+import com.vaiinilla.app.ui.screens.kitchenCamera
 import com.vaiinilla.app.ui.screens.scenePaletteForTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import org.junit.Rule
@@ -41,6 +43,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.time.Instant
 
 /** Las escenas del Vainiverso que llegaron de iOS, quietas en sus momentos clave, a cada hora del día. */
 @RunWith(RobolectricTestRunner::class)
@@ -116,7 +119,8 @@ class VainiversoParityScreenshotTest {
     fun `entrance_mosaic_night`() = capture("entrance_2_mosaic_night", VaiinillaThemeMode.Dark) { Entrance(0.3f) }
 
     @Test
-    fun `entrance_storefront_night`() = capture("entrance_3_storefront_night", VaiinillaThemeMode.Dark) { Entrance(0.5f) }
+    fun `entrance_storefront_night`() =
+        capture("entrance_3_storefront_night", VaiinillaThemeMode.Dark) { Entrance(0.5f) }
 
     private val checkoutOrder =
         OrderDetail(
@@ -192,7 +196,23 @@ class VainiversoParityScreenshotTest {
             val kitchen = KitchenPeek(item = item, lit = lit, alpha = (peek / 0.25f).coerceAtMost(1f), steam = 0.3f)
             drawContext.transform.translate(camera.translation.x, camera.translation.y)
             drawContext.transform.scale(camera.zoom, camera.zoom, androidx.compose.ui.geometry.Offset.Zero)
-            drawStorefront(size, textMeasurer, palette, SceneMotion(happy = lit > 0.5f, wave = if (lit > 0.5f) -112f else 0f), kitchen)
+            drawStorefront(
+                size,
+                textMeasurer,
+                palette,
+                SceneMotion(
+                    happy = lit > 0.5f,
+                    wave =
+                        if (lit >
+                            0.5f
+                        ) {
+                            -112f
+                        } else {
+                            0f
+                        },
+                ),
+                kitchen,
+            )
         }
     }
 
@@ -216,7 +236,9 @@ class VainiversoParityScreenshotTest {
     @Composable
     private fun Floor(plate: FloorPlate?) {
         val palette = LocalScene.current
-        Canvas(Modifier.fillMaxSize()) { drawFloorPlan(size, palette, mesa4, tick = 1, cheering = plate != null, plate = plate) }
+        Canvas(Modifier.fillMaxSize()) {
+            drawFloorPlan(size, palette, mesa4, tick = 1, cheering = plate != null, plate = plate)
+        }
     }
 
     @Test
@@ -229,7 +251,10 @@ class VainiversoParityScreenshotTest {
     fun `floor_flying_day`() = capture("floor_3_flying_day") { Floor(FloorPlate(1f, 0.5f)) }
 
     @Test
-    fun `floor_delivered_night`() = capture("floor_4_delivered_night", VaiinillaThemeMode.Dark) { Floor(FloorPlate(1f, 1f)) }
+    fun `floor_delivered_night`() =
+        capture("floor_4_delivered_night", VaiinillaThemeMode.Dark) {
+            Floor(FloorPlate(1f, 1f))
+        }
 
     @Test
     fun `floor_plan_midnight`() = capture("floor_5_plan_midnight", VaiinillaThemeMode.Amoled) { Floor(null) }
@@ -252,4 +277,31 @@ class VainiversoParityScreenshotTest {
 
     @Test
     fun `table_entrance_descend_day`() = capture("table_entrance_3_descend_day") { TableEntrance(0.7f) }
+
+    private val court =
+        CourtRental("Cancha 2", Instant.parse("2026-10-14T18:00:00Z"), Instant.parse("2026-10-14T19:00:00Z"))
+
+    @Composable
+    private fun Court(
+        minute: Long,
+        tick: Int = 5,
+    ) {
+        val palette = LocalScene.current
+        Canvas(Modifier.fillMaxSize()) { drawCourt(size, palette, court, court.start.plusSeconds(minute * 60), tick) }
+    }
+
+    @Test
+    fun `court_booked_day`() = capture("court_1_booked_day") { Court(-20) }
+
+    @Test
+    fun `court_playing_day`() = capture("court_2_playing_day") { Court(25) }
+
+    @Test
+    fun `court_last_minutes_day`() = capture("court_3_last_minutes_day") { Court(57) }
+
+    @Test
+    fun `court_playing_night`() = capture("court_2_playing_night", VaiinillaThemeMode.Dark) { Court(40, tick = 21) }
+
+    @Test
+    fun `court_done_midnight`() = capture("court_4_done_midnight", VaiinillaThemeMode.Amoled) { Court(65) }
 }
