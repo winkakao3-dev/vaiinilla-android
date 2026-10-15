@@ -69,9 +69,12 @@ data class WaiterUiState(
     val lastBoardRefreshAt: Instant? = null,
     val consecutiveBoardFailures: Int = 0,
 ) {
-    /** Las mesas siguen a la vista, pero tras varias cargas fallidas el tablero ya no está en vivo. */
-    val boardLive: Boolean
-        get() = consecutiveBoardFailures < WAITER_OFFLINE_AFTER_FAILURES
+    /** Ya llegó al menos un tablero bueno. Las mesas solo entran con uno, así que también cuentan como prueba. */
+    val boardLoaded: Boolean
+        get() = lastBoardRefreshAt != null || tables.isNotEmpty()
+
+    val boardLink: WaiterBoardLink
+        get() = waiterBoardLink(boardLoaded, consecutiveBoardFailures)
 }
 
 @HiltViewModel
@@ -573,6 +576,24 @@ class WaiterViewModel
     }
 
 internal const val WAITER_OFFLINE_AFTER_FAILURES = 2
+
+/** Lo que dice la píldora de conexión del tablero. */
+enum class WaiterBoardLink { Connecting, Live, Offline }
+
+/**
+ * Sin ningún tablero bueno, un solo fallo ya es "Sin conexión" y antes del primero se está conectando.
+ * Con un tablero bueno a la vista, se tolera un fallo suelto: hacen falta dos seguidos.
+ */
+internal fun waiterBoardLink(
+    boardLoaded: Boolean,
+    consecutiveFailures: Int,
+): WaiterBoardLink =
+    when {
+        !boardLoaded && consecutiveFailures > 0 -> WaiterBoardLink.Offline
+        !boardLoaded -> WaiterBoardLink.Connecting
+        consecutiveFailures >= WAITER_OFFLINE_AFTER_FAILURES -> WaiterBoardLink.Offline
+        else -> WaiterBoardLink.Live
+    }
 
 internal fun WaiterUiState.withBoard(
     board: WaiterBoard,

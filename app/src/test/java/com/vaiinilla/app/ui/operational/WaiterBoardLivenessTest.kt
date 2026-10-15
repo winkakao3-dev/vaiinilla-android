@@ -15,7 +15,7 @@ class WaiterBoardLivenessTest {
     fun `one failed refresh keeps the board live`() {
         val afterOne = loaded.withBoardFailure("La conexión tardó demasiado. Inténtalo de nuevo.")
 
-        assertTrue(afterOne.boardLive)
+        assertEquals(WaiterBoardLink.Live, afterOne.boardLink)
         assertEquals(1, afterOne.consecutiveBoardFailures)
     }
 
@@ -26,7 +26,7 @@ class WaiterBoardLivenessTest {
                 .withBoardFailure("La conexión tardó demasiado. Inténtalo de nuevo.")
                 .withBoardFailure("La conexión tardó demasiado. Inténtalo de nuevo.")
 
-        assertFalse(afterTwo.boardLive)
+        assertEquals(WaiterBoardLink.Offline, afterTwo.boardLink)
         assertEquals(loaded.tables, afterTwo.tables)
         assertEquals("La conexión tardó demasiado. Inténtalo de nuevo.", afterTwo.errorMessage)
     }
@@ -42,9 +42,38 @@ class WaiterBoardLivenessTest {
                 .withBoardFailure("Sin red")
                 .withBoard(board, receivedAt)
 
-        assertTrue(recovered.boardLive)
+        assertEquals(WaiterBoardLink.Live, recovered.boardLink)
         assertEquals(0, recovered.consecutiveBoardFailures)
         assertEquals(receivedAt, recovered.lastBoardRefreshAt)
         assertEquals(null, recovered.errorMessage)
+    }
+
+    @Test
+    fun `before the first good board the pill is connecting, never live`() {
+        val starting = WaiterUiState(loading = true)
+
+        assertEquals(WaiterBoardLink.Connecting, starting.boardLink)
+        assertFalse(starting.boardLoaded)
+    }
+
+    @Test
+    fun `a failure before any good board is offline right away and shows no board`() {
+        val failed = WaiterUiState(loading = true).withBoardFailure("No pudimos contactar al servidor.")
+
+        assertEquals(WaiterBoardLink.Offline, failed.boardLink)
+        assertFalse(failed.boardLoaded)
+        assertTrue(failed.tables.isEmpty())
+    }
+
+    @Test
+    fun `a good board stays shown after it starts failing`() {
+        val receivedAt = Instant.parse("2026-10-15T18:00:00Z")
+        val stale =
+            WaiterUiState()
+                .withBoard(WaiterBoard(tables = emptyList(), callsEnabled = true), receivedAt)
+                .withBoardFailure("Sin red")
+
+        assertTrue(stale.boardLoaded)
+        assertEquals(WaiterBoardLink.Live, stale.boardLink)
     }
 }
