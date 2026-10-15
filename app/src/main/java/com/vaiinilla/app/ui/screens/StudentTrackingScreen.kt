@@ -384,7 +384,10 @@ fun StudentTrackingScreen(
                                         icon = Icons.Outlined.ReceiptLong,
                                         title = "No pudimos cargar tus pedidos",
                                         message = "Revisa tu conexión e inténtalo otra vez.",
-                                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                                        modifier =
+                                            Modifier.semantics(mergeDescendants = true) {
+                                                liveRegion = LiveRegionMode.Polite
+                                            },
                                         actionLabel = "Reintentar",
                                         onAction = onRefresh,
                                     )

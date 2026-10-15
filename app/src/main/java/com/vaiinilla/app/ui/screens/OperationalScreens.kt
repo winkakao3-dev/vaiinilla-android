@@ -2094,12 +2094,18 @@ private fun OperationalErrorCard(
         modifier =
             modifier
                 .fillMaxWidth()
-                .border(1.dp, colors.cardBorder, RoundedCornerShape(20.dp))
-                .semantics { liveRegion = LiveRegionMode.Polite },
+                .border(1.dp, colors.cardBorder, RoundedCornerShape(20.dp)),
     ) {
         Column(modifier = Modifier.padding(start = 20.dp, top = 14.dp, end = 10.dp, bottom = 16.dp)) {
             Row(verticalAlignment = Alignment.Top) {
-                Column(modifier = Modifier.weight(1f).padding(top = 6.dp, end = 8.dp)) {
+                // El aviso se lee completo (título y mensaje) al aparecer; cerrar y reintentar quedan aparte.
+                Column(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .padding(top = 6.dp, end = 8.dp)
+                            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+                ) {
                     title?.let {
                         Text(
                             it,
