@@ -221,12 +221,13 @@ class VigiaNetwork
                 }
             }
 
-        private companion object {
-            const val MAX_EVENTS = 300
-            const val DEFAULT_DELAY_MILLIS = 4_000L
-            const val DEFAULT_FAIL_PERCENT = 30
-            const val DEFAULT_SEED = 7L
+        companion object {
+            /** Escrituras de fondo que la app necesita para seguir viva; ni se frenan ni se espera que se vean. */
             val WRITE_ALLOWLIST = listOf("sesiones/", "latidos", "dispositivos")
+            private const val MAX_EVENTS = 300
+            private const val DEFAULT_DELAY_MILLIS = 4_000L
+            private const val DEFAULT_FAIL_PERCENT = 30
+            private const val DEFAULT_SEED = 7L
         }
     }
 

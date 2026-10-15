@@ -125,6 +125,18 @@ class VigiaTest {
     }
 
     @Test
+    fun `a failed heartbeat in the background is not a silent error`() {
+        compose.setContent { Text("Mesas") }
+        tick(500)
+        network.configure(listOf("caido"))
+
+        network.intercept("POST", "latidos") { Result.success("") }
+        tick(6_000)
+
+        assertEquals(emptyList<String>(), kinds())
+    }
+
+    @Test
     fun `read-only mode keeps writes off the sandbox but lets reads, session and heartbeats through`() {
         network.writesAllowed = false
         val sent = mutableListOf<String>()

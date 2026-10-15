@@ -197,7 +197,8 @@ class Vigia(
         val finished = fresh.takeWhile { it.endedAt != null }
         finished.lastOrNull()?.let { lastEventId = it.id }
         finished
-            .filter { it.failed && it.method != "GET" }
+            // Latidos y sesión van solos, de fondo: nadie espera verlos en pantalla.
+            .filter { it.failed && it.method != "GET" && VigiaNetwork.WRITE_ALLOWLIST.none(it.path::startsWith) }
             .forEach { event ->
                 val before = samples.lastOrNull { it.lastEventId < event.id }?.texts ?: samples.first().texts
                 pending += PendingFailure(event, before, ShadowToast.shownToastCount(), pumped + ERROR_FEEDBACK_MILLIS)
