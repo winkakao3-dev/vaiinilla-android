@@ -15,6 +15,8 @@ import org.robolectric.shadows.ShadowToast
  * - carga-larga: sigue cargando con la red pendiente más allá de lo razonable; la pantalla no ofrece salida.
  * - error-mudo: una escritura (POST/PUT/DELETE) falló y la pantalla quedó igual: ni texto nuevo ni toast.
  * - cierre: una excepción sin atrapar, que en el teléfono cierra la app.
+ * - pantalla-en-blanco: ni un texto ni un indicador de carga por varios segundos.
+ * - en-vivo-viejo: la pantalla dice "En vivo" mientras sus últimas actualizaciones fallaron.
  *
  * Solo ve lo que el arnés le muestra: el reloj de Compose avanza dentro de los comandos, así que muestrea
  * desde [JvmRolesHarness.pump] y mide en tiempo bombeado, no en tiempo de pared.
@@ -52,6 +54,9 @@ class Vigia(
     private var loadingSignature: String? = null
     private var loadingReported = false
     private var lastEventId = 0L
+    private var blankSince: Long? = null
+    private var blankReported = false
+    private val staleReported = mutableSetOf<String>()
     private val samples = ArrayDeque<Sample>()
     private val pending = mutableListOf<PendingFailure>()
     private val findings = mutableListOf<Finding>()
@@ -62,6 +67,9 @@ class Vigia(
         loadingSignature = null
         loadingReported = false
         lastEventId = network.lastId()
+        blankSince = null
+        blankReported = false
+        staleReported.clear()
         samples.clear()
         pending.clear()
     }
@@ -80,6 +88,8 @@ class Vigia(
         drainCrashes(texts)
         watchLoading(visible, texts)
         watchFailures(texts)
+        watchBlank(visible, texts)
+        watchLiveLabel(texts)
     }
 
     fun drain(): JSONObject {
@@ -223,6 +233,58 @@ class Vigia(
         }
     }
 
+    private fun watchBlank(
+        visible: List<SemanticsNode>,
+        texts: Set<String>,
+    ) {
+        val loading = visible.any { SemanticsProperties.ProgressBarRangeInfo in it.config }
+        if (texts.isNotEmpty() || loading) {
+            blankSince = null
+            blankReported = false
+            return
+        }
+        val since = blankSince ?: pumped.also { blankSince = it }
+        if (blankReported || pumped - since < BLANK_LIMIT_MILLIS) return
+        blankReported = true
+        findings +=
+            Finding(
+                kind = "pantalla-en-blanco",
+                severity = "error",
+                detail = "La pantalla lleva ${(pumped - since) / 1000} s sin un solo texto ni indicador de carga.",
+                screen = emptyList(),
+                network = recentNetwork(),
+            )
+    }
+
+    /** "En vivo" promete datos frescos: si las últimas actualizaciones de algo que se pide solo fallaron, miente. */
+    private fun watchLiveLabel(texts: Set<String>) {
+        if (texts.none { LIVE_LABEL.containsMatchIn(it) }) {
+            staleReported.clear()
+            return
+        }
+        network
+            .eventsAfter(network.lastId() - LIVE_WINDOW_EVENTS)
+            .filter { it.method == "GET" && it.endedAt != null }
+            .groupBy { it.path }
+            .filterValues { it.size >= STALE_FAILURES }
+            .forEach { (path, events) ->
+                val last = events.takeLast(STALE_FAILURES)
+                if (last.all { it.failed } && staleReported.add(path)) {
+                    findings +=
+                        Finding(
+                            kind = "en-vivo-viejo",
+                            severity = "error",
+                            detail =
+                                "La pantalla dice \"En vivo\" pero las últimas $STALE_FAILURES actualizaciones de " +
+                                    "GET $path fallaron: lo que se ve puede ser viejo y nadie lo avisa.",
+                            screen = texts.take(SCREEN_TEXTS),
+                            network = recentNetwork(),
+                        )
+                }
+                if (!last.last().failed) staleReported.remove(path)
+            }
+    }
+
     private fun recentNetwork(): List<String> = network.recent(RECENT_EVENTS)
 
     private companion object {
@@ -233,5 +295,9 @@ class Vigia(
         const val ERROR_FEEDBACK_MILLIS = 5_000L
         const val SCREEN_TEXTS = 12
         const val RECENT_EVENTS = 8
+        const val BLANK_LIMIT_MILLIS = 4_000L
+        const val LIVE_WINDOW_EVENTS = 40L
+        const val STALE_FAILURES = 3
+        val LIVE_LABEL = Regex("\\ben vivo\\b", RegexOption.IGNORE_CASE)
     }
 }

@@ -192,13 +192,14 @@ class JvmRolesHarness {
                 "carga eterna a partir de ${vigia.loadingLimitMillis} ms"
             }
             "nodos" -> tappableNodes().toString()
+            "revisar" -> layoutAudit().toString()
             "tocar" -> tapNode(args.firstOrNull()?.toInt() ?: error("Uso: tocar <id de nodos>")).toString()
             "atras" -> back().toString()
             "stop" -> "adiós"
             else ->
                 error(
                     "No conozco '${command.name}'. Comandos: role, cual, list, tap, text, wait, advance, shot, " +
-                        "location, deeplink, red, escrituras, vigia, trafico, limite, nodos, tocar, atras, stop.",
+                        "location, deeplink, red, escrituras, vigia, trafico, limite, nodos, revisar, tocar, atras, stop.",
                 )
         }
     }
@@ -438,6 +439,32 @@ class JvmRolesHarness {
         }
         pump(SETTLE_MILLIS, realTime = true)
         return JSONObject().put("efecto", "atras").put("pantalla", screenKey())
+    }
+
+    /** Texto cortado, cosas fuera de la pantalla y tocables encimados en la ventana de arriba. */
+    private fun layoutAudit(): JSONObject {
+        val roots =
+            compose
+                .onAllNodes(
+                    isRoot(),
+                    useUnmergedTree = true,
+                ).fetchSemanticsNodes(atLeastOneRootRequired = false)
+        val top = roots.lastOrNull() ?: return JSONObject().put("hallazgos", JSONArray())
+
+        fun walk(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::walk)
+        val issues = VigiaLayout.audit(walk(top), clickableNodes(), top.boundsInWindow, ::labelOf)
+        val out = JSONArray()
+        issues.distinct().forEach { issue ->
+            out.put(
+                JSONObject()
+                    .put("tipo", issue.kind)
+                    .put("gravedad", issue.severity)
+                    .put("detalle", issue.detail)
+                    .put("pantalla", JSONArray(summaryTexts()))
+                    .put("red", JSONArray()),
+            )
+        }
+        return JSONObject().put("hallazgos", out)
     }
 
     private fun summaryTexts(): List<String> =

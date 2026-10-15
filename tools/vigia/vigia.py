@@ -44,10 +44,24 @@ PELIGROSO = re.compile(
     r'tarjeta|stripe|nfc|c[aá]mara|escanear|foto|permitir|ubicaci|notificaci|eliminar cuenta|'
     r'privacidad|t[eé]rminos|ayuda externa|desvincular|marcar|entregar|listo para|rechazar|aceptar|'
     r'abrir cuenta|tomar pedido|se acab|disponib|agotad|preparar|iniciar|terminar|cerrar manual|liberar|'
-    r'asignar|mover|reservar|rentar|unir|invitar|guardar|crear|agregar al pedido|dividir|propina|descuento',
+    r'asignar|mover|reservar|rentar|unir|invitar|guardar|crear|agregar al pedido|dividir|propina|descuento|'
+    r'abrir caja|^voy$|atendida|\d+ min\b|renovar|abonar|abonado|cobrado en|apartar|^saldo$|efectivo en caja|'
+    r'ya llegu|necesito algo|cubiertos|algo est[aá] mal|lo pago yo|pausad|reintentar pago|continuar pago|'
+    r'revisar pago|entrar como|continuar como|reenviar|verificar c[oó]digo|continuar con google|desliza',
+    re.IGNORECASE,
+)
+# Abren una hoja o pantalla sin escribir nada; lo que escribe adentro sigue bloqueado por PELIGROSO.
+SOLO_NAVEGA = re.compile(
+    r'^(rentar|recargar en caja|recargar saldo|cerrar caja|pagar|continuar para pagar|cobrar cuenta|'
+    r'ver cuentas por cobrar|tomar pedido)$',
     re.IGNORECASE,
 )
 VOLVER = re.compile(r'^(atr[aá]s|regresar|volver|cerrar|navigate up)$', re.IGNORECASE)
+
+
+def peligroso(texto):
+    texto = texto.strip()
+    return not SOLO_NAVEGA.match(texto) and bool(PELIGROSO.search(texto))
 
 
 def send(cmd, args=()):
@@ -155,6 +169,10 @@ class Explorador:
                 profundidad = 0
                 continue
             pid = nodos['pantalla']
+            if (rol, pid) not in self.pantallas:
+                # Primera vez en esta pantalla: se revisa su diseño quieta (texto cortado, encimados, fuera).
+                for h in send_json('revisar')['hallazgos']:
+                    self.anotar(h['tipo'], h['gravedad'], h['detalle'], h['pantalla'], h['red'], pid)
             self.pantallas.setdefault((rol, pid), nodos['textos'][:6])
             ya = probados.setdefault(pid, set())
             for nodo in nodos['nodos']:
@@ -166,7 +184,7 @@ class Explorador:
                     )
             candidatos = [
                 n for n in nodos['nodos']
-                if n['texto'].strip() and not n.get('campo') and not PELIGROSO.search(n['texto'])
+                if n['texto'].strip() and not n.get('campo') and not peligroso(n['texto'])
                 and clave(n['texto']) not in ya
             ]
             # Primero lo que lleva a otro lado; "atrás" y "cerrar" al final, para no salir antes de ver la pantalla.
@@ -178,6 +196,12 @@ class Explorador:
                 r = send_json('atras')
                 self.historia.append('atras')
                 self.recoger(pid)
+                if r['efecto'] == 'atras' and r.get('pantalla') == pid and profundidad > 0:
+                    self.anotar(
+                        'atras-no-regresa', 'sospecha',
+                        'El botón de atrás del teléfono no sacó de esta pantalla.',
+                        nodos['textos'], (), pid,
+                    )
                 if r['efecto'] == 'salio':
                     if reentradas >= 3:
                         break

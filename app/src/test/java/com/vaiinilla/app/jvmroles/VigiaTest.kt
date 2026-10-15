@@ -1,17 +1,23 @@
 package com.vaiinilla.app.jvmroles
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.core.network.ApiResponseParser
 import com.vaiinilla.app.ui.components.SkeletonBlock
@@ -40,8 +46,7 @@ class VigiaTest {
     fun setUp() {
         // Igual que el arnés: con avance automático, una animación infinita no deja que la pantalla quede quieta.
         compose.mainClock.autoAdvance = false
-        vigia =
-            Vigia(network, ::nodes) { node -> node.config.getOrNull(SemanticsProperties.Text)?.joinToString(" ") ?: "" }
+        vigia = Vigia(network, ::nodes, ::label)
         vigia.loadingLimitMillis = LIMIT
     }
 
@@ -155,6 +160,71 @@ class VigiaTest {
         assertEquals(listOf("catalogo", "latidos", "contexto"), sent)
         assertEquals(true, write.isFailure)
     }
+
+    @Test
+    fun `a text cut without ellipsis is reported and an ellipsized one is not`() {
+        compose.setContent {
+            Column {
+                Box(Modifier.width(60.dp)) {
+                    Text("MESERO · SANDBOX DE AGENTES", maxLines = 1, softWrap = false, overflow = TextOverflow.Clip)
+                }
+                Box(Modifier.width(60.dp)) {
+                    Text("Hamburguesa doble con queso", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+
+        val found = audit()
+
+        assertEquals(listOf("texto-cortado"), found.map { it.kind })
+        assertEquals(true, found.single().detail.startsWith("\"MESERO"))
+    }
+
+    @Test
+    fun `two buttons that half overlap are reported, a button inside a card is not`() {
+        compose.setContent {
+            Box {
+                Box(Modifier.size(100.dp).clickable {}) { Text("Uno") }
+                Box(Modifier.offset(x = 50.dp).size(100.dp).clickable {}) { Text("Dos") }
+                Box(Modifier.offset(y = 200.dp).size(200.dp).clickable {}) {
+                    Box(Modifier.size(80.dp).clickable {}) { Text("Ok") }
+                }
+            }
+        }
+
+        val found = audit()
+        assertEquals(found.joinToString { "${it.kind}: ${it.detail}" }, listOf("encimados"), found.map { it.kind })
+    }
+
+    @Test
+    fun `live label with failing refreshes is stale`() {
+        compose.setContent { Text("En vivo") }
+        network.configure(listOf("caido"))
+
+        repeat(3) { network.intercept("GET", "espacios/tablero") { Result.success("{}") } }
+        tick(500)
+
+        assertEquals(listOf("en-vivo-viejo:error"), kinds())
+    }
+
+    @Test
+    fun `a screen with nothing on it is blank`() {
+        compose.setContent { Box(Modifier.size(10.dp)) }
+
+        tick(5_000)
+
+        assertEquals(listOf("pantalla-en-blanco:error"), kinds())
+    }
+
+    private fun audit(): List<VigiaLayout.Issue> {
+        fun walk(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::walk)
+        val root = compose.onAllNodes(isRoot(), useUnmergedTree = true).fetchSemanticsNodes().last()
+        val clickable = nodes().filter { SemanticsActions.OnClick in it.config }
+        return VigiaLayout.audit(walk(root), clickable, root.boundsInWindow, ::label)
+    }
+
+    private fun label(node: SemanticsNode): String =
+        node.config.getOrNull(SemanticsProperties.Text)?.joinToString(" ") ?: ""
 
     private fun tick(millis: Long) {
         var left = millis
