@@ -58,7 +58,8 @@ SOLO_NAVEGA = re.compile(
 )
 # Lo que dice una pantalla que cargó y no encontró nada. Con la red caída no cargó nada: si lo dice, miente.
 VACIO = re.compile(
-    r'\bal d[ií]a\b|nada por cobrar|no hay (comandas|pedidos|mesas|cuentas|nada)|sin pedidos|'
+    r'\bal d[ií]a\b|nada por (cobrar|atender|preparar|entregar)|todo en orden|nada pendiente|'
+    r'no hay (comandas|pedidos|mesas|cuentas|nada)|sin (pedidos|comandas|mesas)\b|'
     r'todav[ií]a no (hay|tienes)|a[uú]n no (hay|tienes)',
     re.IGNORECASE,
 )
