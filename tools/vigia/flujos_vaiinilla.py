@@ -168,11 +168,14 @@ def pedido_caja_cocina(f):
     _precondiciones(f)
     pedido_id, folio = _pedir_en_caja(f)
     _cobrar_y_preparar(f, pedido_id, folio)
+    estado = _pedido(f, pedido_id)['estado']
+    if estado != 'listo':
+        f._anotar('interferencia', 'sospecha', f'El #{folio} ya está "{estado}": no se puede revisar que el alumno lo vea listo.')
+        return
     f.entrar('alumno')
     f.tocar(r'^Pedidos$')
     f.ver(rf'#{folio}\b')
-    if _pedido(f, pedido_id)['estado'] == 'listo':
-        f.ver(r'^listo$|¡listo!')
+    f.ver(r'^listo$|¡listo!')
 
 
 @flujo('pedido-mostrador', 'Caja crea un pedido de mostrador → lo cobra → cocina lo prepara')

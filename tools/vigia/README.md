@@ -21,7 +21,7 @@ Sale con 0 solo si no hubo errores. Cada corrida deja `informe.md`, `hallazgos.j
 |---|---|
 | `compilar.sh` | Compila el arnés con heaps pequeños (la Mac tiene 8 GB) y corre `VigiaTest`. |
 | `vigia.py explorar` | Entra a cada rol y toca todo lo que no escribe, con la red `normal`, `"fallas 30"`, `"lento 6000"` o `caido`. Solo lectura: si algo escribe, vuelve como error y no llega a dev. |
-| `flujos.py` | Recorridos escritos a mano entre roles (alumno pide → caja cobra → cocina prepara). Sí escriben en el sandbox, comparan cada paso con la API y limpian lo que crean. |
+| `flujos.py` | Recorridos escritos a mano. Los `*-sin-escrituras` tocan cobrar, preparar o pedir con las escrituras bloqueadas: nada sale de la JVM y juzgan por la red si la pantalla anunció un éxito falso o calló el error. Los de punta a punta (alumno pide → caja cobra → cocina prepara) sí escriben en el sandbox, comparan cada paso con la API y limpian lo que crean. |
 | `backend.py` | La API de dev vista como cada rol, para comparar la pantalla con la verdad. Nunca imprime tokens. |
 
 ## Lo que detecta

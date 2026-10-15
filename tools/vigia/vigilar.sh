@@ -1,8 +1,9 @@
 #!/bin/zsh
 # La revisión completa antes de subir un AAB, en un solo comando:
 #   1. compila con heaps pequeños y corre VigiaTest (compilar.sh);
-#   2. explora los 4 roles con red normal, con fallas y lenta, en solo lectura;
-#   3. corre los flujos de punta a punta (estos sí crean pedidos en el sandbox y los cierran al final).
+#   2. explora los 4 roles con red normal, con fallas, lenta y caída, en solo lectura;
+#   3. corre los flujos: los de escrituras bloqueadas (no cambian el sandbox) y los de punta a punta (crean
+#      pedidos en el sandbox y los cierran al final).
 # Sale con 0 solo si todo quedó sin errores; los informes quedan en ~/.cache/vaiinilla/vigia/.
 #   tools/vigia/vigilar.sh               todo
 #   tools/vigia/vigilar.sh --sin-flujos  sin escribir nada en el sandbox de dev
@@ -25,15 +26,13 @@ vbuild jvm-roles reiniciar || exit 1
 trap 'vbuild jvm-roles parar >/dev/null 2>&1' EXIT
 
 rc=0 resumen=()
-for red in normal "fallas 30" "lento 6000"; do
+for red in normal "fallas 30" "lento 6000" caido; do
   echo "\n=== explorar · red $red ==="
   if V explorar --red "$red"; then resumen+=("✅ explorar ($red)"); else rc=1; resumen+=("❌ explorar ($red)"); fi
 done
 if (( flujos )); then
-  for red in normal "fallas 100 --ruta transiciones" "fallas 100 --ruta cobros-efectivo"; do
-    echo "\n=== flujos · red $red ==="
-    if python3 tools/vigia/flujos.py --red "$red"; then resumen+=("✅ flujos ($red)"); else rc=1; resumen+=("❌ flujos ($red)"); fi
-  done
+  echo "\n=== flujos ==="
+  if python3 tools/vigia/flujos.py; then resumen+=("✅ flujos"); else rc=1; resumen+=("❌ flujos"); fi
 fi
 
 echo "\n=== vigía ==="
