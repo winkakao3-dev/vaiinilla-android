@@ -9,6 +9,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -22,6 +23,10 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -60,6 +65,7 @@ fun SlidingSegments(
                 .clip(trackShape)
                 .background(trackColor)
                 .border(1.dp, borderColor, trackShape)
+                .selectableGroup()
                 .padding(4.dp)
                 .drawBehind {
                     val segmentWidth = size.width / labels.size
@@ -88,7 +94,11 @@ fun SlidingSegments(
                     Modifier
                         .weight(1f)
                         .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small) { onSelect(index) }
-                        .padding(vertical = verticalPadding),
+                        // El indicador solo se dibuja: sin esto TalkBack no sabe cuál está elegido.
+                        .semantics {
+                            role = Role.RadioButton
+                            selected = index == selectedIndex
+                        }.padding(vertical = verticalPadding),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(label, color = contentColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)

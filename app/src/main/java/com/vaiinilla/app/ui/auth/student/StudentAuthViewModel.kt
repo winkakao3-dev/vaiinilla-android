@@ -630,10 +630,12 @@ class StudentAuthViewModel
             }
         }
 
+        /** [onFailed] recibe el mensaje de un fallo que no se resuelve entrando o verificando (red, 5xx, 403). */
         fun completeEnrollment(
             onSuccess: () -> Unit,
             onNeedsVerify: () -> Unit = {},
             onNeedsContextualId: () -> Unit = {},
+            onFailed: (String) -> Unit = {},
         ) {
             val current = _state.value
             val session = authRepository.peekSession()
@@ -747,11 +749,13 @@ class StudentAuthViewModel
                                         errorMessage = "Vuelve a verificar tu correo.",
                                     )
                             } else {
+                                val message = error.toUserFacingMessage()
                                 _state.value =
                                     _state.value.copy(
                                         loading = false,
-                                        errorMessage = error.toUserFacingMessage(),
+                                        errorMessage = message,
                                     )
+                                onFailed(message)
                             }
                         },
                     )
@@ -772,6 +776,7 @@ class StudentAuthViewModel
         fun ensureVenueContext(
             onReady: () -> Unit,
             onNeedsAuth: () -> Unit,
+            onFailed: (String) -> Unit = {},
         ) {
             refreshGuestVenue()
             val session = authRepository.peekSession()
@@ -788,6 +793,7 @@ class StudentAuthViewModel
                 onSuccess = onReady,
                 onNeedsVerify = onNeedsAuth,
                 onNeedsContextualId = onNeedsAuth,
+                onFailed = onFailed,
             )
         }
 

@@ -574,6 +574,11 @@ class OrderFlowViewModel
             guestSessionStore.saveCartSnapshot(key, _uiState.value.cartLines)
         }
 
+        /** Un fallo previo al pedido (alta en el negocio) se ve donde se ven los del pedido. */
+        fun showCreateOrderError(message: String) {
+            _uiState.value = _uiState.value.copy(createOrderError = message)
+        }
+
         fun updateKitchenNotes(notes: String) {
             pendingIdempotencyKey = null
             _uiState.value = _uiState.value.copy(kitchenNotes = notes, createOrderError = null)

@@ -3,11 +3,13 @@ package com.vaiinilla.app.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -26,7 +28,7 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 @Composable
 fun WalletSubflowTopBar(
     title: String,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     trailing: @Composable (() -> Unit)? = null,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -39,8 +41,13 @@ fun WalletSubflowTopBar(
                 .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver", tint = colors.ink)
+        // Sin pantalla detrás (la primera de la app) no hay flecha: tocarla no haría nada.
+        if (onBack != null) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver", tint = colors.ink)
+            }
+        } else {
+            Spacer(Modifier.width(12.dp))
         }
         Text(
             title,

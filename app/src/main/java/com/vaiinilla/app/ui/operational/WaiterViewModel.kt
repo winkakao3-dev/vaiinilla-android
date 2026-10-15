@@ -22,6 +22,7 @@ import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.ReservationRepository
 import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.TableCall
+import com.vaiinilla.app.domain.repository.WaiterBoard
 import com.vaiinilla.app.domain.repository.WaiterRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
 import com.vaiinilla.app.domain.usecase.CreateOrderUseCase
@@ -64,7 +65,17 @@ data class WaiterUiState(
     val counterCatalog: Catalog? = null,
     val counterOrderSending: Boolean = false,
     val counterOrderError: String? = null,
-)
+    /** Cuándo llegó bien el tablero por última vez y cuántas cargas seguidas han fallado desde entonces. */
+    val lastBoardRefreshAt: Instant? = null,
+    val consecutiveBoardFailures: Int = 0,
+) {
+    /** Ya llegó al menos un tablero bueno. Las mesas solo entran con uno, así que también cuentan como prueba. */
+    val boardLoaded: Boolean
+        get() = lastBoardRefreshAt != null || tables.isNotEmpty()
+
+    val boardLink: WaiterBoardLink
+        get() = waiterBoardLink(boardLoaded, consecutiveBoardFailures)
+}
 
 @HiltViewModel
 class WaiterViewModel
@@ -111,22 +122,11 @@ class WaiterViewModel
                 val result = withContext(Dispatchers.IO) { waiterRepository.board() }
                 result.fold(
                     onSuccess = { board ->
-                        _uiState.value =
-                            _uiState.value.copy(
-                                tables = board.tables,
-                                callsEnabled = board.callsEnabled,
-                                deliveryRequiresQr = board.deliveryRequiresQr,
-                                loading = false,
-                                errorMessage = null,
-                            )
+                        _uiState.value = _uiState.value.withBoard(board, Instant.now())
                         detectNewCalls(board.tables)
                     },
                     onFailure = { error ->
-                        _uiState.value =
-                            _uiState.value.copy(
-                                loading = false,
-                                errorMessage = error.toUserFacingMessage(),
-                            )
+                        _uiState.value = _uiState.value.withBoardFailure(error.toUserFacingMessage())
                     },
                 )
             }
@@ -552,21 +552,12 @@ class WaiterViewModel
                         val result = withContext(Dispatchers.IO) { waiterRepository.board() }
                         result.fold(
                             onSuccess = { board ->
-                                _uiState.value =
-                                    _uiState.value.copy(
-                                        tables = board.tables,
-                                        callsEnabled = board.callsEnabled,
-                                        deliveryRequiresQr = board.deliveryRequiresQr,
-                                        errorMessage = null,
-                                    )
+                                _uiState.value = _uiState.value.withBoard(board, Instant.now())
                                 detectNewCalls(board.tables)
                                 openSpaceId?.let { loadSpaceDetail(it, silent = true) }
                             },
                             onFailure = { error ->
-                                _uiState.value =
-                                    _uiState.value.copy(
-                                        errorMessage = error.toUserFacingMessage(),
-                                    )
+                                _uiState.value = _uiState.value.withBoardFailure(error.toUserFacingMessage())
                             },
                         )
                     }
@@ -583,6 +574,48 @@ class WaiterViewModel
             const val TOAST_VISIBLE_MS = 4_200L
         }
     }
+
+internal const val WAITER_OFFLINE_AFTER_FAILURES = 2
+
+/** Lo que dice la píldora de conexión del tablero. */
+enum class WaiterBoardLink { Connecting, Live, Offline }
+
+/**
+ * Sin ningún tablero bueno, un solo fallo ya es "Sin conexión" y antes del primero se está conectando.
+ * Con un tablero bueno a la vista, se tolera un fallo suelto: hacen falta dos seguidos.
+ */
+internal fun waiterBoardLink(
+    boardLoaded: Boolean,
+    consecutiveFailures: Int,
+): WaiterBoardLink =
+    when {
+        !boardLoaded && consecutiveFailures > 0 -> WaiterBoardLink.Offline
+        !boardLoaded -> WaiterBoardLink.Connecting
+        consecutiveFailures >= WAITER_OFFLINE_AFTER_FAILURES -> WaiterBoardLink.Offline
+        else -> WaiterBoardLink.Live
+    }
+
+internal fun WaiterUiState.withBoard(
+    board: WaiterBoard,
+    receivedAt: Instant,
+): WaiterUiState =
+    copy(
+        tables = board.tables,
+        callsEnabled = board.callsEnabled,
+        deliveryRequiresQr = board.deliveryRequiresQr,
+        loading = false,
+        errorMessage = null,
+        lastBoardRefreshAt = receivedAt,
+        consecutiveBoardFailures = 0,
+    )
+
+/** Un fallo no borra las mesas: el mesero sigue viendo el último tablero bueno. */
+internal fun WaiterUiState.withBoardFailure(message: String): WaiterUiState =
+    copy(
+        loading = false,
+        errorMessage = message,
+        consecutiveBoardFailures = consecutiveBoardFailures + 1,
+    )
 
 /** Llave de idempotencia de un abono: la misma para el mismo abono sobre el mismo restante. */
 internal fun abonoIdempotencyKey(

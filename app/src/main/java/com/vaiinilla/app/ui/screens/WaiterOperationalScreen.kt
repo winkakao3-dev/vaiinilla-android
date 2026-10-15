@@ -78,6 +78,9 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -120,6 +123,7 @@ import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.components.waiterAssistantGuides
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
+import com.vaiinilla.app.ui.operational.WaiterBoardLink
 import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
@@ -319,7 +323,7 @@ fun WaiterOperationalScreen(
                 WaiterTitleBlock(
                     kicker = kicker,
                     placeName = placeName,
-                    online = state.errorMessage == null || state.tables.isNotEmpty(),
+                    link = state.boardLink,
                     colors = colors,
                 )
             }
@@ -330,32 +334,35 @@ fun WaiterOperationalScreen(
                 }
             }
 
-            item(span = fullWidth) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    WaiterSummaryCard(
-                        count = calling,
-                        label = "llamando",
-                        kind = if (calling > 0) SummaryKind.Call else SummaryKind.Plain,
-                        colors = colors,
-                        modifier = Modifier.weight(1f),
-                    )
-                    WaiterSummaryCard(
-                        count = readyCount,
-                        label = if (readyCount == 1) "listo" else "listos",
-                        kind = if (readyCount > 0) SummaryKind.Ready else SummaryKind.Plain,
-                        colors = colors,
-                        modifier = Modifier.weight(1f),
-                    )
-                    WaiterSummaryCard(
-                        count = activeCount,
-                        label = "activas",
-                        kind = SummaryKind.Plain,
-                        colors = colors,
-                        modifier = Modifier.weight(1f),
-                    )
+            // Sin un tablero bueno, los ceros dirían que no hay nada que hacer.
+            if (state.boardLoaded) {
+                item(span = fullWidth) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        WaiterSummaryCard(
+                            count = calling,
+                            label = "llamando",
+                            kind = if (calling > 0) SummaryKind.Call else SummaryKind.Plain,
+                            colors = colors,
+                            modifier = Modifier.weight(1f),
+                        )
+                        WaiterSummaryCard(
+                            count = readyCount,
+                            label = if (readyCount == 1) "listo" else "listos",
+                            kind = if (readyCount > 0) SummaryKind.Ready else SummaryKind.Plain,
+                            colors = colors,
+                            modifier = Modifier.weight(1f),
+                        )
+                        WaiterSummaryCard(
+                            count = activeCount,
+                            label = "activas",
+                            kind = SummaryKind.Plain,
+                            colors = colors,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
 
@@ -455,7 +462,7 @@ fun WaiterOperationalScreen(
                         },
                     )
                 }
-                if (sorted.isEmpty()) {
+                if (sorted.isEmpty() && state.boardLoaded) {
                     item(key = "board-empty", span = fullWidth) {
                         Surface(
                             shape = RoundedCornerShape(26.dp),
@@ -615,7 +622,7 @@ private enum class SummaryKind { Plain, Call, Ready }
 private fun WaiterTitleBlock(
     kicker: String,
     placeName: String,
-    online: Boolean,
+    link: WaiterBoardLink,
     colors: OperationalColors,
 ) {
     Row(
@@ -645,23 +652,33 @@ private fun WaiterTitleBlock(
                 modifier = Modifier.padding(top = 2.dp),
             )
         }
-        WaiterLivePill(online = online, colors = colors)
+        WaiterLivePill(link = link, colors = colors)
     }
 }
 
 @Composable
 private fun WaiterLivePill(
-    online: Boolean,
+    link: WaiterBoardLink,
     colors: OperationalColors,
 ) {
-    val dot = animateSelectionColor(if (online) colors.accentLime else WaiterCoral, "live-dot")
+    val online = link == WaiterBoardLink.Live
+    val dot =
+        animateSelectionColor(
+            when (link) {
+                WaiterBoardLink.Live -> colors.accentLime
+                WaiterBoardLink.Connecting -> colors.textMuted
+                WaiterBoardLink.Offline -> WaiterCoral
+            },
+            "live-dot",
+        )
     Row(
         modifier =
             Modifier
                 .clip(CircleShape)
                 .background(colors.cardBackground)
                 .border(1.dp, colors.cardBorder, CircleShape)
-                .padding(horizontal = 12.dp, vertical = 7.dp),
+                .padding(horizontal = 12.dp, vertical = 7.dp)
+                .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
@@ -673,7 +690,11 @@ private fun WaiterLivePill(
                 .background(dot),
         )
         Text(
-            if (online) "En vivo" else "Sin conexión",
+            when (link) {
+                WaiterBoardLink.Live -> "En vivo"
+                WaiterBoardLink.Connecting -> "Conectando…"
+                WaiterBoardLink.Offline -> "Sin conexión"
+            },
             color = colors.textSecondary,
             fontWeight = FontWeight.Bold,
             fontSize = 12.5.sp,

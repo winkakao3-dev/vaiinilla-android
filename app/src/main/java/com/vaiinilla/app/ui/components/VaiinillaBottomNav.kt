@@ -56,6 +56,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -417,6 +421,7 @@ fun VaiinillaBottomNav(
                                         .fillMaxHeight(),
                                 label = entry.label,
                                 iconRes = entry.iconRes,
+                                selected = index == activeIndex,
                                 selection = selection,
                                 directSelection = isDragging,
                                 badge = if (entry.tab == StudentTab.CART) cartCount else 0,
@@ -479,6 +484,7 @@ fun VaiinillaBottomNav(
 private fun FloatingNavTab(
     label: String,
     iconRes: Int,
+    selected: Boolean,
     selection: Float,
     directSelection: Boolean,
     onClick: () -> Unit,
@@ -496,7 +502,11 @@ private fun FloatingNavTab(
         modifier =
             modifier
                 .physicalPress(scale = PhysicalPressScale.Nav, onClick = onClick)
-                .padding(horizontal = 6.dp, vertical = 4.dp),
+                // La píldora solo se dibuja: sin esto TalkBack no sabe en qué pestaña estás.
+                .semantics {
+                    role = Role.Tab
+                    this.selected = selected
+                }.padding(horizontal = 6.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
