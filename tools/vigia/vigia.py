@@ -56,6 +56,13 @@ SOLO_NAVEGA = re.compile(
     r'ver cuentas por cobrar|tomar pedido)$',
     re.IGNORECASE,
 )
+# Lo que dice una pantalla que cargó y no encontró nada. Con la red caída no cargó nada: si lo dice, miente.
+VACIO = re.compile(
+    r'\bal d[ií]a\b|nada por cobrar|no hay (comandas|pedidos|mesas|cuentas|nada)|sin pedidos|'
+    r'todav[ií]a no (hay|tienes)|a[uú]n no (hay|tienes)',
+    re.IGNORECASE,
+)
+LISTA = re.compile(r"^'(.*)' \[\d+,\d+\]\[\d+,\d+\]", re.MULTILINE)
 VOLVER = re.compile(r'^(atr[aá]s|regresar|volver|cerrar|navigate up)$', re.IGNORECASE)
 
 
@@ -106,7 +113,9 @@ class Explorador:
     # --- registro ---------------------------------------------------------------------------------------
 
     def anotar(self, tipo, gravedad, detalle, pantalla=(), red=(), pantalla_id=''):
-        firma = (self.rol, tipo, clave(detalle), pantalla_id)
+        # Un "En vivo" viejo sale por cada ruta que falla y un vacío falso en cada pantalla que lo repite: con uno basta.
+        firma = {'en-vivo-viejo': (self.rol, tipo), 'vacio-falso': (self.rol, tipo, clave(detalle))}.get(
+            tipo, (self.rol, tipo, clave(detalle), pantalla_id))
         if firma in self.vistos:
             return
         self.vistos.add(firma)
@@ -173,6 +182,7 @@ class Explorador:
                 # Primera vez en esta pantalla: se revisa su diseño quieta (texto cortado, encimados, fuera).
                 for h in send_json('revisar')['hallazgos']:
                     self.anotar(h['tipo'], h['gravedad'], h['detalle'], h['pantalla'], h['red'], pid)
+                self.revisar_vacio(nodos, pid)
             self.pantallas.setdefault((rol, pid), nodos['textos'][:6])
             ya = probados.setdefault(pid, set())
             for nodo in nodos['nodos']:
@@ -248,6 +258,16 @@ class Explorador:
                 reentradas += 1
                 self.entrar()
                 profundidad = 0
+
+    def revisar_vacio(self, nodos, pid):
+        if self.o.red.split()[0] != 'caido':
+            return
+        for texto in (m.group(1) for m in LISTA.finditer(send('list'))):
+            if VACIO.search(texto):
+                self.anotar('vacio-falso', 'error',
+                            f'Con la red caída la pantalla dice "{texto[:70]}": no pudo cargar nada, así que no sabe '
+                            'si está vacía. Debe decir que no cargó y ofrecer reintentar.', nodos['textos'], (), pid)
+                return
 
     def revisar_escrituras(self):
         """Toda escritura que el cliente HTTP real mandó durante la corrida, salvo sesión y latidos."""
