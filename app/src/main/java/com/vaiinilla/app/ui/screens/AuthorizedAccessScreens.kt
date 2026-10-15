@@ -205,7 +205,7 @@ fun InvitationAcceptanceScreen(
 @Composable
 fun AuthorizedModeScreen(
     state: AuthorizedAccessUiState,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onSelectMode: (AuthorizedMode) -> Unit,
     onReturnToClient: () -> Unit,
     onSignOut: () -> Unit = {},

@@ -821,9 +821,11 @@ fun AppNavHost(
                 LaunchedEffect(authorizedAccessState.session?.uid) {
                     authorizedAccessViewModel.refreshModes(force = true)
                 }
+                val goBack: () -> Unit = { navController.popBackStack() }
                 AuthorizedModeScreen(
                     state = authorizedAccessState,
-                    onBack = { navController.popBackStack() },
+                    // En las apps de personal Modos es la primera pantalla: no hay a dónde volver.
+                    onBack = goBack.takeIf { navController.previousBackStackEntry != null },
                     onSelectMode = { mode ->
                         authorizedAccessViewModel.activateMode(mode) {
                             operationalViewModel.setRole(mode.role)
