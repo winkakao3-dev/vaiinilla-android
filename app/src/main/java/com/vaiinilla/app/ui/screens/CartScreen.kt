@@ -165,6 +165,8 @@ fun CartScreen(
     onRefresh: () -> Unit = {},
     recentOrders: List<OrderDetail> = emptyList(),
     onSelectOrder: (String) -> Unit = {},
+    /** El alta en el negocio corre antes del pedido: el botón espera igual que con el pedido. */
+    preparingCheckout: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -181,10 +183,14 @@ fun CartScreen(
     // operational-status check runs. submitOrder performs that check after auth.
     val canConfirm =
         if (guestAuthRequired) {
-            state.cartLines.isNotEmpty() && !state.creatingOrder && !state.hasUnresolvedStripePayment
+            state.cartLines.isNotEmpty() &&
+                !state.creatingOrder &&
+                !preparingCheckout &&
+                !state.hasUnresolvedStripePayment
         } else {
             state.cartLines.isNotEmpty() &&
                 !state.creatingOrder &&
+                !preparingCheckout &&
                 !state.hasUnresolvedStripePayment &&
                 (state.canCreateOrder || state.operationalStatus == null)
         }
@@ -424,7 +430,7 @@ fun CartScreen(
                             subtitle = "$productCountLabel · $destinationLabel",
                             price = moneyLabel(state.cartPreviewTotal),
                             enabled = canConfirm,
-                            loading = state.creatingOrder,
+                            loading = state.creatingOrder || preparingCheckout,
                             onClick = {
                                 haptics.impact()
                                 paymentDialogOpen = true

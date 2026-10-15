@@ -1161,6 +1161,7 @@ fun AppNavHost(
                             studentAuthViewModel.ensureVenueContext(
                                 onReady = orderFlowViewModel::submitOrder,
                                 onNeedsAuth = { navigateStudentAuth(Routes.CART) },
+                                onFailed = orderFlowViewModel::showCreateOrderError,
                             )
                         } else {
                             orderFlowViewModel.submitOrder()
@@ -1187,6 +1188,7 @@ fun AppNavHost(
                         operationalViewModel.selectOrder(orderId)
                         navController.navigateStudent(Routes.STUDENT_TRACKING)
                     },
+                    preparingCheckout = guestAuthRequired && studentAuthState.loading,
                 )
             }
 
