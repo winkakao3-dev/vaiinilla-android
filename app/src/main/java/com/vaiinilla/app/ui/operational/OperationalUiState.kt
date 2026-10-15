@@ -45,7 +45,7 @@ internal fun queuePresentation(
     when {
         hasOrders -> QueuePresentation.Content
         lastRefreshOk == null -> QueuePresentation.Loading
-        !lastRefreshOk -> QueuePresentation.Error
+        lastRefreshOk == false -> QueuePresentation.Error
         else -> QueuePresentation.Empty
     }
 
