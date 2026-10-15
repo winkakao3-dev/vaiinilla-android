@@ -11,8 +11,13 @@
   vigia.py <comando> [args]   pasa el comando tal cual al arnés (red, vigia, nodos, tocar, atras, limite…)
 
 Nunca toca lo que cierra sesión, cobra, paga, borra, rechaza, cambia disponibilidad o cierra caja: eso va
-en flujos escritos a mano. Y por si algo se cuela, corre en solo lectura: toda escritura (salvo sesión y
-latidos) vuelve como error sin llegar al sandbox de dev, que comparten otros agentes. --escrituras lo quita.
+en flujos escritos a mano. Y por si algo se cuela, corre en solo lectura: las escrituras que pasan por el
+cliente de la API (salvo sesión y latidos) vuelven como error sin llegar al sandbox de dev, que comparten
+otros agentes. Unas pocas clases (sesión, presencia, correo de acceso) usan el cliente HTTP directo y no
+pasan por ahí; por eso al final se revisa el log del arnés y se cuenta toda escritura que sí salió.
+--escrituras quita el solo lectura.
+
+Antes: tools/vigia/compilar.sh (heaps pequeños) y vbuild jvm-roles reiniciar.
 """
 import argparse
 import datetime
@@ -25,6 +30,9 @@ import sys
 from pathlib import Path
 
 STATE = Path.home() / '.cache' / 'vaiinilla' / 'jvm-roles' / 'estado.json'
+HARNESS_LOG = Path.home() / '.cache' / 'vaiinilla' / 'jvm-roles' / 'log.txt'
+ESCRITURA = re.compile(r'VaiinillaHttp: (POST|PUT|PATCH|DELETE) (\S+) -> (\d+)')
+DE_FONDO = ('sesiones/', 'latidos', 'dispositivos')
 OUT_ROOT = Path.home() / '.cache' / 'vaiinilla' / 'vigia'
 TIMEOUT_SECONDS = 180
 ROLES = ['alumno', 'caja', 'cocina', 'mesero']
@@ -77,6 +85,8 @@ class Explorador:
         self.rol = None
         self.toques = 0
         self.totales_inicio = None
+        self.log_inicio = HARNESS_LOG.stat().st_size if HARNESS_LOG.exists() else 0
+        self.escrituras_reales = []
         self.totales = {}
 
     # --- registro ---------------------------------------------------------------------------------------
@@ -215,11 +225,24 @@ class Explorador:
                 self.entrar()
                 profundidad = 0
 
+    def revisar_escrituras(self):
+        """Toda escritura que el cliente HTTP real mandó durante la corrida, salvo sesión y latidos."""
+        if not HARNESS_LOG.exists():
+            return
+        with HARNESS_LOG.open('rb') as log:
+            log.seek(self.log_inicio)
+            texto = log.read().decode('utf-8', 'replace')
+        self.escrituras_reales = [
+            f'{m.group(1)} {m.group(2)} -> {m.group(3)}'
+            for m in ESCRITURA.finditer(texto) if not m.group(2).startswith(DE_FONDO)
+        ]
+
     # --- informe ----------------------------------------------------------------------------------------
 
     def informe(self):
         rama = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], capture_output=True, text=True).stdout.strip()
         commit = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], capture_output=True, text=True).stdout.strip()
+        self.revisar_escrituras()
         errores = [h for h in self.hallazgos if h['gravedad'] == 'error']
         sospechas = [h for h in self.hallazgos if h['gravedad'] != 'error']
         lineas = [
@@ -230,7 +253,8 @@ class Explorador:
             f'- {self.toques} toques · {len(self.pantallas)} pantallas distintas · '
             f'**{len(errores)} errores** · {len(sospechas)} sospechas',
             f'- Red: {self.totales.get("peticiones", 0)} peticiones · {self.totales.get("saboteadas", 0)} saboteadas · '
-            f'{self.totales.get("bloqueadas", 0)} escrituras frenadas (solo lectura)',
+            f'{self.totales.get("bloqueadas", 0)} escrituras frenadas (solo lectura) · '
+            f'**{len(self.escrituras_reales)} escrituras que sí llegaron al sandbox**',
             '',
         ]
         for titulo, grupo in (('Errores', errores), ('Sospechas', sospechas)):
@@ -246,12 +270,19 @@ class Explorador:
                 lineas += ['Para repetirlo:', ''] + [f'    {p}' for p in h['pasos'][-12:]] + ['']
                 if h['captura']:
                     lineas += [f'![{h["tipo"]}]({h["captura"]})', '']
+        if self.escrituras_reales:
+            lineas += ['## Escrituras que llegaron al sandbox de dev', ''] + [f'    {e}' for e in self.escrituras_reales] + ['']
         lineas += ['## Pantallas recorridas', '']
         for (rol, pid), textos in sorted(self.pantallas.items()):
             lineas.append(f'- {rol} `{pid}`: ' + ' · '.join(t[:30] for t in textos))
         (self.out / 'informe.md').write_text('\n'.join(lineas) + '\n')
         (self.out / 'hallazgos.json').write_text(json.dumps(self.hallazgos, ensure_ascii=False, indent=2))
         print(f'\n{len(errores)} errores, {len(sospechas)} sospechas · {self.out / "informe.md"}')
+        if self.escrituras_reales and not self.o.escrituras:
+            print(f'⛔ {len(self.escrituras_reales)} escrituras llegaron al sandbox en solo lectura:')
+            for e in self.escrituras_reales:
+                print(f'   {e}')
+            return 2
         return 1 if errores else 0
 
 
