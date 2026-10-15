@@ -264,7 +264,7 @@ class Vigia(
         }
         network
             .eventsAfter(network.lastId() - LIVE_WINDOW_EVENTS)
-            .filter { it.method == "GET" && it.endedAt != null }
+            .filter { it.method == "GET" && it.endedAt != null && NOT_LIVE_DATA.none(it.path::startsWith) }
             .groupBy { it.path }
             .filterValues { it.size >= STALE_FAILURES }
             .forEach { (path, events) ->
@@ -288,6 +288,8 @@ class Vigia(
     private fun recentNetwork(): List<String> = network.recent(RECENT_EVENTS)
 
     private companion object {
+        // Lo que la app pide de fondo (términos vigentes, sesión, latido) no es lo que "En vivo" promete fresco.
+        val NOT_LIVE_DATA = listOf("publico/legal", "sesiones/", "latidos", "devices")
         const val SAMPLE_EVERY_MILLIS = 250L
         const val MAX_SAMPLES = 400
         const val DEFAULT_LOADING_LIMIT_MILLIS = 12_000L

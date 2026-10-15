@@ -59,8 +59,9 @@ vbuild jvm-roles parar                          # siempre al terminar
   el paso queda como `interferencia` y no se puede juzgar.
 - Explorar no toca lo que escribe (cobrar, pagar, cerrar caja, rechazar, cambiar disponibilidad…). Eso solo
   se prueba en los flujos, y los errores de escritura solo aparecen ahí.
-- Un toque cuenta como efecto si cambia la pantalla, los textos (también las descripciones de íconos), la red
-  o cómo se ve el botón tocado (sus pixeles, dibujando la ventana de arriba): así elegir un tema no sale como
+- Un toque cuenta como efecto si cambia la pantalla, los textos (también las descripciones de íconos), si un
+  botón se deshabilita o aparece un progreso, la red, cómo se ve el botón tocado (sus pixeles, dibujando la
+  ventana de arriba) o si abre otra app (un enlace a la web): así elegir un tema no sale como
   `toque-sin-efecto`. Un cambio que solo se ve en otra parte de la pantalla sí sale.
 - Lo que queda debajo de un velo de pantalla completa (la ficha del producto) no se toca: ningún dedo lo
   alcanza. Si TalkBack sí lo alcanza, sale `detras-accesible`.

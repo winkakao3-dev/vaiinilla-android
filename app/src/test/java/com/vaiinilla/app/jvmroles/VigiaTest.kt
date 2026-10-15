@@ -260,6 +260,17 @@ class VigiaTest {
     }
 
     @Test
+    fun `background requests failing do not make a live label stale`() {
+        compose.setContent { Text("En vivo") }
+        network.configure(listOf("caido"))
+
+        repeat(3) { network.intercept("GET", "publico/legal/vigente") { Result.success("{}") } }
+        tick(500)
+
+        assertEquals(emptyList<String>(), kinds())
+    }
+
+    @Test
     fun `a screen with nothing on it is blank`() {
         compose.setContent { Box(Modifier.size(10.dp)) }
 

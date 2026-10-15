@@ -110,6 +110,14 @@ def _paso_de_personal(f, pedido_id, estado, boton, exito, descripcion):
     return True
 
 
+def _al_sandbox(f):
+    """El alumno abre el menú del sandbox. Si quedó con carrito en otra cafetería (el explorador corre antes), la
+    app pregunta "¿Cambiar de cafetería?" y hay que aceptar."""
+    f.entrar('alumno')
+    f.deeplink('https://vaiinilla.app/e/sandbox-agentes')
+    f.tocar(r'^Cambiar$', opcional=True, segundos=5)
+
+
 def _seleccionar(f, folio):
     """Caja y cocina actúan sobre el pedido al frente; si el nuestro está en la fila, se toca para traerlo."""
     f.tocar(rf'#{folio}\b', segundos=15, opcional=True)
@@ -120,8 +128,7 @@ def _pedir_en_caja(f):
     """El alumno pide Chocolate frío para pagar en caja. Devuelve (id, folio)."""
     desde = _ahora()
     _limpieza(f, desde)
-    f.entrar('alumno')
-    f.deeplink('https://vaiinilla.app/e/sandbox-agentes')
+    _al_sandbox(f)
     f.tocar(r'Buscar productos', campo=True)
     f.escribir(PRODUCTO)
     f.tocar(rf'{PRODUCTO}.*\$\d')
@@ -217,8 +224,7 @@ def cocina_sin_escrituras(f):
 
 @flujo('alumno-pedir-sin-escrituras', 'El alumno toca Pedir sin poder escribir: avisa el error, no dice "Pedido recibido"')
 def alumno_pedir_sin_escrituras(f):
-    f.entrar('alumno')
-    f.deeplink('https://vaiinilla.app/e/sandbox-agentes')
+    _al_sandbox(f)
     f.tocar(r'Buscar productos', campo=True)
     f.escribir(PRODUCTO)
     f.tocar(rf'{PRODUCTO}.*\$\d')

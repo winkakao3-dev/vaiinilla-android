@@ -392,7 +392,11 @@ class JvmRolesHarness {
             val toggle = config.getOrNull(SemanticsProperties.ToggleableState)?.let { " tog=$it" } ?: ""
             val focus = config.getOrNull(SemanticsProperties.Focused)?.let { " foco=$it" } ?: ""
             val description = config.getOrNull(SemanticsProperties.ContentDescription)?.let { " desc=$it" } ?: ""
-            labelOf(node) + selected + toggle + focus + description
+            // Un botón que se deshabilita o un indicador de progreso que aparece también es respuesta visible.
+            val disabled = if (SemanticsProperties.Disabled in config) " off" else ""
+            val progress =
+                config.getOrNull(SemanticsProperties.ProgressBarRangeInfo)?.let { " prog=${it.current}" } ?: ""
+            labelOf(node) + selected + toggle + focus + description + disabled + progress
         }
 
     private fun tappableNodes(): JSONObject {
@@ -439,6 +443,7 @@ class JvmRolesHarness {
                 .filter { it.startedAt >= System.currentTimeMillis() - POLLING_WINDOW_MILLIS }
                 .map { it.method to it.path }
                 .toSet()
+        startedOutside()
         val tappedAt = System.currentTimeMillis()
         compose.onAllNodes(SemanticsMatcher("id $id") { it.id == id })[0].performClick()
         pump(SETTLE_MILLIS, realTime = true)
@@ -449,9 +454,12 @@ class JvmRolesHarness {
             }
         val gone = scenario?.state?.isAtLeast(Lifecycle.State.CREATED) != true
         if (gone) closeActivity()
+        val outside = startedOutside()
         val effect =
             when {
                 gone -> "salio"
+                // Un enlace a la web o a mapas abre otra app: aquí no hay navegador, pero el toque sí hizo algo.
+                outside -> "otra-app"
                 screenKey() != keyBefore -> "pantalla-nueva"
                 screenState() != stateBefore -> "cambio"
                 requests > 0 -> "red"
@@ -464,6 +472,13 @@ class JvmRolesHarness {
             .put("efecto", effect)
             .put("peticiones", requests)
             .put("pantalla", if (gone) "" else screenKey())
+    }
+
+    /** Si la app pidió abrir algo fuera de ella desde la última llamada (y vacía la lista). */
+    private fun startedOutside(): Boolean {
+        val app = ApplicationProvider.getApplicationContext<android.app.Application>()
+        val started = generateSequence { shadowOf(app).nextStartedActivity }.toList()
+        return started.any { it.component?.packageName != app.packageName }
     }
 
     /**
