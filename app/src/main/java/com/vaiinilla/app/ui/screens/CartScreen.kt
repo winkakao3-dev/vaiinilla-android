@@ -86,6 +86,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -116,6 +117,7 @@ import com.vaiinilla.app.ui.components.NumberTicker
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.ProfileInitialsButton
+import com.vaiinilla.app.ui.components.SHEET_HANDLE_DESCRIPTION
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.moneyLabel
@@ -550,7 +552,8 @@ private fun PaymentMethodOverlay(
                         .padding(top = 12.dp, bottom = 6.dp)
                         .size(width = 38.dp, height = 4.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(colors.muted.copy(alpha = 0.35f)),
+                        .background(colors.muted.copy(alpha = 0.35f))
+                        .semantics { contentDescription = SHEET_HANDLE_DESCRIPTION },
             )
         },
     ) {

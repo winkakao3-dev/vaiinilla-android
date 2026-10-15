@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -75,10 +76,12 @@ internal fun StaffAvatarMenu(
                         text = { Text(themeModeName(mode), color = colors.textPrimary) },
                         trailingIcon = {
                             if (mode == themeMode) {
-                                Icon(Icons.Outlined.Check, contentDescription = "Elegido", tint = colors.textPrimary)
+                                Icon(Icons.Outlined.Check, contentDescription = null, tint = colors.textPrimary)
                             }
                         },
                         onClick = { onThemeChange(mode) },
+                        // TalkBack dice "seleccionado" en el tema actual, igual que en Cuenta.
+                        modifier = Modifier.semantics { selected = mode == themeMode },
                     )
                 }
                 HorizontalDivider(color = colors.cardBorder, modifier = Modifier.padding(vertical = 4.dp))

@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -352,7 +353,11 @@ private fun CatalogContent(
         PullToRefreshBox(
             isRefreshing = state.loading,
             onRefresh = onRefresh,
-            modifier = Modifier.fillMaxSize(),
+            // Con la ficha abierta el menú queda debajo de su velo: TalkBack tampoco debe recorrerlo.
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .then(if (state.selectedProduct != null) Modifier.clearAndSetSemantics {} else Modifier),
             indicator = {},
         ) {
             CompositionLocalProvider(LocalScene provides scene, LocalVaiinillaColors provides shelfColors) {
