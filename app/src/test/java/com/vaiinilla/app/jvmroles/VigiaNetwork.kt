@@ -132,7 +132,8 @@ class VigiaNetwork
             var sabotaged = false
             val result =
                 try {
-                    val targeted = onlyPath?.let { path.contains(it) } ?: true
+                    val targeted =
+                        SABOTAGE_EXEMPT.none { path.startsWith(it) } && (onlyPath?.let { path.contains(it) } ?: true)
                     if (targeted && delayMillis > 0) {
                         sabotaged = true
                         Thread.sleep(delayMillis)
@@ -151,7 +152,7 @@ class VigiaNetwork
                         sabotaged = true
                         Result.failure(failure)
                     } else {
-                        call()
+                        accounted(call)
                     }
                 } finally {
                     running.decrementAndGet()
@@ -181,21 +182,14 @@ class VigiaNetwork
         }
 
         private fun blockedWrite(): Throwable =
-            parser.parseError(
-                """{"error":{"code":"VIGIA_SOLO_LECTURA","message":"El vigía no deja escribir en el sandbox."}}""",
-                503,
-            )
+            parser.parseError(errorEnvelope("VIGIA_SOLO_LECTURA", "El vigía no deja escribir en el sandbox."), 503)
 
         private fun pickFailure(): Throwable? {
             if (failPercent <= 0) return null
             val (roll, kind) = synchronized(this) { random.nextInt(100) to random.nextInt(3) }
             if (mode != Mode.CAIDO && roll >= failPercent) return null
             return when (if (mode == Mode.CAIDO) 2 else kind) {
-                0 ->
-                    parser.parseError(
-                        """{"error":{"code":"VIGIA_500","message":"Falla del servidor (vigía)."}}""",
-                        500,
-                    )
+                0 -> parser.parseError(errorEnvelope("VIGIA_500", "Falla del servidor (vigía)."), 500)
                 1 -> SocketTimeoutException("vigía: tiempo agotado")
                 else -> ConnectException("vigía: sin red")
             }
@@ -224,6 +218,36 @@ class VigiaNetwork
         companion object {
             /** Escrituras de fondo que la app necesita para seguir viva; ni se frenan ni se espera que se vean. */
             val WRITE_ALLOWLIST = listOf("sesiones/", "latidos", "dispositivos")
+
+            /** Nunca se sabotean: el explorador entra a cada rol con la red ya caída y el login debe funcionar. */
+            val SABOTAGE_EXEMPT = listOf("sesiones/")
+
+            private const val NO_META = """{"page":null,"total_pages":null,"total_items":null,"cursor":null}"""
+            private val accountedThread = ThreadLocal.withInitial { false }
+
+            /** El sobre de error del backend (utils/envelope.js). Sin `meta`, ApiResponseParser no lee el código. */
+            fun errorEnvelope(
+                code: String,
+                message: String,
+            ): String =
+                """{"data":null,"meta":$NO_META,"error":{"code":"$code","message":"$message","details":[]}}"""
+
+            /**
+             * Lo que se conecte en este hilo dentro de [block] ya quedó contado en [intercept] o es tráfico del
+             * propio arnés: VigiaHttp lo deja salir sin anotarlo ni sabotearlo.
+             */
+            fun <T> accounted(block: () -> T): T {
+                val outer = accountedThread.get()
+                accountedThread.set(true)
+                try {
+                    return block()
+                } finally {
+                    accountedThread.set(outer)
+                }
+            }
+
+            fun isAccounted(): Boolean = accountedThread.get()
+
             private const val MAX_EVENTS = 300
             private const val DEFAULT_DELAY_MILLIS = 4_000L
             private const val DEFAULT_FAIL_PERCENT = 30

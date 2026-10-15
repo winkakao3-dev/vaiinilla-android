@@ -28,6 +28,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.sun.net.httpserver.HttpServer
 import com.vaiinilla.app.core.network.ApiResponseParser
 import com.vaiinilla.app.ui.components.SkeletonBlock
 import org.junit.Assert.assertEquals
@@ -38,6 +39,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.net.HttpURLConnection
+import java.net.InetSocketAddress
+import java.net.URL
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import kotlin.concurrent.thread
 
@@ -262,6 +267,89 @@ class VigiaTest {
         assertEquals(listOf("pantalla-en-blanco:error"), kinds())
     }
 
+    @Test
+    fun `a 401 to a POST in streaming mode comes back as 401, like on Android`() {
+        localServer(401, NOT_VERIFIED) { base, _ ->
+            val connection = post(VigiaHttp(network, "https://api.invalid/"), "$base/identidad/alta")
+
+            assertEquals(401, connection.responseCode)
+            assertEquals(true, connection.errorStream.bufferedReader().readText().contains("EMAIL_NOT_VERIFIED"))
+            assertEquals(emptyList<VigiaNetwork.Event>(), network.eventsAfter(0))
+        }
+    }
+
+    @Test
+    fun `a request that skips VigiaApiClient is logged as failed, one that goes through it is not logged twice`() {
+        localServer(401, NOT_VERIFIED) { base, _ ->
+            val http = VigiaHttp(network, "$base/")
+
+            assertEquals(401, post(http, "$base/identidad/alta").responseCode)
+            network.intercept("POST", "pedidos") {
+                post(http, "$base/pedidos").responseCode
+                Result.success("")
+            }
+
+            val events = network.eventsAfter(0).map { "${it.method} ${it.path} ${it.outcome} ${it.failed}" }
+            assertEquals(
+                listOf("POST identidad/alta HTTP 401 EMAIL_NOT_VERIFIED true", "POST pedidos ok false"),
+                events,
+            )
+        }
+    }
+
+    @Test
+    fun `read-only stops a write that skips VigiaApiClient before it leaves, session calls survive a dead network`() {
+        localServer(200, "{}") { base, hits ->
+            val http = VigiaHttp(network, "$base/")
+            network.writesAllowed = false
+            network.configure(listOf("caido"))
+
+            val write = post(http, "$base/invitaciones/aceptar")
+            val session = post(http, "$base/sesiones/contexto")
+
+            assertEquals(503, write.responseCode)
+            assertEquals(true, write.errorStream.bufferedReader().readText().contains("VIGIA_SOLO_LECTURA"))
+            assertEquals(200, session.responseCode)
+            assertEquals(listOf("/sesiones/contexto"), hits)
+        }
+    }
+
+    /** Un POST como el de HttpVaiinillaApiClient, con el manejador de [http] y sin instalar nada en la JVM. */
+    private fun post(
+        http: VigiaHttp,
+        spec: String,
+    ): HttpURLConnection {
+        val connection = URL(null, spec, http.handler("http")).openConnection() as HttpURLConnection
+        val body = "{}".toByteArray()
+        connection.requestMethod = "POST"
+        connection.doOutput = true
+        connection.setFixedLengthStreamingMode(body.size)
+        connection.outputStream.use { it.write(body) }
+        return connection
+    }
+
+    private fun localServer(
+        status: Int,
+        body: String,
+        block: (base: String, hits: List<String>) -> Unit,
+    ) {
+        val hits = CopyOnWriteArrayList<String>()
+        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        server.createContext("/") { exchange ->
+            hits += exchange.requestURI.path
+            exchange.requestBody.readBytes()
+            val bytes = body.toByteArray()
+            exchange.sendResponseHeaders(status, bytes.size.toLong())
+            exchange.responseBody.use { it.write(bytes) }
+        }
+        server.start()
+        try {
+            block("http://127.0.0.1:${server.address.port}", hits)
+        } finally {
+            server.stop(0)
+        }
+    }
+
     private fun audit(): List<VigiaLayout.Issue> {
         fun walk(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::walk)
         val root = compose.onAllNodes(isRoot(), useUnmergedTree = true).fetchSemanticsNodes().last()
@@ -297,5 +385,6 @@ class VigiaTest {
     private companion object {
         const val LIMIT = 4_000L
         const val STEP = 250L
+        val NOT_VERIFIED = VigiaNetwork.errorEnvelope("EMAIL_NOT_VERIFIED", "El correo aún no está verificado.")
     }
 }

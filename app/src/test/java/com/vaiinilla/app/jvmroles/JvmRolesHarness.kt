@@ -26,6 +26,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.captureScreenRoboImage
+import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.MainActivity
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.data.guest.GuestReservationSession
@@ -99,6 +100,11 @@ class JvmRolesHarness {
         )
         hilt.inject()
         ShadowLog.stream = System.out
+        // Antes de la primera petición. Sin esto un 401 a un POST no llega a la app y lo que se salta VigiaApiClient
+        // no queda en la bitácora.
+        if (!VigiaHttp.install(network, BuildConfig.API_BASE_URL)) {
+            println("vigía: otra URLStreamHandlerFactory ya estaba puesta; la red queda como la da el JDK")
+        }
         vigia = Vigia(network, ::visibleNodes, ::labelOf)
         // En el teléfono una excepción sin atrapar en cualquier hilo cierra la app; aquí solo mataría ese hilo.
         val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
