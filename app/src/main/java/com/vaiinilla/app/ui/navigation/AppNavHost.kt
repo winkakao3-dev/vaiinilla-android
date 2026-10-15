@@ -1670,6 +1670,7 @@ fun AppNavHost(
                             waiterState.tables.takeIf { it.isNotEmpty() }?.count { it.hasPendingAccount() },
                         notice = waiterState.toastMessage,
                         onDismissError = operationalViewModel::dismissMutationError,
+                        onRefresh = operationalViewModel::refresh,
                     )
                     if (waiterState.counterOrderOpen) {
                         CounterOrderSheet(
@@ -1709,6 +1710,7 @@ fun AppNavHost(
                             authorizedAccessState.activeContext?.membershipId ?: "kitchen",
                         onActionNoticed = operationalViewModel::consumeActionNotice,
                         onDismissError = operationalViewModel::dismissMutationError,
+                        onRefresh = operationalViewModel::refresh,
                     )
                 }
             }

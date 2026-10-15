@@ -17,6 +17,8 @@ data class OperationalUiState(
     val cashSessionOpen: Boolean? = null,
     val heartbeatOnline: Boolean? = null,
     val errorMessage: String? = null,
+    /** Si la última carga de pedidos salió bien; null mientras no termina ninguna para este rol. */
+    val lastRefreshOk: Boolean? = null,
     val lastSyncedAt: String? = null,
     val walletClients: List<WalletClient> = emptyList(),
     val walletSearchLoading: Boolean = false,
@@ -31,6 +33,21 @@ data class OperationalUiState(
     val selectedOrder: OrderDetail?
         get() = orders.firstOrNull { it.summary.id == selectedOrderId }
 }
+
+/** Qué ocupa el lugar de la fila de pedidos de Cocina o Caja. */
+internal enum class QueuePresentation { Content, Loading, Error, Empty }
+
+/** "Al día" o "Nada por cobrar" solo se dicen si la última carga salió bien. */
+internal fun queuePresentation(
+    hasOrders: Boolean,
+    lastRefreshOk: Boolean?,
+): QueuePresentation =
+    when {
+        hasOrders -> QueuePresentation.Content
+        lastRefreshOk == null -> QueuePresentation.Loading
+        !lastRefreshOk -> QueuePresentation.Error
+        else -> QueuePresentation.Empty
+    }
 
 /** Estado de la hoja "Cerrar caja". */
 data class CloseCashUi(

@@ -130,6 +130,7 @@ class OperationalViewModel
                     menuOrder = if (roleChanged) null else _uiState.value.menuOrder,
                     selectedOrderId = null,
                     errorMessage = null,
+                    lastRefreshOk = if (roleChanged) null else _uiState.value.lastRefreshOk,
                     cashSessionOpen = null,
                     walletClients = emptyList(),
                     walletSearchLoading = false,
@@ -227,10 +228,14 @@ class OperationalViewModel
                     }
                 }
             }
+            // Mientras la carga siga fallando el error se queda: limpiarlo en cada sondeo lo haría parpadear.
             _uiState.value =
                 _uiState.value.copy(
                     loading = true,
-                    errorMessage = _uiState.value.errorMessage.takeIf { mutationErrorVisible },
+                    errorMessage =
+                        _uiState.value.errorMessage.takeIf {
+                            mutationErrorVisible || _uiState.value.lastRefreshOk == false
+                        },
                 )
             viewModelScope.launch {
                 // Client orders always fetch the full list (like iOS): the delta can miss
@@ -279,6 +284,7 @@ class OperationalViewModel
                                 latestClientOrder = latestClientOrder,
                                 menuOrder = visibleLatestMenuOrder(latestClientOrder, dismissedClientOrderIds),
                                 lastSyncedAt = newest,
+                                lastRefreshOk = true,
                                 errorMessage =
                                     _uiState.value.errorMessage.takeIf { mutationErrorVisible },
                             )
@@ -288,6 +294,7 @@ class OperationalViewModel
                         _uiState.value =
                             _uiState.value.copy(
                                 loading = false,
+                                lastRefreshOk = false,
                                 errorMessage = error.toUserFacingMessage(),
                             )
                     },
@@ -1196,6 +1203,7 @@ class OperationalViewModel
                     loading = false,
                     acting = false,
                     errorMessage = null,
+                    lastRefreshOk = true,
                 )
             mutationErrorVisible = false
         }

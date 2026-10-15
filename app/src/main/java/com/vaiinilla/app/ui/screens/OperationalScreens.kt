@@ -141,6 +141,8 @@ import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
 import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.operational.OperationalUiState
+import com.vaiinilla.app.ui.operational.QueuePresentation
+import com.vaiinilla.app.ui.operational.queuePresentation
 import com.vaiinilla.app.ui.theme.AccentInk
 import com.vaiinilla.app.ui.theme.Cream
 import com.vaiinilla.app.ui.theme.CreamDeep
@@ -284,6 +286,7 @@ fun CashierOperationalScreen(
     /** Aviso que llega de fuera (por ejemplo, el folio del pedido de mostrador). */
     notice: String? = null,
     onDismissError: () -> Unit = {},
+    onRefresh: () -> Unit = {},
 ) {
     val colors = rememberOperationalColors()
     val reduceMotion = reducedMotion()
@@ -360,6 +363,7 @@ fun CashierOperationalScreen(
             ?: actionableCashierOrders.firstOrNull()
     val queuedCashierOrders =
         actionableCashierOrders.filterNot { it.summary.id == recentOrder?.summary?.id }
+    val cashierQueue = queuePresentation(actionableCashierOrders.isNotEmpty(), state.lastRefreshOk)
     val products = state.catalog?.products.orEmpty()
     val activeCount = products.count { it.available }
     val pausedCount = products.size - activeCount
@@ -501,8 +505,11 @@ fun CashierOperationalScreen(
                 }
             }
 
-            // La hoja de alta muestra su propio error; aquí no se repite.
-            val cashierError = state.errorMessage.takeUnless { addProductSheetOpen }
+            // La hoja de alta y la fila sin cargar muestran su propio error; aquí no se repite.
+            val cashierError =
+                state.errorMessage.takeUnless {
+                    addProductSheetOpen || cashierQueue == QueuePresentation.Error
+                }
             if (cashierError != null) {
                 item(key = "cashier-error") {
                     OperationalErrorCard(
@@ -887,7 +894,17 @@ fun CashierOperationalScreen(
                             TicketZigzag()
                         }
                     } else {
-                        CashierQueueEmpty(colors = colors)
+                        when (cashierQueue) {
+                            QueuePresentation.Loading -> CashierQueueLoading(colors = colors)
+                            QueuePresentation.Error ->
+                                OperationalErrorCard(
+                                    title = "No se pudieron cargar los pedidos",
+                                    message = state.errorMessage ?: "Revisa la conexión e inténtalo otra vez.",
+                                    colors = colors,
+                                    onRetry = onRefresh,
+                                )
+                            else -> CashierQueueEmpty(colors = colors)
+                        }
                     }
                 }
             }
@@ -1536,6 +1553,7 @@ fun KitchenOperationalScreen(
     assistantUserKey: String = "kitchen",
     onActionNoticed: () -> Unit = {},
     onDismissError: () -> Unit = {},
+    onRefresh: () -> Unit = {},
 ) {
     val colors = rememberOperationalColors()
     val reduceMotion = reducedMotion()
@@ -1558,6 +1576,7 @@ fun KitchenOperationalScreen(
     val isPreparing = orderState == OrderState.PREPARING
     val isReady = orderState == OrderState.READY || orderState == OrderState.DELIVERED
     val nextGuidableOrder = upcomingOrders.firstOrNull()
+    val kitchenQueue = queuePresentation(state.orders.isNotEmpty(), state.lastRefreshOk)
     LaunchedEffect(toastMessage) {
         if (toastMessage != null) {
             delay(2_200)
@@ -1697,7 +1716,8 @@ fun KitchenOperationalScreen(
                 }
             }
 
-            state.errorMessage?.let { message ->
+            // Sin comandas cargadas, la tarjeta de la fila ya muestra el error.
+            state.errorMessage?.takeUnless { kitchenQueue == QueuePresentation.Error }?.let { message ->
                 item(key = "kitchen-error") {
                     OperationalErrorCard(
                         message = message,
@@ -1722,7 +1742,12 @@ fun KitchenOperationalScreen(
                             fontSize = 20.sp,
                             color = colors.textPrimary,
                         )
-                        val prepStatus = "Al día"
+                        val prepStatus =
+                            when (kitchenQueue) {
+                                QueuePresentation.Loading -> "Cargando…"
+                                QueuePresentation.Error -> "Sin actualizar"
+                                else -> "Al día"
+                            }
                         Text(
                             text = prepStatus,
                             fontSize = 12.sp,
@@ -1929,7 +1954,15 @@ fun KitchenOperationalScreen(
                             }
                             TicketZigzag()
                         }
+                    } else if (kitchenQueue == QueuePresentation.Error) {
+                        OperationalErrorCard(
+                            title = "No se pudieron cargar las comandas",
+                            message = state.errorMessage ?: "Revisa la conexión e inténtalo otra vez.",
+                            colors = colors,
+                            onRetry = onRefresh,
+                        )
                     } else {
+                        val loadingQueue = kitchenQueue == QueuePresentation.Loading
                         Surface(
                             modifier =
                                 Modifier
@@ -1944,17 +1977,19 @@ fun KitchenOperationalScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 Text(
-                                    "Cocina al día",
+                                    if (loadingQueue) "Cargando comandas…" else "Cocina al día",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp,
                                     color = colors.textPrimary,
                                 )
-                                Text(
-                                    text = "No hay comandas pendientes en este momento.",
-                                    fontSize = 13.sp,
-                                    color = colors.textSecondary,
-                                    textAlign = TextAlign.Center,
-                                )
+                                if (!loadingQueue) {
+                                    Text(
+                                        text = "No hay comandas pendientes en este momento.",
+                                        fontSize = 13.sp,
+                                        color = colors.textSecondary,
+                                        textAlign = TextAlign.Center,
+                                    )
+                                }
                             }
                         }
                     }
