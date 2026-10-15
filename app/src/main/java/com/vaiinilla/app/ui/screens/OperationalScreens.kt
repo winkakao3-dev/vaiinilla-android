@@ -283,6 +283,7 @@ fun CashierOperationalScreen(
     pendingSpaces: Int? = null,
     /** Aviso que llega de fuera (por ejemplo, el folio del pedido de mostrador). */
     notice: String? = null,
+    onDismissError: () -> Unit = {},
 ) {
     val colors = rememberOperationalColors()
     val reduceMotion = reducedMotion()
@@ -500,6 +501,19 @@ fun CashierOperationalScreen(
                 }
             }
 
+            // La hoja de alta muestra su propio error; aquí no se repite.
+            val cashierError = state.errorMessage.takeUnless { addProductSheetOpen }
+            if (cashierError != null) {
+                item(key = "cashier-error") {
+                    OperationalErrorCard(
+                        message = cashierError,
+                        colors = colors,
+                        onDismiss = onDismissError,
+                        modifier = Modifier.animateItem(),
+                    )
+                }
+            }
+
             item(key = "cashier-actions") {
                 CashierQuickActions(
                     colors = colors,
@@ -608,6 +622,11 @@ fun CashierOperationalScreen(
                             remember(recentOrder.summary.id) {
                                 mutableStateOf<TipChoice>(TipChoice.None)
                             }
+                        // El progreso es del cobro: otra acción en curso solo deshabilita el botón.
+                        var collecting by remember(recentOrder.summary.id) { mutableStateOf(false) }
+                        LaunchedEffect(state.acting, state.errorMessage) {
+                            if (!state.acting) collecting = false
+                        }
                         Column(modifier = Modifier.fillMaxWidth()) {
                             Surface(
                                 modifier =
@@ -765,6 +784,7 @@ fun CashierOperationalScreen(
                                         Button(
                                             onClick = {
                                                 haptics.impact()
+                                                collecting = true
                                                 onCollect(
                                                     recentOrder.summary.id,
                                                     cashReceivedInput,
@@ -791,14 +811,26 @@ fun CashierOperationalScreen(
                                                     .height(50.dp),
                                             contentPadding = PaddingValues(horizontal = 14.dp),
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Payments,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(18.dp),
-                                            )
+                                            if (collecting && state.acting) {
+                                                CircularProgressIndicator(
+                                                    color = TicketMuted,
+                                                    strokeWidth = 2.5.dp,
+                                                    modifier = Modifier.size(18.dp),
+                                                )
+                                            } else {
+                                                Icon(
+                                                    imageVector = Icons.Outlined.Payments,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(18.dp),
+                                                )
+                                            }
                                             Spacer(Modifier.width(8.dp))
                                             Text(
-                                                "Cobrar $${Money.format(orderTotal + tipAmount)}",
+                                                if (collecting && state.acting) {
+                                                    "Cobrando…"
+                                                } else {
+                                                    "Cobrar $${Money.format(orderTotal + tipAmount)}"
+                                                },
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 14.sp,
                                                 maxLines = 1,

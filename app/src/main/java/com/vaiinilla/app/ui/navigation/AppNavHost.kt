@@ -1669,6 +1669,7 @@ fun AppNavHost(
                         pendingSpaces =
                             waiterState.tables.takeIf { it.isNotEmpty() }?.count { it.hasPendingAccount() },
                         notice = waiterState.toastMessage,
+                        onDismissError = operationalViewModel::dismissMutationError,
                     )
                     if (waiterState.counterOrderOpen) {
                         CounterOrderSheet(
