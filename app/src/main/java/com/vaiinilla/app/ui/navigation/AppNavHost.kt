@@ -1666,8 +1666,11 @@ fun AppNavHost(
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "cashier",
                         onNewCounterOrder = waiterViewModel::openCounterOrder,
+                        // Con el tablero sin actualizar no se afirma "Nada por cobrar".
                         pendingSpaces =
-                            waiterState.tables.takeIf { it.isNotEmpty() }?.count { it.hasPendingAccount() },
+                            waiterState.tables
+                                .takeIf { it.isNotEmpty() && waiterState.consecutiveBoardFailures == 0 }
+                                ?.count { it.hasPendingAccount() },
                         notice = waiterState.toastMessage,
                         onDismissError = operationalViewModel::dismissMutationError,
                         onRefresh = operationalViewModel::refresh,

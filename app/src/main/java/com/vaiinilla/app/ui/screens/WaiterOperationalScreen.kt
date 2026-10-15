@@ -78,6 +78,9 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -319,7 +322,7 @@ fun WaiterOperationalScreen(
                 WaiterTitleBlock(
                     kicker = kicker,
                     placeName = placeName,
-                    online = state.errorMessage == null || state.tables.isNotEmpty(),
+                    online = state.boardLive,
                     colors = colors,
                 )
             }
@@ -661,7 +664,8 @@ private fun WaiterLivePill(
                 .clip(CircleShape)
                 .background(colors.cardBackground)
                 .border(1.dp, colors.cardBorder, CircleShape)
-                .padding(horizontal = 12.dp, vertical = 7.dp),
+                .padding(horizontal = 12.dp, vertical = 7.dp)
+                .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
