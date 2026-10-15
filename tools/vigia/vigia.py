@@ -114,8 +114,10 @@ class Explorador:
     # --- registro ---------------------------------------------------------------------------------------
 
     def anotar(self, tipo, gravedad, detalle, pantalla=(), red=(), pantalla_id=''):
-        # Un "En vivo" viejo sale por cada ruta que falla y un vacío falso en cada pantalla que lo repite: con uno basta.
-        firma = {'en-vivo-viejo': (self.rol, tipo), 'vacio-falso': (self.rol, tipo, clave(detalle))}.get(
+        # Un "En vivo" viejo sale por cada ruta que falla, y un vacío falso o lo que queda detrás de una hoja en cada
+        # pantalla que lo repite (cada ficha de producto es otra pantalla): con uno basta.
+        por_detalle = (self.rol, tipo, clave(detalle))
+        firma = {'en-vivo-viejo': (self.rol, tipo), 'vacio-falso': por_detalle, 'detras-accesible': por_detalle}.get(
             tipo, (self.rol, tipo, clave(detalle), pantalla_id))
         if firma in self.vistos:
             return

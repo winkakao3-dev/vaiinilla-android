@@ -8,7 +8,7 @@ agentes.
 ## Antes de subir un AAB
 
 ```sh
-tools/vigia/vigilar.sh                 # compila, explora con 3 redes y corre los flujos
+tools/vigia/vigilar.sh                 # compila, explora con 4 redes y corre los flujos
 tools/vigia/vigilar.sh --sin-flujos    # sin escribir nada en el sandbox de dev
 ```
 
@@ -37,6 +37,7 @@ Sale con 0 solo si no hubo errores. Cada corrida deja `informe.md`, `hallazgos.j
 | `pantalla-en-blanco` | Nada en pantalla por más de 4 s. |
 | `cierre` | La app truena. |
 | `texto-cortado`, `fuera-de-pantalla`, `encimados` | Revisión de cada pantalla nueva sin tocarla. |
+| `detras-accesible` | Una hoja dibujada en la misma ventana tapa botones que TalkBack todavía anuncia. |
 | `toque-sin-efecto`, `boton-sin-nombre`, `atras-no-regresa` | Al explorar. |
 | `pantalla-vs-backend`, `flujo-roto`, `interferencia` | En los flujos. |
 
@@ -58,4 +59,10 @@ vbuild jvm-roles parar                          # siempre al terminar
   el paso queda como `interferencia` y no se puede juzgar.
 - Explorar no toca lo que escribe (cobrar, pagar, cerrar caja, rechazar, cambiar disponibilidad…). Eso solo
   se prueba en los flujos, y los errores de escritura solo aparecen ahí.
-- `toque-sin-efecto` en las opciones de tema es ruido: el cambio es solo de color.
+- Un toque cuenta como efecto si cambia la pantalla, los textos (también las descripciones de íconos), la red
+  o cómo se ve el botón tocado (sus pixeles, dibujando la ventana de arriba): así elegir un tema no sale como
+  `toque-sin-efecto`. Un cambio que solo se ve en otra parte de la pantalla sí sale.
+- Lo que queda debajo de un velo de pantalla completa (la ficha del producto) no se toca: ningún dedo lo
+  alcanza. Si TalkBack sí lo alcanza, sale `detras-accesible`.
+- El diseño de cada pantalla nueva se revisa dos veces, con medio segundo de diferencia, y solo cuenta lo que
+  sigue mal: un texto que se está desplegando no es un texto cortado.

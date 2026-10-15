@@ -2,8 +2,11 @@ package com.vaiinilla.app.jvmroles
 
 import android.Manifest
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.net.Uri
 import android.os.Looper
+import android.view.View
 import android.view.ViewGroup
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
@@ -330,20 +333,40 @@ class JvmRolesHarness {
         // Con una hoja o un diálogo abierto, lo de atrás sigue en el árbol pero el dedo no lo alcanza: solo cuenta
         // la ventana de arriba. Su velo (tocable, sin nombre y del tamaño de la pantalla) tampoco es un botón.
         val top = compose.onAllNodes(isRoot()).fetchSemanticsNodes(atLeastOneRootRequired = false).lastOrNull()
-
-        fun walk(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::walk)
-        return (top?.let(::walk) ?: emptyList()).filter { node ->
+        return uncovered(top ?: return emptyList(), window).filter { node ->
             val bounds = node.boundsInWindow
-            val scrim = labelOf(node).isBlank() && bounds.height >= window * SCRIM_HEIGHT_RATIO
             SemanticsActions.OnClick in node.config &&
                 SemanticsProperties.Disabled !in node.config &&
-                !scrim &&
+                !isScrim(node, window) &&
                 bounds.width > 0f &&
                 bounds.height > 0f &&
                 bounds.bottom > 0f &&
                 bounds.top < window
         }
     }
+
+    /**
+     * Los nodos de [root] que el dedo alcanza. Una hoja dibujada en la misma ventana (la ficha del producto) pone un
+     * velo tocable de pantalla completa: lo que va antes del velo en el árbol queda debajo de él.
+     */
+    private fun uncovered(
+        root: SemanticsNode,
+        window: Float,
+    ): List<SemanticsNode> {
+        fun walk(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::walk)
+        val nodes = walk(root)
+        val scrim = nodes.indexOfLast { isScrim(it, window) }
+        return if (scrim < 0) nodes else nodes.drop(scrim)
+    }
+
+    // El velo de las hojas de Material se llama "Close sheet"; tocado al centro cae sobre la hoja y no la cierra.
+    private fun isScrim(
+        node: SemanticsNode,
+        window: Float,
+    ): Boolean =
+        SemanticsActions.OnClick in node.config &&
+            (labelOf(node).isBlank() || labelOf(node) in SCRIM_LABELS) &&
+            node.boundsInWindow.height >= window * SCRIM_HEIGHT_RATIO
 
     private fun windowBounds(): Float =
         compose
@@ -368,7 +391,8 @@ class JvmRolesHarness {
             val selected = config.getOrNull(SemanticsProperties.Selected)?.let { " sel=$it" } ?: ""
             val toggle = config.getOrNull(SemanticsProperties.ToggleableState)?.let { " tog=$it" } ?: ""
             val focus = config.getOrNull(SemanticsProperties.Focused)?.let { " foco=$it" } ?: ""
-            labelOf(node) + selected + toggle + focus
+            val description = config.getOrNull(SemanticsProperties.ContentDescription)?.let { " desc=$it" } ?: ""
+            labelOf(node) + selected + toggle + focus + description
         }
 
     private fun tappableNodes(): JSONObject {
@@ -385,8 +409,11 @@ class JvmRolesHarness {
                     .put(
                         "alterna",
                         SemanticsProperties.ToggleableState in config || SemanticsProperties.Selected in config,
-                    ).put("marcado", config.getOrNull(SemanticsProperties.ToggleableState) == ToggleableState.On)
-                    .put("campo", SemanticsActions.SetText in config),
+                    ).put(
+                        "marcado",
+                        config.getOrNull(SemanticsProperties.ToggleableState) == ToggleableState.On ||
+                            config.getOrNull(SemanticsProperties.Selected) == true,
+                    ).put("campo", SemanticsActions.SetText in config),
             )
         }
         return JSONObject()
@@ -404,6 +431,7 @@ class JvmRolesHarness {
         val keyBefore = screenKey()
         val stateBefore = screenState()
         val firstEvent = network.lastId()
+        val lookBefore = nodePixels(id)
         // Lo que la pantalla ya pedía sola (polling) no cuenta como respuesta al toque.
         val polled =
             network
@@ -411,9 +439,14 @@ class JvmRolesHarness {
                 .filter { it.startedAt >= System.currentTimeMillis() - POLLING_WINDOW_MILLIS }
                 .map { it.method to it.path }
                 .toSet()
+        val tappedAt = System.currentTimeMillis()
         compose.onAllNodes(SemanticsMatcher("id $id") { it.id == id })[0].performClick()
         pump(SETTLE_MILLIS, realTime = true)
-        val requests = network.eventsAfter(firstEvent).count { (it.method to it.path) !in polled }
+        // "Reintentar" pide justo lo que la pantalla ya pedía sola: si sale enseguida del toque, es respuesta al toque.
+        val requests =
+            network.eventsAfter(firstEvent).count {
+                (it.method to it.path) !in polled || it.startedAt - tappedAt < TAP_REACTION_MILLIS
+            }
         val gone = scenario?.state?.isAtLeast(Lifecycle.State.CREATED) != true
         if (gone) closeActivity()
         val effect =
@@ -422,6 +455,8 @@ class JvmRolesHarness {
                 screenKey() != keyBefore -> "pantalla-nueva"
                 screenState() != stateBefore -> "cambio"
                 requests > 0 -> "red"
+                // Elegir un tema o un chip solo cambia colores: mismos textos, pero el botón se ve distinto.
+                lookBefore != null && !lookBefore.contentEquals(nodePixels(id)) -> "cambio"
                 else -> "nada"
             }
         return JSONObject()
@@ -429,6 +464,30 @@ class JvmRolesHarness {
             .put("efecto", effect)
             .put("peticiones", requests)
             .put("pantalla", if (gone) "" else screenKey())
+    }
+
+    /**
+     * Los pixeles del nodo [id] tal como se ven, o null si ya no está o no se pudo dibujar. Se dibuja la ventana de
+     * arriba, de donde salen los tocables: captureToImage solo mira la de la actividad y no ve menús ni diálogos.
+     */
+    private fun nodePixels(id: Int): IntArray? =
+        runCatching {
+            val bounds = clickableNodes().first { it.id == id }.boundsInWindow
+            val view = topWindowView()
+            val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+            view.draw(Canvas(bitmap))
+            val left = bounds.left.toInt().coerceIn(0, view.width - 1)
+            val top = bounds.top.toInt().coerceIn(0, view.height - 1)
+            val width = bounds.width.toInt().coerceIn(1, view.width - left)
+            val height = bounds.height.toInt().coerceIn(1, view.height - top)
+            IntArray(width * height).also { bitmap.getPixels(it, 0, width, left, top, width, height) }
+        }.getOrNull()
+
+    private fun topWindowView(): View {
+        val global = Class.forName("android.view.WindowManagerGlobal")
+        val instance = global.getMethod("getInstance").invoke(null)
+        val views = global.getDeclaredField("mViews").apply { isAccessible = true }.get(instance) as List<*>
+        return views.filterIsInstance<View>().last { it.isShown && it.width > 0 && it.height > 0 }
     }
 
     /** El botón de atrás del teléfono. Si la app se cierra (atrás en la raíz), lo dice en vez de quedarse esperando. */
@@ -449,16 +508,10 @@ class JvmRolesHarness {
 
     /** Texto cortado, cosas fuera de la pantalla y tocables encimados en la ventana de arriba. */
     private fun layoutAudit(): JSONObject {
-        val roots =
-            compose
-                .onAllNodes(
-                    isRoot(),
-                    useUnmergedTree = true,
-                ).fetchSemanticsNodes(atLeastOneRootRequired = false)
-        val top = roots.lastOrNull() ?: return JSONObject().put("hallazgos", JSONArray())
-
-        fun walk(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::walk)
-        val issues = VigiaLayout.audit(walk(top), clickableNodes(), top.boundsInWindow, ::labelOf)
+        val first = layoutIssues()
+        // Una pantalla que todavía entra (un texto que se despliega) se ve mal medio segundo: solo cuenta lo que sigue.
+        pump(SETTLE_MILLIS / 2, realTime = false)
+        val issues = layoutIssues().filter { it in first }
         val out = JSONArray()
         issues.distinct().forEach { issue ->
             out.put(
@@ -473,14 +526,54 @@ class JvmRolesHarness {
         return JSONObject().put("hallazgos", out)
     }
 
+    private fun layoutIssues(): List<VigiaLayout.Issue> {
+        val roots =
+            compose
+                .onAllNodes(
+                    isRoot(),
+                    useUnmergedTree = true,
+                ).fetchSemanticsNodes(atLeastOneRootRequired = false)
+        val top = roots.lastOrNull() ?: return emptyList()
+
+        fun walk(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::walk)
+        return VigiaLayout.audit(walk(top), clickableNodes(), top.boundsInWindow, ::labelOf) + hiddenButReachable()
+    }
+
+    /** Botones que una hoja dibujada en la misma ventana tapa, pero que TalkBack todavía recorre y anuncia. */
+    private fun hiddenButReachable(): List<VigiaLayout.Issue> {
+        val window = windowBounds()
+        val top =
+            compose.onAllNodes(isRoot()).fetchSemanticsNodes(atLeastOneRootRequired = false).lastOrNull()
+                ?: return emptyList()
+
+        fun walk(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::walk)
+        val reachable = uncovered(top, window).map { it.id }.toSet()
+        val hidden =
+            walk(top)
+                .filter { it.id !in reachable && SemanticsActions.OnClick in it.config }
+                .map(::labelOf)
+                .filter { it.isNotBlank() }
+        if (hidden.isEmpty()) return emptyList()
+        val names = hidden.take(HIDDEN_NAMES).joinToString(", ") { "\"${it.take(LABEL_LIMIT / 2)}\"" }
+        return listOf(
+            VigiaLayout.Issue(
+                "detras-accesible",
+                "sospecha",
+                "Con la hoja abierta, TalkBack todavía llega a ${hidden.size} botón(es) que quedaron debajo: $names.",
+            ),
+        )
+    }
+
     private fun summaryTexts(): List<String> =
         runCatching {
             visibleNodes().map(::labelOf).filter { it.isNotBlank() }.take(SUMMARY_TEXTS * 2)
         }.getOrDefault(emptyList())
 
     private fun visibleNodes(): List<SemanticsNode> {
-        fun walk(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::walk)
-        return compose.onAllNodes(isRoot()).fetchSemanticsNodes(atLeastOneRootRequired = false).flatMap(::walk)
+        val window = windowBounds()
+        return compose.onAllNodes(isRoot()).fetchSemanticsNodes(atLeastOneRootRequired = false).flatMap {
+            uncovered(it, window)
+        }
     }
 
     private fun labelOf(node: SemanticsNode): String {
@@ -541,5 +634,8 @@ class JvmRolesHarness {
         const val SCRIM_HEIGHT_RATIO = 0.6f
         const val TRAFFIC_LINES = 20
         const val POLLING_WINDOW_MILLIS = 10_000L
+        const val TAP_REACTION_MILLIS = 400L
+        const val HIDDEN_NAMES = 3
+        val SCRIM_LABELS = setOf("Close sheet", "Cerrar hoja")
     }
 }
