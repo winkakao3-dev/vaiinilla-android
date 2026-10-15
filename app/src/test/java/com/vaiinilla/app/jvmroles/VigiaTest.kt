@@ -28,7 +28,6 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.sun.net.httpserver.HttpServer
 import com.vaiinilla.app.core.network.ApiResponseParser
 import com.vaiinilla.app.ui.components.SkeletonBlock
 import org.junit.Assert.assertEquals
@@ -40,7 +39,9 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.net.HttpURLConnection
-import java.net.InetSocketAddress
+import java.net.InetAddress
+import java.net.ServerSocket
+import java.net.Socket
 import java.net.URL
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
@@ -273,7 +274,13 @@ class VigiaTest {
             val connection = post(VigiaHttp(network, "https://api.invalid/"), "$base/identidad/alta")
 
             assertEquals(401, connection.responseCode)
-            assertEquals(true, connection.errorStream.bufferedReader().readText().contains("EMAIL_NOT_VERIFIED"))
+            assertEquals(
+                true,
+                connection.errorStream
+                    .bufferedReader()
+                    .readText()
+                    .contains("EMAIL_NOT_VERIFIED"),
+            )
             assertEquals(emptyList<VigiaNetwork.Event>(), network.eventsAfter(0))
         }
     }
@@ -308,7 +315,13 @@ class VigiaTest {
             val session = post(http, "$base/sesiones/contexto")
 
             assertEquals(503, write.responseCode)
-            assertEquals(true, write.errorStream.bufferedReader().readText().contains("VIGIA_SOLO_LECTURA"))
+            assertEquals(
+                true,
+                write.errorStream
+                    .bufferedReader()
+                    .readText()
+                    .contains("VIGIA_SOLO_LECTURA"),
+            )
             assertEquals(200, session.responseCode)
             assertEquals(listOf("/sesiones/contexto"), hits)
         }
@@ -328,25 +341,54 @@ class VigiaTest {
         return connection
     }
 
+    /** Un servidor HTTP de una respuesta fija en 127.0.0.1; HttpServer del JDK no está en el classpath de Android. */
     private fun localServer(
         status: Int,
         body: String,
         block: (base: String, hits: List<String>) -> Unit,
     ) {
         val hits = CopyOnWriteArrayList<String>()
-        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
-        server.createContext("/") { exchange ->
-            hits += exchange.requestURI.path
-            exchange.requestBody.readBytes()
-            val bytes = body.toByteArray()
-            exchange.sendResponseHeaders(status, bytes.size.toLong())
-            exchange.responseBody.use { it.write(bytes) }
-        }
-        server.start()
+        val server = ServerSocket(0, BACKLOG, InetAddress.getByName("127.0.0.1"))
+        val worker =
+            thread(isDaemon = true) {
+                while (true) {
+                    val socket = runCatching { server.accept() }.getOrNull() ?: break
+                    socket.use { answer(it, status, body, hits) }
+                }
+            }
         try {
-            block("http://127.0.0.1:${server.address.port}", hits)
+            block("http://127.0.0.1:${server.localPort}", hits)
         } finally {
-            server.stop(0)
+            server.close()
+            worker.join(1_000)
+        }
+    }
+
+    /** Lo justo de HTTP/1.1: anota la ruta, lee el cuerpo según Content-Length y contesta [status] con [body]. */
+    private fun answer(
+        socket: Socket,
+        status: Int,
+        body: String,
+        hits: MutableList<String>,
+    ) {
+        val reader = socket.getInputStream().bufferedReader(Charsets.ISO_8859_1)
+        val head = generateSequence { reader.readLine() }.takeWhile { it.isNotEmpty() }.toList()
+        hits += head.first().split(" ")[1]
+        val length =
+            head
+                .firstOrNull { it.startsWith("content-length:", ignoreCase = true) }
+                ?.substringAfter(":")
+                ?.trim()
+                ?.toInt() ?: 0
+        reader.read(CharArray(length))
+        val bytes = body.toByteArray()
+        val response =
+            "HTTP/1.1 $status VIGIA\r\nContent-Type: application/json\r\n" +
+                "Content-Length: ${bytes.size}\r\nConnection: close\r\n\r\n"
+        socket.getOutputStream().apply {
+            write(response.toByteArray(Charsets.ISO_8859_1))
+            write(bytes)
+            flush()
         }
     }
 
@@ -385,6 +427,7 @@ class VigiaTest {
     private companion object {
         const val LIMIT = 4_000L
         const val STEP = 250L
+        const val BACKLOG = 8
         val NOT_VERIFIED = VigiaNetwork.errorEnvelope("EMAIL_NOT_VERIFIED", "El correo aún no está verificado.")
     }
 }

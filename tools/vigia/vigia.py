@@ -32,7 +32,7 @@ from pathlib import Path
 STATE = Path.home() / '.cache' / 'vaiinilla' / 'jvm-roles' / 'estado.json'
 HARNESS_LOG = Path.home() / '.cache' / 'vaiinilla' / 'jvm-roles' / 'log.txt'
 ESCRITURA = re.compile(r'VaiinillaHttp: (POST|PUT|PATCH|DELETE) (\S+) -> (\d+)')
-DE_FONDO = ('sesiones/', 'latidos', 'dispositivos')
+DE_FONDO = ('sesiones/', 'latidos', 'devices')
 OUT_ROOT = Path.home() / '.cache' / 'vaiinilla' / 'vigia'
 TIMEOUT_SECONDS = 180
 ROLES = ['alumno', 'caja', 'cocina', 'mesero']

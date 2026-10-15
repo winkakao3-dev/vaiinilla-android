@@ -218,7 +218,7 @@ class VigiaNetwork
 
         companion object {
             /** Escrituras de fondo que la app necesita para seguir viva; ni se frenan ni se espera que se vean. */
-            val WRITE_ALLOWLIST = listOf("sesiones/", "latidos", "dispositivos")
+            val WRITE_ALLOWLIST = listOf("sesiones/", "latidos", "devices")
 
             /** Nunca se sabotean: el explorador entra a cada rol con la red ya caída y el login debe funcionar. */
             val SABOTAGE_EXEMPT = listOf("sesiones/")
@@ -230,8 +230,7 @@ class VigiaNetwork
             fun errorEnvelope(
                 code: String,
                 message: String,
-            ): String =
-                """{"data":null,"meta":$NO_META,"error":{"code":"$code","message":"$message","details":[]}}"""
+            ): String = """{"data":null,"meta":$NO_META,"error":{"code":"$code","message":"$message","details":[]}}"""
 
             /**
              * Lo que se conecte en este hilo dentro de [block] ya quedó contado en [intercept] o es tráfico del
