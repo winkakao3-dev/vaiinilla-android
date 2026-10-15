@@ -1,6 +1,8 @@
 package com.vaiinilla.app.jvmroles
 
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.LayoutInfo
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -100,6 +102,7 @@ object VigiaLayout {
                 val shared = a.intersect(b)
                 val smaller = minOf(a.width * a.height, b.width * b.height)
                 if (smaller <= 0f || shared.width * shared.height / smaller < OVERLAP_RATIO) continue
+                if (!bothVisible(under = clickable[i], top = clickable[j])) continue
                 issues +=
                     Issue(
                         kind = "encimados",
@@ -114,6 +117,32 @@ object VigiaLayout {
         }
         return issues
     }
+
+    /**
+     * Dos cosas que se pisan solo confunden al dedo si las dos se ven. [clickable] viene en el orden en que se
+     * dibuja, así que [top] queda encima de [under]. No cuenta cuando la capa de [top] tapa por completo a [under]
+     * (un botón del encabezado bajo una hoja) ni cuando [under] es contenido que se desliza por debajo de una
+     * barra fija (una tarjeta del menú bajo el dock). La capa sale del árbol de layout, no del semántico: una hoja
+     * con solo fondo no tiene nodo semántico propio.
+     */
+    private fun bothVisible(
+        under: SemanticsNode,
+        top: SemanticsNode,
+    ): Boolean {
+        val underChain = layoutChain(under)
+        val topChain = layoutChain(top)
+        val common = underChain.lastOrNull { node -> topChain.any { it === node } } ?: return true
+        val topLayer = topChain.getOrNull(topChain.indexOfFirst { it === common } + 1) ?: return true
+        if (topLayer.coordinates.boundsInWindow().containsRect(under.boundsInWindow)) return false
+        val topAncestors = generateSequence(top) { it.parent }.map { it.id }.toSet()
+        return generateSequence(under.parent) { it.parent }
+            .takeWhile { it.id !in topAncestors }
+            .none { SemanticsProperties.VerticalScrollAxisRange in it.config }
+    }
+
+    /** De la raíz al nodo, incluido. */
+    private fun layoutChain(node: SemanticsNode): List<LayoutInfo> =
+        generateSequence(node.layoutInfo) { it.parentInfo }.toList().asReversed()
 
     private fun layoutOf(node: SemanticsNode): TextLayoutResult? {
         val results = mutableListOf<TextLayoutResult>()

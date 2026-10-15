@@ -1,15 +1,24 @@
 package com.vaiinilla.app.jvmroles
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -194,6 +203,43 @@ class VigiaTest {
 
         val found = audit()
         assertEquals(found.joinToString { "${it.kind}: ${it.detail}" }, listOf("encimados"), found.map { it.kind })
+    }
+
+    @Test
+    fun `a button hidden under a sheet and a card scrolling under a fixed bar are not overlaps`() {
+        compose.setContent {
+            Column {
+                Box(Modifier.size(300.dp)) {
+                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                        Box(Modifier.fillMaxWidth().height(200.dp).clickable {}) { Text("Tarjeta") }
+                    }
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .clickable {},
+                    ) { Text("Dock") }
+                }
+                Box(Modifier.size(300.dp)) {
+                    Box(Modifier.align(Alignment.TopEnd).size(60.dp).clickable {}) { Text("Cuenta") }
+                    Box(Modifier.fillMaxSize().background(Color.White)) {
+                        Box(
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(top = 20.dp, end = 20.dp)
+                                .size(60.dp)
+                                .clickable {},
+                        ) {
+                            Text("Cerrar")
+                        }
+                    }
+                }
+            }
+        }
+
+        val found = audit()
+        assertEquals(found.joinToString { "${it.kind}: ${it.detail}" }, emptyList<String>(), found.map { it.kind })
     }
 
     @Test
