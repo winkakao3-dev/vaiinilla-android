@@ -9,6 +9,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
@@ -20,6 +21,7 @@ import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
@@ -30,6 +32,8 @@ import com.vaiinilla.app.data.guest.GuestReservationSession
 import com.vaiinilla.app.domain.model.GeoCoordinates
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
+import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
@@ -80,6 +84,11 @@ class JvmRolesHarness {
     @Inject
     lateinit var guestReservationSession: GuestReservationSession
 
+    @Inject
+    lateinit var network: VigiaNetwork
+
+    private lateinit var vigia: Vigia
+
     private var scenario: ActivityScenario<MainActivity>? = null
 
     @Test
@@ -90,6 +99,13 @@ class JvmRolesHarness {
         )
         hilt.inject()
         ShadowLog.stream = System.out
+        vigia = Vigia(network, ::visibleNodes, ::labelOf)
+        // En el teléfono una excepción sin atrapar en cualquier hilo cierra la app; aquí solo mataría ese hilo.
+        val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, error ->
+            vigia.recordCrash(error)
+            previousHandler?.uncaughtException(thread, error)
+        }
         // El reloj de Compose lo mueve el arnés: con avance automático, una animación infinita no deja terminar nada.
         compose.mainClock.autoAdvance = false
         val stateFile = File(System.getProperty("jvmroles.stateFile") ?: error("Falta -Djvmroles.stateFile"))
@@ -129,7 +145,10 @@ class JvmRolesHarness {
      */
     private fun closeActivity() {
         val current = scenario ?: return
-        current.onActivity { activity -> activity.findViewById<ViewGroup>(android.R.id.content).removeAllViews() }
+        // Si la app ya se cerró sola (atrás en la raíz, "Salir"), onActivity falla: no queda nada que quitar.
+        runCatching {
+            current.onActivity { activity -> activity.findViewById<ViewGroup>(android.R.id.content).removeAllViews() }
+        }
         current.close()
         scenario = null
         shadowOf(Looper.getMainLooper()).idle()
@@ -154,10 +173,24 @@ class JvmRolesHarness {
             "shot" -> shot(args.firstOrNull() ?: error("Uso: shot <ruta.png>"))
             "location" -> setLocation(args)
             "deeplink" -> deeplink(args.firstOrNull() ?: error("Uso: deeplink <https://vaiinilla.app/...>"))
+            "red" -> network.configure(args)
+            "vigia" -> vigia.drain().toString()
+            "trafico" ->
+                network.recent(args.firstOrNull()?.toInt() ?: TRAFFIC_LINES).joinToString("\n").ifEmpty {
+                    "(sin peticiones)"
+                }
+            "limite" -> {
+                vigia.loadingLimitMillis = args.firstOrNull()?.toLong() ?: error("Uso: limite <ms>")
+                "carga eterna a partir de ${vigia.loadingLimitMillis} ms"
+            }
+            "nodos" -> tappableNodes().toString()
+            "tocar" -> tapNode(args.firstOrNull()?.toInt() ?: error("Uso: tocar <id de nodos>")).toString()
+            "atras" -> back().toString()
             "stop" -> "adiós"
             else ->
                 error(
-                    "No conozco '${command.name}'. Comandos: role, cual, list, tap, text, wait, advance, shot, location, deeplink, stop.",
+                    "No conozco '${command.name}'. Comandos: role, cual, list, tap, text, wait, advance, shot, " +
+                        "location, deeplink, red, vigia, trafico, limite, nodos, tocar, atras, stop.",
                 )
         }
     }
@@ -171,6 +204,7 @@ class JvmRolesHarness {
         refreshCoordinator.clearSession()
         guestReservationSession.invalidate()
         ActiveRole.current = role
+        vigia.reset()
         identities.signIn(role)
         scenario = ActivityScenario.launch(MainActivity::class.java)
         if (role != HarnessRole.ALUMNO) {
@@ -275,6 +309,127 @@ class JvmRolesHarness {
                 .joinToString(" · ")
         }.getOrDefault("(sin pantalla)")
 
+    /** Lo tocable y habilitado que se ve en la ventana, con un id estable mientras la pantalla no cambie. */
+    private fun clickableNodes(): List<SemanticsNode> {
+        val window = windowBounds()
+        // Con una hoja o un diálogo abierto, lo de atrás sigue en el árbol pero el dedo no lo alcanza: solo cuenta
+        // la ventana de arriba. Su velo (tocable, sin nombre y del tamaño de la pantalla) tampoco es un botón.
+        val top = compose.onAllNodes(isRoot()).fetchSemanticsNodes(atLeastOneRootRequired = false).lastOrNull()
+
+        fun walk(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::walk)
+        return (top?.let(::walk) ?: emptyList()).filter { node ->
+            val bounds = node.boundsInWindow
+            val scrim = labelOf(node).isBlank() && bounds.height >= window * SCRIM_HEIGHT_RATIO
+            SemanticsActions.OnClick in node.config &&
+                SemanticsProperties.Disabled !in node.config &&
+                !scrim &&
+                bounds.width > 0f &&
+                bounds.height > 0f &&
+                bounds.bottom > 0f &&
+                bounds.top < window
+        }
+    }
+
+    private fun windowBounds(): Float =
+        compose
+            .onAllNodes(isRoot())
+            .fetchSemanticsNodes(atLeastOneRootRequired = false)
+            .maxOfOrNull { it.boundsInWindow.bottom } ?: Float.MAX_VALUE
+
+    /** Identifica la pantalla por lo que se puede tocar, sin números (horas, totales, contadores cambian solos). */
+    private fun screenKey(): String =
+        clickableNodes()
+            .map { labelOf(it).replace(Regex("[0-9]+"), "#").trim() }
+            .sorted()
+            .joinToString("|")
+            .hashCode()
+            .toUInt()
+            .toString(16)
+
+    /** Todo lo que cambia a la vista: textos y estados de selección. Si un toque no lo mueve, el toque no hizo nada. */
+    private fun screenState(): String =
+        visibleNodes().joinToString("\n") { node ->
+            val config = node.config
+            val selected = config.getOrNull(SemanticsProperties.Selected)?.let { " sel=$it" } ?: ""
+            val toggle = config.getOrNull(SemanticsProperties.ToggleableState)?.let { " tog=$it" } ?: ""
+            val focus = config.getOrNull(SemanticsProperties.Focused)?.let { " foco=$it" } ?: ""
+            labelOf(node) + selected + toggle + focus
+        }
+
+    private fun tappableNodes(): JSONObject {
+        val list = JSONArray()
+        clickableNodes().forEach { node ->
+            val bounds = node.boundsInWindow
+            val config = node.config
+            list.put(
+                JSONObject()
+                    .put("id", node.id)
+                    .put("texto", labelOf(node).take(LABEL_LIMIT))
+                    .put("x", bounds.left.toInt())
+                    .put("y", bounds.top.toInt())
+                    .put(
+                        "alterna",
+                        SemanticsProperties.ToggleableState in config || SemanticsProperties.Selected in config,
+                    ).put("marcado", config.getOrNull(SemanticsProperties.ToggleableState) == ToggleableState.On)
+                    .put("campo", SemanticsActions.SetText in config),
+            )
+        }
+        return JSONObject()
+            .put("pantalla", screenKey())
+            .put("activa", scenario != null)
+            .put("textos", JSONArray(summaryTexts()))
+            .put("nodos", list)
+    }
+
+    private fun tapNode(id: Int): JSONObject {
+        val node =
+            clickableNodes().firstOrNull { it.id == id }
+                ?: error("No hay nodo tocable con id $id; vuelve a pedir nodos.")
+        val label = labelOf(node)
+        val keyBefore = screenKey()
+        val stateBefore = screenState()
+        val firstEvent = network.lastId()
+        compose.onAllNodes(SemanticsMatcher("id $id") { it.id == id })[0].performClick()
+        pump(SETTLE_MILLIS, realTime = true)
+        val requests = network.eventsAfter(firstEvent).size
+        val gone = scenario?.state?.isAtLeast(Lifecycle.State.CREATED) != true
+        if (gone) closeActivity()
+        val effect =
+            when {
+                gone -> "salio"
+                screenKey() != keyBefore -> "pantalla-nueva"
+                screenState() != stateBefore -> "cambio"
+                requests > 0 -> "red"
+                else -> "nada"
+            }
+        return JSONObject()
+            .put("texto", label.take(LABEL_LIMIT))
+            .put("efecto", effect)
+            .put("peticiones", requests)
+            .put("pantalla", if (gone) "" else screenKey())
+    }
+
+    /** El botón de atrás del teléfono. Si la app se cierra (atrás en la raíz), lo dice en vez de quedarse esperando. */
+    private fun back(): JSONObject {
+        val activityScenario = scenario ?: error("Primero entra a un rol.")
+        var finishing = false
+        activityScenario.onActivity { activity ->
+            activity.onBackPressedDispatcher.onBackPressed()
+            finishing = activity.isFinishing
+        }
+        if (finishing) {
+            closeActivity()
+            return JSONObject().put("efecto", "salio")
+        }
+        pump(SETTLE_MILLIS, realTime = true)
+        return JSONObject().put("efecto", "atras").put("pantalla", screenKey())
+    }
+
+    private fun summaryTexts(): List<String> =
+        runCatching {
+            visibleNodes().map(::labelOf).filter { it.isNotBlank() }.take(SUMMARY_TEXTS * 2)
+        }.getOrDefault(emptyList())
+
     private fun visibleNodes(): List<SemanticsNode> {
         fun walk(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::walk)
         return compose.onAllNodes(isRoot()).fetchSemanticsNodes(atLeastOneRootRequired = false).flatMap(::walk)
@@ -312,8 +467,15 @@ class JvmRolesHarness {
         while (left > 0) {
             val step = minOf(FRAME_STEP_MILLIS, left)
             if (realTime) Thread.sleep(step)
-            if (scenario != null) compose.mainClock.advanceTimeBy(step)
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(step))
+            try {
+                if (scenario != null) compose.mainClock.advanceTimeBy(step)
+                shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(step))
+            } catch (error: Throwable) {
+                vigia.recordCrash(error)
+                vigia.tick(step)
+                throw error
+            }
+            if (scenario != null) vigia.tick(step)
             left -= step
         }
     }
@@ -327,5 +489,8 @@ class JvmRolesHarness {
         const val ROLE_TIMEOUT_MILLIS = 30_000L
         const val ROLE_STEP_MILLIS = 5_000L
         const val SUMMARY_TEXTS = 6
+        const val LABEL_LIMIT = 80
+        const val SCRIM_HEIGHT_RATIO = 0.6f
+        const val TRAFFIC_LINES = 20
     }
 }
