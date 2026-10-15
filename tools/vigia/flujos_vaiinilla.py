@@ -181,8 +181,16 @@ def pedido_caja_cocina(f):
         return
     f.entrar('alumno')
     f.tocar(r'^Pedidos$')
-    f.ver(rf'#{folio}\b')
-    f.ver(r'^listo$|¡listo!')
+    # Otro actor del sandbox puede entregarlo mientras el alumno lo busca: deja "En curso" y eso no es culpa de la
+    # pantalla. La tarjeta junta folio y estado en un texto ("#50 LISTO 1 Chocolate…").
+    for patron in (rf'#{folio}\b', rf'#{folio}\b.*\blisto\b|^listo$|¡listo!'):
+        if f.ver(patron, opcional=True):
+            continue
+        estado = _pedido(f, pedido_id)['estado']
+        if estado != 'listo':
+            f._anotar('interferencia', 'sospecha', f'El #{folio} pasó a "{estado}" mientras el alumno lo buscaba.')
+            return
+        f.ver(patron, segundos=5)
 
 
 @flujo('pedido-mostrador', 'Caja crea un pedido de mostrador → lo cobra → cocina lo prepara')
