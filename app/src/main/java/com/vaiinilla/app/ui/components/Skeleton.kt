@@ -16,6 +16,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -51,6 +54,8 @@ fun SkeletonBlock(
     Box(
         modifier =
             modifier
+                // Para TalkBack y para las pruebas, un esqueleto es "cargando", igual que un CircularProgressIndicator.
+                .semantics { progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate }
                 .clip(RoundedCornerShape(corner))
                 .drawBehind {
                     val base = colors.paper2

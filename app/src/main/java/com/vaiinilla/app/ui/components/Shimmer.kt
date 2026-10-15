@@ -25,6 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
@@ -58,7 +61,9 @@ fun Modifier.shimmerEffect(): Modifier {
             end = Offset(translateAnim + 350f, translateAnim + 350f),
         )
 
-    return this.background(brush)
+    return this
+        .semantics { progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate }
+        .background(brush)
 }
 
 @Composable

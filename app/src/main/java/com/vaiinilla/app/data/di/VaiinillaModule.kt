@@ -4,7 +4,6 @@ import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.core.auth.ActiveSessionRefresher
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.core.config.AppEnvironment
-import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.security.PickupTokenStore
 import com.vaiinilla.app.data.account.RemoteAccountDeletionRepository
@@ -77,10 +76,6 @@ object VaiinillaModule {
     @Provides
     @Singleton
     fun provideActiveSessionRefresher(coordinator: VaiinillaJwtRefreshCoordinator): ActiveSessionRefresher = coordinator
-
-    @Provides
-    @Singleton
-    fun provideApiClient(client: HttpVaiinillaApiClient): VaiinillaApiClient = client
 
     @Provides
     @Singleton
