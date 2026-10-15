@@ -21,7 +21,8 @@ import kotlin.random.Random
  * Lo que la red le hace a la app dentro del arnés: deja pasar todo (normal), tarda (lento), falla a veces
  * (fallas) o no responde nada (caido). Lleva la cuenta de peticiones en curso y una bitácora corta, que
  * el vigía usa para distinguir "esperando a la red" de "se quedó cargando sin nada pendiente".
- * Nunca inventa un 401: dispararía el refresco de sesión y sacaría al rol.
+ * Nunca inventa un 401: dispararía el refresco de sesión y sacaría al rol. Ve tanto lo que pasa por
+ * [VigiaApiClient] como lo que sale directo por HttpURLConnection hacia la API de dev ([VigiaHttp]).
  */
 @Singleton
 class VigiaNetwork
@@ -256,8 +257,11 @@ class VigiaNetwork
     }
 
 /**
- * Pasa cada llamada de la app por [VigiaNetwork].
- * Las clases que inyectan HttpVaiinillaApiClient directo (sesión, presencia) no pasan por aquí.
+ * Pasa cada llamada de la app por [VigiaNetwork]. Las seis clases que inyectan HttpVaiinillaApiClient directo
+ * (DeviceTokenRegistrar, RemoteAuthorizedAccessApi, RemoteAccessEmailApi, SesionesContextoExchange,
+ * StaffPresenceCoordinator, RemoteStudentEnrollmentApi) no pasan por aquí: a esas las toma [VigiaHttp] en la
+ * conexión, con la misma bitácora, el mismo sabotaje y el mismo solo lectura. Lo que pasa por aquí no se vuelve a
+ * contar allá.
  */
 class VigiaApiClient(
     private val delegate: VaiinillaApiClient,
