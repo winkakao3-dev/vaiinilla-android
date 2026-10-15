@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -62,8 +63,12 @@ fun Modifier.shimmerEffect(): Modifier {
         )
 
     return this
-        .semantics { progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate }
-        .background(brush)
+        // Para las pruebas, un esqueleto es "cargando" como un CircularProgressIndicator. Oculto a TalkBack:
+        // una pantalla en carga tiene decenas de bloques y los leería uno por uno.
+        .semantics {
+            progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
+            hideFromAccessibility()
+        }.background(brush)
 }
 
 @Composable
