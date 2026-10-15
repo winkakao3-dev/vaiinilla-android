@@ -51,6 +51,7 @@ class Flujo:
         self.hallazgos = []
         self.limpiezas = []
         self.revisadas = set()
+        self.peticiones = 0
 
     # --- lo que ve y anota ------------------------------------------------------------------------------
 
@@ -69,6 +70,7 @@ class Flujo:
 
     def _recoger(self):
         datos = send_json('vigia')
+        self.peticiones = datos['totales']['peticiones']
         for h in datos['hallazgos']:
             self._anotar(h['tipo'], h['gravedad'], h['detalle'], h['pantalla'], h['red'])
 
@@ -149,6 +151,7 @@ class Flujo:
         nodo = candidatos[0]
         self._paso(f'tocar "{nodo["texto"][:70]}"')
         r = send_json('tocar', [nodo['id']])
+        r['texto'] = nodo['texto']
         self._recoger()
         if r['efecto'] == 'nada' and not nodo.get('marcado'):  # tocar una opción ya elegida no tiene por qué cambiar nada
             self._anotar('toque-sin-efecto', 'sospecha',
@@ -168,6 +171,11 @@ class Flujo:
 
     def red_normal(self):
         send('red', ['normal'])
+
+    def sin_escrituras(self):
+        """Desde aquí toda escritura vuelve como error sin salir de la JVM: el sandbox no cambia."""
+        self._paso('escrituras bloqueadas')
+        send('escrituras', ['no'])
 
     def esperar(self, ms):
         send('wait', [ms])
@@ -208,6 +216,28 @@ class Flujo:
         self._anotar('pantalla-vs-backend', 'error', f'{descripcion}: después de {intentos} intentos, {detalle}',
                      self._textos()[:12])
         raise FlujoRoto(f'{descripcion}: {detalle}')
+
+    def accion_que_falla(self, boton, exito, descripcion, ruta):
+        """Toca [boton] sabiendo que su escritura a [ruta] va a fallar (solo lectura o red saboteada).
+
+        La pantalla no debe anunciar [exito]: si lo hace con la escritura fallida, es falso-exito aunque otro actor
+        del sandbox haga el cambio después. Si falla sin avisar nada, el vigía ya lo anota como error-mudo.
+        """
+        self._recoger()
+        antes = self.peticiones
+        self.tocar(boton)
+        anuncio = self.ver(exito, segundos=6, opcional=True)
+        self._recoger()
+        nuevas = send('trafico', [max(1, self.peticiones - antes)]).splitlines()
+        escrituras = [linea for linea in nuevas if ruta in linea and not linea.startswith('GET ')]
+        if not escrituras:
+            self._anotar('guion', 'sospecha', f'{descripcion}: el toque no mandó ninguna escritura a "{ruta}".')
+        elif any(linea.split('→')[-1].strip().startswith('ok') for linea in escrituras):
+            self._anotar('guion', 'sospecha', f'{descripcion}: la escritura pasó; nada la frenó.')
+        elif anuncio:
+            self._anotar('falso-exito', 'error',
+                         f'{descripcion}: la escritura falló ({escrituras[-1]}) y aun así la pantalla dijo '
+                         f'"{anuncio.group(0)}".', self._textos()[:12])
 
     def _backend(self, condicion, segundos):
         limite = time.time() + segundos
@@ -313,6 +343,7 @@ def main():
                 })
             finally:
                 send('red', ['normal'])
+                send('escrituras', ['si'])
                 f.limpiar()
             resultados.append({'nombre': nombre, 'ok': ok, 'motivo': motivo, 'pasos': len(f.pasos),
                                'segundos': int(time.time() - inicio), 'hallazgos': f.hallazgos})

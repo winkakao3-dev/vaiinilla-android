@@ -8,6 +8,7 @@ El sandbox es compartido: otros agentes pueden cobrar o preparar nuestro pedido 
 se registra antes de crear nada y un paso que otro ya hizo se anota como interferencia, no como error.
 """
 import datetime
+import re
 import urllib.parse
 
 from backend import BackendError
@@ -126,7 +127,7 @@ def _pedir_en_caja(f):
     f.tocar(rf'{PRODUCTO}.*\$\d')
     f.tocar(r'^Agregar · \$')
     f.tocar(r'Carrito')
-    f.tocar(r'^Pagar$|Continuar para pagar')
+    f.tocar(r'^Pagar\b|^Continuar para pagar')
     f.ver(r'¿Cómo quieres pagar\?')
     f.tocar(r'^Pago en caja', opcional=True, segundos=3)
     f.tocar(r'^Pedir · pagas \$\S+ en caja$')
@@ -194,3 +195,48 @@ def pedido_mostrador(f):
     pedido = nuevos[0]
     f.ver(rf'#{pedido["folio"]}\b')
     _cobrar_y_preparar(f, pedido['id'], pedido['folio'])
+
+
+# --- Acciones con las escrituras bloqueadas: no cambian el sandbox ni dependen de quién más lo opere ---------------
+
+
+@flujo('cocina-sin-escrituras', 'Cocina avanza una comanda de la fila sin poder escribir: avisa el error, no dice "lista"')
+def cocina_sin_escrituras(f):
+    f.entrar('cocina')
+    # La comanda al frente puede estar lista (sin botón para avanzar): se elige una de la fila que espere cocina.
+    fila = f.tocar(r'^#\d+\b.*(en espera|preparando)', segundos=30)
+    folio = re.match(r'#(\d+)', fila['texto']).group(1)
+    f.ver(rf'^#{folio}$')
+    f.sin_escrituras()
+    f.accion_que_falla(r'^(Empezar a preparar|Marcar lista)$', rf'Comanda #{folio} (en preparaci|lista)',
+                       f'Cocina avanza el #{folio}', 'transiciones')
+
+
+@flujo('alumno-pedir-sin-escrituras', 'El alumno toca Pedir sin poder escribir: avisa el error, no dice "Pedido recibido"')
+def alumno_pedir_sin_escrituras(f):
+    f.entrar('alumno')
+    f.deeplink('https://vaiinilla.app/e/sandbox-agentes')
+    f.tocar(r'Buscar productos', campo=True)
+    f.escribir(PRODUCTO)
+    f.tocar(rf'{PRODUCTO}.*\$\d')
+    f.tocar(r'^Agregar · \$')
+    f.tocar(r'Carrito')
+    f.tocar(r'^Pagar\b|^Continuar para pagar')
+    f.ver(r'¿Cómo quieres pagar\?')
+    f.tocar(r'^Pago en caja', opcional=True, segundos=3)
+    f.sin_escrituras()
+    f.accion_que_falla(r'^Pedir · pagas \$\S+ en caja$', r'Pedido recibido|Pedido #\d+', 'El alumno pide', 'pedidos')
+
+
+@flujo('caja-cobrar-sin-escrituras', 'Caja crea un pedido de mostrador y lo cobra sin poder escribir: no dice "Cobro confirmado"')
+def caja_cobrar_sin_escrituras(f):
+    _precondiciones(f)
+    _limpieza(f, _ahora())
+    f.entrar('caja')
+    f.tocar(r'^Nuevo pedido$')
+    f.tocar(r'Buscar en el menú', campo=True)
+    f.escribir(PRODUCTO)
+    f.tocar(rf'{PRODUCTO}')
+    f.tocar(r'Crear pedido')
+    f.sin_escrituras()
+    f.accion_que_falla(r'^Cobrar \$', r'Cobro confirmado', 'Caja cobra el pedido de mostrador', 'cobros-efectivo')
