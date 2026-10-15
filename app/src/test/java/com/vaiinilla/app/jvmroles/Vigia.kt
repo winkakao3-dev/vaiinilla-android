@@ -100,6 +100,7 @@ class Vigia(
             .put("red", network.describe())
             .put("enCurso", network.inFlight)
             .put("cargando", loadingSince != null)
+            .put("totales", JSONObject(network.totals()))
     }
 
     private fun drainCrashes(texts: Set<String>) {

@@ -60,6 +60,12 @@ class VigiaNetwork
         private var random = Random(DEFAULT_SEED)
         private val ids = AtomicLong()
         private val running = AtomicInteger()
+        private val totals =
+            mapOf(
+                "peticiones" to AtomicInteger(),
+                "saboteadas" to AtomicInteger(),
+                "bloqueadas" to AtomicInteger(),
+            )
         private val events = ArrayDeque<Event>()
 
         val inFlight: Int get() = running.get()
@@ -96,6 +102,9 @@ class VigiaNetwork
 
         fun lastId(): Long = ids.get()
 
+        /** Cuántas peticiones pasaron, cuántas se sabotearon y cuántas escrituras se frenaron desde que arrancó la JVM. */
+        fun totals(): Map<String, Int> = totals.mapValues { it.value.get() }
+
         /** Las últimas [count] peticiones, una por línea, para el informe y el comando `trafico`. */
         fun recent(count: Int): List<String> =
             eventsAfter(lastId() - count).map { event ->
@@ -119,6 +128,7 @@ class VigiaNetwork
             val startedAt = System.currentTimeMillis()
             record(Event(id, method, shownPath, startedAt, null, null, failed = false, sabotaged = false))
             running.incrementAndGet()
+            totals.getValue("peticiones").incrementAndGet()
             var sabotaged = false
             val result =
                 try {
@@ -136,6 +146,7 @@ class VigiaNetwork
                         } else {
                             null
                         }
+                    if (blocked) totals.getValue("bloqueadas").incrementAndGet()
                     if (failure != null) {
                         sabotaged = true
                         Result.failure(failure)
@@ -145,6 +156,7 @@ class VigiaNetwork
                 } finally {
                     running.decrementAndGet()
                 }
+            if (sabotaged) totals.getValue("saboteadas").incrementAndGet()
             val outcome =
                 result.fold(
                     onSuccess = { "ok" },

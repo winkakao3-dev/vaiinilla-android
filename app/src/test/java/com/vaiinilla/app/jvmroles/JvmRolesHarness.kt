@@ -397,9 +397,16 @@ class JvmRolesHarness {
         val keyBefore = screenKey()
         val stateBefore = screenState()
         val firstEvent = network.lastId()
+        // Lo que la pantalla ya pedía sola (polling) no cuenta como respuesta al toque.
+        val polled =
+            network
+                .eventsAfter(0)
+                .filter { it.startedAt >= System.currentTimeMillis() - POLLING_WINDOW_MILLIS }
+                .map { it.method to it.path }
+                .toSet()
         compose.onAllNodes(SemanticsMatcher("id $id") { it.id == id })[0].performClick()
         pump(SETTLE_MILLIS, realTime = true)
-        val requests = network.eventsAfter(firstEvent).size
+        val requests = network.eventsAfter(firstEvent).count { (it.method to it.path) !in polled }
         val gone = scenario?.state?.isAtLeast(Lifecycle.State.CREATED) != true
         if (gone) closeActivity()
         val effect =
@@ -500,5 +507,6 @@ class JvmRolesHarness {
         const val LABEL_LIMIT = 80
         const val SCRIM_HEIGHT_RATIO = 0.6f
         const val TRAFFIC_LINES = 20
+        const val POLLING_WINDOW_MILLIS = 10_000L
     }
 }

@@ -76,6 +76,8 @@ class Explorador:
         self.historia = []
         self.rol = None
         self.toques = 0
+        self.totales_inicio = None
+        self.totales = {}
 
     # --- registro ---------------------------------------------------------------------------------------
 
@@ -99,6 +101,7 @@ class Explorador:
     def recoger(self, pantalla_id=''):
         """Junta lo que vio el arnés; si algo sigue cargando, espera a que termine o a que el vigía lo marque."""
         datos = send_json('vigia')
+        self.contar(datos)
         esperado = 0
         tope = self.o.limite * 3 + 3000
         while datos.get('cargando') and esperado < tope:
@@ -107,8 +110,15 @@ class Explorador:
             send('wait', [2000])
             esperado += 2000
             datos = send_json('vigia')
+            self.contar(datos)
         for h in datos['hallazgos']:
             self.anotar(h['tipo'], h['gravedad'], h['detalle'], h['pantalla'], h['red'], pantalla_id)
+
+    def contar(self, datos):
+        totales = datos.get('totales') or {}
+        if self.totales_inicio is None:
+            self.totales_inicio = dict(totales)
+        self.totales = {k: v - self.totales_inicio.get(k, 0) for k, v in totales.items()}
 
     # --- recorrido --------------------------------------------------------------------------------------
 
@@ -219,6 +229,8 @@ class Explorador:
             + ('escrituras al sandbox **permitidas**' if self.o.escrituras else 'solo lectura (las escrituras vuelven como error)'),
             f'- {self.toques} toques · {len(self.pantallas)} pantallas distintas · '
             f'**{len(errores)} errores** · {len(sospechas)} sospechas',
+            f'- Red: {self.totales.get("peticiones", 0)} peticiones · {self.totales.get("saboteadas", 0)} saboteadas · '
+            f'{self.totales.get("bloqueadas", 0)} escrituras frenadas (solo lectura)',
             '',
         ]
         for titulo, grupo in (('Errores', errores), ('Sospechas', sospechas)):
