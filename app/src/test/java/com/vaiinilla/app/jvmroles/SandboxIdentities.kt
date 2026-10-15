@@ -75,14 +75,17 @@ class SandboxIdentities
             check(!BuildConfig.IS_PRODUCTION) { "El arnés solo corre contra development." }
             val accounts = File(System.getProperty("user.home"), ".vaiinilla-test-accounts.json")
             val secret = JSONObject(accounts.readText()).getString("test_setup_secret")
+            // Tráfico del arnés, no de la app: ni el sabotaje ni el solo lectura del vigía lo tocan.
             val json =
-                post(
-                    url = "${BuildConfig.API_BASE_URL}dev/test-setup",
-                    body = "",
-                    contentType = "application/json",
-                    headers = mapOf("X-Test-Setup-Secret" to secret),
-                    showErrorBody = false,
-                )
+                VigiaNetwork.accounted {
+                    post(
+                        url = "${BuildConfig.API_BASE_URL}dev/test-setup",
+                        body = "",
+                        contentType = "application/json",
+                        headers = mapOf("X-Test-Setup-Secret" to secret),
+                        showErrorBody = false,
+                    )
+                }
             return json
                 .getJSONObject("data")
                 .getJSONObject("roles")
