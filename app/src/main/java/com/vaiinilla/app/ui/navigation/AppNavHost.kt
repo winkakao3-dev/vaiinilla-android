@@ -556,7 +556,12 @@ fun AppNavHost(
         }
     }
 
-    fun navigateStudentAuth(returnRoute: String = Routes.CART) {
+    fun navigateStudentAuth(
+        returnRoute: String = Routes.CART,
+        // Cartera y Pedidos mandan al acceso solas al abrirse: si quedaran debajo, atrás las volvería a abrir y
+        // ellas al acceso otra vez, sin salida. El acceso las reemplaza y atrás regresa a lo de antes.
+        replaceReturnScreen: Boolean = false,
+    ) {
         orderFlowViewModel.prepareForGuestAuth()
         studentAuthViewModel.refreshGuestVenue()
         val session = studentAuthViewModel.state.value.session
@@ -568,6 +573,7 @@ fun AppNavHost(
             }
         navController.navigate(targetRoute) {
             launchSingleTop = true
+            if (replaceReturnScreen) popUpTo(returnRoute) { inclusive = true }
         }
     }
 
@@ -990,7 +996,7 @@ fun AppNavHost(
                 ) {
                     studentAuthViewModel.ensureVenueContext(
                         onReady = walletViewModel::refresh,
-                        onNeedsAuth = { navigateStudentAuth(Routes.WALLET) },
+                        onNeedsAuth = { navigateStudentAuth(Routes.WALLET, replaceReturnScreen = true) },
                     )
                 }
                 // Con Cartera visible el saldo se mueve por recargas en Caja:
@@ -1539,7 +1545,7 @@ fun AppNavHost(
                                     operationalViewModel.setRole(OperationalRole.CLIENT)
                                 }
                             },
-                            onNeedsAuth = { navigateStudentAuth(Routes.STUDENT_TRACKING) },
+                            onNeedsAuth = { navigateStudentAuth(Routes.STUDENT_TRACKING, replaceReturnScreen = true) },
                         )
                     } else if (operationalState.role != OperationalRole.CLIENT) {
                         operationalViewModel.setRole(OperationalRole.CLIENT)
