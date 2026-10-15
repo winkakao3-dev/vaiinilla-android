@@ -729,7 +729,7 @@ class OperationalViewModel
             expectedVersion: Int,
         ) {
             val version = freshVersion(orderId, expectedVersion)
-            performMutation {
+            performMutation(successNotice = ::kitchenActionNotice) {
                 transitionOrder(
                     orderId = orderId,
                     targetState = OrderState.PREPARING,
@@ -762,7 +762,7 @@ class OperationalViewModel
                 return
             }
             val version = freshVersion(orderId, expectedVersion)
-            performMutation {
+            performMutation(successNotice = ::kitchenActionNotice) {
                 cancelOrder(
                     orderId = orderId,
                     expectedVersion = version,
@@ -777,7 +777,7 @@ class OperationalViewModel
             expectedVersion: Int,
         ) {
             val version = freshVersion(orderId, expectedVersion)
-            performMutation {
+            performMutation(successNotice = ::kitchenActionNotice) {
                 transitionOrder(
                     orderId = orderId,
                     targetState = OrderState.READY,
@@ -879,12 +879,16 @@ class OperationalViewModel
             }
         }
 
-        private fun performMutation(block: () -> OrderDetail) {
+        /** [successNotice] arma la confirmación con el pedido que devolvió el servidor, nunca antes. */
+        private fun performMutation(
+            successNotice: (OrderDetail) -> String? = { null },
+            block: () -> OrderDetail,
+        ) {
             if (_uiState.value.acting) return
             val role = _uiState.value.role ?: return
             val generation = roleGeneration
             mutationErrorVisible = false
-            _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
+            _uiState.value = _uiState.value.copy(acting = true, errorMessage = null, actionNotice = null)
             mutationJob =
                 viewModelScope.launch {
                     val result = runCatchingCancellable { withContext(Dispatchers.IO) { block() } }
@@ -899,12 +903,19 @@ class OperationalViewModel
                                     acting = false,
                                     orders = updated.sortedByDescending { it.summary.updatedAt },
                                     selectedOrderId = order.summary.id,
+                                    actionNotice = successNotice(order),
                                 )
                         }.onFailure { error ->
                             _uiState.value = _uiState.value.copy(acting = false)
                             showMutationError(error.toUserFacingMessage())
                         }
                 }
+        }
+
+        fun consumeActionNotice() {
+            if (_uiState.value.actionNotice != null) {
+                _uiState.value = _uiState.value.copy(actionNotice = null)
+            }
         }
 
         /**
@@ -928,7 +939,7 @@ class OperationalViewModel
             _uiState.value = _uiState.value.copy(errorMessage = message)
         }
 
-        private fun dismissMutationError() {
+        fun dismissMutationError() {
             mutationErrorVisible = false
             errorClearJob?.cancel()
             errorClearJob = null
@@ -1249,6 +1260,15 @@ internal fun filterDismissedClientOrders(
         orders.filterNot { it.summary.id in dismissedOrderIds }
     } else {
         orders
+    }
+
+/** Confirmación de Cocina según el estado que devolvió el servidor; otro estado no confirma nada. */
+internal fun kitchenActionNotice(order: OrderDetail): String? =
+    when (order.summary.state) {
+        OrderState.PREPARING -> "Comanda #${order.summary.folio} en preparación"
+        OrderState.READY -> "Comanda #${order.summary.folio} lista"
+        OrderState.CANCELED -> "Comanda #${order.summary.folio} rechazada"
+        else -> null
     }
 
 /** A client order moved forward in the tracking flow; surfaced as a system notification. */

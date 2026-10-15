@@ -23,6 +23,8 @@ data class OperationalUiState(
     val walletReloadReceipt: WalletReloadReceipt? = null,
     val catalog: Catalog? = null,
     val cashChangeNotice: String? = null,
+    /** Confirmación de una acción que el servidor ya aceptó (por ejemplo, "Comanda #12 lista"). */
+    val actionNotice: String? = null,
     /** Hoja de cierre de caja; null mientras está cerrada. */
     val closeCash: CloseCashUi? = null,
 ) {

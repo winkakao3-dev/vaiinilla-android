@@ -53,6 +53,7 @@ import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
@@ -86,6 +87,10 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -113,6 +118,7 @@ import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_CASHIER_ORDER_CARD
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_KITCHEN_CARD
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_OPEN_CASH
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_QR_SCAN
+import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.OperationalAssistantHost
 import com.vaiinilla.app.ui.components.OperationalAssistantPalette
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -1496,6 +1502,8 @@ fun KitchenOperationalScreen(
     onChangeMode: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
     assistantUserKey: String = "kitchen",
+    onActionNoticed: () -> Unit = {},
+    onDismissError: () -> Unit = {},
 ) {
     val colors = rememberOperationalColors()
     val reduceMotion = reducedMotion()
@@ -1518,6 +1526,20 @@ fun KitchenOperationalScreen(
     val isPreparing = orderState == OrderState.PREPARING
     val isReady = orderState == OrderState.READY || orderState == OrderState.DELIVERED
     val nextGuidableOrder = upcomingOrders.firstOrNull()
+    LaunchedEffect(toastMessage) {
+        if (toastMessage != null) {
+            delay(2_200)
+            toastMessage = null
+        }
+    }
+    // La confirmación llega cuando el servidor aceptó el cambio, no al tocar el botón.
+    LaunchedEffect(state.actionNotice) {
+        state.actionNotice?.let {
+            haptics.success()
+            toastMessage = it
+            onActionNoticed()
+        }
+    }
     val kitchenGuides =
         kitchenAssistantGuides(
             orderId = activeOrder?.summary?.id,
@@ -1640,6 +1662,17 @@ fun KitchenOperationalScreen(
                             },
                         )
                     }
+                }
+            }
+
+            state.errorMessage?.let { message ->
+                item(key = "kitchen-error") {
+                    OperationalErrorCard(
+                        message = message,
+                        colors = colors,
+                        onDismiss = onDismissError,
+                        modifier = Modifier.animateItem(),
+                    )
                 }
             }
 
@@ -1771,17 +1804,17 @@ fun KitchenOperationalScreen(
                                     // Una sola acción: la que aplica según el estado real.
                                     Button(
                                         onClick = {
+                                            haptics.impact()
                                             if (isPreparing) {
-                                                haptics.success()
                                                 onReady(activeOrder.summary.id, activeOrder.summary.version)
-                                                toastMessage = "Comanda #${activeOrder.summary.folio} lista"
                                             } else {
-                                                haptics.impact()
                                                 onStart(activeOrder.summary.id, activeOrder.summary.version)
-                                                toastMessage = "Comanda #${activeOrder.summary.folio} en preparación"
                                             }
                                         },
-                                        enabled = !isReady && restrictedMode != RestrictedMode.READ_ONLY,
+                                        enabled =
+                                            !isReady &&
+                                                !state.acting &&
+                                                restrictedMode != RestrictedMode.READ_ONLY,
                                         colors =
                                             ButtonDefaults.buttonColors(
                                                 containerColor = colors.accentLime,
@@ -1805,30 +1838,42 @@ fun KitchenOperationalScreen(
                                                 ),
                                         contentPadding = PaddingValues(horizontal = 14.dp),
                                     ) {
-                                        Text(
-                                            text =
-                                                if (isReady) {
-                                                    "Lista para recoger"
-                                                } else if (isPreparing) {
-                                                    "Marcar lista"
-                                                } else {
-                                                    "Empezar a preparar"
-                                                },
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 14.sp,
-                                        )
+                                        if (state.acting && !isReady) {
+                                            CircularProgressIndicator(
+                                                color = TicketMuted,
+                                                strokeWidth = 2.5.dp,
+                                                modifier =
+                                                    Modifier
+                                                        .size(22.dp)
+                                                        .semantics { contentDescription = "Guardando la comanda" },
+                                            )
+                                        } else {
+                                            Text(
+                                                text =
+                                                    if (isReady) {
+                                                        "Lista para recoger"
+                                                    } else if (isPreparing) {
+                                                        "Marcar lista"
+                                                    } else {
+                                                        "Empezar a preparar"
+                                                    },
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp,
+                                            )
+                                        }
                                     }
 
                                     if (!isReady && restrictedMode != RestrictedMode.READ_ONLY) {
                                         TextButton(
                                             onClick = { rejecting = true },
+                                            enabled = !state.acting,
                                             modifier = Modifier.fillMaxWidth(),
                                         ) {
                                             Text(
                                                 "Rechazar pedido",
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 13.sp,
-                                                color = Color(0xFFE5645A),
+                                                color = if (state.acting) TicketMuted else Color(0xFFE5645A),
                                             )
                                         }
                                     }
@@ -1961,9 +2006,75 @@ fun KitchenOperationalScreen(
                 rejecting = false
                 haptics.impact()
                 onReject(activeOrder.summary.id, activeOrder.summary.version, reason)
-                toastMessage = "Comanda #${activeOrder.summary.folio} rechazada"
             },
         )
+    }
+}
+
+/** Error de una acción o de la carga, con la tarjeta del tablero de Mesero; se anuncia al lector de pantalla. */
+@Composable
+private fun OperationalErrorCard(
+    message: String,
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+    title: String? = null,
+    onDismiss: (() -> Unit)? = null,
+    onRetry: (() -> Unit)? = null,
+) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = colors.cardBackground,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .border(1.dp, colors.cardBorder, RoundedCornerShape(20.dp))
+                .semantics { liveRegion = LiveRegionMode.Polite },
+    ) {
+        Column(modifier = Modifier.padding(start = 20.dp, top = 14.dp, end = 10.dp, bottom = 16.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f).padding(top = 6.dp, end = 8.dp)) {
+                    title?.let {
+                        Text(
+                            it,
+                            color = colors.textPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    Text(
+                        message,
+                        color = if (title == null) colors.textPrimary else colors.textSecondary,
+                        fontSize = 14.sp,
+                        fontWeight = if (title == null) FontWeight.SemiBold else FontWeight.Normal,
+                        modifier = Modifier.padding(top = if (title == null) 0.dp else 4.dp),
+                    )
+                }
+                if (onDismiss != null) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .physicalPress(scale = PhysicalPressScale.Small, onClick = onDismiss)
+                                .size(44.dp)
+                                .clip(CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Outlined.Close,
+                            contentDescription = "Cerrar aviso",
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+            }
+            if (onRetry != null) {
+                EditorialAccentButton(
+                    text = "Reintentar",
+                    onClick = onRetry,
+                    modifier = Modifier.padding(top = 12.dp, end = 10.dp),
+                )
+            }
+        }
     }
 }
 

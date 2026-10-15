@@ -1706,6 +1706,8 @@ fun AppNavHost(
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "kitchen",
+                        onActionNoticed = operationalViewModel::consumeActionNotice,
+                        onDismissError = operationalViewModel::dismissMutationError,
                     )
                 }
             }
