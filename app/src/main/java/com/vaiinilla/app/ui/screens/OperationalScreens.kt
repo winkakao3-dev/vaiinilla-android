@@ -53,6 +53,7 @@ import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
@@ -86,6 +87,10 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -113,6 +118,7 @@ import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_CASHIER_ORDER_CARD
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_KITCHEN_CARD
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_OPEN_CASH
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_QR_SCAN
+import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.OperationalAssistantHost
 import com.vaiinilla.app.ui.components.OperationalAssistantPalette
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -135,6 +141,8 @@ import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
 import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.operational.OperationalUiState
+import com.vaiinilla.app.ui.operational.QueuePresentation
+import com.vaiinilla.app.ui.operational.queuePresentation
 import com.vaiinilla.app.ui.theme.AccentInk
 import com.vaiinilla.app.ui.theme.Cream
 import com.vaiinilla.app.ui.theme.CreamDeep
@@ -277,6 +285,8 @@ fun CashierOperationalScreen(
     pendingSpaces: Int? = null,
     /** Aviso que llega de fuera (por ejemplo, el folio del pedido de mostrador). */
     notice: String? = null,
+    onDismissError: () -> Unit = {},
+    onRefresh: () -> Unit = {},
 ) {
     val colors = rememberOperationalColors()
     val reduceMotion = reducedMotion()
@@ -353,6 +363,7 @@ fun CashierOperationalScreen(
             ?: actionableCashierOrders.firstOrNull()
     val queuedCashierOrders =
         actionableCashierOrders.filterNot { it.summary.id == recentOrder?.summary?.id }
+    val cashierQueue = queuePresentation(actionableCashierOrders.isNotEmpty(), state.lastRefreshOk)
     val products = state.catalog?.products.orEmpty()
     val activeCount = products.count { it.available }
     val pausedCount = products.size - activeCount
@@ -494,6 +505,22 @@ fun CashierOperationalScreen(
                 }
             }
 
+            // La hoja de alta y la fila sin cargar muestran su propio error; aquí no se repite.
+            val cashierError =
+                state.errorMessage.takeUnless {
+                    addProductSheetOpen || cashierQueue == QueuePresentation.Error
+                }
+            if (cashierError != null) {
+                item(key = "cashier-error") {
+                    OperationalErrorCard(
+                        message = cashierError,
+                        colors = colors,
+                        onDismiss = onDismissError,
+                        modifier = Modifier.animateItem(),
+                    )
+                }
+            }
+
             item(key = "cashier-actions") {
                 CashierQuickActions(
                     colors = colors,
@@ -602,6 +629,11 @@ fun CashierOperationalScreen(
                             remember(recentOrder.summary.id) {
                                 mutableStateOf<TipChoice>(TipChoice.None)
                             }
+                        // El progreso es del cobro: otra acción en curso solo deshabilita el botón.
+                        var collecting by remember(recentOrder.summary.id) { mutableStateOf(false) }
+                        LaunchedEffect(state.acting, state.errorMessage) {
+                            if (!state.acting) collecting = false
+                        }
                         Column(modifier = Modifier.fillMaxWidth()) {
                             Surface(
                                 modifier =
@@ -759,6 +791,7 @@ fun CashierOperationalScreen(
                                         Button(
                                             onClick = {
                                                 haptics.impact()
+                                                collecting = true
                                                 onCollect(
                                                     recentOrder.summary.id,
                                                     cashReceivedInput,
@@ -785,14 +818,26 @@ fun CashierOperationalScreen(
                                                     .height(50.dp),
                                             contentPadding = PaddingValues(horizontal = 14.dp),
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Payments,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(18.dp),
-                                            )
+                                            if (collecting && state.acting) {
+                                                CircularProgressIndicator(
+                                                    color = TicketMuted,
+                                                    strokeWidth = 2.5.dp,
+                                                    modifier = Modifier.size(18.dp),
+                                                )
+                                            } else {
+                                                Icon(
+                                                    imageVector = Icons.Outlined.Payments,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(18.dp),
+                                                )
+                                            }
                                             Spacer(Modifier.width(8.dp))
                                             Text(
-                                                "Cobrar $${Money.format(orderTotal + tipAmount)}",
+                                                if (collecting && state.acting) {
+                                                    "Cobrando…"
+                                                } else {
+                                                    "Cobrar $${Money.format(orderTotal + tipAmount)}"
+                                                },
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 14.sp,
                                                 maxLines = 1,
@@ -849,7 +894,17 @@ fun CashierOperationalScreen(
                             TicketZigzag()
                         }
                     } else {
-                        CashierQueueEmpty(colors = colors)
+                        when (cashierQueue) {
+                            QueuePresentation.Loading -> CashierQueueLoading(colors = colors)
+                            QueuePresentation.Error ->
+                                OperationalErrorCard(
+                                    title = "No se pudieron cargar los pedidos",
+                                    message = state.errorMessage ?: "Revisa la conexión e inténtalo otra vez.",
+                                    colors = colors,
+                                    onRetry = onRefresh,
+                                )
+                            else -> CashierQueueEmpty(colors = colors)
+                        }
                     }
                 }
             }
@@ -1496,6 +1551,9 @@ fun KitchenOperationalScreen(
     onChangeMode: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
     assistantUserKey: String = "kitchen",
+    onActionNoticed: () -> Unit = {},
+    onDismissError: () -> Unit = {},
+    onRefresh: () -> Unit = {},
 ) {
     val colors = rememberOperationalColors()
     val reduceMotion = reducedMotion()
@@ -1518,6 +1576,21 @@ fun KitchenOperationalScreen(
     val isPreparing = orderState == OrderState.PREPARING
     val isReady = orderState == OrderState.READY || orderState == OrderState.DELIVERED
     val nextGuidableOrder = upcomingOrders.firstOrNull()
+    val kitchenQueue = queuePresentation(state.orders.isNotEmpty(), state.lastRefreshOk)
+    LaunchedEffect(toastMessage) {
+        if (toastMessage != null) {
+            delay(2_200)
+            toastMessage = null
+        }
+    }
+    // La confirmación llega cuando el servidor aceptó el cambio, no al tocar el botón.
+    LaunchedEffect(state.actionNotice) {
+        state.actionNotice?.let {
+            haptics.success()
+            toastMessage = it
+            onActionNoticed()
+        }
+    }
     val kitchenGuides =
         kitchenAssistantGuides(
             orderId = activeOrder?.summary?.id,
@@ -1643,6 +1716,18 @@ fun KitchenOperationalScreen(
                 }
             }
 
+            // Sin comandas cargadas, la tarjeta de la fila ya muestra el error.
+            state.errorMessage?.takeUnless { kitchenQueue == QueuePresentation.Error }?.let { message ->
+                item(key = "kitchen-error") {
+                    OperationalErrorCard(
+                        message = message,
+                        colors = colors,
+                        onDismiss = onDismissError,
+                        modifier = Modifier.animateItem(),
+                    )
+                }
+            }
+
             // En preparación Section Label
             if (activeOrder == null) {
                 item {
@@ -1657,7 +1742,12 @@ fun KitchenOperationalScreen(
                             fontSize = 20.sp,
                             color = colors.textPrimary,
                         )
-                        val prepStatus = "Al día"
+                        val prepStatus =
+                            when (kitchenQueue) {
+                                QueuePresentation.Loading -> "Cargando…"
+                                QueuePresentation.Error -> "Sin actualizar"
+                                else -> "Al día"
+                            }
                         Text(
                             text = prepStatus,
                             fontSize = 12.sp,
@@ -1771,17 +1861,17 @@ fun KitchenOperationalScreen(
                                     // Una sola acción: la que aplica según el estado real.
                                     Button(
                                         onClick = {
+                                            haptics.impact()
                                             if (isPreparing) {
-                                                haptics.success()
                                                 onReady(activeOrder.summary.id, activeOrder.summary.version)
-                                                toastMessage = "Comanda #${activeOrder.summary.folio} lista"
                                             } else {
-                                                haptics.impact()
                                                 onStart(activeOrder.summary.id, activeOrder.summary.version)
-                                                toastMessage = "Comanda #${activeOrder.summary.folio} en preparación"
                                             }
                                         },
-                                        enabled = !isReady && restrictedMode != RestrictedMode.READ_ONLY,
+                                        enabled =
+                                            !isReady &&
+                                                !state.acting &&
+                                                restrictedMode != RestrictedMode.READ_ONLY,
                                         colors =
                                             ButtonDefaults.buttonColors(
                                                 containerColor = colors.accentLime,
@@ -1805,30 +1895,42 @@ fun KitchenOperationalScreen(
                                                 ),
                                         contentPadding = PaddingValues(horizontal = 14.dp),
                                     ) {
-                                        Text(
-                                            text =
-                                                if (isReady) {
-                                                    "Lista para recoger"
-                                                } else if (isPreparing) {
-                                                    "Marcar lista"
-                                                } else {
-                                                    "Empezar a preparar"
-                                                },
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 14.sp,
-                                        )
+                                        if (state.acting && !isReady) {
+                                            CircularProgressIndicator(
+                                                color = TicketMuted,
+                                                strokeWidth = 2.5.dp,
+                                                modifier =
+                                                    Modifier
+                                                        .size(22.dp)
+                                                        .semantics { contentDescription = "Guardando la comanda" },
+                                            )
+                                        } else {
+                                            Text(
+                                                text =
+                                                    if (isReady) {
+                                                        "Lista para recoger"
+                                                    } else if (isPreparing) {
+                                                        "Marcar lista"
+                                                    } else {
+                                                        "Empezar a preparar"
+                                                    },
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp,
+                                            )
+                                        }
                                     }
 
                                     if (!isReady && restrictedMode != RestrictedMode.READ_ONLY) {
                                         TextButton(
                                             onClick = { rejecting = true },
+                                            enabled = !state.acting,
                                             modifier = Modifier.fillMaxWidth(),
                                         ) {
                                             Text(
                                                 "Rechazar pedido",
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 13.sp,
-                                                color = Color(0xFFE5645A),
+                                                color = if (state.acting) TicketMuted else Color(0xFFE5645A),
                                             )
                                         }
                                     }
@@ -1852,7 +1954,15 @@ fun KitchenOperationalScreen(
                             }
                             TicketZigzag()
                         }
+                    } else if (kitchenQueue == QueuePresentation.Error) {
+                        OperationalErrorCard(
+                            title = "No se pudieron cargar las comandas",
+                            message = state.errorMessage ?: "Revisa la conexión e inténtalo otra vez.",
+                            colors = colors,
+                            onRetry = onRefresh,
+                        )
                     } else {
+                        val loadingQueue = kitchenQueue == QueuePresentation.Loading
                         Surface(
                             modifier =
                                 Modifier
@@ -1867,17 +1977,19 @@ fun KitchenOperationalScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 Text(
-                                    "Cocina al día",
+                                    if (loadingQueue) "Cargando comandas…" else "Cocina al día",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp,
                                     color = colors.textPrimary,
                                 )
-                                Text(
-                                    text = "No hay comandas pendientes en este momento.",
-                                    fontSize = 13.sp,
-                                    color = colors.textSecondary,
-                                    textAlign = TextAlign.Center,
-                                )
+                                if (!loadingQueue) {
+                                    Text(
+                                        text = "No hay comandas pendientes en este momento.",
+                                        fontSize = 13.sp,
+                                        color = colors.textSecondary,
+                                        textAlign = TextAlign.Center,
+                                    )
+                                }
                             }
                         }
                     }
@@ -1961,9 +2073,81 @@ fun KitchenOperationalScreen(
                 rejecting = false
                 haptics.impact()
                 onReject(activeOrder.summary.id, activeOrder.summary.version, reason)
-                toastMessage = "Comanda #${activeOrder.summary.folio} rechazada"
             },
         )
+    }
+}
+
+/** Error de una acción o de la carga, con la tarjeta del tablero de Mesero; se anuncia al lector de pantalla. */
+@Composable
+private fun OperationalErrorCard(
+    message: String,
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+    title: String? = null,
+    onDismiss: (() -> Unit)? = null,
+    onRetry: (() -> Unit)? = null,
+) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = colors.cardBackground,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .border(1.dp, colors.cardBorder, RoundedCornerShape(20.dp)),
+    ) {
+        Column(modifier = Modifier.padding(start = 20.dp, top = 14.dp, end = 10.dp, bottom = 16.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                // El aviso se lee completo (título y mensaje) al aparecer; cerrar y reintentar quedan aparte.
+                Column(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .padding(top = 6.dp, end = 8.dp)
+                            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+                ) {
+                    title?.let {
+                        Text(
+                            it,
+                            color = colors.textPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    Text(
+                        message,
+                        color = if (title == null) colors.textPrimary else colors.textSecondary,
+                        fontSize = 14.sp,
+                        fontWeight = if (title == null) FontWeight.SemiBold else FontWeight.Normal,
+                        modifier = Modifier.padding(top = if (title == null) 0.dp else 4.dp),
+                    )
+                }
+                if (onDismiss != null) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .physicalPress(scale = PhysicalPressScale.Small, onClick = onDismiss)
+                                .size(44.dp)
+                                .clip(CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Outlined.Close,
+                            contentDescription = "Cerrar aviso",
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+            }
+            if (onRetry != null) {
+                EditorialAccentButton(
+                    text = "Reintentar",
+                    onClick = onRetry,
+                    modifier = Modifier.padding(top = 12.dp, end = 10.dp),
+                )
+            }
+        }
     }
 }
 

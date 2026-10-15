@@ -438,12 +438,14 @@ fun OperationalAssistantHost(
             scrimColor = Color.Black.copy(alpha = if (palette.isDark) 0.58f else 0.48f),
             shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
             dragHandle = {
+                // Material solo le pone nombre a su asa; sin él TalkBack anuncia algo tocable que no dice qué es.
                 Box(
                     Modifier
                         .padding(top = 10.dp, bottom = 4.dp)
                         .size(width = 38.dp, height = 4.dp)
                         .clip(CircleShape)
-                        .background(palette.muted.copy(alpha = 0.34f)),
+                        .background(palette.muted.copy(alpha = 0.34f))
+                        .semantics { contentDescription = SHEET_HANDLE_DESCRIPTION },
                 )
             },
         ) {

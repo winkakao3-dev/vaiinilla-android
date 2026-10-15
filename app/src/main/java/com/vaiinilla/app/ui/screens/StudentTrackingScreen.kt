@@ -89,6 +89,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -374,6 +377,22 @@ fun StudentTrackingScreen(
                         }
 
                         when {
+                            // Antes que el esqueleto: si la carga sigue fallando, el sondeo no lo hace parpadear.
+                            state.orders.isEmpty() && state.lastRefreshOk == false -> {
+                                item(key = "orders-error") {
+                                    EmptyState(
+                                        icon = Icons.Outlined.ReceiptLong,
+                                        title = "No pudimos cargar tus pedidos",
+                                        message = "Revisa tu conexión e inténtalo otra vez.",
+                                        modifier =
+                                            Modifier.semantics(mergeDescendants = true) {
+                                                liveRegion = LiveRegionMode.Polite
+                                            },
+                                        actionLabel = "Reintentar",
+                                        onAction = onRefresh,
+                                    )
+                                }
+                            }
                             state.orders.isEmpty() && state.loading -> {
                                 items(3) { OrderTrackingSkeleton() }
                             }

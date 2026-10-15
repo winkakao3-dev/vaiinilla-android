@@ -130,6 +130,7 @@ class OperationalViewModel
                     menuOrder = if (roleChanged) null else _uiState.value.menuOrder,
                     selectedOrderId = null,
                     errorMessage = null,
+                    lastRefreshOk = if (roleChanged) null else _uiState.value.lastRefreshOk,
                     cashSessionOpen = null,
                     walletClients = emptyList(),
                     walletSearchLoading = false,
@@ -227,10 +228,14 @@ class OperationalViewModel
                     }
                 }
             }
+            // Mientras la carga siga fallando el error se queda: limpiarlo en cada sondeo lo haría parpadear.
             _uiState.value =
                 _uiState.value.copy(
                     loading = true,
-                    errorMessage = _uiState.value.errorMessage.takeIf { mutationErrorVisible },
+                    errorMessage =
+                        _uiState.value.errorMessage.takeIf {
+                            mutationErrorVisible || _uiState.value.lastRefreshOk == false
+                        },
                 )
             viewModelScope.launch {
                 // Client orders always fetch the full list (like iOS): the delta can miss
@@ -279,6 +284,7 @@ class OperationalViewModel
                                 latestClientOrder = latestClientOrder,
                                 menuOrder = visibleLatestMenuOrder(latestClientOrder, dismissedClientOrderIds),
                                 lastSyncedAt = newest,
+                                lastRefreshOk = true,
                                 errorMessage =
                                     _uiState.value.errorMessage.takeIf { mutationErrorVisible },
                             )
@@ -288,6 +294,7 @@ class OperationalViewModel
                         _uiState.value =
                             _uiState.value.copy(
                                 loading = false,
+                                lastRefreshOk = false,
                                 errorMessage = error.toUserFacingMessage(),
                             )
                     },
@@ -729,7 +736,7 @@ class OperationalViewModel
             expectedVersion: Int,
         ) {
             val version = freshVersion(orderId, expectedVersion)
-            performMutation {
+            performMutation(successNotice = ::kitchenActionNotice) {
                 transitionOrder(
                     orderId = orderId,
                     targetState = OrderState.PREPARING,
@@ -762,7 +769,7 @@ class OperationalViewModel
                 return
             }
             val version = freshVersion(orderId, expectedVersion)
-            performMutation {
+            performMutation(successNotice = ::kitchenActionNotice) {
                 cancelOrder(
                     orderId = orderId,
                     expectedVersion = version,
@@ -777,7 +784,7 @@ class OperationalViewModel
             expectedVersion: Int,
         ) {
             val version = freshVersion(orderId, expectedVersion)
-            performMutation {
+            performMutation(successNotice = ::kitchenActionNotice) {
                 transitionOrder(
                     orderId = orderId,
                     targetState = OrderState.READY,
@@ -879,12 +886,16 @@ class OperationalViewModel
             }
         }
 
-        private fun performMutation(block: () -> OrderDetail) {
+        /** [successNotice] arma la confirmación con el pedido que devolvió el servidor, nunca antes. */
+        private fun performMutation(
+            successNotice: (OrderDetail) -> String? = { null },
+            block: () -> OrderDetail,
+        ) {
             if (_uiState.value.acting) return
             val role = _uiState.value.role ?: return
             val generation = roleGeneration
             mutationErrorVisible = false
-            _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
+            _uiState.value = _uiState.value.copy(acting = true, errorMessage = null, actionNotice = null)
             mutationJob =
                 viewModelScope.launch {
                     val result = runCatchingCancellable { withContext(Dispatchers.IO) { block() } }
@@ -899,12 +910,19 @@ class OperationalViewModel
                                     acting = false,
                                     orders = updated.sortedByDescending { it.summary.updatedAt },
                                     selectedOrderId = order.summary.id,
+                                    actionNotice = successNotice(order),
                                 )
                         }.onFailure { error ->
                             _uiState.value = _uiState.value.copy(acting = false)
                             showMutationError(error.toUserFacingMessage())
                         }
                 }
+        }
+
+        fun consumeActionNotice() {
+            if (_uiState.value.actionNotice != null) {
+                _uiState.value = _uiState.value.copy(actionNotice = null)
+            }
         }
 
         /**
@@ -928,7 +946,7 @@ class OperationalViewModel
             _uiState.value = _uiState.value.copy(errorMessage = message)
         }
 
-        private fun dismissMutationError() {
+        fun dismissMutationError() {
             mutationErrorVisible = false
             errorClearJob?.cancel()
             errorClearJob = null
@@ -1185,6 +1203,7 @@ class OperationalViewModel
                     loading = false,
                     acting = false,
                     errorMessage = null,
+                    lastRefreshOk = true,
                 )
             mutationErrorVisible = false
         }
@@ -1249,6 +1268,15 @@ internal fun filterDismissedClientOrders(
         orders.filterNot { it.summary.id in dismissedOrderIds }
     } else {
         orders
+    }
+
+/** Confirmación de Cocina según el estado que devolvió el servidor; otro estado no confirma nada. */
+internal fun kitchenActionNotice(order: OrderDetail): String? =
+    when (order.summary.state) {
+        OrderState.PREPARING -> "Comanda #${order.summary.folio} en preparación"
+        OrderState.READY -> "Comanda #${order.summary.folio} lista"
+        OrderState.CANCELED -> "Comanda #${order.summary.folio} rechazada"
+        else -> null
     }
 
 /** A client order moved forward in the tracking flow; surfaced as a system notification. */

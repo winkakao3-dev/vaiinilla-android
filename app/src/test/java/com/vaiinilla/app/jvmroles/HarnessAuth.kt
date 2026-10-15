@@ -3,10 +3,19 @@ package com.vaiinilla.app.jvmroles
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.core.security.PickupTokenStore
 import com.vaiinilla.app.core.security.SecureSessionStore
+import com.vaiinilla.app.data.auth.ContextoExchanger
+import com.vaiinilla.app.data.auth.SesionesContextoDataDto
+import com.vaiinilla.app.data.auth.SesionesContextoExchange
+import com.vaiinilla.app.data.auth.student.StudentAuthPreferences
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthSession
+import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
+import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRequest
+import com.vaiinilla.app.domain.auth.student.StudentEnrollmentResult
 import com.vaiinilla.app.domain.location.DeviceLocationProvider
 import com.vaiinilla.app.domain.model.GeoCoordinates
+import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
@@ -63,11 +72,14 @@ class SandboxStudentAuthRepository
         private val identities: SandboxIdentities,
         private val sessionStore: SecureSessionStore,
         private val refreshCoordinator: VaiinillaJwtRefreshCoordinator,
+        private val preferences: StudentAuthPreferences,
     ) : StudentAuthRepository {
         override fun peekSession(): StudentAuthSession? = ActiveRole.current?.let(identities::session)
 
         override fun isReadyForCheckout(establishmentId: String?): Boolean =
-            peekSession()?.emailVerified == true && !sessionStore.readAccessToken().isNullOrBlank()
+            peekSession()?.emailVerified == true &&
+                preferences.isEnrolledFor(establishmentId) &&
+                !sessionStore.readAccessToken().isNullOrBlank()
 
         override suspend fun signUp(
             email: String,
@@ -92,12 +104,61 @@ class SandboxStudentAuthRepository
 
         override suspend fun signOut() {
             ActiveRole.current?.let(identities::forget)
+            preferences.clear()
             refreshCoordinator.clearSession()
             sessionStore.clear()
         }
 
         private fun unsupported(): Result<StudentAuthSession> =
             Result.failure(UnsupportedOperationException("En el arnés se entra con `role <rol>`, no con correo."))
+    }
+
+/**
+ * Las personas del sandbox ya están dadas de alta (scripts/sandbox-seed.sql del backend);
+ * identidad/alta les pediría correo verificado.
+ */
+@Singleton
+class SandboxEnrollmentRepository
+    @Inject
+    constructor() : StudentEnrollmentRepository {
+        override suspend fun enroll(
+            request: StudentEnrollmentRequest,
+            firebaseIdToken: String,
+        ): Result<StudentEnrollmentResult> = Result.success(StudentEnrollmentResult())
+    }
+
+/**
+ * sesiones/contexto-cliente exige correo verificado y la persona cliente entra por custom token, sin correo.
+ * Su membresía `cliente` del establecimiento ya existe, así que se activa por membresía (sesiones/contexto),
+ * como hacen los modos del personal. Alta, guardado del token, refresco y markEnrolled siguen siendo los de la app.
+ */
+@Singleton
+class SandboxContextoExchanger
+    @Inject
+    constructor(
+        private val sesiones: SesionesContextoExchange,
+        private val authRepository: StudentAuthRepository,
+        private val accessRepository: AuthorizedAccessRepository,
+    ) : ContextoExchanger {
+        override suspend fun exchange(
+            firebaseIdToken: String,
+            establecimientoSlug: String,
+            establecimientoId: String,
+            identificadorCliente: String?,
+        ): SesionesContextoDataDto {
+            val session = authRepository.peekSession() ?: error("No hay rol al frente.")
+            val membership =
+                accessRepository
+                    .authorizedModes(session)
+                    .getOrThrow()
+                    .firstOrNull { it.role == OperationalRole.CLIENT && it.establishmentId == establecimientoId }
+            // Sin membresía cliente ahí, el intercambio real da el mismo error que vería la app.
+            return if (membership != null) {
+                sesiones.exchange(firebaseIdToken, membership.membershipId)
+            } else {
+                sesiones.exchange(firebaseIdToken, establecimientoSlug, establecimientoId, identificadorCliente)
+            }
+        }
     }
 
 /** Ubicación que pone el comando `location <lat> <lng>`; sin él, el teléfono no sabe dónde está. */

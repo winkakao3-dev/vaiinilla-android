@@ -4,16 +4,12 @@ import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.core.auth.ActiveSessionRefresher
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.core.config.AppEnvironment
-import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.security.PickupTokenStore
 import com.vaiinilla.app.data.account.RemoteAccountDeletionRepository
-import com.vaiinilla.app.data.auth.ContextoExchanger
-import com.vaiinilla.app.data.auth.SesionesContextoExchange
 import com.vaiinilla.app.data.auth.student.AccessEmailApi
 import com.vaiinilla.app.data.auth.student.RemoteAccessEmailApi
 import com.vaiinilla.app.data.auth.student.RemoteStudentEnrollmentApi
-import com.vaiinilla.app.data.auth.student.RemoteStudentEnrollmentRepository
 import com.vaiinilla.app.data.auth.student.StudentEnrollmentApi
 import com.vaiinilla.app.data.catalog.RemoteCatalogRepository
 import com.vaiinilla.app.data.contract.ContractResponseParser
@@ -77,10 +73,6 @@ object VaiinillaModule {
     @Provides
     @Singleton
     fun provideActiveSessionRefresher(coordinator: VaiinillaJwtRefreshCoordinator): ActiveSessionRefresher = coordinator
-
-    @Provides
-    @Singleton
-    fun provideApiClient(client: HttpVaiinillaApiClient): VaiinillaApiClient = client
 
     @Provides
     @Singleton
@@ -158,15 +150,6 @@ object VaiinillaModule {
         authRepository: StudentAuthRepository,
         enrollmentRepository: StudentEnrollmentRepository,
     ): AuthorizedAccessRepository = RemoteAuthorizedAccessRepository(api, authRepository, enrollmentRepository)
-
-    @Provides
-    @Singleton
-    fun provideContextoExchanger(exchange: SesionesContextoExchange): ContextoExchanger = exchange
-
-    @Provides
-    @Singleton
-    fun provideStudentEnrollmentRepository(api: StudentEnrollmentApi): StudentEnrollmentRepository =
-        RemoteStudentEnrollmentRepository(api)
 
     @Provides
     @Singleton

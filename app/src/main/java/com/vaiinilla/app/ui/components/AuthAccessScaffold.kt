@@ -468,13 +468,8 @@ private fun AuthBrandHero(
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-1.4).sp,
             )
-            Spacer(Modifier.height(10.dp))
-            Text(
-                "Tu menú, tus pedidos y tu saldo viven en un solo lugar. Entra antes de llegar a la barra.",
-                color = colors.accentInk.copy(alpha = 0.72f),
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
-            )
+            // Aquí iba un subtítulo de dos líneas que no cabía: con el logo y el título los 230 dp se llenan y le
+            // quedaba 1.5 dp, así que nunca se veía. Si vuelve, la portada tiene que crecer.
         }
     }
 }

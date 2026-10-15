@@ -25,6 +25,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.hideFromAccessibility
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
@@ -58,7 +62,13 @@ fun Modifier.shimmerEffect(): Modifier {
             end = Offset(translateAnim + 350f, translateAnim + 350f),
         )
 
-    return this.background(brush)
+    return this
+        // Para las pruebas, un esqueleto es "cargando" como un CircularProgressIndicator. Oculto a TalkBack:
+        // una pantalla en carga tiene decenas de bloques y los leería uno por uno.
+        .semantics {
+            progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
+            hideFromAccessibility()
+        }.background(brush)
 }
 
 @Composable

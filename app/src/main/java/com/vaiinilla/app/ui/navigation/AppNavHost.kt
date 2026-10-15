@@ -96,6 +96,7 @@ import com.vaiinilla.app.ui.screens.StudentLoginScreen
 import com.vaiinilla.app.ui.screens.StudentRegisterScreen
 import com.vaiinilla.app.ui.screens.StudentTrackingScreen
 import com.vaiinilla.app.ui.screens.StudentVerifyEmailScreen
+import com.vaiinilla.app.ui.screens.VenueSwitchDialog
 import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
 import com.vaiinilla.app.ui.screens.WalletAccountScreen
 import com.vaiinilla.app.ui.screens.WalletAddCardScreen
@@ -556,7 +557,12 @@ fun AppNavHost(
         }
     }
 
-    fun navigateStudentAuth(returnRoute: String = Routes.CART) {
+    fun navigateStudentAuth(
+        returnRoute: String = Routes.CART,
+        // Cartera y Pedidos mandan al acceso solas al abrirse: si quedaran debajo, atrás las volvería a abrir y
+        // ellas al acceso otra vez, sin salida. El acceso las reemplaza y atrás regresa a lo de antes.
+        replaceReturnScreen: Boolean = false,
+    ) {
         orderFlowViewModel.prepareForGuestAuth()
         studentAuthViewModel.refreshGuestVenue()
         val session = studentAuthViewModel.state.value.session
@@ -568,6 +574,7 @@ fun AppNavHost(
             }
         navController.navigate(targetRoute) {
             launchSingleTop = true
+            if (replaceReturnScreen) popUpTo(returnRoute) { inclusive = true }
         }
     }
 
@@ -660,6 +667,15 @@ fun AppNavHost(
                     }
                 }
             }
+            if (discoveryState.pendingSwitch != null) {
+                VenueSwitchDialog(
+                    onConfirm = {
+                        startEntrance(null)
+                        discoveryViewModel.confirmPendingSwitch(::enterVenueAndOpenCatalog)
+                    },
+                    onDismiss = discoveryViewModel::dismissPendingSwitch,
+                )
+            }
         },
     ) {
         NavHost(
@@ -746,11 +762,6 @@ fun AppNavHost(
                         startEntrance(discoveryState.spaceTokenInput)
                         discoveryViewModel.resolveSpaceToken(onEntered = ::enterVenueAndOpenCatalog)
                     },
-                    onConfirmSwitch = {
-                        startEntrance(null)
-                        discoveryViewModel.confirmPendingSwitch(::enterVenueAndOpenCatalog)
-                    },
-                    onDismissSwitch = discoveryViewModel::dismissPendingSwitch,
                     onContinueSelected = {
                         val selected = discoveryState.selected ?: return@DiscoveryScreen
                         startEntrance(null)
@@ -821,9 +832,11 @@ fun AppNavHost(
                 LaunchedEffect(authorizedAccessState.session?.uid) {
                     authorizedAccessViewModel.refreshModes(force = true)
                 }
+                val goBack: () -> Unit = { navController.popBackStack() }
                 AuthorizedModeScreen(
                     state = authorizedAccessState,
-                    onBack = { navController.popBackStack() },
+                    // En las apps de personal Modos es la primera pantalla: no hay a dónde volver.
+                    onBack = goBack.takeIf { navController.previousBackStackEntry != null },
                     onSelectMode = { mode ->
                         authorizedAccessViewModel.activateMode(mode) {
                             operationalViewModel.setRole(mode.role)
@@ -988,7 +1001,7 @@ fun AppNavHost(
                 ) {
                     studentAuthViewModel.ensureVenueContext(
                         onReady = walletViewModel::refresh,
-                        onNeedsAuth = { navigateStudentAuth(Routes.WALLET) },
+                        onNeedsAuth = { navigateStudentAuth(Routes.WALLET, replaceReturnScreen = true) },
                     )
                 }
                 // Con Cartera visible el saldo se mueve por recargas en Caja:
@@ -1161,6 +1174,7 @@ fun AppNavHost(
                             studentAuthViewModel.ensureVenueContext(
                                 onReady = orderFlowViewModel::submitOrder,
                                 onNeedsAuth = { navigateStudentAuth(Routes.CART) },
+                                onFailed = orderFlowViewModel::showCreateOrderError,
                             )
                         } else {
                             orderFlowViewModel.submitOrder()
@@ -1187,6 +1201,7 @@ fun AppNavHost(
                         operationalViewModel.selectOrder(orderId)
                         navController.navigateStudent(Routes.STUDENT_TRACKING)
                     },
+                    preparingCheckout = guestAuthRequired && studentAuthState.loading,
                 )
             }
 
@@ -1535,7 +1550,7 @@ fun AppNavHost(
                                     operationalViewModel.setRole(OperationalRole.CLIENT)
                                 }
                             },
-                            onNeedsAuth = { navigateStudentAuth(Routes.STUDENT_TRACKING) },
+                            onNeedsAuth = { navigateStudentAuth(Routes.STUDENT_TRACKING, replaceReturnScreen = true) },
                         )
                     } else if (operationalState.role != OperationalRole.CLIENT) {
                         operationalViewModel.setRole(OperationalRole.CLIENT)
@@ -1666,9 +1681,14 @@ fun AppNavHost(
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "cashier",
                         onNewCounterOrder = waiterViewModel::openCounterOrder,
+                        // Con el tablero sin actualizar no se afirma "Nada por cobrar".
                         pendingSpaces =
-                            waiterState.tables.takeIf { it.isNotEmpty() }?.count { it.hasPendingAccount() },
+                            waiterState.tables
+                                .takeIf { it.isNotEmpty() && waiterState.consecutiveBoardFailures == 0 }
+                                ?.count { it.hasPendingAccount() },
                         notice = waiterState.toastMessage,
+                        onDismissError = operationalViewModel::dismissMutationError,
+                        onRefresh = operationalViewModel::refresh,
                     )
                     if (waiterState.counterOrderOpen) {
                         CounterOrderSheet(
@@ -1706,6 +1726,9 @@ fun AppNavHost(
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "kitchen",
+                        onActionNoticed = operationalViewModel::consumeActionNotice,
+                        onDismissError = operationalViewModel::dismissMutationError,
+                        onRefresh = operationalViewModel::refresh,
                     )
                 }
             }

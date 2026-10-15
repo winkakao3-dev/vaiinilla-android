@@ -52,6 +52,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import java.io.IOException
 import javax.inject.Provider
 
 @RunWith(RobolectricTestRunner::class)
@@ -111,6 +112,7 @@ class StudentAuthViewModelTest {
     private lateinit var allowEmailVerification: CompletableDeferred<Unit>
     private lateinit var emailApi: CountingAccessEmailApi
     private var enrollmentCalls = 0
+    private var enrollmentFailure: Throwable? = null
     private var blockContextExchange = false
     private var blockEmailVerification = false
 
@@ -153,6 +155,7 @@ class StudentAuthViewModelTest {
             ),
         )
         enrollmentCalls = 0
+        enrollmentFailure = null
         val enrollmentRepository =
             object : StudentEnrollmentRepository {
                 override suspend fun enroll(
@@ -160,6 +163,7 @@ class StudentAuthViewModelTest {
                     firebaseIdToken: String,
                 ): Result<StudentEnrollmentResult> {
                     enrollmentCalls += 1
+                    enrollmentFailure?.let { return Result.failure(it) }
                     return Result.success(StudentEnrollmentResult(membresiaId = "mock-membresia"))
                 }
             }
@@ -461,6 +465,34 @@ class StudentAuthViewModelTest {
             assertEquals("A012345", exchangedIdentifier)
             assertEquals("fresh-jwt", restartSessionStore.readAccessToken())
             assertTrue(vm.isReadyForCheckout())
+        }
+
+    @Test
+    fun `venue context failure reports the message instead of leaving the cart silent`() =
+        runTest {
+            enrollmentFailure = IOException("timeout")
+            authRepository.signUp("ana-falla@test.com", "secret1", "Ana")
+            authRepository.markCurrentEmailVerified()
+            var ready = false
+            var needsAuth = false
+            val failed = CompletableDeferred<String>()
+
+            viewModel.ensureVenueContext(
+                onReady = { ready = true },
+                onNeedsAuth = { needsAuth = true },
+                onFailed = { failed.complete(it) },
+            )
+            val message =
+                withContext(Dispatchers.Default.limitedParallelism(1)) {
+                    withTimeout(5_000) { failed.await() }
+                }
+            advanceUntilIdle()
+
+            assertTrue(message.isNotBlank())
+            assertFalse(ready)
+            assertFalse(needsAuth)
+            assertFalse(viewModel.state.value.loading)
+            assertEquals(1, enrollmentCalls)
         }
 
     @Test

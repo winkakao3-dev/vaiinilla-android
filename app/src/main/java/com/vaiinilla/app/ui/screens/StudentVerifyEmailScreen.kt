@@ -70,7 +70,8 @@ fun StudentVerifyEmailScreen(
                         } else {
                             "Tu cuenta fue creada, pero no pudimos confirmar el envío del correo a $email. Pulsa Reenviar correo para intentarlo otra vez."
                         },
-                    actionLabel = "Ya verifiqué",
+                    // Mientras revisa, el botón de abajo dice "Revisando…": este se esconde para no tocarlo dos veces.
+                    actionLabel = if (state.loading) null else "Ya verifiqué",
                     onAction = onCheckVerified,
                 )
             }
@@ -80,7 +81,7 @@ fun StudentVerifyEmailScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     EditorialAccentButton(
-                        text = "Ya verifiqué mi correo",
+                        text = if (state.loading) "Revisando…" else "Ya verifiqué mi correo",
                         onClick = onCheckVerified,
                         enabled = !state.loading,
                     )

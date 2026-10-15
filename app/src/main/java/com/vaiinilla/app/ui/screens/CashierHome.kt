@@ -162,3 +162,17 @@ internal fun CashierQueueEmpty(
         modifier = modifier.fillMaxWidth().padding(vertical = 6.dp),
     )
 }
+
+/** La fila de trabajo mientras termina la primera carga: todavía no se sabe si hay algo por cobrar. */
+@Composable
+internal fun CashierQueueLoading(
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        "Cargando pedidos…",
+        fontSize = 14.sp,
+        color = colors.textSecondary,
+        modifier = modifier.fillMaxWidth().padding(vertical = 6.dp),
+    )
+}
