@@ -72,6 +72,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -201,7 +202,9 @@ fun DiscoveryScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .statusBarsPadding(),
+                    .statusBarsPadding()
+                    // Con la hoja del código abierta, lo de atrás queda bajo su velo: TalkBack tampoco lo recorre.
+                    .then(if (codeSheetOpen) Modifier.clearAndSetSemantics {} else Modifier),
         ) {
             Row(
                 modifier =
