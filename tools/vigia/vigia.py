@@ -10,8 +10,9 @@
 
   vigia.py <comando> [args]   pasa el comando tal cual al arnés (red, vigia, nodos, tocar, atras, limite…)
 
-Nunca toca lo que cierra sesión, cobra, paga, borra, cancela, confirma o cierra caja: eso va en flujos
-escritos a mano. El sandbox de dev lo comparten otros agentes.
+Nunca toca lo que cierra sesión, cobra, paga, borra, rechaza, cambia disponibilidad o cierra caja: eso va
+en flujos escritos a mano. Y por si algo se cuela, corre en solo lectura: toda escritura (salvo sesión y
+latidos) vuelve como error sin llegar al sandbox de dev, que comparten otros agentes. --escrituras lo quita.
 """
 import argparse
 import datetime
@@ -33,7 +34,9 @@ PELIGROSO = re.compile(
     r'confirmar|enviar|hacer pedido|realizar pedido|pedir|ordenar|recargar|devoluci|reembols|desactivar|'
     r'bloquear|suspender|cambiar de modo|cambiar modo|apagar|llamar|whatsapp|compartir|abrir en|'
     r'tarjeta|stripe|nfc|c[aá]mara|escanear|foto|permitir|ubicaci|notificaci|eliminar cuenta|'
-    r'privacidad|t[eé]rminos|ayuda externa|desvincular|marcar como entregado|entregar|listo para',
+    r'privacidad|t[eé]rminos|ayuda externa|desvincular|marcar|entregar|listo para|rechazar|aceptar|'
+    r'abrir cuenta|tomar pedido|se acab|disponib|agotad|preparar|iniciar|terminar|cerrar manual|liberar|'
+    r'asignar|mover|reservar|rentar|unir|invitar|guardar|crear|agregar al pedido|dividir|propina|descuento',
     re.IGNORECASE,
 )
 VOLVER = re.compile(r'^(atr[aá]s|regresar|volver|cerrar|navigate up)$', re.IGNORECASE)
@@ -212,7 +215,8 @@ class Explorador:
         lineas = [
             f'# Vigía · {datetime.datetime.now():%Y-%m-%d %H:%M}',
             '',
-            f'- Rama `{rama}` ({commit}) · red: **{self.o.red}** · roles: {", ".join(self.o.roles)}',
+            f'- Rama `{rama}` ({commit}) · red: **{self.o.red}** · roles: {", ".join(self.o.roles)} · '
+            + ('escrituras al sandbox **permitidas**' if self.o.escrituras else 'solo lectura (las escrituras vuelven como error)'),
             f'- {self.toques} toques · {len(self.pantallas)} pantallas distintas · '
             f'**{len(errores)} errores** · {len(sospechas)} sospechas',
             '',
@@ -247,9 +251,12 @@ def explorar(argv):
     p.add_argument('--profundidad', type=int, default=4)
     p.add_argument('--limite', type=int, default=12000)
     p.add_argument('--semilla', type=int, default=7)
+    p.add_argument('--escrituras', action='store_true',
+                   help='deja que las escrituras lleguen al sandbox de dev (por defecto vuelven como error)')
     o = p.parse_args(argv)
     o.roles = [r.strip() for r in o.roles.split(',') if r.strip()]
     send('red', o.red.split())
+    send('escrituras', ['si' if o.escrituras else 'no'])
     send('limite', [o.limite])
     e = Explorador(o)
     try:
@@ -260,6 +267,7 @@ def explorar(argv):
                 e.anotar('arnes', 'sospecha', f'El recorrido se detuvo: {str(error)[:300]}')
     finally:
         send('red', ['normal'])
+        send('escrituras', ['si'])
     return e.informe()
 
 

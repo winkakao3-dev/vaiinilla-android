@@ -174,6 +174,14 @@ class JvmRolesHarness {
             "location" -> setLocation(args)
             "deeplink" -> deeplink(args.firstOrNull() ?: error("Uso: deeplink <https://vaiinilla.app/...>"))
             "red" -> network.configure(args)
+            "escrituras" -> {
+                network.writesAllowed = args.firstOrNull() == "si"
+                if (network.writesAllowed) {
+                    "escrituras al sandbox permitidas"
+                } else {
+                    "solo lectura: las escrituras vuelven como error"
+                }
+            }
             "vigia" -> vigia.drain().toString()
             "trafico" ->
                 network.recent(args.firstOrNull()?.toInt() ?: TRAFFIC_LINES).joinToString("\n").ifEmpty {
@@ -190,7 +198,7 @@ class JvmRolesHarness {
             else ->
                 error(
                     "No conozco '${command.name}'. Comandos: role, cual, list, tap, text, wait, advance, shot, " +
-                        "location, deeplink, red, vigia, trafico, limite, nodos, tocar, atras, stop.",
+                        "location, deeplink, red, escrituras, vigia, trafico, limite, nodos, tocar, atras, stop.",
                 )
         }
     }

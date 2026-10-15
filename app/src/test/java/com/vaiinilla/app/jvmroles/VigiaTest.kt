@@ -124,6 +124,26 @@ class VigiaTest {
         assertEquals(emptyList<String>(), kinds())
     }
 
+    @Test
+    fun `read-only mode keeps writes off the sandbox but lets reads, session and heartbeats through`() {
+        network.writesAllowed = false
+        val sent = mutableListOf<String>()
+
+        val write =
+            network.intercept("POST", "pedidos/9/transiciones") {
+                Result.success("{}").also {
+                    sent +=
+                        "transiciones"
+                }
+            }
+        network.intercept("GET", "catalogo") { Result.success("{}").also { sent += "catalogo" } }
+        network.intercept("POST", "latidos") { Result.success("").also { sent += "latidos" } }
+        network.intercept("POST", "sesiones/contexto") { Result.success("{}").also { sent += "contexto" } }
+
+        assertEquals(listOf("catalogo", "latidos", "contexto"), sent)
+        assertEquals(true, write.isFailure)
+    }
+
     private fun tick(millis: Long) {
         var left = millis
         while (left > 0) {

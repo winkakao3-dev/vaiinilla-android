@@ -51,6 +51,12 @@ class VigiaNetwork
 
         @Volatile private var onlyPath: String? = null
 
+        /**
+         * Sin escrituras, nada de lo que toque el explorador cambia el sandbox de dev que comparten otros agentes:
+         * cada POST/PUT/DELETE (salvo sesión y latidos) vuelve como error sin salir. La app debe avisarlo igual.
+         */
+        @Volatile var writesAllowed = true
+
         private var random = Random(DEFAULT_SEED)
         private val ids = AtomicLong()
         private val running = AtomicInteger()
@@ -121,7 +127,15 @@ class VigiaNetwork
                         sabotaged = true
                         Thread.sleep(delayMillis)
                     }
-                    val failure = if (targeted) pickFailure() else null
+                    val blocked = !writesAllowed && method != "GET" && WRITE_ALLOWLIST.none { path.startsWith(it) }
+                    val failure =
+                        if (blocked) {
+                            blockedWrite()
+                        } else if (targeted) {
+                            pickFailure()
+                        } else {
+                            null
+                        }
                     if (failure != null) {
                         sabotaged = true
                         Result.failure(failure)
@@ -153,6 +167,12 @@ class VigiaNetwork
             )
             return result
         }
+
+        private fun blockedWrite(): Throwable =
+            parser.parseError(
+                """{"error":{"code":"VIGIA_SOLO_LECTURA","message":"El vigía no deja escribir en el sandbox."}}""",
+                503,
+            )
 
         private fun pickFailure(): Throwable? {
             if (failPercent <= 0) return null
@@ -194,6 +214,7 @@ class VigiaNetwork
             const val DEFAULT_DELAY_MILLIS = 4_000L
             const val DEFAULT_FAIL_PERCENT = 30
             const val DEFAULT_SEED = 7L
+            val WRITE_ALLOWLIST = listOf("sesiones/", "latidos", "dispositivos")
         }
     }
 
