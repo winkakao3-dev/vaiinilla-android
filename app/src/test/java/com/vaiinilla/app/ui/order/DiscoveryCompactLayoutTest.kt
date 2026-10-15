@@ -74,8 +74,6 @@ class DiscoveryCompactLayoutTest {
                     onSpaceTokenChange = {},
                     onSelectEstablishment = {},
                     onResolveSpace = {},
-                    onConfirmSwitch = {},
-                    onDismissSwitch = {},
                     onContinueSelected = {},
                     profileInitials = "DR",
                 )
@@ -111,8 +109,6 @@ class DiscoveryCompactLayoutTest {
                         onSpaceTokenChange = {},
                         onSelectEstablishment = {},
                         onResolveSpace = {},
-                        onConfirmSwitch = {},
-                        onDismissSwitch = {},
                         onContinueSelected = {},
                         profileInitials = "DR",
                     )
@@ -164,8 +160,6 @@ class DiscoveryCompactLayoutTest {
                     onSpaceTokenChange = {},
                     onSelectEstablishment = {},
                     onResolveSpace = {},
-                    onConfirmSwitch = {},
-                    onDismissSwitch = {},
                     onContinueSelected = {},
                     profileInitials = "DR",
                 )

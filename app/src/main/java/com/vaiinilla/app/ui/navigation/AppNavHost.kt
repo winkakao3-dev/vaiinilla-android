@@ -96,6 +96,7 @@ import com.vaiinilla.app.ui.screens.StudentLoginScreen
 import com.vaiinilla.app.ui.screens.StudentRegisterScreen
 import com.vaiinilla.app.ui.screens.StudentTrackingScreen
 import com.vaiinilla.app.ui.screens.StudentVerifyEmailScreen
+import com.vaiinilla.app.ui.screens.VenueSwitchDialog
 import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
 import com.vaiinilla.app.ui.screens.WalletAccountScreen
 import com.vaiinilla.app.ui.screens.WalletAddCardScreen
@@ -666,6 +667,15 @@ fun AppNavHost(
                     }
                 }
             }
+            if (discoveryState.pendingSwitch != null) {
+                VenueSwitchDialog(
+                    onConfirm = {
+                        startEntrance(null)
+                        discoveryViewModel.confirmPendingSwitch(::enterVenueAndOpenCatalog)
+                    },
+                    onDismiss = discoveryViewModel::dismissPendingSwitch,
+                )
+            }
         },
     ) {
         NavHost(
@@ -752,11 +762,6 @@ fun AppNavHost(
                         startEntrance(discoveryState.spaceTokenInput)
                         discoveryViewModel.resolveSpaceToken(onEntered = ::enterVenueAndOpenCatalog)
                     },
-                    onConfirmSwitch = {
-                        startEntrance(null)
-                        discoveryViewModel.confirmPendingSwitch(::enterVenueAndOpenCatalog)
-                    },
-                    onDismissSwitch = discoveryViewModel::dismissPendingSwitch,
                     onContinueSelected = {
                         val selected = discoveryState.selected ?: return@DiscoveryScreen
                         startEntrance(null)

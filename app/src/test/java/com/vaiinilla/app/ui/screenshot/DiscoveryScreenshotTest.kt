@@ -57,8 +57,6 @@ class DiscoveryScreenshotTest {
                     onSpaceTokenChange = {},
                     onSelectEstablishment = {},
                     onResolveSpace = {},
-                    onConfirmSwitch = {},
-                    onDismissSwitch = {},
                     onContinueSelected = {},
                 )
             }
@@ -86,8 +84,6 @@ class DiscoveryScreenshotTest {
                     onSpaceTokenChange = {},
                     onSelectEstablishment = {},
                     onResolveSpace = {},
-                    onConfirmSwitch = {},
-                    onDismissSwitch = {},
                     onContinueSelected = {},
                 )
             }

@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -86,7 +85,6 @@ import androidx.core.content.ContextCompat
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicVideo
 import com.vaiinilla.app.ui.components.ChoiceChip
-import com.vaiinilla.app.ui.components.EditorialConfirmSheet
 import com.vaiinilla.app.ui.components.EditorialSearchField
 import com.vaiinilla.app.ui.components.EditorialSecondaryButton
 import com.vaiinilla.app.ui.components.GlassCircleButton
@@ -114,8 +112,6 @@ fun DiscoveryScreen(
     tableCodeRequest: Int = 0,
     onSelectEstablishment: (PublicEstablishment) -> Unit,
     onResolveSpace: () -> Unit,
-    onConfirmSwitch: () -> Unit,
-    onDismissSwitch: () -> Unit,
     onContinueSelected: () -> Unit,
     profileInitials: String = "?",
     onOpenAccount: () -> Unit = {},
@@ -148,8 +144,6 @@ fun DiscoveryScreen(
     }
     var tokenError by remember { mutableStateOf(false) }
     var selectedFilter by remember { mutableStateOf(VenueFilter.ALL) }
-
-    BackHandler(enabled = state.pendingSwitch != null) { onDismissSwitch() }
 
     val filteredEstablishments =
         remember(state.establishments, selectedFilter) {
@@ -363,27 +357,6 @@ fun DiscoveryScreen(
                         modifier = Modifier.padding(top = 24.dp),
                     )
                 }
-            }
-        }
-
-        if (state.pendingSwitch != null) {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(colors.paper.copy(alpha = 0.35f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                EditorialConfirmSheet(
-                    title = "¿Cambiar de cafetería?",
-                    message =
-                        "Tu carrito pertenece a otra cafetería. Si continúas, no se mezclará con este pedido — " +
-                            "quedará guardado por separado en la cafetería anterior.",
-                    confirmLabel = "Cambiar",
-                    dismissLabel = "Cancelar",
-                    onConfirm = onConfirmSwitch,
-                    onDismiss = onDismissSwitch,
-                )
             }
         }
 
@@ -1134,8 +1107,6 @@ private fun DiscoveryScreenPreview() {
             onSpaceTokenChange = {},
             onSelectEstablishment = {},
             onResolveSpace = {},
-            onConfirmSwitch = {},
-            onDismissSwitch = {},
             onContinueSelected = {},
         )
     }
