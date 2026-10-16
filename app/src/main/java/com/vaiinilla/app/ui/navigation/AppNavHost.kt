@@ -53,6 +53,10 @@ import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.canCallWaiter
 import com.vaiinilla.app.domain.repository.hasPendingAccount
 import com.vaiinilla.app.ui.account.AccountDeletionViewModel
+import com.vaiinilla.app.ui.admin.AdminSpacesViewModel
+import com.vaiinilla.app.ui.admin.AdminStaffViewModel
+import com.vaiinilla.app.ui.admin.AdminStoreViewModel
+import com.vaiinilla.app.ui.admin.AdminViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.isRental
@@ -106,6 +110,10 @@ import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
 import com.vaiinilla.app.ui.screens.WalletPaymentMethodsScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
 import com.vaiinilla.app.ui.screens.WelcomeBootStage
+import com.vaiinilla.app.ui.screens.admin.AdminActions
+import com.vaiinilla.app.ui.screens.admin.AdminCashActions
+import com.vaiinilla.app.ui.screens.admin.AdminScreen
+import com.vaiinilla.app.ui.screens.admin.AdminSectionsHost
 import com.vaiinilla.app.ui.screens.rememberOperationalColors
 import com.vaiinilla.app.ui.screens.rememberReduceMotion
 import com.vaiinilla.app.ui.screens.rememberVenueArt
@@ -142,6 +150,10 @@ fun AppNavHost(
 ) {
     val orderFlowViewModel: OrderFlowViewModel = viewModel()
     val operationalViewModel: OperationalViewModel = viewModel()
+    val adminViewModel: AdminViewModel = viewModel()
+    val adminStaffViewModel: AdminStaffViewModel = viewModel()
+    val adminStoreViewModel: AdminStoreViewModel = viewModel()
+    val adminSpacesViewModel: AdminSpacesViewModel = viewModel()
     val waiterViewModel: WaiterViewModel = viewModel()
     val courtsViewModel: CourtsViewModel = viewModel()
     val reservationsViewModel: ReservationsViewModel = viewModel()
@@ -422,6 +434,7 @@ fun AppNavHost(
                 OperationalRole.CASHIER -> Routes.CASHIER
                 OperationalRole.KITCHEN -> Routes.KITCHEN
                 OperationalRole.WAITER -> Routes.WAITER
+                OperationalRole.ADMIN -> Routes.ADMIN
                 OperationalRole.CLIENT -> Routes.CATALOG
             }
         if (modeRole == OperationalRole.CLIENT) {
@@ -1752,6 +1765,88 @@ fun AppNavHost(
                         onActionNoticed = operationalViewModel::consumeActionNotice,
                         onDismissError = operationalViewModel::dismissMutationError,
                         onRefresh = operationalViewModel::refresh,
+                    )
+                }
+            }
+
+            composable(Routes.ADMIN) {
+                val active = authorizedAccessState.activeContext
+                val authorizedAdmin = active?.role == OperationalRole.ADMIN
+                val scope = active?.membershipId.orEmpty()
+                LaunchedEffect(authorizedAdmin, scope) {
+                    if (!authorizedAdmin) {
+                        returnToModes(navController, operationalViewModel)()
+                    } else {
+                        adminViewModel.onVisible(scope)
+                        // Para el menú: si el negocio renta canchas y si la tarjeta suma comisión. Para Caja: las mesas.
+                        adminStoreViewModel.onVisible(scope)
+                        adminSpacesViewModel.onVisible(scope)
+                        waiterViewModel.refresh()
+                    }
+                }
+                if (authorizedAdmin) {
+                    // Sin OperationalPresenceLifecycle: la administración no manda latidos ni aparece como en turno.
+                    val adminState by adminViewModel.uiState
+                    val storeState by adminStoreViewModel.uiState
+                    val spacesState by adminSpacesViewModel.uiState
+                    val stripe = storeState.stripe
+                    AdminScreen(
+                        state = adminState,
+                        placeName = active?.establishmentName.orEmpty(),
+                        restrictedMode = active?.restrictedMode,
+                        actions =
+                            AdminActions(
+                                onRefreshHome = adminViewModel::refreshHome,
+                                onRefreshCatalog = adminViewModel::refreshCatalog,
+                                onSelectPeriod = adminViewModel::selectPeriod,
+                                onSelectCustomPeriod = adminViewModel::selectCustomPeriod,
+                                onCloseWithoutCharging = adminViewModel::closeWithoutCharging,
+                                onSaveCategory = adminViewModel::saveCategory,
+                                onSaveProduct = adminViewModel::saveProduct,
+                                onSetAvailable = adminViewModel::setAvailable,
+                                onRemoveImage = adminViewModel::removeImage,
+                                onSelectOrderFilter = adminViewModel::selectOrderFilter,
+                                onRefreshOrders = adminViewModel::refreshOrders,
+                                onLoadMoreOrders = adminViewModel::loadMoreOrders,
+                            ),
+                        sections =
+                            AdminSectionsHost(
+                                staff = adminStaffViewModel,
+                                store = adminStoreViewModel,
+                                spaces = adminSpacesViewModel,
+                                cash =
+                                    AdminCashActions(
+                                        onOpenCash = adminViewModel::openCash,
+                                        onCloseCash = adminViewModel::closeCash,
+                                        onNewTakeAwayOrder = waiterViewModel::openCounterOrder,
+                                        onNewTableOrder = waiterViewModel::openTableOrder,
+                                    ),
+                                tables =
+                                    waiterState.tables
+                                        .map { it.space }
+                                        .filter { it.type != "cancha" },
+                                orderNotice = waiterState.toastMessage,
+                                counterOrderSheet = {
+                                    if (waiterState.counterOrderOpen) {
+                                        CounterOrderSheet(
+                                            state = waiterState,
+                                            colors = rememberOperationalColors(),
+                                            onDismiss = waiterViewModel::closeCounterOrder,
+                                            onSubmit = waiterViewModel::submitCounterOrder,
+                                            submitAction = "Crear pedido",
+                                        )
+                                    }
+                                },
+                            ),
+                        scope = scope,
+                        rentsSpaces = spacesState.spaces.orEmpty().any { it.hourlyPrice != null },
+                        cardFeeToCustomer =
+                            stripe != null &&
+                                stripe.enabled &&
+                                stripe.chargesEnabled &&
+                                stripe.payoutsEnabled &&
+                                stripe.passFeeToCustomer,
+                        onChangeMode = returnToModes(navController, operationalViewModel),
                     )
                 }
             }

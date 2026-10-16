@@ -139,6 +139,11 @@ class OperationalViewModel
                     catalog = null,
                 )
             pendingWalletReload = null
+            // Administración tiene su propia pantalla y su propio ViewModel: aquí no se sondean pedidos.
+            if (role == OperationalRole.ADMIN) {
+                pollingJob?.cancel()
+                return
+            }
             refreshCashSession()
             refresh()
             if (role == OperationalRole.CASHIER) {

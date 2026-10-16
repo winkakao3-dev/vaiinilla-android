@@ -328,6 +328,12 @@ class VigiaApiClient(
         headers: Map<String, String>,
     ) = network.intercept("PUT", path) { delegate.put(path, body, headers) }
 
+    override fun patch(
+        path: String,
+        body: String,
+        headers: Map<String, String>,
+    ) = network.intercept("PATCH", path) { delegate.patch(path, body, headers) }
+
     override fun putMultipart(
         path: String,
         fieldName: String,

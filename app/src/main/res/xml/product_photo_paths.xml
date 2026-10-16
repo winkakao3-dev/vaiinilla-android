@@ -3,4 +3,7 @@
     <cache-path
         name="product_photos"
         path="product_photos/" />
+    <cache-path
+        name="qr_codes"
+        path="qr_codes/" />
 </paths>
