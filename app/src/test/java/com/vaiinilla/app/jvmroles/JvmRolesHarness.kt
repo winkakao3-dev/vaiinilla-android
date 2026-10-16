@@ -18,6 +18,7 @@ import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isEnabled
@@ -27,6 +28,9 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.swipeUp
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
@@ -207,13 +211,25 @@ class JvmRolesHarness {
             "revisar" -> layoutAudit().toString()
             "tocar" -> tapNode(args.firstOrNull()?.toInt() ?: error("Uso: tocar <id de nodos>")).toString()
             "atras" -> back().toString()
+            "bajar" -> scroll(down = true)
+            "subir" -> scroll(down = false)
             "stop" -> "adiós"
             else ->
                 error(
                     "No conozco '${command.name}'. Comandos: role, cual, list, tap, text, wait, advance, shot, " +
-                        "location, deeplink, red, escrituras, vigia, trafico, limite, nodos, revisar, tocar, atras, stop.",
+                        "location, deeplink, red, escrituras, vigia, trafico, limite, nodos, revisar, tocar, atras, bajar, subir, stop.",
                 )
         }
+    }
+
+    /** Desliza la lista visible (la última con scroll: la de una hoja abierta antes que la de atrás). */
+    private fun scroll(down: Boolean): String {
+        val lists = compose.onAllNodes(hasScrollAction())
+        val count = lists.fetchSemanticsNodes().size
+        if (count == 0) error("No hay nada que deslizar. En pantalla: ${summary()}")
+        lists[count - 1].performTouchInput { if (down) swipeUp() else swipeDown() }
+        pump(SETTLE_MILLIS, realTime = true)
+        return summary()
     }
 
     private fun switchRole(args: List<String>): String {
