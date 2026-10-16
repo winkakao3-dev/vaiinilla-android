@@ -17,6 +17,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -105,12 +106,14 @@ import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.TipChoice
 import com.vaiinilla.app.domain.model.TipPercents
+import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.model.amountFor
 import com.vaiinilla.app.domain.model.asTipWire
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_ADD_PRODUCT
@@ -685,7 +688,8 @@ fun CashierOperationalScreen(
                                     }
 
                                     Column(modifier = Modifier.padding(top = 8.dp)) {
-                                        recentOrder.items.forEach { item ->
+                                        // Lo que Cocina o Caja quitaron ya no cuenta ni en el total ni en el ticket.
+                                        recentOrder.activeItems.forEach { item ->
                                             ReceiptLine(
                                                 quantity = item.quantity,
                                                 name = item.productName,
@@ -693,7 +697,7 @@ fun CashierOperationalScreen(
                                                     item.options
                                                         .joinToString(" · ") { it.name }
                                                         .ifEmpty { null },
-                                                price = "$${item.unitDigitalPrice}",
+                                                price = "$${item.subtotal}",
                                             )
                                         }
                                     }
@@ -913,7 +917,7 @@ fun CashierOperationalScreen(
             if (queuedCashierOrders.isNotEmpty()) {
                 items(queuedCashierOrders, key = { it.summary.id }) { order ->
                     val queueTitle =
-                        order.items
+                        order.activeItems
                             .joinToString(" · ") { "${it.quantity}x ${it.productName}" }
                             .ifEmpty { "Productos del menú" }
                     QueueTicketRow(
@@ -1329,6 +1333,7 @@ private fun ReceiptLine(
     name: String,
     detail: String?,
     price: String,
+    onRemove: (() -> Unit)? = null,
 ) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.Top) {
         Text("$quantity", fontWeight = FontWeight.Black, fontSize = 13.5.sp, color = TicketInk)
@@ -1360,6 +1365,20 @@ private fun ReceiptLine(
             }
             if (detail != null) {
                 Text(detail, color = TicketMuted, fontSize = 11.5.sp, modifier = Modifier.padding(top = 1.dp))
+            }
+            if (onRemove != null) {
+                Text(
+                    "Quitar",
+                    color = Color(0xFFE5645A),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier =
+                        Modifier
+                            .padding(top = 2.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClickLabel = "Quitar $name de la comanda", onClick = onRemove)
+                            .padding(vertical = 4.dp),
+                )
             }
         }
     }
@@ -1548,6 +1567,8 @@ fun KitchenOperationalScreen(
     onStart: (orderId: String, version: Int) -> Unit,
     onReady: (orderId: String, version: Int) -> Unit,
     onReject: (orderId: String, version: Int, reason: String) -> Unit = { _, _, _ -> },
+    /** Quitar un solo artículo de la comanda (Cocina no puede hacerlo con el último). */
+    onRejectItem: (orderId: String, itemId: Int, version: Int, reason: String) -> Unit = { _, _, _, _ -> },
     onChangeMode: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
     assistantUserKey: String = "kitchen",
@@ -1568,6 +1589,7 @@ fun KitchenOperationalScreen(
 
     var selectedOrderId by remember { mutableStateOf<String?>(null) }
     var rejecting by remember { mutableStateOf(false) }
+    var rejectingItem by remember { mutableStateOf<OrderItem?>(null) }
     val activeOrder =
         state.orders.firstOrNull { it.summary.id == selectedOrderId }
             ?: state.orders.firstOrNull()
@@ -1834,7 +1856,14 @@ fun KitchenOperationalScreen(
                                     TicketPerf()
 
                                     Column {
-                                        activeOrder.items.forEach { item ->
+                                        // Lo rechazado no se prepara: no aparece en la comanda.
+                                        // Cocina quita artículos de un pedido cobrado o en preparación; el último ya
+                                        // no se quita, se rechaza el pedido entero.
+                                        val canRemoveItems =
+                                            restrictedMode != RestrictedMode.READ_ONLY &&
+                                                activeOrder.activeItems.size > 1 &&
+                                                (orderState == OrderState.PAID || orderState == OrderState.PREPARING)
+                                        activeOrder.activeItems.forEach { item ->
                                             ReceiptLine(
                                                 quantity = item.quantity,
                                                 name = item.productName,
@@ -1842,11 +1871,30 @@ fun KitchenOperationalScreen(
                                                     item.options
                                                         .joinToString(" · ") { it.name }
                                                         .ifEmpty { null },
-                                                price = "$${item.unitDigitalPrice}",
+                                                price = "$${item.subtotal}",
+                                                onRemove =
+                                                    if (canRemoveItems && !state.acting) {
+                                                        { rejectingItem = item }
+                                                    } else {
+                                                        null
+                                                    },
                                             )
                                         }
                                     }
 
+                                    if (activeOrder.summary.state == OrderState.PENDING_PAYMENT &&
+                                        !activeOrder.summary.payAtEnd
+                                    ) {
+                                        // Se puede preparar antes de cobrar (lo decide cada negocio); que se note.
+                                        Text(
+                                            "SIN COBRAR · CAJA LO COBRA",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            letterSpacing = 1.2.sp,
+                                            color = TicketMuted,
+                                            modifier = Modifier.padding(top = 8.dp),
+                                        )
+                                    }
                                     if (activeOrder.summary.payAtEnd) {
                                         Text(
                                             "A LA CUENTA · SE PAGA AL FINAL",
@@ -2022,14 +2070,15 @@ fun KitchenOperationalScreen(
             items(upcomingOrders, key = { it.summary.id }) { order ->
                 val orderDest = SpaceCopy.staffDestination(order.summary.destination, order.summary.space)
                 val orderSummaryTitle =
-                    order.items
+                    order.activeItems
                         .joinToString(" · ") { "${it.quantity}x ${it.productName}" }
                         .ifEmpty { "Productos del menú" }
                 QueueTicketRow(
                     folio = "#${order.summary.folio}",
                     title = orderSummaryTitle,
                     subtitle = customerPrefix(order) + orderDest + arrivalSuffix(order),
-                    time = "En espera",
+                    // La fila dice el mismo estado que la comanda abierta, no un "En espera" fijo.
+                    time = kitchenQueueLabel(order),
                     colors = colors,
                     modifier =
                         Modifier
@@ -2061,6 +2110,21 @@ fun KitchenOperationalScreen(
             palette = kitchenAssistantPalette,
             buttonFocusRequester = assistantFocusRequester,
             modifier = Modifier.fillMaxSize(),
+        )
+    }
+
+    val itemToReject = rejectingItem
+    if (itemToReject != null && activeOrder != null) {
+        KitchenRejectDialog(
+            folio = activeOrder.summary.folio,
+            itemName = itemToReject.productName,
+            colors = colors,
+            onDismiss = { rejectingItem = null },
+            onConfirm = { reason ->
+                rejectingItem = null
+                haptics.impact()
+                onRejectItem(activeOrder.summary.id, itemToReject.id, activeOrder.summary.version, reason)
+            },
         )
     }
 
@@ -2514,6 +2578,8 @@ private fun KitchenRejectDialog(
     colors: OperationalColors,
     onDismiss: () -> Unit,
     onConfirm: (reason: String) -> Unit,
+    /** Con nombre se quita solo ese artículo; sin él se rechaza el pedido entero. */
+    itemName: String? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -2522,7 +2588,7 @@ private fun KitchenRejectDialog(
         containerColor = colors.background,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
     ) {
-        KitchenRejectContent(folio = folio, colors = colors, onConfirm = onConfirm)
+        KitchenRejectContent(folio = folio, colors = colors, onConfirm = onConfirm, itemName = itemName)
     }
 }
 
@@ -2533,6 +2599,7 @@ internal fun KitchenRejectContent(
     folio: Int,
     colors: OperationalColors,
     onConfirm: (reason: String) -> Unit,
+    itemName: String? = null,
 ) {
     var reason by remember { mutableStateOf("") }
     val valid = reason.trim().length >= 3
@@ -2546,7 +2613,12 @@ internal fun KitchenRejectContent(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Column(modifier = Modifier.arrive(0)) {
-            Text("Rechazar pedido", fontSize = 13.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
+            Text(
+                if (itemName != null) "Quitar $itemName" else "Rechazar pedido",
+                fontSize = 13.sp,
+                color = colors.textSecondary,
+                fontWeight = FontWeight.SemiBold,
+            )
             Text(
                 "#$folio",
                 fontSize = 44.sp,
@@ -2555,7 +2627,11 @@ internal fun KitchenRejectContent(
                 color = colors.textPrimary,
             )
             Text(
-                "El cliente verá el motivo. Si ya había pagado, se le devuelve el dinero.",
+                if (itemName != null) {
+                    "Solo se quita este artículo; el resto sigue. El cliente verá el motivo y se le descuenta."
+                } else {
+                    "El cliente verá el motivo. Si ya había pagado, se le devuelve el dinero."
+                },
                 fontSize = 13.sp,
                 color = colors.textSecondary,
                 modifier = Modifier.padding(top = 4.dp),
@@ -2587,7 +2663,7 @@ internal fun KitchenRejectContent(
         }
         Box(modifier = Modifier.arrive(2)) {
             ActionPill(
-                label = "Rechazar pedido",
+                label = if (itemName != null) "Quitar de la comanda" else "Rechazar pedido",
                 enabled = valid,
                 loading = false,
                 colors = colors,
@@ -2595,3 +2671,12 @@ internal fun KitchenRejectContent(
         }
     }
 }
+
+/** Etiqueta de una comanda en la fila de cocina, igual al sello de la comanda abierta. */
+internal fun kitchenQueueLabel(order: OrderDetail): String =
+    when (order.summary.state) {
+        OrderState.PENDING_PAYMENT -> if (order.summary.payAtEnd) "En espera" else "Sin cobrar"
+        OrderState.PREPARING -> "Preparando"
+        OrderState.READY -> "Lista"
+        else -> "En espera"
+    }

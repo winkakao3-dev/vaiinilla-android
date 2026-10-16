@@ -140,6 +140,23 @@ class RemoteOrderRepository(
             .mapCatching { pickupTokenStore.attach(it) }
             .mapApiErrors()
 
+    override fun rejectItem(
+        orderId: String,
+        itemId: Int,
+        expectedVersion: Int,
+        reason: String,
+        idempotencyKey: String,
+    ): Result<OrderDetail> =
+        apiClient
+            .post(
+                path = "pedidos/$orderId/articulos/$itemId/rechazos",
+                // Mismo cuerpo que cancelar (motivo + versión) y la respuesta también trae `data.pedido`.
+                body = contractJson.encodeCancelOrder(expectedVersion, reason),
+                headers = mapOf("Idempotency-Key" to idempotencyKey),
+            ).mapCatching { contractJson.parseCancelledOrder(it) }
+            .mapCatching { pickupTokenStore.attach(it) }
+            .mapApiErrors()
+
     private fun <T> Result<T>.mapApiErrors(): Result<T> =
         fold(
             onSuccess = { Result.success(it) },

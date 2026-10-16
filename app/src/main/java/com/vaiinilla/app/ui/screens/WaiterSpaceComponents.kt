@@ -95,6 +95,9 @@ import java.util.Locale
 /** Duraciones que el mesero puede elegir al abrir el turno de una cancha. */
 private val TurnDurations = listOf(60, 90, 120)
 
+/** Las de `reservas/disponibilidad` mientras no llegan: el backend solo acepta estas. */
+internal val DefaultRentalDurations = listOf(90, 180, 270, 360)
+
 /** Cuánto se alarga un turno con cada toque. */
 private val ExtensionSteps = listOf(30, 60)
 
@@ -293,6 +296,12 @@ internal fun WaiterSpaceSection(
     onStartCollect: () -> Unit = {},
     /** Precio por hora del tablero: el detalle de la sesión no lo trae. */
     pricePerHour: String? = null,
+    /** Hay pedidos listos por entregar: entregar es lo primero y cobrar queda en segundo plano. */
+    hasReadyOrders: Boolean = false,
+    /** Pedidos del espacio que aún no se entregan. */
+    ordersInCourse: Int = 0,
+    /** Duraciones que acepta el backend para rentar; con otras responde 400. */
+    rentalDurations: List<Int> = DefaultRentalDurations,
 ) {
     // Solo el botón que se tocó muestra su progreso; los demás quedan quietos.
     var busyKey by remember { mutableStateOf<String?>(null) }
@@ -392,6 +401,7 @@ internal fun WaiterSpaceSection(
                     title = "Rentar ahora",
                     verb = "Rentar",
                     pricePerHour = pricePerHour ?: availability.pricePerHour,
+                    durations = rentalDurations,
                     enabled = enabled,
                     colors = colors,
                     modifier = Modifier.padding(top = 14.dp),
@@ -490,6 +500,8 @@ internal fun WaiterSpaceSection(
                     enabled = enabled,
                     loading = false,
                     colors = colors,
+                    // Un solo lima por hoja: con algo listo, lo primero es entregarlo.
+                    primary = !hasReadyOrders,
                     modifier = Modifier.padding(top = 14.dp),
                 ) { onStartCollect() }
             }
@@ -519,6 +531,7 @@ internal fun WaiterSpaceSection(
                     title = "Renovar",
                     verb = "Renovar",
                     pricePerHour = pricePerHour ?: availability.pricePerHour,
+                    durations = rentalDurations,
                     enabled = enabled,
                     colors = colors,
                     renewal = true,
@@ -553,17 +566,31 @@ internal fun WaiterSpaceSection(
                     fadeIn(spring(stiffness = 300f)) + expandVertically(spring(stiffness = Spring.StiffnessMediumLow)),
                 exit = fadeOut(spring(stiffness = 500f)) + shrinkVertically(spring(stiffness = Spring.StiffnessMedium)),
             ) {
-                ActionPill(
-                    label = "Liberar espacio",
-                    enabled = enabled,
-                    loading = acting && busyKey == "release",
-                    colors = colors,
-                    primary = false,
+                // Cobrada y sin nada por entregar, lo que sigue es liberarla para el siguiente cliente: si no,
+                // sus pedidos se suman a la misma cuenta.
+                val readyToRelease = ordersInCourse == 0 && account?.orders?.isNotEmpty() == true
+                Column(
                     modifier =
                         Modifier.padding(top = if (rentable || isCourt || session.endsAt != null) 14.dp else 0.dp),
                 ) {
-                    busyKey = "release"
-                    onRelease()
+                    if (readyToRelease) {
+                        Text(
+                            "Todo cobrado y entregado. Libérala para que el siguiente cliente empiece una cuenta nueva.",
+                            color = colors.textSecondary,
+                            fontSize = 12.5.sp,
+                            modifier = Modifier.padding(bottom = 10.dp),
+                        )
+                    }
+                    ActionPill(
+                        label = "Liberar espacio",
+                        enabled = enabled,
+                        loading = acting && busyKey == "release",
+                        colors = colors,
+                        primary = readyToRelease,
+                    ) {
+                        busyKey = "release"
+                        onRelease()
+                    }
                 }
             }
         }
@@ -1372,6 +1399,7 @@ internal fun RentalDurationPicker(
     title: String,
     verb: String,
     pricePerHour: String?,
+    durations: List<Int>,
     enabled: Boolean,
     colors: OperationalColors,
     modifier: Modifier = Modifier,
@@ -1387,7 +1415,7 @@ internal fun RentalDurationPicker(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            TurnDurations.forEach { minutes ->
+            durations.forEach { minutes ->
                 ChipButton(
                     label = (if (renewal) "+" else "") + rentalLabel(minutes),
                     enabled = enabled,
@@ -1404,7 +1432,7 @@ internal fun RentalDurationPicker(
             exit = fadeOut(spring(stiffness = 500f)) + shrinkVertically(spring(stiffness = Spring.StiffnessMedium)),
         ) {
             // El último valor elegido se queda mientras el botón se va, para que no parpadee.
-            var shown by remember { mutableIntStateOf(TurnDurations.first()) }
+            var shown by remember { mutableIntStateOf(durations.firstOrNull() ?: 0) }
             chosen?.let { shown = it }
             ActionPill(
                 label = rentalActionLabel(verb, shown, pricePerHour),

@@ -56,6 +56,15 @@ interface OrderRepository {
         reason: String,
         idempotencyKey: String,
     ): Result<OrderDetail> = Result.failure(UnsupportedOperationException("Cancelar pedidos no está disponible."))
+
+    /** Cocina o Caja quita un artículo con motivo; el resto del pedido sigue y el total baja. */
+    fun rejectItem(
+        orderId: String,
+        itemId: Int,
+        expectedVersion: Int,
+        reason: String,
+        idempotencyKey: String,
+    ): Result<OrderDetail> = Result.failure(UnsupportedOperationException("Quitar artículos no está disponible."))
 }
 
 class OrderRepositoryException(

@@ -779,6 +779,31 @@ class OperationalViewModel
             }
         }
 
+        /** Cocina quita un solo artículo que no puede preparar; el cliente verá el motivo y el total baja. */
+        fun rejectItem(
+            orderId: String,
+            itemId: Int,
+            expectedVersion: Int,
+            reason: String,
+        ) {
+            val motivo = reason.trim()
+            if (motivo.length < MIN_REJECTION_REASON) {
+                showMutationError("Escribe el motivo (mínimo $MIN_REJECTION_REASON letras).")
+                return
+            }
+            val version = freshVersion(orderId, expectedVersion)
+            performMutation(successNotice = { order -> "Se quitó un artículo de la comanda #${order.summary.folio}" }) {
+                cancelOrder
+                    .rejectItem(
+                        orderId = orderId,
+                        itemId = itemId,
+                        expectedVersion = version,
+                        reason = motivo,
+                        idempotencyKey = MutationIdempotency.itemRejection(orderId, itemId, version, motivo),
+                    ).getOrThrow()
+            }
+        }
+
         fun markReady(
             orderId: String,
             expectedVersion: Int,

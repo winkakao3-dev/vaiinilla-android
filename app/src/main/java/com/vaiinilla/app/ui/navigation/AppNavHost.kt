@@ -21,6 +21,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -178,10 +179,12 @@ fun AppNavHost(
     // Volver del background refresca el saldo: la recarga la hace Caja desde
     // otro dispositivo y no llega ningún evento push de wallet.
     val lifecycleOwner = LocalLifecycleOwner.current
+    // Solo el cliente tiene cartera: el personal recibía 403 en cada regreso a la app.
+    val isClientRole by rememberUpdatedState(operationalState.role == OperationalRole.CLIENT)
     DisposableEffect(lifecycleOwner) {
         val observer =
             LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME) walletViewModel.refreshIfStale()
+                if (event == Lifecycle.Event.ON_RESUME && isClientRole) walletViewModel.refreshIfStale()
             }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -1717,6 +1720,7 @@ fun AppNavHost(
                         onStart = operationalViewModel::startKitchen,
                         onReady = operationalViewModel::markReady,
                         onReject = operationalViewModel::rejectOrder,
+                        onRejectItem = operationalViewModel::rejectItem,
                         onChangeMode =
                             if (authorizedAccessState.hasMultipleModes) {
                                 returnToModes(navController, operationalViewModel)
@@ -1767,6 +1771,7 @@ fun AppNavHost(
                         onDismissCollection = waiterViewModel::dismissCollection,
                         onFilterAttending = waiterViewModel::setFilterAttending,
                         onOpenCounterOrder = waiterViewModel::openCounterOrder,
+                        onOpenTableOrder = waiterViewModel::openTableOrder,
                         onCloseCounterOrder = waiterViewModel::closeCounterOrder,
                         onSubmitCounterOrder = waiterViewModel::submitCounterOrder,
                         onChangeMode = backToCashier,
@@ -1818,6 +1823,7 @@ fun AppNavHost(
                         onDismissCollection = waiterViewModel::dismissCollection,
                         onFilterAttending = waiterViewModel::setFilterAttending,
                         onOpenCounterOrder = waiterViewModel::openCounterOrder,
+                        onOpenTableOrder = waiterViewModel::openTableOrder,
                         onCloseCounterOrder = waiterViewModel::closeCounterOrder,
                         onSubmitCounterOrder = waiterViewModel::submitCounterOrder,
                         newCallTable = alertCall,
