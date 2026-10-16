@@ -13,6 +13,7 @@ enum class HarnessRole(
     CAJA("caja", setOf("cajero"), "cajero", OperationalRole.CASHIER),
     COCINA("cocina", emptySet(), "cocina", OperationalRole.KITCHEN),
     MESERO("mesero", emptySet(), "mesero", OperationalRole.WAITER),
+    ADMIN("admin", setOf("administracion", "administración"), "admin", OperationalRole.ADMIN),
     ;
 
     companion object {

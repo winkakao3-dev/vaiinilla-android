@@ -14,6 +14,8 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
@@ -23,6 +25,7 @@ import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
@@ -285,7 +288,7 @@ class JvmRolesHarness {
                 hasClickAction()
         if (!exists(matcher)) error("No hay nada tocable con \"$text\". En pantalla: ${summary()}")
         val label = labelOf(compose.onAllNodes(matcher)[0].fetchSemanticsNode())
-        compose.onAllNodes(matcher)[0].performClick()
+        compose.onAllNodes(matcher)[0].clickEvenOffscreen()
         pump(SETTLE_MILLIS, realTime = true)
         return "tap '$label'"
     }
@@ -445,7 +448,7 @@ class JvmRolesHarness {
                 .toSet()
         startedOutside()
         val tappedAt = System.currentTimeMillis()
-        compose.onAllNodes(SemanticsMatcher("id $id") { it.id == id })[0].performClick()
+        compose.onAllNodes(SemanticsMatcher("id $id") { it.id == id })[0].clickEvenOffscreen()
         pump(SETTLE_MILLIS, realTime = true)
         // "Reintentar" pide justo lo que la pantalla ya pedía sola: si sale enseguida del toque, es respuesta al toque.
         val requests =
@@ -652,5 +655,17 @@ class JvmRolesHarness {
         const val TAP_REACTION_MILLIS = 400L
         const val HIDDEN_NAMES = 3
         val SCRIM_LABELS = setOf("Close sheet", "Cerrar hoja")
+    }
+}
+
+/**
+ * performClick toca el centro del nodo: si quedó fuera de la pantalla (el final de una hoja larga), el toque cae
+ * en otra cosa, como el fondo que cierra la hoja. Fuera de la pantalla se usa la acción de clic del nodo.
+ */
+private fun SemanticsNodeInteraction.clickEvenOffscreen() {
+    if (runCatching { assertIsDisplayed() }.isSuccess) {
+        performClick()
+    } else {
+        performSemanticsAction(SemanticsActions.OnClick)
     }
 }
