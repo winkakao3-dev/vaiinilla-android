@@ -225,6 +225,7 @@ private fun buildMosaic(
     palette: ScenePalette,
     scene: PickupScene,
     now: Instant,
+    floorLogo: FloorLogo?,
 ): Mosaic {
     val camera = cameraAt(HANDOFF, width, height, scene)
     val sceneCenter = camera.toScene(Offset(width * 0.5f, height * 0.42f))
@@ -233,7 +234,7 @@ private fun buildMosaic(
     val cells =
         SceneMosaic.build(matrix, Size(width, height), sceneCenter, sceneSide, density, outside) { stage ->
             when (scene) {
-                is PickupScene.Table -> drawFloorPlan(stage, palette, scene.table)
+                is PickupScene.Table -> drawFloorPlan(stage, palette, scene.table, logo = floorLogo)
                 is PickupScene.Court -> drawCourt(stage, palette, scene.court, now)
                 PickupScene.Storefront -> drawStorefront(stage, textMeasurer, palette, SceneMotion())
             }
@@ -527,9 +528,12 @@ private fun PickupJourney(
         val widthPx = with(density) { maxWidth.toPx() }
         val heightPx = with(density) { maxHeight.toPx() }
         val stage = Size(widthPx, heightPx)
+        val floorLogo = LocalVenueArt.current.floorLogo
         val mosaic =
-            remember(matrix, widthPx, heightPx, palette, scene) {
-                matrix?.let { buildMosaic(it, widthPx, heightPx, density, textMeasurer, palette, scene, now) }
+            remember(matrix, widthPx, heightPx, palette, scene, floorLogo) {
+                matrix?.let {
+                    buildMosaic(it, widthPx, heightPx, density, textMeasurer, palette, scene, now, floorLogo)
+                }
             }
         val p = reveal.value
         val peeking = peek.value > 0.0001f
@@ -557,7 +561,7 @@ private fun PickupJourney(
         // La hoja de vidrio deja ver lo mismo que la cámara: la cocina cuando está asomada.
         val drawWorld: DrawScope.() -> Unit = {
             if (scene is PickupScene.Table) {
-                drawFloorPlan(stage, palette, scene.table, tick, cheering, plate)
+                drawFloorPlan(stage, palette, scene.table, tick, cheering, plate, floorLogo)
             } else if (scene is PickupScene.Court) {
                 drawCourt(stage, palette, scene.court, now, tick, courtLight)
             } else if (peeking) {
@@ -593,7 +597,7 @@ private fun PickupJourney(
                         },
             ) {
                 when (scene) {
-                    is PickupScene.Table -> drawFloorPlan(stage, palette, scene.table, tick, cheering, plate)
+                    is PickupScene.Table -> drawFloorPlan(stage, palette, scene.table, tick, cheering, plate, floorLogo)
                     is PickupScene.Court -> drawCourt(stage, palette, scene.court, now, tick, courtLight)
                     PickupScene.Storefront -> drawStorefront(stage, textMeasurer, palette, motion, kitchen)
                 }

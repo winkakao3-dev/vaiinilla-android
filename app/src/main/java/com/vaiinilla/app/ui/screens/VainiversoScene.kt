@@ -574,6 +574,7 @@ internal fun VainiversoStoreBackdrop(
     shiftFraction: Float = 0.12f,
 ) {
     val palette = LocalScene.current
+    val photo = LocalVenueArt.current.photo
     val textMeasurer = rememberTextMeasurer()
     val reduceMotion = reducedMotion()
     val idle = rememberInfiniteTransition(label = "store_vaini")
@@ -620,11 +621,29 @@ internal fun VainiversoStoreBackdrop(
                 wave = if (cheering && !reduceMotion) wave.value else 0f,
                 happy = cheering,
             )
-        withTransform({ translate(0f, -size.height * shiftFraction) }) {
-            drawStorefront(size, textMeasurer, palette, motion)
+        if (photo != null) {
+            // La foto del lugar en vez de la fachada; abajo se funde con el fondo para que la hoja no la corte.
+            val photoBottom = size.height * PHOTO_HEIGHT_FRACTION
+            drawImageCover(photo, Rect(0f, 0f, size.width, photoBottom))
+            drawRect(
+                Brush.verticalGradient(
+                    0.6f to Color.Transparent,
+                    1f to palette.stage,
+                    startY = 0f,
+                    endY = photoBottom,
+                ),
+                size = Size(size.width, photoBottom),
+            )
+        } else {
+            withTransform({ translate(0f, -size.height * shiftFraction) }) {
+                drawStorefront(size, textMeasurer, palette, motion)
+            }
         }
     }
 }
+
+/** Hasta dónde llega la foto del lugar en "Mis pedidos": la ventana de la escena y un poco más bajo la hoja. */
+private const val PHOTO_HEIGHT_FRACTION = 0.44f
 
 /**
  * Cualquier escena del Vainiverso detrás de una lista: [drawScene] se pinta nítido arriba de [sheetTop]

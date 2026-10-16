@@ -14,6 +14,8 @@ data class PublicEstablishmentDto(
     @SerialName("identificador_cliente_etiqueta") val clientIdLabel: String,
     @SerialName("identificador_cliente_obligatorio") val clientIdRequired: Boolean,
     @SerialName("videos_local") val localVideos: List<PublicVideoDto>? = null,
+    @SerialName("imagen_url") val photoUrl: String? = null,
+    @SerialName("logo_url") val logoUrl: String? = null,
 )
 
 @Serializable
@@ -43,7 +45,12 @@ fun PublicEstablishmentDto.toDomain() =
         clientIdLabel = clientIdLabel,
         clientIdRequired = clientIdRequired,
         localVideos = localVideos.orEmpty().mapNotNull { it.toDomainOrNull() },
+        photoUrl = photoUrl.httpsOrNull(),
+        logoUrl = logoUrl.httpsOrNull(),
     )
+
+// Las imágenes se descargan sin sesión: solo https.
+private fun String?.httpsOrNull(): String? = this?.trim()?.takeIf { it.startsWith("https://", ignoreCase = true) }
 
 // Solo http(s): la URL llega a un ACTION_VIEW, así que descarta esquemas como intent: o javascript:.
 private fun PublicVideoDto.toDomainOrNull(): PublicVideo? {

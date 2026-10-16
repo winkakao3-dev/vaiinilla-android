@@ -209,6 +209,17 @@ private fun loadRemoteProductImage(imageUrl: String): ImageBitmap? {
     }
 }
 
+/** Una imagen remota (https) ya decodificada, para pintarla dentro de un Canvas; `null` mientras carga o si falla. */
+@Composable
+fun rememberRemoteImage(imageUrl: String?): ImageBitmap? {
+    val url = imageUrl?.takeIf(::productImageIsRemote) ?: return null
+    var image by remember(url) { mutableStateOf(remoteProductImageCache.get(url)?.asImageBitmap()) }
+    LaunchedEffect(url) {
+        if (image == null) image = withContext(Dispatchers.IO) { loadRemoteProductImage(url) }
+    }
+    return image
+}
+
 /** Warms the in-memory cache before product cards are composed. */
 suspend fun prefetchProductImages(imageUrls: List<String>) =
     coroutineScope {

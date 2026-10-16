@@ -7,6 +7,9 @@ data class PublicEstablishment(
     val clientIdLabel: String,
     val clientIdRequired: Boolean,
     val localVideos: List<PublicVideo> = emptyList(),
+    /** Foto del lugar (fachada o salón); `null` si el negocio no subió una. */
+    val photoUrl: String? = null,
+    val logoUrl: String? = null,
 )
 
 /** Ubicación aproximada del dispositivo para ordenar el descubrimiento por cercanía. */
