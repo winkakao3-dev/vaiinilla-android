@@ -677,13 +677,15 @@ fun AppNavHost(
                     }
                 }
             }
-            if (discoveryState.pendingSwitch != null) {
+            discoveryState.pendingSwitch?.let { next ->
                 VenueSwitchDialog(
                     onConfirm = {
                         startEntrance(null)
                         discoveryViewModel.confirmPendingSwitch(::enterVenueAndOpenCatalog)
                     },
                     onDismiss = discoveryViewModel::dismissPendingSwitch,
+                    sameVenue = orderState.guestVenue?.establishment?.id == next.establishment.id,
+                    nextSpaceName = next.space?.name,
                 )
             }
         },

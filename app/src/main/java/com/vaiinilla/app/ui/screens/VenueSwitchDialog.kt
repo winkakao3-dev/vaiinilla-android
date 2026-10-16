@@ -25,15 +25,34 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 fun VenueSwitchDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    /**
+     * El mismo lugar, otra mesa (o de para llevar a una mesa): cada mesa tiene su carrito, así que también se
+     * pregunta, pero no es "otra cafetería". [nextSpaceName] es la mesa a la que entra; `null` es para llevar.
+     */
+    sameVenue: Boolean = false,
+    nextSpaceName: String? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     Dialog(onDismissRequest = onDismiss) {
         Surface(color = colors.paper, shape = RoundedCornerShape(28.dp)) {
             Column(modifier = Modifier.padding(20.dp)) {
-                Text("¿Cambiar de cafetería?", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 19.sp)
+                val title =
+                    when {
+                        !sameVenue -> "¿Cambiar de cafetería?"
+                        nextSpaceName != null -> "¿Pedir en $nextSpaceName?"
+                        else -> "¿Pedir para llevar?"
+                    }
+                val body =
+                    if (sameVenue) {
+                        "Cada mesa tiene su propio carrito. Lo que ya elegiste se queda guardado donde estabas y " +
+                            "aquí empiezas uno nuevo."
+                    } else {
+                        "Tu carrito pertenece a otra cafetería. Si continúas, no se mezclará con este pedido — " +
+                            "quedará guardado por separado en la cafetería anterior."
+                    }
+                Text(title, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 19.sp)
                 Text(
-                    "Tu carrito pertenece a otra cafetería. Si continúas, no se mezclará con este pedido — " +
-                        "quedará guardado por separado en la cafetería anterior.",
+                    body,
                     color = colors.muted,
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
