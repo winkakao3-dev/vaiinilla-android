@@ -62,6 +62,13 @@ interface VaiinillaApiClient {
         headers: Map<String, String> = emptyMap(),
     ): Result<String> = deleteWithBearer(bearer, path, body, headers)
 
+    /** PATCH con la sesión activa (el HttpURLConnection de Android lo acepta). */
+    fun patch(
+        path: String,
+        body: String,
+        headers: Map<String, String> = emptyMap(),
+    ): Result<String> = Result.failure(UnsupportedOperationException("PATCH no soportado"))
+
     fun put(
         path: String,
         body: String,

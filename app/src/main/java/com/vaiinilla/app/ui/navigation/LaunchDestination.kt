@@ -41,6 +41,7 @@ fun hasStaffLaunchModes(roles: Collection<OperationalRole>): Boolean =
             OperationalRole.CASHIER,
             OperationalRole.KITCHEN,
             OperationalRole.WAITER,
+            OperationalRole.ADMIN,
             -> true
             OperationalRole.CLIENT -> false
         }

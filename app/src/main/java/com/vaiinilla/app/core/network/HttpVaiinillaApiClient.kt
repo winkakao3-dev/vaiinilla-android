@@ -85,6 +85,12 @@ class HttpVaiinillaApiClient
                 expectedStatus = 200,
             )
 
+        override fun patch(
+            path: String,
+            body: String,
+            headers: Map<String, String>,
+        ): Result<String> = execute(method = "PATCH", path = path, body = body, headers = headers)
+
         override fun put(
             path: String,
             body: String,

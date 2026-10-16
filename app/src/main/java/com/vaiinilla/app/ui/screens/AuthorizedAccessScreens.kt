@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PointOfSale
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.RoomService
+import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -303,6 +304,7 @@ private fun staffModeIcon(role: OperationalRole) =
         OperationalRole.CASHIER -> Icons.Outlined.PointOfSale
         OperationalRole.KITCHEN -> Icons.Outlined.Restaurant
         OperationalRole.WAITER -> Icons.Outlined.RoomService
+        OperationalRole.ADMIN -> Icons.Outlined.Storefront
         OperationalRole.CLIENT -> Icons.Outlined.Person
     }
 

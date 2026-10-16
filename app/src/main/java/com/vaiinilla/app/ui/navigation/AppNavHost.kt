@@ -53,6 +53,7 @@ import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.canCallWaiter
 import com.vaiinilla.app.domain.repository.hasPendingAccount
 import com.vaiinilla.app.ui.account.AccountDeletionViewModel
+import com.vaiinilla.app.ui.admin.AdminViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.isRental
@@ -106,6 +107,8 @@ import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
 import com.vaiinilla.app.ui.screens.WalletPaymentMethodsScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
 import com.vaiinilla.app.ui.screens.WelcomeBootStage
+import com.vaiinilla.app.ui.screens.admin.AdminActions
+import com.vaiinilla.app.ui.screens.admin.AdminScreen
 import com.vaiinilla.app.ui.screens.rememberOperationalColors
 import com.vaiinilla.app.ui.screens.rememberReduceMotion
 import com.vaiinilla.app.ui.screens.rememberVenueArt
@@ -142,6 +145,7 @@ fun AppNavHost(
 ) {
     val orderFlowViewModel: OrderFlowViewModel = viewModel()
     val operationalViewModel: OperationalViewModel = viewModel()
+    val adminViewModel: AdminViewModel = viewModel()
     val waiterViewModel: WaiterViewModel = viewModel()
     val courtsViewModel: CourtsViewModel = viewModel()
     val reservationsViewModel: ReservationsViewModel = viewModel()
@@ -422,6 +426,7 @@ fun AppNavHost(
                 OperationalRole.CASHIER -> Routes.CASHIER
                 OperationalRole.KITCHEN -> Routes.KITCHEN
                 OperationalRole.WAITER -> Routes.WAITER
+                OperationalRole.ADMIN -> Routes.ADMIN
                 OperationalRole.CLIENT -> Routes.CATALOG
             }
         if (modeRole == OperationalRole.CLIENT) {
@@ -1750,6 +1755,41 @@ fun AppNavHost(
                         onActionNoticed = operationalViewModel::consumeActionNotice,
                         onDismissError = operationalViewModel::dismissMutationError,
                         onRefresh = operationalViewModel::refresh,
+                    )
+                }
+            }
+
+            composable(Routes.ADMIN) {
+                val active = authorizedAccessState.activeContext
+                val authorizedAdmin = active?.role == OperationalRole.ADMIN
+                LaunchedEffect(authorizedAdmin, active?.membershipId) {
+                    if (!authorizedAdmin) {
+                        returnToModes(navController, operationalViewModel)()
+                    } else {
+                        adminViewModel.onVisible(active?.membershipId.orEmpty())
+                    }
+                }
+                if (authorizedAdmin) {
+                    // Sin OperationalPresenceLifecycle: la administración no manda latidos ni aparece como en turno.
+                    val adminState by adminViewModel.uiState
+                    AdminScreen(
+                        state = adminState,
+                        placeName = active?.establishmentName.orEmpty(),
+                        restrictedMode = active?.restrictedMode,
+                        actions =
+                            AdminActions(
+                                onRefreshHome = adminViewModel::refreshHome,
+                                onRefreshCatalog = adminViewModel::refreshCatalog,
+                                onSelectPeriod = adminViewModel::selectPeriod,
+                                onSaveCategory = adminViewModel::saveCategory,
+                                onSaveProduct = adminViewModel::saveProduct,
+                                onSetAvailable = adminViewModel::setAvailable,
+                                onRemoveImage = adminViewModel::removeImage,
+                                onSelectOrderFilter = adminViewModel::selectOrderFilter,
+                                onRefreshOrders = adminViewModel::refreshOrders,
+                                onLoadMoreOrders = adminViewModel::loadMoreOrders,
+                            ),
+                        onChangeMode = returnToModes(navController, operationalViewModel),
                     )
                 }
             }
