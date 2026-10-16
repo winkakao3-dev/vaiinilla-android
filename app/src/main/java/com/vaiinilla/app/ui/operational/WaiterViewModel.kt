@@ -27,7 +27,7 @@ import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.domain.repository.WaiterBoard
 import com.vaiinilla.app.domain.repository.WaiterRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
-import com.vaiinilla.app.domain.usecase.CreateOrderUseCase
+import com.vaiinilla.app.domain.usecase.CreateRemoteOrderUseCase
 import com.vaiinilla.app.ui.order.CounterOrderKey
 import com.vaiinilla.app.ui.order.counterOrderKeyFor
 import com.vaiinilla.app.ui.order.createOrderFingerprint
@@ -97,7 +97,7 @@ class WaiterViewModel
         private val reservationRepository: ReservationRepository,
         private val catalogRepository: CatalogRepository,
         private val buildCreateOrderRequest: BuildCreateOrderRequestUseCase,
-        private val createOrder: CreateOrderUseCase,
+        private val createOrder: CreateRemoteOrderUseCase,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(WaiterUiState())
         val uiState: State<WaiterUiState> = _uiState
