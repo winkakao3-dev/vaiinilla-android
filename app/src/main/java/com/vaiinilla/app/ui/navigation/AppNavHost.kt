@@ -904,6 +904,7 @@ fun AppNavHost(
                         },
                     profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
                     onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
+                    onOpenCart = { navController.navigateStudent(Routes.CART) },
                     // Sin cuenta también se renta, salvo en los lugares que piden cuenta: ahí se entra primero.
                     onOpenCourts =
                         if (courtsViewModel.uiState.value.courts

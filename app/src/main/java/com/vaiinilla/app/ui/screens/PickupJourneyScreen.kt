@@ -6,6 +6,7 @@ import android.content.ContextWrapper
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -37,13 +38,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -66,12 +70,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
@@ -97,6 +105,7 @@ import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -105,6 +114,7 @@ import com.google.zxing.common.BitMatrix
 import com.vaiinilla.app.core.qr.QrCodeEncoder
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.TableCall
@@ -1059,6 +1069,7 @@ private fun StatusSheet(
 private fun OrderSummaryCard(order: OrderDetail) {
     val c = LocalScene.current
     val shape = RoundedCornerShape(18.dp)
+    val scroll = rememberScrollState()
     Column(
         modifier =
             Modifier
@@ -1066,26 +1077,35 @@ private fun OrderSummaryCard(order: OrderDetail) {
                 .clip(shape)
                 .background(c.glassCard)
                 .border(1.dp, c.glassEdge, shape)
+                .animateContentSize(spring(dampingRatio = 0.9f, stiffness = 380f))
                 .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
-        val visible = order.items.take(2)
-        visible.forEach { item ->
-            Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "${item.quantity} × ${item.productName}",
-                    color = c.ink,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(moneyLabel(item.subtotal), color = c.ink, fontSize = 14.sp, fontWeight = FontWeight.Black)
-            }
+        // El pedido completo, pero la hoja no crece sin límite: con muchos productos taparía a Vaini y
+        // la tienda. La lista se desliza por dentro y se desvanece abajo mientras quede algo por ver.
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = OrderSummaryMaxListHeight)
+                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                    .drawWithContent {
+                        drawContent()
+                        if (scroll.canScrollForward) {
+                            val fade = 28.dp.toPx()
+                            drawRect(
+                                Brush.verticalGradient(
+                                    0f to Color.Black,
+                                    1f to Color.Transparent,
+                                    startY = size.height - fade,
+                                    endY = size.height,
+                                ),
+                                blendMode = BlendMode.DstIn,
+                            )
+                        }
+                    }.verticalScroll(scroll),
+        ) {
+            order.items.forEach { item -> OrderSummaryLine(item) }
         }
-        val hidden = order.items.size - visible.size
-        if (hidden > 0) Text("+$hidden más", color = c.muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         Box(
             Modifier
                 .padding(vertical = 6.dp)
@@ -1106,6 +1126,54 @@ private fun OrderSummaryCard(order: OrderDetail) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+private val OrderSummaryMaxListHeight = 196.dp
+
+/** Una línea del pedido: cantidad, nombre y precio; debajo sus opciones y la nota. Lo quitado va tachado. */
+@Composable
+private fun OrderSummaryLine(item: OrderItem) {
+    val c = LocalScene.current
+    val removed = item.rejection != null
+    val decoration = if (removed) TextDecoration.LineThrough else null
+    Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "${item.quantity} × ${item.productName}",
+                color = if (removed) c.muted else c.ink,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                textDecoration = decoration,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                moneyLabel(item.subtotal),
+                color = if (removed) c.muted else c.ink,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Black,
+                textDecoration = decoration,
+            )
+        }
+        val details =
+            buildList {
+                if (item.options.isNotEmpty()) add(item.options.joinToString(" · ") { it.name })
+                if (item.notes.isNotBlank()) add("“${item.notes.trim()}”")
+                item.rejection?.let { add("Quitado: ${it.reason}") }
+            }
+        details.forEach { line ->
+            Text(
+                line,
+                color = c.muted,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 1.dp),
+            )
+        }
     }
 }
 

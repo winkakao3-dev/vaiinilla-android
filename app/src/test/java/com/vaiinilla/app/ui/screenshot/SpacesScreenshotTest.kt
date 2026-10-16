@@ -27,7 +27,7 @@ import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
 import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.SpaceSessionInfo
 import com.vaiinilla.app.domain.repository.TableSpace
-import com.vaiinilla.app.ui.components.CourtsBanner
+import com.vaiinilla.app.ui.components.CourtsCarousel
 import com.vaiinilla.app.ui.operational.CloseCashUi
 import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.screens.CashCloseContent
@@ -61,10 +61,14 @@ class SpacesScreenshotTest {
     private fun capture(
         name: String,
         mode: VaiinillaThemeMode = VaiinillaThemeMode.Light,
+        // Con un reloj que late cada segundo la composición nunca queda ociosa: se adelanta a mano
+        // para que las tarjetas terminen de llegar.
+        settleMs: Long = 0,
         content: @Composable () -> Unit,
     ) {
         composeTestRule.setContent { ScreenshotTheme(mode = mode, content = content) }
         composeTestRule.waitForIdle()
+        if (settleMs > 0) composeTestRule.mainClock.advanceTimeBy(settleMs)
         composeTestRule.onRoot().captureRoboImage(name)
     }
 
@@ -456,19 +460,19 @@ class SpacesScreenshotTest {
     }
 
     @Test
-    fun `spaces_courts_banner_light`() {
-        capture("spaces_courts_banner_light.png") {
+    fun `spaces_courts_carousel_light`() {
+        capture("spaces_courts_carousel_light.png", settleMs = 1_500) {
             Box(Modifier.fillMaxSize().background(LocalVaiinillaColors.current.paper).padding(20.dp)) {
-                CourtsBanner(courts = courts, onOpen = {})
+                CourtsCarousel(courts = courts, onOpen = {})
             }
         }
     }
 
     @Test
-    fun `spaces_courts_banner_dark`() {
-        capture("spaces_courts_banner_dark.png", mode = VaiinillaThemeMode.Dark) {
+    fun `spaces_courts_carousel_dark`() {
+        capture("spaces_courts_carousel_dark.png", mode = VaiinillaThemeMode.Dark, settleMs = 1_500) {
             Box(Modifier.fillMaxSize().background(LocalVaiinillaColors.current.paper).padding(20.dp)) {
-                CourtsBanner(courts = courts, onOpen = {})
+                CourtsCarousel(courts = courts, onOpen = {})
             }
         }
     }

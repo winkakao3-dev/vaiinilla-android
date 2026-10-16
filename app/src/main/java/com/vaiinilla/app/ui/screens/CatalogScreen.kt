@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -66,10 +67,11 @@ import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.ui.components.ActiveOrderBanner
 import com.vaiinilla.app.ui.components.ChoiceChip
-import com.vaiinilla.app.ui.components.CourtsBanner
+import com.vaiinilla.app.ui.components.CourtsCarousel
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialSearchField
 import com.vaiinilla.app.ui.components.EmptyState
+import com.vaiinilla.app.ui.components.MenuCartShortcut
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductCardSkeleton
 import com.vaiinilla.app.ui.components.ProductDetailSheet
@@ -77,10 +79,14 @@ import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.SwipeToDeleteOrder
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
+import com.vaiinilla.app.ui.components.VaiinillaBottomNavSideMargin
+import com.vaiinilla.app.ui.components.VaiinillaBottomNavTop
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.OrderFlowUiState
+import com.vaiinilla.app.ui.order.cartItemCount
+import com.vaiinilla.app.ui.order.cartPreviewTotal
 import com.vaiinilla.app.ui.order.filteredProducts
 import com.vaiinilla.app.ui.order.isSelectedProductValid
 import com.vaiinilla.app.ui.order.selectedProduct
@@ -118,6 +124,8 @@ fun CatalogScreen(
     onOpenAccount: () -> Unit = {},
     courts: List<SpaceAvailability> = emptyList(),
     onOpenCourts: (() -> Unit)? = null,
+    /** Abre el carrito desde el atajo flotante; sin él, el atajo no aparece. */
+    onOpenCart: (() -> Unit)? = null,
 ) {
     val haptics = rememberVaiinillaHaptics()
     when {
@@ -160,6 +168,13 @@ fun CatalogScreen(
                 onOpenAccount = onOpenAccount,
                 courts = courts,
                 onOpenCourts = onOpenCourts,
+                onOpenCart =
+                    onOpenCart?.let { open ->
+                        {
+                            haptics.click()
+                            open()
+                        }
+                    },
             )
         else ->
             CatalogError(
@@ -306,6 +321,8 @@ private fun CatalogContent(
     onOpenAccount: () -> Unit,
     courts: List<SpaceAvailability> = emptyList(),
     onOpenCourts: (() -> Unit)? = null,
+    /** Abre el carrito desde el atajo flotante; sin él, el atajo no aparece. */
+    onOpenCart: (() -> Unit)? = null,
 ) {
     val catalog = requireNotNull(state.catalog)
     val colors = LocalVaiinillaColors.current
@@ -317,6 +334,8 @@ private fun CatalogContent(
         remember(state.catalog, state.searchQuery, state.selectedCategoryId) {
             state.filteredProducts
         }
+
+    val cartShortcutVisible = onOpenCart != null && state.cartItemCount > 0 && state.selectedProduct == null
 
     val scene = scenePaletteForTheme()
     val shelfColors =
@@ -372,7 +391,8 @@ private fun CatalogContent(
                             start = CatalogSideMargin,
                             end = CatalogSideMargin,
                             top = 16.dp,
-                            bottom = VaiinillaBottomNavClearance + 48.dp,
+                            // Con el atajo al carrito encima del dock, el último renglón sube lo que mide.
+                            bottom = VaiinillaBottomNavClearance + 48.dp + if (cartShortcutVisible) 62.dp else 0.dp,
                         ),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -427,10 +447,12 @@ private fun CatalogContent(
                     // Al buscar solo quedan los resultados: las canchas no se filtran por texto.
                     if (courts.isNotEmpty() && state.searchQuery.isBlank()) {
                         item(key = "courts-banner", span = { GridItemSpan(maxLineSpan) }) {
-                            CourtsBanner(
+                            CourtsCarousel(
                                 courts = courts,
+                                bleed = CatalogSideMargin,
                                 onOpen = onOpenCourts,
-                                modifier = Modifier.animateItem().padding(bottom = 6.dp),
+                                // Con el espacio de la cuadrícula (12) queda el mismo hueco de 14 que entre columnas.
+                                modifier = Modifier.animateItem().padding(bottom = 2.dp),
                             )
                         }
                     }
@@ -449,6 +471,18 @@ private fun CatalogContent(
                 }
             }
         }
+
+        MenuCartShortcut(
+            count = state.cartItemCount,
+            total = moneyLabel(state.cartPreviewTotal),
+            visible = cartShortcutVisible,
+            onClick = { onOpenCart?.invoke() },
+            modifier =
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
+                    .padding(end = VaiinillaBottomNavSideMargin, bottom = VaiinillaBottomNavTop + 10.dp),
+        )
 
         state.selectedProduct?.let { product ->
             val category = catalog.categories.firstOrNull { it.id == product.categoryId }
