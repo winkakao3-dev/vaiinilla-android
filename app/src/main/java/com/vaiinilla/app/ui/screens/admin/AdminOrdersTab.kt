@@ -185,6 +185,14 @@ private fun OrderSheet(
             whoLabel(order)?.let { AdminValueRow("Cliente", it, colors) }
             timeLabel(summary.createdAt)?.let { AdminValueRow("Hora", it, colors, detail = summary.operationalDate) }
             summary.cancelReason?.let { Text("Motivo: $it", fontSize = 13.sp, color = AdminCoral) }
+            order.arrivedAt?.let { arrived ->
+                Text(
+                    "Ya llegó a las ${ArrivalFormat.format(arrived.atZone(ZoneId.systemDefault()))}",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary,
+                )
+            }
         }
         AdminCard(colors) {
             AdminSectionTitle("Productos", colors)
@@ -230,6 +238,8 @@ private fun whereLabel(order: OrderDetail): String? =
 
 private fun whoLabel(order: OrderDetail): String? =
     order.customerName?.takeIf { it.isNotBlank() } ?: order.user?.name?.takeIf { it.isNotBlank() }
+
+private val ArrivalFormat = DateTimeFormatter.ofPattern("HH:mm")
 
 private val TimeFormat = DateTimeFormatter.ofPattern("d MMM, HH:mm", Locale.forLanguageTag("es-MX"))
 

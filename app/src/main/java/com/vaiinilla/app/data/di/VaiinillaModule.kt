@@ -8,6 +8,9 @@ import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.security.PickupTokenStore
 import com.vaiinilla.app.data.account.RemoteAccountDeletionRepository
 import com.vaiinilla.app.data.admin.RemoteAdminRepository
+import com.vaiinilla.app.data.admin.RemoteAdminSpacesRepository
+import com.vaiinilla.app.data.admin.RemoteAdminStaffRepository
+import com.vaiinilla.app.data.admin.RemoteAdminStoreRepository
 import com.vaiinilla.app.data.auth.student.AccessEmailApi
 import com.vaiinilla.app.data.auth.student.RemoteAccessEmailApi
 import com.vaiinilla.app.data.auth.student.RemoteStudentEnrollmentApi
@@ -35,6 +38,9 @@ import com.vaiinilla.app.domain.account.AccountDeletionRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
 import com.vaiinilla.app.domain.repository.AdminRepository
+import com.vaiinilla.app.domain.repository.AdminSpacesRepository
+import com.vaiinilla.app.domain.repository.AdminStaffRepository
+import com.vaiinilla.app.domain.repository.AdminStoreRepository
 import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
@@ -90,6 +96,21 @@ object VaiinillaModule {
         parser: ContractResponseParser,
         orderContractJson: OrderContractJson,
     ): AdminRepository = RemoteAdminRepository(apiClient, parser, orderContractJson)
+
+    @Provides
+    @Singleton
+    fun provideAdminStaffRepository(apiClient: VaiinillaApiClient): AdminStaffRepository =
+        RemoteAdminStaffRepository(apiClient)
+
+    @Provides
+    @Singleton
+    fun provideAdminStoreRepository(apiClient: VaiinillaApiClient): AdminStoreRepository =
+        RemoteAdminStoreRepository(apiClient)
+
+    @Provides
+    @Singleton
+    fun provideAdminSpacesRepository(apiClient: VaiinillaApiClient): AdminSpacesRepository =
+        RemoteAdminSpacesRepository(apiClient)
 
     @Provides
     @Singleton

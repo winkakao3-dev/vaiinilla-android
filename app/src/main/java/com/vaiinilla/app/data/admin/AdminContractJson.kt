@@ -44,6 +44,7 @@ class AdminContractJson {
             tips = totals.propinas,
             walletReloads = totals.recargas,
             canceledOrders = totals.pedidosCancelados,
+            commissions = totals.comisiones,
             dailySales = data.ventasPorDia.map { AdminDailySales(it.fecha, it.ventas, it.pedidos) },
             paymentMethods = data.metodosPago.map { AdminMetric(paymentMethodLabel(it.metodo), it.ventas, it.pedidos) },
             ordersByStatus =
@@ -63,6 +64,7 @@ class AdminContractJson {
             accounts =
                 data.cuentas.map {
                     AdminUnpaidAccount(
+                        spaceId = it.espacio.id,
                         spaceName = it.espacio.nombre,
                         orders = it.pedidos,
                         total = it.total,
@@ -167,6 +169,7 @@ private data class SummaryTotalsDto(
     val recargas: String = "0.00",
     val propinas: String? = null,
     @SerialName("pedidos_cancelados") val pedidosCancelados: Int? = null,
+    val comisiones: String? = null,
 )
 
 @Serializable
@@ -213,6 +216,7 @@ private data class UnpaidAccountDto(
 
 @Serializable
 private data class UnpaidSpaceDto(
+    val id: Int,
     val nombre: String,
 )
 

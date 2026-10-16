@@ -7,10 +7,12 @@ import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.MutationIdempotency
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.admin.AdminCategoryInput
+import com.vaiinilla.app.domain.admin.AdminLiveCounts
 import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminProductInput
 import com.vaiinilla.app.domain.admin.AdminProductRules
 import com.vaiinilla.app.domain.admin.AdminSummary
+import com.vaiinilla.app.domain.admin.AdminUnpaidAccount
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccounts
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.OperationalStatus
@@ -18,7 +20,12 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.repository.AdminRepository
+import com.vaiinilla.app.domain.repository.AdminSpacesRepository
+import com.vaiinilla.app.domain.repository.AdminStoreRepository
+import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
+import com.vaiinilla.app.domain.repository.CatalogRepositoryException
+import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -51,6 +58,12 @@ enum class AdminOrderFilter(
 
 data class AdminUiState(
     val preset: AdminPeriodPreset = AdminPeriodPreset.TODAY,
+    /** Periodo elegido a mano ("Personalizado"); manda sobre [preset]. */
+    val customPeriod: AdminPeriod? = null,
+    val live: AdminLiveCounts? = null,
+    /** Sesión de caja abierta; null si está cerrada. [cashLoaded] dice si ya se consultó. */
+    val cashSessionId: String? = null,
+    val cashLoaded: Boolean = false,
     val summary: AdminSummary? = null,
     val summaryLoading: Boolean = false,
     val summaryError: String? = null,
@@ -75,6 +88,9 @@ class AdminViewModel
     constructor(
         private val adminRepository: AdminRepository,
         private val catalogRepository: CatalogRepository,
+        private val storeRepository: AdminStoreRepository,
+        private val spacesRepository: AdminSpacesRepository,
+        private val cashSessionRepository: CashSessionRepository,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(AdminUiState())
         val uiState: State<AdminUiState> = _uiState
@@ -98,13 +114,33 @@ class AdminViewModel
         // region Inicio
 
         fun selectPeriod(preset: AdminPeriodPreset) {
-            if (preset == _uiState.value.preset && _uiState.value.summary != null) return
-            _uiState.value = _uiState.value.copy(preset = preset)
+            if (preset == _uiState.value.preset &&
+                _uiState.value.customPeriod == null &&
+                _uiState.value.summary != null
+            ) {
+                return
+            }
+            _uiState.value = _uiState.value.copy(preset = preset, customPeriod = null)
+            refreshSummary()
+        }
+
+        /** "Personalizado": del día [from] al [to], sin pasar de hoy. */
+        fun selectCustomPeriod(period: AdminPeriod) {
+            val today = java.time.LocalDate.now()
+            val to = minOf(period.to, today)
+            val from = minOf(period.from, to)
+            _uiState.value = _uiState.value.copy(customPeriod = AdminPeriod(from, to))
             refreshSummary()
         }
 
         fun refreshHome() {
             refreshSummary()
+            refreshCash()
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) { storeRepository.liveCounts() }.onSuccess {
+                    _uiState.value = _uiState.value.copy(live = it)
+                }
+            }
             viewModelScope.launch {
                 val status = withContext(Dispatchers.IO) { catalogRepository.getOperationalStatus() }
                 val unpaid = withContext(Dispatchers.IO) { adminRepository.unpaidAccounts() }
@@ -118,10 +154,16 @@ class AdminViewModel
 
         private fun refreshSummary() {
             val preset = _uiState.value.preset
+            val custom = _uiState.value.customPeriod
             _uiState.value = _uiState.value.copy(summaryLoading = true, summaryError = null)
             viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { adminRepository.summary(AdminPeriod.lastDays(preset.days)) }
-                if (_uiState.value.preset != preset) return@launch
+                val result =
+                    withContext(Dispatchers.IO) {
+                        adminRepository.summary(
+                            custom ?: AdminPeriod.lastDays(preset.days),
+                        )
+                    }
+                if (_uiState.value.preset != preset || _uiState.value.customPeriod != custom) return@launch
                 _uiState.value =
                     result.fold(
                         onSuccess = { _uiState.value.copy(summary = it, summaryLoading = false) },
@@ -132,6 +174,98 @@ class AdminViewModel
                             )
                         },
                     )
+            }
+        }
+
+        /** "Cerrar sin cobrar": el cliente se fue sin pagar y la cuenta se cierra sin cobro. */
+        fun closeWithoutCharging(
+            account: AdminUnpaidAccount,
+            note: String,
+            onDone: () -> Unit,
+        ) {
+            if (_uiState.value.saving) return
+            _uiState.value = _uiState.value.copy(saving = true)
+            viewModelScope.launch {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        spacesRepository.closeWithoutCharging(account.spaceId, note, UUID.randomUUID().toString())
+                    }
+                _uiState.value = _uiState.value.copy(saving = false)
+                result.fold(
+                    onSuccess = {
+                        showNotice("Cuenta de ${account.spaceName} cerrada sin cobrar", isError = false)
+                        onDone()
+                        refreshHome()
+                    },
+                    onFailure = { showNotice(it.toUserFacingMessage("No se pudo cerrar la cuenta."), isError = true) },
+                )
+            }
+        }
+
+        // endregion
+
+        // region Caja
+
+        fun refreshCash() {
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) { cashSessionRepository.activeSessionId() }.onSuccess {
+                    _uiState.value = _uiState.value.copy(cashSessionId = it, cashLoaded = true)
+                }
+            }
+        }
+
+        fun openCash(
+            initialAmount: String,
+            onDone: () -> Unit,
+        ) {
+            val amount =
+                AdminProductRules.money(initialAmount)
+                    ?: return showNotice("Escribe el fondo inicial, por ejemplo 500.", isError = true)
+            cashCall("Caja abierta", onDone) { cashSessionRepository.openSession(amount, UUID.randomUUID().toString()) }
+        }
+
+        fun closeCash(
+            finalAmount: String,
+            onDone: () -> Unit,
+        ) {
+            val sessionId = _uiState.value.cashSessionId ?: return
+            val amount =
+                AdminProductRules.money(finalAmount)
+                    ?: return showNotice("Escribe el efectivo contado, por ejemplo 1250.", isError = true)
+            cashCall(
+                "Caja cerrada",
+                onDone,
+            ) { cashSessionRepository.closeSession(sessionId, amount, UUID.randomUUID().toString()) }
+        }
+
+        private fun cashCall(
+            success: String,
+            onDone: () -> Unit,
+            call: () -> Result<Unit>,
+        ) {
+            if (_uiState.value.saving) return
+            _uiState.value = _uiState.value.copy(saving = true)
+            viewModelScope.launch {
+                val result = withContext(Dispatchers.IO) { call() }
+                _uiState.value = _uiState.value.copy(saving = false)
+                result.fold(
+                    onSuccess = {
+                        showNotice(success, isError = false)
+                        onDone()
+                    },
+                    onFailure = {
+                        val code = (it as? OrderRepositoryException)?.code ?: (it as? CatalogRepositoryException)?.code
+                        showNotice(
+                            if (code == "CASH_SESSION_HAS_OPEN_ACCOUNTS") {
+                                "Hay cuentas de mesas por cobrar: cóbralas o ciérralas antes de cerrar la caja."
+                            } else {
+                                it.toUserFacingMessage("No se pudo guardar la caja.")
+                            },
+                            isError = true,
+                        )
+                    },
+                )
+                refreshCash()
             }
         }
 

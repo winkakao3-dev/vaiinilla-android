@@ -28,6 +28,8 @@ data class AdminSummary(
     val tips: String?,
     val walletReloads: String,
     val canceledOrders: Int?,
+    /** Comisiones del periodo; null si el backend no las manda. */
+    val commissions: String? = null,
     val dailySales: List<AdminDailySales>,
     val paymentMethods: List<AdminMetric>,
     val ordersByStatus: List<AdminCount>,
@@ -61,6 +63,7 @@ data class AdminUnpaidAccounts(
 )
 
 data class AdminUnpaidAccount(
+    val spaceId: Int,
     val spaceName: String,
     val orders: Int,
     val total: String,

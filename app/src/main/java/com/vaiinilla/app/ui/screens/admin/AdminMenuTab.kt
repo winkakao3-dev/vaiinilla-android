@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -93,6 +95,10 @@ internal fun AdminMenuTab(
     colors: OperationalColors,
     readOnly: Boolean,
     actions: AdminActions,
+    /** El negocio renta canchas desde Espacios: la renta no se da de alta como producto. */
+    rentsSpaces: Boolean = false,
+    /** Con tarjeta se suma la comisión al precio (Stripe listo y "el cliente paga la comisión"). */
+    cardFeeToCustomer: Boolean = false,
 ) {
     var sheet by remember { mutableStateOf<MenuSheet?>(null) }
     val catalog = state.catalog
@@ -126,6 +132,8 @@ internal fun AdminMenuTab(
                 colors = colors,
                 onDismiss = { sheet = null },
                 onSave = { input, image -> actions.onSaveProduct(current.product?.id, input, image) { sheet = null } },
+                rentsSpaces = rentsSpaces,
+                cardFeeToCustomer = cardFeeToCustomer,
                 onRemoveImage = { product ->
                     actions.onRemoveImage(product)
                     sheet = null
@@ -144,9 +152,23 @@ private fun MenuList(
     saving: Boolean,
     onOpen: (MenuSheet) -> Unit,
 ) {
-    val categories = catalog.categories.sortedBy { it.order }
-    val known = categories.map { it.id }.toSet()
-    val orphans = catalog.products.filter { it.categoryId !in known }
+    var query by remember { mutableStateOf("") }
+    var availability by remember { mutableStateOf(AvailabilityFilter.ALL) }
+    var categoryFilter by remember { mutableStateOf<Int?>(null) }
+    val allCategories = catalog.categories.sortedBy { it.order }
+    val categories = allCategories.filter { categoryFilter == null || it.id == categoryFilter }
+    val known = allCategories.map { it.id }.toSet()
+    val needle = query.trim().lowercase()
+    val visible =
+        catalog.products.filter { product ->
+            (
+                needle.isEmpty() ||
+                    product.name.lowercase().contains(needle) ||
+                    product.description.lowercase().contains(needle)
+            ) &&
+                availability.matches(product)
+        }
+    val orphans = if (categoryFilter == null) visible.filter { it.categoryId !in known } else emptyList()
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -173,7 +195,60 @@ private fun MenuList(
                 }
             }
         }
-        if (categories.isEmpty()) {
+        if (catalog.products.isNotEmpty()) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OperationalField(
+                        value = query,
+                        onValueChange = { query = it },
+                        label = "Buscar en el menú",
+                        colors = colors,
+                    )
+                    Row(
+                        Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        AvailabilityFilter.entries.forEach { filter ->
+                            ChipButton(
+                                label = filter.label,
+                                enabled = true,
+                                colors = colors,
+                                selected =
+                                    filter == availability,
+                            ) {
+                                availability = filter
+                            }
+                        }
+                    }
+                    Row(
+                        Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        ChipButton(
+                            label = "Todas",
+                            enabled = true,
+                            colors = colors,
+                            selected = categoryFilter == null,
+                        ) {
+                            categoryFilter =
+                                null
+                        }
+                        allCategories.forEach { category ->
+                            ChipButton(
+                                label = category.name,
+                                enabled = true,
+                                colors = colors,
+                                selected =
+                                    category.id == categoryFilter,
+                            ) {
+                                categoryFilter = category.id
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (allCategories.isEmpty()) {
             item {
                 AdminCard(colors) {
                     Text(
@@ -191,7 +266,8 @@ private fun MenuList(
             }
         }
         categories.forEach { category ->
-            val products = catalog.products.filter { it.categoryId == category.id }
+            val products = visible.filter { it.categoryId == category.id }
+            if (products.isEmpty() && (needle.isNotEmpty() || availability != AvailabilityFilter.ALL)) return@forEach
             item(key = "c${category.id}") {
                 CategoryHeader(category, products.size, colors, readOnly) { onOpen(MenuSheet.EditCategory(category)) }
             }
@@ -410,6 +486,8 @@ private fun ProductSheet(
     onDismiss: () -> Unit,
     onSave: (AdminProductInput, AdminImage?) -> Unit,
     onRemoveImage: (Product) -> Unit,
+    rentsSpaces: Boolean,
+    cardFeeToCustomer: Boolean,
 ) {
     val context = LocalContext.current
     val haptics = rememberVaiinillaHaptics()
@@ -538,6 +616,28 @@ private fun ProductSheet(
                 enabled = !saving,
                 keyboardType = KeyboardType.Number,
                 modifier = Modifier.weight(1f),
+            )
+        }
+        Text(
+            if (cardFeeToCustomer) {
+                "Con efectivo o saldo, este precio. Con tarjeta se suma la comisión."
+            } else {
+                "El mismo precio con efectivo, saldo o tarjeta."
+            },
+            fontSize = 12.sp,
+            color = colors.textSecondary,
+        )
+        if (rentsSpaces) {
+            val looksLikeRental = RentalWords.containsMatchIn(name)
+            Text(
+                if (looksLikeRental) {
+                    "Esto parece una renta de cancha. Las rentas se cobran desde Mesas y espacios, con su precio por hora."
+                } else {
+                    "Este negocio renta canchas desde Mesas y espacios. No crees la renta como producto."
+                },
+                fontSize = 12.sp,
+                fontWeight = if (looksLikeRental) FontWeight.Bold else FontWeight.Normal,
+                color = if (looksLikeRental) AdminCoral else colors.textSecondary,
             )
         }
         OperationalField(
@@ -830,6 +930,25 @@ private fun adminSwitchColors(colors: OperationalColors) =
         uncheckedTrackColor = colors.cardInner,
         uncheckedBorderColor = colors.cardBorder,
     )
+
+private enum class AvailabilityFilter(
+    val label: String,
+) {
+    ALL("Todos"),
+    AVAILABLE("Disponibles"),
+    HIDDEN("Agotados"),
+    ;
+
+    fun matches(product: Product): Boolean =
+        when (this) {
+            ALL -> true
+            AVAILABLE -> product.available
+            HIDDEN -> !product.available
+        }
+}
+
+private val RentalWords =
+    Regex("\\b(renta|rentar|cancha|canchas|hora|horas|reserva|p[aá]del)\\b", RegexOption.IGNORE_CASE)
 
 private fun stationLabel(station: PreparationStation): String =
     when (station) {
