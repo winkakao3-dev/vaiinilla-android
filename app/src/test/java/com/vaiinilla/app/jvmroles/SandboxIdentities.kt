@@ -18,7 +18,8 @@ import javax.inject.Singleton
 /**
  * Personas del sandbox de dev con sesión real de Firebase, sin el SDK de Firebase: test-setup da un
  * custom token por rol y el REST de Firebase lo cambia por un ID token, igual que vaiinilla-roles/src/login.js.
- * El secreto se lee de ~/.vaiinilla-test-accounts.json en cada uso. Ni el secreto ni los tokens se imprimen.
+ * El secreto se lee de ~/.vaiinilla-test-accounts.json en cada uso (en la nube lo pone el proxy, ver
+ * [testSetupHeaders]). Ni el secreto ni los tokens se imprimen.
  */
 @Singleton
 class SandboxIdentities
@@ -73,8 +74,6 @@ class SandboxIdentities
 
         private fun customTokenFor(role: HarnessRole): String {
             check(!BuildConfig.IS_PRODUCTION) { "El arnés solo corre contra development." }
-            val accounts = File(System.getProperty("user.home"), ".vaiinilla-test-accounts.json")
-            val secret = JSONObject(accounts.readText()).getString("test_setup_secret")
             // Tráfico del arnés, no de la app: ni el sabotaje ni el solo lectura del vigía lo tocan.
             val json =
                 VigiaNetwork.accounted {
@@ -82,7 +81,7 @@ class SandboxIdentities
                         url = "${BuildConfig.API_BASE_URL}dev/test-setup",
                         body = "",
                         contentType = "application/json",
-                        headers = mapOf("X-Test-Setup-Secret" to secret),
+                        headers = testSetupHeaders(),
                         showErrorBody = false,
                     )
                 }
@@ -156,3 +155,16 @@ class SandboxIdentities
             const val REFRESH_MARGIN_MILLIS = 60_000L
         }
     }
+
+/**
+ * Header de test-setup. En una sesión de Claude Code en la nube no hay archivo: el secreto de red del
+ * entorno agrega X-Test-Setup-Secret después de que la petición sale de la VM, así que va sin header.
+ */
+internal fun testSetupHeaders(
+    home: File = File(System.getProperty("user.home")),
+    env: Map<String, String> = System.getenv(),
+): Map<String, String> {
+    val accounts = File(home, ".vaiinilla-test-accounts.json")
+    if (env["CLAUDE_CODE_REMOTE"] == "true" && !accounts.exists()) return emptyMap()
+    return mapOf("X-Test-Setup-Secret" to JSONObject(accounts.readText()).getString("test_setup_secret"))
+}
