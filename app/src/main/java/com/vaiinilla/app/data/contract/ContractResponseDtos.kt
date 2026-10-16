@@ -136,3 +136,15 @@ data class CatalogOptionWriteDto(
 data class ProductAvailabilityWriteDto(
     @SerialName("disponible") val available: Boolean,
 )
+
+@Serializable
+data class StoreImagesDto(
+    @SerialName("imagen_url") val photoUrl: String? = null,
+    @SerialName("logo_url") val logoUrl: String? = null,
+)
+
+@Serializable
+data class StoreImagesEnvelopeDto(
+    val data: StoreImagesDto,
+    val error: JsonElement? = null,
+)

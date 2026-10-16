@@ -29,6 +29,7 @@ import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
 import com.vaiinilla.app.domain.repository.DeviceIdentity
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
+import com.vaiinilla.app.domain.repository.StoreImageKind
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.WaiterRepository
 import com.vaiinilla.app.domain.repository.WalletRepository
@@ -1021,6 +1022,7 @@ class OperationalViewModel
 
         fun refreshCatalog() {
             if (_uiState.value.role != OperationalRole.CASHIER) return
+            loadStoreImages()
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }
                 _uiState.value =
@@ -1038,6 +1040,93 @@ class OperationalViewModel
                     )
             }
         }
+
+        /** Un servidor que aún no da las imágenes a Caja responde 403: la tarjeta simplemente no aparece. */
+        private fun loadStoreImages() {
+            viewModelScope.launch {
+                val result = withContext(Dispatchers.IO) { catalogRepository.getStoreImages() }
+                result.onSuccess { images -> _uiState.value = _uiState.value.copy(storeImages = images) }
+            }
+        }
+
+        fun uploadStoreImage(
+            kind: StoreImageKind,
+            bytes: ByteArray,
+            filename: String,
+            mimeType: String,
+        ) {
+            if (_uiState.value.storeImageBusy != null) return
+            if (bytes.size > MAX_PRODUCT_IMAGE_BYTES) {
+                _uiState.value = _uiState.value.copy(storeImageNotice = "La imagen no puede pesar más de 5 MB.")
+                return
+            }
+            _uiState.value = _uiState.value.copy(storeImageBusy = kind, storeImageNotice = null)
+            viewModelScope.launch {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        catalogRepository.uploadStoreImage(
+                            kind = kind,
+                            bytes = bytes,
+                            filename = filename,
+                            mimeType = mimeType,
+                            idempotencyKey = MutationIdempotency.storeImage(kind.wireValue, bytes),
+                        )
+                    }
+                _uiState.value =
+                    result.fold(
+                        onSuccess = { images ->
+                            _uiState.value.copy(
+                                storeImages = images,
+                                storeImageBusy = null,
+                                storeImageNotice = storeImageDone(kind, removed = false),
+                            )
+                        },
+                        onFailure = { error ->
+                            _uiState.value.copy(
+                                storeImageBusy = null,
+                                storeImageNotice = error.toUserFacingMessage("No se pudo subir la imagen."),
+                            )
+                        },
+                    )
+            }
+        }
+
+        fun removeStoreImage(kind: StoreImageKind) {
+            if (_uiState.value.storeImageBusy != null) return
+            _uiState.value = _uiState.value.copy(storeImageBusy = kind, storeImageNotice = null)
+            viewModelScope.launch {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        catalogRepository.removeStoreImage(kind, UUID.randomUUID().toString())
+                    }
+                _uiState.value =
+                    result.fold(
+                        onSuccess = { images ->
+                            _uiState.value.copy(
+                                storeImages = images,
+                                storeImageBusy = null,
+                                storeImageNotice = storeImageDone(kind, removed = true),
+                            )
+                        },
+                        onFailure = { error ->
+                            _uiState.value.copy(
+                                storeImageBusy = null,
+                                storeImageNotice = error.toUserFacingMessage("No se pudo quitar la imagen."),
+                            )
+                        },
+                    )
+            }
+        }
+
+        private fun storeImageDone(
+            kind: StoreImageKind,
+            removed: Boolean,
+        ): String =
+            when (kind) {
+                StoreImageKind.LOGO -> if (removed) "Logo quitado." else "Logo actualizado. Tus clientes ya lo ven."
+                StoreImageKind.PHOTO ->
+                    if (removed) "Foto del lugar quitada." else "Foto del lugar actualizada. Tus clientes ya la ven."
+            }
 
         fun setProductAvailable(
             productId: Int,
