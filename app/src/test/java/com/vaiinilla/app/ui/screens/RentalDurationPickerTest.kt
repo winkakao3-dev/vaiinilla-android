@@ -30,6 +30,7 @@ class RentalDurationPickerTest {
                     title = "Rentar ahora",
                     verb = "Rentar",
                     pricePerHour = "150.00",
+                    durations = listOf(60, 90, 120),
                     enabled = true,
                     colors = rememberOperationalColors(),
                     onConfirm = { confirmed += it },
@@ -61,6 +62,8 @@ class RentalDurationPickerTest {
         assertEquals("2", waiterShortName("Cancha 2", "Cancha"))
         assertEquals("Básquetbol", waiterShortName("Cancha Básquetbol", "Cancha"))
         assertEquals("Fútbol Rápido", waiterShortName("Cancha Fútbol Rápido", "Cancha"))
+        assertEquals("Fútbol 7", waiterShortName("Cancha Fútbol 7", "Cancha"))
+        assertEquals("Pádel 1", waiterShortName("Cancha Pádel 1", "Cancha"))
         assertEquals("Terraza", waiterShortName("mesa terraza", "Mesa"))
         assertEquals("Cancha", waiterShortName("Cancha", "Cancha"))
         assertEquals("Barra larga", waiterShortName("Barra larga", "Mesa"))

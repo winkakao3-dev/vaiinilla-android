@@ -32,6 +32,13 @@ internal object MutationIdempotency {
         reason: String,
     ): String = derive("cancel", orderId, expectedVersion.toString(), reason.trim())
 
+    fun itemRejection(
+        orderId: String,
+        itemId: Int,
+        expectedVersion: Int,
+        reason: String,
+    ): String = derive("reject-item", orderId, itemId.toString(), expectedVersion.toString(), reason.trim())
+
     fun cashCollection(
         orderId: String,
         amountReceived: String,

@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
+import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderOrigin
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationAccess
@@ -22,14 +23,17 @@ import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.ReservationRepository
 import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.TableCall
+import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.domain.repository.WaiterBoard
 import com.vaiinilla.app.domain.repository.WaiterRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
-import com.vaiinilla.app.domain.usecase.CreateOrderUseCase
+import com.vaiinilla.app.domain.usecase.CreateRemoteOrderUseCase
 import com.vaiinilla.app.ui.order.CounterOrderKey
 import com.vaiinilla.app.ui.order.counterOrderKeyFor
 import com.vaiinilla.app.ui.order.createOrderFingerprint
+import com.vaiinilla.app.ui.screens.DefaultRentalDurations
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -47,11 +51,19 @@ data class WaiterUiState(
     val callsEnabled: Boolean = true,
     val loading: Boolean = false,
     val acting: Boolean = false,
+    /** El aviso actual es un error: se pinta con otro ícono para no parecer un éxito. */
+    val toastIsError: Boolean = false,
+    /** Duraciones de renta que acepta el backend (`reservas/disponibilidad`). */
+    val rentalDurations: List<Int> = DefaultRentalDurations,
     val errorMessage: String? = null,
     val toastMessage: String? = null,
     val filterAttending: Boolean = false,
     /** Si es false, el mesero entrega en el espacio sin escanear el QR del cliente. */
     val deliveryRequiresQr: Boolean = true,
+    /** El negocio deja pagar al final: el pedido de una mesa va a su cuenta y entra directo a cocina. */
+    val allowsPayAtEnd: Boolean = false,
+    /** Mesa a la que va el pedido que se está tomando; null = pedido de mostrador para Caja. */
+    val counterOrderSpace: TableSpace? = null,
     /** Sesión, cuenta y estado del espacio abierto en la hoja; null si no hay ninguno. */
     val spaceDetail: SpaceSessionDetail? = null,
     val spaceDetailLoading: Boolean = false,
@@ -85,7 +97,7 @@ class WaiterViewModel
         private val reservationRepository: ReservationRepository,
         private val catalogRepository: CatalogRepository,
         private val buildCreateOrderRequest: BuildCreateOrderRequestUseCase,
-        private val createOrder: CreateOrderUseCase,
+        private val createOrder: CreateRemoteOrderUseCase,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(WaiterUiState())
         val uiState: State<WaiterUiState> = _uiState
@@ -124,12 +136,29 @@ class WaiterViewModel
                     onSuccess = { board ->
                         _uiState.value = _uiState.value.withBoard(board, Instant.now())
                         detectNewCalls(board.tables)
+                        detectNewRejections(board.tables)
                     },
                     onFailure = { error ->
                         _uiState.value = _uiState.value.withBoardFailure(error.toUserFacingMessage())
                     },
                 )
             }
+        }
+
+        private var knownRejectionIds: Set<String>? = null
+
+        /**
+         * Avisa cuando Cocina o Caja cancela un pedido de una mesa. La primera carga solo aprende lo que
+         * ya había, para no repetir avisos viejos al abrir la app.
+         */
+        private fun detectNewRejections(tables: List<BoardTable>) {
+            val all = tables.flatMap { table -> table.recentRejections.map { table.space to it } }
+            val known = knownRejectionIds
+            knownRejectionIds = all.map { it.second.id }.toSet()
+            if (known == null) return
+            val (space, rejected) = all.firstOrNull { it.second.id !in known } ?: return
+            val reason = rejected.reason?.let { ": $it" }.orEmpty()
+            showToast("${rejected.byLabel} rechazó el #${rejected.folio} de ${space.name}$reason", isError = true)
         }
 
         private fun detectNewCalls(tables: List<BoardTable>) {
@@ -147,21 +176,19 @@ class WaiterViewModel
         }
 
         fun markGoing(call: TableCall) {
-            if (_uiState.value.acting) return
-            _uiState.value = _uiState.value.copy(acting = true)
+            if (!beginAction()) return
             viewModelScope.launch {
                 val result =
-                    withContext(Dispatchers.IO) {
+                    actionCall {
                         waiterRepository.transitionCall(call, CallStatus.EN_CAMINO, UUID.randomUUID().toString())
                     }
-                _uiState.value = _uiState.value.copy(acting = false)
                 result.fold(
                     onSuccess = {
                         showToast("Vas a ${call.space.name}")
                         refresh()
                     },
                     onFailure = { error ->
-                        showToast(error.toUserFacingMessage())
+                        showToast(error.toUserFacingMessage(), isError = true)
                         refresh()
                     },
                 )
@@ -169,21 +196,19 @@ class WaiterViewModel
         }
 
         fun markAttended(call: TableCall) {
-            if (_uiState.value.acting) return
-            _uiState.value = _uiState.value.copy(acting = true)
+            if (!beginAction()) return
             viewModelScope.launch {
                 val result =
-                    withContext(Dispatchers.IO) {
+                    actionCall {
                         waiterRepository.transitionCall(call, CallStatus.ATENDIDA, UUID.randomUUID().toString())
                     }
-                _uiState.value = _uiState.value.copy(acting = false)
                 result.fold(
                     onSuccess = {
                         showToast("${call.space.name} atendida")
                         refresh()
                     },
                     onFailure = { error ->
-                        showToast(error.toUserFacingMessage())
+                        showToast(error.toUserFacingMessage(), isError = true)
                         refresh()
                     },
                 )
@@ -194,24 +219,22 @@ class WaiterViewModel
             order: BoardOrder,
             qrToken: String?,
         ) {
-            if (_uiState.value.acting) return
             val token = qrToken?.trim().orEmpty()
             val requiresQr = _uiState.value.deliveryRequiresQr
             if (requiresQr && token.isEmpty()) {
                 showToast("Pega el código del QR para confirmar la entrega.")
                 return
             }
-            _uiState.value = _uiState.value.copy(acting = true)
+            if (!beginAction()) return
             viewModelScope.launch {
                 val result =
-                    withContext(Dispatchers.IO) {
+                    actionCall {
                         waiterRepository.deliver(
                             order,
                             token.takeIf { requiresQr && it.isNotEmpty() },
                             UUID.randomUUID().toString(),
                         )
                     }
-                _uiState.value = _uiState.value.copy(acting = false)
                 result.fold(
                     onSuccess = {
                         showToast("#${order.folio} entregado")
@@ -219,7 +242,7 @@ class WaiterViewModel
                         openSpaceId?.let { loadSpaceDetail(it, silent = true) }
                     },
                     onFailure = { error ->
-                        showToast(error.toUserFacingMessage())
+                        showToast(error.toUserFacingMessage(), isError = true)
                     },
                 )
             }
@@ -230,6 +253,24 @@ class WaiterViewModel
             openSpaceId = spaceId
             _uiState.value = _uiState.value.copy(spaceDetail = null, lastCollection = null, lastAbono = null)
             loadSpaceDetail(spaceId, silent = false)
+            loadRentalDurations()
+        }
+
+        private var rentalDurationsLoaded = false
+
+        /** Una vez por sesión: el backend dice qué duraciones se pueden rentar (otras responden 400). */
+        private fun loadRentalDurations() {
+            if (rentalDurationsLoaded) return
+            rentalDurationsLoaded = true
+            viewModelScope.launch {
+                val day = withContext(Dispatchers.IO) { reservationRepository.day(null, ReservationAccess.Account) }
+                day
+                    .onSuccess { court ->
+                        if (court.durations.isNotEmpty()) {
+                            _uiState.value = _uiState.value.copy(rentalDurations = court.durations)
+                        }
+                    }.onFailure { rentalDurationsLoaded = false }
+            }
         }
 
         fun closeSpace() {
@@ -255,7 +296,7 @@ class WaiterViewModel
                     },
                     onFailure = { error ->
                         _uiState.value = _uiState.value.copy(spaceDetailLoading = false)
-                        if (!silent) showToast(error.toUserFacingMessage())
+                        if (!silent) showToast(error.toUserFacingMessage(), isError = true)
                     },
                 )
             }
@@ -283,8 +324,14 @@ class WaiterViewModel
         }
 
         /** Abre la hoja de pedido de mostrador; el catálogo se carga la primera vez. */
-        fun openCounterOrder() {
-            _uiState.value = _uiState.value.copy(counterOrderOpen = true, counterOrderError = null)
+        fun openCounterOrder() = openOrderSheet(space = null)
+
+        /** El mesero toma el pedido de una mesa: va a esa mesa y, si el negocio lo deja, a su cuenta. */
+        fun openTableOrder(space: TableSpace) = openOrderSheet(space)
+
+        private fun openOrderSheet(space: TableSpace?) {
+            _uiState.value =
+                _uiState.value.copy(counterOrderOpen = true, counterOrderError = null, counterOrderSpace = space)
             if (_uiState.value.counterCatalog != null) return
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }
@@ -299,7 +346,8 @@ class WaiterViewModel
 
         fun closeCounterOrder() {
             if (_uiState.value.counterOrderSending) return
-            _uiState.value = _uiState.value.copy(counterOrderOpen = false, counterOrderError = null)
+            _uiState.value =
+                _uiState.value.copy(counterOrderOpen = false, counterOrderError = null, counterOrderSpace = null)
         }
 
         /**
@@ -311,10 +359,15 @@ class WaiterViewModel
             customerName: String,
         ) {
             if (_uiState.value.counterOrderSending) return
+            val space = _uiState.value.counterOrderSpace
+            val toAccount = space != null && _uiState.value.allowsPayAtEnd
             val request =
                 buildCreateOrderRequest(
                     lines = lines,
                     kitchenNotes = "",
+                    destination = if (space != null) OrderDestination.IN_SPACE else OrderDestination.TAKE_AWAY,
+                    spaceId = space?.id,
+                    payAtEnd = toAccount,
                     origin = OrderOrigin.MOSTRADOR,
                     customerName = customerName,
                 )
@@ -330,8 +383,19 @@ class WaiterViewModel
                 result.fold(
                     onSuccess = { created ->
                         counterOrderKey = null
-                        _uiState.value = _uiState.value.copy(counterOrderOpen = false, counterOrderError = null)
-                        showToast("Pedido #${created.summary.folio} enviado a Caja")
+                        _uiState.value =
+                            _uiState.value.copy(
+                                counterOrderOpen = false,
+                                counterOrderError = null,
+                                counterOrderSpace = null,
+                            )
+                        showToast(
+                            when {
+                                space == null -> "Pedido #${created.summary.folio} enviado a Caja"
+                                toAccount -> "Pedido #${created.summary.folio} de ${space.name} enviado a cocina"
+                                else -> "Pedido #${created.summary.folio} de ${space.name} enviado a Caja"
+                            },
+                        )
                     },
                     onFailure = { error ->
                         _uiState.value = _uiState.value.copy(counterOrderError = error.toUserFacingMessage())
@@ -345,11 +409,10 @@ class WaiterViewModel
             minutes: Int,
             start: Instant?,
         ) {
-            if (_uiState.value.acting) return
-            _uiState.value = _uiState.value.copy(acting = true)
+            if (!beginAction()) return
             viewModelScope.launch {
                 val result =
-                    withContext(Dispatchers.IO) {
+                    actionCall {
                         reservationRepository.create(
                             access = ReservationAccess.Account,
                             courtId = spaceId,
@@ -359,10 +422,9 @@ class WaiterViewModel
                             idempotencyKey = UUID.randomUUID().toString(),
                         )
                     }
-                _uiState.value = _uiState.value.copy(acting = false)
                 result.fold(
                     onSuccess = { reservation -> _uiState.value = _uiState.value.copy(pendingRental = reservation) },
-                    onFailure = { error -> showToast(error.toUserFacingMessage()) },
+                    onFailure = { error -> showToast(error.toUserFacingMessage(), isError = true) },
                 )
             }
         }
@@ -370,11 +432,10 @@ class WaiterViewModel
         /** Cobra la renta apartada: con el cobro se ocupa la cancha (o se alarga su turno). */
         fun confirmRental(received: String) {
             val reservation = _uiState.value.pendingRental ?: return
-            if (_uiState.value.acting) return
-            _uiState.value = _uiState.value.copy(acting = true)
+            if (!beginAction()) return
             viewModelScope.launch {
                 val result =
-                    withContext(Dispatchers.IO) {
+                    actionCall {
                         reservationRepository.pay(
                             access = ReservationAccess.Account,
                             reservationId = reservation.id,
@@ -383,7 +444,6 @@ class WaiterViewModel
                             idempotencyKey = UUID.randomUUID().toString(),
                         )
                     }
-                _uiState.value = _uiState.value.copy(acting = false)
                 result.fold(
                     onSuccess = { payment ->
                         _uiState.value = _uiState.value.copy(pendingRental = null)
@@ -394,7 +454,7 @@ class WaiterViewModel
                                 .orEmpty()
                         showToast("Cancha rentada$change")
                     },
-                    onFailure = { error -> showToast(error.toUserFacingMessage()) },
+                    onFailure = { error -> showToast(error.toUserFacingMessage(), isError = true) },
                 )
                 refresh()
                 loadSpaceDetail(reservation.courtId, silent = true)
@@ -438,11 +498,10 @@ class WaiterViewModel
             orderIds: List<String>? = null,
             tip: String? = null,
         ) {
-            if (_uiState.value.acting) return
-            _uiState.value = _uiState.value.copy(acting = true)
+            if (!beginAction()) return
             viewModelScope.launch {
                 val result =
-                    withContext(Dispatchers.IO) {
+                    actionCall {
                         waiterRepository.collectAccount(
                             spaceId,
                             method,
@@ -453,13 +512,12 @@ class WaiterViewModel
                             tip,
                         )
                     }
-                _uiState.value = _uiState.value.copy(acting = false)
                 result.fold(
                     onSuccess = { collection ->
                         _uiState.value = _uiState.value.copy(lastCollection = collection)
                         showToast(if (collection.settled) "Cuenta cobrada" else "Cobro registrado")
                     },
-                    onFailure = { error -> showToast(error.toUserFacingMessage()) },
+                    onFailure = { error -> showToast(error.toUserFacingMessage(), isError = true) },
                 )
                 refresh()
                 loadSpaceDetail(spaceId, silent = true)
@@ -481,13 +539,12 @@ class WaiterViewModel
             expectedRemaining: String,
             tip: String? = null,
         ) {
-            if (_uiState.value.acting) return
-            _uiState.value = _uiState.value.copy(acting = true)
+            if (!beginAction()) return
             val key =
                 abonoIdempotencyKey(spaceId, method, mode, amount, parts, expectedRemaining, tip)
             viewModelScope.launch {
                 val result =
-                    withContext(Dispatchers.IO) {
+                    actionCall {
                         waiterRepository.abonar(
                             spaceId,
                             method,
@@ -500,13 +557,12 @@ class WaiterViewModel
                             tip,
                         )
                     }
-                _uiState.value = _uiState.value.copy(acting = false)
                 result.fold(
                     onSuccess = { abono ->
                         _uiState.value = _uiState.value.copy(lastAbono = abono)
                         showToast(if (abono.settled) "Cuenta saldada" else "Abono registrado")
                     },
-                    onFailure = { error -> showToast(error.toUserFacingMessage()) },
+                    onFailure = { error -> showToast(error.toUserFacingMessage(), isError = true) },
                 )
                 refresh()
                 loadSpaceDetail(spaceId, silent = true)
@@ -518,23 +574,53 @@ class WaiterViewModel
             successMessage: String,
             call: () -> Result<Unit>,
         ) {
-            if (_uiState.value.acting) return
-            _uiState.value = _uiState.value.copy(acting = true)
+            if (!beginAction()) return
             viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { call() }
-                _uiState.value = _uiState.value.copy(acting = false)
+                val result = actionCall { call() }
                 result.fold(
                     onSuccess = { showToast(successMessage) },
-                    onFailure = { error -> showToast(error.toUserFacingMessage()) },
+                    onFailure = { error -> showToast(error.toUserFacingMessage(), isError = true) },
                 )
                 refresh()
                 loadSpaceDetail(spaceId, silent = true)
             }
         }
 
-        private fun showToast(message: String) {
+        /**
+         * Una acción a la vez, pero nunca en silencio: con otra en curso se avisa en lugar de ignorar el toque.
+         * Antes el toque se perdía sin decir nada y, si la acción anterior no volvía, los botones se quedaban muertos.
+         */
+        private fun beginAction(): Boolean {
+            if (_uiState.value.acting) {
+                showToast("Espera un momento: todavía se está guardando lo anterior.")
+                return false
+            }
+            _uiState.value = _uiState.value.copy(acting = true)
+            return true
+        }
+
+        /** Corre la llamada fuera del hilo principal y apaga `acting` pase lo que pase: error, excepción o cancelación. */
+        private suspend fun <T> actionCall(call: () -> Result<T>): Result<T> =
+            try {
+                withContext(Dispatchers.IO) {
+                    try {
+                        call()
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        Result.failure(error)
+                    }
+                }
+            } finally {
+                _uiState.value = _uiState.value.copy(acting = false)
+            }
+
+        private fun showToast(
+            message: String,
+            isError: Boolean = false,
+        ) {
             toastClearJob?.cancel()
-            _uiState.value = _uiState.value.copy(toastMessage = message)
+            _uiState.value = _uiState.value.copy(toastMessage = message, toastIsError = isError)
             toastClearJob =
                 viewModelScope.launch {
                     delay(TOAST_VISIBLE_MS)
@@ -603,6 +689,7 @@ internal fun WaiterUiState.withBoard(
         tables = board.tables,
         callsEnabled = board.callsEnabled,
         deliveryRequiresQr = board.deliveryRequiresQr,
+        allowsPayAtEnd = board.allowsPayAtEnd,
         loading = false,
         errorMessage = null,
         lastBoardRefreshAt = receivedAt,

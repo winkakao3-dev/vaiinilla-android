@@ -18,8 +18,9 @@ data class CreateOrderRequestDto(
     // Solo viaja cuando es true: los demás pedidos se envían exactamente igual que antes.
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     @SerialName("pago_diferido") val payAtEnd: Boolean? = null,
+    // El backend lee `nombre_cliente` al crear; con `nombre_cliente_snapshot` el nombre se perdía.
     @EncodeDefault(EncodeDefault.Mode.NEVER)
-    @SerialName("nombre_cliente_snapshot") val customerName: String? = null,
+    @SerialName("nombre_cliente") val customerName: String? = null,
 )
 
 @OptIn(ExperimentalSerializationApi::class)

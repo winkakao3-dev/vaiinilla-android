@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,6 +47,8 @@ fun BoxScope.ToastPill(
     contentColor: Color,
     badgeColor: Color,
     badgeContentColor: Color,
+    /** Palomita para lo que salió bien; los errores pasan otro ícono para no parecer éxitos. */
+    icon: ImageVector = Icons.Rounded.Check,
 ) {
     var lastMessage by remember { mutableStateOf("") }
     message?.let { lastMessage = it }
@@ -82,7 +85,7 @@ fun BoxScope.ToastPill(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.Check,
+                        imageVector = icon,
                         contentDescription = null,
                         tint = badgeContentColor,
                         modifier = Modifier.size(13.dp),

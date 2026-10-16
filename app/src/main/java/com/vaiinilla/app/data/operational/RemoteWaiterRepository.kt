@@ -5,6 +5,7 @@ import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AbonoResult
 import com.vaiinilla.app.domain.repository.AccountCollection
@@ -28,7 +29,7 @@ class RemoteWaiterRepository(
 ) : WaiterRepository {
     private var boardEndpoint = true
     private var callsEnabled = true
-    private var deliveryPolicy: Pair<Long, Boolean>? = null
+    private var storePolicy: Pair<Long, DeliveryPolicyDto>? = null
 
     override fun board(): Result<WaiterBoard> =
         runCatching {
@@ -66,7 +67,8 @@ class RemoteWaiterRepository(
             WaiterBoard(
                 tables = withAvailability(withCalls),
                 callsEnabled = boardEndpoint || callsEnabled,
-                deliveryRequiresQr = deliveryRequiresQr(),
+                deliveryRequiresQr = policy().deliveryRequiresQr,
+                allowsPayAtEnd = policy().allowsPayAtEnd,
             )
         }.mapApiErrors()
 
@@ -88,21 +90,21 @@ class RemoteWaiterRepository(
     }
 
     /**
-     * Si el establecimiento dispensa el QR al entregar en un espacio. Se consulta como mucho una vez
-     * por minuto; ante cualquier duda se sigue exigiendo el QR, como siempre.
+     * Cómo trabaja la tienda: si dispensa el QR al entregar en un espacio y si deja pagar al final. Se
+     * consulta como mucho una vez por minuto; ante cualquier duda se exige el QR y no se ofrece pagar al final.
      */
-    private fun deliveryRequiresQr(): Boolean {
+    private fun policy(): DeliveryPolicyDto {
         val now = System.currentTimeMillis()
-        deliveryPolicy?.let { (at, requires) -> if (now - at < POLICY_TTL_MS) return requires }
-        val requires =
+        storePolicy?.let { (at, policy) -> if (now - at < POLICY_TTL_MS) return policy }
+        val policy =
             runCatching {
                 apiClient
                     .get("estado-operativo")
-                    .mapCatching(contractJson::parseDeliveryRequiresQr)
+                    .mapCatching(contractJson::parseStorePolicy)
                     .getOrThrow()
-            }.getOrDefault(true)
-        deliveryPolicy = now to requires
-        return requires
+            }.getOrDefault(DeliveryPolicyDto())
+        storePolicy = now to policy
+        return policy
     }
 
     private fun fallbackBoard(): List<BoardTable> {
@@ -127,7 +129,7 @@ class RemoteWaiterRepository(
                             state = order.summary.state,
                             version = order.summary.version,
                             clientName = order.user?.name,
-                            itemsSummary = order.items.joinToString(", ") { "${it.quantity}× ${it.productName}" },
+                            itemsSummary = order.activeItems.joinToString(", ") { "${it.quantity}× ${it.productName}" },
                             updatedAt = order.summary.updatedAt,
                         )
                     }

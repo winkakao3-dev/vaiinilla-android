@@ -11,6 +11,7 @@ import com.vaiinilla.app.domain.repository.BoardOrder
 import com.vaiinilla.app.domain.repository.BoardTable
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
+import com.vaiinilla.app.domain.repository.RejectedOrder
 import com.vaiinilla.app.domain.repository.SpaceAccount
 import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
@@ -81,6 +82,16 @@ data class BoardTableDto(
     val espacio: TableSpaceDto,
     val llamada: TableCallDto? = null,
     val pedidos: List<BoardOrderDto> = emptyList(),
+    /** Cancelados hace poco (30 min) por Cocina o Caja; un servidor anterior no lo manda. */
+    @SerialName("rechazados_recientes") val rechazadosRecientes: List<RejectedOrderDto> = emptyList(),
+)
+
+@Serializable
+data class RejectedOrderDto(
+    val id: String,
+    val folio: Int,
+    val motivo: String? = null,
+    @SerialName("rechazado_por_rol") val rejectedByRole: String? = null,
 )
 
 @Serializable
@@ -317,6 +328,8 @@ data class CollectAccountRequestDto(
 @Serializable
 data class DeliveryPolicyDto(
     @SerialName("entrega_requiere_qr") val deliveryRequiresQr: Boolean = true,
+    /** Si el mesero puede mandar el pedido de una mesa a su cuenta (se paga al final). */
+    @SerialName("permite_pago_al_final") val allowsPayAtEnd: Boolean = false,
 )
 
 @Serializable
@@ -426,6 +439,15 @@ fun BoardTableDto.toDomain(): BoardTable =
         space = espacio.toDomain(),
         call = llamada?.toDomain(),
         orders = pedidos.map { it.toDomain() },
+        recentRejections =
+            rechazadosRecientes.map {
+                RejectedOrder(
+                    id = it.id,
+                    folio = it.folio,
+                    reason = it.motivo,
+                    byRole = it.rejectedByRole,
+                )
+            },
     )
 
 @Singleton
@@ -489,10 +511,12 @@ class WaiterContractJson
             )
         }
 
-        fun parseDeliveryRequiresQr(raw: String): Boolean {
+        fun parseDeliveryRequiresQr(raw: String): Boolean = parseStorePolicy(raw).deliveryRequiresQr
+
+        fun parseStorePolicy(raw: String): DeliveryPolicyDto {
             val envelope = json.decodeFromString<DeliveryPolicyEnvelopeDto>(raw)
             require(envelope.error == null) { "La API devolvió un error en el envelope." }
-            return envelope.data.deliveryRequiresQr
+            return envelope.data
         }
 
         fun encodeOpenSession(durationMinutes: Int?): String =

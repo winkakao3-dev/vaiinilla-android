@@ -93,6 +93,15 @@ class CancelOrderUseCase
             reason: String,
             idempotencyKey: String,
         ): Result<OrderDetail> = repository.cancelOrder(orderId, expectedVersion, reason, idempotencyKey)
+
+        /** Quitar un solo artículo; si es el último que queda, el backend pide cancelar el pedido entero. */
+        fun rejectItem(
+            orderId: String,
+            itemId: Int,
+            expectedVersion: Int,
+            reason: String,
+            idempotencyKey: String,
+        ): Result<OrderDetail> = repository.rejectItem(orderId, itemId, expectedVersion, reason, idempotencyKey)
     }
 
 class AnnounceArrivalUseCase
