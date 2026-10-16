@@ -1703,6 +1703,8 @@ fun AppNavHost(
                             )
                         },
                         onUploadCashierProductImage = operationalViewModel::uploadCashierProductImage,
+                        onUploadStoreImage = operationalViewModel::uploadStoreImage,
+                        onRemoveStoreImage = operationalViewModel::removeStoreImage,
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "cashier",
                         onNewCounterOrder = waiterViewModel::openCounterOrder,

@@ -54,6 +54,12 @@ class HttpVaiinillaApiClient
             headers: Map<String, String>,
         ): Result<String> = execute(method = "POST", path = path, body = null, headers = headers)
 
+        override fun delete(
+            path: String,
+            body: String?,
+            headers: Map<String, String>,
+        ): Result<String> = execute(method = "DELETE", path = path, body = body, headers = headers)
+
         override fun deleteWithBearer(
             bearer: String,
             path: String,
