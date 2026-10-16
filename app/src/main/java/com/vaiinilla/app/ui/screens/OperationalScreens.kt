@@ -116,6 +116,7 @@ import com.vaiinilla.app.domain.model.TipPercents
 import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.model.amountFor
 import com.vaiinilla.app.domain.model.asTipWire
+import com.vaiinilla.app.domain.repository.StoreImageKind
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_ADD_PRODUCT
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_CASHIER_ORDER_CARD
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_KITCHEN_CARD
@@ -281,6 +282,9 @@ fun CashierOperationalScreen(
     onCreateCashierProduct: (CatalogProductDraft, ByteArray?, String?, String?, (String?) -> Unit) -> Unit =
         { _, _, _, _, _ -> },
     onUploadCashierProductImage: (Int, ByteArray, String, String) -> Unit = { _, _, _, _ -> },
+    /** Subir el logo o la foto del negocio. */
+    onUploadStoreImage: (StoreImageKind, ByteArray, String, String) -> Unit = { _, _, _, _ -> },
+    onRemoveStoreImage: (StoreImageKind) -> Unit = {},
     assistantUserKey: String = "cashier",
     /** Abre el pedido de mostrador; null lo oculta. */
     onNewCounterOrder: (() -> Unit)? = null,
@@ -1058,6 +1062,23 @@ fun CashierOperationalScreen(
                             )
                         }
                     }
+                }
+            }
+
+            // Logo y foto del negocio: se ponen una vez, así que van al final, después del catálogo.
+            state.storeImages?.let { images ->
+                item(key = "store-images") {
+                    StoreImagesCard(
+                        images = images,
+                        busy = state.storeImageBusy,
+                        notice = state.storeImageNotice,
+                        enabled = restrictedMode != RestrictedMode.READ_ONLY,
+                        colors = colors,
+                        onUpload = onUploadStoreImage,
+                        onRemove = onRemoveStoreImage,
+                        onPrepareFailed = { toastMessage = it },
+                        modifier = Modifier.padding(top = 10.dp),
+                    )
                 }
             }
         }

@@ -9,6 +9,8 @@ import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.CatalogRepositoryException
+import com.vaiinilla.app.domain.repository.StoreImageKind
+import com.vaiinilla.app.domain.repository.StoreImages
 
 class RemoteCatalogRepository(
     private val apiClient: VaiinillaApiClient,
@@ -67,6 +69,41 @@ class RemoteCatalogRepository(
                 bytes = bytes,
                 headers = mapOf("Idempotency-Key" to idempotencyKey),
             ).mapCatching { parser.parseProduct(it) }
+            .mapApiErrors()
+
+    override fun getStoreImages(): Result<StoreImages> =
+        apiClient
+            .get("establecimiento/imagenes")
+            .mapCatching { parser.parseStoreImages(it) }
+            .mapApiErrors()
+
+    override fun uploadStoreImage(
+        kind: StoreImageKind,
+        bytes: ByteArray,
+        filename: String,
+        mimeType: String,
+        idempotencyKey: String,
+    ): Result<StoreImages> =
+        apiClient
+            .putMultipart(
+                path = "establecimiento/${kind.wireValue}",
+                fieldName = "imagen",
+                filename = filename,
+                mimeType = mimeType,
+                bytes = bytes,
+                headers = mapOf("Idempotency-Key" to idempotencyKey),
+            ).mapCatching { parser.parseStoreImages(it) }
+            .mapApiErrors()
+
+    override fun removeStoreImage(
+        kind: StoreImageKind,
+        idempotencyKey: String,
+    ): Result<StoreImages> =
+        apiClient
+            .delete(
+                path = "establecimiento/${kind.wireValue}",
+                headers = mapOf("Idempotency-Key" to idempotencyKey),
+            ).mapCatching { parser.parseStoreImages(it) }
             .mapApiErrors()
 
     private fun <T> Result<T>.mapApiErrors(): Result<T> =

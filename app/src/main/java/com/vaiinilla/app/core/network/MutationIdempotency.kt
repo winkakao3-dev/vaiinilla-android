@@ -50,6 +50,12 @@ internal object MutationIdempotency {
         imageBytes: ByteArray,
     ): String = derive("product-image", productId.toString(), sha256Bytes(imageBytes))
 
+    /** El mismo archivo para el mismo lugar reusa la llave: un reintento no lo sube dos veces. */
+    fun storeImage(
+        kind: String,
+        imageBytes: ByteArray,
+    ): String = derive("store-image", kind, sha256Bytes(imageBytes))
+
     fun accountDeletion(uid: String): String = derive("account-deletion", uid)
 
     private fun derive(
