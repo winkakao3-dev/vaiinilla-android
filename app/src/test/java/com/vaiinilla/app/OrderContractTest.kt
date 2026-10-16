@@ -81,7 +81,7 @@ class OrderContractTest {
     fun `app order request keeps the same wire shape without origin or customer name`() {
         val json = OrderContractJson().encodeCreateRequest(validRequest())
         assertFalse(json.contains("origen"))
-        assertFalse(json.contains("nombre_cliente_snapshot"))
+        assertFalse(json.contains("nombre_cliente"))
     }
 
     @Test
@@ -89,7 +89,7 @@ class OrderContractTest {
         val request = validRequest().copy(origin = OrderOrigin.MOSTRADOR, customerName = "  Ana  ")
         val json = OrderContractJson().encodeCreateRequest(request)
         assertFalse(json.contains("origen"))
-        assertTrue(json.contains("\"nombre_cliente_snapshot\":\"Ana\""))
+        assertTrue(json.contains("\"nombre_cliente\":\"Ana\""))
         assertTrue(json.contains("\"metodo_pago\":\"efectivo\""))
     }
 
@@ -98,7 +98,7 @@ class OrderContractTest {
         val request = validRequest().copy(origin = OrderOrigin.MOSTRADOR, customerName = null)
         val json = OrderContractJson().encodeCreateRequest(request)
         assertFalse(json.contains("origen"))
-        assertFalse(json.contains("nombre_cliente_snapshot"))
+        assertFalse(json.contains("nombre_cliente"))
     }
 
     @Test
