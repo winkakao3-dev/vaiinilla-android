@@ -137,6 +137,12 @@ private fun navTapDurationMs(distance: Float): Int = (220f + 50f * (distance - 1
 /** Content clearance: dock + float gap + breathing room (excludes system inset). */
 val VaiinillaBottomNavClearance: Dp = NavDockHeight + NavDockGapAboveSafeArea + 16.dp
 
+/** Dónde termina el dock por arriba (sin el área del sistema): lo que flota encima va arriba de esto. */
+val VaiinillaBottomNavTop: Dp = NavDockHeight + NavDockGapAboveSafeArea
+
+/** Margen lateral del dock, para alinear con su orilla lo que flota encima. */
+val VaiinillaBottomNavSideMargin: Dp = NavDockHorizontalMargin
+
 enum class StudentTab {
     MENU,
     ASSISTANT, // reserved; not in the dock until the next assistant drop
