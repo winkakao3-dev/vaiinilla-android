@@ -617,7 +617,7 @@ private fun PaymentMethodOverlay(
                 PaymentMethodCardOption(
                     icon = Icons.Outlined.Payments,
                     title = "Pago en caja",
-                    subtitle = "Pagas en caja y se prepara al pagar",
+                    subtitle = "Pagas en caja antes de recogerlo",
                     selected = selectedMethod == PaymentMethod.CASH,
                     enabled = !selectionLocked,
                     onClick = {
