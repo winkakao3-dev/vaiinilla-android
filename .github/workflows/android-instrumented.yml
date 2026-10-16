@@ -38,6 +38,8 @@ jobs:
       # it in a real release gate, following the same convention as the other actions
       # pinned above. Left as a version tag here because it could not be verified from
       # this session.
+      # Un solo worker: con el emulador encendido, compilar los tres sabores en paralelo agota el heap
+      # del daemon de Kotlin (OutOfMemoryError en compileDev*DebugKotlin).
       - name: Run instrumented tests on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -47,7 +49,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: >-
-            ./gradlew --no-daemon
+            ./gradlew --no-daemon --max-workers=1
             connectedDevAlumnoDebugAndroidTest
             connectedDevCajaDebugAndroidTest
             connectedDevCocinaDebugAndroidTest
