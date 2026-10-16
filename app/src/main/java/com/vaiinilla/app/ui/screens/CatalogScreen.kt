@@ -66,7 +66,7 @@ import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.ui.components.ActiveOrderBanner
 import com.vaiinilla.app.ui.components.ChoiceChip
-import com.vaiinilla.app.ui.components.CourtsBanner
+import com.vaiinilla.app.ui.components.CourtsCarousel
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialSearchField
 import com.vaiinilla.app.ui.components.EmptyState
@@ -427,8 +427,9 @@ private fun CatalogContent(
                     // Al buscar solo quedan los resultados: las canchas no se filtran por texto.
                     if (courts.isNotEmpty() && state.searchQuery.isBlank()) {
                         item(key = "courts-banner", span = { GridItemSpan(maxLineSpan) }) {
-                            CourtsBanner(
+                            CourtsCarousel(
                                 courts = courts,
+                                bleed = CatalogSideMargin,
                                 onOpen = onOpenCourts,
                                 modifier = Modifier.animateItem().padding(bottom = 6.dp),
                             )
