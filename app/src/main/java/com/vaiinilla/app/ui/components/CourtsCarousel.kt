@@ -1,20 +1,22 @@
 package com.vaiinilla.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -43,8 +46,8 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import kotlinx.coroutines.delay
 
 /**
- * Las canchas dentro del menú: un encabezado con cuántas están libres y una fila de tarjetas del mismo
- * tamaño que las de la renta, que se desliza de orilla a orilla. Las ocupadas cuentan en vivo lo que les
+ * Las canchas dentro del menú: un encabezado con cuántas están libres y una fila de tarjetas que miden
+ * una columna de la cuadrícula de comida, con su mismo hueco y esquinas; se desliza de orilla a orilla. Las ocupadas cuentan en vivo lo que les
  * falta y llevan una barra con el avance del turno. Tocar cualquier parte abre la renta.
  */
 @Composable
@@ -53,13 +56,15 @@ fun CourtsCarousel(
     modifier: Modifier = Modifier,
     /** Margen lateral de la pantalla: la fila lo cruza para llegar a la orilla. */
     bleed: Dp = 0.dp,
+    /** Hueco entre columnas de la cuadrícula de abajo: cada tarjeta mide una columna, como las de comida. */
+    columnGap: Dp = 14.dp,
     /** Abre la renta de canchas; sin él, las tarjetas solo informan. */
     onOpen: (() -> Unit)? = null,
 ) {
     if (courts.isEmpty()) return
     val colors = LocalVaiinillaColors.current
     val free = courts.count { it.isFreeNow }
-    val anyRunning = courts.any { it.state == SpaceAvailabilityState.OCUPADA || it.state == SpaceAvailabilityState.EN_GRACIA }
+    val anyRunning = courts.any { it.hasRunningTurn }
     // El reloj solo corre mientras alguna cancha tiene turno; si todas están libres no hay nada que contar.
     var tick by remember { mutableIntStateOf(0) }
     LaunchedEffect(anyRunning) {
@@ -108,21 +113,34 @@ fun CourtsCarousel(
                 }
             }
         }
-        LazyRow(
-            modifier = Modifier.bleedHorizontally(bleed),
-            contentPadding = PaddingValues(horizontal = bleed),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            itemsIndexed(courts, key = { _, court -> court.space.id }) { index, court ->
-                CourtCard(
-                    court = court,
-                    tick = tick,
-                    reserveBar = anyRunning,
-                    modifier =
-                        Modifier
-                            .arrive(index + 1, key = court.space.id)
-                            .physicalPress(enabled = onOpen != null) { onOpen?.invoke() },
-                )
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val cardWidth = (maxWidth - columnGap) / 2
+            // Una fila normal y no perezosa: son pocas canchas y así todas toman la altura de la más alta
+            // aunque un nombre ocupe dos líneas.
+            Row(
+                modifier =
+                    Modifier
+                        .bleedHorizontally(bleed)
+                        .height(IntrinsicSize.Min)
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = bleed),
+                horizontalArrangement = Arrangement.spacedBy(columnGap),
+            ) {
+                courts.forEachIndexed { index, court ->
+                    key(court.space.id) {
+                        CourtCard(
+                            court = court,
+                            tick = tick,
+                            reserveBar = anyRunning,
+                            modifier =
+                                Modifier
+                                    .width(cardWidth)
+                                    .fillMaxHeight()
+                                    .arrive(index + 1, key = court.space.id)
+                                    .physicalPress(enabled = onOpen != null) { onOpen?.invoke() },
+                        )
+                    }
+                }
             }
         }
     }
@@ -140,9 +158,9 @@ private fun CourtCard(
     // Apartada, cuenta regresiva y avance dependen de la hora, no de un dato nuevo: se recalculan con el tick.
     tick.hashCode()
     val held = court.isHeldAt()
-    val running = court.state == SpaceAvailabilityState.OCUPADA || court.state == SpaceAvailabilityState.EN_GRACIA
-    val remaining = if (running) millisUntil(court.releasesAt ?: court.endsAt) else null
-    val progress = if (court.state == SpaceAvailabilityState.OCUPADA) turnFraction(court.startedAt, court.endsAt) else null
+    val remaining = if (court.hasRunningTurn) millisUntil(court.releasesAt ?: court.endsAt) else null
+    val progress =
+        if (court.state == SpaceAvailabilityState.OCUPADA) turnFraction(court.startedAt, court.endsAt) else null
     val dot =
         animateSelectionColor(
             when {
@@ -155,10 +173,9 @@ private fun CourtCard(
     Column(
         modifier =
             modifier
-                .width(156.dp)
-                .clip(RoundedCornerShape(22.dp))
+                .clip(RoundedCornerShape(24.dp))
                 .background(colors.paper2)
-                .padding(16.dp),
+                .padding(18.dp),
     ) {
         Text(
             court.space.name,
@@ -177,6 +194,7 @@ private fun CourtCard(
                 modifier = Modifier.padding(top = 2.dp),
             )
         }
+        Spacer(Modifier.weight(1f))
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 10.dp)) {
             Box(Modifier.size(8.dp).clip(CircleShape).background(dot))
             if (remaining != null && remaining > 0) {
@@ -221,6 +239,10 @@ private fun CourtCard(
         }
     }
 }
+
+/** Hay un turno corriendo (o en sus minutos de gracia): la tarjeta cuenta lo que falta. */
+private val SpaceAvailability.hasRunningTurn: Boolean
+    get() = state == SpaceAvailabilityState.OCUPADA || state == SpaceAvailabilityState.EN_GRACIA
 
 /** Ensancha el contenido `amount` a cada lado para que cruce el margen de la pantalla. */
 private fun Modifier.bleedHorizontally(amount: Dp): Modifier =

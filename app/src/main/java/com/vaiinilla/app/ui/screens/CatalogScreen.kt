@@ -431,7 +431,8 @@ private fun CatalogContent(
                                 courts = courts,
                                 bleed = CatalogSideMargin,
                                 onOpen = onOpenCourts,
-                                modifier = Modifier.animateItem().padding(bottom = 6.dp),
+                                // Con el espacio de la cuadrícula (12) queda el mismo hueco de 14 que entre columnas.
+                                modifier = Modifier.animateItem().padding(bottom = 2.dp),
                             )
                         }
                     }
