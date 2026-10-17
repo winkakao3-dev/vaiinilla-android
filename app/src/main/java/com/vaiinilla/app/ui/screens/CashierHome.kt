@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,9 +29,11 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.ui.components.NumberTicker
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.screens.admin.AdminSheet
 
 /** Las dos cosas que la caja inicia en cualquier momento: un pedido de mostrador y una recarga. */
 @Composable
@@ -175,4 +179,28 @@ internal fun CashierQueueLoading(
         color = colors.textSecondary,
         modifier = modifier.fillMaxWidth().padding(vertical = 6.dp),
     )
+}
+
+/** Caja toma pedidos como el mesero: para llevar o a una mesa (a su cuenta si el negocio deja pagar al final). */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun CashierNewOrderSheet(
+    tables: List<TableSpace>,
+    colors: OperationalColors,
+    onDismiss: () -> Unit,
+    onTakeAway: () -> Unit,
+    onTable: (TableSpace) -> Unit,
+) {
+    AdminSheet(title = "Nuevo pedido", colors = colors, busy = false, onDismiss = onDismiss) {
+        ActionPill(label = "Para llevar", enabled = true, loading = false, colors = colors, onClick = onTakeAway)
+        Text("O en una mesa:", fontSize = 13.sp, color = colors.textSecondary)
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            tables.forEach { table ->
+                ChipButton(label = table.name, enabled = true, colors = colors) { onTable(table) }
+            }
+        }
+    }
 }

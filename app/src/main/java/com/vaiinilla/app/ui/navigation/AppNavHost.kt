@@ -1716,6 +1716,8 @@ fun AppNavHost(
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "cashier",
                         onNewCounterOrder = waiterViewModel::openCounterOrder,
+                        orderTables = waiterState.tables.map { it.space }.filter { it.type != "cancha" },
+                        onNewTableOrder = waiterViewModel::openTableOrder,
                         // Con el tablero sin actualizar no se afirma "Nada por cobrar".
                         pendingSpaces =
                             waiterState.tables
