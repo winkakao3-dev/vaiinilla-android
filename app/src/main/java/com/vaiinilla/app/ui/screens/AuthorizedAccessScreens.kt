@@ -265,6 +265,9 @@ fun AuthorizedModeScreen(
                         }
                     }
                 }
+                adminCoverNote(staffModes)?.let { note ->
+                    Text(note, color = colors.muted, fontSize = 13.sp, lineHeight = 18.sp)
+                }
                 state.errorMessage?.let { error ->
                     Surface(color = colors.coral.copy(alpha = 0.16f), shape = RoundedCornerShape(16.dp)) {
                         Text(
@@ -297,6 +300,24 @@ fun AuthorizedModeScreen(
             }
         }
     }
+}
+
+/**
+ * Quien administra un negocio también tiene Caja, Mesero y Cocina ahí, para cubrir a quien falte. Se explica
+ * debajo de la lista para que no parezca que alguien más le dio esos accesos.
+ */
+internal fun adminCoverNote(staffModes: List<AuthorizedMode>): String? {
+    val covered =
+        staffModes
+            .filter { it.role == OperationalRole.ADMIN }
+            .filter { admin ->
+                staffModes.any { it.establishmentId == admin.establishmentId && it.role != OperationalRole.ADMIN }
+            }.map { it.establishmentName }
+            .distinct()
+    if (covered.isEmpty()) return null
+    val where = if (covered.size == 1) " en ${covered.single()}" else ""
+    return "Como eres administración$where, también tienes Caja, Mesero y Cocina para cubrir a quien falte. " +
+        "Entras con las mismas pantallas de ese rol y lo que hagas queda a tu nombre."
 }
 
 private fun staffModeIcon(role: OperationalRole) =

@@ -117,6 +117,7 @@ import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.model.amountFor
 import com.vaiinilla.app.domain.model.asTipWire
 import com.vaiinilla.app.domain.repository.StoreImageKind
+import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_ADD_PRODUCT
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_CASHIER_ORDER_CARD
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_KITCHEN_CARD
@@ -288,6 +289,9 @@ fun CashierOperationalScreen(
     assistantUserKey: String = "cashier",
     /** Abre el pedido de mostrador; null lo oculta. */
     onNewCounterOrder: (() -> Unit)? = null,
+    /** Mesas a las que Caja toma pedido, como el mesero; vacío, "Nuevo pedido" es para llevar. */
+    orderTables: List<TableSpace> = emptyList(),
+    onNewTableOrder: ((TableSpace) -> Unit)? = null,
     /** Mesas y canchas con cuenta sin cobrar; null mientras no se sabe. */
     pendingSpaces: Int? = null,
     /** Aviso que llega de fuera (por ejemplo, el folio del pedido de mostrador). */
@@ -353,6 +357,7 @@ fun CashierOperationalScreen(
     LaunchedEffect(notice) { notice?.let { toastMessage = it } }
     var assistantPulse by remember { mutableIntStateOf(0) }
     var walletSheetOpen by remember { mutableStateOf(false) }
+    var choosingOrderPlace by remember { mutableStateOf(false) }
 
     // Caja solo actúa sobre pedidos por cobrar o listos para entregar; el resto es de cocina.
     var selectedCashierOrderId by remember { mutableStateOf<String?>(null) }
@@ -536,7 +541,11 @@ fun CashierOperationalScreen(
                         onNewCounterOrder?.let { open ->
                             {
                                 haptics.selection()
-                                open()
+                                if (onNewTableOrder != null && orderTables.isNotEmpty()) {
+                                    choosingOrderPlace = true
+                                } else {
+                                    open()
+                                }
                             }
                         },
                     onReload = {
@@ -1090,6 +1099,22 @@ fun CashierOperationalScreen(
             badgeColor = colors.accentLime,
             badgeContentColor = colors.accentInk,
         )
+
+        if (choosingOrderPlace) {
+            CashierNewOrderSheet(
+                tables = orderTables,
+                colors = colors,
+                onDismiss = { choosingOrderPlace = false },
+                onTakeAway = {
+                    choosingOrderPlace = false
+                    onNewCounterOrder?.invoke()
+                },
+                onTable = { table ->
+                    choosingOrderPlace = false
+                    onNewTableOrder?.invoke(table)
+                },
+            )
+        }
 
         if (walletSheetOpen) {
             WalletReloadSheet(
