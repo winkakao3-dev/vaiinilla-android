@@ -8,6 +8,9 @@ object Routes {
 
     const val CATALOG = "catalog"
     const val CART = "cart"
+
+    /** El menú deslizable ("Desliza"), a pantalla completa y sin barra de abajo. */
+    const val MENU_FEED = "menu-feed"
     const val CONFIRMATION = "order-confirmation"
     const val AUTH_LANDING = "auth/landing?returnRoute={returnRoute}"
     const val AUTH_REGISTER = "auth/register?returnRoute={returnRoute}"
