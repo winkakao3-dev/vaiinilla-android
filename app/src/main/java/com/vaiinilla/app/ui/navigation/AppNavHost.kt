@@ -89,6 +89,7 @@ import com.vaiinilla.app.ui.screens.InvitationAcceptanceScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.LocalScene
 import com.vaiinilla.app.ui.screens.LocalVenueArt
+import com.vaiinilla.app.ui.screens.MenuFeedScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.OrdersAccessGate
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
@@ -927,6 +928,7 @@ fun AppNavHost(
                     profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
                     onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
                     onOpenCart = { navController.navigateStudent(Routes.CART) },
+                    onOpenFeed = { navController.navigate(Routes.MENU_FEED) { launchSingleTop = true } },
                     // Sin cuenta también se renta, salvo en los lugares que piden cuenta: ahí se entra primero.
                     onOpenCourts =
                         if (courtsViewModel.uiState.value.courts
@@ -944,6 +946,24 @@ fun AppNavHost(
                         } else {
                             null
                         },
+                )
+            }
+
+            composable(Routes.MENU_FEED) {
+                MenuFeedScreen(
+                    state = orderState,
+                    onBack = { navController.popBackStack() },
+                    onQuickAdd = orderFlowViewModel::quickAddProduct,
+                    onQuickRemove = orderFlowViewModel::quickRemoveProduct,
+                    onOpenProduct = orderFlowViewModel::openProduct,
+                    onDismissProduct = orderFlowViewModel::closeProduct,
+                    onToggleOption = orderFlowViewModel::toggleOption,
+                    onClearOptionalGroup = orderFlowViewModel::clearOptionalGroup,
+                    onSelectedNotesChange = orderFlowViewModel::updateSelectedNotes,
+                    onQuantityChange = orderFlowViewModel::changeSelectedQuantity,
+                    onAddSelected = orderFlowViewModel::addSelectedProductToCart,
+                    // Atrás desde el carrito regresa al platillo donde ibas.
+                    onOpenCart = { navController.navigate(Routes.CART) { launchSingleTop = true } },
                 )
             }
 
