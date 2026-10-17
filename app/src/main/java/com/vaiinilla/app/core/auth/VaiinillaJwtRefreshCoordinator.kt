@@ -30,17 +30,25 @@ class VaiinillaJwtRefreshCoordinator
         private val refreshLock = ReentrantLock()
         private var lastSuccessfulRefreshNanos: Long = Long.MIN_VALUE
 
+        /**
+         * [saveToken] guarda el token del modo nuevo dentro de refreshLock: si el refresh del modo anterior está en
+         * vuelo, termina primero y su token queda debajo. Guardado antes y fuera del lock, ese refresh tardío de
+         * Caja pisaba el token de Administración y todo lo de admin respondía 403 hasta el siguiente refresh.
+         */
         fun startSession(
             role: OperationalRole,
             expiresInSeconds: Int,
+            saveToken: () -> Unit = {},
             refresh: (() -> Result<Unit>)? = null,
         ) {
-            val generation = sessionGeneration.incrementAndGet()
-            activeRole.set(role)
-            activeRefresh.set(refresh)
-            refreshLock.withLock {
-                lastSuccessfulRefreshNanos = Long.MIN_VALUE
-            }
+            val generation =
+                refreshLock.withLock {
+                    saveToken()
+                    activeRole.set(role)
+                    activeRefresh.set(refresh)
+                    lastSuccessfulRefreshNanos = Long.MIN_VALUE
+                    sessionGeneration.incrementAndGet()
+                }
             scheduleRefresh(expiresInSeconds, generation)
         }
 
