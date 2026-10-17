@@ -197,7 +197,8 @@ class AuthorizedAccessViewModel
                 viewModelScope.launch {
                     withContext(Dispatchers.IO) { repository.activateMode(mode, session) }.fold(
                         onSuccess = { context ->
-                            activateContext(mode, session, context)
+                            // Espera a que termine un refresh del modo anterior: fuera del hilo principal.
+                            withContext(Dispatchers.IO) { activateContext(mode, session, context) }
                             _state.value =
                                 _state.value.copy(
                                     loading = false,
@@ -244,7 +245,7 @@ class AuthorizedAccessViewModel
                 viewModelScope.launch {
                     withContext(Dispatchers.IO) { repository.activateMode(clientMode, session) }.fold(
                         onSuccess = { context ->
-                            activateContext(clientMode, session, context)
+                            withContext(Dispatchers.IO) { activateContext(clientMode, session, context) }
                             _state.value =
                                 _state.value.copy(
                                     loading = false,
@@ -332,10 +333,10 @@ class AuthorizedAccessViewModel
             session: StudentAuthSession,
             context: AuthorizedModeContext,
         ) {
-            sessionStore.saveAccessToken(context.accessToken)
             refreshCoordinator.startSession(
                 role = context.role,
                 expiresInSeconds = context.expiresIn,
+                saveToken = { sessionStore.saveAccessToken(context.accessToken) },
                 refresh = {
                     kotlinx.coroutines.runBlocking {
                         repository.activateMode(mode, session).fold(
