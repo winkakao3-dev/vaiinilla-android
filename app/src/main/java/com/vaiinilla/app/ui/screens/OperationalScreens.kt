@@ -289,8 +289,12 @@ fun CashierOperationalScreen(
     assistantUserKey: String = "cashier",
     /** Abre el pedido de mostrador; null lo oculta. */
     onNewCounterOrder: (() -> Unit)? = null,
-    /** Mesas a las que Caja toma pedido, como el mesero; vacío, "Nuevo pedido" es para llevar. */
+    /** Mesas a las que Caja toma pedido, como el mesero. */
     orderTables: List<TableSpace> = emptyList(),
+    /** Estado del tablero de mesas, para que la hoja de Nuevo pedido diga por qué no hay mesas. */
+    orderTablesLoading: Boolean = false,
+    orderTablesError: String? = null,
+    onRefreshOrderTables: () -> Unit = {},
     onNewTableOrder: ((TableSpace) -> Unit)? = null,
     /** Mesas y canchas con cuenta sin cobrar; null mientras no se sabe. */
     pendingSpaces: Int? = null,
@@ -541,7 +545,7 @@ fun CashierOperationalScreen(
                         onNewCounterOrder?.let { open ->
                             {
                                 haptics.selection()
-                                if (onNewTableOrder != null && orderTables.isNotEmpty()) {
+                                if (onNewTableOrder != null) {
                                     choosingOrderPlace = true
                                 } else {
                                     open()
@@ -1103,6 +1107,8 @@ fun CashierOperationalScreen(
         if (choosingOrderPlace) {
             CashierNewOrderSheet(
                 tables = orderTables,
+                tablesLoading = orderTablesLoading,
+                tablesError = orderTablesError,
                 colors = colors,
                 onDismiss = { choosingOrderPlace = false },
                 onTakeAway = {
@@ -1113,6 +1119,7 @@ fun CashierOperationalScreen(
                     choosingOrderPlace = false
                     onNewTableOrder?.invoke(table)
                 },
+                onRefreshTables = onRefreshOrderTables,
             )
         }
 
