@@ -5,6 +5,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
@@ -19,6 +20,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -69,6 +72,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
@@ -159,6 +164,8 @@ fun MenuFeedScreen(
     val orderBump = remember { Animatable(1f) }
     var hintVisible by rememberSaveable { mutableStateOf(true) }
     var toast by remember { mutableStateOf<String?>(null) }
+    // Cuánto sigue la página al dedo mientras se desliza de lado para cambiar de categoría.
+    val swipeX = remember { Animatable(0f) }
 
     LaunchedEffect(Unit) {
         delay(2600)
@@ -174,6 +181,15 @@ fun MenuFeedScreen(
         if (toast != null) {
             delay(2400)
             toast = null
+        }
+    }
+
+    fun jumpTo(categoryId: Int) {
+        val target = products.indexOfFirst { it.categoryId == categoryId }
+        if (target >= 0) {
+            scope.launch {
+                if (reduced) pagerState.scrollToPage(target) else pagerState.animateScrollToPage(target)
+            }
         }
     }
 
@@ -203,7 +219,36 @@ fun MenuFeedScreen(
                 state = pagerState,
                 beyondViewportPageCount = 1,
                 key = { products[it].id },
-                modifier = Modifier.fillMaxSize(),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { translationX = swipeX.value }
+                        .categorySwipe(
+                            neighbor = { step ->
+                                products.getOrNull(pagerState.currentPage)?.let {
+                                    MenuFeed.neighborCategory(feedCategories, it.categoryId, step)
+                                }
+                            },
+                            onFollow = { dx, hasNeighbor ->
+                                scope.launch { swipeX.snapTo(MenuFeed.followOffset(dx, hasNeighbor, density.density)) }
+                            },
+                            onRelease = { categoryId ->
+                                if (categoryId != null) {
+                                    haptics.selection()
+                                    jumpTo(categoryId)
+                                }
+                                scope.launch {
+                                    if (reduced) {
+                                        swipeX.snapTo(0f)
+                                    } else {
+                                        swipeX.animateTo(
+                                            0f,
+                                            spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow),
+                                        )
+                                    }
+                                }
+                            },
+                        ),
             ) { page ->
                 val product = products[page]
                 val offset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
@@ -257,12 +302,7 @@ fun MenuFeedScreen(
                     reduced = reduced,
                     onSelect = { categoryId ->
                         haptics.selection()
-                        val target = products.indexOfFirst { it.categoryId == categoryId }
-                        if (target >= 0) {
-                            scope.launch {
-                                if (reduced) pagerState.scrollToPage(target) else pagerState.animateScrollToPage(target)
-                            }
-                        }
+                        jumpTo(categoryId)
                     },
                     modifier = Modifier.weight(1f),
                 )
@@ -906,3 +946,53 @@ private fun mediaText(
 private fun <T> snapSpec() =
     androidx.compose.animation.core
         .snap<T>()
+
+/**
+ * De lado, no hacia arriba: a la izquierda la siguiente categoría, a la derecha la anterior. Solo toma el gesto si es
+ * 1.5 veces más horizontal que vertical; lo vertical sigue siendo del pager. [neighbor] da la categoría de ese lado
+ * (o null en la primera y la última), [onFollow] mueve la página con el dedo y [onRelease] recibe a qué categoría
+ * cambiar, si alcanzó.
+ */
+private fun Modifier.categorySwipe(
+    neighbor: (step: Int) -> Int?,
+    onFollow: (dx: Float, hasNeighbor: Boolean) -> Unit,
+    onRelease: (categoryId: Int?) -> Unit,
+): Modifier =
+    pointerInput(Unit) {
+        val threshold = SWIPE_THRESHOLD_DP * density
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            val tracker = VelocityTracker()
+            tracker.addPosition(down.uptimeMillis, down.position)
+            var dx = 0f
+            var dy = 0f
+            var sideways = false
+            while (true) {
+                val event = awaitPointerEvent()
+                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                if (!change.pressed) break
+                // Si el pager ya se llevó el gesto hacia arriba o abajo, este no lo toca.
+                if (!sideways && change.isConsumed) return@awaitEachGesture
+                val delta = change.positionChange()
+                dx += delta.x
+                dy += delta.y
+                tracker.addPosition(change.uptimeMillis, change.position)
+                if (!sideways && kotlin.math.abs(dx) > viewConfiguration.touchSlop && MenuFeed.isSideways(dx, dy)) {
+                    sideways = true
+                }
+                if (sideways) {
+                    change.consume()
+                    onFollow(dx, neighbor(if (dx < 0f) 1 else -1) != null)
+                }
+            }
+            if (!sideways) return@awaitEachGesture
+            val projected = dx + tracker.calculateVelocity().x * SWIPE_PROJECTION_SECONDS
+            val step = MenuFeed.categoryStep(dx, dy, projected, threshold)
+            onRelease(if (step != 0) neighbor(step) else null)
+        }
+    }
+
+private const val SWIPE_THRESHOLD_DP = 90f
+
+/** Cuánto se proyecta la velocidad al soltar, como el desplazamiento previsto de iOS. */
+private const val SWIPE_PROJECTION_SECONDS = 0.2f

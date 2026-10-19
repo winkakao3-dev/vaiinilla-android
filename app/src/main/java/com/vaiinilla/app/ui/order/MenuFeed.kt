@@ -26,6 +26,50 @@ object MenuFeed {
             .map { it.value }
     }
 
+    /** La categoría al lado de [current] en el orden del feed: +1 la siguiente, -1 la anterior; null en las orillas. */
+    fun neighborCategory(
+        categories: List<Int>,
+        current: Int,
+        step: Int,
+    ): Int? = categories.indexOf(current).takeIf { it >= 0 }?.let { categories.getOrNull(it + step) }
+
+    /** Un deslizamiento de lado cuenta si es 1.5 veces más horizontal que vertical. */
+    fun isSideways(
+        dx: Float,
+        dy: Float,
+    ): Boolean = kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.5f
+
+    /**
+     * A qué lado cambia de categoría un deslizamiento de lado: a la izquierda (+1) la siguiente, a la derecha (-1) la
+     * anterior, 0 si no alcanza. [projectedDx] es a dónde llegaría el dedo con su velocidad; tiene que pasar [threshold].
+     */
+    fun categoryStep(
+        dx: Float,
+        dy: Float,
+        projectedDx: Float,
+        threshold: Float,
+    ): Int =
+        when {
+            !isSideways(dx, dy) || kotlin.math.abs(projectedDx) <= threshold -> 0
+            projectedDx < 0f -> 1
+            else -> -1
+        }
+
+    /**
+     * Cuánto se mueve la página con el dedo: 40 % si hay categoría de ese lado; en la primera y la última, un rebote
+     * corto (raíz del desplazamiento por 4, en dp).
+     */
+    fun followOffset(
+        dx: Float,
+        hasNeighbor: Boolean,
+        density: Float,
+    ): Float =
+        if (hasNeighbor) {
+            dx * 0.4f
+        } else {
+            kotlin.math.sign(dx) * kotlin.math.sqrt(kotlin.math.abs(dx) / density) * 4f * density
+        }
+
     /** Con un grupo obligatorio, el "+" abre la ficha para elegir; sin él, agrega directo. */
     fun needsChoice(product: Product): Boolean = product.optionGroups.any { it.minimumSelections > 0 }
 

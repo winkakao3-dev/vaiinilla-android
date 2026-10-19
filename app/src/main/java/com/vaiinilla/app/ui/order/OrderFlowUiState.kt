@@ -70,6 +70,17 @@ enum class PurchaseCelebrationKind {
     ORDER_RECEIVED,
 }
 
+/** Lo que dice la tarjeta de "¡Pedido recibido!": un pedido a la cuenta no se paga en Caja ahora. */
+internal fun celebrationMessage(
+    order: OrderDetail,
+    kind: PurchaseCelebrationKind,
+): String =
+    when {
+        kind == PurchaseCelebrationKind.PAYMENT_CONFIRMED -> "Tu pago fue autorizado y tu pedido ya está en marcha."
+        order.summary.payAtEnd -> "Va a tu cuenta: la pagas al final."
+        else -> "Paga en Caja para continuar con tu pedido."
+    }
+
 internal fun purchaseCelebrationFor(order: OrderDetail): PurchaseCelebration? =
     when (order.summary.paymentMethod) {
         PaymentMethod.CASH ->

@@ -48,6 +48,7 @@ import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.PurchaseCelebrationKind
+import com.vaiinilla.app.ui.order.celebrationMessage
 
 private val SuccessBg = Color(0xFF0D0D0D)
 private val SuccessInk = Color(0xFFF3EFE4)
@@ -110,12 +111,7 @@ fun PurchaseSuccessScreen(
 
     val paid = kind == PurchaseCelebrationKind.PAYMENT_CONFIRMED
     val title = if (paid) "¡Compra confirmada!" else "¡Pedido recibido!"
-    val message =
-        if (paid) {
-            "Tu pago fue autorizado y tu pedido ya está en marcha."
-        } else {
-            "Paga en Caja para continuar con tu pedido."
-        }
+    val message = celebrationMessage(order, kind)
 
     Column(
         modifier =
