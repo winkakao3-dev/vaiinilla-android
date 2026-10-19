@@ -98,4 +98,27 @@ class MenuFeedTest {
         assertEquals("sin cebolla", once.single().notes)
         assertEquals(lines, MenuFeed.removeOne(lines, 404))
     }
+
+    @Test
+    fun `deslizar de lado cambia a la categoría de al lado`() {
+        val categories = listOf(2, 1, 99)
+        assertEquals(1, MenuFeed.neighborCategory(categories, 2, 1))
+        assertEquals(null, MenuFeed.neighborCategory(categories, 2, -1))
+        assertEquals(null, MenuFeed.neighborCategory(categories, 99, 1))
+        assertEquals(null, MenuFeed.neighborCategory(categories, 404, 1))
+
+        // A la izquierda la siguiente, a la derecha la anterior, si pasa el umbral.
+        assertEquals(1, MenuFeed.categoryStep(dx = -120f, dy = 10f, projectedDx = -200f, threshold = 90f))
+        assertEquals(-1, MenuFeed.categoryStep(dx = 120f, dy = 10f, projectedDx = 200f, threshold = 90f))
+        assertEquals(0, MenuFeed.categoryStep(dx = -40f, dy = 5f, projectedDx = -60f, threshold = 90f))
+        // Diagonal: no cuenta como de lado.
+        assertEquals(0, MenuFeed.categoryStep(dx = -120f, dy = 100f, projectedDx = -300f, threshold = 90f))
+    }
+
+    @Test
+    fun `la página sigue al dedo y rebota en las orillas`() {
+        assertEquals(-40f, MenuFeed.followOffset(-100f, hasNeighbor = true, density = 2f), 0.001f)
+        // Sin categoría de ese lado: raíz del desplazamiento en dp por 4 (100 px a 2x son 50 dp → √50·4·2).
+        assertEquals(-56.5685f, MenuFeed.followOffset(-100f, hasNeighbor = false, density = 2f), 0.001f)
+    }
 }

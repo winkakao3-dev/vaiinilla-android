@@ -126,6 +126,7 @@ import com.vaiinilla.app.ui.components.rentalScheduleLabel
 import com.vaiinilla.app.ui.order.PickupPlace
 import com.vaiinilla.app.ui.order.PickupStep
 import com.vaiinilla.app.ui.order.PurchaseCelebrationKind
+import com.vaiinilla.app.ui.order.celebrationMessage
 import com.vaiinilla.app.ui.order.courtLights
 import com.vaiinilla.app.ui.order.pickupCodeHint
 import com.vaiinilla.app.ui.order.pickupCodeUseful
@@ -225,7 +226,6 @@ private fun buildMosaic(
     palette: ScenePalette,
     scene: PickupScene,
     now: Instant,
-    floorLogo: FloorLogo?,
 ): Mosaic {
     val camera = cameraAt(HANDOFF, width, height, scene)
     val sceneCenter = camera.toScene(Offset(width * 0.5f, height * 0.42f))
@@ -234,7 +234,7 @@ private fun buildMosaic(
     val cells =
         SceneMosaic.build(matrix, Size(width, height), sceneCenter, sceneSide, density, outside) { stage ->
             when (scene) {
-                is PickupScene.Table -> drawFloorPlan(stage, palette, scene.table, logo = floorLogo)
+                is PickupScene.Table -> drawFloorPlan(stage, palette, scene.table)
                 is PickupScene.Court -> drawCourt(stage, palette, scene.court, now)
                 PickupScene.Storefront -> drawStorefront(stage, textMeasurer, palette, SceneMotion())
             }
@@ -528,11 +528,10 @@ private fun PickupJourney(
         val widthPx = with(density) { maxWidth.toPx() }
         val heightPx = with(density) { maxHeight.toPx() }
         val stage = Size(widthPx, heightPx)
-        val floorLogo = LocalVenueArt.current.floorLogo
         val mosaic =
-            remember(matrix, widthPx, heightPx, palette, scene, floorLogo) {
+            remember(matrix, widthPx, heightPx, palette, scene) {
                 matrix?.let {
-                    buildMosaic(it, widthPx, heightPx, density, textMeasurer, palette, scene, now, floorLogo)
+                    buildMosaic(it, widthPx, heightPx, density, textMeasurer, palette, scene, now)
                 }
             }
         val p = reveal.value
@@ -561,7 +560,7 @@ private fun PickupJourney(
         // La hoja de vidrio deja ver lo mismo que la cámara: la cocina cuando está asomada.
         val drawWorld: DrawScope.() -> Unit = {
             if (scene is PickupScene.Table) {
-                drawFloorPlan(stage, palette, scene.table, tick, cheering, plate, floorLogo)
+                drawFloorPlan(stage, palette, scene.table, tick, cheering, plate)
             } else if (scene is PickupScene.Court) {
                 drawCourt(stage, palette, scene.court, now, tick, courtLight)
             } else if (peeking) {
@@ -597,7 +596,7 @@ private fun PickupJourney(
                         },
             ) {
                 when (scene) {
-                    is PickupScene.Table -> drawFloorPlan(stage, palette, scene.table, tick, cheering, plate, floorLogo)
+                    is PickupScene.Table -> drawFloorPlan(stage, palette, scene.table, tick, cheering, plate)
                     is PickupScene.Court -> drawCourt(stage, palette, scene.court, now, tick, courtLight)
                     PickupScene.Storefront -> drawStorefront(stage, textMeasurer, palette, motion, kitchen)
                 }
@@ -695,12 +694,7 @@ private fun CelebrationCard(
     val c = LocalScene.current
     val paid = kind == PurchaseCelebrationKind.PAYMENT_CONFIRMED
     val title = if (paid) "¡Compra confirmada!" else "¡Pedido recibido!"
-    val message =
-        if (paid) {
-            "Tu pago fue autorizado y tu pedido ya está en marcha."
-        } else {
-            "Paga en Caja para continuar con tu pedido."
-        }
+    val message = celebrationMessage(order, kind)
     val leaving = 1f - shown
     GlassPanel(
         backdrop = backdrop,

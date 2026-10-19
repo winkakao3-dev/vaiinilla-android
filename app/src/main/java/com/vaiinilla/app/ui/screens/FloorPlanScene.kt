@@ -150,11 +150,10 @@ internal fun DrawScope.drawFloorPlan(
     tick: Int? = null,
     cheering: Boolean = false,
     plate: FloorPlate? = null,
-    logo: FloorLogo? = null,
 ) {
     val art = PixelPalette.of(palette)
     drawRect(palette.sidewalk, size = stage)
-    drawPixels(FloorPlanArt.plan(art, mine, logo), FloorPlanLayout.frame(stage))
+    drawPixels(FloorPlanArt.plan(art, mine), FloorPlanLayout.frame(stage))
     val pose =
         when {
             tick == null -> PixelVainiPose.REST
@@ -472,13 +471,12 @@ internal object FloorPlanArt {
     fun plan(
         c: PixelPalette,
         mine: FloorTable?,
-        logo: FloorLogo? = null,
     ): ImageBitmap =
         PixelCache.image(
-            "plan-${c.key}-${mine?.index ?: -1}-${mine?.name.orEmpty()}-${logo?.key.orEmpty()}",
+            "plan-${c.key}-${mine?.index ?: -1}-${mine?.name.orEmpty()}",
             FloorPlanLayout.COLUMNS,
             FloorPlanLayout.ROWS,
-        ) { paintPlan(this, c, mine, logo) }
+        ) { paintPlan(this, c, mine) }
 
     /**
      * Vaini de frente, como el sprite de la skill pixel-film a 3/5: la hoja crema con cuatro picos suaves arriba, la
@@ -654,7 +652,6 @@ internal object FloorPlanArt {
         canvas: PlanPixels,
         c: PixelPalette,
         mine: FloorTable?,
-        logo: FloorLogo?,
     ) {
         val w = FloorPlanLayout.COLUMNS
         val h = FloorPlanLayout.ROWS
@@ -681,8 +678,6 @@ internal object FloorPlanArt {
         // Sombra de los muros sobre el piso.
         canvas.rect(floor.x, floor.y, floor.width, 1, c.seam)
         canvas.rect(floor.x, floor.y, 1, floor.height, c.seam)
-
-        if (logo != null) logoRug(canvas, logo, c)
 
         // De noche cada mesa tiene su lámpara; a medianoche solo la tuya.
         if (c.night) {
@@ -817,41 +812,6 @@ internal object FloorPlanArt {
                 if (canvas[x, y] == c.floor || canvas[x, y] == c.floorDark) canvas[x, y] = c.floorLit
             }
         }
-    }
-
-    /**
-     * El logo del negocio pintado en el piso del salón, grande y al centro: las mesas quedan encima, como en un local
-     * de verdad, y las juntas de la duela se asoman un poco. De noche se oscurece igual que el piso.
-     */
-    private fun logoRug(
-        canvas: PlanPixels,
-        logo: FloorLogo,
-        c: PixelPalette,
-    ) {
-        val size = FloorLogo.SIZE
-        val left = 48 - size / 2
-        val top = 59 - size / 2
-        val dim = if (c.night) 0.72f else 1f
-        for (y in 0 until size) {
-            for (x in 0 until size) {
-                val floor = canvas[left + x, top + y]
-                val color = logo.pixels[y * size + x]
-                // Lo transparente del logo deja ver la duela; lo opaco se pinta encima.
-                if ((color ushr 24) < 0x40) continue
-                val board = floor == c.floorDark
-                canvas[left + x, top + y] = dimmed(FloorLogo.over(color, floor), if (board) dim * 0.9f else dim)
-            }
-        }
-    }
-
-    private fun dimmed(
-        color: Int,
-        factor: Float,
-    ): Int {
-        if (factor >= 1f) return color
-
-        fun channel(shift: Int) = (((color shr shift) and 0xFF) * factor).toInt()
-        return (0xFF shl 24) or (channel(16) shl 16) or (channel(8) shl 8) or channel(0)
     }
 
     /** Una mesa redonda de 12 pixeles: luz arriba a la izquierda, borde oscuro y sombra abajo a la derecha. */

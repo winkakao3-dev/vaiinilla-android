@@ -164,7 +164,6 @@ internal fun StoreEntranceOverlay(
     ) {
         val stage = with(density) { Size(maxWidth.toPx(), maxHeight.toPx()) }
         val mine = table
-        val floorLogo = LocalVenueArt.current.floorLogo
         // El cuadro de la escena que el QR cubre al deshacerse: la fachada o el plano completo.
         val sceneCenter =
             if (mine != null) {
@@ -173,12 +172,12 @@ internal fun StoreEntranceOverlay(
                 Offset(stage.width / 2f, stage.height * MOSAIC_CENTER_Y)
             }
         val mosaic =
-            remember(matrix, stage, palette, mine, floorLogo) {
+            remember(matrix, stage, palette, mine) {
                 matrix?.let {
                     val outside = if (mine != null) palette.sidewalk else palette.stage
                     SceneMosaic.build(it, stage, sceneCenter, stage.width, density, outside) { size ->
                         if (mine != null) {
-                            drawFloorPlan(size, palette, mine, logo = floorLogo)
+                            drawFloorPlan(size, palette, mine)
                         } else {
                             drawStorefront(size, textMeasurer, palette, SceneMotion())
                         }
@@ -214,7 +213,7 @@ internal fun StoreEntranceOverlay(
                     },
             ) {
                 if (mine != null) {
-                    drawFloorPlan(size, palette, mine, tick, cheering = true, logo = floorLogo)
+                    drawFloorPlan(size, palette, mine, tick, cheering = true)
                 } else {
                     drawStorefront(size, textMeasurer, palette, motion())
                 }

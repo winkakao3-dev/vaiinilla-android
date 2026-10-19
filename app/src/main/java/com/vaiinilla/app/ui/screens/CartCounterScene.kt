@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
+import android.graphics.Bitmap
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.RepeatMode
@@ -21,14 +22,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
@@ -61,11 +68,33 @@ private val CounterCream = Color(0xFFF6EFDD)
 private val CounterVainiLime = Color(0xFFA8D52C)
 private val CounterVainiInk = Color(0xFF1A1414)
 
-/** El logo del negocio en la pared del mostrador, con el color de su orilla para pintar el resto de la pared. */
+/**
+ * El logo del negocio en la pared del mostrador, el color de su orilla para pintar el resto de la pared y si va
+ * como logo o como foto. [backdrop] es la foto chica reducida a pocos pixeles: agrandada con suavizado queda
+ * desenfocada, sin depender de los efectos de Android 12.
+ */
 private class CounterWall(
     val image: ImageBitmap,
     val edgeColor: Int,
+    val style: CounterWallStyle = CounterWallStyle.Logo,
+    val backdrop: ImageBitmap? = null,
 )
+
+private const val BACKDROP_WIDTH = 24
+
+private fun counterWall(venue: VenueArt): CounterWall? {
+    val logo = venue.logo ?: return null
+    val pixels = venue.floorLogo ?: return null
+    val style = CounterWallStyle.decide(pixels, logo.width, logo.height)
+    val backdrop =
+        if (style == CounterWallStyle.SmallPhoto) {
+            val height = (BACKDROP_WIDTH * logo.height / logo.width.coerceAtLeast(1)).coerceAtLeast(1)
+            Bitmap.createScaledBitmap(logo.asAndroidBitmap(), BACKDROP_WIDTH, height, true).asImageBitmap()
+        } else {
+            null
+        }
+    return CounterWall(logo, pixels.edgeColor, style, backdrop)
+}
 
 private class CounterMotion(
     val blink: Float,
@@ -87,12 +116,7 @@ internal fun CartCounterBackdrop(
 ) {
     val palette = LocalScene.current
     val venue = LocalVenueArt.current
-    val wall =
-        remember(venue) {
-            val logo = venue.logo
-            val edge = venue.floorLogo?.edgeColor
-            if (logo != null && edge != null) CounterWall(logo, edge) else null
-        }
+    val wall = remember(venue) { counterWall(venue) }
     val reduceMotion = reducedMotion()
     val textMeasurer = rememberTextMeasurer()
     val slots = remember(lines) { traySlots(lines) }
@@ -201,6 +225,42 @@ internal fun CartCounterBackdrop(
     }
 }
 
+/**
+ * Una foto muy chica para estirarla a todo el ancho: ella misma agrandada y desenfocada llena la pared, y al frente
+ * va entera y nítida, arriba de Vaini y a la izquierda de la pizarra.
+ */
+private fun DrawScope.drawSmallPhotoWall(
+    wall: CounterWall,
+    area: Rect,
+    vainiTop: Float,
+) {
+    val w = area.width
+    clipRect(area.left, area.top, area.right, area.bottom) {
+        val backdrop = wall.backdrop ?: wall.image
+        drawImageCover(backdrop, area.inflate(w * 0.08f), filterQuality = FilterQuality.High)
+    }
+    drawRect(Color.Black.copy(alpha = 0.2f), topLeft = area.topLeft, size = area.size)
+
+    val slot = Rect(Offset(w * 0.05f, w * 0.04f), Size(w * 0.46f, maxOf(vainiTop - w * 0.06f, w * 0.2f)))
+    val scale = minOf(slot.width / wall.image.width, slot.height / wall.image.height)
+    val fit = Size(wall.image.width * scale, wall.image.height * scale)
+    val frame = Rect(Offset(slot.center.x - fit.width / 2f, slot.center.y - fit.height / 2f), fit)
+    val corner = CornerRadius(w * 0.025f)
+    // Sombra corta debajo de la foto: unas capas cada vez más abiertas y tenues.
+    for (step in 1..3) {
+        val spread = w * 0.006f * step
+        drawRoundRect(
+            Color.Black.copy(alpha = 0.12f),
+            topLeft = Offset(frame.left - spread, frame.top - spread + w * 0.008f),
+            size = Size(frame.width + spread * 2f, frame.height + spread * 2f),
+            cornerRadius = CornerRadius(corner.x + spread),
+        )
+    }
+    clipPath(Path().apply { addRoundRect(RoundRect(frame, corner)) }) {
+        drawImageCover(wall.image, frame, filterQuality = FilterQuality.High)
+    }
+}
+
 private fun DrawScope.drawCounter(
     stage: Size,
     textMeasurer: TextMeasurer,
@@ -214,15 +274,29 @@ private fun DrawScope.drawCounter(
     val counterTop = h * COUNTER_TOP_Y
 
     if (wall != null) {
-        // La pared se pinta del color de la orilla del logo y el logo va entero arriba a la izquierda, encima de
-        // Vaini; Vaini, la pizarra y la bandeja quedan delante.
+        // La pared se pinta del color de la orilla del logo; Vaini, la pizarra y la bandeja quedan delante.
         drawRect(Color(wall.edgeColor), size = stage)
-        val logoSide = minOf(w * 0.44f, counterTop - w * 0.34f * 0.8f - w * 0.03f)
-        drawImageContain(wall.image, Rect(Offset(w * 0.3f - logoSide / 2f, w * 0.03f), Size(logoSide, logoSide)))
+        val wallArea = Rect(0f, 0f, w, counterTop)
+        val vainiTop = counterTop - w * 0.34f * 0.8f
+        when (wall.style) {
+            CounterWallStyle.Logo -> {
+                // El logo entero arriba a la izquierda, encima de Vaini.
+                val logoSide = minOf(w * 0.44f, vainiTop - w * 0.03f)
+                drawImageContain(
+                    wall.image,
+                    Rect(Offset(w * 0.3f - logoSide / 2f, w * 0.03f), Size(logoSide, logoSide)),
+                )
+            }
+            // Lo importante de una foto suele estar arriba del centro.
+            CounterWallStyle.Photo -> drawImageCover(wall.image, wallArea, anchorY = 0.35f)
+            CounterWallStyle.SmallPhoto -> drawSmallPhotoWall(wall, wallArea, vainiTop)
+        }
+        // Hacia el mostrador la pared se oscurece; con foto, más, para que Vaini y la pizarra se lean.
+        val isLogo = wall.style == CounterWallStyle.Logo
         drawRect(
             Brush.verticalGradient(
-                0.6f to Color.Transparent,
-                1f to Color.Black.copy(alpha = 0.18f),
+                (if (isLogo) 0.6f else 0.35f) to Color.Transparent,
+                1f to Color.Black.copy(alpha = if (isLogo) 0.18f else 0.42f),
                 startY = 0f,
                 endY = counterTop,
             ),
