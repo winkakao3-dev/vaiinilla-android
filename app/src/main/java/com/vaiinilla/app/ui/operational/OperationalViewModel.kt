@@ -201,8 +201,9 @@ class OperationalViewModel
         ): Result<List<OrderDetail>> {
             val venue = guestSessionStore.readVenue()
             val slug = venue?.establishment?.slug
-            if (role != OperationalRole.CLIENT || slug == null || !guestCheckoutPolicy.allows(venue)) {
-                return listOrders(role, updatedSince)
+            if (role != OperationalRole.CLIENT) return listOrders(role, updatedSince)
+            if (slug == null || !guestCheckoutPolicy.allows(venue)) {
+                return listOrders(role, updatedSince).map(listOrders::withRecoveredPickupTokens)
             }
             if (!guestOrders.hasIdentity()) return Result.success(emptyList())
             return guestOrders.list(slug)
