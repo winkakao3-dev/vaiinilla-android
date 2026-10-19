@@ -58,6 +58,13 @@ class RemoteOrderRepository(
     private fun parseOrderList(raw: String): List<OrderDetail> =
         contractJson.parseOrderList(raw).map(pickupTokenStore::attach)
 
+    override fun recoverPickupToken(order: OrderDetail): Result<OrderDetail> =
+        apiClient
+            .get("pedidos/${order.summary.id}/qr")
+            .mapCatching(contractJson::parsePickupToken)
+            .mapCatching { token -> pickupTokenStore.attach(order.copy(pickupToken = token)) }
+            .mapApiErrors()
+
     override fun retryStripePayment(
         orderId: String,
         idempotencyKey: String,

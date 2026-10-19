@@ -7,6 +7,7 @@ import android.util.Base64
 import androidx.core.content.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.security.KeyStore
+import java.util.concurrent.ConcurrentHashMap
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -23,11 +24,15 @@ class SharedPreferencesPickupTokenStore
         private val preferences = context.getSharedPreferences(SECURE_PREFERENCES_NAME, Context.MODE_PRIVATE)
         private val legacyPreferences = context.getSharedPreferences(LEGACY_PREFERENCES_NAME, Context.MODE_PRIVATE)
 
+        // Copia en memoria: si el Keystore rechaza la escritura, el QR sigue disponible en esta sesión.
+        private val memory = ConcurrentHashMap<String, String>()
+
         override fun save(
             orderId: String,
             pickupToken: String,
         ) {
             if (orderId.isBlank() || pickupToken.isBlank()) return
+            memory[orderId] = pickupToken
             runCatching {
                 val cipher =
                     Cipher.getInstance(TRANSFORMATION).apply {
@@ -47,6 +52,7 @@ class SharedPreferencesPickupTokenStore
 
         override fun read(orderId: String): String? {
             if (orderId.isBlank()) return null
+            memory[orderId]?.let { return it }
             val storageKey = storageKey(orderId)
             val encrypted =
                 runCatching {
@@ -73,6 +79,7 @@ class SharedPreferencesPickupTokenStore
         }
 
         override fun clear() {
+            memory.clear()
             preferences.edit { clear() }
             legacyPreferences.edit { clear() }
         }

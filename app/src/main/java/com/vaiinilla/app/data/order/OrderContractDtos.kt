@@ -100,6 +100,18 @@ data class OrderDetailEnvelopeDto(
 )
 
 @Serializable
+data class PickupTokenDataDto(
+    @SerialName("qr_token") val pickupToken: String,
+)
+
+@Serializable
+data class PickupTokenEnvelopeDto(
+    val data: PickupTokenDataDto,
+    val meta: MetaDto,
+    val error: JsonElement? = null,
+)
+
+@Serializable
 data class StripeRetryDataDto(
     @SerialName("pago") val payment: OrderPaymentDto,
 )

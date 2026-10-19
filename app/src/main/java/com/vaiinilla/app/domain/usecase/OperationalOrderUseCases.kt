@@ -19,6 +19,19 @@ class ListOrdersUseCase
         ): Result<List<OrderDetail>> = repository.listOrders(role, updatedSince)
 
         fun cachedClientOrders(): List<OrderDetail>? = repository.cachedClientOrders()
+
+        /**
+         * Caja solo entrega con el QR del cliente: un pedido listo sin QR en este dispositivo lo
+         * recupera del backend. Si no se puede, el pedido queda igual y el detalle sigue sin QR.
+         */
+        fun withRecoveredPickupTokens(orders: List<OrderDetail>): List<OrderDetail> =
+            orders.map { order ->
+                if (order.summary.state == OrderState.READY && order.pickupToken.isNullOrBlank()) {
+                    repository.recoverPickupToken(order).getOrNull() ?: order
+                } else {
+                    order
+                }
+            }
     }
 
 class GetOrderUseCase
