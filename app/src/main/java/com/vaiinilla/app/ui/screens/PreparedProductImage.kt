@@ -49,5 +49,50 @@ internal fun prepareProductImage(
     }
 }
 
+/**
+ * El logo del negocio: más chico que la foto de un producto y, si trae transparencia, en PNG para no perderla
+ * (en el piso del plano lo transparente deja ver la duela). Sin transparencia va en JPEG, como los productos.
+ */
+internal fun prepareStoreLogo(
+    context: android.content.Context,
+    uri: Uri,
+): PreparedProductImage? {
+    val original =
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            input.readBytesLimited(MAX_SOURCE_PRODUCT_IMAGE_BYTES)
+        } ?: return null
+    if (original.isEmpty()) return null
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(original, 0, original.size, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+    val longest = maxOf(bounds.outWidth, bounds.outHeight)
+    val sample = if (longest <= MAX_LOGO_SIDE) 1 else Integer.highestOneBit((longest - 1) / MAX_LOGO_SIDE)
+    val decoded =
+        BitmapFactory.decodeByteArray(
+            original,
+            0,
+            original.size,
+            BitmapFactory.Options().apply { inSampleSize = sample },
+        ) ?: return null
+    return try {
+        if (decoded.hasAlpha()) {
+            val out = ByteArrayOutputStream()
+            if (!decoded.compress(Bitmap.CompressFormat.PNG, 100, out)) return null
+            val bytes = out.toByteArray()
+            if (bytes.size > MAX_PRODUCT_IMAGE_BYTES) return null
+            PreparedProductImage(bytes, "logo.png", "image/png")
+        } else {
+            val out = ByteArrayOutputStream()
+            if (!decoded.compress(Bitmap.CompressFormat.JPEG, 90, out)) return null
+            val bytes = out.toByteArray()
+            if (bytes.size > MAX_PRODUCT_IMAGE_BYTES) return null
+            PreparedProductImage(bytes, "logo.jpg", "image/jpeg")
+        }
+    } finally {
+        decoded.recycle()
+    }
+}
+
+private const val MAX_LOGO_SIDE = 1024
 private const val MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024
 private const val MAX_SOURCE_PRODUCT_IMAGE_BYTES = 16 * 1024 * 1024

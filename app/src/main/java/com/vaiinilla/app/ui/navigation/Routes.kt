@@ -8,6 +8,9 @@ object Routes {
 
     const val CATALOG = "catalog"
     const val CART = "cart"
+
+    /** El menú deslizable ("Desliza"), a pantalla completa y sin barra de abajo. */
+    const val MENU_FEED = "menu-feed"
     const val CONFIRMATION = "order-confirmation"
     const val AUTH_LANDING = "auth/landing?returnRoute={returnRoute}"
     const val AUTH_REGISTER = "auth/register?returnRoute={returnRoute}"
@@ -45,6 +48,7 @@ object Routes {
     const val CASHIER = "cashier"
     const val KITCHEN = "kitchen"
     const val WAITER = "waiter"
+    const val ADMIN = "admin"
 
     /** Caja también cobra la cuenta de una mesa o cancha: abre el mismo tablero que el mesero. */
     const val CASHIER_ACCOUNTS = "cashier_accounts"

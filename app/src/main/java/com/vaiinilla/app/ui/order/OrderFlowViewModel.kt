@@ -545,6 +545,34 @@ class OrderFlowViewModel
             persistCurrentCartIfNeeded()
         }
 
+        /** El "+" del menú deslizable: agrega uno directo o, con opciones obligatorias, abre la ficha. */
+        fun quickAddProduct(productId: Int) {
+            val state = _uiState.value
+            val product = state.catalog?.products?.firstOrNull { it.id == productId } ?: return
+            if (MenuFeed.needsChoice(product)) {
+                openProduct(productId)
+                return
+            }
+            when (val change = MenuFeed.addOne(state.cartLines, product)) {
+                is MenuFeed.Change.Rejected -> _uiState.value = state.copy(createOrderError = change.message)
+                is MenuFeed.Change.Updated -> {
+                    pendingIdempotencyKey = null
+                    _uiState.value = state.copy(cartLines = change.lines, createOrderError = null)
+                    persistCurrentCartIfNeeded()
+                }
+            }
+        }
+
+        /** El "−" del menú deslizable: uno menos del platillo. */
+        fun quickRemoveProduct(productId: Int) {
+            val state = _uiState.value
+            val updated = MenuFeed.removeOne(state.cartLines, productId)
+            if (updated == state.cartLines) return
+            pendingIdempotencyKey = null
+            _uiState.value = state.copy(cartLines = updated, createOrderError = null)
+            persistCurrentCartIfNeeded()
+        }
+
         fun changeCartLineQuantity(
             lineKey: String,
             delta: Int,

@@ -100,6 +100,14 @@ class OrderContractJson
             return envelope.data.map { it.toDomain() }
         }
 
+        fun parsePickupToken(raw: String): String {
+            val envelope = json.decodeFromString<PickupTokenEnvelopeDto>(raw)
+            requireEnvelopeSuccess(envelope.error)
+            val token = envelope.data.pickupToken.trim()
+            require(token.isNotEmpty()) { "La API devolvió un qr_token vacío." }
+            return token
+        }
+
         fun parseStripeRetry(raw: String): StripePaymentSession {
             val envelope = json.decodeFromString<StripeRetryEnvelopeDto>(raw)
             requireEnvelopeSuccess(envelope.error)

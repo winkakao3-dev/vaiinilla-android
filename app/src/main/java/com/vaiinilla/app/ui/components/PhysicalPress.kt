@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -33,6 +34,9 @@ fun Modifier.physicalPress(
 ): Modifier =
     composed {
         var pressed by remember { mutableStateOf(false) }
+        // El detector no se reinicia cuando llega otra lambda: una pantalla que se recompone
+        // cada segundo (reloj, tablero en vivo) cortaba el toque entre apretar y soltar.
+        val currentOnClick by rememberUpdatedState(onClick)
         val targetScale =
             when {
                 !pressed -> 1f
@@ -69,14 +73,18 @@ fun Modifier.physicalPress(
             }.graphicsLayer {
                 scaleX = animatedScale
                 scaleY = animatedScale
-            }.pointerInput(enabled, onClick) {
+            }.pointerInput(enabled) {
                 if (!enabled) return@pointerInput
                 detectTapGestures(
                     onPress = {
                         pressed = true
-                        val released = tryAwaitRelease()
-                        pressed = false
-                        if (released) onClick()
+                        val released =
+                            try {
+                                tryAwaitRelease()
+                            } finally {
+                                pressed = false
+                            }
+                        if (released) currentOnClick()
                     },
                 )
             }

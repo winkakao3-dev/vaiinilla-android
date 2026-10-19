@@ -29,6 +29,7 @@ import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
 import com.vaiinilla.app.domain.repository.DeviceIdentity
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
+import com.vaiinilla.app.domain.repository.StoreImageKind
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.WaiterRepository
 import com.vaiinilla.app.domain.repository.WalletRepository
@@ -138,6 +139,11 @@ class OperationalViewModel
                     catalog = null,
                 )
             pendingWalletReload = null
+            // Administración tiene su propia pantalla y su propio ViewModel: aquí no se sondean pedidos.
+            if (role == OperationalRole.ADMIN) {
+                pollingJob?.cancel()
+                return
+            }
             refreshCashSession()
             refresh()
             if (role == OperationalRole.CASHIER) {
@@ -195,8 +201,9 @@ class OperationalViewModel
         ): Result<List<OrderDetail>> {
             val venue = guestSessionStore.readVenue()
             val slug = venue?.establishment?.slug
-            if (role != OperationalRole.CLIENT || slug == null || !guestCheckoutPolicy.allows(venue)) {
-                return listOrders(role, updatedSince)
+            if (role != OperationalRole.CLIENT) return listOrders(role, updatedSince)
+            if (slug == null || !guestCheckoutPolicy.allows(venue)) {
+                return listOrders(role, updatedSince).map(listOrders::withRecoveredPickupTokens)
             }
             if (!guestOrders.hasIdentity()) return Result.success(emptyList())
             return guestOrders.list(slug)
@@ -779,6 +786,31 @@ class OperationalViewModel
             }
         }
 
+        /** Cocina quita un solo artículo que no puede preparar; el cliente verá el motivo y el total baja. */
+        fun rejectItem(
+            orderId: String,
+            itemId: Int,
+            expectedVersion: Int,
+            reason: String,
+        ) {
+            val motivo = reason.trim()
+            if (motivo.length < MIN_REJECTION_REASON) {
+                showMutationError("Escribe el motivo (mínimo $MIN_REJECTION_REASON letras).")
+                return
+            }
+            val version = freshVersion(orderId, expectedVersion)
+            performMutation(successNotice = { order -> "Se quitó un artículo de la comanda #${order.summary.folio}" }) {
+                cancelOrder
+                    .rejectItem(
+                        orderId = orderId,
+                        itemId = itemId,
+                        expectedVersion = version,
+                        reason = motivo,
+                        idempotencyKey = MutationIdempotency.itemRejection(orderId, itemId, version, motivo),
+                    ).getOrThrow()
+            }
+        }
+
         fun markReady(
             orderId: String,
             expectedVersion: Int,
@@ -996,6 +1028,7 @@ class OperationalViewModel
 
         fun refreshCatalog() {
             if (_uiState.value.role != OperationalRole.CASHIER) return
+            loadStoreImages()
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }
                 _uiState.value =
@@ -1013,6 +1046,93 @@ class OperationalViewModel
                     )
             }
         }
+
+        /** Un servidor que aún no da las imágenes a Caja responde 403: la tarjeta simplemente no aparece. */
+        private fun loadStoreImages() {
+            viewModelScope.launch {
+                val result = withContext(Dispatchers.IO) { catalogRepository.getStoreImages() }
+                result.onSuccess { images -> _uiState.value = _uiState.value.copy(storeImages = images) }
+            }
+        }
+
+        fun uploadStoreImage(
+            kind: StoreImageKind,
+            bytes: ByteArray,
+            filename: String,
+            mimeType: String,
+        ) {
+            if (_uiState.value.storeImageBusy != null) return
+            if (bytes.size > MAX_PRODUCT_IMAGE_BYTES) {
+                _uiState.value = _uiState.value.copy(storeImageNotice = "La imagen no puede pesar más de 5 MB.")
+                return
+            }
+            _uiState.value = _uiState.value.copy(storeImageBusy = kind, storeImageNotice = null)
+            viewModelScope.launch {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        catalogRepository.uploadStoreImage(
+                            kind = kind,
+                            bytes = bytes,
+                            filename = filename,
+                            mimeType = mimeType,
+                            idempotencyKey = MutationIdempotency.storeImage(kind.wireValue, bytes),
+                        )
+                    }
+                _uiState.value =
+                    result.fold(
+                        onSuccess = { images ->
+                            _uiState.value.copy(
+                                storeImages = images,
+                                storeImageBusy = null,
+                                storeImageNotice = storeImageDone(kind, removed = false),
+                            )
+                        },
+                        onFailure = { error ->
+                            _uiState.value.copy(
+                                storeImageBusy = null,
+                                storeImageNotice = error.toUserFacingMessage("No se pudo subir la imagen."),
+                            )
+                        },
+                    )
+            }
+        }
+
+        fun removeStoreImage(kind: StoreImageKind) {
+            if (_uiState.value.storeImageBusy != null) return
+            _uiState.value = _uiState.value.copy(storeImageBusy = kind, storeImageNotice = null)
+            viewModelScope.launch {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        catalogRepository.removeStoreImage(kind, UUID.randomUUID().toString())
+                    }
+                _uiState.value =
+                    result.fold(
+                        onSuccess = { images ->
+                            _uiState.value.copy(
+                                storeImages = images,
+                                storeImageBusy = null,
+                                storeImageNotice = storeImageDone(kind, removed = true),
+                            )
+                        },
+                        onFailure = { error ->
+                            _uiState.value.copy(
+                                storeImageBusy = null,
+                                storeImageNotice = error.toUserFacingMessage("No se pudo quitar la imagen."),
+                            )
+                        },
+                    )
+            }
+        }
+
+        private fun storeImageDone(
+            kind: StoreImageKind,
+            removed: Boolean,
+        ): String =
+            when (kind) {
+                StoreImageKind.LOGO -> if (removed) "Logo quitado." else "Logo actualizado. Tus clientes ya lo ven."
+                StoreImageKind.PHOTO ->
+                    if (removed) "Foto del lugar quitada." else "Foto del lugar actualizada. Tus clientes ya la ven."
+            }
 
         fun setProductAvailable(
             productId: Int,

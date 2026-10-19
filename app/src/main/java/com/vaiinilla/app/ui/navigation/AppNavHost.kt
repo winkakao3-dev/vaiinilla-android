@@ -21,6 +21,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -52,6 +53,10 @@ import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.canCallWaiter
 import com.vaiinilla.app.domain.repository.hasPendingAccount
 import com.vaiinilla.app.ui.account.AccountDeletionViewModel
+import com.vaiinilla.app.ui.admin.AdminSpacesViewModel
+import com.vaiinilla.app.ui.admin.AdminStaffViewModel
+import com.vaiinilla.app.ui.admin.AdminStoreViewModel
+import com.vaiinilla.app.ui.admin.AdminViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.isRental
@@ -83,6 +88,8 @@ import com.vaiinilla.app.ui.screens.FloorTable
 import com.vaiinilla.app.ui.screens.InvitationAcceptanceScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.LocalScene
+import com.vaiinilla.app.ui.screens.LocalVenueArt
+import com.vaiinilla.app.ui.screens.MenuFeedScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.OrdersAccessGate
 import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
@@ -104,8 +111,13 @@ import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
 import com.vaiinilla.app.ui.screens.WalletPaymentMethodsScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
 import com.vaiinilla.app.ui.screens.WelcomeBootStage
+import com.vaiinilla.app.ui.screens.admin.AdminActions
+import com.vaiinilla.app.ui.screens.admin.AdminCashActions
+import com.vaiinilla.app.ui.screens.admin.AdminScreen
+import com.vaiinilla.app.ui.screens.admin.AdminSectionsHost
 import com.vaiinilla.app.ui.screens.rememberOperationalColors
 import com.vaiinilla.app.ui.screens.rememberReduceMotion
+import com.vaiinilla.app.ui.screens.rememberVenueArt
 import com.vaiinilla.app.ui.screens.scenePaletteForTheme
 import com.vaiinilla.app.ui.sharedtable.SharedTableViewModel
 import com.vaiinilla.app.ui.support.SupportLastOrder
@@ -139,6 +151,10 @@ fun AppNavHost(
 ) {
     val orderFlowViewModel: OrderFlowViewModel = viewModel()
     val operationalViewModel: OperationalViewModel = viewModel()
+    val adminViewModel: AdminViewModel = viewModel()
+    val adminStaffViewModel: AdminStaffViewModel = viewModel()
+    val adminStoreViewModel: AdminStoreViewModel = viewModel()
+    val adminSpacesViewModel: AdminSpacesViewModel = viewModel()
     val waiterViewModel: WaiterViewModel = viewModel()
     val courtsViewModel: CourtsViewModel = viewModel()
     val reservationsViewModel: ReservationsViewModel = viewModel()
@@ -178,10 +194,12 @@ fun AppNavHost(
     // Volver del background refresca el saldo: la recarga la hace Caja desde
     // otro dispositivo y no llega ningún evento push de wallet.
     val lifecycleOwner = LocalLifecycleOwner.current
+    // Solo el cliente tiene cartera: el personal recibía 403 en cada regreso a la app.
+    val isClientRole by rememberUpdatedState(operationalState.role == OperationalRole.CLIENT)
     DisposableEffect(lifecycleOwner) {
         val observer =
             LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME) walletViewModel.refreshIfStale()
+                if (event == Lifecycle.Event.ON_RESUME && isClientRole) walletViewModel.refreshIfStale()
             }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -417,6 +435,7 @@ fun AppNavHost(
                 OperationalRole.CASHIER -> Routes.CASHIER
                 OperationalRole.KITCHEN -> Routes.KITCHEN
                 OperationalRole.WAITER -> Routes.WAITER
+                OperationalRole.ADMIN -> Routes.ADMIN
                 OperationalRole.CLIENT -> Routes.CATALOG
             }
         if (modeRole == OperationalRole.CLIENT) {
@@ -597,6 +616,8 @@ fun AppNavHost(
             defaultValue = Routes.CART
         }
 
+    // Logo y foto del negocio para las escenas del cliente (carrito, seguimiento, Mis pedidos y la entrada).
+    val venueArt = rememberVenueArt(orderState.guestVenue?.establishment)
     StudentShellHost(
         navController = navController,
         cartCount = orderState.cartItemCount,
@@ -657,7 +678,10 @@ fun AppNavHost(
         walletCodeOpen = walletCodeOpen,
         overlay = {
             entrance?.let { current ->
-                CompositionLocalProvider(LocalScene provides scenePaletteForTheme()) {
+                CompositionLocalProvider(
+                    LocalScene provides scenePaletteForTheme(),
+                    LocalVenueArt provides venueArt,
+                ) {
                     key(current.id) {
                         StoreEntranceOverlay(
                             entrance = current,
@@ -667,13 +691,15 @@ fun AppNavHost(
                     }
                 }
             }
-            if (discoveryState.pendingSwitch != null) {
+            discoveryState.pendingSwitch?.let { next ->
                 VenueSwitchDialog(
                     onConfirm = {
                         startEntrance(null)
                         discoveryViewModel.confirmPendingSwitch(::enterVenueAndOpenCatalog)
                     },
                     onDismiss = discoveryViewModel::dismissPendingSwitch,
+                    sameVenue = orderState.guestVenue?.establishment?.id == next.establishment.id,
+                    nextSpaceName = next.space?.name,
                 )
             }
         },
@@ -901,6 +927,8 @@ fun AppNavHost(
                         },
                     profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
                     onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
+                    onOpenCart = { navController.navigateStudent(Routes.CART) },
+                    onOpenFeed = { navController.navigate(Routes.MENU_FEED) { launchSingleTop = true } },
                     // Sin cuenta también se renta, salvo en los lugares que piden cuenta: ahí se entra primero.
                     onOpenCourts =
                         if (courtsViewModel.uiState.value.courts
@@ -918,6 +946,24 @@ fun AppNavHost(
                         } else {
                             null
                         },
+                )
+            }
+
+            composable(Routes.MENU_FEED) {
+                MenuFeedScreen(
+                    state = orderState,
+                    onBack = { navController.popBackStack() },
+                    onQuickAdd = orderFlowViewModel::quickAddProduct,
+                    onQuickRemove = orderFlowViewModel::quickRemoveProduct,
+                    onOpenProduct = orderFlowViewModel::openProduct,
+                    onDismissProduct = orderFlowViewModel::closeProduct,
+                    onToggleOption = orderFlowViewModel::toggleOption,
+                    onClearOptionalGroup = orderFlowViewModel::clearOptionalGroup,
+                    onSelectedNotesChange = orderFlowViewModel::updateSelectedNotes,
+                    onQuantityChange = orderFlowViewModel::changeSelectedQuantity,
+                    onAddSelected = orderFlowViewModel::addSelectedProductToCart,
+                    // Atrás desde el carrito regresa al platillo donde ibas.
+                    onOpenCart = { navController.navigate(Routes.CART) { launchSingleTop = true } },
                 )
             }
 
@@ -1158,51 +1204,53 @@ fun AppNavHost(
 
             composable(Routes.CART) {
                 val guestAuthRequired = orderFlowViewModel.requiresAccountAuth()
-                CartScreen(
-                    state = orderState,
-                    guestCheckout = orderFlowViewModel.isGuestCheckout(),
-                    onGuestNameChange = orderFlowViewModel::updateGuestName,
-                    onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                    onQuantityChange = orderFlowViewModel::changeCartLineQuantity,
-                    onNotesChange = orderFlowViewModel::updateKitchenNotes,
-                    onDestinationChange = orderFlowViewModel::updateCheckoutDestination,
-                    onSpaceChange = orderFlowViewModel::updateCheckoutSpace,
-                    onPaymentChange = orderFlowViewModel::updateCheckoutPayment,
-                    onPayAtEnd = orderFlowViewModel::selectPayAtEnd,
-                    onConfirm = {
-                        if (guestAuthRequired) {
-                            studentAuthViewModel.ensureVenueContext(
-                                onReady = orderFlowViewModel::submitOrder,
-                                onNeedsAuth = { navigateStudentAuth(Routes.CART) },
-                                onFailed = orderFlowViewModel::showCreateOrderError,
-                            )
-                        } else {
-                            orderFlowViewModel.submitOrder()
-                        }
-                    },
-                    onResolvePendingStripePayment = {
-                        orderFlowViewModel.resolvePendingStripePayment {
-                            navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
-                        }
-                    },
-                    walletBalance = walletRemoteState.data?.wallet?.visibleBalance,
-                    guestAuthRequired = guestAuthRequired,
-                    profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
-                    onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
-                    isRefreshing = orderState.refreshing,
-                    onRefresh = orderFlowViewModel::refreshOperationalStatus,
-                    recentOrders =
-                        operationalState.orders
-                            .filter {
-                                it.summary.state == OrderState.DELIVERED ||
-                                    it.summary.state.isTerminalWithoutDelivery
-                            }.take(3),
-                    onSelectOrder = { orderId ->
-                        operationalViewModel.selectOrder(orderId)
-                        navController.navigateStudent(Routes.STUDENT_TRACKING)
-                    },
-                    preparingCheckout = guestAuthRequired && studentAuthState.loading,
-                )
+                CompositionLocalProvider(LocalVenueArt provides venueArt) {
+                    CartScreen(
+                        state = orderState,
+                        guestCheckout = orderFlowViewModel.isGuestCheckout(),
+                        onGuestNameChange = orderFlowViewModel::updateGuestName,
+                        onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                        onQuantityChange = orderFlowViewModel::changeCartLineQuantity,
+                        onNotesChange = orderFlowViewModel::updateKitchenNotes,
+                        onDestinationChange = orderFlowViewModel::updateCheckoutDestination,
+                        onSpaceChange = orderFlowViewModel::updateCheckoutSpace,
+                        onPaymentChange = orderFlowViewModel::updateCheckoutPayment,
+                        onPayAtEnd = orderFlowViewModel::selectPayAtEnd,
+                        onConfirm = {
+                            if (guestAuthRequired) {
+                                studentAuthViewModel.ensureVenueContext(
+                                    onReady = orderFlowViewModel::submitOrder,
+                                    onNeedsAuth = { navigateStudentAuth(Routes.CART) },
+                                    onFailed = orderFlowViewModel::showCreateOrderError,
+                                )
+                            } else {
+                                orderFlowViewModel.submitOrder()
+                            }
+                        },
+                        onResolvePendingStripePayment = {
+                            orderFlowViewModel.resolvePendingStripePayment {
+                                navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
+                            }
+                        },
+                        walletBalance = walletRemoteState.data?.wallet?.visibleBalance,
+                        guestAuthRequired = guestAuthRequired,
+                        profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
+                        onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
+                        isRefreshing = orderState.refreshing,
+                        onRefresh = orderFlowViewModel::refreshOperationalStatus,
+                        recentOrders =
+                            operationalState.orders
+                                .filter {
+                                    it.summary.state == OrderState.DELIVERED ||
+                                        it.summary.state.isTerminalWithoutDelivery
+                                }.take(3),
+                        onSelectOrder = { orderId ->
+                            operationalViewModel.selectOrder(orderId)
+                            navController.navigateStudent(Routes.STUDENT_TRACKING)
+                        },
+                        preparingCheckout = guestAuthRequired && studentAuthState.loading,
+                    )
+                }
             }
 
             composable(
@@ -1460,66 +1508,68 @@ fun AppNavHost(
                         configuration = PaymentSheet.Configuration(merchantDisplayName = "Vaiinilla"),
                     )
                 }
-                OrderConfirmationScreen(
-                    stripePaymentPhase = orderState.stripePaymentPhase,
-                    stripePaymentMessage = orderState.stripePaymentMessage,
-                    retryingStripePayment = orderState.retryingStripePayment,
-                    onRetryStripePayment = orderFlowViewModel::retryStripePayment,
-                    onRefreshStripePayment = orderFlowViewModel::refreshStripePaymentStatus,
-                    onReturnStripeToCart = { order ->
-                        orderFlowViewModel.returnFailedStripeOrderToCart(order) {
-                            val returnedToExistingCart =
-                                navController.popBackStack(Routes.CART, inclusive = false)
-                            if (!returnedToExistingCart) {
-                                navController.navigateStudent(Routes.CART)
+                CompositionLocalProvider(LocalVenueArt provides venueArt) {
+                    OrderConfirmationScreen(
+                        stripePaymentPhase = orderState.stripePaymentPhase,
+                        stripePaymentMessage = orderState.stripePaymentMessage,
+                        retryingStripePayment = orderState.retryingStripePayment,
+                        onRetryStripePayment = orderFlowViewModel::retryStripePayment,
+                        onRefreshStripePayment = orderFlowViewModel::refreshStripePaymentStatus,
+                        onReturnStripeToCart = { order ->
+                            orderFlowViewModel.returnFailedStripeOrderToCart(order) {
+                                val returnedToExistingCart =
+                                    navController.popBackStack(Routes.CART, inclusive = false)
+                                if (!returnedToExistingCart) {
+                                    navController.navigateStudent(Routes.CART)
+                                }
                             }
-                        }
-                    },
-                    abandoningStripePayment = orderState.resolvingPendingStripePayment,
-                    onAbandonStripePayment = { order ->
-                        orderFlowViewModel.abandonStripePaymentToCart(order) {
-                            val returnedToExistingCart =
-                                navController.popBackStack(Routes.CART, inclusive = false)
-                            if (!returnedToExistingCart) {
-                                navController.navigateStudent(Routes.CART)
+                        },
+                        abandoningStripePayment = orderState.resolvingPendingStripePayment,
+                        onAbandonStripePayment = { order ->
+                            orderFlowViewModel.abandonStripePaymentToCart(order) {
+                                val returnedToExistingCart =
+                                    navController.popBackStack(Routes.CART, inclusive = false)
+                                if (!returnedToExistingCart) {
+                                    navController.navigateStudent(Routes.CART)
+                                }
                             }
-                        }
-                    },
-                    purchaseCelebration = orderState.purchaseCelebration,
-                    onPurchaseCelebrationFinished = orderFlowViewModel::completePurchaseCelebration,
-                    order = confirmationOrder,
-                    deliveryRequiresQr = orderState.operationalStatus?.deliveryRequiresQr != false,
-                    showTrackingButton = isFreshConfirmation,
-                    onCurrentWaiterCall = operationalViewModel::currentWaiterCall,
-                    onCallWaiter = operationalViewModel::callWaiter,
-                    onCancelWaiter = operationalViewModel::cancelWaiterCall,
-                    onReturnToMenu = {
-                        // Abierto desde Pedidos: atrás regresa a la lista. La selección se limpia allá,
-                        // cuando esta pantalla ya salió, para no quedarse sin pedido a media animación.
-                        if (!isFreshConfirmation &&
-                            navController.popBackStack(Routes.STUDENT_TRACKING, inclusive = false)
-                        ) {
-                            return@OrderConfirmationScreen
-                        }
-                        if (isFreshConfirmation) {
-                            orderFlowViewModel.clearCreatedOrder()
-                        }
-                        operationalViewModel.selectOrder(null)
-                        navController.navigate(Routes.CATALOG) {
-                            popUpTo(Routes.CATALOG) { inclusive = true }
-                            launchSingleTop = true
-                        }
-                    },
-                    onViewTracking = {
-                        operationalViewModel.setRole(OperationalRole.CLIENT)
-                        operationalViewModel.selectOrder(null)
-                        val returnedToExistingTracking =
-                            navController.popBackStack(Routes.STUDENT_TRACKING, inclusive = false)
-                        if (!returnedToExistingTracking) {
-                            navController.navigateStudent(Routes.STUDENT_TRACKING)
-                        }
-                    },
-                )
+                        },
+                        purchaseCelebration = orderState.purchaseCelebration,
+                        onPurchaseCelebrationFinished = orderFlowViewModel::completePurchaseCelebration,
+                        order = confirmationOrder,
+                        deliveryRequiresQr = orderState.operationalStatus?.deliveryRequiresQr != false,
+                        showTrackingButton = isFreshConfirmation,
+                        onCurrentWaiterCall = operationalViewModel::currentWaiterCall,
+                        onCallWaiter = operationalViewModel::callWaiter,
+                        onCancelWaiter = operationalViewModel::cancelWaiterCall,
+                        onReturnToMenu = {
+                            // Abierto desde Pedidos: atrás regresa a la lista. La selección se limpia allá,
+                            // cuando esta pantalla ya salió, para no quedarse sin pedido a media animación.
+                            if (!isFreshConfirmation &&
+                                navController.popBackStack(Routes.STUDENT_TRACKING, inclusive = false)
+                            ) {
+                                return@OrderConfirmationScreen
+                            }
+                            if (isFreshConfirmation) {
+                                orderFlowViewModel.clearCreatedOrder()
+                            }
+                            operationalViewModel.selectOrder(null)
+                            navController.navigate(Routes.CATALOG) {
+                                popUpTo(Routes.CATALOG) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        },
+                        onViewTracking = {
+                            operationalViewModel.setRole(OperationalRole.CLIENT)
+                            operationalViewModel.selectOrder(null)
+                            val returnedToExistingTracking =
+                                navController.popBackStack(Routes.STUDENT_TRACKING, inclusive = false)
+                            if (!returnedToExistingTracking) {
+                                navController.navigateStudent(Routes.STUDENT_TRACKING)
+                            }
+                        },
+                    )
+                }
             }
 
             composable(
@@ -1565,57 +1615,60 @@ fun AppNavHost(
                     }
                 }
                 if (!venueAuthRequired) {
-                    StudentTrackingScreen(
-                        state =
-                            operationalState.takeIf { it.selectedOrder?.isRental != false }
-                                ?: operationalState.copy(selectedOrderId = null),
-                        orderState = orderState,
-                        onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                        onAssistant = {},
-                        onWallet = { navController.navigateStudent(Routes.WALLET) },
-                        onCart = { navController.navigateStudent(Routes.CART) },
-                        onOpenCatalog = { navController.navigateStudent(Routes.CATALOG) },
-                        onSelectOrder = { id ->
-                            operationalViewModel.selectOrder(id)
-                            val rental = operationalState.orders.firstOrNull { it.summary.id == id }?.isRental == true
-                            if (!rental) {
+                    CompositionLocalProvider(LocalVenueArt provides venueArt) {
+                        StudentTrackingScreen(
+                            state =
+                                operationalState.takeIf { it.selectedOrder?.isRental != false }
+                                    ?: operationalState.copy(selectedOrderId = null),
+                            orderState = orderState,
+                            onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                            onAssistant = {},
+                            onWallet = { navController.navigateStudent(Routes.WALLET) },
+                            onCart = { navController.navigateStudent(Routes.CART) },
+                            onOpenCatalog = { navController.navigateStudent(Routes.CATALOG) },
+                            onSelectOrder = { id ->
+                                operationalViewModel.selectOrder(id)
+                                val rental =
+                                    operationalState.orders.firstOrNull { it.summary.id == id }?.isRental == true
+                                if (!rental) {
+                                    orderFlowViewModel.clearCreatedOrder()
+                                    navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
+                                }
+                            },
+                            onBackFromSelectedOrder = { operationalViewModel.selectOrder(null) },
+                            onDeleteOrder = ::dismissClientOrder,
+                            onViewReceipt = {
                                 orderFlowViewModel.clearCreatedOrder()
                                 navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
-                            }
-                        },
-                        onBackFromSelectedOrder = { operationalViewModel.selectOrder(null) },
-                        onDeleteOrder = ::dismissClientOrder,
-                        onViewReceipt = {
-                            orderFlowViewModel.clearCreatedOrder()
-                            navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
-                        },
-                        onRefresh = { operationalViewModel.refresh() },
-                        canCallWaiter = ::canCallWaiter,
-                        onCurrentWaiterCall = operationalViewModel::currentWaiterCall,
-                        onAnnounceArrival = operationalViewModel::announceArrival,
-                        onCallWaiter = operationalViewModel::callWaiter,
-                        onCancelWaiter = operationalViewModel::cancelWaiterCall,
-                        sharedTable = {
-                            // Solo consulta la mesa mientras Mis pedidos está a la vista.
-                            DisposableEffect(Unit) {
-                                sharedTableViewModel.onVisible()
-                                onDispose { sharedTableViewModel.onHidden() }
-                            }
-                            SharedTableCard(
-                                state = sharedTableViewModel.uiState.value,
-                                qrToken = orderState.guestVenue?.space?.qrToken,
-                                onAliasChange = sharedTableViewModel::updateAlias,
-                                onJoin = {
-                                    orderState.guestVenue
-                                        ?.space
-                                        ?.qrToken
-                                        ?.let(sharedTableViewModel::join)
-                                },
-                                onClaim = sharedTableViewModel::claim,
-                                onLeave = sharedTableViewModel::leave,
-                            )
-                        },
-                    )
+                            },
+                            onRefresh = { operationalViewModel.refresh() },
+                            canCallWaiter = ::canCallWaiter,
+                            onCurrentWaiterCall = operationalViewModel::currentWaiterCall,
+                            onAnnounceArrival = operationalViewModel::announceArrival,
+                            onCallWaiter = operationalViewModel::callWaiter,
+                            onCancelWaiter = operationalViewModel::cancelWaiterCall,
+                            sharedTable = {
+                                // Solo consulta la mesa mientras Mis pedidos está a la vista.
+                                DisposableEffect(Unit) {
+                                    sharedTableViewModel.onVisible()
+                                    onDispose { sharedTableViewModel.onHidden() }
+                                }
+                                SharedTableCard(
+                                    state = sharedTableViewModel.uiState.value,
+                                    qrToken = orderState.guestVenue?.space?.qrToken,
+                                    onAliasChange = sharedTableViewModel::updateAlias,
+                                    onJoin = {
+                                        orderState.guestVenue
+                                            ?.space
+                                            ?.qrToken
+                                            ?.let(sharedTableViewModel::join)
+                                    },
+                                    onClaim = sharedTableViewModel::claim,
+                                    onLeave = sharedTableViewModel::leave,
+                                )
+                            },
+                        )
+                    }
                 } else {
                     OrdersAccessGate(
                         loading = studentAuthState.loading,
@@ -1678,9 +1731,16 @@ fun AppNavHost(
                             )
                         },
                         onUploadCashierProductImage = operationalViewModel::uploadCashierProductImage,
+                        onUploadStoreImage = operationalViewModel::uploadStoreImage,
+                        onRemoveStoreImage = operationalViewModel::removeStoreImage,
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "cashier",
                         onNewCounterOrder = waiterViewModel::openCounterOrder,
+                        orderTables = waiterState.tables.map { it.space }.filter { it.type != "cancha" },
+                        onNewTableOrder = waiterViewModel::openTableOrder,
+                        orderTablesLoading = waiterState.loading,
+                        orderTablesError = waiterState.errorMessage,
+                        onRefreshOrderTables = waiterViewModel::refresh,
                         // Con el tablero sin actualizar no se afirma "Nada por cobrar".
                         pendingSpaces =
                             waiterState.tables
@@ -1717,6 +1777,7 @@ fun AppNavHost(
                         onStart = operationalViewModel::startKitchen,
                         onReady = operationalViewModel::markReady,
                         onReject = operationalViewModel::rejectOrder,
+                        onRejectItem = operationalViewModel::rejectItem,
                         onChangeMode =
                             if (authorizedAccessState.hasMultipleModes) {
                                 returnToModes(navController, operationalViewModel)
@@ -1729,6 +1790,88 @@ fun AppNavHost(
                         onActionNoticed = operationalViewModel::consumeActionNotice,
                         onDismissError = operationalViewModel::dismissMutationError,
                         onRefresh = operationalViewModel::refresh,
+                    )
+                }
+            }
+
+            composable(Routes.ADMIN) {
+                val active = authorizedAccessState.activeContext
+                val authorizedAdmin = active?.role == OperationalRole.ADMIN
+                val scope = active?.membershipId.orEmpty()
+                LaunchedEffect(authorizedAdmin, scope) {
+                    if (!authorizedAdmin) {
+                        returnToModes(navController, operationalViewModel)()
+                    } else {
+                        adminViewModel.onVisible(scope)
+                        // Para el menú: si el negocio renta canchas y si la tarjeta suma comisión. Para Caja: las mesas.
+                        adminStoreViewModel.onVisible(scope)
+                        adminSpacesViewModel.onVisible(scope)
+                        waiterViewModel.refresh()
+                    }
+                }
+                if (authorizedAdmin) {
+                    // Sin OperationalPresenceLifecycle: la administración no manda latidos ni aparece como en turno.
+                    val adminState by adminViewModel.uiState
+                    val storeState by adminStoreViewModel.uiState
+                    val spacesState by adminSpacesViewModel.uiState
+                    val stripe = storeState.stripe
+                    AdminScreen(
+                        state = adminState,
+                        placeName = active?.establishmentName.orEmpty(),
+                        restrictedMode = active?.restrictedMode,
+                        actions =
+                            AdminActions(
+                                onRefreshHome = adminViewModel::refreshHome,
+                                onRefreshCatalog = adminViewModel::refreshCatalog,
+                                onSelectPeriod = adminViewModel::selectPeriod,
+                                onSelectCustomPeriod = adminViewModel::selectCustomPeriod,
+                                onCloseWithoutCharging = adminViewModel::closeWithoutCharging,
+                                onSaveCategory = adminViewModel::saveCategory,
+                                onSaveProduct = adminViewModel::saveProduct,
+                                onSetAvailable = adminViewModel::setAvailable,
+                                onRemoveImage = adminViewModel::removeImage,
+                                onSelectOrderFilter = adminViewModel::selectOrderFilter,
+                                onRefreshOrders = adminViewModel::refreshOrders,
+                                onLoadMoreOrders = adminViewModel::loadMoreOrders,
+                            ),
+                        sections =
+                            AdminSectionsHost(
+                                staff = adminStaffViewModel,
+                                store = adminStoreViewModel,
+                                spaces = adminSpacesViewModel,
+                                cash =
+                                    AdminCashActions(
+                                        onOpenCash = adminViewModel::openCash,
+                                        onCloseCash = adminViewModel::closeCash,
+                                        onNewTakeAwayOrder = waiterViewModel::openCounterOrder,
+                                        onNewTableOrder = waiterViewModel::openTableOrder,
+                                    ),
+                                tables =
+                                    waiterState.tables
+                                        .map { it.space }
+                                        .filter { it.type != "cancha" },
+                                orderNotice = waiterState.toastMessage,
+                                counterOrderSheet = {
+                                    if (waiterState.counterOrderOpen) {
+                                        CounterOrderSheet(
+                                            state = waiterState,
+                                            colors = rememberOperationalColors(),
+                                            onDismiss = waiterViewModel::closeCounterOrder,
+                                            onSubmit = waiterViewModel::submitCounterOrder,
+                                            submitAction = "Crear pedido",
+                                        )
+                                    }
+                                },
+                            ),
+                        scope = scope,
+                        rentsSpaces = spacesState.spaces.orEmpty().any { it.hourlyPrice != null },
+                        cardFeeToCustomer =
+                            stripe != null &&
+                                stripe.enabled &&
+                                stripe.chargesEnabled &&
+                                stripe.payoutsEnabled &&
+                                stripe.passFeeToCustomer,
+                        onChangeMode = returnToModes(navController, operationalViewModel),
                     )
                 }
             }
@@ -1767,6 +1910,7 @@ fun AppNavHost(
                         onDismissCollection = waiterViewModel::dismissCollection,
                         onFilterAttending = waiterViewModel::setFilterAttending,
                         onOpenCounterOrder = waiterViewModel::openCounterOrder,
+                        onOpenTableOrder = waiterViewModel::openTableOrder,
                         onCloseCounterOrder = waiterViewModel::closeCounterOrder,
                         onSubmitCounterOrder = waiterViewModel::submitCounterOrder,
                         onChangeMode = backToCashier,
@@ -1818,6 +1962,7 @@ fun AppNavHost(
                         onDismissCollection = waiterViewModel::dismissCollection,
                         onFilterAttending = waiterViewModel::setFilterAttending,
                         onOpenCounterOrder = waiterViewModel::openCounterOrder,
+                        onOpenTableOrder = waiterViewModel::openTableOrder,
                         onCloseCounterOrder = waiterViewModel::closeCounterOrder,
                         onSubmitCounterOrder = waiterViewModel::submitCounterOrder,
                         newCallTable = alertCall,

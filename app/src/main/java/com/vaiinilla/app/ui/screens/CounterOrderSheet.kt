@@ -195,7 +195,7 @@ internal fun CounterOrderSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "Pedido de mostrador",
+                    state.counterOrderSpace?.let { "Pedido para ${it.name}" } ?: "Pedido de mostrador",
                     fontWeight = FontWeight.Bold,
                     fontSize = 22.sp,
                     color = colors.textPrimary,

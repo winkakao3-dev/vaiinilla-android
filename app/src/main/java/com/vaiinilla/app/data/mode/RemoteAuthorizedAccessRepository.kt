@@ -274,8 +274,7 @@ class RemoteAuthorizedAccessRepository
                 OperationalRole.KITCHEN.wireValue -> OperationalRole.KITCHEN
                 // Mesero abre su tablero de mesas y llamadas (Routes.WAITER).
                 OperationalRole.WAITER.wireValue -> OperationalRole.WAITER
-                // Administración remains intentionally outside the Android client.
-                "admin" -> null
+                OperationalRole.ADMIN.wireValue -> OperationalRole.ADMIN
                 else -> null
             }
 

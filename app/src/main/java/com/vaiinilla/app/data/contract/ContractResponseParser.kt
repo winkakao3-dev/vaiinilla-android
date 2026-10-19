@@ -9,6 +9,7 @@ import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.ProductOption
+import com.vaiinilla.app.domain.repository.StoreImages
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -56,6 +57,16 @@ class ContractResponseParser
                 businessType = envelope.data.businessType,
                 orderWindows = envelope.data.orderWindows.map { OrderWindow(it.from, it.to) },
                 withinOrderWindow = envelope.data.withinOrderWindow,
+            )
+        }
+
+        /** Logo y foto del negocio: a Caja le llegan solas y a la administración dentro de su configuración. */
+        fun parseStoreImages(raw: String): StoreImages {
+            val envelope = json.decodeFromString<StoreImagesEnvelopeDto>(raw)
+            require(envelope.error == null) { "La respuesta de imágenes del negocio contiene error." }
+            return StoreImages(
+                photoUrl = envelope.data.photoUrl?.takeIf { it.isNotBlank() },
+                logoUrl = envelope.data.logoUrl?.takeIf { it.isNotBlank() },
             )
         }
 

@@ -58,6 +58,13 @@ class RemoteOrderRepository(
     private fun parseOrderList(raw: String): List<OrderDetail> =
         contractJson.parseOrderList(raw).map(pickupTokenStore::attach)
 
+    override fun recoverPickupToken(order: OrderDetail): Result<OrderDetail> =
+        apiClient
+            .get("pedidos/${order.summary.id}/qr")
+            .mapCatching(contractJson::parsePickupToken)
+            .mapCatching { token -> pickupTokenStore.attach(order.copy(pickupToken = token)) }
+            .mapApiErrors()
+
     override fun retryStripePayment(
         orderId: String,
         idempotencyKey: String,
@@ -134,6 +141,23 @@ class RemoteOrderRepository(
         apiClient
             .post(
                 path = "pedidos/$orderId/cancelaciones",
+                body = contractJson.encodeCancelOrder(expectedVersion, reason),
+                headers = mapOf("Idempotency-Key" to idempotencyKey),
+            ).mapCatching { contractJson.parseCancelledOrder(it) }
+            .mapCatching { pickupTokenStore.attach(it) }
+            .mapApiErrors()
+
+    override fun rejectItem(
+        orderId: String,
+        itemId: Int,
+        expectedVersion: Int,
+        reason: String,
+        idempotencyKey: String,
+    ): Result<OrderDetail> =
+        apiClient
+            .post(
+                path = "pedidos/$orderId/articulos/$itemId/rechazos",
+                // Mismo cuerpo que cancelar (motivo + versión) y la respuesta también trae `data.pedido`.
                 body = contractJson.encodeCancelOrder(expectedVersion, reason),
                 headers = mapOf("Idempotency-Key" to idempotencyKey),
             ).mapCatching { contractJson.parseCancelledOrder(it) }

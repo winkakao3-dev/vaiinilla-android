@@ -5,6 +5,8 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.WalletClient
 import com.vaiinilla.app.domain.model.WalletReloadReceipt
+import com.vaiinilla.app.domain.repository.StoreImageKind
+import com.vaiinilla.app.domain.repository.StoreImages
 
 data class OperationalUiState(
     val role: OperationalRole? = null,
@@ -24,6 +26,12 @@ data class OperationalUiState(
     val walletSearchLoading: Boolean = false,
     val walletReloadReceipt: WalletReloadReceipt? = null,
     val catalog: Catalog? = null,
+    /** Logo y foto del negocio para la tarjeta de Caja; null si el servidor aún no los ofrece a Caja. */
+    val storeImages: StoreImages? = null,
+    /** Cuál de las dos imágenes se está subiendo o quitando. */
+    val storeImageBusy: StoreImageKind? = null,
+    /** Lo último que dijo la tarjeta: subida, quitada o por qué no se pudo. */
+    val storeImageNotice: String? = null,
     val cashChangeNotice: String? = null,
     /** Confirmación de una acción que el servidor ya aceptó (por ejemplo, "Comanda #12 lista"). */
     val actionNotice: String? = null,

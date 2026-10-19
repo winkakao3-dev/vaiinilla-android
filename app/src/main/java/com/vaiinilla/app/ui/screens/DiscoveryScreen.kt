@@ -65,6 +65,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -588,7 +589,7 @@ internal fun onlyVenueToAutoOpen(
     hasActiveVenue: Boolean,
 ): PublicEstablishment? = establishments.singleOrNull()?.takeIf { !loading && query.isBlank() && !hasActiveVenue }
 
-/** ¿Ya estás en la mesa? QR o código como acción secundaria, debajo de la lista. */
+/** ¿Ya estás en la mesa? QR o código en dos tarjetas grandes, debajo de la lista. */
 @Composable
 private fun QuickAccessRow(
     onOpenQrScanner: () -> Unit,
@@ -604,42 +605,78 @@ private fun QuickAccessRow(
             fontWeight = FontWeight.SemiBold,
         )
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            QuickAccessButton(Icons.Outlined.QrCodeScanner, "Escanear QR", Modifier.weight(1f), onOpenQrScanner)
-            QuickAccessButton(Icons.Outlined.Tag, "Usar código", Modifier.weight(1f), onUseCode)
+            QuickAccessCard(
+                icon = Icons.Outlined.QrCodeScanner,
+                label = "Escanear QR",
+                hint = "Con la cámara",
+                modifier = Modifier.weight(1f),
+                onClick = onOpenQrScanner,
+            )
+            QuickAccessCard(
+                icon = Icons.Outlined.Tag,
+                label = "Usar código",
+                hint = "Los 4 dígitos de tu mesa",
+                modifier = Modifier.weight(1f),
+                onClick = onUseCode,
+            )
         }
     }
 }
 
+/**
+ * Tarjeta alta con el título arriba y el ícono en grande saliéndose por la esquina, como las
+ * tarjetas de entrada de Swiggy: se reconoce de lejos qué hace cada una sin leer.
+ */
 @Composable
-private fun QuickAccessButton(
+private fun QuickAccessCard(
     icon: ImageVector,
     label: String,
+    hint: String,
     modifier: Modifier,
     onClick: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
-    Row(
+    val shape = RoundedCornerShape(22.dp)
+    Box(
         modifier =
             modifier
-                .heightIn(min = 52.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .border(1.dp, colors.line, RoundedCornerShape(16.dp))
+                .heightIn(min = 172.dp)
                 .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
+                .clip(shape)
+                .background(colors.paper2)
+                .border(1.dp, colors.line, shape),
     ) {
-        Icon(icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(20.dp))
-        Text(
-            label,
-            color = colors.ink,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 8.dp),
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = colors.ink.copy(alpha = 0.82f),
+            modifier =
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 14.dp, y = 16.dp)
+                    .rotate(-12f)
+                    .size(104.dp),
         )
+        Column(modifier = Modifier.padding(16.dp).padding(end = 4.dp)) {
+            Text(
+                label,
+                color = colors.ink,
+                fontSize = 17.sp,
+                lineHeight = 21.sp,
+                fontWeight = FontWeight.Black,
+            )
+            Text(
+                hint,
+                color = colors.muted,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 3.dp),
+            )
+        }
     }
 }
 

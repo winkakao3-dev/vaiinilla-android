@@ -32,6 +32,13 @@ internal object MutationIdempotency {
         reason: String,
     ): String = derive("cancel", orderId, expectedVersion.toString(), reason.trim())
 
+    fun itemRejection(
+        orderId: String,
+        itemId: Int,
+        expectedVersion: Int,
+        reason: String,
+    ): String = derive("reject-item", orderId, itemId.toString(), expectedVersion.toString(), reason.trim())
+
     fun cashCollection(
         orderId: String,
         amountReceived: String,
@@ -42,6 +49,12 @@ internal object MutationIdempotency {
         productId: Int,
         imageBytes: ByteArray,
     ): String = derive("product-image", productId.toString(), sha256Bytes(imageBytes))
+
+    /** El mismo archivo para el mismo lugar reusa la llave: un reintento no lo sube dos veces. */
+    fun storeImage(
+        kind: String,
+        imageBytes: ByteArray,
+    ): String = derive("store-image", kind, sha256Bytes(imageBytes))
 
     fun accountDeletion(uid: String): String = derive("account-deletion", uid)
 

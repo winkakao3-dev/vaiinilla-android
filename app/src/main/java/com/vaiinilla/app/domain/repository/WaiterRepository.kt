@@ -227,13 +227,27 @@ data class BoardTable(
     val call: TableCall?,
     val orders: List<BoardOrder>,
     val availability: SpaceAvailability? = null,
+    /** Pedidos de la mesa que Cocina o Caja cancelaron hace poco: el mesero no debe seguir esperándolos. */
+    val recentRejections: List<RejectedOrder> = emptyList(),
 )
+
+data class RejectedOrder(
+    val id: String,
+    val folio: Int,
+    val reason: String?,
+    /** `cocina` o `cajero`. */
+    val byRole: String?,
+) {
+    val byLabel: String get() = if (byRole == "cajero") "Caja" else "Cocina"
+}
 
 data class WaiterBoard(
     val tables: List<BoardTable>,
     val callsEnabled: Boolean,
     /** Si es false, el mesero entrega en el espacio sin escanear el QR del cliente. */
     val deliveryRequiresQr: Boolean = true,
+    /** El negocio deja pagar al final: el pedido de una mesa puede ir a su cuenta. */
+    val allowsPayAtEnd: Boolean = false,
 )
 
 enum class TableState {

@@ -42,6 +42,9 @@ object SeedAccounts {
 
     private val byRole = identities.associateBy { it.role }
 
+    /** Los roles con cuenta de prueba; Administración no tiene una. */
+    val seededRoles: List<OperationalRole> = identities.map { it.role }
+
     fun forRole(role: OperationalRole): SeedAccount? {
         if (!BuildConfig.SEED_AUTH_ENABLED) return null
         val identity = byRole[role] ?: return null
@@ -57,7 +60,7 @@ object SeedAccounts {
 
     fun all(): List<SeedAccount> = OperationalRole.entries.mapNotNull(::forRole)
 
-    fun isConfigured(): Boolean = all().size == OperationalRole.entries.size
+    fun isConfigured(): Boolean = all().size == identities.size
 
     private fun passwordFor(role: OperationalRole): String =
         when (role) {
@@ -65,5 +68,6 @@ object SeedAccounts {
             OperationalRole.CASHIER -> BuildConfig.SEED_PASSWORD_CAJERO
             OperationalRole.KITCHEN -> BuildConfig.SEED_PASSWORD_COCINA
             OperationalRole.WAITER -> BuildConfig.SEED_PASSWORD_MESERO
+            OperationalRole.ADMIN -> ""
         }
 }

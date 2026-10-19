@@ -309,7 +309,7 @@ class FixtureOrderRepository(
     ): Boolean {
         val state = order.summary.state
         return when (role) {
-            OperationalRole.CLIENT -> true
+            OperationalRole.CLIENT, OperationalRole.ADMIN -> true
             OperationalRole.CASHIER -> {
                 state == OrderState.PENDING_PAYMENT ||
                     (state == OrderState.READY && order.summary.destination == OrderDestination.TAKE_AWAY)

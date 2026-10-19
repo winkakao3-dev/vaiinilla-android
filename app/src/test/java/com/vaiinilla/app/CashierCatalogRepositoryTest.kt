@@ -5,6 +5,8 @@ import com.vaiinilla.app.data.catalog.RemoteCatalogRepository
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.PreparationStation
+import com.vaiinilla.app.domain.repository.StoreImageKind
+import com.vaiinilla.app.domain.repository.StoreImages
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -106,6 +108,40 @@ class CashierCatalogRepositoryTest {
         assertEquals("idem-img", client.multipartHeaders["Idempotency-Key"])
     }
 
+    @Test
+    fun `store images use the business paths and read only the two urls`() {
+        val images =
+            """
+            {"data":{"imagen_url":"https://cdn.test/f.jpg","logo_url":"https://cdn.test/l.png"},"error":null}
+            """.trimIndent()
+        val client = RecordingCatalogApiClient(images)
+        val repository = RemoteCatalogRepository(client, parser)
+
+        val read = repository.getStoreImages().getOrThrow()
+        assertEquals("establecimiento/imagenes", client.path)
+        assertEquals(StoreImages(photoUrl = "https://cdn.test/f.jpg", logoUrl = "https://cdn.test/l.png"), read)
+
+        repository
+            .uploadStoreImage(StoreImageKind.LOGO, byteArrayOf(1, 2), "logo.png", "image/png", "idem-logo")
+            .getOrThrow()
+        assertEquals("establecimiento/logo", client.multipartPath)
+        assertEquals("imagen", client.multipartField)
+        assertEquals("idem-logo", client.multipartHeaders["Idempotency-Key"])
+
+        repository.removeStoreImage(StoreImageKind.PHOTO, "idem-quitar").getOrThrow()
+        assertEquals("establecimiento/foto", client.path)
+        assertEquals("idem-quitar", client.headers["Idempotency-Key"])
+    }
+
+    @Test
+    fun `admin response with the whole configuration still yields the two images`() {
+        val config =
+            """
+            {"data":{"tipo":"cafeteria","permite_saldo":true,"imagen_url":null,"logo_url":" "},"error":null}
+            """.trimIndent()
+        assertEquals(StoreImages(photoUrl = null, logoUrl = null), parser.parseStoreImages(config))
+    }
+
     private class RecordingCatalogApiClient(
         private val response: String,
     ) : VaiinillaApiClient {
@@ -121,7 +157,20 @@ class CashierCatalogRepositoryTest {
         override fun get(
             path: String,
             query: Map<String, String>,
-        ): Result<String> = Result.failure(AssertionError("GET no esperado"))
+        ): Result<String> {
+            this.path = path
+            return Result.success(response)
+        }
+
+        override fun delete(
+            path: String,
+            body: String?,
+            headers: Map<String, String>,
+        ): Result<String> {
+            this.path = path
+            this.headers = headers
+            return Result.success(response)
+        }
 
         override fun post(
             path: String,

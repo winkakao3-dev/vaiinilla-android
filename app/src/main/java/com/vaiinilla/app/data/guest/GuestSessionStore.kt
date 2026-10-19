@@ -61,6 +61,8 @@ class GuestSessionStore
                         slug = slug,
                         clientIdLabel = label,
                         clientIdRequired = required,
+                        photoUrl = prefs.getString(KEY_PHOTO_URL, null),
+                        logoUrl = prefs.getString(KEY_LOGO_URL, null),
                     ),
                 space = space,
             )
@@ -81,6 +83,8 @@ class GuestSessionStore
                 putString(KEY_NAME, context.establishment.name)
                 putString(KEY_ID_LABEL, context.establishment.clientIdLabel)
                 putBoolean(KEY_ID_REQUIRED, context.establishment.clientIdRequired)
+                putString(KEY_PHOTO_URL, context.establishment.photoUrl)
+                putString(KEY_LOGO_URL, context.establishment.logoUrl)
                 val space = context.space
                 if (space == null) {
                     remove(KEY_SPACE_ID)
@@ -108,6 +112,8 @@ class GuestSessionStore
                 remove(KEY_SLUG)
                 remove(KEY_NAME)
                 remove(KEY_ID_LABEL)
+                remove(KEY_PHOTO_URL)
+                remove(KEY_LOGO_URL)
                 remove(KEY_ID_REQUIRED)
                 remove(KEY_SPACE_ID)
                 remove(KEY_SPACE_NAME)
@@ -257,6 +263,8 @@ class GuestSessionStore
             const val KEY_NAME = "name"
             const val KEY_ID_LABEL = "id_label"
             const val KEY_ID_REQUIRED = "id_required"
+            const val KEY_PHOTO_URL = "photo_url"
+            const val KEY_LOGO_URL = "logo_url"
             const val KEY_SPACE_ID = "space_id"
             const val KEY_SPACE_NAME = "space_name"
             const val KEY_SPACE_TYPE = "space_type"

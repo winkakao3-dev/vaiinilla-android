@@ -20,7 +20,7 @@ class SeedAuthTest {
         // With local.properties passwords on a developer machine, all roles resolve.
         val configured = SeedAccounts.isConfigured()
         if (configured) {
-            OperationalRole.entries.forEach { role ->
+            SeedAccounts.seededRoles.forEach { role ->
                 val account = SeedAccounts.forRole(role)
                 assertEquals(role, account?.role)
                 assertTrue(account!!.email.endsWith("@vaiinilla.test"))

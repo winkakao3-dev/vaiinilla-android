@@ -27,7 +27,7 @@ class RemoteAuthorizedAccessRepositoryTest {
         )
 
     @Test
-    fun `remote access list maps Android roles and omits administration`() =
+    fun `remote access list maps Android roles including administration`() =
         runTest {
             val api = RecordingAuthorizedAccessApi()
             api.accessResponse = accessResponse()
@@ -36,7 +36,7 @@ class RemoteAuthorizedAccessRepositoryTest {
             val modes = repository.authorizedModes(session).getOrThrow()
 
             assertEquals(
-                listOf(OperationalRole.CLIENT, OperationalRole.CASHIER, OperationalRole.KITCHEN),
+                listOf(OperationalRole.CLIENT, OperationalRole.CASHIER, OperationalRole.KITCHEN, OperationalRole.ADMIN),
                 modes.map { it.role },
             )
             assertEquals("firebase-id-token", api.listToken)
@@ -57,6 +57,7 @@ class RemoteAuthorizedAccessRepositoryTest {
                     OperationalRole.CASHIER,
                     OperationalRole.KITCHEN,
                     OperationalRole.WAITER,
+                    OperationalRole.ADMIN,
                 ),
                 modes.map { it.role },
             )

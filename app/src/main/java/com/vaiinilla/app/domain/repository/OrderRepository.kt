@@ -24,6 +24,12 @@ interface OrderRepository {
     /** Last successfully fetched client order list, when one was cached. */
     fun cachedClientOrders(): List<OrderDetail>? = null
 
+    /**
+     * El backend da el QR de recogida solo al crear el pedido. Si este dispositivo no lo tiene
+     * (se perdió o el pedido se hizo en otro), el cliente lo vuelve a pedir y queda guardado.
+     */
+    fun recoverPickupToken(order: OrderDetail): Result<OrderDetail> = Result.success(order)
+
     fun retryStripePayment(
         orderId: String,
         idempotencyKey: String,
@@ -56,6 +62,15 @@ interface OrderRepository {
         reason: String,
         idempotencyKey: String,
     ): Result<OrderDetail> = Result.failure(UnsupportedOperationException("Cancelar pedidos no está disponible."))
+
+    /** Cocina o Caja quita un artículo con motivo; el resto del pedido sigue y el total baja. */
+    fun rejectItem(
+        orderId: String,
+        itemId: Int,
+        expectedVersion: Int,
+        reason: String,
+        idempotencyKey: String,
+    ): Result<OrderDetail> = Result.failure(UnsupportedOperationException("Quitar artículos no está disponible."))
 }
 
 class OrderRepositoryException(
