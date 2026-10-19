@@ -1738,6 +1738,9 @@ fun AppNavHost(
                         onNewCounterOrder = waiterViewModel::openCounterOrder,
                         orderTables = waiterState.tables.map { it.space }.filter { it.type != "cancha" },
                         onNewTableOrder = waiterViewModel::openTableOrder,
+                        orderTablesLoading = waiterState.loading,
+                        orderTablesError = waiterState.errorMessage,
+                        onRefreshOrderTables = waiterViewModel::refresh,
                         // Con el tablero sin actualizar no se afirma "Nada por cobrar".
                         pendingSpaces =
                             waiterState.tables
