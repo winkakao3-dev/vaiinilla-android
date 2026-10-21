@@ -1,5 +1,8 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -23,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,8 +40,10 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.ui.admin.AdminOrderFilter
 import com.vaiinilla.app.ui.admin.AdminUiState
+import com.vaiinilla.app.ui.components.SlidingSegments
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.ActionPill
 import com.vaiinilla.app.ui.screens.ChipButton
@@ -47,9 +53,55 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** Pedidos e historial, con los filtros de la web. Aquí solo se consultan: los mueven Caja, Cocina y Mesero. */
+/**
+ * Pedidos: las mesas como las ve el mesero (para tomar pedidos en la mesa donde se esté) y el historial con los
+ * filtros de la web. Sin tablero queda solo el historial.
+ */
 @Composable
 internal fun AdminOrdersTab(
+    state: AdminUiState,
+    colors: OperationalColors,
+    actions: AdminActions,
+    tables: (@Composable () -> Unit)?,
+) {
+    if (tables == null) {
+        AdminOrdersHistory(state, colors, actions)
+        return
+    }
+    val haptics = rememberVaiinillaHaptics()
+    val reduced = reducedMotion()
+    var showsHistory by rememberSaveable { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize()) {
+        SlidingSegments(
+            labels = listOf("Mesas", "Historial"),
+            selectedIndex = if (showsHistory) 1 else 0,
+            onSelect = { index ->
+                haptics.selection()
+                showsHistory = index == 1
+            },
+            trackColor = colors.cardBackground,
+            indicatorColor = colors.textPrimary,
+            selectedContentColor = colors.background,
+            idleContentColor = colors.textSecondary,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            verticalPadding = 9.dp,
+            cornerRadius = 14.dp,
+            borderColor = colors.cardBorder,
+        )
+        Crossfade(
+            targetState = showsHistory,
+            animationSpec = if (reduced) snap() else spring(stiffness = 400f),
+            modifier = Modifier.weight(1f),
+            label = "admin-orders",
+        ) { history ->
+            if (history) AdminOrdersHistory(state, colors, actions) else tables()
+        }
+    }
+}
+
+/** El historial con los filtros de la web. Aquí solo se consultan: los mueven Caja, Cocina y Mesero. */
+@Composable
+private fun AdminOrdersHistory(
     state: AdminUiState,
     colors: OperationalColors,
     actions: AdminActions,

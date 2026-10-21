@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -50,6 +51,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.PriorityHigh
 import androidx.compose.material3.Button
@@ -78,6 +80,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -181,6 +184,10 @@ fun WaiterOperationalScreen(
     kicker: String = "MESERO",
     roleSubtitle: String = "Cuenta de mesero",
     roleChip: String = "MS",
+    /** Dentro de Pedidos de Administración: sin encabezado propio (lo pone esa pantalla) y con "Para llevar". */
+    embedded: Boolean = false,
+    /** Cobrar la cuenta y entregar son de Mesero y Caja: el backend se los niega a Administración. */
+    canChargeAndDeliver: Boolean = true,
 ) {
     val colors = rememberOperationalColors()
     val themeMode = LocalVaiinillaThemeMode.current
@@ -263,86 +270,106 @@ fun WaiterOperationalScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .statusBarsPadding(),
-            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 100.dp),
+                    .then(if (embedded) Modifier else Modifier.statusBarsPadding()),
+            contentPadding =
+                PaddingValues(
+                    start = 18.dp,
+                    end = 18.dp,
+                    top = if (embedded) 4.dp else 12.dp,
+                    bottom = 100.dp,
+                ),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            item(span = fullWidth) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+            if (embedded) {
+                item(span = fullWidth) {
+                    WaiterEmbeddedHeader(
+                        link = state.boardLink,
+                        canTakeOrders = !readOnly,
+                        colors = colors,
+                        onTakeAway = {
+                            haptics.selection()
+                            onOpenCounterOrder()
+                        },
+                    )
+                }
+            } else {
+                item(span = fullWidth) {
                     Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        VaiinillaMark(modifier = Modifier.size(34.dp))
-                        Column {
-                            Text(
-                                "Vaiinilla",
-                                fontWeight = FontWeight.Black,
-                                fontSize = 16.sp,
-                                color = colors.textPrimary,
-                            )
-                            Text(
-                                roleSubtitle,
-                                fontSize = 12.sp,
-                                color = colors.textSecondary,
-                                fontWeight = FontWeight.SemiBold,
-                            )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            VaiinillaMark(modifier = Modifier.size(34.dp))
+                            Column {
+                                Text(
+                                    "Vaiinilla",
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 16.sp,
+                                    color = colors.textPrimary,
+                                )
+                                Text(
+                                    roleSubtitle,
+                                    fontSize = 12.sp,
+                                    color = colors.textSecondary,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
                         }
-                    }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        if (assistantController.activeGuide == null) {
-                            VaiinillaAssistantButton(
-                                onClick = {
-                                    haptics.selection()
-                                    assistantController.open()
-                                },
-                                reactionSignal = assistantPulse,
-                                isDarkTheme = colors.isDark,
-                                hasPendingFirstSteps = false,
-                                modifier = Modifier.focusRequester(assistantFocusRequester),
-                                touchSize = 56.dp,
-                            )
-                        }
-                        StaffAvatarMenu(
-                            initials = roleChip,
-                            colors = colors,
-                            themeMode = themeMode,
-                            onThemeChange =
-                                themeChanger?.let { change ->
-                                    { mode ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            if (assistantController.activeGuide == null) {
+                                VaiinillaAssistantButton(
+                                    onClick = {
                                         haptics.selection()
-                                        change(mode)
-                                    }
+                                        assistantController.open()
+                                    },
+                                    reactionSignal = assistantPulse,
+                                    isDarkTheme = colors.isDark,
+                                    hasPendingFirstSteps = false,
+                                    modifier = Modifier.focusRequester(assistantFocusRequester),
+                                    touchSize = 56.dp,
+                                )
+                            }
+                            StaffAvatarMenu(
+                                initials = roleChip,
+                                colors = colors,
+                                themeMode = themeMode,
+                                onThemeChange =
+                                    themeChanger?.let { change ->
+                                        { mode ->
+                                            haptics.selection()
+                                            change(mode)
+                                        }
+                                    },
+                                onChangeMode = {
+                                    haptics.impact()
+                                    onChangeMode?.invoke() ?: onBack()
                                 },
-                            onChangeMode = {
-                                haptics.impact()
-                                onChangeMode?.invoke() ?: onBack()
-                            },
-                        )
+                            )
+                        }
                     }
                 }
-            }
 
-            item(span = fullWidth) {
-                WaiterTitleBlock(
-                    kicker = kicker,
-                    placeName = placeName,
-                    link = state.boardLink,
-                    colors = colors,
-                )
-            }
-
-            if (!readOnly) {
                 item(span = fullWidth) {
-                    CounterOrderEntry(colors = colors, onClick = onOpenCounterOrder)
+                    WaiterTitleBlock(
+                        kicker = kicker,
+                        placeName = placeName,
+                        link = state.boardLink,
+                        colors = colors,
+                    )
+                }
+
+                if (!readOnly) {
+                    item(span = fullWidth) {
+                        CounterOrderEntry(colors = colors, onClick = onOpenCounterOrder)
+                    }
                 }
             }
 
@@ -519,15 +546,17 @@ fun WaiterOperationalScreen(
             icon = if (state.toastIsError) Icons.Rounded.PriorityHigh else Icons.Rounded.Check,
         )
 
-        OperationalAssistantHost(
-            controller = assistantController,
-            registry = assistantRegistry,
-            guides = remember { waiterAssistantGuides() },
-            manualTitle = "Manual de Mesero",
-            palette = assistantPalette,
-            buttonFocusRequester = assistantFocusRequester,
-            modifier = Modifier.fillMaxSize(),
-        )
+        if (!embedded) {
+            OperationalAssistantHost(
+                controller = assistantController,
+                registry = assistantRegistry,
+                guides = remember { waiterAssistantGuides() },
+                manualTitle = "Manual de Mesero",
+                palette = assistantPalette,
+                buttonFocusRequester = assistantFocusRequester,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
 
     // La hoja de cobro de la renta toma el lugar de la de la mesa; al cerrarla, la mesa vuelve.
@@ -558,6 +587,7 @@ fun WaiterOperationalScreen(
                 }
             },
             deliveryRequiresQr = state.deliveryRequiresQr,
+            canChargeAndDeliver = canChargeAndDeliver,
             onOpenTurn = { onOpenTurn(open.space.id, it) },
             onExtendTurn = { onExtendTurn(open.space.id, it) },
             rentable = open.availability?.rentable == true,
@@ -644,6 +674,45 @@ private val WaiterTileHeight = 116.dp
 private val fullWidth: LazyGridItemSpanScope.() -> GridItemSpan = { GridItemSpan(maxLineSpan) }
 
 private enum class SummaryKind { Plain, Call, Ready }
+
+/** El tablero dentro de Pedidos de Administración: el estado de conexión y "Para llevar", sin título ni avatar. */
+@Composable
+private fun WaiterEmbeddedHeader(
+    link: WaiterBoardLink,
+    canTakeOrders: Boolean,
+    colors: OperationalColors,
+    onTakeAway: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        WaiterLivePill(link = link, colors = colors)
+        Spacer(Modifier.weight(1f))
+        Row(
+            modifier =
+                Modifier
+                    .height(40.dp)
+                    .clip(CircleShape)
+                    .background(colors.cardInner)
+                    .border(1.dp, colors.cardBorder, CircleShape)
+                    .physicalPress(enabled = canTakeOrders, onClick = onTakeAway)
+                    .graphicsLayer { alpha = if (canTakeOrders) 1f else 0.5f }
+                    .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(
+                Icons.Outlined.ShoppingBag,
+                contentDescription = null,
+                tint = colors.textPrimary,
+                modifier = Modifier.size(18.dp),
+            )
+            Text("Para llevar", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.textPrimary)
+        }
+    }
+}
 
 /** Kicker con guion lima, título grande y el estado de conexión: la cabecera del tablero web. */
 @Composable
@@ -1056,6 +1125,7 @@ private fun WaiterTableSheet(
     onAttended: (TableCall) -> Unit,
     onDeliver: (BoardOrder) -> Unit,
     deliveryRequiresQr: Boolean,
+    canChargeAndDeliver: Boolean,
     onOpenTurn: (Int?) -> Unit,
     onExtendTurn: (Int) -> Unit,
     onReleaseSpace: () -> Unit,
@@ -1308,6 +1378,7 @@ private fun WaiterTableSheet(
                             WaiterSheetOrderRow(
                                 order = order,
                                 readOnly = readOnly,
+                                canDeliver = canChargeAndDeliver,
                                 colors = colors,
                                 onDeliver = onDeliver,
                             )
@@ -1318,7 +1389,8 @@ private fun WaiterTableSheet(
                                 enabled = !acting,
                                 loading = false,
                                 colors = colors,
-                                primary = false,
+                                // Sin cobrar ni entregar, pedir es lo principal de la hoja.
+                                primary = !canChargeAndDeliver,
                                 onClick = onTakeOrder,
                             )
                         }
@@ -1342,6 +1414,7 @@ private fun WaiterTableSheet(
                             hasReadyOrders = table.orders.any { it.state == OrderState.READY },
                             ordersInCourse = table.orders.size,
                             rentalDurations = rentalDurations,
+                            canCharge = canChargeAndDeliver,
                         )
                     }
                 }
@@ -1366,6 +1439,7 @@ private fun WaiterTableSheet(
 private fun WaiterSheetOrderRow(
     order: BoardOrder,
     readOnly: Boolean,
+    canDeliver: Boolean,
     colors: OperationalColors,
     onDeliver: (BoardOrder) -> Unit,
 ) {
@@ -1400,7 +1474,7 @@ private fun WaiterSheetOrderRow(
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
-            if (order.state == OrderState.READY) {
+            if (order.state == OrderState.READY && canDeliver) {
                 Button(
                     onClick = {
                         if (confirming) {

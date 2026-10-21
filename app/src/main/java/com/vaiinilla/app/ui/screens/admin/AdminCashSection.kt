@@ -1,19 +1,13 @@
 package com.vaiinilla.app.ui.screens.admin
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
-import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.screens.ActionPill
-import com.vaiinilla.app.ui.screens.ChipButton
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
 
@@ -21,20 +15,15 @@ import com.vaiinilla.app.ui.screens.OperationalField
 class AdminCashActions(
     val onOpenCash: (String, () -> Unit) -> Unit,
     val onCloseCash: (String, () -> Unit) -> Unit,
-    val onNewTakeAwayOrder: () -> Unit,
-    val onNewTableOrder: (TableSpace) -> Unit,
 )
 
 /**
- * Caja: como el POS de la web con una cuenta de administración. Abre y cierra la sesión de caja y crea pedidos de
- * mostrador; cobrar y entregar quedan para una cuenta de Caja.
+ * Caja: como el POS de la web con una cuenta de administración. Abre y cierra la sesión de caja; tomar pedidos vive
+ * en Pedidos, y cobrar y entregar quedan para una cuenta de Caja.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun AdminCashSection(
     state: AdminUiState,
-    tables: List<TableSpace>,
-    orderNotice: String?,
     colors: OperationalColors,
     readOnly: Boolean,
     actions: AdminCashActions,
@@ -48,7 +37,7 @@ internal fun AdminCashSection(
     AdminSectionPage(
         title = "Caja",
         colors = colors,
-        notice = state.notice ?: orderNotice,
+        notice = state.notice,
         noticeIsError = state.notice != null && state.noticeIsError,
         onBack = onBack,
     ) {
@@ -76,34 +65,6 @@ internal fun AdminCashSection(
                         ActionPill(label = "Abrir caja", enabled = enabled, loading = false, colors = colors) {
                             opening =
                                 true
-                        }
-                    }
-                }
-            }
-        }
-        item {
-            AdminCard(colors) {
-                AdminSectionTitle("Nuevo pedido", colors)
-                AdminHint("El pedido queda por cobrar: lo cobra y lo entrega una cuenta de Caja.", colors)
-                ActionPill(
-                    label = "Pedido para llevar",
-                    enabled = !readOnly,
-                    loading = false,
-                    colors = colors,
-                    onClick = actions.onNewTakeAwayOrder,
-                )
-                if (tables.isNotEmpty()) {
-                    AdminHint("O en una mesa:", colors)
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        tables.forEach { table ->
-                            ChipButton(
-                                label = table.name,
-                                enabled = !readOnly,
-                                colors = colors,
-                            ) { actions.onNewTableOrder(table) }
                         }
                     }
                 }

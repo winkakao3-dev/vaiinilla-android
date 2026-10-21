@@ -52,7 +52,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.mode.RestrictedMode
-import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.ui.admin.AdminImage
 import com.vaiinilla.app.ui.admin.AdminSpacesViewModel
 import com.vaiinilla.app.ui.admin.AdminStaffViewModel
@@ -90,7 +89,7 @@ enum class AdminSection(
     SPACES("Mesas y espacios", "QR y código de cada mesa, canchas y reservas", Icons.Outlined.TableRestaurant),
     STAFF("Personal", "Invitaciones y accesos del equipo", Icons.Outlined.Group),
     CASHBACK("Cashback y wallet", "La regla de cashback y la cartera de clientes", Icons.Outlined.Savings),
-    CASH("Caja", "Abrir y cerrar la caja y crear pedidos de mostrador", Icons.Outlined.PointOfSale),
+    CASH("Caja", "Abrir y cerrar la caja", Icons.Outlined.PointOfSale),
 }
 
 /** Lo que las secciones de "Negocio" necesitan: sus ViewModels y lo de Caja que vive en el resto de la app. */
@@ -99,10 +98,8 @@ class AdminSectionsHost(
     val store: AdminStoreViewModel,
     val spaces: AdminSpacesViewModel,
     val cash: AdminCashActions,
-    val tables: List<TableSpace>,
-    val orderNotice: String?,
-    /** La hoja del pedido de mostrador, cuando está abierta. */
-    val counterOrderSheet: @Composable () -> Unit,
+    /** El tablero del mesero para Pedidos → Mesas; null si no hay con qué cargarlo y queda solo el historial. */
+    val tablesBoard: (@Composable () -> Unit)? = null,
 )
 
 /** Lo que la pantalla puede pedirle al ViewModel; agrupado para no pasar veinte lambdas sueltas. */
@@ -150,7 +147,6 @@ fun AdminScreen(
         ) {
             AdminSectionContent(openSection, state, sections, scope, colors, readOnly) { section = null }
         }
-        sections.counterOrderSheet()
         return
     }
 
@@ -187,7 +183,8 @@ fun AdminScreen(
                             rentsSpaces = rentsSpaces,
                             cardFeeToCustomer = cardFeeToCustomer,
                         )
-                    AdminTab.ORDERS -> AdminOrdersTab(state = state, colors = colors, actions = actions)
+                    AdminTab.ORDERS ->
+                        AdminOrdersTab(state = state, colors = colors, actions = actions, tables = sections.tablesBoard)
                     AdminTab.BUSINESS -> AdminBusinessTab(colors = colors) { section = it }
                 }
             }
@@ -332,8 +329,6 @@ private fun AdminSectionContent(
         AdminSection.CASH ->
             AdminCashSection(
                 state = state,
-                tables = sections.tables,
-                orderNotice = sections.orderNotice,
                 colors = colors,
                 readOnly = readOnly,
                 actions = sections.cash,

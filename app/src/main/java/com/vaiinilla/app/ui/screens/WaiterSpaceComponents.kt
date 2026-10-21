@@ -302,6 +302,8 @@ internal fun WaiterSpaceSection(
     ordersInCourse: Int = 0,
     /** Duraciones que acepta el backend para rentar; con otras responde 400. */
     rentalDurations: List<Int> = DefaultRentalDurations,
+    /** Administración ve la cuenta pero no la cobra: el backend le niega /sesion/cobros y /abonos. */
+    canCharge: Boolean = true,
 ) {
     // Solo el botón que se tocó muestra su progreso; los demás quedan quietos.
     var busyKey by remember { mutableStateOf<String?>(null) }
@@ -489,8 +491,16 @@ internal fun WaiterSpaceSection(
                     }
                 }
             }
+            if (hasPending && !canCharge) {
+                Text(
+                    "La cuenta se cobra desde Mesero o Caja.",
+                    fontSize = 12.5.sp,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
             AnimatedVisibility(
-                visible = hasPending,
+                visible = hasPending && canCharge,
                 enter =
                     fadeIn(spring(stiffness = 300f)) + expandVertically(spring(stiffness = Spring.StiffnessMediumLow)),
                 exit = fadeOut(spring(stiffness = 500f)) + shrinkVertically(spring(stiffness = Spring.StiffnessMedium)),

@@ -1803,10 +1803,9 @@ fun AppNavHost(
                         returnToModes(navController, operationalViewModel)()
                     } else {
                         adminViewModel.onVisible(scope)
-                        // Para el menú: si el negocio renta canchas y si la tarjeta suma comisión. Para Caja: las mesas.
+                        // Para el menú: si el negocio renta canchas y si la tarjeta suma comisión.
                         adminStoreViewModel.onVisible(scope)
                         adminSpacesViewModel.onVisible(scope)
-                        waiterViewModel.refresh()
                     }
                 }
                 if (authorizedAdmin) {
@@ -1843,24 +1842,39 @@ fun AppNavHost(
                                     AdminCashActions(
                                         onOpenCash = adminViewModel::openCash,
                                         onCloseCash = adminViewModel::closeCash,
-                                        onNewTakeAwayOrder = waiterViewModel::openCounterOrder,
-                                        onNewTableOrder = waiterViewModel::openTableOrder,
                                     ),
-                                tables =
-                                    waiterState.tables
-                                        .map { it.space }
-                                        .filter { it.type != "cancha" },
-                                orderNotice = waiterState.toastMessage,
-                                counterOrderSheet = {
-                                    if (waiterState.counterOrderOpen) {
-                                        CounterOrderSheet(
-                                            state = waiterState,
-                                            colors = rememberOperationalColors(),
-                                            onDismiss = waiterViewModel::closeCounterOrder,
-                                            onSubmit = waiterViewModel::submitCounterOrder,
-                                            submitAction = "Crear pedido",
-                                        )
+                                // Pedidos → Mesas: el tablero del mesero para pedir en la mesa donde se esté. Sondea
+                                // solo mientras se ve.
+                                tablesBoard = {
+                                    DisposableEffect(Unit) {
+                                        waiterViewModel.onVisible()
+                                        onDispose { waiterViewModel.onHidden() }
                                     }
+                                    WaiterOperationalScreen(
+                                        state = waiterState,
+                                        onBack = {},
+                                        onRefresh = waiterViewModel::refresh,
+                                        onGoing = waiterViewModel::markGoing,
+                                        onAttended = waiterViewModel::markAttended,
+                                        onOpenSpace = waiterViewModel::openSpace,
+                                        onCloseSpace = waiterViewModel::closeSpace,
+                                        onOpenTurn = waiterViewModel::openTurn,
+                                        onStartRental = waiterViewModel::startRental,
+                                        onConfirmRental = waiterViewModel::confirmRental,
+                                        onCancelRental = waiterViewModel::cancelPendingRental,
+                                        onExtendTurn = waiterViewModel::extendTurn,
+                                        onReleaseSpace = waiterViewModel::releaseSpace,
+                                        onDismissCollection = waiterViewModel::dismissCollection,
+                                        onFilterAttending = waiterViewModel::setFilterAttending,
+                                        onOpenCounterOrder = waiterViewModel::openCounterOrder,
+                                        onOpenTableOrder = waiterViewModel::openTableOrder,
+                                        onCloseCounterOrder = waiterViewModel::closeCounterOrder,
+                                        onSubmitCounterOrder = waiterViewModel::submitCounterOrder,
+                                        restrictedMode = active?.restrictedMode,
+                                        placeName = active?.establishmentName.orEmpty(),
+                                        embedded = true,
+                                        canChargeAndDeliver = false,
+                                    )
                                 },
                             ),
                         scope = scope,
