@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
+import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
@@ -62,11 +63,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
@@ -94,6 +97,7 @@ import com.vaiinilla.app.ui.components.ProductDetailSheet
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.components.prefetchProductImages
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.MenuFeed
@@ -105,8 +109,11 @@ import com.vaiinilla.app.ui.order.selectedProduct
 import com.vaiinilla.app.ui.order.selectedProductPreviewPrice
 import com.vaiinilla.app.ui.order.selectedProductPreviewTotal
 import com.vaiinilla.app.ui.theme.Lime
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -166,6 +173,9 @@ fun MenuFeedScreen(
     var toast by remember { mutableStateOf<String?>(null) }
     // Cuánto sigue la página al dedo mientras se desliza de lado para cambiar de categoría.
     val swipeX = remember { Animatable(0f) }
+    // 1 = el feed fundido a negro mientras salta de categoría.
+    val jumpVeil = remember { Animatable(0f) }
+    var jumpJob by remember { mutableStateOf<Job?>(null) }
 
     LaunchedEffect(Unit) {
         delay(2600)
@@ -184,13 +194,30 @@ fun MenuFeedScreen(
         }
     }
 
+    // Se funde, salta sin animar y vuelve: animar el scroll recorría todos los platillos hasta la otra categoría.
     fun jumpTo(categoryId: Int) {
         val target = products.indexOfFirst { it.categoryId == categoryId }
-        if (target >= 0) {
+        if (target < 0 || target == pagerState.currentPage) return
+        jumpJob?.cancel()
+        jumpJob =
             scope.launch {
-                if (reduced) pagerState.scrollToPage(target) else pagerState.animateScrollToPage(target)
+                if (reduced) {
+                    jumpVeil.snapTo(0f)
+                    pagerState.scrollToPage(target)
+                    return@launch
+                }
+                // Saltar antes de que el velo cubra del todo deja ver un cuadro de la lista acomodándose.
+                jumpVeil.animateTo(
+                    1f,
+                    spring(dampingRatio = 1f, stiffness = VEIL_IN_STIFFNESS, visibilityThreshold = 0.001f),
+                )
+                pagerState.scrollToPage(target)
+                // Bajo el velo, la foto del destino (si tarda, sale sin ella) y dos cuadros para que el pager se acomode.
+                val photo = scope.async { prefetchProductImages(listOf(products[target].imageUrl)) }
+                withTimeoutOrNull(JUMP_PHOTO_WAIT_MS) { photo.await() }
+                repeat(2) { withFrameNanos { } }
+                jumpVeil.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = VEIL_OUT_STIFFNESS))
             }
-        }
     }
 
     fun add(
@@ -222,8 +249,17 @@ fun MenuFeedScreen(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .graphicsLayer { translationX = swipeX.value }
-                        .categorySwipe(
+                        .graphicsLayer {
+                            translationX = swipeX.value
+                            val veil = jumpVeil.value
+                            alpha = 1f - veil
+                            scaleX = 1f - 0.04f * veil
+                            scaleY = scaleX
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && veil > 0.01f) {
+                                val radius = 14.dp.toPx() * veil
+                                renderEffect = BlurEffect(radius, radius)
+                            }
+                        }.categorySwipe(
                             neighbor = { step ->
                                 products.getOrNull(pagerState.currentPage)?.let {
                                     MenuFeed.neighborCategory(feedCategories, it.categoryId, step)
@@ -993,6 +1029,12 @@ private fun Modifier.categorySwipe(
     }
 
 private const val SWIPE_THRESHOLD_DP = 90f
+
+// El velo del salto de categoría: entra con un resorte corto sin rebote (respuesta ~0.16 s) y sale con uno
+// suave (~0.45 s). La rigidez es (2π / respuesta)².
+private const val VEIL_IN_STIFFNESS = 1540f
+private const val VEIL_OUT_STIFFNESS = 195f
+private const val JUMP_PHOTO_WAIT_MS = 450L
 
 /** Cuánto se proyecta la velocidad al soltar, como el desplazamiento previsto de iOS. */
 private const val SWIPE_PROJECTION_SECONDS = 0.2f
