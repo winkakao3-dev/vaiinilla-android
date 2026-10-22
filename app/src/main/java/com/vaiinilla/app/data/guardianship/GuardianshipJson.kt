@@ -1,6 +1,5 @@
 package com.vaiinilla.app.data.guardianship
 
-import com.vaiinilla.app.domain.guardianship.Allergen
 import com.vaiinilla.app.domain.guardianship.CardReload
 import com.vaiinilla.app.domain.guardianship.CardReloadCheckout
 import com.vaiinilla.app.domain.guardianship.CardReloadRange
@@ -25,6 +24,7 @@ import com.vaiinilla.app.domain.guardianship.StudentRequest
 import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import com.vaiinilla.app.domain.guardianship.StudentRequestStatus
 import com.vaiinilla.app.domain.guardianship.toMoneyOrNull
+import com.vaiinilla.app.domain.school.SchoolAllergen
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -99,7 +99,7 @@ class GuardianshipJson {
             notes = obj.string("notas").orEmpty(),
             blockedProductIds = obj.ints("productos_bloqueados").toSet(),
             blockedCategoryIds = obj.ints("categorias_bloqueadas").toSet(),
-            allergens = obj.strings("alergenos").mapNotNull(Allergen::fromWire).toSet(),
+            allergens = obj.strings("alergenos").mapNotNull(SchoolAllergen::fromCode).toSet(),
         )
 
     /** Los nulos viajan: `limite_diario: null` quita el límite. Las listas se reemplazan completas. */
@@ -114,7 +114,7 @@ class GuardianshipJson {
                 "alergenos",
                 buildJsonArray {
                     controls.allergens
-                        .map { it.wireValue }
+                        .map { it.code }
                         .sorted()
                         .forEach { add(JsonPrimitive(it)) }
                 },
@@ -201,7 +201,7 @@ class GuardianshipJson {
             blockedProductIds = controls.ints("productos_bloqueados").toSet(),
             allergenProductIds = controls.ints("productos_con_alergeno").toSet(),
             unreviewedProductIds = controls.ints("productos_sin_revisar").toSet(),
-            allergens = controls.strings("alergenos").mapNotNull(Allergen::fromWire),
+            allergens = controls.strings("alergenos").mapNotNull(SchoolAllergen::fromCode),
         )
     }
 

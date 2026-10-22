@@ -2,7 +2,6 @@ package com.vaiinilla.app.data.guardianship
 
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
-import com.vaiinilla.app.domain.guardianship.Allergen
 import com.vaiinilla.app.domain.guardianship.ChildRestriction
 import com.vaiinilla.app.domain.guardianship.DependentContextGrant
 import com.vaiinilla.app.domain.guardianship.DependentControls
@@ -11,6 +10,7 @@ import com.vaiinilla.app.domain.guardianship.RefundMethod
 import com.vaiinilla.app.domain.guardianship.ScheduledDayOrder
 import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import com.vaiinilla.app.domain.guardianship.StudentRequestStatus
+import com.vaiinilla.app.domain.school.SchoolAllergen
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.jsonArray
@@ -64,7 +64,7 @@ class GuardianshipContractTest {
         assertTrue(child.isLowBalance)
         val controls = child.controls!!
         assertEquals(BigDecimal("60.00"), controls.dailyLimit)
-        assertEquals(setOf(Allergen.HUEVO), controls.allergens)
+        assertEquals(setOf(SchoolAllergen.HUEVO), controls.allergens)
         assertEquals(setOf(2), controls.blockedCategoryIds)
     }
 
@@ -79,7 +79,7 @@ class GuardianshipContractTest {
                             lowBalanceAlert = BigDecimal("30.00"),
                             notes = "  ",
                             blockedCategoryIds = setOf(5, 1),
-                            allergens = setOf(Allergen.SOYA, Allergen.HUEVO),
+                            allergens = setOf(SchoolAllergen.SOYA, SchoolAllergen.HUEVO),
                         ),
                     ),
                 ).jsonObject

@@ -1,6 +1,7 @@
 package com.vaiinilla.app.domain.guardianship
 
 import com.vaiinilla.app.core.notifications.GuardianPushNotifier
+import com.vaiinilla.app.domain.school.SchoolAllergen
 import com.vaiinilla.app.ui.parentmode.ChildControlsRules
 import com.vaiinilla.app.ui.parentmode.ChildReloadModel
 import com.vaiinilla.app.ui.parentmode.dailyLimitLine
@@ -84,7 +85,7 @@ class GuardianshipRulesTest {
                 dailyLimit = "",
                 lowBalance = "30",
                 notes = "Sin picante",
-                allergens = setOf(Allergen.HUEVO),
+                allergens = setOf(SchoolAllergen.HUEVO),
                 blockedCategories = setOf(2),
             )
         assertNull(edited.dailyLimit)

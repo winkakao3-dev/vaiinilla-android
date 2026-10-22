@@ -1,39 +1,11 @@
 package com.vaiinilla.app.domain.guardianship
 
+import com.vaiinilla.app.domain.school.SchoolAllergen
 import java.math.BigDecimal
 import java.math.RoundingMode
 
 // Padres e hijos (docs/padres-hijos.md del backend): un tutor ve a sus hijos, les recarga
 // saldo con tarjeta, les pone controles y les aparta la comida de la semana.
-
-/** Los alérgenos que el backend acepta en los controles de un hijo. */
-enum class Allergen(
-    val wireValue: String,
-    val label: String,
-) {
-    GLUTEN("gluten", "Gluten"),
-    CRUSTACEOS("crustaceos", "Crustáceos"),
-    HUEVO("huevo", "Huevo"),
-    PESCADO("pescado", "Pescado"),
-    CACAHUATE("cacahuate", "Cacahuate"),
-    SOYA("soya", "Soya"),
-    LACTEOS("lacteos", "Lácteos"),
-    NUECES("nueces", "Nueces"),
-    APIO("apio", "Apio"),
-    MOSTAZA("mostaza", "Mostaza"),
-    AJONJOLI("ajonjoli", "Ajonjolí"),
-    SULFITOS("sulfitos", "Sulfitos"),
-    ALTRAMUCES("altramuces", "Altramuces"),
-    MOLUSCOS("moluscos", "Moluscos"),
-    LACTOSA("lactosa", "Lactosa"),
-    COLORANTES("colorantes", "Colorantes"),
-    ;
-
-    companion object {
-        /** Un alérgeno nuevo del backend que esta versión no conoce no rompe la lista. */
-        fun fromWire(value: String): Allergen? = entries.firstOrNull { it.wireValue == value }
-    }
-}
 
 /** Lo que el tutor decide sobre lo que su hijo compra sin él (en Caja o en su propia app). */
 data class DependentControls(
@@ -42,7 +14,7 @@ data class DependentControls(
     val notes: String = "",
     val blockedProductIds: Set<Int> = emptySet(),
     val blockedCategoryIds: Set<Int> = emptySet(),
-    val allergens: Set<Allergen> = emptySet(),
+    val allergens: Set<SchoolAllergen> = emptySet(),
 )
 
 /** Uno de los tutores de un hijo, como lo ve otro de sus tutores. [id] es la tutela. */
@@ -227,7 +199,7 @@ data class MyGuardianControls(
     val allergenProductIds: Set<Int>,
     /** Sin alérgenos revisados por la escuela; solo llegan si el hijo tiene alguna alergia. */
     val unreviewedProductIds: Set<Int> = emptySet(),
-    val allergens: List<Allergen>,
+    val allergens: List<SchoolAllergen>,
 ) {
     /** El bloqueo del tutor gana sobre el alérgeno: es lo que el backend responde primero. */
     fun restriction(productId: Int): ChildRestriction? =

@@ -24,11 +24,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.core.network.toUserFacingMessage
-import com.vaiinilla.app.domain.guardianship.Allergen
 import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.domain.guardianship.DependentControls
 import com.vaiinilla.app.domain.guardianship.TypedAmount
 import com.vaiinilla.app.domain.model.Category
+import com.vaiinilla.app.domain.school.SchoolAllergen
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
@@ -53,7 +53,7 @@ internal object ChildControlsRules {
         dailyLimit: String,
         lowBalance: String,
         notes: String,
-        allergens: Set<Allergen>,
+        allergens: Set<SchoolAllergen>,
         blockedCategories: Set<Int>,
     ): DependentControls =
         current.copy(
@@ -187,7 +187,7 @@ internal fun ChildControlsSheet(
                 "No se le vende ni se le aparta nada que las tenga, ni lo que la escuela no ha revisado.",
             )
             ChipFlow {
-                Allergen.entries.forEach { allergen ->
+                SchoolAllergen.entries.forEach { allergen ->
                     ToggleChip(allergen.label, allergen in allergens, colors, enabled = principal) {
                         allergens = if (allergen in allergens) allergens - allergen else allergens + allergen
                         touched()
