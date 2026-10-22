@@ -120,17 +120,21 @@ class ChildReloadModel(
 
     suspend fun finish(result: PaymentSheetResult) {
         when (result) {
-            is PaymentSheetResult.Completed -> {
-                phase = Phase.Confirming
-                confirm()
-            }
-            is PaymentSheetResult.Canceled -> phase = Phase.Editing
-            // El error crudo de Stripe no se guarda ni se muestra.
-            is PaymentSheetResult.Failed ->
-                phase =
-                    Phase.Failed("La tarjeta no pasó. Prueba con otra o vuelve a intentar.")
+            is PaymentSheetResult.Completed -> onPaymentSheetCompleted()
+            is PaymentSheetResult.Canceled -> onPaymentSheetClosed(failed = false)
+            is PaymentSheetResult.Failed -> onPaymentSheetClosed(failed = true)
         }
-        if (phase !is Phase.Confirming) checkout = null
+    }
+
+    suspend fun onPaymentSheetCompleted() {
+        phase = Phase.Confirming
+        confirm()
+    }
+
+    fun onPaymentSheetClosed(failed: Boolean) {
+        // El error crudo de Stripe no se guarda ni se muestra.
+        phase = if (failed) Phase.Failed("La tarjeta no pasó. Prueba con otra o vuelve a intentar.") else Phase.Editing
+        checkout = null
     }
 
     /** El resultado de PaymentSheet nunca acredita: se espera a que el backend diga "acreditada". */
