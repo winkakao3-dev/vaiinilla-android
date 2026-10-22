@@ -259,10 +259,14 @@ class StudentCounterViewModel
             state = state.copy(notice = null)
         }
 
-        /** Vuelve a pedir la ficha para que el saldo, lo gastado y los pedidos del día queden al día. */
+        /**
+         * Vuelve a pedir la ficha para que el saldo, lo gastado y los pedidos del día queden al día en la ficha, en
+         * su fila y en lo que la cola recuerda para el tope sin conexión. Si falla, se queda la que había.
+         */
         suspend fun refreshSelected() {
             val current = state.selected ?: return
-            val text = current.studentId ?: current.name
+            // El servidor pide al menos 2 letras: una matrícula más corta no encontraría a nadie.
+            val text = current.studentId?.trim()?.takeIf { it.length >= 2 } ?: current.name
             val fresh =
                 withContext(io) { repository.search(text) }
                     .getOrNull()
