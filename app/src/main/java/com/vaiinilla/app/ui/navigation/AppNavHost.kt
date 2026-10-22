@@ -810,6 +810,8 @@ fun AppNavHost(
             }
 
             composable(Routes.DISCOVERY) {
+                // Tus escuelas: las de sus accesos, para volver sin código.
+                LaunchedEffect(studentAuthState.session?.uid) { discoveryViewModel.loadMySchools() }
                 DiscoveryScreen(
                     tableCodeRequest = tableCodeRequest,
                     state = discoveryState,
@@ -845,6 +847,10 @@ fun AppNavHost(
                     onEnableNearby = discoveryViewModel::enableNearby,
                     onNearbyPermissionDenied = discoveryViewModel::onNearbyPermissionDenied,
                     onDisableNearby = discoveryViewModel::disableNearby,
+                    onOpenSchool = { school ->
+                        startEntrance(null)
+                        discoveryViewModel.openSchool(school, onEntered = ::enterVenueAndOpenCatalog)
+                    },
                 )
 
                 if (qrScannerOpen) {

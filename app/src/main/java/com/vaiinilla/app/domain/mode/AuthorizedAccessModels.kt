@@ -22,6 +22,10 @@ data class AuthorizedMode(
     val establishmentName: String,
     val membershipId: String,
     val clientIdentifier: String? = null,
+    val establishmentSlug: String = "",
+    /** Un servidor anterior no lo envía: no es escuela. */
+    val isSchool: Boolean = false,
+    val establishmentActive: Boolean = true,
 )
 
 /**

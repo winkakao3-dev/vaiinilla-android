@@ -260,6 +260,9 @@ class RemoteAuthorizedAccessRepository
                 establishmentName = establecimiento.nombre,
                 membershipId = membresiaId,
                 clientIdentifier = clientIdentifier,
+                establishmentSlug = establecimiento.slug,
+                isSchool = establecimiento.isSchool,
+                establishmentActive = establishmentStatus == "activo",
             )
         }
 
@@ -340,4 +343,6 @@ private data class EstablishmentAccessDto(
     val id: String,
     val nombre: String,
     val slug: String,
+    /** "Tus escuelas" en Dónde pedir; un servidor anterior no lo envía. */
+    @SerialName("modo_escuela") val isSchool: Boolean = false,
 )

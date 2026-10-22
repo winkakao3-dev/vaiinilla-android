@@ -95,6 +95,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.vaiinilla.app.domain.guardianship.SchoolJoinCodeRules
+import com.vaiinilla.app.domain.mode.MySchool
+import com.vaiinilla.app.domain.mode.MySchools
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicVideo
 import com.vaiinilla.app.ui.components.ChoiceChip
@@ -135,6 +137,7 @@ fun DiscoveryScreen(
     onNearbyPermissionDenied: () -> Unit = {},
     onDisableNearby: () -> Unit = {},
     nfcAvailable: Boolean = rememberHasNfcReader(),
+    onOpenSchool: (MySchool) -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -262,6 +265,17 @@ fun DiscoveryScreen(
                         bottom = 32.dp,
                     ),
             ) {
+                val otherSchools = MySchools.others(state.mySchools, state.selected?.establishment?.id)
+                if (otherSchools.isNotEmpty()) {
+                    item(key = "my-schools") {
+                        DiscoverySchoolsRow(
+                            schools = otherSchools,
+                            openingSchoolId = state.openingSchoolId,
+                            onOpen = onOpenSchool,
+                            modifier = Modifier.padding(top = 6.dp, bottom = 8.dp).animateItem(),
+                        )
+                    }
+                }
                 item {
                     EditorialSearchField(
                         value = state.query,
