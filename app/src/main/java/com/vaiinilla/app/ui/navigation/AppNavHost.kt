@@ -74,6 +74,8 @@ import com.vaiinilla.app.ui.order.canPayWithCard
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.isEstablishmentSwitch
 import com.vaiinilla.app.ui.order.toRuntimeConfiguration
+import com.vaiinilla.app.ui.parentmode.ChildrenViewModel
+import com.vaiinilla.app.ui.parentmode.ParentModeWalletHost
 import com.vaiinilla.app.ui.profile.displayInitials
 import com.vaiinilla.app.ui.reservations.ReservationsScreen
 import com.vaiinilla.app.ui.reservations.ReservationsViewModel
@@ -124,6 +126,7 @@ import com.vaiinilla.app.ui.support.SupportLastOrder
 import com.vaiinilla.app.ui.support.SupportScreen
 import com.vaiinilla.app.ui.wallet.WalletViewModel
 import com.vaiinilla.app.ui.wallet.rememberWalletUiState
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -163,6 +166,7 @@ fun AppNavHost(
     val authorizedAccessViewModel: AuthorizedAccessViewModel = viewModel()
     val discoveryViewModel: GuestDiscoveryViewModel = viewModel()
     val walletViewModel: WalletViewModel = viewModel()
+    val childrenViewModel: ChildrenViewModel = viewModel()
     val accountDeletionViewModel: AccountDeletionViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
@@ -1058,15 +1062,34 @@ fun AppNavHost(
                         delay(WALLET_VISIBLE_REFRESH_MS)
                     }
                 }
-                WalletScreen(
-                    remoteState = walletRemoteState,
-                    userId =
-                        walletRemoteState.data?.wallet?.userId
-                            ?: studentAuthState.session?.uid,
-                    onRetry = walletViewModel::refresh,
-                    onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                    onCodeOpenChange = { walletCodeOpen = it },
-                )
+                // Padres e hijos: solo una escuela muestra Mis hijos y Opciones avanzadas.
+                ParentModeWalletHost(
+                    enabled = orderState.operationalStatus?.isSchool == true,
+                    childrenViewModel = childrenViewModel,
+                    onFullScreenChange = { walletCodeOpen = it },
+                    onAccountClaimed = {
+                        val renewed = CompletableDeferred<Unit>()
+                        studentAuthViewModel.completeEnrollment(
+                            onSuccess = { renewed.complete(Unit) },
+                            onNeedsVerify = { renewed.complete(Unit) },
+                            onNeedsContextualId = { renewed.complete(Unit) },
+                            onFailed = { renewed.complete(Unit) },
+                        )
+                        renewed.await()
+                        walletViewModel.refresh()
+                    },
+                ) { familySection ->
+                    WalletScreen(
+                        remoteState = walletRemoteState,
+                        userId =
+                            walletRemoteState.data?.wallet?.userId
+                                ?: studentAuthState.session?.uid,
+                        onRetry = walletViewModel::refresh,
+                        onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                        onCodeOpenChange = { walletCodeOpen = it },
+                        familySection = familySection,
+                    )
+                }
             }
 
             composable(
