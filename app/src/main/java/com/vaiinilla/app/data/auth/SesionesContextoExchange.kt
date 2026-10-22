@@ -1,6 +1,7 @@
 package com.vaiinilla.app.data.auth
 
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
+import com.vaiinilla.app.data.guest.SchoolJoinCodeStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -14,6 +15,7 @@ class SesionesContextoExchange
     @Inject
     constructor(
         private val apiClient: HttpVaiinillaApiClient,
+        private val joinCodes: SchoolJoinCodeStore,
     ) : ContextoExchanger {
         private val json =
             Json {
@@ -34,6 +36,7 @@ class SesionesContextoExchange
                         SesionesContextoClienteRequestDto(
                             establecimientoSlug = establecimientoSlug,
                             identificadorCliente = identificadorCliente,
+                            codigoUnion = joinCodes.codeFor(establecimientoId),
                         ),
                     )
                 val raw =
@@ -70,6 +73,8 @@ class SesionesContextoExchange
 private data class SesionesContextoClienteRequestDto(
     @kotlinx.serialization.SerialName("establecimiento_slug") val establecimientoSlug: String,
     @kotlinx.serialization.SerialName("identificador_cliente") val identificadorCliente: String?,
+    /** El de la escuela, si se entró con "Usar código" › Escuela; sin él no viaja (explicitNulls = false). */
+    @kotlinx.serialization.SerialName("codigo_union") val codigoUnion: String? = null,
 )
 
 @kotlinx.serialization.Serializable
