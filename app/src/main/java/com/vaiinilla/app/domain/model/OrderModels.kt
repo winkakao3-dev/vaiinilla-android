@@ -156,6 +156,8 @@ data class StripePaymentSession(
 data class OrderUser(
     val name: String,
     val enrollment: String,
+    /** Códigos del catálogo de alérgenos; van en una banda coral arriba del ticket de Cocina y de Caja. */
+    val allergies: List<String> = emptyList(),
 )
 
 data class OrderSpace(
