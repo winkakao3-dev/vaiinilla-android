@@ -209,6 +209,8 @@ data class CashSessionEnvelopeDto(
 data class OrderUserDto(
     @SerialName("nombre") val name: String,
     @SerialName("matricula") val enrollment: String? = null,
+    /** Las alergias del alumno al pedir (migración 96); un servidor anterior no las manda. */
+    @SerialName("alergias") val allergies: List<String>? = null,
 )
 
 @Serializable

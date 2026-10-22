@@ -8,6 +8,7 @@ import kotlinx.serialization.json.JsonElement
 data class ApiErrorDto(
     val code: String,
     val message: String,
+    val details: JsonElement? = null,
 )
 
 @Serializable

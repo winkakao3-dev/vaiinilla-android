@@ -27,6 +27,7 @@ class ApiResponseParser
                 message = error?.message ?: "La API respondió con código $httpStatus.",
                 httpStatus = httpStatus,
                 retryAfterSeconds = retryAfterSeconds,
+                details = error?.details,
             )
         }
     }
