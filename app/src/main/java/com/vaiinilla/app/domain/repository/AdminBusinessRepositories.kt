@@ -67,6 +67,10 @@ interface AdminStoreRepository {
 
     fun setVisibleInDirectory(visible: Boolean): Result<StoreConfig>
 
+    /** Prende o apaga el modo escuela; solo cambia lo que muestran las apps. */
+    fun setSchoolMode(isSchool: Boolean): Result<StoreConfig> =
+        Result.failure(UnsupportedOperationException("Modo escuela no soportado"))
+
     /** `null` si el negocio aún no conecta su cuenta de Stripe. */
     fun stripe(): Result<StripeSetup?>
 

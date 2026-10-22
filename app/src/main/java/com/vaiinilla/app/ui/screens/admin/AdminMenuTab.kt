@@ -64,6 +64,7 @@ import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.domain.school.SchoolAllergen
 import com.vaiinilla.app.ui.admin.AdminImage
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -99,6 +100,8 @@ internal fun AdminMenuTab(
     rentsSpaces: Boolean = false,
     /** Con tarjeta se suma la comisión al precio (Stripe listo y "el cliente paga la comisión"). */
     cardFeeToCustomer: Boolean = false,
+    /** En una escuela, cada producto necesita sus alérgenos revisados para venderse a alumnos con alergias. */
+    isSchool: Boolean = false,
 ) {
     var sheet by remember { mutableStateOf<MenuSheet?>(null) }
     val catalog = state.catalog
@@ -110,7 +113,16 @@ internal fun AdminMenuTab(
                 Modifier.padding(16.dp),
             ) { AdminLoadError(state.catalogError, colors) { actions.onRefreshCatalog() } }
         catalog == null -> Box(Modifier.fillMaxSize())
-        else -> MenuList(catalog, colors, readOnly, actions, onOpen = { sheet = it }, saving = state.saving)
+        else ->
+            MenuList(
+                catalog,
+                colors,
+                readOnly,
+                actions,
+                onOpen = { sheet = it },
+                saving = state.saving,
+                isSchool = isSchool,
+            )
     }
     when (val current = sheet) {
         is MenuSheet.EditCategory ->
@@ -134,6 +146,7 @@ internal fun AdminMenuTab(
                 onSave = { input, image -> actions.onSaveProduct(current.product?.id, input, image) { sheet = null } },
                 rentsSpaces = rentsSpaces,
                 cardFeeToCustomer = cardFeeToCustomer,
+                isSchool = isSchool,
                 onRemoveImage = { product ->
                     actions.onRemoveImage(product)
                     sheet = null
@@ -150,6 +163,7 @@ private fun MenuList(
     readOnly: Boolean,
     actions: AdminActions,
     saving: Boolean,
+    isSchool: Boolean = false,
     onOpen: (MenuSheet) -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
@@ -192,6 +206,28 @@ private fun MenuList(
                         primary = false,
                         modifier = Modifier.weight(1f),
                     ) { onOpen(MenuSheet.EditCategory(null)) }
+                }
+            }
+        }
+        val unreviewed = if (isSchool) catalog.products.count { !it.allergensReviewed } else 0
+        if (unreviewed > 0) {
+            item(key = "alergenos-sin-revisar") {
+                AdminCard(colors) {
+                    Text(
+                        if (unreviewed == 1) {
+                            "1 producto sin alérgenos revisados"
+                        } else {
+                            "$unreviewed productos sin alérgenos revisados"
+                        },
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary,
+                    )
+                    Text(
+                        "Un alumno con alergias no puede pedirlos hasta que marques qué tienen.",
+                        fontSize = 13.sp,
+                        color = colors.textSecondary,
+                    )
                 }
             }
         }
@@ -272,13 +308,27 @@ private fun MenuList(
                 CategoryHeader(category, products.size, colors, readOnly) { onOpen(MenuSheet.EditCategory(category)) }
             }
             items(products, key = { "p${it.id}" }) { product ->
-                ProductRow(product, colors, readOnly, saving, actions) { onOpen(MenuSheet.EditProduct(product)) }
+                ProductRow(
+                    product,
+                    colors,
+                    readOnly,
+                    saving,
+                    actions,
+                    isSchool,
+                ) { onOpen(MenuSheet.EditProduct(product)) }
             }
         }
         if (orphans.isNotEmpty()) {
             item { AdminSectionTitle("Sin categoría", colors, Modifier.padding(top = 8.dp)) }
             items(orphans, key = { "p${it.id}" }) { product ->
-                ProductRow(product, colors, readOnly, saving, actions) { onOpen(MenuSheet.EditProduct(product)) }
+                ProductRow(
+                    product,
+                    colors,
+                    readOnly,
+                    saving,
+                    actions,
+                    isSchool,
+                ) { onOpen(MenuSheet.EditProduct(product)) }
             }
         }
         item { Box(Modifier.height(8.dp)) }
@@ -326,6 +376,7 @@ private fun ProductRow(
     readOnly: Boolean,
     saving: Boolean,
     actions: AdminActions,
+    isSchool: Boolean,
     onOpen: () -> Unit,
 ) {
     val haptics = rememberVaiinillaHaptics()
@@ -373,6 +424,9 @@ private fun ProductRow(
                 overflow = TextOverflow.Ellipsis,
             )
             if (!product.available) Text("Agotado", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AdminCoral)
+            if (isSchool && !product.allergensReviewed) {
+                Text("Alérgenos sin revisar", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AdminCoral)
+            }
         }
         Switch(
             checked = product.available,
@@ -488,6 +542,7 @@ private fun ProductSheet(
     onRemoveImage: (Product) -> Unit,
     rentsSpaces: Boolean,
     cardFeeToCustomer: Boolean,
+    isSchool: Boolean = false,
 ) {
     val context = LocalContext.current
     val haptics = rememberVaiinillaHaptics()
@@ -498,7 +553,11 @@ private fun ProductSheet(
     var minutes by remember { mutableStateOf((product?.estimatedTimeMinutes ?: 5).toString()) }
     var description by remember { mutableStateOf(product?.description.orEmpty()) }
     var ingredients by remember { mutableStateOf(product?.ingredients.orEmpty()) }
-    var allergens by remember { mutableStateOf(product?.allergens.orEmpty()) }
+    var allergens by remember { mutableStateOf(legacyAllergensText(product?.allergens)) }
+    var allergenCodes by remember { mutableStateOf(product?.allergenCodes.orEmpty().toSet()) }
+    var allergensReviewed by remember { mutableStateOf(product?.allergensReviewed ?: false) }
+    // Solo lo que el admin revisó se manda: guardar el precio no marca revisado un producto que nadie miró.
+    var allergensTouched by remember { mutableStateOf(false) }
     var available by remember { mutableStateOf(product?.available ?: true) }
     var image by remember { mutableStateOf<AdminImage?>(null) }
     var imageError by remember { mutableStateOf<String?>(null) }
@@ -666,6 +725,19 @@ private fun ProductSheet(
             enabled = !saving,
             singleLine = false,
         )
+        if (isSchool) {
+            AllergenReview(
+                codes = allergenCodes,
+                reviewed = allergensReviewed,
+                colors = colors,
+                enabled = !saving,
+            ) { codes ->
+                haptics.selection()
+                allergenCodes = codes
+                allergensReviewed = true
+                allergensTouched = true
+            }
+        }
 
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -717,6 +789,7 @@ private fun ProductSheet(
                     counterPrice = price,
                     available = available,
                     optionGroups = groups.map { it.toInput() },
+                    allergenCodes = allergenCodes.takeIf { isSchool && allergensTouched },
                 ),
                 image,
             )
@@ -854,6 +927,48 @@ private fun GroupEditor(
         }
     }
 }
+
+/** "Alérgenos para alumnos": los del catálogo como chips, más "No tiene ninguno". */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun AllergenReview(
+    codes: Set<String>,
+    reviewed: Boolean,
+    colors: OperationalColors,
+    enabled: Boolean,
+    onChange: (Set<String>) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+        AdminFieldLabel("Alérgenos para alumnos", colors)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            ChipButton(
+                label = "No tiene ninguno",
+                enabled = enabled,
+                colors = colors,
+                selected = reviewed && codes.isEmpty(),
+            ) { onChange(emptySet()) }
+            SchoolAllergen.entries.forEach { allergen ->
+                val on = allergen.code in codes
+                ChipButton(label = allergen.label, enabled = enabled, colors = colors, selected = on) {
+                    onChange(if (on) codes - allergen.code else codes + allergen.code)
+                }
+            }
+        }
+        Text(
+            if (reviewed) {
+                "Un alumno con alguna de estas alergias no lo podrá pedir."
+            } else {
+                "Sin revisar: un alumno con alergias no lo puede pedir. Marca lo que tiene o \"No tiene ninguno\"."
+            },
+            fontSize = 12.sp,
+            fontWeight = if (reviewed) FontWeight.Normal else FontWeight.Bold,
+            color = if (reviewed) colors.textSecondary else AdminCoral,
+        )
+    }
+}
+
+/** El texto viejo de alérgenos; un "{}" o "[]" guardado por error no se muestra como si fuera algo. */
+internal fun legacyAllergensText(raw: String?): String = raw?.takeUnless { it.trim() in setOf("{}", "[]") }.orEmpty()
 
 @Composable
 private fun SheetError(text: String) {

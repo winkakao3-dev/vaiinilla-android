@@ -97,6 +97,22 @@ internal fun AdminStoreSection(
             }
         }
         item {
+            AdminCard(colors) {
+                AdminSectionTitle("Escuela", colors)
+                AdminChoice(
+                    question = "¿Es una escuela?",
+                    options = listOf(false to "No", true to "Sí, con papás y alumnos"),
+                    selected = config.isSchool,
+                    colors = colors,
+                    enabled = enabled,
+                ) { if (it != config.isSchool) viewModel.setSchoolMode(it) }
+                AdminHint(
+                    "Los papás recargan y apartan la comida de sus hijos, y Caja le cobra al alumno sin teléfono.",
+                    colors,
+                )
+            }
+        }
+        item {
             StoreImagesCard(
                 images = state.images,
                 busy = state.imageBusy,
