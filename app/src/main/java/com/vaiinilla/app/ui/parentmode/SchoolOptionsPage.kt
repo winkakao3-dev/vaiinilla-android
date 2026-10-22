@@ -5,6 +5,7 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,10 +30,12 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Password
 import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.components.GlassCircleButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
+import com.vaiinilla.app.ui.components.SkeletonBlock
 import com.vaiinilla.app.ui.components.SlidingSegments
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -56,7 +60,7 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import kotlinx.coroutines.launch
 
-private enum class OptionsSheet { ADD, LINK_CODE, CLAIM }
+private enum class OptionsSheet { ADD, UNLOCK, LINK_CODE, CLAIM }
 
 /**
  * Cartera › Opciones avanzadas, solo en escuelas: lo de papás y alumnos queda aquí, lejos de quien
@@ -74,6 +78,9 @@ internal fun SchoolOptionsPage(
     val scope = rememberCoroutineScope()
     var sheet by rememberSaveable { mutableStateOf<OptionsSheet?>(null) }
     var guideIndex by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) { children.loadParentAccess() }
+    // Quien ya cuida hijos siempre puede agregar otro; quien no, primero escribe el código de la escuela.
+    val parentAccess = if (children.children.isEmpty()) children.isParentUnlocked else true
 
     Box(modifier = Modifier.fillMaxSize().testTag("school-options")) {
         Column(
@@ -94,12 +101,44 @@ internal fun SchoolOptionsPage(
             )
 
             SectionLabel("Si eres papá o tutor")
-            OptionRow(
-                icon = Icons.Outlined.Add,
-                title = if (children.children.isEmpty()) "Agregar a mi hijo" else "Agregar otro hijo",
-                detail = "Con su nombre y matrícula, o con el código que saca él si ya tiene la app.",
-                tag = "school-options-add",
-            ) { sheet = OptionsSheet.ADD }
+            AnimatedContent(
+                targetState = parentAccess,
+                transitionSpec = {
+                    if (reduced) {
+                        fadeIn(snap()) togetherWith fadeOut(snap())
+                    } else {
+                        (
+                            fadeIn(
+                                spring(stiffness = 300f),
+                            ) + slideInVertically(spring(stiffness = 400f)) { it / 6 }
+                        ) togetherWith
+                            fadeOut(spring(stiffness = 600f))
+                    }
+                },
+                label = "parent-access",
+            ) { access ->
+                when (access) {
+                    true ->
+                        OptionRow(
+                            icon = Icons.Outlined.Add,
+                            title = if (children.children.isEmpty()) "Agregar a mi hijo" else "Agregar otro hijo",
+                            detail = "Con su nombre y matrícula, o con el código que saca él si ya tiene la app.",
+                            tag = "school-options-add",
+                        ) { sheet = OptionsSheet.ADD }
+                    false ->
+                        OptionRow(
+                            icon = Icons.Outlined.Password,
+                            title = "Tengo el código de la escuela",
+                            detail = "El que la escuela les da a los papás. Con él puedes agregar a tus hijos.",
+                            tag = "school-options-unlock",
+                        ) { sheet = OptionsSheet.UNLOCK }
+                    null ->
+                        SkeletonBlock(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).height(56.dp),
+                            corner = 14.dp,
+                        )
+                }
+            }
 
             SectionLabel("Si eres alumno")
             OptionRow(
@@ -165,10 +204,18 @@ internal fun SchoolOptionsPage(
 
     when (sheet) {
         OptionsSheet.ADD ->
-            AddChildSheet(children.services.guardianship, onAdded = children::upsert, onDismiss = {
-                sheet =
-                    null
-            })
+            AddChildSheet(
+                children.services.guardianship,
+                onAdded = children::upsert,
+                onDismiss = { sheet = null },
+                onParentUnlocked = children::markParentUnlocked,
+            )
+        OptionsSheet.UNLOCK ->
+            ParentUnlockSheet(
+                guardianship = children.services.guardianship,
+                onUnlocked = children::markParentUnlocked,
+                onDismiss = { sheet = null },
+            )
         OptionsSheet.LINK_CODE -> LinkCodeSheet(children.services.guardianship, onDismiss = { sheet = null })
         OptionsSheet.CLAIM ->
             ClaimAccountSheet(
@@ -239,7 +286,9 @@ private fun OptionRow(
 
 private val PARENT_STEPS =
     listOf(
-        "Entra a la escuela con el código o el QR que te dio. Tu propia cuenta sigue igual: pides y pagas como siempre.",
+        "Entra a la escuela con el código que te dio: es el que te deja agregar a tus hijos. " +
+            "Si entraste sin él, escríbelo aquí en \"Tengo el código de la escuela\". " +
+            "Tu propia cuenta sigue igual: pides y pagas como siempre.",
         "Aquí toca \"Agregar a mi hijo\" con su nombre y su matrícula. Si tu hijo ya tiene la app, pídele su código y escríbelo.",
         "Tu hijo aparece en Cartera › Mis hijos; si la escuela revisa a los tutores, primero como \"Esperando\". Ya aprobado, le recargas saldo con tarjeta, o lo recargan en Caja.",
         "Ponle un límite al día, bloquea productos y marca sus alergias. El límite y los bloqueos aplican cuando compra sin ti; las alergias, siempre, también a lo que tú le apartas.",

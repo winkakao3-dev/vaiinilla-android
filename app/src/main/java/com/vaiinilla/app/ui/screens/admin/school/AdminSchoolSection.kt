@@ -199,7 +199,8 @@ private fun JoinCodeCard(
                 modifier = Modifier.padding(vertical = 4.dp),
             )
             AdminHint(
-                "Repártelo en la circular. Al cambiarlo, el anterior deja de servir; quien ya entró se queda.",
+                "Los papás lo escriben para agregar a sus hijos. Repártelo en la circular. " +
+                    "Al cambiarlo, el anterior deja de servir; quien ya entró se queda.",
                 colors,
             )
             if (confirmsRegenerate) {

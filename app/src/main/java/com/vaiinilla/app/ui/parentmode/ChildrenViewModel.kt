@@ -36,6 +36,10 @@ class ChildrenState(
     var error by mutableStateOf<String?>(null)
         private set
 
+    /** `null` mientras se consulta. Si la consulta falla se deja pasar: el servidor decide al agregar. */
+    var isParentUnlocked by mutableStateOf<Boolean?>(null)
+        private set
+
     /** El aviso se abre solo una vez por visita; después queda la tarjeta. */
     var offeredConsent = false
 
@@ -51,6 +55,16 @@ class ChildrenState(
                 if (children.isEmpty()) error = it.toUserFacingMessage("No pudimos traer a tus hijos.")
             }
         hasLoaded = true
+    }
+
+    /** Si ya dio el código de la escuela; quien entró con "Usar código" llega habilitado. */
+    suspend fun loadParentAccess() {
+        val status = withContext(Dispatchers.IO) { services.catalog.getOperationalStatus() }.getOrNull()
+        isParentUnlocked = status?.isParentUnlocked ?: true
+    }
+
+    fun markParentUnlocked() {
+        isParentUnlocked = true
     }
 
     /** La respuesta trae a todos los hijos ya actualizados: reemplaza la lista. */

@@ -81,12 +81,16 @@ internal fun AddChildSheet(
     guardianship: GuardianshipRepository,
     onAdded: (Dependent) -> Unit,
     onDismiss: () -> Unit,
+    onParentUnlocked: () -> Unit = {},
 ) {
     val colors = rememberOperationalColors()
     val haptics = rememberVaiinillaHaptics()
     val reduced = reducedMotion()
     val scope = rememberCoroutineScope()
     val loader = remember { NoticeLoader(guardianship) }
+    // El servidor pidió el código de la escuela: al darlo, se vuelve a mandar lo que ya estaba escrito.
+    var asksSchoolCode by remember { mutableStateOf(false) }
+    var unlockedByCode by remember { mutableStateOf(false) }
     var withCode by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var studentId by remember { mutableStateOf("") }
@@ -155,7 +159,10 @@ internal fun AddChildSheet(
                     state = MorphState.Idle("Agregar")
                     sendKey = newKey()
                     error = it.toUserFacingMessage("No pudimos agregarlo. Intenta otra vez.")
-                    if (it.isConsentRequired()) {
+                    if (it.isParentCodeRequired()) {
+                        error = null
+                        asksSchoolCode = true
+                    } else if (it.isConsentRequired()) {
                         // El aviso cambió mientras la hoja estaba abierta: se lee y se acepta el nuevo.
                         accepted = false
                         showsNotice = true
@@ -238,6 +245,23 @@ internal fun AddChildSheet(
             onToggle = { accepted = !accepted },
             onToggleNotice = { showsNotice = !showsNotice },
             onRetry = { scope.launch { loader.load() } },
+        )
+    }
+
+    if (asksSchoolCode) {
+        ParentUnlockSheet(
+            guardianship = guardianship,
+            onUnlocked = {
+                unlockedByCode = true
+                onParentUnlocked()
+            },
+            onDismiss = {
+                asksSchoolCode = false
+                if (unlockedByCode) {
+                    unlockedByCode = false
+                    submit()
+                }
+            },
         )
     }
 }
