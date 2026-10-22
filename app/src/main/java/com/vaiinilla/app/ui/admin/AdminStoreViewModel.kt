@@ -121,6 +121,17 @@ class AdminStoreViewModel
                 repository.setVisibleInDirectory(visible)
             }
 
+        fun setSchoolMode(isSchool: Boolean) =
+            saveConfig(
+                if (isSchool) {
+                    "Ya eres escuela: aparecen Mis hijos, Alumnos y Escuela"
+                } else {
+                    "Ya no se muestran Mis hijos ni Alumnos"
+                },
+            ) {
+                repository.setSchoolMode(isSchool)
+            }
+
         private fun saveConfig(
             success: String,
             onDone: () -> Unit = {},

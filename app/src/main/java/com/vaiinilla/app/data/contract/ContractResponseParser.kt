@@ -126,4 +126,6 @@ private fun ProductDto.toDomain(): Product =
                         },
                 )
             },
+        allergenCodes = allergenCodes,
+        allergensReviewed = allergensReviewed,
     )

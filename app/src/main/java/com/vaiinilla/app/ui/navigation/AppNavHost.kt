@@ -164,6 +164,7 @@ fun AppNavHost(
     val adminStaffViewModel: AdminStaffViewModel = viewModel()
     val adminStoreViewModel: AdminStoreViewModel = viewModel()
     val adminSpacesViewModel: AdminSpacesViewModel = viewModel()
+    val adminSchoolViewModel: com.vaiinilla.app.ui.admin.school.AdminSchoolViewModel = viewModel()
     val waiterViewModel: WaiterViewModel = viewModel()
     val courtsViewModel: CourtsViewModel = viewModel()
     val reservationsViewModel: ReservationsViewModel = viewModel()
@@ -1945,6 +1946,7 @@ fun AppNavHost(
                                         canChargeAndDeliver = false,
                                     )
                                 },
+                                school = adminSchoolViewModel,
                             ),
                         scope = scope,
                         rentsSpaces = spacesState.spaces.orEmpty().any { it.hourlyPrice != null },
@@ -1954,6 +1956,7 @@ fun AppNavHost(
                                 stripe.chargesEnabled &&
                                 stripe.payoutsEnabled &&
                                 stripe.passFeeToCustomer,
+                        isSchool = storeState.config?.isSchool == true,
                         onChangeMode = returnToModes(navController, operationalViewModel),
                     )
                 }

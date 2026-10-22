@@ -114,6 +114,14 @@ object VaiinillaModule {
 
     @Provides
     @Singleton
+    fun provideSchoolAdminRepository(
+        apiClient: VaiinillaApiClient,
+    ): com.vaiinilla.app.domain.school.SchoolAdminRepository =
+        com.vaiinilla.app.data.school
+            .RemoteSchoolAdminRepository(apiClient)
+
+    @Provides
+    @Singleton
     fun provideOrderRepository(
         apiClient: VaiinillaApiClient,
         orderContractJson: OrderContractJson,
