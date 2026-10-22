@@ -9,6 +9,7 @@ import android.net.Uri
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -45,6 +46,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Backspace
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.outlined.Nfc
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material3.CircularProgressIndicator
@@ -103,6 +105,7 @@ import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.SlidingSegments
 import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.discovery.DiscoveryUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -131,6 +134,7 @@ fun DiscoveryScreen(
     onEnableNearby: () -> Unit = {},
     onNearbyPermissionDenied: () -> Unit = {},
     onDisableNearby: () -> Unit = {},
+    nfcAvailable: Boolean = rememberHasNfcReader(),
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -313,7 +317,7 @@ fun DiscoveryScreen(
                         }
                     }
                 } else if (state.establishments.isEmpty()) {
-                    // Sin lugares listados basta la fila de QR y código de abajo; solo una búsqueda sin
+                    // Sin lugares listados basta la fila de QR, código y NFC de abajo; solo una búsqueda sin
                     // resultados lleva su aviso.
                     if (state.query.isNotBlank()) {
                         item {
@@ -369,6 +373,7 @@ fun DiscoveryScreen(
                             haptics.click()
                             codeSheetOpen = true
                         },
+                        nfcAvailable = nfcAvailable,
                         modifier = Modifier.padding(top = 24.dp),
                     )
                 }
@@ -604,13 +609,14 @@ internal fun onlyVenueToAutoOpen(
 ): PublicEstablishment? = establishments.singleOrNull()?.takeIf { !loading && query.isBlank() && !hasActiveVenue }
 
 /**
- * ¿Ya estás en la mesa? QR o código en dos tarjetas grandes. Va debajo de la lista, o sola cuando no hay
- * lugares listados (el negocio entra solo por QR o código).
+ * ¿Ya estás en la mesa? QR o código en dos tarjetas grandes y NFC a lo ancho. Va debajo de la lista, o sola
+ * cuando no hay lugares listados (el negocio entra solo por QR o código).
  */
 @Composable
 private fun QuickAccessRow(
     onOpenQrScanner: () -> Unit,
     onUseCode: () -> Unit,
+    nfcAvailable: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -635,10 +641,85 @@ private fun QuickAccessRow(
             QuickAccessCard(
                 icon = Icons.Outlined.Tag,
                 label = "Usar código",
-                hint = "Los 4 dígitos de tu mesa",
+                hint = "De tu mesa o tu escuela",
                 modifier = Modifier.weight(1f),
                 onClick = onUseCode,
             )
+        }
+        if (nfcAvailable) {
+            NfcCard(modifier = Modifier.padding(top = 10.dp))
+        }
+    }
+}
+
+/** La etiqueta la lee la app sola mientras está abierta; la tarjeta explica cómo y prende el NFC si hace falta. */
+@Composable
+private fun NfcCard(modifier: Modifier = Modifier) {
+    val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
+    val context = LocalContext.current
+    val still = reducedMotion()
+    var hintShown by rememberSaveable { mutableStateOf(false) }
+    val shape = RoundedCornerShape(22.dp)
+    Box(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .heightIn(min = 84.dp)
+                .physicalPress(scale = PhysicalPressScale.Small) {
+                    haptics.click()
+                    openNfcSettingsIfOff(context)
+                    hintShown = !hintShown
+                }.clip(shape)
+                .background(colors.paper2)
+                .border(1.dp, colors.line, shape)
+                .then(
+                    if (still) {
+                        Modifier
+                    } else {
+                        Modifier.animateContentSize(
+                            spring(dampingRatio = 0.82f, stiffness = 380f),
+                        )
+                    },
+                ),
+    ) {
+        Icon(
+            Icons.Outlined.Nfc,
+            contentDescription = null,
+            tint = colors.ink.copy(alpha = 0.82f),
+            modifier =
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .offset(x = (-18).dp)
+                    .rotate(-12f)
+                    .size(52.dp),
+        )
+        Column(modifier = Modifier.padding(16.dp).padding(end = 84.dp)) {
+            Text(
+                "Acercar al NFC",
+                color = colors.ink,
+                fontSize = 17.sp,
+                lineHeight = 21.sp,
+                fontWeight = FontWeight.Black,
+            )
+            Text(
+                "Si tu mesa tiene etiqueta",
+                color = colors.muted,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 3.dp),
+            )
+            if (hintShown) {
+                Text(
+                    "Acerca la parte de atrás de tu teléfono a la etiqueta: Vaiinilla abre tu mesa sola.",
+                    color = colors.ink,
+                    fontSize = 12.5.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
         }
     }
 }

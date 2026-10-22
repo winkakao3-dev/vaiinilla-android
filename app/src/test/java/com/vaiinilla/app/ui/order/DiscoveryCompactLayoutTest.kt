@@ -121,15 +121,31 @@ class DiscoveryCompactLayoutTest {
     }
 
     @Test
-    fun `sin negocios en la lista salen las tarjetas de QR y codigo sin el panel viejo`() {
-        setEmptyDiscovery()
+    fun `sin negocios en la lista salen las tarjetas de QR, codigo y NFC sin el panel viejo`() {
+        setEmptyDiscovery(nfcAvailable = true)
 
         composeTestRule.onAllNodesWithText("Escanea el QR de tu mesa o de la tienda").assertCountEquals(0)
         composeTestRule.onAllNodesWithText("Sin coincidencias").assertCountEquals(0)
         composeTestRule.onAllNodesWithText("¿Ya estás en tu mesa?").assertCountEquals(1)
         composeTestRule.onAllNodesWithText("Escanear QR").assertCountEquals(1)
+        composeTestRule.onNodeWithText("De tu mesa o tu escuela").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Los 4 dígitos de tu mesa").assertCountEquals(0)
+        composeTestRule.onNodeWithText("Acercar al NFC").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Si tu mesa tiene etiqueta").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Acercar al NFC").performClick()
+        composeTestRule
+            .onNodeWithText("Acerca la parte de atrás de tu teléfono a la etiqueta: Vaiinilla abre tu mesa sola.")
+            .assertIsDisplayed()
         composeTestRule.onNodeWithText("Usar código").performScrollTo().performClick()
         composeTestRule.onNodeWithText("Escribe los 4 dígitos que aparecen junto al QR de tu mesa.").assertIsDisplayed()
+    }
+
+    @Test
+    fun `sin NFC en el telefono no sale la tarjeta Acercar al NFC`() {
+        setEmptyDiscovery(nfcAvailable = false)
+
+        composeTestRule.onNodeWithText("Usar código").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Acercar al NFC").assertCountEquals(0)
     }
 
     @Test
@@ -145,6 +161,7 @@ class DiscoveryCompactLayoutTest {
                     onResolveSpace = {},
                     onContinueSelected = {},
                     profileInitials = "DR",
+                    nfcAvailable = true,
                 )
             }
         }
@@ -156,7 +173,7 @@ class DiscoveryCompactLayoutTest {
         assertEquals("", query)
     }
 
-    private fun setEmptyDiscovery() {
+    private fun setEmptyDiscovery(nfcAvailable: Boolean) {
         composeTestRule.setContent {
             ScreenshotTheme {
                 DiscoveryScreen(
@@ -167,6 +184,7 @@ class DiscoveryCompactLayoutTest {
                     onResolveSpace = {},
                     onContinueSelected = {},
                     profileInitials = "DR",
+                    nfcAvailable = nfcAvailable,
                 )
             }
         }
