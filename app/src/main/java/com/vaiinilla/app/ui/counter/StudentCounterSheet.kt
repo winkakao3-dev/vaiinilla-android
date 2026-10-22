@@ -831,7 +831,7 @@ private fun SellRow(
     onPlus: () -> Unit,
 ) {
     val haptics = rememberVaiinillaHaptics()
-    val warnings = StudentPurchaseRules.allergenWarnings(product.allergens, card.allergens)
+    val warnings = StudentPurchaseRules.allergenWarnings(product, card.allergens)
     val price = moneyLabel(product.digitalPrice.toBigDecimalOrNull() ?: BigDecimal.ZERO)
     Column {
         Row(

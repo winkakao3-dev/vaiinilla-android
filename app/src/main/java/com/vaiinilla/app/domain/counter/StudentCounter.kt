@@ -2,38 +2,20 @@ package com.vaiinilla.app.domain.counter
 
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.domain.school.SchoolAllergen
 import java.math.BigDecimal
 import java.text.Normalizer
 
 // Caja con alumnos sin teléfono (padres e hijos, PR 3 y migración 101): encontrarlo, ver su ficha,
 // venderle con su saldo y entregarle lo apartado con su credencial.
 
-/** Los alérgenos del catálogo del backend, con su nombre para la cajera y para el ticket. */
+/** Los alérgenos del alumno con el nombre del catálogo de la escuela ([SchoolAllergen]). */
 object StudentAllergens {
-    private val labels =
-        linkedMapOf(
-            "gluten" to "Gluten",
-            "crustaceos" to "Crustáceos",
-            "huevo" to "Huevo",
-            "pescado" to "Pescado",
-            "cacahuate" to "Cacahuate",
-            "soya" to "Soya",
-            "lacteos" to "Lácteos",
-            "nueces" to "Nueces",
-            "apio" to "Apio",
-            "mostaza" to "Mostaza",
-            "ajonjoli" to "Ajonjolí",
-            "sulfitos" to "Sulfitos",
-            "altramuces" to "Altramuces",
-            "moluscos" to "Moluscos",
-            "lactosa" to "Lactosa",
-            "colorantes" to "Colorantes",
-        )
-
     /** Solo los códigos que el catálogo conoce; uno nuevo del servidor no rompe la ficha. */
-    fun known(codes: List<String>): List<String> = codes.map { it.trim().lowercase() }.filter { it in labels }
+    fun known(codes: List<String>): List<String> =
+        codes.map { it.trim().lowercase() }.filter { SchoolAllergen.fromCode(it) != null }
 
-    fun label(code: String): String = labels[code] ?: code
+    fun label(code: String): String = SchoolAllergen.fromCode(code)?.label ?: code
 }
 
 data class StudentTodayOrder(
@@ -137,6 +119,19 @@ data class StudentPurchaseItem(
 /** Lo que Caja le vende a un alumno sin teléfono. */
 object StudentPurchaseRules {
     const val MAX_PER_PRODUCT = 20
+
+    /**
+     * Las alergias del alumno que tiene el producto: por los chips que la escuela revisó y, además, por el texto
+     * viejo de alérgenos que escribió el dueño. El servidor es quien bloquea; esto solo avisa a la cajera.
+     */
+    fun allergenWarnings(
+        product: Product,
+        student: List<String>,
+    ): List<String> {
+        val byText = allergenWarnings(product.allergens, student)
+        val byCode = if (product.allergensReviewed) student.filter { it in product.allergenCodes } else emptyList()
+        return student.filter { it in byCode || it in byText }
+    }
 
     /** Las alergias del alumno que aparecen en los alérgenos que el dueño escribió del producto. */
     fun allergenWarnings(

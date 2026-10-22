@@ -36,12 +36,12 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.captureScreenRoboImage
-import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.MainActivity
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.data.guest.GuestReservationSession
 import com.vaiinilla.app.domain.model.GeoCoordinates
+import com.vaiinilla.app.domain.model.OperationalRole
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import org.json.JSONArray
