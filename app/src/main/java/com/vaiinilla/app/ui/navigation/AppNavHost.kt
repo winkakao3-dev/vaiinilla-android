@@ -1017,8 +1017,14 @@ fun AppNavHost(
                                     spaceId = spaceId,
                                     visible = visible,
                                     compact = compact,
-                                    onCurrent = operationalViewModel::currentWaiterCall,
-                                    onCall = operationalViewModel::callWaiter,
+                                    onCurrent = { id ->
+                                        orderFlowViewModel.ensureClientContext()
+                                        operationalViewModel.currentWaiterCall(id)
+                                    },
+                                    onCall = { id, reason, orderId ->
+                                        orderFlowViewModel.ensureClientContext()
+                                        operationalViewModel.callWaiter(id, reason, orderId)
+                                    },
                                     onCancel = operationalViewModel::cancelWaiterCall,
                                     onJoinTable =
                                         qrToken?.let { token ->
