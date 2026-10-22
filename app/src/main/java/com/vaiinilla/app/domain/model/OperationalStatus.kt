@@ -27,6 +27,8 @@ data class OperationalStatus(
     val withinOrderWindow: Boolean = true,
     /** Solo una escuela muestra Mis hijos, Alumnos y Escuela; es presentación, las rutas no lo revisan. */
     val isSchool: Boolean = false,
+    /** El cliente ya dio el código de la escuela: puede agregar o vincular hijos. */
+    val isParentUnlocked: Boolean = true,
 ) {
     /** "12:00 a 15:00 y 18:00 a 20:00". */
     val orderHoursText: String

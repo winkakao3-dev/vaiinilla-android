@@ -151,6 +151,8 @@ class GuardianshipJson {
 
     fun encodeCode(code: String): String = buildJsonObject { put("codigo", code) }.toString()
 
+    fun encodeSchoolCode(code: String): String = buildJsonObject { put("codigo_union", code) }.toString()
+
     fun encodePin(pin: String): String = buildJsonObject { put("pin", pin) }.toString()
 
     fun encodeStudentRequest(

@@ -33,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -50,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.notifications.ChildDeepLinkStore
 import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.domain.guardianship.compactMoney
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -60,6 +62,8 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+private const val CHILD_NOTICE_RETRY_MS = 1_500L
 
 /** Lo que el host del Modo Padre tiene abierto encima de la cartera. */
 private enum class ParentSheetKind { ADD, CONSENT }
@@ -93,10 +97,31 @@ fun ParentModeWalletHost(
     LaunchedEffect(fullScreen) { onFullScreenChange(fullScreen) }
     LaunchedEffect(Unit) {
         children.load()
+        // Si se llegó por el aviso de un hijo, primero su ficha; el aviso de privacidad queda en la tarjeta.
+        if (ChildDeepLinkStore.requestedChild.value != null) return@LaunchedEffect
         if (!children.offeredConsent && children.childrenNeedingConsent.isNotEmpty()) {
             children.offeredConsent = true
             sheet = ParentSheetKind.CONSENT
         }
+    }
+
+    // Aviso de un hijo: su ficha, ya en su escuela. Si ya no es su tutor, se queda en Cartera.
+    val requestedChild by ChildDeepLinkStore.requestedChild.collectAsState()
+    LaunchedEffect(requestedChild) {
+        val link = requestedChild ?: return@LaunchedEffect
+        // Recién cambiada la escuela, la primera lista puede llegar con el contexto anterior: un reintento.
+        repeat(2) { attempt ->
+            if (attempt > 0) delay(CHILD_NOTICE_RETRY_MS)
+            children.load()
+            val child = children.children.firstOrNull { it.userId == link.dependentUserId }
+            if (child != null) {
+                showsOptions = false
+                if (!child.isAwaitingSchool) openChildId = child.userId
+                ChildDeepLinkStore.consumeChild()
+                return@LaunchedEffect
+            }
+        }
+        ChildDeepLinkStore.consumeChild()
     }
 
     Box(modifier = Modifier.fillMaxSize()) {

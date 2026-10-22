@@ -429,6 +429,29 @@ fun AppNavHost(
         entranceEntered = true
     }
 
+    // Aviso de un hijo (Padres e hijos): su escuela y su ficha en Cartera.
+    ChildNoticeEffect(
+        action =
+            resolveOrderNotificationAction(
+                target = OrderNotificationTarget.CLIENT,
+                hasStudentSession = studentAuthState.session != null,
+                studentAuthLoading = studentAuthState.loading,
+                operationalRole = operationalState.role,
+                accessLoading = authorizedAccessState.loading,
+                hasStaffModes = authorizedAccessState.modes.any { it.role != OperationalRole.CLIENT },
+            ),
+        currentEstablishmentId = orderState.guestVenue?.establishment?.id,
+        returnToClient = { onReturned -> authorizedAccessViewModel.returnToClient(onReturned) },
+        findSchool = discoveryViewModel::schoolFor,
+        openSchool = { school, onEntered ->
+            discoveryViewModel.openSchool(school) { venue ->
+                enterVenueAndOpenCatalog(venue)
+                onEntered()
+            }
+        },
+        openWallet = { navController.navigateStudent(Routes.WALLET) },
+    )
+
     LaunchedEffect(pendingEstablishmentSlug) {
         val slug = pendingEstablishmentSlug?.trim().orEmpty()
         if (slug.isEmpty()) return@LaunchedEffect
@@ -813,6 +836,8 @@ fun AppNavHost(
             }
 
             composable(Routes.DISCOVERY) {
+                // Tus escuelas: las de sus accesos, para volver sin código.
+                LaunchedEffect(studentAuthState.session?.uid) { discoveryViewModel.loadMySchools() }
                 DiscoveryScreen(
                     tableCodeRequest = tableCodeRequest,
                     state = discoveryState,
@@ -848,6 +873,10 @@ fun AppNavHost(
                     onEnableNearby = discoveryViewModel::enableNearby,
                     onNearbyPermissionDenied = discoveryViewModel::onNearbyPermissionDenied,
                     onDisableNearby = discoveryViewModel::disableNearby,
+                    onOpenSchool = { school ->
+                        startEntrance(null)
+                        discoveryViewModel.openSchool(school, onEntered = ::enterVenueAndOpenCatalog)
+                    },
                 )
 
                 if (qrScannerOpen) {

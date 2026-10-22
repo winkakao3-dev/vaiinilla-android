@@ -10,12 +10,12 @@ import com.vaiinilla.app.MainActivity
 import com.vaiinilla.app.R
 
 /**
- * Avisos de Padres e hijos (notifications.service del backend). Se ven como un aviso normal que abre la
- * app sin ir al hijo: el pedido es del hijo y el tutor no lo puede abrir con su propia sesión.
+ * Avisos de Padres e hijos (notifications.service del backend). Al tocarlos abren la ficha del hijo en
+ * Cartera, en su escuela ([ChildDeepLink]); el pedido es del hijo y el tutor no lo puede abrir con su
+ * propia sesión.
  */
 object GuardianPushNotifier {
     private const val CHANNEL_ID = "order_tracking"
-    private const val LAUNCH_REQUEST_CODE = 710_400
 
     data class Text(
         val title: String,
@@ -71,16 +71,24 @@ object GuardianPushNotifier {
         context: Context,
         tag: String,
         text: Text,
+        link: ChildDeepLink?,
     ) {
         if (!OrderAdvanceNotifier.canPost(context)) return
         OrderAdvanceNotifier.ensureChannel(context)
+        val intent =
+            Intent(context, MainActivity::class.java)
+                .setAction("${context.packageName}.open.guardian")
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        link?.let {
+            intent.putExtra(ChildDeepLink.EXTRA_DEPENDENT_ID, it.dependentUserId)
+            it.establishmentId?.let { id -> intent.putExtra(ChildDeepLink.EXTRA_ESTABLISHMENT_ID, id) }
+        }
         val launch =
             PendingIntent.getActivity(
                 context,
-                LAUNCH_REQUEST_CODE,
-                Intent(context, MainActivity::class.java)
-                    .setAction("${context.packageName}.open.guardian")
-                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+                // Uno por aviso: con un solo código, el de otro hijo pisaría los datos de este.
+                tag.hashCode(),
+                intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
         val notification =

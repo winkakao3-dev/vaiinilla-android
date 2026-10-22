@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.rememberNavController
+import com.vaiinilla.app.core.notifications.ChildDeepLinkStore
 import com.vaiinilla.app.core.notifications.OrderAdvanceNotifier
 import com.vaiinilla.app.core.notifications.OrderNotificationTarget
 import com.vaiinilla.app.ui.navigation.AppNavHost
@@ -139,6 +140,8 @@ class MainActivity : ComponentActivity() {
             pendingOrderId = orderId
             pendingOrderTarget = OrderNotificationTarget.fromWireValue(targetExtra)
         }
+        // Aviso de un hijo: lo atiende la navegación (ChildNoticeEffect) y después Cartera.
+        ChildDeepLinkStore.capture(source)
         source?.removeExtra(OrderAdvanceNotifier.EXTRA_ORDER_ID)
         source?.removeExtra(OrderAdvanceNotifier.EXTRA_NOTIFICATION_TARGET)
         // Do not retain invitation tokens in the Activity intent after capture.

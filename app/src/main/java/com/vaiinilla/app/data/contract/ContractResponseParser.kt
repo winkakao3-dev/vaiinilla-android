@@ -58,6 +58,7 @@ class ContractResponseParser
                 orderWindows = envelope.data.orderWindows.map { OrderWindow(it.from, it.to) },
                 withinOrderWindow = envelope.data.withinOrderWindow,
                 isSchool = envelope.data.isSchool,
+                isParentUnlocked = envelope.data.isParentUnlocked,
             )
         }
 

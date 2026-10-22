@@ -64,6 +64,25 @@ class RemoteAuthorizedAccessRepositoryTest {
         }
 
     @Test
+    fun `remote access list reads the slug and school mode for Tus escuelas`() =
+        runTest {
+            val api = RecordingAuthorizedAccessApi()
+            api.accessResponse =
+                accessResponse().replaceFirst(
+                    "\"slug\": \"cafeteria\"}",
+                    "\"slug\": \"cafeteria\", \"modo_escuela\": true}",
+                )
+            val modes = remoteRepository(api).authorizedModes(session).getOrThrow()
+
+            val client = modes.first { it.role == OperationalRole.CLIENT }
+            assertTrue(client.isSchool)
+            assertEquals("cafeteria", client.establishmentSlug)
+            assertTrue(client.establishmentActive)
+            // Un servidor anterior no manda modo_escuela: no es escuela.
+            assertFalse(modes.first { it.role == OperationalRole.CASHIER }.isSchool)
+        }
+
+    @Test
     fun `remote activation validates membership and stores canonical context`() =
         runTest {
             val api = RecordingAuthorizedAccessApi()
