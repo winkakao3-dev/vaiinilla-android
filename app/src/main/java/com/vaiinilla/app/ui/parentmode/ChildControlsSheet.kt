@@ -138,6 +138,7 @@ internal fun ChildControlsSheet(
         busy = state.isBusy || unlinking,
         onDismiss = onDismiss,
         footer = {
+            error?.let { ParentErrorCard(message = it, colors = colors, onDismiss = { error = null }) }
             MorphingButton(
                 state = state,
                 enabled = canSave,
@@ -238,7 +239,6 @@ internal fun ChildControlsSheet(
             minLines = 2,
             enabled = principal,
         )
-        error?.let { ParentErrorCard(message = it, colors = colors, onDismiss = { error = null }) }
         Row(
             modifier =
                 Modifier

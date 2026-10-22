@@ -203,6 +203,7 @@ internal fun ClaimAccountSheet(
         busy = state.isBusy,
         onDismiss = onDismiss,
         footer = {
+            error?.let { ParentErrorCard(message = it, colors = colors, onDismiss = { error = null }) }
             MorphingButton(
                 state = state,
                 enabled = !state.isBusy && GuardianLinkCodeRules.normalizedAccountCode(code) != null,
@@ -244,6 +245,5 @@ internal fun ClaimAccountSheet(
             fontSize = 13.sp,
             lineHeight = 18.sp,
         )
-        error?.let { ParentErrorCard(message = it, colors = colors, onDismiss = { error = null }) }
     }
 }

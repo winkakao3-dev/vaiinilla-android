@@ -336,6 +336,7 @@ internal fun ChildPinSheet(
         busy = busy,
         onDismiss = onDismiss,
         footer = {
+            error?.let { ParentErrorCard(message = it, colors = colors, onDismiss = { error = null }) }
             if (child.hasPin) {
                 Row(
                     modifier =
@@ -415,7 +416,6 @@ internal fun ChildPinSheet(
             lineHeight = 20.sp,
         )
         Text("Lo que le apartas desde aquí no lo pide.", color = colors.textSecondary, fontSize = 13.sp)
-        error?.let { ParentErrorCard(message = it, colors = colors, onDismiss = { error = null }) }
     }
 }
 
@@ -582,6 +582,7 @@ internal fun StudentRequestSheet(
         busy = state.isBusy,
         onDismiss = onDismiss,
         footer = {
+            error?.let { ParentErrorCard(message = it, colors = colors, onDismiss = { error = null }) }
             MorphingButton(state = state, enabled = canSubmit, colors = colors, testTag = "student-request-submit") {
                 if (kind == StudentRequestKind.DATA_REMOVAL) confirmsRemoval = true else submit()
             }
@@ -671,7 +672,6 @@ internal fun StudentRequestSheet(
             minLines = 2,
             enabled = !state.isBusy,
         )
-        error?.let { ParentErrorCard(message = it, colors = colors, onDismiss = { error = null }) }
     }
     if (confirmsRemoval) {
         ParentConfirmDialog(

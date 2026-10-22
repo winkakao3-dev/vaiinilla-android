@@ -171,6 +171,8 @@ internal fun AddChildSheet(
         busy = busy,
         onDismiss = onDismiss,
         footer = {
+            // Junto al botón: abajo del aviso largo quedaba fuera de la vista.
+            error?.let { ParentErrorCard(message = it, colors = colors, onDismiss = { error = null }) }
             MorphingButton(
                 state = state,
                 enabled = canSubmit,
@@ -237,7 +239,6 @@ internal fun AddChildSheet(
             onToggleNotice = { showsNotice = !showsNotice },
             onRetry = { scope.launch { loader.load() } },
         )
-        error?.let { ParentErrorCard(message = it, colors = colors, onDismiss = { error = null }) }
     }
 }
 
@@ -377,6 +378,7 @@ internal fun PrivacyConsentSheet(
         busy = state.isBusy,
         onDismiss = onDismiss,
         footer = {
+            error?.let { ParentErrorCard(message = it, colors = colors, onDismiss = { error = null }) }
             MorphingButton(
                 state = state,
                 enabled = accepted && loader.notice != null,
@@ -429,6 +431,5 @@ internal fun PrivacyConsentSheet(
             }
             else -> SkeletonRows(4)
         }
-        error?.let { ParentErrorCard(message = it, colors = colors, onDismiss = { error = null }) }
     }
 }
