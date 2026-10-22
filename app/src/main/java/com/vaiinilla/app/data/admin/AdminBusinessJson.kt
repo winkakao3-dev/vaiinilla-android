@@ -115,6 +115,8 @@ class AdminBusinessJson {
 
     fun encodeDirectory(visible: Boolean): String = buildJsonObject { put("visible_en_directorio", visible) }.toString()
 
+    fun encodeSchoolMode(isSchool: Boolean): String = buildJsonObject { put("modo_escuela", isSchool) }.toString()
+
     // endregion
 
     // region Stripe
@@ -330,6 +332,7 @@ private data class StoreConfigDto(
     @SerialName("tienda_url") val tiendaUrl: String? = null,
     @SerialName("imagen_url") val imagenUrl: String? = null,
     @SerialName("logo_url") val logoUrl: String? = null,
+    @SerialName("modo_escuela") val modoEscuela: Boolean = false,
 ) {
     fun toDomain() =
         StoreConfig(
@@ -344,6 +347,7 @@ private data class StoreConfigDto(
             storeUrl = tiendaUrl,
             imageUrl = imagenUrl,
             logoUrl = logoUrl,
+            isSchool = modoEscuela,
         )
 }
 

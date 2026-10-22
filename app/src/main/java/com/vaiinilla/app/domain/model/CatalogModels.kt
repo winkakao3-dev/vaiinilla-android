@@ -26,6 +26,10 @@ data class Product(
     val available: Boolean,
     val imageUrl: String,
     val optionGroups: List<OptionGroup>,
+    /** Códigos del catálogo de alérgenos (`gluten`, `lacteos`…); valen solo si [allergensReviewed]. */
+    val allergenCodes: List<String> = emptyList(),
+    /** En una escuela, sin revisar no se le vende a un alumno con alergias. */
+    val allergensReviewed: Boolean = true,
 )
 
 data class CatalogProductDraft(

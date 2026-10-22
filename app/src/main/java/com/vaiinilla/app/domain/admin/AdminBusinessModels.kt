@@ -140,6 +140,8 @@ data class StoreConfig(
     val storeUrl: String?,
     val imageUrl: String?,
     val logoUrl: String?,
+    /** Escuela: prende Mis hijos, Caja › Alumnos y Negocio › Escuela. */
+    val isSchool: Boolean = false,
 ) {
     val type: BusinessType? get() = BusinessType.fromWire(typeWire)
 

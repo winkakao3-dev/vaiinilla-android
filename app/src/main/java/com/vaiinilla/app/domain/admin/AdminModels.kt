@@ -96,6 +96,8 @@ data class AdminProductInput(
     val counterPrice: String,
     val available: Boolean,
     val optionGroups: List<AdminOptionGroupInput>,
+    /** En una escuela: los alérgenos del catálogo; mandarlos marca el producto como revisado. `null` no los toca. */
+    val allergenCodes: Set<String>? = null,
 )
 
 /** Un grupo de variantes o extras; [id] nulo si es nuevo. */
