@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.parentmode
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -9,7 +10,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,7 +30,6 @@ import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Remove
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +42,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -46,6 +58,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.core.network.toUserFacingMessage
@@ -67,12 +80,15 @@ import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductDetailSheet
+import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.order.trayItemKind
 import com.vaiinilla.app.ui.screens.OperationalColors
+import com.vaiinilla.app.ui.screens.ProductIllustration
 import com.vaiinilla.app.ui.screens.alternarOpcionMostrador
 import com.vaiinilla.app.ui.screens.rememberOperationalColors
 import kotlinx.coroutines.CoroutineDispatcher
@@ -570,122 +586,204 @@ private fun DayContent(
                 fontSize = 14.sp,
             )
         }
-        products.forEach { product -> PlannerProductRow(model, product, date, colors, onInfo) }
+        // Dos columnas con foto, como el menú. Va en filas y no en una cuadrícula perezosa porque la hoja ya
+        // se desplaza entera.
+        Column(
+            modifier = Modifier.fillMaxWidth().testTag("week-grid"),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            products.chunked(2).forEach { pair ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    pair.forEach { product ->
+                        PlannerProductCard(model, product, date, colors, onInfo, Modifier.weight(1f))
+                    }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+        }
     }
 }
 
+/**
+ * La misma tarjeta del menú: foto cuadrada, nombre y precio. Tocarla abre su ficha y abajo se elige cuántos.
+ * Lo elegido se marca en tinta alrededor de la foto; lo que no se le puede apartar se apaga y el motivo
+ * ocupa el lugar del precio.
+ */
 @Composable
-private fun PlannerProductRow(
+private fun PlannerProductCard(
     model: WeekPlannerModel,
     product: Product,
     date: String,
     colors: OperationalColors,
     onInfo: (Product) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val haptics = rememberVaiinillaHaptics()
+    val reduced = reducedMotion()
     val quantity = model.plan.quantity(product.id, date)
     val restriction = model.restriction(product)
-    Column(modifier = Modifier.testTag("week-product-${product.id}")) {
-        Row(modifier = Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .physicalPress(scale = PhysicalPressScale.Small) { onInfo(product) }
-                        .semantics(mergeDescendants = true) {
-                            contentDescription =
-                                restriction?.let { "Ver ${product.name}. ${it.label}" } ?: "Ver ${product.name}"
-                        },
-            ) {
-                Text(
-                    product.name,
-                    color = colors.textPrimary,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 15.sp,
-                    maxLines = 2,
+    val kind = remember(product.name) { trayItemKind(product.name) }
+    val ring by animateDpAsState(
+        targetValue = if (quantity > 0) 3.dp else 0.dp,
+        animationSpec = if (reduced) snap() else spring(dampingRatio = 0.7f, stiffness = 500f),
+        label = "week-ring",
+    )
+    val photoShape = RoundedCornerShape(24.dp)
+    Column(modifier = modifier.testTag("week-product-${product.id}")) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .physicalPress(scale = PhysicalPressScale.ProductCard) { onInfo(product) }
+                    .semantics(mergeDescendants = true) {
+                        contentDescription =
+                            restriction?.let { "Ver ${product.name}. ${it.label}" } ?: "Ver ${product.name}"
+                        selected = quantity > 0
+                    }.padding(bottom = 14.dp),
+        ) {
+            Box(modifier = Modifier.fillMaxWidth().aspectRatio(1f)) {
+                ProductImage(
+                    imageUrl = product.imageUrl,
+                    contentDescription = product.name,
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .clip(photoShape)
+                            .background(colors.cardInner)
+                            .then(if (restriction != null) Modifier.dimmed() else Modifier),
+                    placeholder = { m -> ProductIllustration(kind, m) },
                 )
-                Text(
-                    moneyLabel(product.digitalPrice),
-                    color = colors.textPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp,
-                )
-                model
-                    .choiceSummary(
-                        product,
-                        date,
-                    )?.let { Text(it, color = colors.textSecondary, fontSize = 12.sp, maxLines = 1) }
-                restriction?.let { RestrictionLabel(it, colors) }
-            }
-            when {
-                // El motivo ya está bajo el nombre; sin "Agregar" no hay a qué tocar.
-                restriction != null -> Unit
-                quantity == 0 ->
-                    Row(
+                if (ring > 0.dp) {
+                    Box(
+                        Modifier
+                            .matchParentSize()
+                            .border(ring, colors.textPrimary, photoShape)
+                            .testTag("week-picked-${product.id}"),
+                    )
+                }
+                restriction?.let {
+                    Box(
                         modifier =
                             Modifier
-                                .physicalPress(scale = PhysicalPressScale.Small) {
-                                    haptics.selection()
-                                    if (model.needsChoice(product, date)) onInfo(product) else model.step(product, 1)
-                                }.clip(RoundedCornerShape(20.dp))
-                                .background(colors.cardInner)
-                                .border(1.dp, colors.cardBorder, RoundedCornerShape(20.dp))
-                                .semantics { contentDescription = "Agregar ${product.name}" }
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp)
+                                .size(30.dp)
+                                .clip(CircleShape)
+                                .background(colors.background),
+                        contentAlignment = Alignment.Center,
                     ) {
                         Icon(
-                            Icons.Outlined.Add,
+                            restrictionIcon(it),
                             contentDescription = null,
                             tint = colors.textPrimary,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Text(
-                            "Agregar",
-                            color = colors.textPrimary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(start = 4.dp),
+                            modifier = Modifier.size(15.dp),
                         )
                     }
-                else ->
-                    Stepper(
-                        quantity,
-                        colors,
-                        onMinus = { model.step(product, -1) },
-                        onPlus = { model.step(product, 1) },
-                    )
+                }
             }
+            Text(
+                product.name,
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Black,
+                fontSize = 17.sp,
+                lineHeight = 21.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 2.dp, top = 12.dp, end = 2.dp),
+            )
+            Text(
+                restriction?.label ?: moneyLabel(product.digitalPrice),
+                color = colors.textSecondary,
+                fontWeight = FontWeight.Bold,
+                fontSize = if (restriction == null) 15.sp else 13.sp,
+                lineHeight = 18.sp,
+                maxLines = 2,
+                modifier = Modifier.padding(start = 2.dp, top = 4.dp, end = 2.dp),
+            )
         }
-        HorizontalDivider(color = colors.cardBorder, thickness = 1.dp)
+        model.choiceSummary(product, date)?.let {
+            Text(
+                it,
+                color = colors.textSecondary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
+        }
+        when {
+            // El motivo ya está bajo la foto; sin "Agregar" no hay a qué tocar.
+            restriction != null -> Unit
+            quantity == 0 ->
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .physicalPress(scale = PhysicalPressScale.Small) {
+                                haptics.selection()
+                                if (model.needsChoice(product, date)) onInfo(product) else model.step(product, 1)
+                            }.clip(RoundedCornerShape(22.dp))
+                            .background(colors.cardInner)
+                            .border(1.dp, colors.cardBorder, RoundedCornerShape(22.dp))
+                            .semantics { contentDescription = "Agregar ${product.name}" },
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Outlined.Add,
+                        contentDescription = null,
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        "Agregar",
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
+                }
+            else ->
+                Stepper(
+                    quantity,
+                    colors,
+                    onMinus = { model.step(product, -1) },
+                    onPlus = { model.step(product, 1) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+        }
     }
 }
 
-@Composable
-internal fun RestrictionLabel(
-    restriction: ChildRestriction,
-    colors: OperationalColors,
-) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 3.dp)) {
-        Icon(
-            when (restriction.reason) {
-                ChildRestriction.Reason.BLOCKED -> Icons.Outlined.Lock
-                ChildRestriction.Reason.ALLERGEN -> Icons.Outlined.ErrorOutline
-                ChildRestriction.Reason.ALLERGENS_UNKNOWN -> Icons.Outlined.HelpOutline
-            },
-            contentDescription = null,
-            tint = colors.textSecondary,
-            modifier = Modifier.size(14.dp),
-        )
-        Text(
-            restriction.label,
-            color = colors.textSecondary,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(start = 4.dp),
-        )
+private fun restrictionIcon(restriction: ChildRestriction): ImageVector =
+    when (restriction.reason) {
+        ChildRestriction.Reason.BLOCKED -> Icons.Outlined.Lock
+        ChildRestriction.Reason.ALLERGEN -> Icons.Outlined.ErrorOutline
+        ChildRestriction.Reason.ALLERGENS_UNKNOWN -> Icons.Outlined.HelpOutline
     }
-}
+
+/** En gris y a medias, como la tarjeta de iOS: se ve qué es, pero no invita a tocarlo. */
+private fun Modifier.dimmed(): Modifier =
+    drawWithCache {
+        val paint =
+            Paint().apply {
+                colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
+                alpha = 0.45f
+            }
+        onDrawWithContent {
+            drawIntoCanvas { canvas ->
+                canvas.saveLayer(Rect(Offset.Zero, size), paint)
+                drawContent()
+                canvas.restore()
+            }
+        }
+    }
 
 @Composable
 private fun Stepper(
@@ -693,9 +791,16 @@ private fun Stepper(
     colors: OperationalColors,
     onMinus: () -> Unit,
     onPlus: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(colors.textPrimary).padding(horizontal = 4.dp),
+        modifier =
+            modifier
+                .height(44.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(colors.textPrimary)
+                .padding(horizontal = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
