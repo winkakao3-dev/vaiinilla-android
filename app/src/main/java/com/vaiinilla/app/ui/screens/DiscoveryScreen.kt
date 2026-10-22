@@ -9,7 +9,6 @@ import android.net.Uri
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -46,7 +45,6 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Backspace
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material.icons.outlined.Nfc
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material3.CircularProgressIndicator
@@ -315,13 +313,16 @@ fun DiscoveryScreen(
                         }
                     }
                 } else if (state.establishments.isEmpty()) {
-                    item {
-                        VenueEmptyState(
-                            query = state.query,
-                            onClearQuery = { onQueryChange("") },
-                            onOpenQrScanner = onOpenQrScanner,
-                            onOpenCode = { codeSheetOpen = true },
-                        )
+                    // Sin lugares listados basta la fila de QR y código de abajo; solo una búsqueda sin
+                    // resultados lleva su aviso.
+                    if (state.query.isNotBlank()) {
+                        item {
+                            NoMatches(
+                                query = state.query,
+                                onClearQuery = { onQueryChange("") },
+                                modifier = Modifier.padding(top = 18.dp),
+                            )
+                        }
                     }
                 } else if (filteredEstablishments.isEmpty()) {
                     item {
@@ -602,7 +603,10 @@ internal fun onlyVenueToAutoOpen(
     hasActiveVenue: Boolean,
 ): PublicEstablishment? = establishments.singleOrNull()?.takeIf { !loading && query.isBlank() && !hasActiveVenue }
 
-/** ¿Ya estás en la mesa? QR o código en dos tarjetas grandes, debajo de la lista. */
+/**
+ * ¿Ya estás en la mesa? QR o código en dos tarjetas grandes. Va debajo de la lista, o sola cuando no hay
+ * lugares listados (el negocio entra solo por QR o código).
+ */
 @Composable
 private fun QuickAccessRow(
     onOpenQrScanner: () -> Unit,
@@ -694,120 +698,33 @@ private fun QuickAccessCard(
 }
 
 @Composable
-private fun VenueEmptyState(
+private fun NoMatches(
     query: String,
     onClearQuery: () -> Unit,
-    onOpenQrScanner: () -> Unit,
-    onOpenCode: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
-    // Los negocios no se listan salvo que lo activen: sin búsqueda, esta es la puerta de
-    // entrada (escanear el QR, escribir el código de 4 dígitos o acercar el NFC).
-    val entry = query.isBlank()
-    var nfcHint by remember { mutableStateOf(false) }
-    // Sin chip NFC en el teléfono no ofrecemos "Acercar NFC": no hay nada que hacer con él.
-    val context = LocalContext.current
-    val nfcSupported = remember(context) { context.packageManager.hasSystemFeature(PackageManager.FEATURE_NFC) }
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(colors.paper2)
-                .border(1.dp, colors.line, RoundedCornerShape(20.dp))
-                .animateContentSize(spring(dampingRatio = 0.8f, stiffness = 380f))
-                .padding(18.dp),
-    ) {
+    Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            if (entry) "Escanea el QR de tu mesa o de la tienda" else "Sin coincidencias",
+            "Sin coincidencias",
             color = colors.ink,
-            fontSize = if (entry) 19.sp else 15.sp,
-            lineHeight = if (entry) 24.sp else 20.sp,
+            fontSize = 15.sp,
+            lineHeight = 20.sp,
             fontWeight = FontWeight.Black,
         )
         Text(
-            if (entry) {
-                "Llega a tu mesa, cancha o a la tienda y pide desde ahí."
-            } else {
-                "No encontramos “$query” en la lista. Si ya estás ahí, escanea su QR o escribe el código."
-            },
+            "No encontramos “$query” en la lista. Si ya estás ahí, escanea su QR o escribe el código.",
             color = colors.muted,
             fontSize = 12.5.sp,
             lineHeight = 18.sp,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(top = 6.dp),
         )
-        if (!entry) {
-            EditorialSecondaryButton(
-                text = "Limpiar búsqueda",
-                onClick = onClearQuery,
-                modifier = Modifier.padding(top = 14.dp),
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            DiscoveryActionTile(
-                icon = Icons.Outlined.QrCodeScanner,
-                title = "Escanear QR",
-                tone = SeaGlassTone.lima,
-                modifier = Modifier.weight(1f),
-                onClick = onOpenQrScanner,
-            )
-            DiscoveryActionTile(
-                icon = Icons.Outlined.Tag,
-                title = "Usar código",
-                tone = SeaGlassTone.cielo,
-                modifier = Modifier.weight(1f),
-                onClick = onOpenCode,
-            )
-            if (nfcSupported) {
-                DiscoveryActionTile(
-                    icon = Icons.Outlined.Nfc,
-                    title = "NFC",
-                    tone = SeaGlassTone.lavanda,
-                    modifier = Modifier.weight(1f),
-                    onClick = { nfcHint = !nfcHint },
-                )
-            }
-        }
-        if (nfcHint) {
-            Text(
-                "Acerca la parte de atrás de tu teléfono a la etiqueta de la mesa: Vaiinilla se abre sola.",
-                color = colors.ink,
-                fontSize = 12.5.sp,
-                lineHeight = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 12.dp),
-            )
-        }
-    }
-}
-
-/** Acceso de entrada en vidrio, como `actionButton` de GuestDiscoveryView en iOS. */
-@Composable
-private fun DiscoveryActionTile(
-    icon: ImageVector,
-    title: String,
-    tone: SeaGlassTone,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    SeaGlassButton(
-        tone = tone,
-        onClick = onClick,
-        modifier = modifier.height(66.dp),
-        shape = RoundedCornerShape(20.dp),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp))
-            Text(title, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-        }
+        EditorialSecondaryButton(
+            text = "Limpiar búsqueda",
+            onClick = onClearQuery,
+            modifier = Modifier.padding(top = 12.dp),
+        )
     }
 }
 
