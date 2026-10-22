@@ -2,6 +2,7 @@ package com.vaiinilla.app.ui.components
 
 import androidx.compose.material3.Text
 import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -43,7 +44,8 @@ class MenuWaiterPillUiTest {
                 Result.success(call(CallStatus.PENDIENTE, reason = reason))
             },
         )
-        pill().assertContentDescriptionEquals("Llamar al mesero").performClick()
+        // TalkBack la activa por su acción de toque, no por coordenadas.
+        pill().assertContentDescriptionEquals("Llamar al mesero").assertHasClickAction().performClick()
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("¿Qué necesitas?").assertIsDisplayed()

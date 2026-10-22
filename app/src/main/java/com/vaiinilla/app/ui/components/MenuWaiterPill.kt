@@ -57,6 +57,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -229,9 +231,19 @@ private fun WaiterPill(
             Modifier
                 .heightIn(min = 52.dp)
                 .testTag(MENU_WAITER_PILL_TAG)
+                // Al limpiar la semántica se va también el toque del botón: se vuelve a declarar para TalkBack.
                 .clearAndSetSemantics {
                     contentDescription = label.title
                     role = Role.Button
+                    if (waiting) {
+                        disabled()
+                    } else {
+                        onClick {
+                            haptics.click()
+                            state.tap()
+                            true
+                        }
+                    }
                 },
     ) {
         Spacer(Modifier.width(18.dp))
