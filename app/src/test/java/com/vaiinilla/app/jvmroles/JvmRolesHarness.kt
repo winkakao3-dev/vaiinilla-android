@@ -36,6 +36,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.captureScreenRoboImage
+import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.MainActivity
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
@@ -244,7 +245,7 @@ class JvmRolesHarness {
         vigia.reset()
         identities.signIn(role)
         scenario = ActivityScenario.launch(MainActivity::class.java)
-        if (role != HarnessRole.ALUMNO) {
+        if (role.operationalRole != OperationalRole.CLIENT) {
             // Con modos de personal el arranque cae en la lista de modos: se entra como lo haría la persona.
             // "Entrar como Caja", o "Continuar como Caja" si el modo seguía activo. El botón existe
             // deshabilitado mientras carga la lista de modos; un toque ahí no hace nada.
