@@ -44,7 +44,7 @@ class StudentCounterJsonTest {
     }
 
     @Test
-    fun `sin límite puede gastar todo su saldo`() {
+    fun `sin limite puede gastar todo su saldo`() {
         val raw =
             """{"data":[{"usuario_id":"u","nombre":"Leo","saldo":"80.50","gastado_hoy":"20.00","limite_diario":null,
             "alergenos":[],"pide_pin":false,"pedidos_hoy":[]}],"error":null}"""
@@ -91,7 +91,7 @@ class StudentCounterJsonTest {
     }
 
     @Test
-    fun `para mañana trae piezas por producto y el día sin servicio`() {
+    fun `para manana trae piezas por producto y el dia sin servicio`() {
         val day =
             json.parseReservedDay(
                 """{"data":{"fecha":"2026-10-22","pedidos":3,"sin_servicio":null,"productos":[
@@ -108,7 +108,7 @@ class StudentCounterJsonTest {
     }
 
     @Test
-    fun `la política de la escuela sale del estado operativo`() {
+    fun `la politica de la escuela sale del estado operativo`() {
         val policy =
             json.parseSchoolPolicy(
                 """{"data":{"recibiendo_pedidos":true,"entrega_requiere_qr":false,"modo_escuela":true,"tipo":"cafeteria"},"error":null}""",
@@ -132,7 +132,7 @@ class StudentCounterJsonTest {
     }
 
     @Test
-    fun `los rechazos del PIN le dicen a la cajera cuántos intentos quedan y hasta qué hora`() {
+    fun `los rechazos del PIN le dicen a la cajera cuantos intentos quedan y hasta que hora`() {
         val parser = ApiResponseParser()
         val wrong =
             parser.parseError(
@@ -158,7 +158,7 @@ class StudentCounterJsonTest {
     }
 
     @Test
-    fun `el total suma el extra de cada opción elegida`() {
+    fun `el total suma el extra de cada opcion elegida`() {
         val total =
             StudentPurchaseRules.total(
                 cart = mapOf(4 to 2, 5 to 1),

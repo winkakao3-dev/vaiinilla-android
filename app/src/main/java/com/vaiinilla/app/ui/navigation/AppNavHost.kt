@@ -22,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -44,6 +45,7 @@ import com.vaiinilla.app.core.notifications.OrderAdvanceNotifier
 import com.vaiinilla.app.core.notifications.OrderNotificationTarget
 import com.vaiinilla.app.data.auth.student.GoogleSignInHelper
 import com.vaiinilla.app.data.auth.student.GoogleSignInUnavailableException
+import com.vaiinilla.app.domain.counter.CounterScope
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
@@ -61,6 +63,10 @@ import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.isRental
 import com.vaiinilla.app.ui.components.prefetchProductImages
+import com.vaiinilla.app.ui.counter.CashierStudentsEntry
+import com.vaiinilla.app.ui.counter.StudentCounterSheet
+import com.vaiinilla.app.ui.counter.StudentCounterViewModel
+import com.vaiinilla.app.ui.counter.actions
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerAlternative
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
@@ -164,6 +170,8 @@ fun AppNavHost(
     val discoveryViewModel: GuestDiscoveryViewModel = viewModel()
     val walletViewModel: WalletViewModel = viewModel()
     val accountDeletionViewModel: AccountDeletionViewModel = viewModel()
+    // Caja de una escuela (alumnos sin teléfono) y "Para mañana" de Cocina: padres e hijos.
+    val studentCounterViewModel: StudentCounterViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
     val waiterState by waiterViewModel.uiState
@@ -173,6 +181,12 @@ fun AppNavHost(
     val walletRemoteState by walletViewModel.state.collectAsStateWithLifecycle()
     val accountDeletionState by accountDeletionViewModel.state
     val walletState = rememberWalletUiState()
+    // La cola de Caja sin conexión vive todo el turno de Caja, no solo con la hoja de Alumnos abierta.
+    val cashierShift =
+        authorizedAccessState.activeContext
+            ?.takeIf { it.role == OperationalRole.CASHIER }
+            ?.let { CounterScope(membershipId = it.membershipId, establishmentId = it.establishmentId) }
+    LaunchedEffect(cashierShift) { studentCounterViewModel.setShift(cashierShift) }
 
     // Keep every in-memory copy of the selected venue aligned when persisted metadata
     // changes (for example, an establishment rename that also changes its slug).
@@ -1695,6 +1709,9 @@ fun AppNavHost(
                 }
                 if (authorizedCashier) {
                     OperationalPresenceLifecycle(OperationalRole.CASHIER, operationalViewModel)
+                    val studentCounterState by studentCounterViewModel.uiState
+                    val studentCounterOffline by studentCounterViewModel.offlineState.collectAsStateWithLifecycle()
+                    var studentsSheetOpen by rememberSaveable { mutableStateOf(false) }
                     // Una sola lectura del tablero para el contador de mesas; el sondeo es del tablero.
                     LaunchedEffect(Unit) { waiterViewModel.refresh() }
                     CashierOperationalScreen(
@@ -1746,10 +1763,33 @@ fun AppNavHost(
                             waiterState.tables
                                 .takeIf { it.isNotEmpty() && waiterState.consecutiveBoardFailures == 0 }
                                 ?.count { it.hasPendingAccount() },
+                        studentsEntry =
+                            studentCounterState.policy?.takeIf { it.isSchool }?.let {
+                                {
+                                    CashierStudentsEntry(
+                                        offline = studentCounterOffline,
+                                        colors = rememberOperationalColors(),
+                                        onClick = { studentsSheetOpen = true },
+                                    )
+                                }
+                            },
                         notice = waiterState.toastMessage,
                         onDismissError = operationalViewModel::dismissMutationError,
                         onRefresh = operationalViewModel::refresh,
                     )
+                    if (studentsSheetOpen) {
+                        StudentCounterSheet(
+                            state = studentCounterState,
+                            offline = studentCounterOffline,
+                            catalog = operationalState.catalog,
+                            canCharge = operationalState.cashSessionOpen == true,
+                            actions = remember(studentCounterViewModel) { studentCounterViewModel.actions() },
+                            onDismiss = {
+                                studentsSheetOpen = false
+                                studentCounterViewModel.closeStudent()
+                            },
+                        )
+                    }
                     if (waiterState.counterOrderOpen) {
                         CounterOrderSheet(
                             state = waiterState,

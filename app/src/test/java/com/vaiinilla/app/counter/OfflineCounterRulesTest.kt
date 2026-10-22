@@ -65,7 +65,7 @@ class OfflineCounterRulesTest {
     ) = assertEquals(0, money(expected).compareTo(actual))
 
     @Test
-    fun `lo que se fía es lo menor entre saldo, límite y tope, menos lo ya guardado`() {
+    fun `lo que se fia es lo menor entre saldo, limite y tope, menos lo ya guardado`() {
         assertMoney("200.00", OfflineCounterRules.allowance(card("330.00"), BigDecimal.ZERO))
         assertMoney("80.00", OfflineCounterRules.allowance(card("80.00"), BigDecimal.ZERO))
         assertMoney(
@@ -77,7 +77,7 @@ class OfflineCounterRulesTest {
     }
 
     @Test
-    fun `sin conexión no se vende con PIN ni por encima de lo que se fía`() {
+    fun `sin conexion no se vende con PIN ni por encima de lo que se fia`() {
         assertEquals(
             OfflineCounterRules.Refusal.NeedsPin,
             OfflineCounterRules.refusal(money("20.00"), card("330.00", pin = true), BigDecimal.ZERO),
@@ -89,7 +89,7 @@ class OfflineCounterRulesTest {
     }
 
     @Test
-    fun `solo se guardan las fallas de conexión`() {
+    fun `solo se guardan las fallas de conexion`() {
         assertTrue(OfflineCounterRules.isConnectionProblem(UnknownHostException("api")))
         assertTrue(OfflineCounterRules.isConnectionProblem(SocketTimeoutException("timeout")))
         assertTrue(OfflineCounterRules.isConnectionProblem(ApiClientException("HTTP_502", "", 502)))
@@ -101,7 +101,7 @@ class OfflineCounterRulesTest {
     }
 
     @Test
-    fun `otro día olvida las fichas pero conserva lo que falta mandar`() {
+    fun `otro dia olvida las fichas pero conserva lo que falta mandar`() {
         val tilin = card("330.00")
         val snapshot =
             OfflineCounterSnapshot(day = "2026-10-21")
@@ -119,7 +119,7 @@ class OfflineCounterRulesTest {
     }
 
     @Test
-    fun `lo guardado se lee igual y lo viejo ya no se reenvía`() {
+    fun `lo guardado se lee igual y lo viejo ya no se reenvia`() {
         val tilin = card("330.00")
         val snapshot =
             OfflineCounterSnapshot(day = "2026-10-21")
