@@ -49,6 +49,8 @@ data class OperationalStatusDto(
     /** Un servidor anterior no lo envía: sin franjas. */
     @SerialName("franjas_pedido") val orderWindows: List<OrderWindowDto> = emptyList(),
     @SerialName("dentro_de_franja") val withinOrderWindow: Boolean = true,
+    /** Un servidor anterior no lo envía: no es escuela. */
+    @SerialName("modo_escuela") val isSchool: Boolean = false,
 )
 
 @Serializable

@@ -108,6 +108,7 @@ import com.vaiinilla.app.ui.order.isSelectedProductValid
 import com.vaiinilla.app.ui.order.selectedProduct
 import com.vaiinilla.app.ui.order.selectedProductPreviewPrice
 import com.vaiinilla.app.ui.order.selectedProductPreviewTotal
+import com.vaiinilla.app.ui.parentmode.LocalChildControls
 import com.vaiinilla.app.ui.theme.Lime
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -220,11 +221,18 @@ fun MenuFeedScreen(
             }
     }
 
+    val childControls = LocalChildControls.current
+
     fun add(
         product: Product,
         from: Offset?,
     ) {
         haptics.click()
+        // Lo que el tutor no deja comprar no se agrega de un toque: la ficha dice por qué.
+        if (childControls?.restriction(product.id) != null) {
+            onOpenProduct(product.id)
+            return
+        }
         onQuickAdd(product.id)
         if (from != null && !MenuFeed.needsChoice(product) && !reduced) {
             flyers += Flyer(System.nanoTime(), product.imageUrl, from)

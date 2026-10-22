@@ -91,6 +91,10 @@ fun WalletScreen(
     onMenu: () -> Unit,
     /** Avisa cuando el QR personal abre o cierra, para quitar la barra de abajo mientras tanto. */
     onCodeOpenChange: (Boolean) -> Unit = {},
+    /** "Te cuida Ana": el alumno con tutor ve quién lo cuida (GET /tutelas/mis-controles). */
+    caretakerLine: String? = null,
+    /** Mis hijos y Opciones avanzadas, solo en una escuela (Modo Padre). */
+    familySection: (@Composable () -> Unit)? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = LocalHapticFeedback.current
@@ -190,6 +194,20 @@ fun WalletScreen(
                             }
                         },
                     )
+                }
+                if (caretakerLine != null) {
+                    item(key = "caretaker") {
+                        Text(
+                            text = caretakerLine,
+                            color = LocalVaiinillaColors.current.muted,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(top = 12.dp),
+                        )
+                    }
+                }
+                if (familySection != null) {
+                    item(key = "family") { familySection() }
                 }
 
                 val movements = remoteState.data?.movements

@@ -104,6 +104,8 @@ import com.vaiinilla.app.ui.order.selectedProduct
 import com.vaiinilla.app.ui.order.selectedProductPreviewPrice
 import com.vaiinilla.app.ui.order.selectedProductPreviewTotal
 import com.vaiinilla.app.ui.order.trayItemKind
+import com.vaiinilla.app.ui.parentmode.ChildRestrictionTag
+import com.vaiinilla.app.ui.parentmode.LocalChildControls
 import com.vaiinilla.app.ui.theme.AmoledLimeWash
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
@@ -733,6 +735,10 @@ private fun ProductCard(
             lineHeight = 19.sp,
             modifier = Modifier.padding(start = 2.dp, top = 4.dp, end = 2.dp),
         )
+        // El alumno con tutor ve con candado lo que no se le vende, antes de abrirlo.
+        LocalChildControls.current?.restriction(product.id)?.let {
+            ChildRestrictionTag(it, colors.muted, Modifier.padding(start = 2.dp, top = 4.dp, end = 2.dp))
+        }
     }
 }
 

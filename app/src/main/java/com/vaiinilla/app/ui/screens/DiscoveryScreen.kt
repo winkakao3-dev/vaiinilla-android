@@ -38,6 +38,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Backspace
@@ -66,7 +69,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -76,13 +82,19 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.vaiinilla.app.domain.guardianship.SchoolJoinCodeRules
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicVideo
 import com.vaiinilla.app.ui.components.ChoiceChip
@@ -91,6 +103,7 @@ import com.vaiinilla.app.ui.components.EditorialSecondaryButton
 import com.vaiinilla.app.ui.components.GlassCircleButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProfileInitialsButton
+import com.vaiinilla.app.ui.components.SlidingSegments
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.discovery.DiscoveryUiState
@@ -871,8 +884,10 @@ private fun SpaceCodeSheet(
     // onResolve lee el código del estado de la pantalla: se llama ya recompuesto con el dígito nuevo.
     val latestResolve by rememberUpdatedState(onResolve)
     var previousToken by remember { mutableStateOf(token) }
+    // Mesa | Escuela: el de la escuela son letras (SANDBX) y viaja como codigo_union al unirse.
+    var school by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(token) {
-        if (shouldAutoResolveTableCode(previousToken, token, resolving)) latestResolve()
+        if (!school && shouldAutoResolveTableCode(previousToken, token, resolving)) latestResolve()
         previousToken = token
     }
 
@@ -969,7 +984,7 @@ private fun SpaceCodeSheet(
                 )
             }
             Text(
-                "Ingresa el código de mesa",
+                if (school) "Ingresa el código de tu escuela" else "Ingresa el código de mesa",
                 color = colors.ink,
                 fontSize = 22.sp,
                 lineHeight = 28.sp,
@@ -977,7 +992,11 @@ private fun SpaceCodeSheet(
                 modifier = Modifier.padding(top = 14.dp),
             )
             Text(
-                "Escribe los 4 dígitos que aparecen junto al QR de tu mesa.",
+                if (school) {
+                    "Son las letras que la escuela le dio a los papás, por ejemplo SANDBX."
+                } else {
+                    "Escribe los 4 dígitos que aparecen junto al QR de tu mesa."
+                },
                 color = colors.muted,
                 fontSize = 13.sp,
                 lineHeight = 18.sp,
@@ -985,109 +1004,130 @@ private fun SpaceCodeSheet(
                 modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
             )
 
+            SlidingSegments(
+                labels = listOf("Mesa", "Escuela"),
+                selectedIndex = if (school) 1 else 0,
+                onSelect = {
+                    school = it == 1
+                    onTokenChange("")
+                },
+                trackColor = colors.paper2,
+                indicatorColor = colors.ink,
+                selectedContentColor = colors.onInk,
+                idleContentColor = colors.ink,
+                enabled = !resolving,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            )
+            if (school) {
+                SchoolCodeField(token = token, enabled = !resolving, onTokenChange = onTokenChange, onDone = onResolve)
+            }
+
+            val canResolve = !resolving && if (school) SchoolJoinCodeRules.isComplete(token) else token.isNotBlank()
+
             // Slot display
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                horizontalArrangement = Arrangement.Center,
-            ) {
-                // Los códigos son de 4 dígitos (hasta 8 si algún día crecen): siempre se ven todos.
-                // Con más de 5 casillas se angostan para que 8 quepan en un teléfono de 360dp.
-                val slots = (token.length + 1).coerceIn(4, 8)
-                val slotWidth = if (slots <= 5) 50.dp else 34.dp
-                Row(horizontalArrangement = Arrangement.spacedBy(if (slots <= 5) 10.dp else 5.dp)) {
-                    for (index in 0 until slots) {
-                        val char =
-                            when {
-                                index < token.length -> token[index].toString()
-                                index == token.length -> "•"
-                                else -> ""
-                            }
-                        val isFilled = index < token.length
-                        val isCurrent = index == token.length
-                        Box(
-                            modifier =
-                                Modifier
-                                    .size(width = slotWidth, height = 58.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(
-                                        if (isFilled) {
-                                            if (colors.isDark) colors.paper2 else Color.White
-                                        } else {
-                                            colors.paper2
-                                        },
-                                    ).border(
-                                        width = if (isFilled || isCurrent) 2.dp else 1.dp,
-                                        color =
+            if (!school) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    // Los códigos son de 4 dígitos (hasta 8 si algún día crecen): siempre se ven todos.
+                    // Con más de 5 casillas se angostan para que 8 quepan en un teléfono de 360dp.
+                    val slots = (token.length + 1).coerceIn(4, 8)
+                    val slotWidth = if (slots <= 5) 50.dp else 34.dp
+                    Row(horizontalArrangement = Arrangement.spacedBy(if (slots <= 5) 10.dp else 5.dp)) {
+                        for (index in 0 until slots) {
+                            val char =
+                                when {
+                                    index < token.length -> token[index].toString()
+                                    index == token.length -> "•"
+                                    else -> ""
+                                }
+                            val isFilled = index < token.length
+                            val isCurrent = index == token.length
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .size(width = slotWidth, height = 58.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(
                                             if (isFilled) {
-                                                colors.ink
-                                            } else if (isCurrent) {
-                                                colors.muted
+                                                if (colors.isDark) colors.paper2 else Color.White
                                             } else {
-                                                colors.line
+                                                colors.paper2
                                             },
-                                        shape = RoundedCornerShape(14.dp),
-                                    ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                char,
-                                color = colors.ink,
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Black,
-                            )
+                                        ).border(
+                                            width = if (isFilled || isCurrent) 2.dp else 1.dp,
+                                            color =
+                                                if (isFilled) {
+                                                    colors.ink
+                                                } else if (isCurrent) {
+                                                    colors.muted
+                                                } else {
+                                                    colors.line
+                                                },
+                                            shape = RoundedCornerShape(14.dp),
+                                        ),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    char,
+                                    color = colors.ink,
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Black,
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            if (showError) {
-                Text(
-                    "Escribe un código para continuar.",
-                    color = colors.coral,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(top = 8.dp, start = 4.dp),
-                )
-            }
+                if (showError) {
+                    Text(
+                        "Escribe un código para continuar.",
+                        color = colors.coral,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 8.dp, start = 4.dp),
+                    )
+                }
 
-            val canResolve = token.isNotBlank() && !resolving
-            val haptics = rememberVaiinillaHaptics()
+                val haptics = rememberVaiinillaHaptics()
 
-            // Keypad 3x4
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                listOf(
-                    listOf("1", "2", "3"),
-                    listOf("4", "5", "6"),
-                    listOf("7", "8", "9"),
-                ).forEach { rowKeys ->
+                // Keypad 3x4
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    listOf(
+                        listOf("1", "2", "3"),
+                        listOf("4", "5", "6"),
+                        listOf("7", "8", "9"),
+                    ).forEach { rowKeys ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            rowKeys.forEach { digit ->
+                                KeypadKey(Modifier.weight(1f), onClick = {
+                                    haptics.click()
+                                    if (token.length < 8) onTokenChange(token + digit)
+                                }) { Text(digit, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+                            }
+                        }
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        rowKeys.forEach { digit ->
-                            KeypadKey(Modifier.weight(1f), onClick = {
-                                haptics.click()
-                                if (token.length < 8) onTokenChange(token + digit)
-                            }) { Text(digit, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
-                        }
+                        Spacer(Modifier.weight(1f))
+                        KeypadKey(Modifier.weight(1f), onClick = {
+                            haptics.click()
+                            if (token.length < 8) onTokenChange(token + "0")
+                        }) { Text("0", fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+                        KeypadKey(Modifier.weight(1f), description = "Borrar", onClick = {
+                            haptics.click()
+                            if (token.isNotEmpty()) onTokenChange(token.dropLast(1))
+                        }) { Icon(Icons.AutoMirrored.Outlined.Backspace, contentDescription = null) }
                     }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Spacer(Modifier.weight(1f))
-                    KeypadKey(Modifier.weight(1f), onClick = {
-                        haptics.click()
-                        if (token.length < 8) onTokenChange(token + "0")
-                    }) { Text("0", fontSize = 22.sp, fontWeight = FontWeight.Bold) }
-                    KeypadKey(Modifier.weight(1f), description = "Borrar", onClick = {
-                        haptics.click()
-                        if (token.isNotEmpty()) onTokenChange(token.dropLast(1))
-                    }) { Icon(Icons.AutoMirrored.Outlined.Backspace, contentDescription = null) }
                 }
             }
 
@@ -1107,7 +1147,11 @@ private fun SpaceCodeSheet(
                     Spacer(Modifier.width(8.dp))
                 }
                 Text(
-                    if (resolving) "Validando…" else "Confirmar y sentarme",
+                    when {
+                        resolving -> "Validando…"
+                        school -> "Entrar a la escuela"
+                        else -> "Confirmar y sentarme"
+                    },
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                 )
@@ -1147,4 +1191,50 @@ private fun DiscoveryScreenPreview() {
             onContinueSelected = {},
         )
     }
+}
+
+/** El código de la escuela: letras y números sin ambiguos, hasta ocho, con el teclado del sistema. */
+@Composable
+private fun SchoolCodeField(
+    token: String,
+    enabled: Boolean,
+    onTokenChange: (String) -> Unit,
+    onDone: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    BasicTextField(
+        value = token,
+        onValueChange = { onTokenChange(SchoolJoinCodeRules.sanitized(it)) },
+        enabled = enabled,
+        singleLine = true,
+        keyboardOptions =
+            KeyboardOptions(
+                capitalization = KeyboardCapitalization.Characters,
+                autoCorrectEnabled = false,
+                keyboardType = KeyboardType.Ascii,
+                imeAction = ImeAction.Go,
+            ),
+        keyboardActions = KeyboardActions(onGo = { if (SchoolJoinCodeRules.isComplete(token)) onDone() }),
+        textStyle =
+            TextStyle(
+                color = colors.ink,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 4.sp,
+                textAlign = TextAlign.Center,
+            ),
+        cursorBrush = SolidColor(colors.ink),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+                .focusRequester(focus)
+                .clip(RoundedCornerShape(16.dp))
+                .background(colors.paper2)
+                .border(1.dp, colors.line, RoundedCornerShape(16.dp))
+                .padding(vertical = 14.dp)
+                .semantics { contentDescription = "Código de la escuela" },
+    )
 }

@@ -94,6 +94,7 @@ import com.vaiinilla.app.domain.model.CART_LINE_NOTE_MAX
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.ProductOption
+import com.vaiinilla.app.ui.parentmode.LocalChildControls
 import com.vaiinilla.app.ui.screens.LocalScene
 import com.vaiinilla.app.ui.screens.ProductMonogram
 import com.vaiinilla.app.ui.screens.ProductPhotoShadow
@@ -140,6 +141,10 @@ fun ProductDetailSheet(
         )
     val tone = productTone(product)
     val reduceMotion = reducedMotion()
+    // Lo que el tutor del alumno bloqueó o tiene un alérgeno suyo se ve, pero no se agrega.
+    val childRestriction = LocalChildControls.current?.restriction(product.id)
+    val canAdd = canAdd && childRestriction == null
+    val errorMessage = childRestriction?.label ?: errorMessage
     val isCustomized = selectedOptionIds != defaultOptionIds
     val interactionSource = remember { MutableInteractionSource() }
     val visibility = remember { MutableTransitionState(false) }

@@ -135,6 +135,8 @@ import com.vaiinilla.app.ui.order.isBalancePaymentAffordable
 import com.vaiinilla.app.ui.order.operationalBlockerMessage
 import com.vaiinilla.app.ui.order.requiresOperationalReady
 import com.vaiinilla.app.ui.order.selectedSpaceName
+import com.vaiinilla.app.ui.parentmode.LocalChildControls
+import com.vaiinilla.app.ui.parentmode.dailyLimitLine
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.SeaGlassButton
 import com.vaiinilla.app.ui.theme.SeaGlassTone
@@ -1370,6 +1372,19 @@ private fun OrderSummaryCard(state: OrderFlowUiState) {
                         lineHeight = 30.sp,
                     )
                 }
+            }
+            // El alumno con límite diario ve cuánto le queda hoy antes de pagar.
+            dailyLimitLine(
+                LocalChildControls.current,
+                state.cartPreviewTotal.toBigDecimalOrNull() ?: BigDecimal.ZERO,
+            )?.let {
+                Text(
+                    it,
+                    color = colors.muted,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
         }
     }
