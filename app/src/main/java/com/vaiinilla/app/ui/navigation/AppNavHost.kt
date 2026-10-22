@@ -75,6 +75,7 @@ import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.isEstablishmentSwitch
 import com.vaiinilla.app.ui.order.toRuntimeConfiguration
 import com.vaiinilla.app.ui.parentmode.ChildrenViewModel
+import com.vaiinilla.app.ui.parentmode.GuardianControlsViewModel
 import com.vaiinilla.app.ui.parentmode.ParentModeWalletHost
 import com.vaiinilla.app.ui.profile.displayInitials
 import com.vaiinilla.app.ui.reservations.ReservationsScreen
@@ -167,6 +168,7 @@ fun AppNavHost(
     val discoveryViewModel: GuestDiscoveryViewModel = viewModel()
     val walletViewModel: WalletViewModel = viewModel()
     val childrenViewModel: ChildrenViewModel = viewModel()
+    val guardianControlsViewModel: GuardianControlsViewModel = viewModel()
     val accountDeletionViewModel: AccountDeletionViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
@@ -223,6 +225,22 @@ fun AppNavHost(
         ) {
             walletViewModel.refreshIfStale()
         }
+    }
+
+    // El alumno con tutor ve sus controles en menú, ficha y carrito (GET /tutelas/mis-controles).
+    LaunchedEffect(
+        orderState.operationalStatus?.isSchool,
+        studentAuthState.session?.uid,
+        orderState.guestVenue?.establishment?.id,
+        authorizedAccessState.activeContext?.role,
+        orderState.createOrderError,
+    ) {
+        val isClientInSchool =
+            orderState.operationalStatus?.isSchool == true &&
+                authorizedAccessState.activeContext == null &&
+                studentAuthState.session?.emailVerified == true &&
+                studentAuthViewModel.isReadyForCheckout()
+        guardianControlsViewModel.refresh(isClientInSchool)
     }
 
     // Keep client orders warm while browsing the student shell. This makes Pedidos a
@@ -1087,6 +1105,7 @@ fun AppNavHost(
                         onRetry = walletViewModel::refresh,
                         onMenu = { navController.navigateStudent(Routes.CATALOG) },
                         onCodeOpenChange = { walletCodeOpen = it },
+                        caretakerLine = guardianControlsViewModel.controls?.caretakerLine,
                         familySection = familySection,
                     )
                 }
