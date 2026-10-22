@@ -143,6 +143,8 @@ fun CatalogScreen(
     onOpenCart: (() -> Unit)? = null,
     /** Abre "Desliza", el menú como feed de video; sin él no aparecen las pestañas. */
     onOpenFeed: (() -> Unit)? = null,
+    /** "Llamar al mesero" sobre la barra (MenuWaiterLayer); sin mesa no llega. Recibe (compacta, visible). */
+    waiterLayer: (@Composable (Boolean, Boolean) -> Unit)? = null,
 ) {
     val haptics = rememberVaiinillaHaptics()
     when {
@@ -193,6 +195,7 @@ fun CatalogScreen(
                         }
                     },
                 onOpenFeed = onOpenFeed,
+                waiterLayer = waiterLayer,
             )
         else ->
             CatalogError(
@@ -342,6 +345,7 @@ private fun CatalogContent(
     /** Abre el carrito desde el atajo flotante; sin él, el atajo no aparece. */
     onOpenCart: (() -> Unit)? = null,
     onOpenFeed: (() -> Unit)? = null,
+    waiterLayer: (@Composable (Boolean, Boolean) -> Unit)? = null,
 ) {
     val catalog = requireNotNull(state.catalog)
     val colors = LocalVaiinillaColors.current
@@ -411,7 +415,9 @@ private fun CatalogContent(
                             end = CatalogSideMargin,
                             top = 16.dp,
                             // Con el atajo al carrito encima del dock, el último renglón sube lo que mide.
-                            bottom = VaiinillaBottomNavClearance + 48.dp + if (cartShortcutVisible) 62.dp else 0.dp,
+                            bottom =
+                                VaiinillaBottomNavClearance + 48.dp +
+                                    if (cartShortcutVisible || waiterLayer != null) 62.dp else 0.dp,
                         ),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -503,6 +509,9 @@ private fun CatalogContent(
                     .navigationBarsPadding()
                     .padding(end = VaiinillaBottomNavSideMargin, bottom = VaiinillaBottomNavTop + 10.dp),
         )
+
+        // Se esconde con la ficha de un platillo abierta, como "Pedir ya"; en Pedidos queda el botón de la tarjeta.
+        waiterLayer?.invoke(cartShortcutVisible, state.selectedProduct == null)
 
         state.selectedProduct?.let { product ->
             val category = catalog.categories.firstOrNull { it.id == product.categoryId }

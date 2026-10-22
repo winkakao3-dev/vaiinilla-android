@@ -60,6 +60,7 @@ import com.vaiinilla.app.ui.admin.AdminStaffViewModel
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.admin.AdminViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
+import com.vaiinilla.app.ui.components.MenuWaiterLayer
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.isRental
 import com.vaiinilla.app.ui.components.prefetchProductImages
@@ -82,7 +83,9 @@ import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.canPayWithCard
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.isEstablishmentSwitch
+import com.vaiinilla.app.ui.order.menuWaiterSpaceId
 import com.vaiinilla.app.ui.order.toRuntimeConfiguration
+import com.vaiinilla.app.ui.order.waiterCallAlias
 import com.vaiinilla.app.ui.parentmode.ChildrenViewModel
 import com.vaiinilla.app.ui.parentmode.GuardianControlsViewModel
 import com.vaiinilla.app.ui.parentmode.ParentModeWalletHost
@@ -970,6 +973,32 @@ fun AppNavHost(
                     onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
                     onOpenCart = { navController.navigateStudent(Routes.CART) },
                     onOpenFeed = { navController.navigate(Routes.MENU_FEED) { launchSingleTop = true } },
+                    waiterLayer =
+                        menuWaiterSpaceId(
+                            guestSpaceId = orderState.guestVenue?.space?.id,
+                            sharedTableSpaceId =
+                                sharedTableViewModel.uiState.value.table
+                                    ?.spaceId,
+                            signedIn = studentAuthState.session != null,
+                        )?.let { spaceId ->
+                            val qrToken = orderState.guestVenue?.space?.qrToken
+                            val alias = waiterCallAlias(studentAuthState.session?.displayName.orEmpty())
+                            val layer: @Composable (Boolean, Boolean) -> Unit = { compact, visible ->
+                                MenuWaiterLayer(
+                                    spaceId = spaceId,
+                                    visible = visible,
+                                    compact = compact,
+                                    onCurrent = operationalViewModel::currentWaiterCall,
+                                    onCall = operationalViewModel::callWaiter,
+                                    onCancel = operationalViewModel::cancelWaiterCall,
+                                    onJoinTable =
+                                        qrToken?.let { token ->
+                                            { sharedTableViewModel.joinForWaiterCall(token, alias) }
+                                        },
+                                )
+                            }
+                            layer
+                        },
                     // Sin cuenta también se renta, salvo en los lugares que piden cuenta: ahí se entra primero.
                     onOpenCourts =
                         if (courtsViewModel.uiState.value.courts
