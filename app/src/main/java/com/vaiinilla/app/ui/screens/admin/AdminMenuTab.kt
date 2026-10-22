@@ -99,6 +99,8 @@ internal fun AdminMenuTab(
     rentsSpaces: Boolean = false,
     /** Con tarjeta se suma la comisión al precio (Stripe listo y "el cliente paga la comisión"). */
     cardFeeToCustomer: Boolean = false,
+    /** En una escuela, cada producto necesita sus alérgenos revisados para venderse a alumnos con alergias. */
+    isSchool: Boolean = false,
 ) {
     var sheet by remember { mutableStateOf<MenuSheet?>(null) }
     val catalog = state.catalog

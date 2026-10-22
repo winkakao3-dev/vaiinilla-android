@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.PointOfSale
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.RestaurantMenu
 import androidx.compose.material.icons.outlined.Savings
+import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.TableRestaurant
 import androidx.compose.material.icons.outlined.Tune
@@ -86,6 +87,11 @@ enum class AdminSection(
     val icon: ImageVector,
 ) {
     STORE("Flujo de mi tienda", "Pagos con tarjeta, directorio, logo, videos y cómo se pide", Icons.Outlined.Tune),
+    SCHOOL(
+        "Escuela",
+        "Código para unirse, recarga con tarjeta, apartar y menú de cada día",
+        Icons.Outlined.School,
+    ),
     SPACES("Mesas y espacios", "QR y código de cada mesa, canchas y reservas", Icons.Outlined.TableRestaurant),
     STAFF("Personal", "Invitaciones y accesos del equipo", Icons.Outlined.Group),
     CASHBACK("Cashback y wallet", "La regla de cashback y la cartera de clientes", Icons.Outlined.Savings),
@@ -100,6 +106,8 @@ class AdminSectionsHost(
     val cash: AdminCashActions,
     /** El tablero del mesero para Pedidos → Mesas; null si no hay con qué cargarlo y queda solo el historial. */
     val tablesBoard: (@Composable () -> Unit)? = null,
+    /** Negocio › Escuela; null la esconde. */
+    val school: com.vaiinilla.app.ui.admin.school.AdminSchoolViewModel? = null,
 )
 
 /** Lo que la pantalla puede pedirle al ViewModel; agrupado para no pasar veinte lambdas sueltas. */
@@ -129,6 +137,8 @@ fun AdminScreen(
     onChangeMode: () -> Unit,
     rentsSpaces: Boolean = false,
     cardFeeToCustomer: Boolean = false,
+    /** Escuela solo si el negocio dijo que lo es (Flujo de mi tienda › Escuela). */
+    isSchool: Boolean = false,
 ) {
     val colors = rememberOperationalColors()
     var tab by rememberSaveable { mutableStateOf(AdminTab.HOME) }
@@ -182,10 +192,18 @@ fun AdminScreen(
                             actions = actions,
                             rentsSpaces = rentsSpaces,
                             cardFeeToCustomer = cardFeeToCustomer,
+                            isSchool = isSchool,
                         )
                     AdminTab.ORDERS ->
                         AdminOrdersTab(state = state, colors = colors, actions = actions, tables = sections.tablesBoard)
-                    AdminTab.BUSINESS -> AdminBusinessTab(colors = colors) { section = it }
+                    AdminTab.BUSINESS ->
+                        AdminBusinessTab(
+                            colors = colors,
+                            sections =
+                                AdminSection.entries.filter {
+                                    it != AdminSection.SCHOOL || (isSchool && sections.school != null)
+                                },
+                        ) { section = it }
                 }
             }
             AdminTabBar(selected = tab, colors = colors, onSelect = { tab = it })
@@ -322,6 +340,17 @@ private fun AdminSectionContent(
             LaunchedEffect(scope) { sections.store.onVisible(scope) }
             AdminStoreSection(sections.store, colors, readOnly, onBack)
         }
+        AdminSection.SCHOOL ->
+            sections.school?.let { school ->
+                LaunchedEffect(scope) { school.onVisible(scope) }
+                com.vaiinilla.app.ui.screens.admin.school.AdminSchoolSection(
+                    viewModel = school,
+                    products = state.catalog?.products,
+                    colors = colors,
+                    readOnly = readOnly,
+                    onBack = onBack,
+                )
+            }
         AdminSection.SPACES -> {
             LaunchedEffect(scope) { sections.spaces.onVisible(scope) }
             AdminSpacesSection(sections.spaces, colors, readOnly, onBack)
@@ -341,6 +370,7 @@ private fun AdminSectionContent(
 @Composable
 private fun AdminBusinessTab(
     colors: OperationalColors,
+    sections: List<AdminSection>,
     onOpen: (AdminSection) -> Unit,
 ) {
     androidx.compose.foundation.lazy.LazyColumn(
@@ -350,8 +380,8 @@ private fun AdminBusinessTab(
                 .PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        items(AdminSection.entries.size) { index ->
-            val item = AdminSection.entries[index]
+        items(sections.size) { index ->
+            val item = sections[index]
             Row(
                 modifier =
                     Modifier
