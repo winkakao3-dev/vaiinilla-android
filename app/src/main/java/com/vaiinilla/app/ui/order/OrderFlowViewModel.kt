@@ -344,6 +344,27 @@ class OrderFlowViewModel
         private fun guestSlugFor(venue: GuestVenueContext?): String? =
             venue?.establishment?.slug?.takeIf { guestCheckoutPolicy.allows(venue) }
 
+        /**
+         * Cartera necesita saber si el negocio es escuela para mostrar Mis hijos; entrar con el código de la
+         * escuela solo carga el catálogo público, así que el estado se pide aquí con el contexto de cliente.
+         */
+        fun refreshOperationalStatusForWallet() {
+            val venue = _uiState.value.guestVenue ?: return
+            launchTracked {
+                if (sessionStore.readAccessToken().isNullOrBlank()) {
+                    withContext(Dispatchers.IO) { refreshClientContext(venue) }
+                }
+                var statusResult = withContext(Dispatchers.IO) { fetchOperationalStatus() }
+                if (statusResult.isFailure && venue.establishment.clientIdRequired == false) {
+                    withContext(Dispatchers.IO) { refreshClientContext(venue) }
+                    statusResult = withContext(Dispatchers.IO) { fetchOperationalStatus() }
+                }
+                statusResult.getOrNull()?.let { status ->
+                    _uiState.value = _uiState.value.copy(operationalStatus = status)
+                }
+            }
+        }
+
         private fun fetchOperationalStatus(): Result<OperationalStatus> {
             val slug = guestSlugFor(_uiState.value.guestVenue) ?: return getOperationalStatus()
             return guestOrders.operationalStatus(slug)

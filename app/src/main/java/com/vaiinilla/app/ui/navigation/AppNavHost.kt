@@ -1099,7 +1099,9 @@ fun AppNavHost(
                         delay(WALLET_VISIBLE_REFRESH_MS)
                     }
                 }
-                // Padres e hijos: solo una escuela muestra Mis hijos y Opciones avanzadas.
+                // Padres e hijos: solo una escuela muestra Mis hijos y Opciones avanzadas, y para saberlo hace
+                // falta el estado operativo con el contexto de cliente.
+                LaunchedEffect(Unit) { orderFlowViewModel.refreshOperationalStatusForWallet() }
                 ParentModeWalletHost(
                     enabled = orderState.operationalStatus?.isSchool == true,
                     childrenViewModel = childrenViewModel,
