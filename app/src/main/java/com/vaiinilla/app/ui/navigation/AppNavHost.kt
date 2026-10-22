@@ -426,6 +426,29 @@ fun AppNavHost(
         entranceEntered = true
     }
 
+    // Aviso de un hijo (Padres e hijos): su escuela y su ficha en Cartera.
+    ChildNoticeEffect(
+        action =
+            resolveOrderNotificationAction(
+                target = OrderNotificationTarget.CLIENT,
+                hasStudentSession = studentAuthState.session != null,
+                studentAuthLoading = studentAuthState.loading,
+                operationalRole = operationalState.role,
+                accessLoading = authorizedAccessState.loading,
+                hasStaffModes = authorizedAccessState.modes.any { it.role != OperationalRole.CLIENT },
+            ),
+        currentEstablishmentId = orderState.guestVenue?.establishment?.id,
+        returnToClient = { onReturned -> authorizedAccessViewModel.returnToClient(onReturned) },
+        findSchool = discoveryViewModel::schoolFor,
+        openSchool = { school, onEntered ->
+            discoveryViewModel.openSchool(school) { venue ->
+                enterVenueAndOpenCatalog(venue)
+                onEntered()
+            }
+        },
+        openWallet = { navController.navigateStudent(Routes.WALLET) },
+    )
+
     LaunchedEffect(pendingEstablishmentSlug) {
         val slug = pendingEstablishmentSlug?.trim().orEmpty()
         if (slug.isEmpty()) return@LaunchedEffect
