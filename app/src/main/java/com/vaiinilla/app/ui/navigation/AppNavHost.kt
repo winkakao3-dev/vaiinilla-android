@@ -64,6 +64,9 @@ import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.isRental
 import com.vaiinilla.app.ui.components.prefetchProductImages
 import com.vaiinilla.app.ui.counter.CashierStudentsEntry
+import com.vaiinilla.app.ui.counter.KitchenReservedEntry
+import com.vaiinilla.app.ui.counter.ReservedOrdersSheet
+import com.vaiinilla.app.ui.counter.ReservedOrdersViewModel
 import com.vaiinilla.app.ui.counter.StudentCounterSheet
 import com.vaiinilla.app.ui.counter.StudentCounterViewModel
 import com.vaiinilla.app.ui.counter.actions
@@ -172,6 +175,7 @@ fun AppNavHost(
     val accountDeletionViewModel: AccountDeletionViewModel = viewModel()
     // Caja de una escuela (alumnos sin teléfono) y "Para mañana" de Cocina: padres e hijos.
     val studentCounterViewModel: StudentCounterViewModel = viewModel()
+    val reservedOrdersViewModel: ReservedOrdersViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
     val waiterState by waiterViewModel.uiState
@@ -1811,6 +1815,11 @@ fun AppNavHost(
                 }
                 if (authorizedKitchen) {
                     OperationalPresenceLifecycle(OperationalRole.KITCHEN, operationalViewModel)
+                    val reservedState by reservedOrdersViewModel.uiState
+                    var reservedSheetOpen by rememberSaveable { mutableStateOf(false) }
+                    LaunchedEffect(authorizedAccessState.activeContext?.establishmentId) {
+                        reservedOrdersViewModel.refreshPolicy()
+                    }
                     KitchenOperationalScreen(
                         state = operationalState,
                         onBack = returnToModes(navController, operationalViewModel),
@@ -1827,10 +1836,30 @@ fun AppNavHost(
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "kitchen",
+                        reservedEntry =
+                            if (reservedState.isSchool) {
+                                {
+                                    KitchenReservedEntry(colors = rememberOperationalColors(), onClick = {
+                                        reservedOrdersViewModel.open()
+                                        reservedSheetOpen = true
+                                    })
+                                }
+                            } else {
+                                null
+                            },
                         onActionNoticed = operationalViewModel::consumeActionNotice,
                         onDismissError = operationalViewModel::dismissMutationError,
                         onRefresh = operationalViewModel::refresh,
                     )
+                    if (reservedSheetOpen) {
+                        ReservedOrdersSheet(
+                            state = reservedState,
+                            colors = rememberOperationalColors(),
+                            onSelect = reservedOrdersViewModel::select,
+                            onRetry = reservedOrdersViewModel::retry,
+                            onDismiss = { reservedSheetOpen = false },
+                        )
+                    }
                 }
             }
 

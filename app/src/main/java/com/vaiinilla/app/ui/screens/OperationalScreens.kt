@@ -1636,6 +1636,8 @@ fun KitchenOperationalScreen(
     onChangeMode: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
     assistantUserKey: String = "kitchen",
+    /** Cocina de una escuela: "Para mañana" (padres e hijos); null fuera de una escuela. */
+    reservedEntry: (@Composable () -> Unit)? = null,
     onActionNoticed: () -> Unit = {},
     onDismissError: () -> Unit = {},
     onRefresh: () -> Unit = {},
@@ -1811,6 +1813,12 @@ fun KitchenOperationalScreen(
                         onDismiss = onDismissError,
                         modifier = Modifier.animateItem(),
                     )
+                }
+            }
+
+            if (reservedEntry != null) {
+                item(key = "kitchen-reserved") {
+                    Box(modifier = Modifier.animateItem()) { reservedEntry() }
                 }
             }
 

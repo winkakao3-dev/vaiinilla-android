@@ -205,3 +205,28 @@ fun String.searchKey(): String =
         .normalize(trim(), Normalizer.Form.NFD)
         .replace(Regex("\\p{Mn}+"), "")
         .lowercase()
+
+/** Los días de "Para mañana": hoy y los siguientes días de escuela, con nombres de la cocina. */
+object ReservedCalendar {
+    private val names = listOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
+
+    /** Hoy y los próximos 6 días sin sábados ni domingos (hoy sale aunque sea fin de semana). */
+    fun dates(today: java.time.LocalDate): List<String> =
+        (0..6L)
+            .map { today.plusDays(it) }
+            .filter { it == today || it.dayOfWeek.value < 6 }
+            .map { it.toString() }
+
+    /** "Hoy", "Mañana" o "Jueves 24". */
+    fun label(
+        iso: String,
+        today: java.time.LocalDate,
+    ): String {
+        val day = runCatching { java.time.LocalDate.parse(iso) }.getOrNull() ?: return iso
+        return when (day) {
+            today -> "Hoy"
+            today.plusDays(1) -> "Mañana"
+            else -> "${names[day.dayOfWeek.value - 1]} ${day.dayOfMonth}"
+        }
+    }
+}
