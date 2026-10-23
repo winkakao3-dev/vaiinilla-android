@@ -116,6 +116,11 @@ class ReservationsViewModel
             if (next != null && !needsEntry) startPolling()
         }
 
+        /** Un fallo antes de consultar (preparar la cuenta en este lugar) se ve en el mismo aviso. */
+        fun showError(message: String) {
+            _uiState.value = _uiState.value.copy(loading = false, error = message)
+        }
+
         fun onHidden() {
             pollingJob?.cancel()
             pollingJob = null

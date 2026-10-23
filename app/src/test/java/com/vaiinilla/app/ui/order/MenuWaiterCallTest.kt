@@ -46,9 +46,11 @@ class MenuWaiterCallTest {
     }
 
     @Test
-    fun `solo quien llamo cancela y solo mientras esta pendiente`() {
+    fun `solo quien llamo cancela, tambien con el mesero en camino`() {
         assertTrue(canCancelMenuCall(call(CallStatus.PENDIENTE)))
-        assertFalse(canCancelMenuCall(call(CallStatus.EN_CAMINO)))
+        // K02: el servidor deja cancelar mientras la llamada siga abierta.
+        assertTrue(canCancelMenuCall(call(CallStatus.EN_CAMINO)))
+        assertFalse(canCancelMenuCall(call(CallStatus.ATENDIDA)))
         // Otro de la mesa llamó: el servidor no manda su nombre y cancelar le daría CALL_NOT_FOUND.
         assertFalse(canCancelMenuCall(call(CallStatus.PENDIENTE, client = null)))
     }
@@ -181,6 +183,18 @@ class MenuWaiterCallTest {
             val state = state(onCurrent = { Result.failure(CallsUnavailableException()) })
             state.refresh()
             assertEquals(MenuWaiterPhase.UNAVAILABLE, state.phase)
+        }
+
+    @Test
+    fun `si el servidor falla al llamar la pildora se queda con el error`() =
+        runTest {
+            // C04: el servidor de pruebas responde 404; antes la píldora se iba sin decir nada.
+            val state = state(onCall = { _, _, _ -> Result.failure(CallsUnavailableException()) })
+            state.tap()
+            assertFalse(state.send(CallReason.UTENSILIOS))
+            assertEquals(MenuWaiterPhase.CHOOSING, state.phase)
+            assertTrue(state.expanded)
+            assertEquals("Llamar al mesero todavía no está disponible en esta cafetería.", state.error)
         }
 
     private fun notAtTable() =
