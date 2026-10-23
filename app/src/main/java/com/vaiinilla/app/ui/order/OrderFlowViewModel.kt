@@ -219,7 +219,8 @@ class OrderFlowViewModel
                         _uiState.value.copy(
                             loading = false,
                             catalog = effectiveCatalog,
-                            operationalStatus = status,
+                            // Si falla al entrar (aún sin contexto de cliente) no se borra lo que ya se tenía del mismo lugar.
+                            operationalStatus = status ?: _uiState.value.operationalStatus.takeIf { sameCart },
                             rentedCourt = rentedCourt,
                             selectedSpaceId = rentedCourt?.id ?: _uiState.value.selectedSpaceId,
                             cartLines = nextCart,
@@ -362,6 +363,33 @@ class OrderFlowViewModel
                 statusResult.getOrNull()?.let { status ->
                     _uiState.value = _uiState.value.copy(operationalStatus = status)
                 }
+            }
+        }
+
+        /**
+         * Como en iOS: con un QR el estado operativo no llega con el menú y la consulta al entrar puede correr
+         * antes de que exista el contexto de cliente, así que "Pagar al final" salía a veces sí y a veces no.
+         * Se vuelve a pedir al abrir el carrito y al tocar Pagar; si falla se conserva lo último.
+         */
+        fun refreshOperationalStatusForCheckout() {
+            val venue = _uiState.value.guestVenue ?: return
+            launchTracked {
+                if (guestSlugFor(venue) == null && sessionStore.readAccessToken().isNullOrBlank()) {
+                    withContext(Dispatchers.IO) { refreshClientContext(venue) }
+                }
+                var statusResult = withContext(Dispatchers.IO) { fetchOperationalStatus() }
+                if (statusResult.isFailure && venue.establishment.clientIdRequired == false) {
+                    withContext(Dispatchers.IO) { refreshClientContext(venue) }
+                    statusResult = withContext(Dispatchers.IO) { fetchOperationalStatus() }
+                }
+                val status = statusResult.getOrNull() ?: return@launchTracked
+                if (_uiState.value.guestVenue
+                        ?.establishment
+                        ?.id != venue.establishment.id
+                ) {
+                    return@launchTracked
+                }
+                _uiState.value = _uiState.value.copy(operationalStatus = status)
             }
         }
 

@@ -171,6 +171,8 @@ fun CartScreen(
     onSelectOrder: (String) -> Unit = {},
     /** El alta en el negocio corre antes del pedido: el botón espera igual que con el pedido. */
     preparingCheckout: Boolean = false,
+    /** Al tocar Pagar se vuelve a pedir el estado operativo: de él sale "Pagar al final". */
+    onCheckoutOpened: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -438,6 +440,7 @@ fun CartScreen(
                             onClick = {
                                 haptics.impact()
                                 paymentDialogOpen = true
+                                onCheckoutOpened()
                             },
                         )
                     }
