@@ -163,6 +163,7 @@ import com.vaiinilla.app.ui.components.trackingStepDescription
 import com.vaiinilla.app.ui.components.trackingStepTitle
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.order.OrderFlowUiState
+import com.vaiinilla.app.ui.order.canCancelMenuCall
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.SeaGlassButton
 import com.vaiinilla.app.ui.theme.SeaGlassTone
@@ -1311,13 +1312,8 @@ internal fun CallWaiterButton(
                     view = CallWaiterView.OPEN
                     haptics.impact()
                 },
-                onFailure = { cause ->
-                    if (cause is CallsUnavailableException) {
-                        view = CallWaiterView.UNAVAILABLE
-                    } else {
-                        error = cause.toUserFacingMessage()
-                    }
-                },
+                // Si falla, los motivos se quedan con el error a la vista para reintentar.
+                onFailure = { cause -> error = cause.toUserFacingMessage() },
             )
             busy = false
         }
@@ -1333,6 +1329,8 @@ internal fun CallWaiterButton(
                 onSuccess = {
                     call = null
                     view = CallWaiterView.IDLE
+                    // El servidor cuenta 60 s desde la llamada anterior, aunque se haya cancelado.
+                    cooldown = CALL_COOLDOWN_SECONDS
                 },
                 onFailure = { cause -> error = cause.toUserFacingMessage() },
             )
@@ -1495,7 +1493,8 @@ private fun CallLiveRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        if (!going) {
+        // También en camino: el servidor deja cancelarla mientras siga abierta.
+        if (canCancelMenuCall(call)) {
             SeaGlassButton(
                 tone = SeaGlassTone.vainilla,
                 onClick = onCancel,

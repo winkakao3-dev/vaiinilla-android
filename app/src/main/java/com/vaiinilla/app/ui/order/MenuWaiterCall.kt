@@ -67,10 +67,11 @@ private fun waiterFirstName(call: TableCall): String =
         ?.takeIf { it.isNotEmpty() } ?: "Tu mesero"
 
 /**
- * Solo quien hizo la llamada la cancela; si la hizo otro de la mesa el servidor no manda su nombre. Ya en camino
- * no se cancela, como en la tarjeta de Pedidos.
+ * Solo quien hizo la llamada la cancela; si la hizo otro de la mesa el servidor no manda su nombre. En camino
+ * también se puede: el servidor la cancela mientras siga abierta.
  */
-fun canCancelMenuCall(call: TableCall): Boolean = call.status == CallStatus.PENDIENTE && call.clientName != null
+fun canCancelMenuCall(call: TableCall): Boolean =
+    (call.status == CallStatus.PENDIENTE || call.status == CallStatus.EN_CAMINO) && call.clientName != null
 
 enum class MenuWaiterPhase { IDLE, CHOOSING, OPEN, UNAVAILABLE }
 
@@ -160,8 +161,9 @@ class MenuWaiterCallState(
                 true
             },
             onFailure = { cause ->
+                // Al fallar el envío la píldora se queda con el error a la vista: quitarla dejaba al cliente sin
+                // saber qué pasó ni cómo reintentar.
                 when {
-                    cause is CallsUnavailableException -> phase = MenuWaiterPhase.UNAVAILABLE
                     cause.errorCode() == RATE_LIMITED -> {
                         cooldown = cause.retryAfterSeconds() ?: CALL_COOLDOWN_SECONDS
                         phase = MenuWaiterPhase.IDLE

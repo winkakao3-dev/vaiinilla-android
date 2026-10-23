@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
+import com.vaiinilla.app.domain.repository.CallsUnavailableException
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.TableCallTaker
 import com.vaiinilla.app.domain.repository.TableSpace
@@ -59,13 +60,29 @@ class MenuWaiterPillUiTest {
     }
 
     @Test
-    fun `con el mesero en camino lo dice y ya no deja cancelar`() {
+    fun `con el mesero en camino lo dice y todavia deja cancelar`() {
         setLayer(onCurrent = { Result.success(call(CallStatus.EN_CAMINO, taker = "Luis Pérez")) })
         pill().assertContentDescriptionEquals("Luis va en camino").performClick()
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Luis Pérez va en camino").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Cancelar llamada").assertDoesNotExist()
+        // K02: el servidor la cancela mientras siga abierta.
+        composeTestRule.onNodeWithText("Cancelar llamada").assertIsDisplayed()
+    }
+
+    @Test
+    fun `si el servidor falla al llamar se ve el error y la pildora sigue`() {
+        setLayer(onCall = { _, _, _ -> Result.failure(CallsUnavailableException()) })
+        pill().performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Pedir la cuenta").performClick()
+        composeTestRule.waitForIdle()
+
+        // C04: antes la píldora se iba sin decir nada.
+        composeTestRule
+            .onNodeWithText("Llamar al mesero todavía no está disponible en esta cafetería.")
+            .assertIsDisplayed()
+        pill().assertExists()
     }
 
     @Test
