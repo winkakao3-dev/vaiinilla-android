@@ -63,6 +63,7 @@ fun OrderDetailDto.toDomain(): OrderDetail =
                 cancelReason = cancelReason,
                 canceledByRole = canceledByRole,
                 tableSessionId = tableSessionId,
+                deliveryWithoutQr = deliveryWithoutQr,
             ),
         user =
             user?.let {

@@ -577,7 +577,7 @@ fun WaiterOperationalScreen(
             onGoing = { onGoing(it) },
             onAttended = { onAttended(it) },
             onDeliver = {
-                if (state.deliveryRequiresQr) {
+                if (it.needsQrToDeliver(state.deliveryRequiresQr)) {
                     openTableId = null
                     onCloseSpace()
                     delivering = it

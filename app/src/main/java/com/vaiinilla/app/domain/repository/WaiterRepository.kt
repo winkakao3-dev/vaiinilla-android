@@ -75,7 +75,12 @@ data class BoardOrder(
     val clientName: String?,
     val itemsSummary: String,
     val updatedAt: String,
-)
+    /** El backend dispensa el QR para este pedido (`entrega_sin_qr`): se entrega con solo confirmar. */
+    val deliveryWithoutQr: Boolean = false,
+) {
+    /** Si entregarlo pide el QR de recogida: lo pide el negocio y el pedido no va a una cuenta abierta. */
+    fun needsQrToDeliver(deliveryRequiresQr: Boolean): Boolean = deliveryRequiresQr && !deliveryWithoutQr
+}
 
 /** Estado de un espacio: libre, ocupado (con turno o mesa abierta), en gracia o por cobrar. */
 enum class SpaceAvailabilityState(

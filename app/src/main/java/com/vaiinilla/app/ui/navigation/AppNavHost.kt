@@ -1882,6 +1882,7 @@ fun AppNavHost(
                         onScanDeliver = { orderId, version ->
                             pendingPickupDelivery = PendingPickupDelivery(orderId, version)
                         },
+                        onDeliver = { orderId, version -> operationalViewModel.deliver(orderId, version) },
                         onRejectOrder = operationalViewModel::rejectOrder,
                         onRejectItem = operationalViewModel::rejectItem,
                         onActionNoticed = operationalViewModel::consumeActionNotice,

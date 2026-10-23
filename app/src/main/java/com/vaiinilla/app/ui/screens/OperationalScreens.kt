@@ -275,6 +275,8 @@ fun CashierOperationalScreen(
     onCloseCash: (String) -> Unit = {},
     onCollect: (orderId: String, amount: String, version: Int, tip: String?) -> Unit,
     onScanDeliver: (orderId: String, version: Int) -> Unit = { _, _ -> },
+    /** Entregar sin escanear: el backend dispensa el QR de ese pedido (`entrega_sin_qr`). */
+    onDeliver: (orderId: String, version: Int) -> Unit = { _, _ -> },
     /** Rechazar el pedido entero con motivo (B09); el cliente ve el motivo. */
     onRejectOrder: (orderId: String, version: Int, reason: String) -> Unit = { _, _, _ -> },
     /** Quitar un artículo con motivo (G07); el último no se quita, se rechaza el pedido. */
@@ -924,11 +926,17 @@ fun CashierOperationalScreen(
                                             )
                                         }
                                     } else {
-                                        // La entrega para llevar exige el QR del alumno. No existe transición manual sin token.
+                                        // La entrega exige el QR del alumno, salvo que el backend lo dispense para este
+                                        // pedido (`entrega_sin_qr`, una cuenta abierta): entonces se confirma y listo.
+                                        val withoutQr = recentOrder.summary.deliveryWithoutQr
                                         Button(
                                             onClick = {
                                                 haptics.impact()
-                                                onScanDeliver(recentOrder.summary.id, recentOrder.summary.version)
+                                                if (withoutQr) {
+                                                    onDeliver(recentOrder.summary.id, recentOrder.summary.version)
+                                                } else {
+                                                    onScanDeliver(recentOrder.summary.id, recentOrder.summary.version)
+                                                }
                                             },
                                             enabled =
                                                 isOrderReady &&
@@ -950,13 +958,20 @@ fun CashierOperationalScreen(
                                             contentPadding = PaddingValues(horizontal = 14.dp),
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Outlined.QrCodeScanner,
+                                                imageVector =
+                                                    if (withoutQr) {
+                                                        Icons.Rounded.Check
+                                                    } else {
+                                                        Icons.Outlined.QrCodeScanner
+                                                    },
                                                 contentDescription = null,
                                                 modifier = Modifier.size(18.dp),
                                             )
                                             Spacer(Modifier.width(8.dp))
                                             Text(
-                                                if (isOrderReady) {
+                                                if (isOrderReady && withoutQr) {
+                                                    "Entregar"
+                                                } else if (isOrderReady) {
                                                     "Escanear QR para entregar"
                                                 } else {
                                                     "Disponible cuando esté LISTO"

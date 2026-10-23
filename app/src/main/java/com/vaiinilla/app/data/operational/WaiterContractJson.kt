@@ -75,6 +75,8 @@ data class BoardOrderDto(
     val cliente: TableCallClientDto? = null,
     @SerialName("items_resumen") val itemsSummary: String,
     @SerialName("actualizado_en") val updatedAt: String,
+    /** Pedido de una cuenta abierta: se entrega sin el QR de recogida. Un servidor anterior no lo manda. */
+    @SerialName("entrega_sin_qr") val deliveryWithoutQr: Boolean = false,
 )
 
 @Serializable
@@ -432,6 +434,7 @@ fun BoardOrderDto.toDomain(): BoardOrder =
         clientName = cliente?.nombre,
         itemsSummary = itemsSummary,
         updatedAt = updatedAt,
+        deliveryWithoutQr = deliveryWithoutQr,
     )
 
 fun BoardTableDto.toDomain(): BoardTable =
