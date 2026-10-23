@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Lock
@@ -107,6 +108,7 @@ fun ChildRestrictionTag(
                 ChildRestriction.Reason.BLOCKED -> Icons.Outlined.Lock
                 ChildRestriction.Reason.ALLERGEN -> Icons.Outlined.ErrorOutline
                 ChildRestriction.Reason.ALLERGENS_UNKNOWN -> Icons.Outlined.HelpOutline
+                ChildRestriction.Reason.SOLD_OUT -> Icons.Outlined.Block
             },
             contentDescription = null,
             tint = color,

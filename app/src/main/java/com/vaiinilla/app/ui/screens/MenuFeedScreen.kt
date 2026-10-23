@@ -48,6 +48,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Help
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Lock
@@ -94,6 +95,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.guardianship.ChildRestriction
+import com.vaiinilla.app.domain.guardianship.restrictionFor
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.components.NumberTicker
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -233,7 +235,7 @@ fun MenuFeedScreen(
     ) {
         // Como iOS: lo que tiene opciones obligatorias abre su ficha; lo que el tutor no deja comprar no se
         // agrega y el aviso dice por qué.
-        val restriction = childControls?.restriction(product.id)
+        val restriction = childControls.restrictionFor(product)
         if (restriction != null && !MenuFeed.needsChoice(product)) {
             haptics.impact()
             toast = restriction.label
@@ -309,7 +311,7 @@ fun MenuFeedScreen(
                     storeName = venue?.name,
                     storeLogo = venue?.logoUrl,
                     quantity = MenuFeed.quantityOf(state.cartLines, product.id),
-                    restriction = childControls?.restriction(product.id),
+                    restriction = childControls.restrictionFor(product),
                     active = pagerState.currentPage == page,
                     pageOffset = offset,
                     reduced = reduced,
@@ -969,6 +971,7 @@ private fun RestrictionBadge(
                 ChildRestriction.Reason.BLOCKED -> Icons.Rounded.Lock
                 ChildRestriction.Reason.ALLERGEN -> Icons.Rounded.Warning
                 ChildRestriction.Reason.ALLERGENS_UNKNOWN -> Icons.AutoMirrored.Rounded.Help
+                ChildRestriction.Reason.SOLD_OUT -> Icons.Rounded.Block
             },
             contentDescription = null,
             tint = OnMedia,
