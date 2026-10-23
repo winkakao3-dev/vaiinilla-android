@@ -1671,6 +1671,7 @@ fun AppNavHost(
                         onCurrentWaiterCall = operationalViewModel::currentWaiterCall,
                         onCallWaiter = operationalViewModel::callWaiter,
                         onCancelWaiter = operationalViewModel::cancelWaiterCall,
+                        onViewReceipt = { navController.navigate(Routes.receiptStickerRoute()) },
                         onReturnToMenu = {
                             // Abierto desde Pedidos: atrás regresa a la lista. La selección se limpia allá,
                             // cuando esta pantalla ya salió, para no quedarse sin pedido a media animación.
@@ -1713,7 +1714,7 @@ fun AppNavHost(
             ) { entry ->
                 val styleIndex = entry.arguments?.getInt("style") ?: 0
                 ReceiptStickerScreen(
-                    order = orderState.createdOrder ?: operationalState.selectedOrder,
+                    order = orderState.createdOrder ?: operationalState.selectedOrder ?: orderState.stripeObservedOrder,
                     onBack = { navController.popBackStack() },
                     initialStyleIndex = styleIndex,
                 )

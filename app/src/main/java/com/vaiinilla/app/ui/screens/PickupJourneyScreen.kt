@@ -261,6 +261,7 @@ internal fun PickupJourneyScreen(
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
     printsTicket: Boolean = false,
+    onViewReceipt: (() -> Unit)? = null,
 ) {
     val palette = scenePaletteForTheme()
     CompositionLocalProvider(LocalScene provides palette) {
@@ -276,6 +277,7 @@ internal fun PickupJourneyScreen(
             onCallWaiter = onCallWaiter,
             onCancelWaiter = onCancelWaiter,
             printsTicket = printsTicket,
+            onViewReceipt = onViewReceipt,
         )
     }
 }
@@ -293,6 +295,7 @@ private fun PickupJourney(
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
     printsTicket: Boolean = false,
+    onViewReceipt: (() -> Unit)? = null,
 ) {
     val palette = LocalScene.current
     val reduceMotion = reducedMotion()
@@ -626,6 +629,7 @@ private fun PickupJourney(
             onCurrentWaiterCall = onCurrentWaiterCall,
             onCallWaiter = onCallWaiter,
             onCancelWaiter = onCancelWaiter,
+            onViewReceipt = onViewReceipt?.takeIf { order.summary.state == OrderState.DELIVERED },
             modifier = Modifier.align(Alignment.BottomCenter),
         )
 
@@ -910,6 +914,7 @@ private fun StatusSheet(
     onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
+    onViewReceipt: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val c = LocalScene.current
@@ -1039,8 +1044,16 @@ private fun StatusSheet(
                 )
             }
             Spacer(Modifier.height(14.dp))
-            if (hasCode || onViewTracking != null) {
+            if (hasCode || onViewTracking != null || onViewReceipt != null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (onViewReceipt != null) {
+                        PillButton(
+                            "Ver recibo",
+                            primary = !hasCode,
+                            onClick = onViewReceipt,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                     if (hasCode) {
                         PillButton(
                             "Mostrar código",
@@ -1052,7 +1065,7 @@ private fun StatusSheet(
                     if (onViewTracking != null) {
                         PillButton(
                             "Seguir pedido",
-                            primary = !hasCode,
+                            primary = !hasCode && onViewReceipt == null,
                             onClick = onViewTracking,
                             modifier = Modifier.weight(1f),
                         )
