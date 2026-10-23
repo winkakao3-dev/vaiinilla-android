@@ -212,6 +212,10 @@ fun AppNavHost(
         discoveryViewModel.refreshSelectedVenue()
         studentAuthViewModel.refreshGuestVenue()
     }
+    // La mesa compartida no pasa de un negocio a otro (C08).
+    LaunchedEffect(orderState.guestVenue?.establishment?.id) {
+        sharedTableViewModel.bindVenue(orderState.guestVenue?.establishment?.id)
+    }
 
     // Warm product imagery as soon as catalog data exists, before cards enter composition.
     LaunchedEffect(orderState.catalog) {
@@ -1700,8 +1704,15 @@ fun AppNavHost(
                         order = confirmationOrder,
                         deliveryRequiresQr = orderState.operationalStatus?.deliveryRequiresQr != false,
                         showTrackingButton = isFreshConfirmation,
-                        onCurrentWaiterCall = operationalViewModel::currentWaiterCall,
-                        onCallWaiter = operationalViewModel::callWaiter,
+                        // Como en el menú: la llamada va con el contexto de este negocio, no el del anterior (K02).
+                        onCurrentWaiterCall = { id ->
+                            orderFlowViewModel.ensureClientContext()
+                            operationalViewModel.currentWaiterCall(id)
+                        },
+                        onCallWaiter = { id, reason, orderId ->
+                            orderFlowViewModel.ensureClientContext()
+                            operationalViewModel.callWaiter(id, reason, orderId)
+                        },
                         onCancelWaiter = operationalViewModel::cancelWaiterCall,
                         onViewReceipt = { navController.navigate(Routes.receiptStickerRoute()) },
                         onReturnToMenu = {
@@ -1805,9 +1816,15 @@ fun AppNavHost(
                             },
                             onRefresh = { operationalViewModel.refresh() },
                             canCallWaiter = ::canCallWaiter,
-                            onCurrentWaiterCall = operationalViewModel::currentWaiterCall,
+                            onCurrentWaiterCall = { id ->
+                                orderFlowViewModel.ensureClientContext()
+                                operationalViewModel.currentWaiterCall(id)
+                            },
                             onAnnounceArrival = operationalViewModel::announceArrival,
-                            onCallWaiter = operationalViewModel::callWaiter,
+                            onCallWaiter = { id, reason, orderId ->
+                                orderFlowViewModel.ensureClientContext()
+                                operationalViewModel.callWaiter(id, reason, orderId)
+                            },
                             onCancelWaiter = operationalViewModel::cancelWaiterCall,
                             sharedTable = {
                                 // Solo consulta la mesa mientras Mis pedidos está a la vista.
