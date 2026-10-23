@@ -275,6 +275,11 @@ fun CashierOperationalScreen(
     onCloseCash: (String) -> Unit = {},
     onCollect: (orderId: String, amount: String, version: Int, tip: String?) -> Unit,
     onScanDeliver: (orderId: String, version: Int) -> Unit = { _, _ -> },
+    /** Rechazar el pedido entero con motivo (B09); el cliente ve el motivo. */
+    onRejectOrder: (orderId: String, version: Int, reason: String) -> Unit = { _, _, _ -> },
+    /** Quitar un artículo con motivo (G07); el último no se quita, se rechaza el pedido. */
+    onRejectItem: (orderId: String, itemId: Int, version: Int, reason: String) -> Unit = { _, _, _, _ -> },
+    onActionNoticed: () -> Unit = {},
     onSearchWalletClients: (String) -> Unit = {},
     onOpenWalletUserQr: () -> Unit = {},
     onReloadWallet: (userId: String, amount: String) -> Unit = { _, _ -> },
@@ -364,6 +369,12 @@ fun CashierOperationalScreen(
         }
     }
     LaunchedEffect(notice) { notice?.let { toastMessage = it } }
+    LaunchedEffect(state.actionNotice) {
+        state.actionNotice?.let {
+            toastMessage = it
+            onActionNoticed()
+        }
+    }
     var assistantPulse by remember { mutableIntStateOf(0) }
     var walletSheetOpen by remember { mutableStateOf(false) }
     var choosingOrderPlace by remember { mutableStateOf(false) }
@@ -373,6 +384,8 @@ fun CashierOperationalScreen(
     // Lo que el cajero lleva escrito (efectivo y propina) por pedido. Vive fuera de la lista: el sondeo
     // trae una copia nueva del pedido cada pocos segundos y la tarjeta se rehace, pero el cobro sigue.
     val cashDrafts = remember { mutableStateMapOf<String, CashierCashDraft>() }
+    var rejectingOrder by remember { mutableStateOf(false) }
+    var rejectingItem by remember { mutableStateOf<OrderItem?>(null) }
     val canReloadWallet =
         state.cashSessionOpen == true &&
             !state.acting &&
@@ -726,6 +739,11 @@ fun CashierOperationalScreen(
 
                                     Column(modifier = Modifier.padding(top = 8.dp)) {
                                         // Lo que Cocina o Caja quitaron ya no cuenta ni en el total ni en el ticket.
+                                        // El último artículo no se quita: se rechaza el pedido entero.
+                                        val canRemoveItems =
+                                            restrictedMode != RestrictedMode.READ_ONLY &&
+                                                recentOrder.activeItems.size > 1 &&
+                                                !state.acting
                                         recentOrder.activeItems.forEach { item ->
                                             ReceiptLine(
                                                 quantity = item.quantity,
@@ -735,6 +753,7 @@ fun CashierOperationalScreen(
                                                         .joinToString(" · ") { it.name }
                                                         .ifEmpty { null },
                                                 price = "$${item.subtotal}",
+                                                onRemove = if (canRemoveItems) ({ rejectingItem = item }) else null,
                                             )
                                         }
                                     }
@@ -932,6 +951,20 @@ fun CashierOperationalScreen(
                                                 fontSize = 14.sp,
                                                 maxLines = 1,
                                                 softWrap = false,
+                                            )
+                                        }
+                                    }
+                                    if (restrictedMode != RestrictedMode.READ_ONLY) {
+                                        TextButton(
+                                            onClick = { rejectingOrder = true },
+                                            enabled = !state.acting,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) {
+                                            Text(
+                                                "Rechazar pedido",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                color = if (state.acting) TicketMuted else Color(0xFFE5645A),
                                             )
                                         }
                                     }
@@ -1168,6 +1201,33 @@ fun CashierOperationalScreen(
                 onDismiss = onDismissCloseCash,
                 onConfirm = onCloseCash,
                 onOpenAccounts = onOpenAccounts,
+            )
+        }
+        val rejectTarget = recentOrder
+        val itemToReject = rejectingItem
+        if (itemToReject != null && rejectTarget != null) {
+            KitchenRejectDialog(
+                folio = rejectTarget.summary.folio,
+                itemName = itemToReject.productName,
+                colors = colors,
+                onDismiss = { rejectingItem = null },
+                onConfirm = { reason ->
+                    rejectingItem = null
+                    haptics.impact()
+                    onRejectItem(rejectTarget.summary.id, itemToReject.id, rejectTarget.summary.version, reason)
+                },
+            )
+        }
+        if (rejectingOrder && rejectTarget != null) {
+            KitchenRejectDialog(
+                folio = rejectTarget.summary.folio,
+                colors = colors,
+                onDismiss = { rejectingOrder = false },
+                onConfirm = { reason ->
+                    rejectingOrder = false
+                    haptics.impact()
+                    onRejectOrder(rejectTarget.summary.id, rejectTarget.summary.version, reason)
+                },
             )
         }
         if (addProductSheetOpen) {

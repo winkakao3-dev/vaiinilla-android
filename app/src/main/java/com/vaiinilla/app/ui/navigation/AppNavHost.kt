@@ -1842,6 +1842,9 @@ fun AppNavHost(
                         onScanDeliver = { orderId, version ->
                             pendingPickupDelivery = PendingPickupDelivery(orderId, version)
                         },
+                        onRejectOrder = operationalViewModel::rejectOrder,
+                        onRejectItem = operationalViewModel::rejectItem,
+                        onActionNoticed = operationalViewModel::consumeActionNotice,
                         onChangeMode =
                             if (authorizedAccessState.hasMultipleModes) {
                                 returnToModes(navController, operationalViewModel)
