@@ -57,6 +57,7 @@ class ContractResponseParser
                 businessType = envelope.data.businessType,
                 orderWindows = envelope.data.orderWindows.map { OrderWindow(it.from, it.to) },
                 withinOrderWindow = envelope.data.withinOrderWindow,
+                isSchool = envelope.data.isSchool,
             )
         }
 
@@ -126,4 +127,6 @@ private fun ProductDto.toDomain(): Product =
                         },
                 )
             },
+        allergenCodes = allergenCodes,
+        allergensReviewed = allergensReviewed,
     )

@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.data.guest.GuestSessionStore
+import com.vaiinilla.app.data.guest.SchoolJoinCodeStore
 import com.vaiinilla.app.domain.discovery.DiscoveryFailures
 import com.vaiinilla.app.domain.location.DeviceLocationProvider
 import com.vaiinilla.app.domain.model.GeoCoordinates
@@ -44,6 +45,7 @@ class GuestDiscoveryViewModel
         private val discoveryRepository: DiscoveryRepository,
         private val guestSessionStore: GuestSessionStore,
         private val deviceLocationProvider: DeviceLocationProvider,
+        private val schoolJoinCodes: SchoolJoinCodeStore,
     ) : ViewModel() {
         private val _state = mutableStateOf(DiscoveryUiState())
         val state: State<DiscoveryUiState> = _state
@@ -253,6 +255,8 @@ class GuestDiscoveryViewModel
                 result.fold(
                     onSuccess = { resolved ->
                         _state.value = _state.value.copy(resolving = false)
+                        // Sin mesa, lo tecleado era el código de la escuela: viaja como codigo_union al unirse.
+                        if (resolved.space == null) schoolJoinCodes.remember(resolved.establishment.id, token)
                         tryEnter(
                             GuestVenueContext(
                                 establishment = resolved.establishment,

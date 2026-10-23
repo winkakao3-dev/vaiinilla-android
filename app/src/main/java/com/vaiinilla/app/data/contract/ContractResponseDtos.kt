@@ -49,6 +49,8 @@ data class OperationalStatusDto(
     /** Un servidor anterior no lo envía: sin franjas. */
     @SerialName("franjas_pedido") val orderWindows: List<OrderWindowDto> = emptyList(),
     @SerialName("dentro_de_franja") val withinOrderWindow: Boolean = true,
+    /** Un servidor anterior no lo envía: no es escuela. */
+    @SerialName("modo_escuela") val isSchool: Boolean = false,
 )
 
 @Serializable
@@ -79,6 +81,9 @@ data class ProductDto(
     @SerialName("disponible") val available: Boolean,
     @SerialName("imagen_url") val imageUrl: String? = null,
     @SerialName("grupos_opcion") val optionGroups: List<OptionGroupDto> = emptyList(),
+    @SerialName("alergenos_codigos") val allergenCodes: List<String> = emptyList(),
+    // Un backend sin el campo no sabe de revisiones: no se avisa de nada.
+    @SerialName("alergenos_revisados") val allergensReviewed: Boolean = true,
 )
 
 @Serializable

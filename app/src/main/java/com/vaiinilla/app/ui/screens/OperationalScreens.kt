@@ -145,6 +145,7 @@ import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
 import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.counter.TicketAllergyBand
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.operational.QueuePresentation
 import com.vaiinilla.app.ui.operational.queuePresentation
@@ -298,6 +299,8 @@ fun CashierOperationalScreen(
     onNewTableOrder: ((TableSpace) -> Unit)? = null,
     /** Mesas y canchas con cuenta sin cobrar; null mientras no se sabe. */
     pendingSpaces: Int? = null,
+    /** Caja de una escuela: la fila Alumnos (padres e hijos); null fuera de una escuela. */
+    studentsEntry: (@Composable () -> Unit)? = null,
     /** Aviso que llega de fuera (por ejemplo, el folio del pedido de mostrador). */
     notice: String? = null,
     onDismissError: () -> Unit = {},
@@ -624,6 +627,12 @@ fun CashierOperationalScreen(
                 }
             }
 
+            if (studentsEntry != null) {
+                item(key = "students-entry") {
+                    Box(modifier = Modifier.animateItem()) { studentsEntry() }
+                }
+            }
+
             item(key = "queue-header") {
                 CashierQueueHeader(count = actionableCashierOrders.size, colors = colors)
             }
@@ -703,6 +712,8 @@ fun CashierOperationalScreen(
                                             live = !isDelivered,
                                         )
                                     }
+
+                                    TicketAllergyBand(recentOrder.user?.allergies.orEmpty())
 
                                     Column(modifier = Modifier.padding(top = 8.dp)) {
                                         // Lo que Cocina o Caja quitaron ya no cuenta ni en el total ni en el ticket.
@@ -1625,6 +1636,8 @@ fun KitchenOperationalScreen(
     onChangeMode: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
     assistantUserKey: String = "kitchen",
+    /** Cocina de una escuela: "Para mañana" (padres e hijos); null fuera de una escuela. */
+    reservedEntry: (@Composable () -> Unit)? = null,
     onActionNoticed: () -> Unit = {},
     onDismissError: () -> Unit = {},
     onRefresh: () -> Unit = {},
@@ -1803,6 +1816,12 @@ fun KitchenOperationalScreen(
                 }
             }
 
+            if (reservedEntry != null) {
+                item(key = "kitchen-reserved") {
+                    Box(modifier = Modifier.animateItem()) { reservedEntry() }
+                }
+            }
+
             // En preparación Section Label
             if (activeOrder == null) {
                 item {
@@ -1905,6 +1924,8 @@ fun KitchenOperationalScreen(
                                             live = !isReady,
                                         )
                                     }
+
+                                    TicketAllergyBand(activeOrder.user?.allergies.orEmpty())
 
                                     TicketPerf()
 

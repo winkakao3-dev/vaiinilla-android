@@ -22,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -44,6 +45,7 @@ import com.vaiinilla.app.core.notifications.OrderAdvanceNotifier
 import com.vaiinilla.app.core.notifications.OrderNotificationTarget
 import com.vaiinilla.app.data.auth.student.GoogleSignInHelper
 import com.vaiinilla.app.data.auth.student.GoogleSignInUnavailableException
+import com.vaiinilla.app.domain.counter.CounterScope
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
@@ -61,6 +63,13 @@ import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.isRental
 import com.vaiinilla.app.ui.components.prefetchProductImages
+import com.vaiinilla.app.ui.counter.CashierStudentsEntry
+import com.vaiinilla.app.ui.counter.KitchenReservedEntry
+import com.vaiinilla.app.ui.counter.ReservedOrdersSheet
+import com.vaiinilla.app.ui.counter.ReservedOrdersViewModel
+import com.vaiinilla.app.ui.counter.StudentCounterSheet
+import com.vaiinilla.app.ui.counter.StudentCounterViewModel
+import com.vaiinilla.app.ui.counter.actions
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerAlternative
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
@@ -74,6 +83,9 @@ import com.vaiinilla.app.ui.order.canPayWithCard
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.isEstablishmentSwitch
 import com.vaiinilla.app.ui.order.toRuntimeConfiguration
+import com.vaiinilla.app.ui.parentmode.ChildrenViewModel
+import com.vaiinilla.app.ui.parentmode.GuardianControlsViewModel
+import com.vaiinilla.app.ui.parentmode.ParentModeWalletHost
 import com.vaiinilla.app.ui.profile.displayInitials
 import com.vaiinilla.app.ui.reservations.ReservationsScreen
 import com.vaiinilla.app.ui.reservations.ReservationsViewModel
@@ -124,6 +136,7 @@ import com.vaiinilla.app.ui.support.SupportLastOrder
 import com.vaiinilla.app.ui.support.SupportScreen
 import com.vaiinilla.app.ui.wallet.WalletViewModel
 import com.vaiinilla.app.ui.wallet.rememberWalletUiState
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -155,6 +168,7 @@ fun AppNavHost(
     val adminStaffViewModel: AdminStaffViewModel = viewModel()
     val adminStoreViewModel: AdminStoreViewModel = viewModel()
     val adminSpacesViewModel: AdminSpacesViewModel = viewModel()
+    val adminSchoolViewModel: com.vaiinilla.app.ui.admin.school.AdminSchoolViewModel = viewModel()
     val waiterViewModel: WaiterViewModel = viewModel()
     val courtsViewModel: CourtsViewModel = viewModel()
     val reservationsViewModel: ReservationsViewModel = viewModel()
@@ -163,7 +177,12 @@ fun AppNavHost(
     val authorizedAccessViewModel: AuthorizedAccessViewModel = viewModel()
     val discoveryViewModel: GuestDiscoveryViewModel = viewModel()
     val walletViewModel: WalletViewModel = viewModel()
+    val childrenViewModel: ChildrenViewModel = viewModel()
+    val guardianControlsViewModel: GuardianControlsViewModel = viewModel()
     val accountDeletionViewModel: AccountDeletionViewModel = viewModel()
+    // Caja de una escuela (alumnos sin teléfono) y "Para mañana" de Cocina: padres e hijos.
+    val studentCounterViewModel: StudentCounterViewModel = viewModel()
+    val reservedOrdersViewModel: ReservedOrdersViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
     val waiterState by waiterViewModel.uiState
@@ -173,6 +192,12 @@ fun AppNavHost(
     val walletRemoteState by walletViewModel.state.collectAsStateWithLifecycle()
     val accountDeletionState by accountDeletionViewModel.state
     val walletState = rememberWalletUiState()
+    // La cola de Caja sin conexión vive todo el turno de Caja, no solo con la hoja de Alumnos abierta.
+    val cashierShift =
+        authorizedAccessState.activeContext
+            ?.takeIf { it.role == OperationalRole.CASHIER }
+            ?.let { CounterScope(membershipId = it.membershipId, establishmentId = it.establishmentId) }
+    LaunchedEffect(cashierShift) { studentCounterViewModel.setShift(cashierShift) }
 
     // Keep every in-memory copy of the selected venue aligned when persisted metadata
     // changes (for example, an establishment rename that also changes its slug).
@@ -219,6 +244,22 @@ fun AppNavHost(
         ) {
             walletViewModel.refreshIfStale()
         }
+    }
+
+    // El alumno con tutor ve sus controles en menú, ficha y carrito (GET /tutelas/mis-controles).
+    LaunchedEffect(
+        orderState.operationalStatus?.isSchool,
+        studentAuthState.session?.uid,
+        orderState.guestVenue?.establishment?.id,
+        authorizedAccessState.activeContext?.role,
+        orderState.createOrderError,
+    ) {
+        val isClientInSchool =
+            orderState.operationalStatus?.isSchool == true &&
+                authorizedAccessState.activeContext == null &&
+                studentAuthState.session?.emailVerified == true &&
+                studentAuthViewModel.isReadyForCheckout()
+        guardianControlsViewModel.refresh(isClientInSchool)
     }
 
     // Keep client orders warm while browsing the student shell. This makes Pedidos a
@@ -1058,15 +1099,37 @@ fun AppNavHost(
                         delay(WALLET_VISIBLE_REFRESH_MS)
                     }
                 }
-                WalletScreen(
-                    remoteState = walletRemoteState,
-                    userId =
-                        walletRemoteState.data?.wallet?.userId
-                            ?: studentAuthState.session?.uid,
-                    onRetry = walletViewModel::refresh,
-                    onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                    onCodeOpenChange = { walletCodeOpen = it },
-                )
+                // Padres e hijos: solo una escuela muestra Mis hijos y Opciones avanzadas, y para saberlo hace
+                // falta el estado operativo con el contexto de cliente.
+                LaunchedEffect(Unit) { orderFlowViewModel.refreshOperationalStatusForWallet() }
+                ParentModeWalletHost(
+                    enabled = orderState.operationalStatus?.isSchool == true,
+                    childrenViewModel = childrenViewModel,
+                    onFullScreenChange = { walletCodeOpen = it },
+                    onAccountClaimed = {
+                        val renewed = CompletableDeferred<Unit>()
+                        studentAuthViewModel.completeEnrollment(
+                            onSuccess = { renewed.complete(Unit) },
+                            onNeedsVerify = { renewed.complete(Unit) },
+                            onNeedsContextualId = { renewed.complete(Unit) },
+                            onFailed = { renewed.complete(Unit) },
+                        )
+                        renewed.await()
+                        walletViewModel.refresh()
+                    },
+                ) { familySection ->
+                    WalletScreen(
+                        remoteState = walletRemoteState,
+                        userId =
+                            walletRemoteState.data?.wallet?.userId
+                                ?: studentAuthState.session?.uid,
+                        onRetry = walletViewModel::refresh,
+                        onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                        onCodeOpenChange = { walletCodeOpen = it },
+                        caretakerLine = guardianControlsViewModel.controls?.caretakerLine,
+                        familySection = familySection,
+                    )
+                }
             }
 
             composable(
@@ -1695,6 +1758,9 @@ fun AppNavHost(
                 }
                 if (authorizedCashier) {
                     OperationalPresenceLifecycle(OperationalRole.CASHIER, operationalViewModel)
+                    val studentCounterState by studentCounterViewModel.uiState
+                    val studentCounterOffline by studentCounterViewModel.offlineState.collectAsStateWithLifecycle()
+                    var studentsSheetOpen by rememberSaveable { mutableStateOf(false) }
                     // Una sola lectura del tablero para el contador de mesas; el sondeo es del tablero.
                     LaunchedEffect(Unit) { waiterViewModel.refresh() }
                     CashierOperationalScreen(
@@ -1746,10 +1812,33 @@ fun AppNavHost(
                             waiterState.tables
                                 .takeIf { it.isNotEmpty() && waiterState.consecutiveBoardFailures == 0 }
                                 ?.count { it.hasPendingAccount() },
+                        studentsEntry =
+                            studentCounterState.policy?.takeIf { it.isSchool }?.let {
+                                {
+                                    CashierStudentsEntry(
+                                        offline = studentCounterOffline,
+                                        colors = rememberOperationalColors(),
+                                        onClick = { studentsSheetOpen = true },
+                                    )
+                                }
+                            },
                         notice = waiterState.toastMessage,
                         onDismissError = operationalViewModel::dismissMutationError,
                         onRefresh = operationalViewModel::refresh,
                     )
+                    if (studentsSheetOpen) {
+                        StudentCounterSheet(
+                            state = studentCounterState,
+                            offline = studentCounterOffline,
+                            catalog = operationalState.catalog,
+                            canCharge = operationalState.cashSessionOpen == true,
+                            actions = remember(studentCounterViewModel) { studentCounterViewModel.actions() },
+                            onDismiss = {
+                                studentsSheetOpen = false
+                                studentCounterViewModel.closeStudent()
+                            },
+                        )
+                    }
                     if (waiterState.counterOrderOpen) {
                         CounterOrderSheet(
                             state = waiterState,
@@ -1771,6 +1860,11 @@ fun AppNavHost(
                 }
                 if (authorizedKitchen) {
                     OperationalPresenceLifecycle(OperationalRole.KITCHEN, operationalViewModel)
+                    val reservedState by reservedOrdersViewModel.uiState
+                    var reservedSheetOpen by rememberSaveable { mutableStateOf(false) }
+                    LaunchedEffect(authorizedAccessState.activeContext?.establishmentId) {
+                        reservedOrdersViewModel.refreshPolicy()
+                    }
                     KitchenOperationalScreen(
                         state = operationalState,
                         onBack = returnToModes(navController, operationalViewModel),
@@ -1787,10 +1881,30 @@ fun AppNavHost(
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "kitchen",
+                        reservedEntry =
+                            if (reservedState.isSchool) {
+                                {
+                                    KitchenReservedEntry(colors = rememberOperationalColors(), onClick = {
+                                        reservedOrdersViewModel.open()
+                                        reservedSheetOpen = true
+                                    })
+                                }
+                            } else {
+                                null
+                            },
                         onActionNoticed = operationalViewModel::consumeActionNotice,
                         onDismissError = operationalViewModel::dismissMutationError,
                         onRefresh = operationalViewModel::refresh,
                     )
+                    if (reservedSheetOpen) {
+                        ReservedOrdersSheet(
+                            state = reservedState,
+                            colors = rememberOperationalColors(),
+                            onSelect = reservedOrdersViewModel::select,
+                            onRetry = reservedOrdersViewModel::retry,
+                            onDismiss = { reservedSheetOpen = false },
+                        )
+                    }
                 }
             }
 
@@ -1876,6 +1990,7 @@ fun AppNavHost(
                                         canChargeAndDeliver = false,
                                     )
                                 },
+                                school = adminSchoolViewModel,
                             ),
                         scope = scope,
                         rentsSpaces = spacesState.spaces.orEmpty().any { it.hourlyPrice != null },
@@ -1885,6 +2000,7 @@ fun AppNavHost(
                                 stripe.chargesEnabled &&
                                 stripe.payoutsEnabled &&
                                 stripe.passFeeToCustomer,
+                        isSchool = storeState.config?.isSchool == true,
                         onChangeMode = returnToModes(navController, operationalViewModel),
                     )
                 }

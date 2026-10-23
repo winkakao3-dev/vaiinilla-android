@@ -46,10 +46,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.Help
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -90,6 +93,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.guardianship.ChildRestriction
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.components.NumberTicker
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -108,6 +112,7 @@ import com.vaiinilla.app.ui.order.isSelectedProductValid
 import com.vaiinilla.app.ui.order.selectedProduct
 import com.vaiinilla.app.ui.order.selectedProductPreviewPrice
 import com.vaiinilla.app.ui.order.selectedProductPreviewTotal
+import com.vaiinilla.app.ui.parentmode.LocalChildControls
 import com.vaiinilla.app.ui.theme.Lime
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -220,10 +225,20 @@ fun MenuFeedScreen(
             }
     }
 
+    val childControls = LocalChildControls.current
+
     fun add(
         product: Product,
         from: Offset?,
     ) {
+        // Como iOS: lo que tiene opciones obligatorias abre su ficha; lo que el tutor no deja comprar no se
+        // agrega y el aviso dice por qué.
+        val restriction = childControls?.restriction(product.id)
+        if (restriction != null && !MenuFeed.needsChoice(product)) {
+            haptics.impact()
+            toast = restriction.label
+            return
+        }
         haptics.click()
         onQuickAdd(product.id)
         if (from != null && !MenuFeed.needsChoice(product) && !reduced) {
@@ -294,6 +309,7 @@ fun MenuFeedScreen(
                     storeName = venue?.name,
                     storeLogo = venue?.logoUrl,
                     quantity = MenuFeed.quantityOf(state.cartLines, product.id),
+                    restriction = childControls?.restriction(product.id),
                     active = pagerState.currentPage == page,
                     pageOffset = offset,
                     reduced = reduced,
@@ -441,6 +457,7 @@ private fun FeedPage(
     storeName: String?,
     storeLogo: String?,
     quantity: Int,
+    restriction: ChildRestriction?,
     active: Boolean,
     pageOffset: Float,
     reduced: Boolean,
@@ -547,6 +564,7 @@ private fun FeedPage(
                 if (categoryName.isNotBlank()) FeedChip(categoryName)
                 if (MenuFeed.needsChoice(product)) FeedChip("Con opciones")
             }
+            restriction?.let { RestrictionBadge(it, Modifier.padding(top = 2.dp)) }
         }
 
         Column(
@@ -559,7 +577,10 @@ private fun FeedPage(
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             if (storeName != null) StoreAvatar(storeName, storeLogo, 48.dp, border = 2.dp)
-            Adder(product = product, quantity = quantity, reduced = reduced, onAdd = onAdd, onRemove = onRemove)
+            // Lo bloqueado no tiene "+": el motivo ya está junto al nombre.
+            if (restriction == null) {
+                Adder(product = product, quantity = quantity, reduced = reduced, onAdd = onAdd, onRemove = onRemove)
+            }
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -930,6 +951,36 @@ private fun StoreAvatar(
         } else {
             ProductImage(imageUrl = logoUrl, contentDescription = "", modifier = Modifier.fillMaxSize())
         }
+    }
+}
+
+/** Por qué el alumno no puede pedirlo, en una cápsula oscura sobre la foto. */
+@Composable
+private fun RestrictionBadge(
+    restriction: ChildRestriction,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(999.dp))
+                .background(Color.Black.copy(alpha = 0.5f))
+                .border(1.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(999.dp))
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            when (restriction.reason) {
+                ChildRestriction.Reason.BLOCKED -> Icons.Rounded.Lock
+                ChildRestriction.Reason.ALLERGEN -> Icons.Rounded.Warning
+                ChildRestriction.Reason.ALLERGENS_UNKNOWN -> Icons.AutoMirrored.Rounded.Help
+            },
+            contentDescription = null,
+            tint = OnMedia,
+            modifier = Modifier.size(15.dp),
+        )
+        Text(restriction.label, style = mediaText(13.sp, FontWeight.Bold))
     }
 }
 

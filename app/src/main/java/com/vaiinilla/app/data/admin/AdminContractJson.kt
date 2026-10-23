@@ -120,6 +120,8 @@ class AdminContractJson {
                                 },
                         )
                     },
+                // Sin la clave, el backend deja los alérgenos como estaban.
+                alergenosCodigos = input.allergenCodes?.sorted(),
             ),
         )
 
@@ -239,6 +241,7 @@ private data class ProductWriteDto(
     @SerialName("precio_mostrador") val precio: String,
     val disponible: Boolean,
     @SerialName("grupos_opcion") val grupos: List<GroupWriteDto>,
+    @SerialName("alergenos_codigos") val alergenosCodigos: List<String>? = null,
 )
 
 @Serializable

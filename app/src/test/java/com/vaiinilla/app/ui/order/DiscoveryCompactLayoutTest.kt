@@ -1,27 +1,25 @@
 package com.vaiinilla.app.ui.order
 
-import android.content.pm.PackageManager
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.ui.discovery.DiscoveryUiState
 import com.vaiinilla.app.ui.screens.DiscoveryScreen
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.RuntimeEnvironment
-import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
@@ -123,35 +121,59 @@ class DiscoveryCompactLayoutTest {
     }
 
     @Test
-    fun `sin negocios en la lista ofrece escanear QR, usar codigo o NFC`() {
-        setNfcFeature(supported = true)
-        setEmptyDiscovery()
+    fun `sin negocios en la lista salen las tarjetas de QR, codigo y NFC sin el panel viejo`() {
+        setEmptyDiscovery(nfcAvailable = true)
 
-        composeTestRule.onNodeWithText("Escanea el QR de tu mesa o de la tienda").assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("Escanear QR").onLast().assertIsDisplayed()
-        composeTestRule.onNodeWithText("NFC").performClick()
+        composeTestRule.onAllNodesWithText("Escanea el QR de tu mesa o de la tienda").assertCountEquals(0)
+        composeTestRule.onAllNodesWithText("Sin coincidencias").assertCountEquals(0)
+        composeTestRule.onAllNodesWithText("¿Ya estás en tu mesa?").assertCountEquals(1)
+        composeTestRule.onAllNodesWithText("Escanear QR").assertCountEquals(1)
+        composeTestRule.onNodeWithText("De tu mesa o tu escuela").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Los 4 dígitos de tu mesa").assertCountEquals(0)
+        composeTestRule.onNodeWithText("Acercar al NFC").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Si tu mesa tiene etiqueta").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Acercar al NFC").performClick()
         composeTestRule
-            .onNodeWithText("Acerca la parte de atrás de tu teléfono a la etiqueta de la mesa: Vaiinilla se abre sola.")
+            .onNodeWithText("Acerca la parte de atrás de tu teléfono a la etiqueta: Vaiinilla abre tu mesa sola.")
             .assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("Usar código").onLast().performClick()
+        composeTestRule.onNodeWithText("Usar código").performScrollTo().performClick()
         composeTestRule.onNodeWithText("Escribe los 4 dígitos que aparecen junto al QR de tu mesa.").assertIsDisplayed()
     }
 
     @Test
-    fun `sin chip NFC en el telefono no ofrece acercar NFC`() {
-        setNfcFeature(supported = false)
-        setEmptyDiscovery()
+    fun `sin NFC en el telefono no sale la tarjeta Acercar al NFC`() {
+        setEmptyDiscovery(nfcAvailable = false)
 
-        composeTestRule.onAllNodesWithText("Usar código").onLast().assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("NFC").assertCountEquals(0)
+        composeTestRule.onNodeWithText("Usar código").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Acercar al NFC").assertCountEquals(0)
     }
 
-    private fun setNfcFeature(supported: Boolean) {
-        shadowOf(RuntimeEnvironment.getApplication().packageManager)
-            .setSystemFeature(PackageManager.FEATURE_NFC, supported)
+    @Test
+    fun `una busqueda sin resultados avisa y deja limpiarla`() {
+        var query = "zzz"
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                DiscoveryScreen(
+                    state = DiscoveryUiState(establishments = emptyList(), query = query),
+                    onQueryChange = { query = it },
+                    onSpaceTokenChange = {},
+                    onSelectEstablishment = {},
+                    onResolveSpace = {},
+                    onContinueSelected = {},
+                    profileInitials = "DR",
+                    nfcAvailable = true,
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Sin coincidencias").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Escanear QR").assertCountEquals(1)
+        composeTestRule.onNodeWithText("Limpiar búsqueda").performClick()
+        assertEquals("", query)
     }
 
-    private fun setEmptyDiscovery() {
+    private fun setEmptyDiscovery(nfcAvailable: Boolean) {
         composeTestRule.setContent {
             ScreenshotTheme {
                 DiscoveryScreen(
@@ -162,6 +184,7 @@ class DiscoveryCompactLayoutTest {
                     onResolveSpace = {},
                     onContinueSelected = {},
                     profileInitials = "DR",
+                    nfcAvailable = nfcAvailable,
                 )
             }
         }
