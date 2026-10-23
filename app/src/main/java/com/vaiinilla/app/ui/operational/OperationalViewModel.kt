@@ -17,6 +17,7 @@ import com.vaiinilla.app.data.wallet.PendingWalletReloadStore
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.Money
+import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -660,13 +661,14 @@ class OperationalViewModel
             // versión que el servidor tiene ahora, no con la del render viejo.
             val freshest = _uiState.value.orders.firstOrNull { it.summary.id == orderId }
             val version = freshest?.summary?.version ?: expectedVersion
-            val normalizedAmount = amountReceived.trim()
+            // "200" o "200,5" son montos válidos: el contrato los quiere con dos decimales ("200.00").
+            val normalizedAmount = MoneyInput.toWire(amountReceived) ?: amountReceived.trim()
             val received =
                 normalizedAmount
                     .takeIf { ContractRules.isValidMoney(it) }
                     ?.let { runCatching { BigDecimal(it) }.getOrNull() }
             if (received == null) {
-                showMutationError("Escribe el efectivo recibido con dos decimales (ej. 100.00).")
+                showMutationError("Escribe el efectivo recibido (ej. 100 o 100.50).")
                 return
             }
             val total = freshest?.summary?.total?.let { runCatching { Money.parse(it) }.getOrNull() }

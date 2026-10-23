@@ -62,6 +62,7 @@ import com.vaiinilla.app.domain.admin.AdminProductInput
 import com.vaiinilla.app.domain.admin.AdminProductRules
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.Category
+import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.school.SchoolAllergen
@@ -1071,10 +1072,5 @@ private fun stationLabel(station: PreparationStation): String =
         PreparationStation.KITCHEN -> "Cocina"
     }
 
-/** Deja solo dígitos y un punto con hasta dos decimales. */
-private fun moneyInput(raw: String): String {
-    val clean = raw.filter { it.isDigit() || it == '.' }
-    val dot = clean.indexOf('.')
-    if (dot < 0) return clean.take(8)
-    return clean.substring(0, dot).take(8) + "." + clean.substring(dot + 1).replace(".", "").take(2)
-}
+/** Deja dígitos y un separador con hasta dos decimales; la coma del teclado cuenta como punto. */
+private fun moneyInput(raw: String): String = MoneyInput.sanitize(raw)

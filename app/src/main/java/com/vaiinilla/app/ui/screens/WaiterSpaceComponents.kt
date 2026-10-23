@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.AccountSplit
 import com.vaiinilla.app.domain.model.Money
+import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.TipChoice
@@ -941,7 +942,7 @@ internal fun CollectAccountContent(
         when {
             !byOrders && split == SplitMode.PARTS -> AccountSplit.partAmount(remainingAmount, people)
             !byOrders ->
-                abonoText.trim().toBigDecimalOrNull()?.setScale(2, java.math.RoundingMode.DOWN)
+                MoneyInput.parse(abonoText)?.setScale(2, java.math.RoundingMode.DOWN)
                     ?: BigDecimal.ZERO
             payable.isEmpty() -> total.moneyOrZero()
             else ->
@@ -962,7 +963,7 @@ internal fun CollectAccountContent(
     var method by remember { mutableStateOf(AccountPaymentMethod.CASH) }
     val withTerminal = allowTerminal && method == AccountPaymentMethod.TERMINAL
     val text = typed ?: chargeLabel
-    val received = text.trim().toBigDecimalOrNull()?.takeIf { it.signum() >= 0 }
+    val received = MoneyInput.parse(text)
     val difference = received?.let { it - chargeAmount }
     val canConfirm =
         abonoValid && totalAmount.signum() > 0 && (withTerminal || (difference != null && difference.signum() >= 0))
@@ -1047,7 +1048,7 @@ internal fun CollectAccountContent(
                         OperationalField(
                             value = abonoText,
                             onValueChange = { raw ->
-                                abonoText = raw.filter { c -> c.isDigit() || c == '.' }
+                                abonoText = MoneyInput.sanitize(raw)
                                 typed = null
                             },
                             label = "Monto de este abono",
@@ -1184,7 +1185,7 @@ internal fun CollectAccountContent(
                         OperationalField(
                             value = custom.amount,
                             onValueChange = { raw ->
-                                tipChoice = TipChoice.Custom(raw.filter { c -> c.isDigit() || c == '.' })
+                                tipChoice = TipChoice.Custom(MoneyInput.sanitize(raw))
                                 typed = null
                             },
                             label = "Monto de la propina",
@@ -1230,7 +1231,7 @@ internal fun CollectAccountContent(
                     }
                     OperationalField(
                         value = text,
-                        onValueChange = { typed = it.filter { c -> c.isDigit() || c == '.' } },
+                        onValueChange = { typed = MoneyInput.sanitize(it) },
                         label = "Otro monto",
                         colors = colors,
                         enabled = !confirming,

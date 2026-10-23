@@ -104,6 +104,7 @@ import androidx.core.net.toUri
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.Money
+import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderItem
@@ -777,8 +778,7 @@ fun CashierOperationalScreen(
                                         BasicTextField(
                                             value = cashReceivedInput,
                                             onValueChange = { raw ->
-                                                cashReceivedInput =
-                                                    raw.filter { it.isDigit() || it == '.' }
+                                                cashReceivedInput = MoneyInput.sanitize(raw)
                                             },
                                             singleLine = true,
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -1179,7 +1179,7 @@ fun CashierOperationalScreen(
                                 ingredients = "",
                                 allergens = "",
                                 estimatedTimeMinutes = 5,
-                                counterPrice = "$price.00",
+                                counterPrice = price,
                                 available = true,
                             )
                         onCreateCashierProduct(
@@ -1253,7 +1253,7 @@ private fun TicketTipRow(
         if (custom != null) {
             BasicTextField(
                 value = custom.amount,
-                onValueChange = { raw -> onChange(TipChoice.Custom(raw.filter { it.isDigit() || it == '.' })) },
+                onValueChange = { raw -> onChange(TipChoice.Custom(MoneyInput.sanitize(raw))) },
                 singleLine = true,
                 enabled = enabled,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -2376,7 +2376,8 @@ private fun AddProductSheet(
     onDismiss: () -> Unit,
     onAdd: (
         name: String,
-        price: Int,
+        /** Con dos decimales, como lo pide el backend ("12.50"). */
+        price: String,
         imageBytes: ByteArray?,
         imageFilename: String?,
         imageMime: String?,
@@ -2578,12 +2579,12 @@ private fun AddProductSheet(
             )
             OperationalField(
                 value = priceStr,
-                onValueChange = { priceStr = it.filter { char -> char.isDigit() } },
+                onValueChange = { priceStr = MoneyInput.sanitize(it) },
                 label = "Precio",
                 colors = colors,
-                placeholder = "Ej. 65",
+                placeholder = "Ej. 65 o 12.50",
                 enabled = !saving,
-                keyboardType = KeyboardType.Number,
+                keyboardType = KeyboardType.Decimal,
             )
 
             if (submitted && !errorMessage.isNullOrBlank()) {
@@ -2597,12 +2598,13 @@ private fun AddProductSheet(
             Spacer(Modifier.height(4.dp))
 
             // Save button
-            val isValid = name.isNotBlank() && priceStr.isNotBlank() && (priceStr.toIntOrNull() ?: 0) > 0
+            val price = MoneyInput.toWire(priceStr)
+            val isValid = name.isNotBlank() && price != null && price.toBigDecimal().signum() > 0
             Button(
                 onClick = {
                     haptics.impact()
                     submitted = true
-                    val price = priceStr.toIntOrNull() ?: return@Button
+                    if (price == null) return@Button
                     onAdd(
                         name.trim(),
                         price,

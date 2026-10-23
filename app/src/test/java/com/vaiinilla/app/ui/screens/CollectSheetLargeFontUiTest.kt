@@ -53,7 +53,7 @@ class CollectSheetLargeFontUiTest {
     )
 
     @Test
-    fun `con letra grande el botón de cobrar se ve y cobra en efectivo`() {
+    fun `con letra grande el botón de cobrar se ve y cobra en efectivo lo escrito sin decimales`() {
         var charged: Pair<AccountPaymentMethod, String?>? = null
         composeTestRule.setContent {
             val base = LocalDensity.current
@@ -114,9 +114,9 @@ class CollectSheetLargeFontUiTest {
             }
         }
 
-        composeTestRule.onNodeWithContentDescription("Otro monto").performTextReplacement("300")
+        composeTestRule.onNodeWithContentDescription("Otro monto").performTextReplacement("300,5")
         composeTestRule.onNodeWithText("Cobrar $250.00").assertIsDisplayed().performClick()
 
-        assertEquals("300.00", received)
+        assertEquals("300.50", received)
     }
 }
