@@ -126,6 +126,7 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.canCreateOrder
 import com.vaiinilla.app.ui.order.canPayAtEnd
+import com.vaiinilla.app.ui.order.canPayWithBalance
 import com.vaiinilla.app.ui.order.canPayWithCard
 import com.vaiinilla.app.ui.order.cartPreviewTotal
 import com.vaiinilla.app.ui.order.checkoutSpace
@@ -450,7 +451,7 @@ fun CartScreen(
                     initialMethod = state.checkoutPayment,
                     initialPayAtEnd = state.checkoutPayAtEnd,
                     balanceAffordable = state.isBalancePaymentAffordable(walletBalance),
-                    showBalance = !guestCheckout,
+                    showBalance = !guestCheckout && state.canPayWithBalance,
                     walletBalance = walletBalance,
                     payAtEndAvailable = state.canPayAtEnd,
                     cardAvailable = state.canPayWithCard,
