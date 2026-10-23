@@ -420,16 +420,10 @@ fun MenuFeedScreen(
         }
 
         state.selectedProduct?.let { product ->
-            val defaults =
-                product.optionGroups
-                    .flatMap { group ->
-                        group.options.take(group.minimumSelections).map { it.id }
-                    }.toSet()
             ProductDetailSheet(
                 product = product,
                 categoryName = categoryNames[product.categoryId].orEmpty(),
                 selectedOptionIds = state.selectedOptionIds,
-                defaultOptionIds = defaults,
                 quantity = state.selectedQuantity,
                 previewPrice = state.selectedProductPreviewPrice,
                 previewTotal = state.selectedProductPreviewTotal,

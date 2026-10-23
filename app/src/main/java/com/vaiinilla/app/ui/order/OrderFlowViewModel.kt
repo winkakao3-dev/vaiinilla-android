@@ -480,14 +480,11 @@ class OrderFlowViewModel
                 _uiState.value.catalog
                     ?.products
                     ?.firstOrNull { it.id == productId } ?: return
-            val defaults =
-                product.optionGroups.flatMapTo(linkedSetOf()) { group ->
-                    group.options.take(group.minimumSelections).map { it.id }
-                }
+            // Nada viene elegido: en un grupo obligatorio el cliente escoge y Agregar espera a que lo haga.
             _uiState.value =
                 _uiState.value.copy(
                     selectedProductId = productId,
-                    selectedOptionIds = defaults,
+                    selectedOptionIds = emptySet(),
                     selectedQuantity = 1,
                     selectedNotes = "",
                     createOrderError = null,
