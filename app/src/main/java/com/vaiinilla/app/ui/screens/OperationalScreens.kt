@@ -308,6 +308,8 @@ fun CashierOperationalScreen(
     pendingSpaces: Int? = null,
     /** Caja de una escuela: la fila Alumnos (padres e hijos); null fuera de una escuela. */
     studentsEntry: (@Composable () -> Unit)? = null,
+    /** Devoluciones pendientes (G08, H03); null las oculta. */
+    refundsEntry: (@Composable () -> Unit)? = null,
     /** Aviso que llega de fuera (por ejemplo, el folio del pedido de mostrador). */
     notice: String? = null,
     onDismissError: () -> Unit = {},
@@ -650,6 +652,12 @@ fun CashierOperationalScreen(
             if (studentsEntry != null) {
                 item(key = "students-entry") {
                     Box(modifier = Modifier.animateItem()) { studentsEntry() }
+                }
+            }
+
+            if (refundsEntry != null) {
+                item(key = "refunds-entry") {
+                    Box(modifier = Modifier.animateItem()) { refundsEntry() }
                 }
             }
 
