@@ -73,6 +73,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -214,6 +215,13 @@ fun CartScreen(
     // Vainiverso: el mostrador con Vaini y la bandeja arriba; la lista en una hoja de vidrio que sube.
     val palette = scenePaletteForTheme()
     val listState = rememberLazyListState()
+    // El rechazo del servidor llega con la hoja de pago ya cerrada y va al final de la lista: se baja a
+    // verlo, si no parece que tocar Pedir no hizo nada (M05).
+    LaunchedEffect(state.createOrderError) {
+        if (state.createOrderError == null) return@LaunchedEffect
+        val last = listState.layoutInfo.totalItemsCount - 1
+        if (last >= 0) listState.animateScrollToItem(last)
+    }
     val glassColors =
         colors.copy(
             paper = Color.Transparent,
