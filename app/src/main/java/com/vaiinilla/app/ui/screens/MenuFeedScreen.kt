@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
+import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
@@ -45,10 +46,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.Help
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -62,11 +67,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
@@ -87,6 +94,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.guardianship.ChildRestriction
+import com.vaiinilla.app.domain.guardianship.restrictionFor
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.components.NumberTicker
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -94,6 +103,7 @@ import com.vaiinilla.app.ui.components.ProductDetailSheet
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.components.prefetchProductImages
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.MenuFeed
@@ -104,9 +114,13 @@ import com.vaiinilla.app.ui.order.isSelectedProductValid
 import com.vaiinilla.app.ui.order.selectedProduct
 import com.vaiinilla.app.ui.order.selectedProductPreviewPrice
 import com.vaiinilla.app.ui.order.selectedProductPreviewTotal
+import com.vaiinilla.app.ui.parentmode.LocalChildControls
 import com.vaiinilla.app.ui.theme.Lime
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -166,6 +180,9 @@ fun MenuFeedScreen(
     var toast by remember { mutableStateOf<String?>(null) }
     // Cuánto sigue la página al dedo mientras se desliza de lado para cambiar de categoría.
     val swipeX = remember { Animatable(0f) }
+    // 1 = el feed fundido a negro mientras salta de categoría.
+    val jumpVeil = remember { Animatable(0f) }
+    var jumpJob by remember { mutableStateOf<Job?>(null) }
 
     LaunchedEffect(Unit) {
         delay(2600)
@@ -184,19 +201,46 @@ fun MenuFeedScreen(
         }
     }
 
+    // Se funde, salta sin animar y vuelve: animar el scroll recorría todos los platillos hasta la otra categoría.
     fun jumpTo(categoryId: Int) {
         val target = products.indexOfFirst { it.categoryId == categoryId }
-        if (target >= 0) {
+        if (target < 0 || target == pagerState.currentPage) return
+        jumpJob?.cancel()
+        jumpJob =
             scope.launch {
-                if (reduced) pagerState.scrollToPage(target) else pagerState.animateScrollToPage(target)
+                if (reduced) {
+                    jumpVeil.snapTo(0f)
+                    pagerState.scrollToPage(target)
+                    return@launch
+                }
+                // Saltar antes de que el velo cubra del todo deja ver un cuadro de la lista acomodándose.
+                jumpVeil.animateTo(
+                    1f,
+                    spring(dampingRatio = 1f, stiffness = VEIL_IN_STIFFNESS, visibilityThreshold = 0.001f),
+                )
+                pagerState.scrollToPage(target)
+                // Bajo el velo, la foto del destino (si tarda, sale sin ella) y dos cuadros para que el pager se acomode.
+                val photo = scope.async { prefetchProductImages(listOf(products[target].imageUrl)) }
+                withTimeoutOrNull(JUMP_PHOTO_WAIT_MS) { photo.await() }
+                repeat(2) { withFrameNanos { } }
+                jumpVeil.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = VEIL_OUT_STIFFNESS))
             }
-        }
     }
+
+    val childControls = LocalChildControls.current
 
     fun add(
         product: Product,
         from: Offset?,
     ) {
+        // Como iOS: lo que tiene opciones obligatorias abre su ficha; lo que el tutor no deja comprar no se
+        // agrega y el aviso dice por qué.
+        val restriction = childControls.restrictionFor(product)
+        if (restriction != null && !MenuFeed.needsChoice(product)) {
+            haptics.impact()
+            toast = restriction.label
+            return
+        }
         haptics.click()
         onQuickAdd(product.id)
         if (from != null && !MenuFeed.needsChoice(product) && !reduced) {
@@ -222,8 +266,17 @@ fun MenuFeedScreen(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .graphicsLayer { translationX = swipeX.value }
-                        .categorySwipe(
+                        .graphicsLayer {
+                            translationX = swipeX.value
+                            val veil = jumpVeil.value
+                            alpha = 1f - veil
+                            scaleX = 1f - 0.04f * veil
+                            scaleY = scaleX
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && veil > 0.01f) {
+                                val radius = 14.dp.toPx() * veil
+                                renderEffect = BlurEffect(radius, radius)
+                            }
+                        }.categorySwipe(
                             neighbor = { step ->
                                 products.getOrNull(pagerState.currentPage)?.let {
                                     MenuFeed.neighborCategory(feedCategories, it.categoryId, step)
@@ -258,6 +311,7 @@ fun MenuFeedScreen(
                     storeName = venue?.name,
                     storeLogo = venue?.logoUrl,
                     quantity = MenuFeed.quantityOf(state.cartLines, product.id),
+                    restriction = childControls.restrictionFor(product),
                     active = pagerState.currentPage == page,
                     pageOffset = offset,
                     reduced = reduced,
@@ -368,16 +422,10 @@ fun MenuFeedScreen(
         }
 
         state.selectedProduct?.let { product ->
-            val defaults =
-                product.optionGroups
-                    .flatMap { group ->
-                        group.options.take(group.minimumSelections).map { it.id }
-                    }.toSet()
             ProductDetailSheet(
                 product = product,
                 categoryName = categoryNames[product.categoryId].orEmpty(),
                 selectedOptionIds = state.selectedOptionIds,
-                defaultOptionIds = defaults,
                 quantity = state.selectedQuantity,
                 previewPrice = state.selectedProductPreviewPrice,
                 previewTotal = state.selectedProductPreviewTotal,
@@ -405,6 +453,7 @@ private fun FeedPage(
     storeName: String?,
     storeLogo: String?,
     quantity: Int,
+    restriction: ChildRestriction?,
     active: Boolean,
     pageOffset: Float,
     reduced: Boolean,
@@ -511,6 +560,7 @@ private fun FeedPage(
                 if (categoryName.isNotBlank()) FeedChip(categoryName)
                 if (MenuFeed.needsChoice(product)) FeedChip("Con opciones")
             }
+            restriction?.let { RestrictionBadge(it, Modifier.padding(top = 2.dp)) }
         }
 
         Column(
@@ -523,7 +573,10 @@ private fun FeedPage(
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             if (storeName != null) StoreAvatar(storeName, storeLogo, 48.dp, border = 2.dp)
-            Adder(product = product, quantity = quantity, reduced = reduced, onAdd = onAdd, onRemove = onRemove)
+            // Lo bloqueado no tiene "+": el motivo ya está junto al nombre.
+            if (restriction == null) {
+                Adder(product = product, quantity = quantity, reduced = reduced, onAdd = onAdd, onRemove = onRemove)
+            }
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -897,6 +950,37 @@ private fun StoreAvatar(
     }
 }
 
+/** Por qué el alumno no puede pedirlo, en una cápsula oscura sobre la foto. */
+@Composable
+private fun RestrictionBadge(
+    restriction: ChildRestriction,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(999.dp))
+                .background(Color.Black.copy(alpha = 0.5f))
+                .border(1.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(999.dp))
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            when (restriction.reason) {
+                ChildRestriction.Reason.BLOCKED -> Icons.Rounded.Lock
+                ChildRestriction.Reason.ALLERGEN -> Icons.Rounded.Warning
+                ChildRestriction.Reason.ALLERGENS_UNKNOWN -> Icons.AutoMirrored.Rounded.Help
+                ChildRestriction.Reason.SOLD_OUT -> Icons.Rounded.Block
+            },
+            contentDescription = null,
+            tint = OnMedia,
+            modifier = Modifier.size(15.dp),
+        )
+        Text(restriction.label, style = mediaText(13.sp, FontWeight.Bold))
+    }
+}
+
 @Composable
 private fun FeedChip(text: String) {
     Text(
@@ -993,6 +1077,12 @@ private fun Modifier.categorySwipe(
     }
 
 private const val SWIPE_THRESHOLD_DP = 90f
+
+// El velo del salto de categoría: entra con un resorte corto sin rebote (respuesta ~0.16 s) y sale con uno
+// suave (~0.45 s). La rigidez es (2π / respuesta)².
+private const val VEIL_IN_STIFFNESS = 1540f
+private const val VEIL_OUT_STIFFNESS = 195f
+private const val JUMP_PHOTO_WAIT_MS = 450L
 
 /** Cuánto se proyecta la velocidad al soltar, como el desplazamiento previsto de iOS. */
 private const val SWIPE_PROJECTION_SECONDS = 0.2f

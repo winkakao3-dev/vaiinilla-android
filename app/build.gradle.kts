@@ -43,14 +43,14 @@ fun escapeBuildConfig(value: String): String =
         .replace("\"", "\\\"")
         .replace("\$", "\\\$")
 
-val selectedApiBaseUrl =
+// Dev apunta a Railway; para probar contra otro backend de pruebas (el del VPS) se compila con
+// -PvaiinillaDevApiBaseUrl=… o VAIINILLA_DEV_API_BASE_URL. Prod no lo lee.
+val devApiBaseUrl =
     readConfig(
-        "vaiinillaApiBaseUrl",
-        "VAIINILLA_API_BASE_URL",
-        "https://localhost.invalid/api/v1/",
-    )
-
-val devApiBaseUrl = "https://vaiinillaback-development.up.railway.app/api/v1/"
+        "vaiinillaDevApiBaseUrl",
+        "VAIINILLA_DEV_API_BASE_URL",
+        "https://vaiinillaback-development.up.railway.app/api/v1/",
+    ).trimEnd('/') + "/"
 val productionApiBaseUrl = "https://vaiinillaback.up.railway.app/api/v1/"
 
 val devWebUrl = "https://vaiinilla-web-git-develop-saul1217s-projects.vercel.app"

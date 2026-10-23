@@ -7,13 +7,19 @@ import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.data.guest.GuestSessionStore
+import com.vaiinilla.app.data.guest.SchoolJoinCodeStore
+import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.discovery.DiscoveryFailures
 import com.vaiinilla.app.domain.location.DeviceLocationProvider
+import com.vaiinilla.app.domain.mode.MySchool
+import com.vaiinilla.app.domain.mode.MySchools
 import com.vaiinilla.app.domain.model.GeoCoordinates
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.PublicEstablishment
+import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -35,6 +41,9 @@ data class DiscoveryUiState(
     val nearbyOrigin: GeoCoordinates? = null,
     val locating: Boolean = false,
     val locationMessage: String? = null,
+    /** Escuelas donde ya es cliente, para volver de un toque al pedir en otro lado. */
+    val mySchools: List<MySchool> = emptyList(),
+    val openingSchoolId: String? = null,
 )
 
 @HiltViewModel
@@ -44,6 +53,9 @@ class GuestDiscoveryViewModel
         private val discoveryRepository: DiscoveryRepository,
         private val guestSessionStore: GuestSessionStore,
         private val deviceLocationProvider: DeviceLocationProvider,
+        private val schoolJoinCodes: SchoolJoinCodeStore,
+        private val accessRepository: AuthorizedAccessRepository,
+        private val authRepository: StudentAuthRepository,
     ) : ViewModel() {
         private val _state = mutableStateOf(DiscoveryUiState())
         val state: State<DiscoveryUiState> = _state
@@ -253,6 +265,8 @@ class GuestDiscoveryViewModel
                 result.fold(
                     onSuccess = { resolved ->
                         _state.value = _state.value.copy(resolving = false)
+                        // Sin mesa, lo tecleado era el código de la escuela: viaja como codigo_union al unirse.
+                        if (resolved.space == null) schoolJoinCodes.remember(resolved.establishment.id, token)
                         tryEnter(
                             GuestVenueContext(
                                 establishment = resolved.establishment,
@@ -266,7 +280,7 @@ class GuestDiscoveryViewModel
                         _state.value =
                             _state.value.copy(
                                 resolving = false,
-                                errorMessage = error.toUserFacingMessage("No se pudo resolver el espacio."),
+                                errorMessage = SpaceCodeError.message(error),
                             )
                         onFinished()
                     },
@@ -317,6 +331,40 @@ class GuestDiscoveryViewModel
             }
         }
 
+        /** Las escuelas de sus accesos. Sin sesión verificada o si falla, no hay fila. */
+        fun loadMySchools() {
+            launchTracked { refreshMySchools() }
+        }
+
+        /** La escuela de un aviso; si no está en la lista se vuelve a pedir, por si entró hace poco. */
+        suspend fun schoolFor(establishmentId: String): MySchool? =
+            _state.value.mySchools.firstOrNull { it.id == establishmentId }
+                ?: refreshMySchools().firstOrNull { it.id == establishmentId }
+
+        /** Ya es miembro: entra por el slug, sin pedirle otra vez el código. */
+        fun openSchool(
+            school: MySchool,
+            onEntered: (GuestVenueContext) -> Unit,
+        ) {
+            if (_state.value.openingSchoolId != null) return
+            _state.value = _state.value.copy(openingSchoolId = school.id)
+            openSlug(school.slug, onEntered, onFinished = { _state.value = _state.value.copy(openingSchoolId = null) })
+        }
+
+        private suspend fun refreshMySchools(): List<MySchool> {
+            val session = authRepository.peekSession()?.takeIf { it.emailVerified }
+            val schools =
+                if (session == null) {
+                    emptyList()
+                } else {
+                    withContext(Dispatchers.IO) { accessRepository.authorizedModes(session) }
+                        .map(MySchools::from)
+                        .getOrElse { return _state.value.mySchools }
+                }
+            _state.value = _state.value.copy(mySchools = schools)
+            return schools
+        }
+
         fun confirmPendingSwitch(onEntered: (GuestVenueContext) -> Unit) {
             val pending = _state.value.pendingSwitch ?: return
             _state.value = _state.value.copy(pendingSwitch = null)
@@ -339,9 +387,11 @@ class GuestDiscoveryViewModel
         }
 
         private fun launchTracked(block: suspend () -> Unit): Job {
+            // LAZY: en Main.immediate un bloque que no suspende (invitado sin sesión) termina dentro de
+            // launch, y el finally leería job antes de asignarse.
             lateinit var job: Job
             job =
-                viewModelScope.launch {
+                viewModelScope.launch(start = CoroutineStart.LAZY) {
                     try {
                         block()
                     } finally {
@@ -349,6 +399,7 @@ class GuestDiscoveryViewModel
                     }
                 }
             activeJobs += job
+            job.start()
             return job
         }
 

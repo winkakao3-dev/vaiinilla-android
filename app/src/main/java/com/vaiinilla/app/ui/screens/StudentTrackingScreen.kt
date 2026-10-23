@@ -163,6 +163,8 @@ import com.vaiinilla.app.ui.components.trackingStepDescription
 import com.vaiinilla.app.ui.components.trackingStepTitle
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.order.OrderFlowUiState
+import com.vaiinilla.app.ui.order.canCancelMenuCall
+import com.vaiinilla.app.ui.order.orderCancellationNotice
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.SeaGlassButton
 import com.vaiinilla.app.ui.theme.SeaGlassTone
@@ -1311,13 +1313,8 @@ internal fun CallWaiterButton(
                     view = CallWaiterView.OPEN
                     haptics.impact()
                 },
-                onFailure = { cause ->
-                    if (cause is CallsUnavailableException) {
-                        view = CallWaiterView.UNAVAILABLE
-                    } else {
-                        error = cause.toUserFacingMessage()
-                    }
-                },
+                // Si falla, los motivos se quedan con el error a la vista para reintentar.
+                onFailure = { cause -> error = cause.toUserFacingMessage() },
             )
             busy = false
         }
@@ -1333,6 +1330,8 @@ internal fun CallWaiterButton(
                 onSuccess = {
                     call = null
                     view = CallWaiterView.IDLE
+                    // El servidor cuenta 60 s desde la llamada anterior, aunque se haya cancelado.
+                    cooldown = CALL_COOLDOWN_SECONDS
                 },
                 onFailure = { cause -> error = cause.toUserFacingMessage() },
             )
@@ -1495,7 +1494,8 @@ private fun CallLiveRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        if (!going) {
+        // También en camino: el servidor deja cancelarla mientras siga abierta.
+        if (canCancelMenuCall(call)) {
             SeaGlassButton(
                 tone = SeaGlassTone.vainilla,
                 onClick = onCancel,
@@ -1924,6 +1924,20 @@ private fun PastOrderRow(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 2.dp),
             )
+            // Como iOS: el motivo del rechazo también se lee en la lista, sin abrir el pedido.
+            orderCancellationNotice(order)?.let { notice ->
+                notice.reason?.let { reason ->
+                    Text(
+                        "${notice.title}: $reason",
+                        color = colors.muted,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+            }
         }
         Spacer(Modifier.width(10.dp))
         Column(horizontalAlignment = Alignment.End) {

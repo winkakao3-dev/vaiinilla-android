@@ -118,7 +118,8 @@ val OrderFlowUiState.selectedProduct: Product?
 
 val OrderFlowUiState.filteredProducts: List<Product>
     get() {
-        val products = catalog?.products.orEmpty().filter(Product::available)
+        // Lo agotado se queda en el menú, al final, con "Agotado" y sin Agregar (B10).
+        val products = catalog?.products.orEmpty().sortedBy { !it.available }
         val categoryFiltered =
             selectedCategoryId?.let { categoryId ->
                 products.filter { it.categoryId == categoryId }
@@ -228,6 +229,10 @@ val OrderFlowUiState.payAtEndForNextRound: Boolean
 /** ¿Se ofrece pagar con tarjeta? Solo si el dueño la activó en su panel. */
 val OrderFlowUiState.canPayWithCard: Boolean
     get() = operationalStatus?.acceptsCard == true
+
+/** ¿Se ofrece pagar con saldo? No si el dueño lo apagó; sin estado operativo todavía, sí (el servidor valida). */
+val OrderFlowUiState.canPayWithBalance: Boolean
+    get() = operationalStatus?.allowsBalance != false
 
 enum class StripePaymentPhase {
     IDLE,

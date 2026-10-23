@@ -13,6 +13,8 @@ import javax.inject.Inject
  * `order_state` (cliente): the order advanced — shows the same tracking
  * notification the in-app poller produces, but works even with the app killed.
  * `staff_alert` (caja/cocina/mesero): new actionable work for the venue staff.
+ * Padres e hijos: `order_state` con `dependienteUsuarioId` (el pedido de un hijo), `saldo_bajo` y
+ * `recarga_acreditada` abren la ficha del hijo en su escuela (`establecimientoId`).
  */
 @AndroidEntryPoint
 class VaiinillaMessagingService : FirebaseMessagingService() {
@@ -29,7 +31,15 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
         super.onMessageReceived(message)
         val data = message.data
         when (data["type"]) {
-            "order_state" -> notifyOrderState(data)
+            "order_state" ->
+                if (data["dependienteUsuarioId"] != null) notifyChildOrderState(data) else notifyOrderState(data)
+            "saldo_bajo" ->
+                notifyGuardian(
+                    data,
+                    "saldo-bajo",
+                ) { name -> GuardianPushNotifier.lowBalanceText(name, data["saldo"]) }
+            "recarga_acreditada" ->
+                notifyGuardian(data, "recarga") { name -> GuardianPushNotifier.reloadCreditedText(name, data["saldo"]) }
             "staff_alert" -> notifyStaffAlert(data)
             "mesero_en_camino" -> notifyCallerOnTheWay(data)
         }
@@ -48,6 +58,30 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
                 }
             } ?: return
         OrderAdvanceNotifier.notify(applicationContext, orderId, folio, state)
+    }
+
+    private fun childName(data: Map<String, String>): String? =
+        data["dependienteUsuarioId"]?.let { DependentNamesStore.firstName(applicationContext, it) }
+
+    private fun notifyChildOrderState(data: Map<String, String>) {
+        val orderId = data["orderId"] ?: return
+        val text =
+            GuardianPushNotifier.orderStateText(childName(data), data["folio"] ?: return, data["state"] ?: return)
+                ?: return
+        GuardianPushNotifier.post(applicationContext, "hijo:$orderId", text, ChildDeepLink.fromPush(data))
+    }
+
+    private fun notifyGuardian(
+        data: Map<String, String>,
+        kind: String,
+        text: (String?) -> GuardianPushNotifier.Text,
+    ) {
+        GuardianPushNotifier.post(
+            applicationContext,
+            "$kind:${data["dependienteUsuarioId"].orEmpty()}",
+            text(childName(data)),
+            ChildDeepLink.fromPush(data),
+        )
     }
 
     private fun notifyStaffAlert(data: Map<String, String>) {

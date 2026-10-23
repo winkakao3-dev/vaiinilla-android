@@ -25,6 +25,7 @@ import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessRepository
 import com.vaiinilla.app.data.operational.AndroidDeviceIdentity
 import com.vaiinilla.app.data.operational.RemoteCashSessionRepository
 import com.vaiinilla.app.data.operational.RemoteDeviceHeartbeatRepository
+import com.vaiinilla.app.data.operational.RemotePendingRefundRepository
 import com.vaiinilla.app.data.operational.RemoteWaiterRepository
 import com.vaiinilla.app.data.operational.WaiterContractJson
 import com.vaiinilla.app.data.order.OrderContractJson
@@ -48,6 +49,7 @@ import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
 import com.vaiinilla.app.domain.repository.DeviceIdentity
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.repository.OrderRepository
+import com.vaiinilla.app.domain.repository.PendingRefundRepository
 import com.vaiinilla.app.domain.repository.ReservationRepository
 import com.vaiinilla.app.domain.repository.SharedTableRepository
 import com.vaiinilla.app.domain.repository.WaiterRepository
@@ -114,6 +116,14 @@ object VaiinillaModule {
 
     @Provides
     @Singleton
+    fun provideSchoolAdminRepository(
+        apiClient: VaiinillaApiClient,
+    ): com.vaiinilla.app.domain.school.SchoolAdminRepository =
+        com.vaiinilla.app.data.school
+            .RemoteSchoolAdminRepository(apiClient)
+
+    @Provides
+    @Singleton
     fun provideOrderRepository(
         apiClient: VaiinillaApiClient,
         orderContractJson: OrderContractJson,
@@ -147,6 +157,11 @@ object VaiinillaModule {
         waiterContractJson: WaiterContractJson,
         orderContractJson: OrderContractJson,
     ): WaiterRepository = RemoteWaiterRepository(apiClient, waiterContractJson, orderContractJson)
+
+    @Provides
+    @Singleton
+    fun providePendingRefundRepository(apiClient: VaiinillaApiClient): PendingRefundRepository =
+        RemotePendingRefundRepository(apiClient)
 
     @Provides
     @Singleton

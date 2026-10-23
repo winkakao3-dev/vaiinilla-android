@@ -19,12 +19,18 @@ data class OperationalStatus(
     val allowsPayAtEnd: Boolean = false,
     /** Si es true, el dueño activó la tarjeta en su panel y Stripe ya le permite cobrar. */
     val acceptsCard: Boolean = false,
+    /** Si es false, el dueño apagó los pagos con saldo: el servidor rechaza `metodo_pago: saldo`. */
+    val allowsBalance: Boolean = true,
     /** Lo que el dueño dice que es el negocio (`drive_thru`, `restaurante`, `padel`…). */
     val businessType: String = "cafeteria",
     /** Franjas en las que se reciben pedidos; vacía = sin límite. */
     val orderWindows: List<OrderWindow> = emptyList(),
     /** `false` cuando el negocio tiene franjas y ahora está fuera de ellas. */
     val withinOrderWindow: Boolean = true,
+    /** Solo una escuela muestra Mis hijos, Alumnos y Escuela; es presentación, las rutas no lo revisan. */
+    val isSchool: Boolean = false,
+    /** El cliente ya dio el código de la escuela: puede agregar o vincular hijos. */
+    val isParentUnlocked: Boolean = true,
 ) {
     /** "12:00 a 15:00 y 18:00 a 20:00". */
     val orderHoursText: String

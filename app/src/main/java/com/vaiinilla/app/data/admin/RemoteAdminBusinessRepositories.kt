@@ -140,6 +140,8 @@ class RemoteAdminStoreRepository(
     override fun setVisibleInDirectory(visible: Boolean): Result<StoreConfig> =
         patchConfig(json.encodeDirectory(visible))
 
+    override fun setSchoolMode(isSchool: Boolean): Result<StoreConfig> = patchConfig(json.encodeSchoolMode(isSchool))
+
     private fun patchConfig(body: String): Result<StoreConfig> =
         apiClient.patch("establecimiento/configuracion", body).mapCatching(json::parseStoreConfig).mapApiErrors()
 

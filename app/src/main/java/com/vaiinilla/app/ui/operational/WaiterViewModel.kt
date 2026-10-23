@@ -220,7 +220,7 @@ class WaiterViewModel
             qrToken: String?,
         ) {
             val token = qrToken?.trim().orEmpty()
-            val requiresQr = _uiState.value.deliveryRequiresQr
+            val requiresQr = order.needsQrToDeliver(_uiState.value.deliveryRequiresQr)
             if (requiresQr && token.isEmpty()) {
                 showToast("Pega el código del QR para confirmar la entrega.")
                 return

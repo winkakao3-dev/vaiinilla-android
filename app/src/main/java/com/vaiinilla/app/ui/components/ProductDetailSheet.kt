@@ -90,10 +90,12 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.guardianship.restrictionFor
 import com.vaiinilla.app.domain.model.CART_LINE_NOTE_MAX
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.ProductOption
+import com.vaiinilla.app.ui.parentmode.LocalChildControls
 import com.vaiinilla.app.ui.screens.LocalScene
 import com.vaiinilla.app.ui.screens.ProductMonogram
 import com.vaiinilla.app.ui.screens.ProductPhotoShadow
@@ -140,6 +142,10 @@ fun ProductDetailSheet(
         )
     val tone = productTone(product)
     val reduceMotion = reducedMotion()
+    // Lo agotado, y lo que el tutor del alumno bloqueó o tiene un alérgeno suyo, se ve pero no se agrega.
+    val childRestriction = LocalChildControls.current.restrictionFor(product)
+    val canAdd = canAdd && childRestriction == null
+    val errorMessage = childRestriction?.label ?: errorMessage
     val isCustomized = selectedOptionIds != defaultOptionIds
     val interactionSource = remember { MutableInteractionSource() }
     val visibility = remember { MutableTransitionState(false) }

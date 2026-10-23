@@ -63,8 +63,12 @@ fun OrderDetailDto.toDomain(): OrderDetail =
                 cancelReason = cancelReason,
                 canceledByRole = canceledByRole,
                 tableSessionId = tableSessionId,
+                deliveryWithoutQr = deliveryWithoutQr,
             ),
-        user = user?.let { OrderUser(name = it.name, enrollment = it.enrollment.orEmpty()) },
+        user =
+            user?.let {
+                OrderUser(name = it.name, enrollment = it.enrollment.orEmpty(), allergies = it.allergies.orEmpty())
+            },
         kitchenNotes = kitchenNotes.orEmpty(),
         items =
             items.map { item ->

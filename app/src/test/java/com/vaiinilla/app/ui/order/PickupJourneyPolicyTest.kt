@@ -8,6 +8,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.ui.components.needsPickupQr
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -44,6 +45,22 @@ class PickupJourneyPolicyTest {
             pickupCodeUseful(
                 order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH, toSpace = true),
                 deliveryRequiresQr = false,
+            ),
+        )
+    }
+
+    @Test
+    fun anOpenAccountOrderNeedsNoCode() {
+        // `entrega_sin_qr`: el backend dispensa el QR de un pedido a una cuenta abierta, aunque el negocio lo pida.
+        val open = order(OrderState.READY, toSpace = true, withoutQr = true)
+        assertFalse(pickupCodeUseful(open, deliveryRequiresQr = true))
+        assertFalse(open.needsPickupQr(deliveryRequiresQr = true))
+        assertTrue(order(OrderState.READY, toSpace = true).needsPickupQr(deliveryRequiresQr = true))
+        // Si falta pagar en Caja, el código sigue sirviendo para pagar.
+        assertTrue(
+            pickupCodeUseful(
+                order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH, toSpace = true, withoutQr = true),
+                deliveryRequiresQr = true,
             ),
         )
     }
@@ -152,6 +169,7 @@ class PickupJourneyPolicyTest {
         state: OrderState,
         payment: PaymentMethod = PaymentMethod.BALANCE,
         toSpace: Boolean = false,
+        withoutQr: Boolean = false,
     ) = OrderDetail(
         summary =
             OrderSummary(
@@ -169,6 +187,7 @@ class PickupJourneyPolicyTest {
                 version = 1,
                 createdAt = "2026-10-11T00:00:00Z",
                 updatedAt = "2026-10-11T00:00:00Z",
+                deliveryWithoutQr = withoutQr,
             ),
         user = null,
         kitchenNotes = "",

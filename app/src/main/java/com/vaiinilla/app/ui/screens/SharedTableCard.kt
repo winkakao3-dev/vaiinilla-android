@@ -106,6 +106,23 @@ internal fun myShareHint(
         else -> "Págala en caja o con tu mesero. Di tu nombre: $alias."
     }
 
+/** Cómo se nombra el espacio compartido en la invitación: "Mesa compartida", "Barra compartida"... */
+internal data class SharedSpaceWords(
+    val title: String,
+    val thePlace: String,
+) {
+    companion object {
+        fun of(spaceType: String?): SharedSpaceWords {
+            val noun = SpaceCopy.kindLabel(spaceType)
+            val masculine = spaceType == "asiento" || spaceType == "drive_thru"
+            return SharedSpaceWords(
+                title = if (masculine) "$noun compartido" else "$noun compartida",
+                thePlace = (if (masculine) "el " else "la ") + noun.lowercase(),
+            )
+        }
+    }
+}
+
 /**
  * La mesa compartida en Mis pedidos, con la misma tarjeta oscura que los pedidos. Sin mesa,
  * invita a unirse con un alias si el cliente llegó por el QR de una mesa.
@@ -119,6 +136,8 @@ fun SharedTableCard(
     onClaim: (folio: Int, payIt: Boolean) -> Unit,
     onLeave: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Tipo del espacio del QR: en una barra la invitación habla de la barra, no de una mesa. */
+    spaceType: String? = null,
 ) {
     if (!state.loaded) return
     val table = state.table
@@ -136,7 +155,7 @@ fun SharedTableCard(
                     ).padding(16.dp),
         ) {
             if (table == null) {
-                JoinTable(state, onAliasChange, onJoin)
+                JoinTable(state, SharedSpaceWords.of(spaceType), onAliasChange, onJoin)
             } else {
                 TableContent(table, state.busy, onClaim, onLeave)
             }
@@ -155,24 +174,26 @@ fun SharedTableCard(
 @Composable
 private fun JoinTable(
     state: SharedTableUiState,
+    words: SharedSpaceWords,
     onAliasChange: (String) -> Unit,
     onJoin: () -> Unit,
 ) {
     Text(
-        "Mesa compartida",
+        words.title,
         color = OrderTrackingCardText.copy(alpha = 0.55f),
         fontSize = 13.sp,
         fontWeight = FontWeight.Black,
     )
     Text(
-        "¿Compartes la mesa?",
+        "¿Compartes ${words.thePlace}?",
         color = OrderTrackingCardText,
         fontSize = 16.sp,
         fontWeight = FontWeight.Black,
         modifier = Modifier.padding(top = 10.dp),
     )
     Text(
-        "Únete con un nombre para ver los pedidos de todos y la cuenta de la mesa. Los demás solo ven ese nombre.",
+        "Únete con un nombre para ver los pedidos de todos y la cuenta de ${words.thePlace}. " +
+            "Los demás solo ven ese nombre.",
         color = OrderTrackingCardText.copy(alpha = 0.62f),
         fontSize = 13.sp,
         modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
@@ -189,12 +210,12 @@ private fun JoinTable(
         EditorialTextField(
             value = state.aliasInput,
             onValueChange = onAliasChange,
-            label = "Tu nombre en la mesa",
+            label = "Tu nombre en ${words.thePlace}",
             placeholder = "Ana",
         )
     }
     Spacer(Modifier.height(12.dp))
-    EditorialAccentButton(text = "Unirme a la mesa", onClick = onJoin, enabled = state.canJoin)
+    EditorialAccentButton(text = "Unirme a ${words.thePlace}", onClick = onJoin, enabled = state.canJoin)
 }
 
 @OptIn(ExperimentalLayoutApi::class)

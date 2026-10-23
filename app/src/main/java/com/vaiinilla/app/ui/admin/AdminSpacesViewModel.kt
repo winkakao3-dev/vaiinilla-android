@@ -312,7 +312,9 @@ internal fun spaceErrorMessage(error: Throwable): String {
         "SPACE_NAME_CONFLICT" -> "Ya hay un espacio con ese nombre."
         "SPACE_HAS_RESERVATIONS" -> "Tiene reservas pendientes: cancélalas antes."
         "SPACE_HAS_OPEN_SESSION" -> "Tiene una cuenta abierta: ciérrala antes."
-        "CASH_SESSION_REQUIRED", "CASH_SESSION_NOT_OPEN" -> "Abre la caja antes de cobrar."
+        // Administración no cobra: CASH_SESSION_REQUIRED solo le llega al devolver saldo en efectivo.
+        "CASH_SESSION_REQUIRED" -> com.vaiinilla.app.ui.admin.school.CASH_SESSION_REQUIRED_TEXT
+        "CASH_SESSION_NOT_OPEN" -> "Abre la caja antes de cobrar."
         "RESERVATION_IN_PROGRESS" -> "La renta ya empezó: no se puede cancelar."
         "RESERVATION_EXPIRED" -> "El apartado ya venció."
         "RESERVATION_NOT_CANCELLABLE" -> "Esta reserva ya no se puede cancelar."

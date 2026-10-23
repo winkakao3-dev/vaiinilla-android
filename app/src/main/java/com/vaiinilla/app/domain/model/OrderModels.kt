@@ -124,6 +124,8 @@ data class OrderSummary(
     val canceledByRole: String? = null,
     /** Sesión de mesa a la que pertenece el pedido; `null` si va para llevar o no tiene sesión. */
     val tableSessionId: String? = null,
+    /** Se entrega sin escanear el QR de recogida (`entrega_sin_qr`, pedidos a una cuenta abierta). */
+    val deliveryWithoutQr: Boolean = false,
 )
 
 data class CashCollectionResult(
@@ -156,6 +158,8 @@ data class StripePaymentSession(
 data class OrderUser(
     val name: String,
     val enrollment: String,
+    /** Códigos del catálogo de alérgenos; van en una banda coral arriba del ticket de Cocina y de Caja. */
+    val allergies: List<String> = emptyList(),
 )
 
 data class OrderSpace(

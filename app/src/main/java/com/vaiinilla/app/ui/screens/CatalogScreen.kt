@@ -67,6 +67,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.guardianship.restrictionFor
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.Category
@@ -104,6 +105,8 @@ import com.vaiinilla.app.ui.order.selectedProduct
 import com.vaiinilla.app.ui.order.selectedProductPreviewPrice
 import com.vaiinilla.app.ui.order.selectedProductPreviewTotal
 import com.vaiinilla.app.ui.order.trayItemKind
+import com.vaiinilla.app.ui.parentmode.ChildRestrictionTag
+import com.vaiinilla.app.ui.parentmode.LocalChildControls
 import com.vaiinilla.app.ui.theme.AmoledLimeWash
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
@@ -141,6 +144,8 @@ fun CatalogScreen(
     onOpenCart: (() -> Unit)? = null,
     /** Abre "Desliza", el menú como feed de video; sin él no aparecen las pestañas. */
     onOpenFeed: (() -> Unit)? = null,
+    /** "Llamar al mesero" sobre la barra (MenuWaiterLayer); sin mesa no llega. Recibe (compacta, visible). */
+    waiterLayer: (@Composable (Boolean, Boolean) -> Unit)? = null,
 ) {
     val haptics = rememberVaiinillaHaptics()
     when {
@@ -191,6 +196,7 @@ fun CatalogScreen(
                         }
                     },
                 onOpenFeed = onOpenFeed,
+                waiterLayer = waiterLayer,
             )
         else ->
             CatalogError(
@@ -340,6 +346,7 @@ private fun CatalogContent(
     /** Abre el carrito desde el atajo flotante; sin él, el atajo no aparece. */
     onOpenCart: (() -> Unit)? = null,
     onOpenFeed: (() -> Unit)? = null,
+    waiterLayer: (@Composable (Boolean, Boolean) -> Unit)? = null,
 ) {
     val catalog = requireNotNull(state.catalog)
     val colors = LocalVaiinillaColors.current
@@ -409,7 +416,9 @@ private fun CatalogContent(
                             end = CatalogSideMargin,
                             top = 16.dp,
                             // Con el atajo al carrito encima del dock, el último renglón sube lo que mide.
-                            bottom = VaiinillaBottomNavClearance + 48.dp + if (cartShortcutVisible) 62.dp else 0.dp,
+                            bottom =
+                                VaiinillaBottomNavClearance + 48.dp +
+                                    if (cartShortcutVisible || waiterLayer != null) 62.dp else 0.dp,
                         ),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -502,18 +511,15 @@ private fun CatalogContent(
                     .padding(end = VaiinillaBottomNavSideMargin, bottom = VaiinillaBottomNavTop + 10.dp),
         )
 
+        // Se esconde con la ficha de un platillo abierta, como "Pedir ya"; en Pedidos queda el botón de la tarjeta.
+        waiterLayer?.invoke(cartShortcutVisible, state.selectedProduct == null)
+
         state.selectedProduct?.let { product ->
             val category = catalog.categories.firstOrNull { it.id == product.categoryId }
-            val defaultOptionIds =
-                product.optionGroups
-                    .flatMap { group ->
-                        group.options.take(group.minimumSelections).map { it.id }
-                    }.toSet()
             ProductDetailSheet(
                 product = product,
                 categoryName = category?.name.orEmpty(),
                 selectedOptionIds = state.selectedOptionIds,
-                defaultOptionIds = defaultOptionIds,
                 quantity = state.selectedQuantity,
                 previewPrice = state.selectedProductPreviewPrice,
                 previewTotal = state.selectedProductPreviewTotal,
@@ -733,6 +739,10 @@ private fun ProductCard(
             lineHeight = 19.sp,
             modifier = Modifier.padding(start = 2.dp, top = 4.dp, end = 2.dp),
         )
+        // Lo agotado sale para todos; el alumno con tutor ve además con candado lo que no se le vende.
+        LocalChildControls.current.restrictionFor(product)?.let {
+            ChildRestrictionTag(it, colors.muted, Modifier.padding(start = 2.dp, top = 4.dp, end = 2.dp))
+        }
     }
 }
 

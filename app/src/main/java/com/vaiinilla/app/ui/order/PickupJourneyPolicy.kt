@@ -5,6 +5,7 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.components.RentalStep
+import com.vaiinilla.app.ui.components.needsPickupQr
 import com.vaiinilla.app.ui.components.rentalCourtName
 import com.vaiinilla.app.ui.components.rentalStep
 import com.vaiinilla.app.ui.components.rentalStepDescription
@@ -88,7 +89,11 @@ internal fun pickupHint(
         state == OrderState.PREPARING -> "Tu comida se está preparando."
         state == OrderState.READY -> "Recógelo en la barra."
         state == OrderState.DELIVERED -> "Pedido completado."
-        state == OrderState.CANCELED -> "Este pedido se canceló."
+        // Quien lo canceló y su motivo, como en el seguimiento: el cliente no tiene que ir a buscarlo.
+        state == OrderState.CANCELED ->
+            orderCancellationNotice(order)
+                ?.let { notice -> notice.reason?.let { "${notice.title}: $it" } }
+                ?: "Este pedido se canceló."
         state == OrderState.NOT_PICKED_UP -> "No se recogió el pedido."
         else -> "Este pedido expiró."
     }
@@ -111,7 +116,7 @@ internal fun pickupCodeUseful(
     deliveryRequiresQr: Boolean,
 ): Boolean =
     order.summary.state in setOf(OrderState.PENDING_PAYMENT, OrderState.PAID, OrderState.PREPARING, OrderState.READY) &&
-        (order.summary.destination != OrderDestination.IN_SPACE || deliveryRequiresQr || order.cashPending())
+        (order.cashPending() || order.needsPickupQr(deliveryRequiresQr))
 
 /**
  * El código se abre solo cuando hay que enseñarlo: listo para recoger en barra, o pago en efectivo

@@ -73,6 +73,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -126,6 +127,7 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.canCreateOrder
 import com.vaiinilla.app.ui.order.canPayAtEnd
+import com.vaiinilla.app.ui.order.canPayWithBalance
 import com.vaiinilla.app.ui.order.canPayWithCard
 import com.vaiinilla.app.ui.order.cartPreviewTotal
 import com.vaiinilla.app.ui.order.checkoutSpace
@@ -135,6 +137,8 @@ import com.vaiinilla.app.ui.order.isBalancePaymentAffordable
 import com.vaiinilla.app.ui.order.operationalBlockerMessage
 import com.vaiinilla.app.ui.order.requiresOperationalReady
 import com.vaiinilla.app.ui.order.selectedSpaceName
+import com.vaiinilla.app.ui.parentmode.LocalChildControls
+import com.vaiinilla.app.ui.parentmode.dailyLimitLine
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.SeaGlassButton
 import com.vaiinilla.app.ui.theme.SeaGlassTone
@@ -169,6 +173,8 @@ fun CartScreen(
     onSelectOrder: (String) -> Unit = {},
     /** El alta en el negocio corre antes del pedido: el botón espera igual que con el pedido. */
     preparingCheckout: Boolean = false,
+    /** Al tocar Pagar se vuelve a pedir el estado operativo: de él sale "Pagar al final". */
+    onCheckoutOpened: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -212,6 +218,13 @@ fun CartScreen(
     // Vainiverso: el mostrador con Vaini y la bandeja arriba; la lista en una hoja de vidrio que sube.
     val palette = scenePaletteForTheme()
     val listState = rememberLazyListState()
+    // El rechazo del servidor llega con la hoja de pago ya cerrada y va al final de la lista: se baja a
+    // verlo, si no parece que tocar Pedir no hizo nada (M05).
+    LaunchedEffect(state.createOrderError) {
+        if (state.createOrderError == null) return@LaunchedEffect
+        val last = listState.layoutInfo.totalItemsCount - 1
+        if (last >= 0) listState.animateScrollToItem(last)
+    }
     val glassColors =
         colors.copy(
             paper = Color.Transparent,
@@ -436,6 +449,7 @@ fun CartScreen(
                             onClick = {
                                 haptics.impact()
                                 paymentDialogOpen = true
+                                onCheckoutOpened()
                             },
                         )
                     }
@@ -448,7 +462,7 @@ fun CartScreen(
                     initialMethod = state.checkoutPayment,
                     initialPayAtEnd = state.checkoutPayAtEnd,
                     balanceAffordable = state.isBalancePaymentAffordable(walletBalance),
-                    showBalance = !guestCheckout,
+                    showBalance = !guestCheckout && state.canPayWithBalance,
                     walletBalance = walletBalance,
                     payAtEndAvailable = state.canPayAtEnd,
                     cardAvailable = state.canPayWithCard,
@@ -1370,6 +1384,19 @@ private fun OrderSummaryCard(state: OrderFlowUiState) {
                         lineHeight = 30.sp,
                     )
                 }
+            }
+            // El alumno con límite diario ve cuánto le queda hoy antes de pagar.
+            dailyLimitLine(
+                LocalChildControls.current,
+                state.cartPreviewTotal.toBigDecimalOrNull() ?: BigDecimal.ZERO,
+            )?.let {
+                Text(
+                    it,
+                    color = colors.muted,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
         }
     }

@@ -10,6 +10,9 @@ enum class HarnessRole(
     val operationalRole: OperationalRole,
 ) {
     ALUMNO("alumno", setOf("cliente"), "cliente", OperationalRole.CLIENT),
+
+    // El papá del sandbox: un cliente con hijos (solo existe en un backend con Padres e hijos).
+    TUTOR("tutor", setOf("papa", "papá"), "tutor", OperationalRole.CLIENT),
     CAJA("caja", setOf("cajero"), "cajero", OperationalRole.CASHIER),
     COCINA("cocina", emptySet(), "cocina", OperationalRole.KITCHEN),
     MESERO("mesero", emptySet(), "mesero", OperationalRole.WAITER),
