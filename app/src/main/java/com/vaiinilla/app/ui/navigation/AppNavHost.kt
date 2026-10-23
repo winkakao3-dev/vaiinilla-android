@@ -1794,6 +1794,7 @@ fun AppNavHost(
                                     },
                                     onClaim = sharedTableViewModel::claim,
                                     onLeave = sharedTableViewModel::leave,
+                                    spaceType = orderState.guestVenue?.space?.type,
                                 )
                             },
                         )
