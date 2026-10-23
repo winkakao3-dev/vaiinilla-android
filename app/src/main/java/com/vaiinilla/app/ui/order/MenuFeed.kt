@@ -12,7 +12,10 @@ object MenuFeed {
     const val MAX_LINE_QUANTITY = 20
     const val MAX_LINES = 50
 
-    /** Lo disponible, en el orden de las categorías del menú; lo que no tiene categoría conocida va al final. */
+    /**
+     * Los productos en el orden de las categorías del menú, con lo agotado al final de su categoría (B10); lo
+     * que no tiene categoría conocida va al final.
+     */
     fun products(catalog: Catalog): List<Product> {
         val order =
             catalog.categories.sortedBy { it.order }.withIndex().associate { (index, category) ->
@@ -20,10 +23,10 @@ object MenuFeed {
                     index
             }
         return catalog.products
-            .filter(Product::available)
             .withIndex()
-            .sortedWith(compareBy({ order[it.value.categoryId] ?: Int.MAX_VALUE }, { it.index }))
-            .map { it.value }
+            .sortedWith(
+                compareBy({ order[it.value.categoryId] ?: Int.MAX_VALUE }, { !it.value.available }, { it.index }),
+            ).map { it.value }
     }
 
     /** La categoría al lado de [current] en el orden del feed: +1 la siguiente, -1 la anterior; null en las orillas. */
