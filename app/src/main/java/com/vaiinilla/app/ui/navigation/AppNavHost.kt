@@ -1151,7 +1151,11 @@ fun AppNavHost(
                     orderState.guestVenue?.establishment?.id,
                 ) {
                     studentAuthViewModel.ensureVenueContext(
-                        onReady = walletViewModel::refresh,
+                        onReady = {
+                            walletViewModel.refresh()
+                            // Con el contexto ya de esta escuela: si es escuela, Mis hijos (F19).
+                            orderFlowViewModel.refreshOperationalStatusForWallet()
+                        },
                         onNeedsAuth = { navigateStudentAuth(Routes.WALLET, replaceReturnScreen = true) },
                     )
                 }
@@ -1165,7 +1169,9 @@ fun AppNavHost(
                 }
                 // Padres e hijos: solo una escuela muestra Mis hijos y Opciones avanzadas, y para saberlo hace
                 // falta el estado operativo con el contexto de cliente.
-                LaunchedEffect(Unit) { orderFlowViewModel.refreshOperationalStatusForWallet() }
+                LaunchedEffect(orderState.guestVenue?.establishment?.id) {
+                    orderFlowViewModel.refreshOperationalStatusForWallet()
+                }
                 ParentModeWalletHost(
                     enabled = orderState.operationalStatus?.isSchool == true,
                     childrenViewModel = childrenViewModel,
