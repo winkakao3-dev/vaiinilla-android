@@ -163,7 +163,7 @@ internal fun AdminSchoolContent(
     }
 }
 
-/** El código que la escuela reparte para que los papás y alumnos entren. */
+/** El código que la escuela reparte para que los tutores y alumnos entren. */
 @Composable
 private fun JoinCodeCard(
     settings: SchoolSettings,
@@ -199,7 +199,7 @@ private fun JoinCodeCard(
                 modifier = Modifier.padding(vertical = 4.dp),
             )
             AdminHint(
-                "Los papás lo escriben para agregar a sus hijos. Repártelo en la circular. " +
+                "Los tutores lo escriben para agregar a sus hijos. Repártelo en la circular. " +
                     "Al cambiarlo, el anterior deja de servir; quien ya entró se queda.",
                 colors,
             )

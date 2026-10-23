@@ -1196,7 +1196,7 @@ fun AppNavHost(
                         delay(WALLET_VISIBLE_REFRESH_MS)
                     }
                 }
-                // Padres e hijos: solo una escuela muestra Mis hijos y Opciones avanzadas, y para saberlo hace
+                // Padres e hijos: solo una escuela muestra Mis hijos y lo de tutores y alumnos, y para saberlo hace
                 // falta el estado operativo con el contexto de cliente.
                 LaunchedEffect(orderState.guestVenue?.establishment?.id) {
                     orderFlowViewModel.refreshOperationalStatusForWallet()
@@ -1204,6 +1204,7 @@ fun AppNavHost(
                 ParentModeWalletHost(
                     enabled = orderState.operationalStatus?.isSchool == true,
                     childrenViewModel = childrenViewModel,
+                    hasTutors = guardianControlsViewModel.controls?.tutorNames?.isNotEmpty() == true,
                     onFullScreenChange = { walletCodeOpen = it },
                     onAccountClaimed = {
                         val renewed = CompletableDeferred<Unit>()

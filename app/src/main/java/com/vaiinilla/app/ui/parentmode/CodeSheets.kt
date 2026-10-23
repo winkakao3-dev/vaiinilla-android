@@ -103,19 +103,25 @@ private fun CodeSheet(
     }
 }
 
-/** El código de seis letras que el alumno le dicta a su papá. Dura 15 minutos y sirve una vez. */
+/** El código de seis letras que el alumno le dicta a su tutor. Dura 15 minutos y sirve una vez. */
 @Composable
 internal fun LinkCodeSheet(
     guardianship: GuardianshipRepository,
     onDismiss: () -> Unit,
 ) {
     CodeSheet(
-        title = "Código para tu papá",
-        subtitle = "Que lo escriba en su app, en Cartera › Agregar a mi hijo",
+        title = "Enséñale este código a tu tutor",
+        subtitle = null,
         length = 6,
         sayDay = false,
         generate = { guardianship.createLinkCode(newKey()) },
-        steps = emptyList(),
+        steps =
+            listOf(
+                "Tu tutor abre Vaiinilla y entra a esta escuela.",
+                "En Cartera toca \"Soy tutor\" › \"Agregar a mi hijo\" › \"Con código\". " +
+                    "Si ya tiene hijos, es \"Agregar otro hijo\" en Mis hijos.",
+                "Escribe estas seis letras y te ve en Mis hijos.",
+            ),
         footnote = null,
         showsAnother = true,
         onDismiss = onDismiss,
@@ -138,7 +144,8 @@ internal fun GuardianCodeSheet(
         steps =
             listOf(
                 "Que entre a la escuela con su propia cuenta, con el código o el QR de la escuela.",
-                "En Cartera › Opciones avanzadas › \"Agregar a mi hijo\", que elija \"Con código\" y escriba este.",
+                "En Cartera › Soy tutor › \"Agregar a mi hijo\" (si ya tiene hijos, \"Agregar otro hijo\"), " +
+                    "que elija \"Con código\" y escriba este.",
                 "La escuela lo aprueba y desde ahí ve a ${child.firstName}, le recarga y le aparta.",
             ),
         footnote = "El límite, los bloqueos y las alergias los sigues poniendo tú. Puedes quitarlo cuando quieras.",
@@ -164,7 +171,7 @@ internal fun AccountCodeSheet(
             listOf(
                 "Que ${child.firstName} baje Vaiinilla y entre con su propio Google.",
                 "Que entre a la escuela con su código o su QR.",
-                "En Cartera › Opciones avanzadas › \"Tengo un código de mi papá\", que escriba este código.",
+                "En Cartera › Soy alumno › \"Mi tutor ya me dio de alta\", que escriba este código.",
             ),
         footnote = "Se queda con su saldo, lo apartado y tus controles. Tú lo sigues viendo aquí.",
         showsAnother = false,
@@ -173,7 +180,7 @@ internal fun AccountCodeSheet(
 }
 
 /**
- * El hijo, ya con su Google y dentro de la escuela, escribe el código de su papá y se queda con su cuenta.
+ * El hijo, ya con su Google y dentro de la escuela, escribe el código de su tutor y se queda con su cuenta.
  * [onClaimed] vuelve a pedir el contexto de cliente: el de antes era de la cuenta nueva y ya no sirve.
  */
 @Composable
@@ -198,7 +205,7 @@ internal fun ClaimAccountSheet(
 
     ParentSheet(
         title = "Tu cuenta de la escuela",
-        subtitle = "Con el código que te dio tu papá",
+        subtitle = "Con el código que te dio tu tutor",
         colors = colors,
         busy = state.isBusy,
         onDismiss = onDismiss,
@@ -235,12 +242,12 @@ internal fun ClaimAccountSheet(
             label = "Código",
             colors = colors,
             placeholder = "ABCD2345",
-            supporting = problem ?: "Son ocho letras o números. Tu papá lo saca en tu ficha y dura 24 horas.",
+            supporting = problem ?: "Son ocho letras o números. Tu tutor lo saca en tu ficha y dura 24 horas.",
             isError = problem != null,
             enabled = !state.isBusy,
         )
         Text(
-            "Tu saldo, lo apartado y lo que tu papá te puso pasan a esta cuenta. Solo funciona con una cuenta que no ha pedido nada todavía.",
+            "Tu saldo, lo apartado y lo que tu tutor te puso pasan a esta cuenta. Solo funciona con una cuenta que no ha pedido nada todavía.",
             color = colors.textSecondary,
             fontSize = 13.sp,
             lineHeight = 18.sp,

@@ -63,7 +63,7 @@ import kotlin.math.sin
 internal fun Throwable.isParentCodeRequired(): Boolean =
     (this as? GuardianshipException)?.code == GuardianshipException.PARENT_CODE_REQUIRED
 
-/** Lo que se le dice al papá cuando el código no pasó. */
+/** Lo que se le dice al tutor cuando el código no pasó. */
 internal fun parentUnlockMessage(error: Throwable): String {
     val guardian = error as? GuardianshipException
     if (guardian?.code == GuardianshipException.RATE_LIMITED || guardian?.httpStatus == 429) {
@@ -84,7 +84,7 @@ internal fun parentUnlockMessage(error: Throwable): String {
 }
 
 /**
- * El papá que entró a la escuela sin código lo escribe aquí: es lo que le deja agregar o vincular hijos.
+ * El tutor que entró a la escuela sin código lo escribe aquí: es lo que le deja agregar o vincular hijos.
  * Quien entró con "Usar código" ya llega habilitado y nunca ve esta hoja.
  */
 @Composable
@@ -128,7 +128,7 @@ internal fun ParentUnlockSheet(
 
     ParentSheet(
         title = "El código de la escuela",
-        subtitle = "El que la escuela les da a los papás",
+        subtitle = "El que la escuela les da a los tutores",
         colors = colors,
         busy = state.isBusy,
         onDismiss = onDismiss,

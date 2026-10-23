@@ -49,6 +49,7 @@ class ChildNoticeWalletTest {
                 ParentModeWalletHost(
                     enabled = true,
                     childrenViewModel = viewModel,
+                    hasTutors = false,
                     onFullScreenChange = {},
                     onAccountClaimed = {},
                 ) { family -> family?.invoke() }

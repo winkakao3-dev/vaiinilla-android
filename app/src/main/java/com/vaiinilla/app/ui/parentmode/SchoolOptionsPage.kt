@@ -37,7 +37,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -53,32 +52,32 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.components.GlassCircleButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.SkeletonBlock
-import com.vaiinilla.app.ui.components.SlidingSegments
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
-import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 private enum class OptionsSheet { ADD, UNLOCK, LINK_CODE, CLAIM }
 
-/**
- * Cartera › Opciones avanzadas, solo en escuelas: lo de papás y alumnos queda aquí, lejos de quien
- * solo paga su comida, junto con la guía de cómo funciona para cada uno.
- */
+/** Quién abre lo de la escuela en Cartera. Cada uno ve solo lo suyo: al tutor no le sale lo del alumno. */
+internal enum class SchoolRole { PARENT, STUDENT }
+
+/** Cartera › Soy tutor / Soy alumno, solo en escuelas: lo que puede hacer cada uno y cómo funciona. */
 @Composable
 internal fun SchoolOptionsPage(
     children: ChildrenState,
+    role: SchoolRole,
+    /** El alumno que ya tiene tutor entra con su propia cuenta: no tiene otra que reclamar. */
+    hasTutors: Boolean,
     onAccountClaimed: suspend () -> Unit,
     onBack: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
-    val haptics = rememberVaiinillaHaptics()
     val reduced = reducedMotion()
     val scope = rememberCoroutineScope()
     var sheet by rememberSaveable { mutableStateOf<OptionsSheet?>(null) }
-    var guideIndex by rememberSaveable { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) { children.loadParentAccess() }
+    LaunchedEffect(role) { if (role == SchoolRole.PARENT) children.loadParentAccess() }
     // Quien ya cuida hijos siempre puede agregar otro; quien no, primero escribe el código de la escuela.
     val parentAccess = if (children.children.isEmpty()) children.isParentUnlocked else true
 
@@ -93,104 +92,45 @@ internal fun SchoolOptionsPage(
                     .padding(top = 58.dp, bottom = 48.dp),
         ) {
             Text(
-                "Opciones avanzadas",
+                if (role == SchoolRole.PARENT) "Tutores" else "Alumnos",
                 color = colors.ink,
                 fontWeight = FontWeight.Black,
                 fontSize = 30.sp,
                 letterSpacing = (-0.6).sp,
+                modifier = Modifier.padding(bottom = 18.dp),
             )
 
-            SectionLabel("Si eres papá o tutor")
-            AnimatedContent(
-                targetState = parentAccess,
-                transitionSpec = {
-                    if (reduced) {
-                        fadeIn(snap()) togetherWith fadeOut(snap())
-                    } else {
-                        (
-                            fadeIn(
-                                spring(stiffness = 300f),
-                            ) + slideInVertically(spring(stiffness = 400f)) { it / 6 }
-                        ) togetherWith
-                            fadeOut(spring(stiffness = 600f))
-                    }
-                },
-                label = "parent-access",
-            ) { access ->
-                when (access) {
-                    true ->
-                        OptionRow(
-                            icon = Icons.Outlined.Add,
-                            title = if (children.children.isEmpty()) "Agregar a mi hijo" else "Agregar otro hijo",
-                            detail = "Con su nombre y matrícula, o con el código que saca él si ya tiene la app.",
-                            tag = "school-options-add",
-                        ) { sheet = OptionsSheet.ADD }
-                    false ->
-                        OptionRow(
-                            icon = Icons.Outlined.Password,
-                            title = "Tengo el código de la escuela",
-                            detail = "El que la escuela les da a los papás. Con él puedes agregar a tus hijos.",
-                            tag = "school-options-unlock",
-                        ) { sheet = OptionsSheet.UNLOCK }
-                    null ->
-                        SkeletonBlock(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).height(56.dp),
-                            corner = 14.dp,
-                        )
+            if (role == SchoolRole.PARENT) {
+                ParentOption(children, parentAccess, reduced) { sheet = it }
+            } else {
+                OptionRow(
+                    icon = Icons.Outlined.Tag,
+                    title = if (hasTutors) "Que otro tutor me agregue" else "Que mi tutor me agregue",
+                    detail = "Te damos un código y lo escribe en su app.",
+                    tag = "school-options-link-code",
+                ) { sheet = OptionsSheet.LINK_CODE }
+                // Quien ya cuida hijos no puede quedarse con la cuenta de otro: el servidor lo rechaza.
+                if (children.children.isEmpty() && !hasTutors) {
+                    OptionRow(
+                        icon = Icons.Outlined.Key,
+                        title = "Mi tutor ya me dio de alta",
+                        detail = "Escribe el código que te dio y te quedas con tu saldo y lo apartado.",
+                        tag = "school-options-claim",
+                    ) { sheet = OptionsSheet.CLAIM }
                 }
             }
 
-            SectionLabel("Si eres alumno")
-            OptionRow(
-                icon = Icons.Outlined.Tag,
-                title = "Código para mi papá",
-                detail = "Si ya tienes tu cuenta, tu papá te vincula con este código.",
-                tag = "school-options-link-code",
-            ) { sheet = OptionsSheet.LINK_CODE }
-            // Quien ya cuida hijos no puede quedarse con la cuenta de otro: el servidor lo rechaza.
-            if (children.children.isEmpty()) {
-                OptionRow(
-                    icon = Icons.Outlined.Key,
-                    title = "Tengo un código de mi papá",
-                    detail =
-                        "Si tu papá te dio de alta, con su código te quedas " +
-                            "con tu cuenta, tu saldo y lo apartado.",
-                    tag = "school-options-claim",
-                ) { sheet = OptionsSheet.CLAIM }
-            }
-
             Spacer(Modifier.height(34.dp))
-            Text("Cómo funciona", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 19.sp)
-            SlidingSegments(
-                labels = listOf("Papá o tutor", "Alumno"),
-                selectedIndex = guideIndex,
-                onSelect = {
-                    haptics.selection()
-                    guideIndex = it
-                },
-                trackColor = colors.paper2,
-                indicatorColor = colors.ink,
-                selectedContentColor = colors.onInk,
-                idleContentColor = colors.ink,
-                borderColor = colors.line,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
+            Text(
+                "Cómo funciona",
+                color = colors.ink,
+                fontWeight = FontWeight.Black,
+                fontSize = 19.sp,
+                modifier = Modifier.padding(bottom = 14.dp),
             )
-            AnimatedContent(
-                targetState = guideIndex,
-                transitionSpec = {
-                    if (reduced) {
-                        fadeIn(snap()) togetherWith fadeOut(snap())
-                    } else {
-                        fadeIn(spring(stiffness = 300f)) togetherWith
-                            fadeOut(spring(stiffness = 600f))
-                    }
-                },
-                label = "guide",
-            ) { index ->
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    (if (index == 0) PARENT_STEPS else STUDENT_STEPS).forEachIndexed { step, text ->
-                        GuideStep(step + 1, text, colors.ink, colors.paper2, colors.line)
-                    }
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                schoolGuideSteps(role, hasTutors).forEachIndexed { step, text ->
+                    GuideStep(step + 1, text, colors.ink, colors.paper2, colors.line)
                 }
             }
         }
@@ -202,21 +142,80 @@ internal fun SchoolOptionsPage(
         )
     }
 
+    SchoolOptionsSheets(sheet, children, onAccountClaimed, scope) { sheet = null }
+}
+
+/** Agregar a un hijo, o antes el código de la escuela si todavía no lo escribió. */
+@Composable
+private fun ParentOption(
+    children: ChildrenState,
+    parentAccess: Boolean?,
+    reduced: Boolean,
+    onSheet: (OptionsSheet) -> Unit,
+) {
+    AnimatedContent(
+        targetState = parentAccess,
+        transitionSpec = {
+            if (reduced) {
+                fadeIn(snap()) togetherWith fadeOut(snap())
+            } else {
+                (
+                    fadeIn(
+                        spring(stiffness = 300f),
+                    ) + slideInVertically(spring(stiffness = 400f)) { it / 6 }
+                ) togetherWith
+                    fadeOut(spring(stiffness = 600f))
+            }
+        },
+        label = "parent-access",
+    ) { access ->
+        when (access) {
+            true ->
+                OptionRow(
+                    icon = Icons.Outlined.Add,
+                    title = if (children.children.isEmpty()) "Agregar a mi hijo" else "Agregar otro hijo",
+                    detail = "Con su nombre y matrícula, o con el código que saca él si ya tiene la app.",
+                    tag = "school-options-add",
+                ) { onSheet(OptionsSheet.ADD) }
+            false ->
+                OptionRow(
+                    icon = Icons.Outlined.Password,
+                    title = "Tengo el código de la escuela",
+                    detail = "El que la escuela les da a los tutores. Con él puedes agregar a tus hijos.",
+                    tag = "school-options-unlock",
+                ) { onSheet(OptionsSheet.UNLOCK) }
+            null ->
+                SkeletonBlock(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).height(56.dp),
+                    corner = 14.dp,
+                )
+        }
+    }
+}
+
+@Composable
+private fun SchoolOptionsSheets(
+    sheet: OptionsSheet?,
+    children: ChildrenState,
+    onAccountClaimed: suspend () -> Unit,
+    scope: CoroutineScope,
+    onDismiss: () -> Unit,
+) {
     when (sheet) {
         OptionsSheet.ADD ->
             AddChildSheet(
                 children.services.guardianship,
                 onAdded = children::upsert,
-                onDismiss = { sheet = null },
+                onDismiss = onDismiss,
                 onParentUnlocked = children::markParentUnlocked,
             )
         OptionsSheet.UNLOCK ->
             ParentUnlockSheet(
                 guardianship = children.services.guardianship,
                 onUnlocked = children::markParentUnlocked,
-                onDismiss = { sheet = null },
+                onDismiss = onDismiss,
             )
-        OptionsSheet.LINK_CODE -> LinkCodeSheet(children.services.guardianship, onDismiss = { sheet = null })
+        OptionsSheet.LINK_CODE -> LinkCodeSheet(children.services.guardianship, onDismiss = onDismiss)
         OptionsSheet.CLAIM ->
             ClaimAccountSheet(
                 guardianship = children.services.guardianship,
@@ -224,21 +223,10 @@ internal fun SchoolOptionsPage(
                     onAccountClaimed()
                     scope.launch { children.load() }
                 },
-                onDismiss = { sheet = null },
+                onDismiss = onDismiss,
             )
         null -> Unit
     }
-}
-
-@Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text,
-        color = LocalVaiinillaColors.current.muted,
-        fontWeight = FontWeight.Bold,
-        fontSize = 13.sp,
-        modifier = Modifier.padding(top = 28.dp, bottom = 2.dp),
-    )
 }
 
 @Composable
@@ -289,7 +277,8 @@ private val PARENT_STEPS =
         "Entra a la escuela con el código que te dio: es el que te deja agregar a tus hijos. " +
             "Si entraste sin él, escríbelo aquí en \"Tengo el código de la escuela\". " +
             "Tu propia cuenta sigue igual: pides y pagas como siempre.",
-        "Aquí toca \"Agregar a mi hijo\" con su nombre y su matrícula. Si tu hijo ya tiene la app, pídele su código y escríbelo.",
+        "Toca \"Agregar a mi hijo\" y escribe su nombre y su matrícula. " +
+            "Si tu hijo ya tiene la app, pídele su código: lo saca en su Cartera, en \"Soy alumno\".",
         "Tu hijo aparece en Cartera › Mis hijos; si la escuela revisa a los tutores, primero como \"Esperando\". Ya aprobado, le recargas saldo con tarjeta, o lo recargan en Caja.",
         "Ponle un límite al día, bloquea productos y marca sus alergias. El límite y los bloqueos aplican cuando compra sin ti; las alergias, siempre, también a lo que tú le apartas.",
         "Apártale la comida de la semana antes de la hora de corte y cancélala si no va a ir.",
@@ -299,10 +288,23 @@ private val PARENT_STEPS =
 
 private val STUDENT_STEPS =
     listOf(
-        "Si tu papá te dio de alta, no necesitas la app: en Caja te encuentran por tu nombre o con tu credencial.",
-        "Si después tienes teléfono, pídele a tu papá su código y escríbelo aquí en \"Tengo un código de mi papá\".",
-        "Si tienes la app, entra a la escuela con su código y saca aquí \"Código para mi papá\". Dura 15 minutos y sirve una vez.",
-        "Tu papá ve tu saldo y lo que compras, te recarga y te puede poner un límite al día.",
-        "Lo que tu papá bloquea sale con candado en el menú. En el carrito ves cuánto te queda hoy antes de pagar.",
-        "En Cartera ves quién te cuida y tu límite.",
+        "Toca \"Que mi tutor me agregue\": te damos un código de seis letras. Dura 15 minutos y sirve una vez.",
+        "Tu tutor lo escribe en su app, en Cartera › Soy tutor › Agregar a mi hijo › Con código.",
+        "Si tu tutor te dio de alta antes de que tuvieras teléfono, pídele su código y escríbelo en " +
+            "\"Mi tutor ya me dio de alta\". Te quedas con tu saldo y lo apartado.",
+        "Tu tutor ve tu saldo y lo que compras, te recarga y te puede poner un límite al día. " +
+            "Lo que bloquee sale con candado en el menú.",
+        "En Cartera ves quién te cuida y cuánto te queda hoy.",
+        "Si no traes teléfono, en Caja te encuentran por tu nombre o con tu credencial.",
     )
+
+/** La guía de cada rol; al alumno que ya tiene tutor se le habla de agregar a otro. */
+internal fun schoolGuideSteps(
+    role: SchoolRole,
+    hasTutors: Boolean,
+): List<String> =
+    when {
+        role == SchoolRole.PARENT -> PARENT_STEPS
+        !hasTutors -> STUDENT_STEPS
+        else -> STUDENT_STEPS.map { it.replace("Que mi tutor me agregue", "Que otro tutor me agregue") }
+    }

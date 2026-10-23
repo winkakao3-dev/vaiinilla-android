@@ -214,7 +214,7 @@ internal fun AddChildSheet(
                 placeholder = "ABC234",
                 supporting =
                     codeProblem
-                        ?: "Lo saca en su app, en Cartera › Código para mi papá (dura 15 minutos). " +
+                        ?: "Lo saca en su app, en Cartera › Soy alumno › Que mi tutor me agregue (dura 15 minutos). " +
                         "Si ya lo cuida otro tutor, él te pasa uno desde la ficha de tu hijo.",
                 isError = codeProblem != null,
                 enabled = !busy,

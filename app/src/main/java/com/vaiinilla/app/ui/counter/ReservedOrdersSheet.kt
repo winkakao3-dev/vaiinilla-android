@@ -38,7 +38,7 @@ import com.vaiinilla.app.ui.screens.ChipButton
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.admin.AdminSheet
 
-/** En Cocina de una escuela, arriba de la fila: abre lo que ya apartaron los papás. */
+/** En Cocina de una escuela, arriba de la fila: abre lo que ya apartaron los tutores. */
 @Composable
 fun KitchenReservedEntry(
     colors: OperationalColors,
@@ -58,7 +58,7 @@ fun KitchenReservedEntry(
         Column(modifier = Modifier.weight(1f)) {
             Text("Para mañana", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.textPrimary)
             Text(
-                "Lo que ya apartaron los papás, por día",
+                "Lo que ya apartaron los tutores, por día",
                 fontSize = 13.sp,
                 color = colors.textSecondary,
                 modifier = Modifier.padding(top = 2.dp),
@@ -81,7 +81,7 @@ fun ReservedOrdersSheet(
     val reduced = reducedMotion()
     AdminSheet(title = "Apartado", colors = colors, busy = false, onDismiss = onDismiss) {
         Text(
-            "Lo que ya pidieron los papás",
+            "Lo que ya pidieron los tutores",
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
             color = colors.textSecondary,

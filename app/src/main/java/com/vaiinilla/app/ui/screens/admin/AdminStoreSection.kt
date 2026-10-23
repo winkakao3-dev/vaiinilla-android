@@ -101,13 +101,13 @@ internal fun AdminStoreSection(
                 AdminSectionTitle("Escuela", colors)
                 AdminChoice(
                     question = "¿Es una escuela?",
-                    options = listOf(false to "No", true to "Sí, con papás y alumnos"),
+                    options = listOf(false to "No", true to "Sí, con tutores y alumnos"),
                     selected = config.isSchool,
                     colors = colors,
                     enabled = enabled,
                 ) { if (it != config.isSchool) viewModel.setSchoolMode(it) }
                 AdminHint(
-                    "Los papás recargan y apartan la comida de sus hijos, y Caja le cobra al alumno sin teléfono.",
+                    "Los tutores recargan y apartan la comida de sus hijos, y Caja le cobra al alumno sin teléfono.",
                     colors,
                 )
             }

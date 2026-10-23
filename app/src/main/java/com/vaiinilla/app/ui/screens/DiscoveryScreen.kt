@@ -1005,7 +1005,7 @@ private fun SpaceCodeSheet(
             )
             Text(
                 if (school) {
-                    "Son las letras que la escuela le dio a los papás, por ejemplo SANDBX."
+                    "Son las letras que la escuela le dio a los tutores, por ejemplo SANDBX."
                 } else {
                     "Escribe los 4 dígitos que aparecen junto al QR de tu mesa."
                 },

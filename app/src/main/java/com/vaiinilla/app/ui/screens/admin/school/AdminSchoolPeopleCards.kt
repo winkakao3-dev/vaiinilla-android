@@ -62,9 +62,9 @@ internal fun GuardianRequestsCard(
             requests.isEmpty() ->
                 AdminHint(
                     if (settings.guardiansNeedApproval) {
-                        "Nadie espera. Cuando un papá agregue a su hijo, aparece aquí para que lo apruebes."
+                        "Nadie espera. Cuando un tutor agregue a su hijo, aparece aquí para que lo apruebes."
                     } else {
-                        "Los papás que agregan a su hijo lo ven y le recargan de inmediato, sin pasar por aquí."
+                        "Los tutores que agregan a su hijo lo ven y le recargan de inmediato, sin pasar por aquí."
                     },
                     colors,
                 )
@@ -154,7 +154,7 @@ private fun GuardianRequestRow(
 
 /**
  * Buscar a un alumno para ver quién lo cuida, quitar a un tutor o cambiar al que pone los controles (por ejemplo,
- * cuando los papás se separan o uno ya no debe verlo).
+ * cuando los tutores se separan o uno ya no debe verlo).
  */
 @Composable
 internal fun GuardianshipsCard(
@@ -286,7 +286,7 @@ private fun StudentGuardians(
 }
 
 /**
- * Lo que piden los papás cuando su hijo se va: que les devuelvan el saldo o que la escuela borre sus datos. En
+ * Lo que piden los tutores cuando su hijo se va: que les devuelvan el saldo o que la escuela borre sus datos. En
  * efectivo el dinero sale de la caja abierta y queda en su corte; por transferencia solo se marca.
  */
 @Composable
@@ -307,7 +307,7 @@ internal fun StudentRequestsCard(
             requests == null -> AdminHint("Cargando solicitudes…", colors)
             requests.isEmpty() ->
                 AdminHint(
-                    "Nadie ha pedido nada. Si un papá pide que le devuelvan el saldo de su hijo o que borren sus " +
+                    "Nadie ha pedido nada. Si un tutor pide que le devuelvan el saldo de su hijo o que borren sus " +
                         "datos, aparece aquí.",
                     colors,
                 )

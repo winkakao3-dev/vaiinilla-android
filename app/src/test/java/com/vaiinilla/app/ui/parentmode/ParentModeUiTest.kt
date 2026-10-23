@@ -41,7 +41,9 @@ class ParentModeUiTest {
                     onOpen = { opened += it.userId },
                     onAdd = {},
                     onConsent = {},
-                    onOptions = {},
+                    entry = WalletSchoolEntry.PARENT,
+                    onRole = {},
+                    onLinkCode = {},
                 )
             }
         }
@@ -55,7 +57,8 @@ class ParentModeUiTest {
         composeTestRule.onNodeWithText("Esperando a que la escuela te apruebe").assertIsDisplayed()
         composeTestRule.onNodeWithText("\$0").assertDoesNotExist()
         composeTestRule.onNodeWithText("Agregar otro hijo").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Opciones avanzadas").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Cómo funciona para tutores").assertIsDisplayed()
+        composeTestRule.onNodeWithText("¿Eres tutor o alumno?").assertDoesNotExist()
 
         composeTestRule.onNodeWithTag("child-u-ana").performClick()
         assertEquals(listOf("u-ana"), opened)
