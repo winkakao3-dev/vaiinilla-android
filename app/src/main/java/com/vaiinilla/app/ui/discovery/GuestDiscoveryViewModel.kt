@@ -279,7 +279,7 @@ class GuestDiscoveryViewModel
                         _state.value =
                             _state.value.copy(
                                 resolving = false,
-                                errorMessage = error.toUserFacingMessage("No se pudo resolver el espacio."),
+                                errorMessage = SpaceCodeError.message(error),
                             )
                         onFinished()
                     },
