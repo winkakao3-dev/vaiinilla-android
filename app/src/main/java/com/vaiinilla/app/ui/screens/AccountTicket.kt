@@ -25,6 +25,13 @@ fun buildAccountTicketHtml(
             )}</span></td>" +
                 "<td class=\"r\">$${order.total}</td></tr>"
         }
+    // Lo abonado ya se recibió: "Por cobrar" es el restante del backend, no el pendiente (I07).
+    val paidInRow =
+        if (account.splitInProgress) {
+            "\n<tr><td class=\"l\">Abonado</td><td class=\"r\">$${account.paidIn}</td></tr>"
+        } else {
+            ""
+        }
     return """<!doctype html><html><head><meta charset="utf-8">
 <style>
   @page { size: 80mm auto; margin: 4mm; }
@@ -42,8 +49,8 @@ fun buildAccountTicketHtml(
 <div class="m">${escapeHtml(printedAt)}</div>
 <table>$rows
 <tr class="t"><td class="l">Total</td><td class="r">$${account.total}</td></tr>
-<tr><td class="l">Pagado</td><td class="r">$${account.paid}</td></tr>
-<tr><td class="l">Por cobrar</td><td class="r">$${account.pending}</td></tr>
+<tr><td class="l">Pagado</td><td class="r">$${account.paid}</td></tr>$paidInRow
+<tr><td class="l">Por cobrar</td><td class="r">$${account.remaining}</td></tr>
 </table>
 <div class="n">Cuenta para cobrar. No es un comprobante fiscal.</div>
 </body></html>"""
