@@ -1656,15 +1656,16 @@ fun KitchenOperationalScreen(
     var selectedOrderId by remember { mutableStateOf<String?>(null) }
     var rejecting by remember { mutableStateOf(false) }
     var rejectingItem by remember { mutableStateOf<OrderItem?>(null) }
+    val queueOrders = kitchenQueue(state.orders)
     val activeOrder =
-        state.orders.firstOrNull { it.summary.id == selectedOrderId }
-            ?: state.orders.firstOrNull()
-    val upcomingOrders = state.orders.filterNot { it.summary.id == activeOrder?.summary?.id }
+        queueOrders.firstOrNull { it.summary.id == selectedOrderId }
+            ?: queueOrders.firstOrNull()
+    val upcomingOrders = queueOrders.filterNot { it.summary.id == activeOrder?.summary?.id }
     val orderState = activeOrder?.summary?.state ?: OrderState.PAID
     val isPreparing = orderState == OrderState.PREPARING
     val isReady = orderState == OrderState.READY || orderState == OrderState.DELIVERED
     val nextGuidableOrder = upcomingOrders.firstOrNull()
-    val kitchenQueue = queuePresentation(state.orders.isNotEmpty(), state.lastRefreshOk)
+    val kitchenQueue = queuePresentation(queueOrders.isNotEmpty(), state.lastRefreshOk)
     LaunchedEffect(toastMessage) {
         if (toastMessage != null) {
             delay(2_200)
@@ -1955,6 +1956,8 @@ fun KitchenOperationalScreen(
                                             )
                                         }
                                     }
+
+                                    KitchenNotesNote(activeOrder.kitchenNotes, ink = TicketInk, muted = TicketMuted)
 
                                     if (activeOrder.summary.state == OrderState.PENDING_PAYMENT &&
                                         !activeOrder.summary.payAtEnd
