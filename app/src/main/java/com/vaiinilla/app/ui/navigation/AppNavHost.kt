@@ -1073,14 +1073,35 @@ fun AppNavHost(
             }
 
             composable(Routes.RESERVATIONS) {
-                val reservationsState = reservationsViewModel.uiState.value
-                val reservationsHasAccount = !orderFlowViewModel.requiresStudentAuth()
                 val reservationsVenueSlug = orderState.guestVenue?.establishment?.slug
-                DisposableEffect(reservationsHasAccount, reservationsVenueSlug) {
-                    reservationsViewModel.onVisible(
-                        guestSlug = reservationsVenueSlug,
-                        hasAccount = reservationsHasAccount,
-                    )
+                // Con sesión se renta con la cuenta: si en este lugar aún no hay contexto de cliente se prepara
+                // primero, en vez de caer en "Renta sin cuenta". Si falla, el error se ve arriba.
+                val reservationsSignedIn = studentAuthState.session != null
+                var reservationsVenueReady by remember(reservationsSignedIn, reservationsVenueSlug) {
+                    mutableStateOf(!orderFlowViewModel.requiresStudentAuth())
+                }
+                LaunchedEffect(reservationsSignedIn, reservationsVenueSlug) {
+                    if (reservationsSignedIn && !reservationsVenueReady) {
+                        studentAuthViewModel.ensureVenueContext(
+                            onReady = { reservationsVenueReady = true },
+                            onNeedsAuth = { navController.navigate(Routes.authLandingRoute(Routes.RESERVATIONS)) },
+                            onFailed = reservationsViewModel::showError,
+                        )
+                    }
+                }
+                val reservationsHasAccount = reservationsVenueReady
+                val preparingAccount = reservationsSignedIn && !reservationsVenueReady
+                val reservationsState =
+                    reservationsViewModel.uiState.value.let { state ->
+                        if (preparingAccount) state.copy(guestEntry = false, loading = state.error == null) else state
+                    }
+                DisposableEffect(reservationsHasAccount, reservationsVenueSlug, preparingAccount) {
+                    if (!preparingAccount) {
+                        reservationsViewModel.onVisible(
+                            guestSlug = reservationsVenueSlug,
+                            hasAccount = reservationsHasAccount,
+                        )
+                    }
                     onDispose { reservationsViewModel.onHidden() }
                 }
                 // El pago crea un pedido de renta: se sigue en la confirmación de pedido
