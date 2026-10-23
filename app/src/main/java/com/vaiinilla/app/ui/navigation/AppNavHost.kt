@@ -46,6 +46,7 @@ import com.vaiinilla.app.core.notifications.OrderNotificationTarget
 import com.vaiinilla.app.data.auth.student.GoogleSignInHelper
 import com.vaiinilla.app.data.auth.student.GoogleSignInUnavailableException
 import com.vaiinilla.app.domain.counter.CounterScope
+import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
@@ -78,6 +79,7 @@ import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
 import com.vaiinilla.app.ui.operational.CourtsViewModel
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
+import com.vaiinilla.app.ui.operational.PendingRefundsViewModel
 import com.vaiinilla.app.ui.operational.WaiterViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.canPayWithCard
@@ -96,6 +98,7 @@ import com.vaiinilla.app.ui.screens.AssistantChatScreen
 import com.vaiinilla.app.ui.screens.AuthorizedModeScreen
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CashierOperationalScreen
+import com.vaiinilla.app.ui.screens.CashierRefundsSection
 import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.CounterOrderSheet
 import com.vaiinilla.app.ui.screens.DiscoveryScreen
@@ -186,6 +189,7 @@ fun AppNavHost(
     // Caja de una escuela (alumnos sin teléfono) y "Para mañana" de Cocina: padres e hijos.
     val studentCounterViewModel: StudentCounterViewModel = viewModel()
     val reservedOrdersViewModel: ReservedOrdersViewModel = viewModel()
+    val pendingRefundsViewModel: PendingRefundsViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
     val waiterState by waiterViewModel.uiState
@@ -1859,6 +1863,10 @@ fun AppNavHost(
                     var studentsSheetOpen by rememberSaveable { mutableStateOf(false) }
                     // Una sola lectura del tablero para el contador de mesas; el sondeo es del tablero.
                     LaunchedEffect(Unit) { waiterViewModel.refresh() }
+                    DisposableEffect(Unit) {
+                        pendingRefundsViewModel.onVisible()
+                        onDispose { pendingRefundsViewModel.onHidden() }
+                    }
                     CashierOperationalScreen(
                         state = operationalState,
                         onBack = returnToModes(navController, operationalViewModel),
@@ -1874,6 +1882,9 @@ fun AppNavHost(
                         onScanDeliver = { orderId, version ->
                             pendingPickupDelivery = PendingPickupDelivery(orderId, version)
                         },
+                        onRejectOrder = operationalViewModel::rejectOrder,
+                        onRejectItem = operationalViewModel::rejectItem,
+                        onActionNoticed = operationalViewModel::consumeActionNotice,
                         onChangeMode =
                             if (authorizedAccessState.hasMultipleModes) {
                                 returnToModes(navController, operationalViewModel)
@@ -1918,6 +1929,16 @@ fun AppNavHost(
                                     )
                                 }
                             },
+                        placeName = authorizedAccessState.activeContext?.establishmentName.orEmpty(),
+                        refundsEntry = {
+                            CashierRefundsSection(
+                                state = pendingRefundsViewModel.uiState.value,
+                                canConfirm =
+                                    authorizedAccessState.activeContext?.restrictedMode != RestrictedMode.READ_ONLY,
+                                colors = rememberOperationalColors(),
+                                onConfirm = pendingRefundsViewModel::confirm,
+                            )
+                        },
                         notice = waiterState.toastMessage,
                         onDismissError = operationalViewModel::dismissMutationError,
                         onRefresh = operationalViewModel::refresh,

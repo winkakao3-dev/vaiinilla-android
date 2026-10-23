@@ -34,6 +34,7 @@ import com.vaiinilla.app.domain.admin.ManagedSpace
 import com.vaiinilla.app.domain.admin.ReservationSchedule
 import com.vaiinilla.app.domain.admin.SpaceRules
 import com.vaiinilla.app.domain.admin.SpaceType
+import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.ui.admin.AdminSpacesViewModel
@@ -459,7 +460,7 @@ private fun EditSheet(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OperationalField(
                     value = price,
-                    onValueChange = { price = it.filter { c -> c.isDigit() || c == '.' }.take(8) },
+                    onValueChange = { price = MoneyInput.sanitize(it).take(8) },
                     label = "Precio por hora (MXN)",
                     colors = colors,
                     placeholder = "Vacío = no se renta",
@@ -629,7 +630,7 @@ private fun ChargeSheet(
         )
         OperationalField(
             value = received,
-            onValueChange = { received = it.filter { c -> c.isDigit() || c == '.' }.take(10) },
+            onValueChange = { received = MoneyInput.sanitize(it).take(10) },
             label = "Efectivo recibido",
             colors = colors,
             enabled = !saving,

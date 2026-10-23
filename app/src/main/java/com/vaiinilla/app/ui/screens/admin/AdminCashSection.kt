@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.input.KeyboardType
+import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.screens.ActionPill
 import com.vaiinilla.app.ui.screens.OperationalColors
@@ -121,7 +122,7 @@ private fun AmountSheet(
     AdminSheet(title = title, colors = colors, busy = saving, onDismiss = onDismiss) {
         OperationalField(
             value = amount,
-            onValueChange = { amount = it.filter { c -> c.isDigit() || c == '.' }.take(11) },
+            onValueChange = { amount = MoneyInput.sanitize(it).take(11) },
             label = label,
             colors = colors,
             placeholder = "0",

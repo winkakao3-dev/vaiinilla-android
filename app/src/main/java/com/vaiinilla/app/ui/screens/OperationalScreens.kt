@@ -66,6 +66,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -104,6 +105,7 @@ import androidx.core.net.toUri
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.Money
+import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderItem
@@ -273,6 +275,11 @@ fun CashierOperationalScreen(
     onCloseCash: (String) -> Unit = {},
     onCollect: (orderId: String, amount: String, version: Int, tip: String?) -> Unit,
     onScanDeliver: (orderId: String, version: Int) -> Unit = { _, _ -> },
+    /** Rechazar el pedido entero con motivo (B09); el cliente ve el motivo. */
+    onRejectOrder: (orderId: String, version: Int, reason: String) -> Unit = { _, _, _ -> },
+    /** Quitar un artículo con motivo (G07); el último no se quita, se rechaza el pedido. */
+    onRejectItem: (orderId: String, itemId: Int, version: Int, reason: String) -> Unit = { _, _, _, _ -> },
+    onActionNoticed: () -> Unit = {},
     onSearchWalletClients: (String) -> Unit = {},
     onOpenWalletUserQr: () -> Unit = {},
     onReloadWallet: (userId: String, amount: String) -> Unit = { _, _ -> },
@@ -301,6 +308,10 @@ fun CashierOperationalScreen(
     pendingSpaces: Int? = null,
     /** Caja de una escuela: la fila Alumnos (padres e hijos); null fuera de una escuela. */
     studentsEntry: (@Composable () -> Unit)? = null,
+    /** Devoluciones pendientes (G08, H03); null las oculta. */
+    refundsEntry: (@Composable () -> Unit)? = null,
+    /** El negocio de esta caja, para que el cajero vea en cuál cobra. */
+    placeName: String = "",
     /** Aviso que llega de fuera (por ejemplo, el folio del pedido de mostrador). */
     notice: String? = null,
     onDismissError: () -> Unit = {},
@@ -362,12 +373,23 @@ fun CashierOperationalScreen(
         }
     }
     LaunchedEffect(notice) { notice?.let { toastMessage = it } }
+    LaunchedEffect(state.actionNotice) {
+        state.actionNotice?.let {
+            toastMessage = it
+            onActionNoticed()
+        }
+    }
     var assistantPulse by remember { mutableIntStateOf(0) }
     var walletSheetOpen by remember { mutableStateOf(false) }
     var choosingOrderPlace by remember { mutableStateOf(false) }
 
     // Caja solo actúa sobre pedidos por cobrar o listos para entregar; el resto es de cocina.
     var selectedCashierOrderId by remember { mutableStateOf<String?>(null) }
+    // Lo que el cajero lleva escrito (efectivo y propina) por pedido. Vive fuera de la lista: el sondeo
+    // trae una copia nueva del pedido cada pocos segundos y la tarjeta se rehace, pero el cobro sigue.
+    val cashDrafts = remember { mutableStateMapOf<String, CashierCashDraft>() }
+    var rejectingOrder by remember { mutableStateOf(false) }
+    var rejectingItem by remember { mutableStateOf<OrderItem?>(null) }
     val canReloadWallet =
         state.cashSessionOpen == true &&
             !state.acting &&
@@ -382,6 +404,8 @@ fun CashierOperationalScreen(
             ?: actionableCashierOrders.firstOrNull()
     val queuedCashierOrders =
         actionableCashierOrders.filterNot { it.summary.id == recentOrder?.summary?.id }
+    val actionableIds = actionableCashierOrders.map { it.summary.id }.toSet()
+    LaunchedEffect(actionableIds) { cashDrafts.keys.filterNot { it in actionableIds }.forEach(cashDrafts::remove) }
     val cashierQueue = queuePresentation(actionableCashierOrders.isNotEmpty(), state.lastRefreshOk)
     val products = state.catalog?.products.orEmpty()
     val activeCount = products.count { it.available }
@@ -450,7 +474,7 @@ fun CashierOperationalScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Topline
-            item {
+            item(key = "cashier-topline") {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -468,11 +492,15 @@ fun CashierOperationalScreen(
                                 fontSize = 16.sp,
                                 color = colors.textPrimary,
                             )
+                            // Antes de cobrar, el cajero confirma que la sesión está abierta y en qué negocio (G01).
                             Text(
-                                "Cuenta de caja",
+                                cashierSessionCaption(state.cashSessionOpen, placeName),
                                 fontSize = 12.sp,
                                 color = colors.textSecondary,
                                 fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                             )
                         }
                     }
@@ -633,12 +661,18 @@ fun CashierOperationalScreen(
                 }
             }
 
+            if (refundsEntry != null) {
+                item(key = "refunds-entry") {
+                    Box(modifier = Modifier.animateItem()) { refundsEntry() }
+                }
+            }
+
             item(key = "queue-header") {
                 CashierQueueHeader(count = actionableCashierOrders.size, colors = colors)
             }
 
-            // Hero Recent Order Card or Empty State
-            item {
+            // Con llave fija: si aparece un aviso arriba, la tarjeta no cambia de lugar ni se rehace.
+            item(key = "cashier-hero") {
                 AnimatedContent(
                     targetState = recentOrder,
                     contentKey = { it?.summary?.id },
@@ -650,14 +684,16 @@ fun CashierOperationalScreen(
                         val isDelivered = recentOrder.summary.state == OrderState.DELIVERED
                         val isOrderReady = recentOrder.summary.state == OrderState.READY
                         val isPendingPayment = recentOrder.summary.state == OrderState.PENDING_PAYMENT
-                        var cashReceivedInput by
-                            remember(recentOrder.summary.id) {
-                                mutableStateOf(recentOrder.summary.total)
-                            }
-                        var cashTipChoice by
-                            remember(recentOrder.summary.id) {
-                                mutableStateOf<TipChoice>(TipChoice.None)
-                            }
+                        val draftOrderId = recentOrder.summary.id
+                        // Si el total cambió (se quitó un artículo), lo escrito ya no aplica y se vuelve a sugerir.
+                        val cashDraft =
+                            cashDrafts[draftOrderId]?.takeIf { it.orderTotal == recentOrder.summary.total }
+                                ?: CashierCashDraft(
+                                    orderTotal = recentOrder.summary.total,
+                                    received = recentOrder.summary.total,
+                                )
+                        val cashReceivedInput = cashDraft.received
+                        val cashTipChoice = cashDraft.tip
                         // El progreso es del cobro: otra acción en curso solo deshabilita el botón.
                         var collecting by remember(recentOrder.summary.id) { mutableStateOf(false) }
                         LaunchedEffect(state.acting, state.errorMessage) {
@@ -717,6 +753,11 @@ fun CashierOperationalScreen(
 
                                     Column(modifier = Modifier.padding(top = 8.dp)) {
                                         // Lo que Cocina o Caja quitaron ya no cuenta ni en el total ni en el ticket.
+                                        // El último artículo no se quita: se rechaza el pedido entero.
+                                        val canRemoveItems =
+                                            restrictedMode != RestrictedMode.READ_ONLY &&
+                                                recentOrder.activeItems.size > 1 &&
+                                                !state.acting
                                         recentOrder.activeItems.forEach { item ->
                                             ReceiptLine(
                                                 quantity = item.quantity,
@@ -726,6 +767,7 @@ fun CashierOperationalScreen(
                                                         .joinToString(" · ") { it.name }
                                                         .ifEmpty { null },
                                                 price = "$${item.subtotal}",
+                                                onRemove = if (canRemoveItems) ({ rejectingItem = item }) else null,
                                             )
                                         }
                                     }
@@ -766,10 +808,15 @@ fun CashierOperationalScreen(
                                             tipAmount = tipAmount,
                                             enabled = !state.acting,
                                             onChange = { next ->
-                                                cashTipChoice = next
                                                 // El efectivo sugerido sigue al pedido más la propina.
-                                                cashReceivedInput =
-                                                    Money.format(orderTotal + next.amountFor(orderTotal))
+                                                cashDrafts[draftOrderId] =
+                                                    cashDraft.copy(
+                                                        received =
+                                                            Money.format(
+                                                                orderTotal + next.amountFor(orderTotal),
+                                                            ),
+                                                        tip = next,
+                                                    )
                                             },
                                         )
                                         // Pedido pagado en efectivo: hay que cobrarlo antes de que exista
@@ -777,8 +824,8 @@ fun CashierOperationalScreen(
                                         BasicTextField(
                                             value = cashReceivedInput,
                                             onValueChange = { raw ->
-                                                cashReceivedInput =
-                                                    raw.filter { it.isDigit() || it == '.' }
+                                                cashDrafts[draftOrderId] =
+                                                    cashDraft.copy(received = MoneyInput.sanitize(raw))
                                             },
                                             singleLine = true,
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -918,6 +965,20 @@ fun CashierOperationalScreen(
                                                 fontSize = 14.sp,
                                                 maxLines = 1,
                                                 softWrap = false,
+                                            )
+                                        }
+                                    }
+                                    if (restrictedMode != RestrictedMode.READ_ONLY) {
+                                        TextButton(
+                                            onClick = { rejectingOrder = true },
+                                            enabled = !state.acting,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) {
+                                            Text(
+                                                "Rechazar pedido",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                color = if (state.acting) TicketMuted else Color(0xFFE5645A),
                                             )
                                         }
                                     }
@@ -1156,6 +1217,33 @@ fun CashierOperationalScreen(
                 onOpenAccounts = onOpenAccounts,
             )
         }
+        val rejectTarget = recentOrder
+        val itemToReject = rejectingItem
+        if (itemToReject != null && rejectTarget != null) {
+            KitchenRejectDialog(
+                folio = rejectTarget.summary.folio,
+                itemName = itemToReject.productName,
+                colors = colors,
+                onDismiss = { rejectingItem = null },
+                onConfirm = { reason ->
+                    rejectingItem = null
+                    haptics.impact()
+                    onRejectItem(rejectTarget.summary.id, itemToReject.id, rejectTarget.summary.version, reason)
+                },
+            )
+        }
+        if (rejectingOrder && rejectTarget != null) {
+            KitchenRejectDialog(
+                folio = rejectTarget.summary.folio,
+                colors = colors,
+                onDismiss = { rejectingOrder = false },
+                onConfirm = { reason ->
+                    rejectingOrder = false
+                    haptics.impact()
+                    onRejectOrder(rejectTarget.summary.id, rejectTarget.summary.version, reason)
+                },
+            )
+        }
         if (addProductSheetOpen) {
             val categoryId =
                 state.catalog
@@ -1179,7 +1267,7 @@ fun CashierOperationalScreen(
                                 ingredients = "",
                                 allergens = "",
                                 estimatedTimeMinutes = 5,
-                                counterPrice = "$price.00",
+                                counterPrice = price,
                                 available = true,
                             )
                         onCreateCashierProduct(
@@ -1253,7 +1341,7 @@ private fun TicketTipRow(
         if (custom != null) {
             BasicTextField(
                 value = custom.amount,
-                onValueChange = { raw -> onChange(TipChoice.Custom(raw.filter { it.isDigit() || it == '.' })) },
+                onValueChange = { raw -> onChange(TipChoice.Custom(MoneyInput.sanitize(raw))) },
                 singleLine = true,
                 enabled = enabled,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -2379,7 +2467,8 @@ private fun AddProductSheet(
     onDismiss: () -> Unit,
     onAdd: (
         name: String,
-        price: Int,
+        /** Con dos decimales, como lo pide el backend ("12.50"). */
+        price: String,
         imageBytes: ByteArray?,
         imageFilename: String?,
         imageMime: String?,
@@ -2581,12 +2670,12 @@ private fun AddProductSheet(
             )
             OperationalField(
                 value = priceStr,
-                onValueChange = { priceStr = it.filter { char -> char.isDigit() } },
+                onValueChange = { priceStr = MoneyInput.sanitize(it) },
                 label = "Precio",
                 colors = colors,
-                placeholder = "Ej. 65",
+                placeholder = "Ej. 65 o 12.50",
                 enabled = !saving,
-                keyboardType = KeyboardType.Number,
+                keyboardType = KeyboardType.Decimal,
             )
 
             if (submitted && !errorMessage.isNullOrBlank()) {
@@ -2600,12 +2689,13 @@ private fun AddProductSheet(
             Spacer(Modifier.height(4.dp))
 
             // Save button
-            val isValid = name.isNotBlank() && priceStr.isNotBlank() && (priceStr.toIntOrNull() ?: 0) > 0
+            val price = MoneyInput.toWire(priceStr)
+            val isValid = name.isNotBlank() && price != null && price.toBigDecimal().signum() > 0
             Button(
                 onClick = {
                     haptics.impact()
                     submitted = true
-                    val price = priceStr.toIntOrNull() ?: return@Button
+                    if (price == null) return@Button
                     onAdd(
                         name.trim(),
                         price,
@@ -2756,4 +2846,23 @@ internal fun kitchenQueueLabel(order: OrderDetail): String =
         OrderState.PREPARING -> "Preparando"
         OrderState.READY -> "Lista"
         else -> "En espera"
+    }
+
+/** El cobro en efectivo que el cajero va armando: lo recibido y la propina elegida. */
+internal data class CashierCashDraft(
+    /** El total del pedido cuando se empezó a escribir. */
+    val orderTotal: String,
+    val received: String,
+    val tip: TipChoice = TipChoice.None,
+)
+
+/** "Sesión de caja abierta · Usagi" con la caja abierta; "Cuenta de caja" mientras no se sabe o está cerrada. */
+internal fun cashierSessionCaption(
+    cashSessionOpen: Boolean?,
+    placeName: String,
+): String =
+    when {
+        cashSessionOpen != true -> "Cuenta de caja"
+        placeName.isBlank() -> "Sesión de caja abierta"
+        else -> "Sesión de caja abierta · ${placeName.trim()}"
     }
