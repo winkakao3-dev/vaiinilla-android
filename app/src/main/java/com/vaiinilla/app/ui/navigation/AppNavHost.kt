@@ -1191,6 +1191,7 @@ fun AppNavHost(
                         onMenu = { navController.navigateStudent(Routes.CATALOG) },
                         onCodeOpenChange = { walletCodeOpen = it },
                         caretakerLine = guardianControlsViewModel.controls?.caretakerLine,
+                        caretakerDetail = guardianControlsViewModel.controls?.walletDetail,
                         familySection = familySection,
                     )
                 }
