@@ -11,13 +11,30 @@ import java.util.Base64
 internal object JwtContextScope {
     private val json = Json
 
-    fun stableKey(token: String): String? {
+    /** El negocio del contexto, o `null` si el token no lo dice. */
+    fun establishmentId(token: String): String? =
+        claims(token)?.textClaim("establecimiento_id")?.takeIf { it.isNotBlank() }
+
+    /** Hay token y es de [establishmentId]; uno sin el claim se da por bueno, como antes. */
+    fun isContextFor(
+        token: String?,
+        establishmentId: String,
+    ): Boolean {
+        if (token.isNullOrBlank()) return false
+        val tokenEstablishment = establishmentId(token) ?: return true
+        return tokenEstablishment == establishmentId
+    }
+
+    private fun claims(token: String): JsonObject? {
         val payload = token.split('.').getOrNull(1) ?: return null
-        val claims =
-            runCatching {
-                val decoded = String(Base64.getUrlDecoder().decode(payload), Charsets.UTF_8)
-                json.parseToJsonElement(decoded).jsonObject
-            }.getOrNull() ?: return null
+        return runCatching {
+            val decoded = String(Base64.getUrlDecoder().decode(payload), Charsets.UTF_8)
+            json.parseToJsonElement(decoded).jsonObject
+        }.getOrNull()
+    }
+
+    fun stableKey(token: String): String? {
+        val claims = claims(token) ?: return null
         val uid =
             claims.textClaim("uid")?.takeIf { it.isNotBlank() }
                 ?: claims.textClaim("sub")?.takeIf { it.isNotBlank() }

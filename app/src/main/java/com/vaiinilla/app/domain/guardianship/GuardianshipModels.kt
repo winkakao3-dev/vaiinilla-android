@@ -221,6 +221,28 @@ data class MyGuardianControls(
     /** ¿Este total cabe en lo que le queda hoy? Sin límite, siempre. */
     fun fitsToday(total: BigDecimal): Boolean = availableToday == null || total <= availableToday
 
+    /** Bajo "Te cuida…" en Cartera, como iOS: su límite y lo que le queda hoy, y cuántos productos no puede pedir. */
+    val walletDetail: String?
+        get() {
+            val details = mutableListOf<String>()
+            if (dailyLimit != null && availableToday != null) {
+                details +=
+                    "Límite de ${compactMoney(dailyLimit)} al día; hoy te quedan ${compactMoney(availableToday)}."
+            }
+            val restricted = (blockedProductIds + allergenProductIds + unreviewedProductIds).size
+            if (restricted > 0) {
+                details +=
+                    if (restricted ==
+                        1
+                    ) {
+                        "1 producto no está a tu alcance."
+                    } else {
+                        "$restricted productos no están a tu alcance."
+                    }
+            }
+            return details.takeIf { it.isNotEmpty() }?.joinToString(" ")
+        }
+
     /** "Te cuida Ana" o "Te cuidan Ana y Luis". */
     val caretakerLine: String?
         get() =
