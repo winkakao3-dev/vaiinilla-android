@@ -140,7 +140,13 @@ internal fun spaceAvailabilityCaption(
         SpaceAvailabilityState.LIBRE -> null
         SpaceAvailabilityState.OCUPADA -> {
             val remaining = millisUntil(availability.endsAt)
-            if (remaining != null) "${remainingText(remaining)} restantes$pending" else "Cuenta abierta$pending"
+            // Una cuenta sin turno no tiene reloj: se dice desde cuándo está abierta.
+            val since = endsAtClock(availability.startedAt)?.let { "Desde las $it" }
+            if (remaining != null) {
+                "${remainingText(remaining)} restantes$pending"
+            } else {
+                "${since ?: "Cuenta abierta"}$pending"
+            }
         }
         SpaceAvailabilityState.EN_GRACIA -> "Turno terminado$pending"
         SpaceAvailabilityState.POR_COBRAR -> "Por cobrar"
@@ -335,6 +341,9 @@ internal fun WaiterSpaceSection(
     val session = detail.session
     val pending = account?.pending?.moneyOrZero() ?: BigDecimal.ZERO
     val hasPending = pending.signum() > 0
+    // Lo que de verdad falta: lo pendiente menos lo ya abonado, como lo calcula el backend (`restante`).
+    val remaining = account?.remaining?.moneyOrZero() ?: pending
+    val paidIn = account?.paidIn?.moneyOrZero() ?: BigDecimal.ZERO
 
     SectionCard(colors, Modifier.arrive(0)) {
         Row(
@@ -477,13 +486,21 @@ internal fun WaiterSpaceSection(
                         fontWeight = FontWeight.SemiBold,
                     )
                     RollingText(
-                        text = "$${account.pending}",
+                        text = "$${Money.format(remaining)}",
                         style = TextStyle(fontSize = 30.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.8).sp),
                         color = if (hasPending) colors.textPrimary else colors.textSecondary,
                     )
+                    if (paidIn.signum() > 0) {
+                        Text(
+                            "Abonado $${Money.format(paidIn)}",
+                            color = colors.textSecondary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                 }
-                // El total solo aporta si ya se cobró una parte; si no, repite lo que falta.
-                if (account.total.moneyOrZero().compareTo(pending) != 0) {
+                // El total solo aporta si ya se cobró o abonó una parte; si no, repite lo que falta.
+                if (account.total.moneyOrZero().compareTo(remaining) != 0) {
                     Column(horizontalAlignment = Alignment.End) {
                         Text("Total", color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         RollingText(
