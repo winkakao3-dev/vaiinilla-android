@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.parentmode
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
@@ -9,25 +10,35 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Backpack
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.FamilyRestroom
 import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -36,6 +47,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -44,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -66,17 +79,19 @@ import kotlinx.coroutines.launch
 private const val CHILD_NOTICE_RETRY_MS = 1_500L
 
 /** Lo que el host del Modo Padre tiene abierto encima de la cartera. */
-private enum class ParentSheetKind { ADD, CONSENT }
+private enum class ParentSheetKind { ADD, CONSENT, LINK_CODE }
 
 /**
  * El Modo Padre dentro de la cartera, solo en escuelas. Pinta la cartera con [content] (que recibe la
  * sección "Mis hijos" para ponerla bajo el saldo) y encima, a pantalla completa, la ficha de un hijo
- * u Opciones avanzadas. Sin escuela, la cartera queda igual que siempre.
+ * o lo de su rol (tutor o alumno). Sin escuela, la cartera queda igual que siempre.
  */
 @Composable
 fun ParentModeWalletHost(
     enabled: Boolean,
     childrenViewModel: ChildrenViewModel,
+    /** Este cliente es un hijo con tutor (mis-controles trae tutores): lo de tutor no le sirve. */
+    hasTutors: Boolean,
     /** Una página del Modo Padre tapa la cartera: la barra de abajo se esconde mientras tanto. */
     onFullScreenChange: (Boolean) -> Unit,
     /** Tras reclamar su cuenta, el alumno vuelve a pedir el contexto de cliente con su Google. */
@@ -91,9 +106,12 @@ fun ParentModeWalletHost(
     val reduced = reducedMotion()
     val scope = rememberCoroutineScope()
     var openChildId by rememberSaveable { mutableStateOf<String?>(null) }
-    var showsOptions by rememberSaveable { mutableStateOf(false) }
+    var optionsRole by rememberSaveable { mutableStateOf<SchoolRole?>(null) }
+    // Que la página no se quede en blanco mientras sale.
+    var shownRole by remember { mutableStateOf(SchoolRole.PARENT) }
+    optionsRole?.let { shownRole = it }
     var sheet by rememberSaveable { mutableStateOf<ParentSheetKind?>(null) }
-    val fullScreen = openChildId != null || showsOptions
+    val fullScreen = openChildId != null || optionsRole != null
     LaunchedEffect(fullScreen) { onFullScreenChange(fullScreen) }
     LaunchedEffect(Unit) {
         children.load()
@@ -115,7 +133,7 @@ fun ParentModeWalletHost(
             children.load()
             val child = children.children.firstOrNull { it.userId == link.dependentUserId }
             if (child != null) {
-                showsOptions = false
+                optionsRole = null
                 if (!child.isAwaitingSchool) openChildId = child.userId
                 ChildDeepLinkStore.consumeChild()
                 return@LaunchedEffect
@@ -131,15 +149,19 @@ fun ParentModeWalletHost(
                 onOpen = { openChildId = it.userId },
                 onAdd = { sheet = ParentSheetKind.ADD },
                 onConsent = { sheet = ParentSheetKind.CONSENT },
-                onOptions = { showsOptions = true },
+                entry = schoolEntryFor(children.children.isNotEmpty(), hasTutors, children.hasLoaded),
+                onRole = { optionsRole = it },
+                onLinkCode = { sheet = ParentSheetKind.LINK_CODE },
             )
         }
-        FullScreenPage(visible = showsOptions && openChildId == null, reduced = reduced) {
-            BackHandler { showsOptions = false }
+        FullScreenPage(visible = optionsRole != null && openChildId == null, reduced = reduced) {
+            BackHandler { optionsRole = null }
             SchoolOptionsPage(
                 children = children,
+                role = shownRole,
+                hasTutors = hasTutors,
                 onAccountClaimed = onAccountClaimed,
-                onBack = { showsOptions = false },
+                onBack = { optionsRole = null },
             )
         }
         val openChild = children.children.firstOrNull { it.userId == openChildId && !it.isAwaitingSchool }
@@ -171,6 +193,7 @@ fun ParentModeWalletHost(
                     null
             })
         ParentSheetKind.CONSENT -> PrivacyConsentSheet(children = children, onDismiss = { sheet = null })
+        ParentSheetKind.LINK_CODE -> LinkCodeSheet(children.services.guardianship, onDismiss = { sheet = null })
         null -> Unit
     }
 }
@@ -205,9 +228,25 @@ private fun BoxScope.FullScreenPage(
     }
 }
 
+/** Lo que sale al final de la cartera de una escuela, según quién es. */
+internal enum class WalletSchoolEntry { LOADING, PARENT, STUDENT, UNKNOWN }
+
+/** Con hijos es tutor; con tutores, alumno; si no se sabe, que elija (cuando ya cargó la lista de hijos). */
+internal fun schoolEntryFor(
+    hasChildren: Boolean,
+    hasTutors: Boolean,
+    childrenLoaded: Boolean,
+): WalletSchoolEntry =
+    when {
+        hasChildren -> WalletSchoolEntry.PARENT
+        hasTutors -> WalletSchoolEntry.STUDENT
+        childrenLoaded -> WalletSchoolEntry.UNKNOWN
+        else -> WalletSchoolEntry.LOADING
+    }
+
 /**
- * "Mis hijos" sale solo a quien ya tiene hijos; para los demás, lo de papás y alumnos vive en una
- * fila discreta de Opciones avanzadas, para que nadie vea "¿eres papá?" al pagar.
+ * Cada quien ve solo lo suyo: quien tiene hijos, "Mis hijos"; el alumno con tutor, su código para otro
+ * tutor; los demás eligen al final de la cartera si son tutor o alumno.
  */
 @Composable
 internal fun WalletFamilySection(
@@ -215,7 +254,9 @@ internal fun WalletFamilySection(
     onOpen: (Dependent) -> Unit,
     onAdd: () -> Unit,
     onConsent: () -> Unit,
-    onOptions: () -> Unit,
+    entry: WalletSchoolEntry,
+    onRole: (SchoolRole) -> Unit,
+    onLinkCode: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -258,30 +299,141 @@ internal fun WalletFamilySection(
                 )
             }
         }
-        Row(
+        AnimatedContent(
+            targetState = entry,
+            transitionSpec = {
+                if (reduced) {
+                    fadeIn(snap()) togetherWith fadeOut(snap())
+                } else {
+                    (
+                        fadeIn(
+                            spring(stiffness = 300f),
+                        ) + slideInVertically(spring(stiffness = 400f)) { it / 8 }
+                    ) togetherWith
+                        fadeOut(spring(stiffness = 600f))
+                }
+            },
+            label = "school-entry",
+        ) { shown ->
+            when (shown) {
+                WalletSchoolEntry.LOADING -> Spacer(Modifier.fillMaxWidth())
+                WalletSchoolEntry.PARENT ->
+                    QuietRow(
+                        Icons.AutoMirrored.Outlined.HelpOutline,
+                        "Cómo funciona para tutores",
+                        "wallet-school-help",
+                    ) {
+                        onRole(SchoolRole.PARENT)
+                    }
+                WalletSchoolEntry.STUDENT ->
+                    Column {
+                        QuietRow(Icons.Outlined.Tag, "Que otro tutor me agregue", "wallet-school-link-code", onLinkCode)
+                        QuietRow(Icons.AutoMirrored.Outlined.HelpOutline, "Cómo funciona", "wallet-school-help") {
+                            onRole(SchoolRole.STUDENT)
+                        }
+                    }
+                WalletSchoolEntry.UNKNOWN -> RoleChooser(onRole)
+            }
+        }
+    }
+}
+
+/** Al final de la cartera y en voz baja: quien solo paga su comida lo pasa de largo. */
+@Composable
+private fun RoleChooser(onRole: (SchoolRole) -> Unit) {
+    val colors = LocalVaiinillaColors.current
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("¿Eres tutor o alumno?", color = colors.muted, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.height(IntrinsicSize.Min)) {
+            RoleCard(
+                icon = Icons.Outlined.FamilyRestroom,
+                title = "Soy tutor",
+                detail = "Agrega a tu hijo y recárgale",
+                tag = "wallet-school-parent",
+            ) { onRole(SchoolRole.PARENT) }
+            RoleCard(
+                icon = Icons.Outlined.Backpack,
+                title = "Soy alumno",
+                detail = "Que tu tutor te agregue",
+                tag = "wallet-school-student",
+            ) { onRole(SchoolRole.STUDENT) }
+        }
+    }
+}
+
+@Composable
+private fun RowScope.RoleCard(
+    icon: ImageVector,
+    title: String,
+    detail: String,
+    tag: String,
+    onClick: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    val shape = RoundedCornerShape(18.dp)
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier =
+            Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .testTag(tag)
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .clip(shape)
+                .background(colors.paper2)
+                .border(1.dp, colors.line, shape)
+                .padding(14.dp),
+    ) {
+        Box(
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .testTag("wallet-advanced-options")
-                    .physicalPress(scale = PhysicalPressScale.Small, onClick = onOptions)
-                    .padding(vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                    .size(
+                        40.dp,
+                    ).clip(CircleShape)
+                    .background(colors.paper)
+                    .border(1.dp, colors.line, CircleShape),
+            contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Tune, contentDescription = null, tint = colors.muted, modifier = Modifier.size(16.dp))
-            Text(
-                "Opciones avanzadas",
-                color = colors.muted,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                modifier = Modifier.weight(1f).padding(start = 10.dp),
-            )
-            Icon(
-                Icons.Outlined.ChevronRight,
-                contentDescription = null,
-                tint = colors.muted,
-                modifier = Modifier.size(18.dp),
-            )
+            Icon(icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(18.dp))
         }
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(title, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 15.sp)
+            Text(detail, color = colors.muted, fontSize = 12.sp, lineHeight = 16.sp)
+        }
+    }
+}
+
+@Composable
+private fun QuietRow(
+    icon: ImageVector,
+    title: String,
+    tag: String,
+    onClick: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .testTag(tag)
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = colors.muted, modifier = Modifier.size(16.dp))
+        Text(
+            title,
+            color = colors.muted,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            modifier = Modifier.weight(1f).padding(start = 10.dp),
+        )
+        Icon(
+            Icons.Outlined.ChevronRight,
+            contentDescription = null,
+            tint = colors.muted,
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
 

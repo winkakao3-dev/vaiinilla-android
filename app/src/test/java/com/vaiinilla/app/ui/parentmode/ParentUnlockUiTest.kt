@@ -22,7 +22,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** Opciones avanzadas con y sin el código de la escuela, y la hoja que lo pide. */
+/** Cartera › Soy tutor con y sin el código de la escuela, y la hoja que lo pide. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(
@@ -106,7 +106,15 @@ class ParentUnlockUiTest {
             ChildrenState(ParentFixtures.services(guardianship, catalog = FakeCatalog(status(unlocked))))
         runBlocking { children.load() }
         composeTestRule.setContent {
-            ScreenshotTheme { SchoolOptionsPage(children = children, onAccountClaimed = {}, onBack = {}) }
+            ScreenshotTheme {
+                SchoolOptionsPage(
+                    children = children,
+                    role = SchoolRole.PARENT,
+                    hasTutors = false,
+                    onAccountClaimed = {},
+                    onBack = {},
+                )
+            }
         }
         composeTestRule.waitForIdle()
     }

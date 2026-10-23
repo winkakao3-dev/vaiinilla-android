@@ -30,7 +30,7 @@ import com.vaiinilla.app.ui.screens.admin.AdminCoral
 import com.vaiinilla.app.ui.screens.admin.AdminHint
 import com.vaiinilla.app.ui.screens.admin.AdminSectionTitle
 
-/** El padrón de la escuela: con él, los papás solo dan de alta a alumnos que de verdad son de aquí. */
+/** El padrón de la escuela: con él, los tutores solo dan de alta a alumnos que de verdad son de aquí. */
 @Composable
 internal fun RosterCard(
     state: AdminSchoolUiState,
@@ -60,7 +60,7 @@ internal fun RosterCard(
                 ) { students -> actions.onSaveRoster(students) { pasting = false } }
             roster.isEmpty() -> {
                 AdminHint(
-                    "Sin padrón, cualquier papá con el código puede dar de alta la matrícula que escriba. " +
+                    "Sin padrón, cualquier tutor con el código puede dar de alta la matrícula que escriba. " +
                         "Pega la lista de tus alumnos para que solo entren ellos.",
                     colors,
                 )
@@ -76,12 +76,12 @@ internal fun RosterCard(
                 SchoolRosterParser.groupsLine(roster)?.let {
                     Text(it, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
                 }
-                AdminHint("Los papás solo dan de alta matrículas de esta lista, y el grupo sale de aquí.", colors)
+                AdminHint("Los tutores solo dan de alta matrículas de esta lista, y el grupo sale de aquí.", colors)
                 if (confirmsRemove) {
                     InlineConfirm(
                         title = "¿Quitar el padrón?",
                         message =
-                            "Cualquier papá con el código podrá dar de alta la matrícula que escriba. Los hijos ya " +
+                            "Cualquier tutor con el código podrá dar de alta la matrícula que escriba. Los hijos ya " +
                                 "dados de alta se quedan.",
                         confirmLabel = "Quitar",
                         colors = colors,

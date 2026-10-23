@@ -348,7 +348,7 @@ private fun MenuEditor(
             }
         InlineConfirm(
             title = "¿Cerrar el ${SchoolDates.longLabel(date, today).lowercase()}?",
-            message = "$what Ese día ya no se podrá apartar. Los papás ven el motivo.",
+            message = "$what Ese día ya no se podrá apartar. Los tutores ven el motivo.",
             confirmLabel = "Cerrar el día",
             colors = colors,
             enabled = enabled && !state.saving,

@@ -96,7 +96,7 @@ fun WalletScreen(
     caretakerLine: String? = null,
     /** Debajo de quién lo cuida: su límite por día, lo que le queda hoy y lo que no puede pedir (F11). */
     caretakerDetail: String? = null,
-    /** Mis hijos y Opciones avanzadas, solo en una escuela (Modo Padre). */
+    /** Mis hijos y lo de tutores y alumnos, solo en una escuela (Modo Padre). */
     familySection: (@Composable () -> Unit)? = null,
 ) {
     val colors = LocalVaiinillaColors.current
