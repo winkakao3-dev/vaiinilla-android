@@ -310,6 +310,8 @@ fun CashierOperationalScreen(
     studentsEntry: (@Composable () -> Unit)? = null,
     /** Devoluciones pendientes (G08, H03); null las oculta. */
     refundsEntry: (@Composable () -> Unit)? = null,
+    /** El negocio de esta caja, para que el cajero vea en cuál cobra. */
+    placeName: String = "",
     /** Aviso que llega de fuera (por ejemplo, el folio del pedido de mostrador). */
     notice: String? = null,
     onDismissError: () -> Unit = {},
@@ -490,11 +492,15 @@ fun CashierOperationalScreen(
                                 fontSize = 16.sp,
                                 color = colors.textPrimary,
                             )
+                            // Antes de cobrar, el cajero confirma que la sesión está abierta y en qué negocio (G01).
                             Text(
-                                "Cuenta de caja",
+                                cashierSessionCaption(state.cashSessionOpen, placeName),
                                 fontSize = 12.sp,
                                 color = colors.textSecondary,
                                 fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                             )
                         }
                     }
@@ -2846,3 +2852,14 @@ internal data class CashierCashDraft(
     val received: String,
     val tip: TipChoice = TipChoice.None,
 )
+
+/** "Sesión de caja abierta · Usagi" con la caja abierta; "Cuenta de caja" mientras no se sabe o está cerrada. */
+internal fun cashierSessionCaption(
+    cashSessionOpen: Boolean?,
+    placeName: String,
+): String =
+    when {
+        cashSessionOpen != true -> "Cuenta de caja"
+        placeName.isBlank() -> "Sesión de caja abierta"
+        else -> "Sesión de caja abierta · ${placeName.trim()}"
+    }

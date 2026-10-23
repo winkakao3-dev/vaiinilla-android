@@ -1897,6 +1897,7 @@ fun AppNavHost(
                                     )
                                 }
                             },
+                        placeName = authorizedAccessState.activeContext?.establishmentName.orEmpty(),
                         refundsEntry = {
                             CashierRefundsSection(
                                 state = pendingRefundsViewModel.uiState.value,
