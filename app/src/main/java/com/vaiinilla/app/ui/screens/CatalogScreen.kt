@@ -67,6 +67,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.guardianship.restrictionFor
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.Category
@@ -515,16 +516,10 @@ private fun CatalogContent(
 
         state.selectedProduct?.let { product ->
             val category = catalog.categories.firstOrNull { it.id == product.categoryId }
-            val defaultOptionIds =
-                product.optionGroups
-                    .flatMap { group ->
-                        group.options.take(group.minimumSelections).map { it.id }
-                    }.toSet()
             ProductDetailSheet(
                 product = product,
                 categoryName = category?.name.orEmpty(),
                 selectedOptionIds = state.selectedOptionIds,
-                defaultOptionIds = defaultOptionIds,
                 quantity = state.selectedQuantity,
                 previewPrice = state.selectedProductPreviewPrice,
                 previewTotal = state.selectedProductPreviewTotal,
@@ -744,8 +739,8 @@ private fun ProductCard(
             lineHeight = 19.sp,
             modifier = Modifier.padding(start = 2.dp, top = 4.dp, end = 2.dp),
         )
-        // El alumno con tutor ve con candado lo que no se le vende, antes de abrirlo.
-        LocalChildControls.current?.restriction(product.id)?.let {
+        // Lo agotado sale para todos; el alumno con tutor ve además con candado lo que no se le vende.
+        LocalChildControls.current.restrictionFor(product)?.let {
             ChildRestrictionTag(it, colors.muted, Modifier.padding(start = 2.dp, top = 4.dp, end = 2.dp))
         }
     }

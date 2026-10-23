@@ -35,10 +35,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -83,8 +86,13 @@ internal fun ParentSheet(
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    // El estado de la hoja se recuerda con confirmValueChange como llave: una lambda nueva al cambiar busy
+    // lo rehacía oculto y dejaba la ventana invisible encima, comiéndose los toques (F07). Una sola
+    // lambda que lee el valor vigente.
+    val currentBusy by rememberUpdatedState(busy)
+    val confirmChange = remember { { target: SheetValue -> target != SheetValue.Hidden || !currentBusy } }
     val sheetState =
-        rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { !busy })
+        rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = confirmChange)
     ModalBottomSheet(
         onDismissRequest = { if (!busy) onDismiss() },
         sheetState = sheetState,

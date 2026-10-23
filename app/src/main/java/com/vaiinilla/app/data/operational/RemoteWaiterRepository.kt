@@ -294,9 +294,14 @@ class RemoteWaiterRepository(
             ).mapCatching(contractJson::parseCall)
             .mapGuardUnavailable()
 
+    /** La ruta no existe en ese servidor. Un 404 con código propio (SPACE_NOT_FOUND…) es un error que se muestra. */
     private fun isMissing(error: Throwable): Boolean {
         val cause = generateSequence(error) { it.cause }.firstOrNull { it is ApiClientException } as? ApiClientException
-        return cause?.httpStatus in listOf(404, 405, 501)
+        return when (cause?.httpStatus) {
+            404 -> cause.code == "NOT_FOUND" || cause.code == "HTTP_404"
+            405, 501 -> true
+            else -> false
+        }
     }
 
     private fun <T> Result<T>.mapApiErrors(): Result<T> =

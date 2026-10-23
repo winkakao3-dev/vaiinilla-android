@@ -39,13 +39,15 @@ class CourtsViewModel
         private var slug: String? = null
 
         /**
-         * Con sesión de cliente se lee el mapa del negocio; sin sesión (solo mirando el menú) se usa el
-         * mapa público del [slug]. Sin ninguno de los dos no hay nada que consultar.
+         * Con el [slug] del lugar que se está mirando se lee su mapa público, con o sin sesión: el mapa del
+         * negocio sale del contexto de cliente, que al entrar por QR puede ser de otro lugar o no existir aún,
+         * y entonces el club no mostraba sus canchas. Sin slug, con sesión, se usa el del negocio.
          */
         fun onVisible(
             hasSession: Boolean,
             slug: String?,
         ) {
+            if (slug != this.slug) _uiState.value = CourtsUiState()
             this.hasSession = hasSession
             this.slug = slug
             pollingJob?.cancel()
@@ -68,8 +70,8 @@ class CourtsViewModel
             val result =
                 withContext(Dispatchers.IO) {
                     when {
-                        hasSession -> waiterRepository.availability()
                         venue != null -> waiterRepository.publicAvailability(venue)
+                        hasSession -> waiterRepository.availability()
                         else -> Result.success(emptyList())
                     }
                 }
@@ -83,7 +85,8 @@ class CourtsViewModel
                                     .sortedBy { it.space.name },
                         )
                 },
-                onFailure = { _uiState.value = CourtsUiState() },
+                // Un fallo de una consulta no esconde las canchas que ya se veían.
+                onFailure = {},
             )
         }
 

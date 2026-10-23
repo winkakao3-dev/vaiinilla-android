@@ -149,4 +149,19 @@ class WeekPlannerGridUiTest {
         composeTestRule.onNodeWithContentDescription("Uno más", useUnmergedTree = true).assertExists()
         composeTestRule.onNodeWithContentDescription("Agregar Sándwich").assertDoesNotExist()
     }
+
+    @Test
+    fun `al agregar algo sin opciones la hoja sigue abierta y responde`() {
+        // F07: con lo primero elegido la hoja pasa a "ocupada"; antes eso rehacía su estado y la escondía,
+        // dejando su ventana invisible encima de la ficha.
+        showPlanner()
+
+        composeTestRule.onNodeWithContentDescription("Agregar Sándwich").performClick()
+        composeTestRule.mainClock.advanceTimeBy(2_000)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Apartar comida").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("week-reserve").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Cerrar sin apartar").assertIsDisplayed()
+    }
 }

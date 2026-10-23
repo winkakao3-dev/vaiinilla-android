@@ -56,6 +56,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -93,6 +94,8 @@ fun WalletScreen(
     onCodeOpenChange: (Boolean) -> Unit = {},
     /** "Te cuida Ana": el alumno con tutor ve quién lo cuida (GET /tutelas/mis-controles). */
     caretakerLine: String? = null,
+    /** Debajo de quién lo cuida: su límite por día, lo que le queda hoy y lo que no puede pedir (F11). */
+    caretakerDetail: String? = null,
     /** Mis hijos y Opciones avanzadas, solo en una escuela (Modo Padre). */
     familySection: (@Composable () -> Unit)? = null,
 ) {
@@ -197,13 +200,22 @@ fun WalletScreen(
                 }
                 if (caretakerLine != null) {
                     item(key = "caretaker") {
-                        Text(
-                            text = caretakerLine,
-                            color = LocalVaiinillaColors.current.muted,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(top = 12.dp),
-                        )
+                        Column(modifier = Modifier.padding(top = 12.dp).semantics(mergeDescendants = true) {}) {
+                            Text(
+                                text = caretakerLine,
+                                color = LocalVaiinillaColors.current.muted,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                            )
+                            if (caretakerDetail != null) {
+                                Text(
+                                    text = caretakerDetail,
+                                    color = LocalVaiinillaColors.current.muted,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.padding(top = 3.dp),
+                                )
+                            }
+                        }
                     }
                 }
                 if (familySection != null) {

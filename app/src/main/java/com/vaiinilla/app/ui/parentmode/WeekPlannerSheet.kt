@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Bedtime
+import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Lock
@@ -766,6 +767,7 @@ private fun restrictionIcon(restriction: ChildRestriction): ImageVector =
         ChildRestriction.Reason.BLOCKED -> Icons.Outlined.Lock
         ChildRestriction.Reason.ALLERGEN -> Icons.Outlined.ErrorOutline
         ChildRestriction.Reason.ALLERGENS_UNKNOWN -> Icons.Outlined.HelpOutline
+        ChildRestriction.Reason.SOLD_OUT -> Icons.Outlined.Block
     }
 
 /** En gris y a medias, como la tarjeta de iOS: se ve qué es, pero no invita a tocarlo. */

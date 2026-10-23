@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.runCatchingCancellable
+import com.vaiinilla.app.core.security.JwtContextScope
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.auth.ContextoExchanger
 import com.vaiinilla.app.data.guest.GuestCheckoutPolicy
@@ -174,6 +175,8 @@ class OrderFlowViewModel
                             OrderDestination.TAKE_AWAY
                         },
                     selectedSpaceId = venue.space?.id ?: 0,
+                    // El estado operativo es del negocio: el de antes diría si el nuevo es escuela (F19).
+                    operationalStatus = if (switchingEstablishment) null else previous.operationalStatus,
                 )
             guestSessionStore.saveVenue(venue)
             guestVenueLoadJob =
@@ -219,7 +222,8 @@ class OrderFlowViewModel
                         _uiState.value.copy(
                             loading = false,
                             catalog = effectiveCatalog,
-                            operationalStatus = status,
+                            // Si falla al entrar (aún sin contexto de cliente) no se borra lo que ya se tenía del mismo lugar.
+                            operationalStatus = status ?: _uiState.value.operationalStatus.takeIf { sameCart },
                             rentedCourt = rentedCourt,
                             selectedSpaceId = rentedCourt?.id ?: _uiState.value.selectedSpaceId,
                             cartLines = nextCart,
@@ -351,7 +355,7 @@ class OrderFlowViewModel
         fun refreshOperationalStatusForWallet() {
             val venue = _uiState.value.guestVenue ?: return
             launchTracked {
-                if (sessionStore.readAccessToken().isNullOrBlank()) {
+                if (!hasClientContextFor(venue)) {
                     withContext(Dispatchers.IO) { refreshClientContext(venue) }
                 }
                 var statusResult = withContext(Dispatchers.IO) { fetchOperationalStatus() }
@@ -359,9 +363,38 @@ class OrderFlowViewModel
                     withContext(Dispatchers.IO) { refreshClientContext(venue) }
                     statusResult = withContext(Dispatchers.IO) { fetchOperationalStatus() }
                 }
-                statusResult.getOrNull()?.let { status ->
+                // Si no se pudo cambiar de contexto, el estado sería el del otro negocio: mejor ninguno.
+                val ownStatus = guestSlugFor(venue) != null || hasClientContextFor(venue)
+                statusResult.getOrNull()?.takeIf { ownStatus }?.let { status ->
                     _uiState.value = _uiState.value.copy(operationalStatus = status)
                 }
+            }
+        }
+
+        /**
+         * Como en iOS: con un QR el estado operativo no llega con el menú y la consulta al entrar puede correr
+         * antes de que exista el contexto de cliente, así que "Pagar al final" salía a veces sí y a veces no.
+         * Se vuelve a pedir al abrir el carrito y al tocar Pagar; si falla se conserva lo último.
+         */
+        fun refreshOperationalStatusForCheckout() {
+            val venue = _uiState.value.guestVenue ?: return
+            launchTracked {
+                if (guestSlugFor(venue) == null && sessionStore.readAccessToken().isNullOrBlank()) {
+                    withContext(Dispatchers.IO) { refreshClientContext(venue) }
+                }
+                var statusResult = withContext(Dispatchers.IO) { fetchOperationalStatus() }
+                if (statusResult.isFailure && venue.establishment.clientIdRequired == false) {
+                    withContext(Dispatchers.IO) { refreshClientContext(venue) }
+                    statusResult = withContext(Dispatchers.IO) { fetchOperationalStatus() }
+                }
+                val status = statusResult.getOrNull() ?: return@launchTracked
+                if (_uiState.value.guestVenue
+                        ?.establishment
+                        ?.id != venue.establishment.id
+                ) {
+                    return@launchTracked
+                }
+                _uiState.value = _uiState.value.copy(operationalStatus = status)
             }
         }
 
@@ -371,10 +404,17 @@ class OrderFlowViewModel
          */
         suspend fun ensureClientContext() {
             val venue = _uiState.value.guestVenue ?: return
-            if (sessionStore.readAccessToken().isNullOrBlank()) {
+            if (!hasClientContextFor(venue)) {
                 withContext(Dispatchers.IO) { refreshClientContext(venue) }
             }
         }
+
+        /**
+         * Hay JWT y es de este negocio. Al volver a otra escuela por "Tus escuelas" queda el contexto del
+         * negocio anterior: con él, el estado operativo era el de allá y Cartera no mostraba Mis hijos (F19).
+         */
+        private fun hasClientContextFor(venue: GuestVenueContext): Boolean =
+            JwtContextScope.isContextFor(sessionStore.readAccessToken(), venue.establishment.id)
 
         private fun fetchOperationalStatus(): Result<OperationalStatus> {
             val slug = guestSlugFor(_uiState.value.guestVenue) ?: return getOperationalStatus()
@@ -452,14 +492,11 @@ class OrderFlowViewModel
                 _uiState.value.catalog
                     ?.products
                     ?.firstOrNull { it.id == productId } ?: return
-            val defaults =
-                product.optionGroups.flatMapTo(linkedSetOf()) { group ->
-                    group.options.take(group.minimumSelections).map { it.id }
-                }
+            // Nada viene elegido: en un grupo obligatorio el cliente escoge y Agregar espera a que lo haga.
             _uiState.value =
                 _uiState.value.copy(
                     selectedProductId = productId,
-                    selectedOptionIds = defaults,
+                    selectedOptionIds = emptySet(),
                     selectedQuantity = 1,
                     selectedNotes = "",
                     createOrderError = null,
@@ -731,7 +768,7 @@ class OrderFlowViewModel
             launchTracked {
                 var current = _uiState.value
                 current.guestVenue?.let { venue ->
-                    if (sessionStore.readAccessToken().isNullOrBlank()) {
+                    if (!hasClientContextFor(venue)) {
                         withContext(Dispatchers.IO) { refreshClientContext(venue) }
                     }
                 }

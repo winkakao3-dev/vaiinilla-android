@@ -44,6 +44,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.Money
+import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.WalletClient
 import com.vaiinilla.app.domain.model.WalletReloadReceipt
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -327,7 +328,7 @@ private fun AmountStep(
     }
     OperationalField(
         value = amountText,
-        onValueChange = { raw -> onAmountChange(raw.filter { it.isDigit() || it == '.' }) },
+        onValueChange = { raw -> onAmountChange(MoneyInput.sanitize(raw)) },
         label = "Otro monto",
         colors = colors,
         placeholder = "0.00",

@@ -124,6 +124,8 @@ data class OrderSummary(
     val canceledByRole: String? = null,
     /** Sesión de mesa a la que pertenece el pedido; `null` si va para llevar o no tiene sesión. */
     val tableSessionId: String? = null,
+    /** Se entrega sin escanear el QR de recogida (`entrega_sin_qr`, pedidos a una cuenta abierta). */
+    val deliveryWithoutQr: Boolean = false,
 )
 
 data class CashCollectionResult(

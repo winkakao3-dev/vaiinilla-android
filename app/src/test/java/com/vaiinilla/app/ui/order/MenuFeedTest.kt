@@ -44,7 +44,7 @@ class MenuFeedTest {
         )
 
     @Test
-    fun `el feed sigue el orden de las categorías y deja fuera lo agotado`() {
+    fun `el feed sigue el orden de las categorías y deja lo agotado al final de la suya`() {
         val catalog =
             Catalog(
                 categories = listOf(Category(1, "Postres", order = 2), Category(2, "Antojitos", order = 1)),
@@ -58,7 +58,9 @@ class MenuFeedTest {
                     ),
                 cursor = null,
             )
-        assertEquals(listOf(11, 14, 10, 13), MenuFeed.products(catalog).map { it.id })
+        assertEquals(listOf(11, 14, 10, 12, 13), MenuFeed.products(catalog).map { it.id })
+        // La cuadrícula tampoco lo esconde (B10): sale al final, como Agotado.
+        assertEquals(listOf(10, 11, 13, 14, 12), OrderFlowUiState(catalog = catalog).filteredProducts.map { it.id })
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.vaiinilla.app.domain.guardianship
 
+import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.school.SchoolAllergen
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -175,7 +176,7 @@ data class ChildRestriction(
     val reason: Reason,
     val label: String,
 ) {
-    enum class Reason { BLOCKED, ALLERGEN, ALLERGENS_UNKNOWN }
+    enum class Reason { BLOCKED, ALLERGEN, ALLERGENS_UNKNOWN, SOLD_OUT }
 
     companion object {
         val Blocked = ChildRestriction(Reason.BLOCKED, "Tu tutor lo bloqueó")
@@ -184,8 +185,18 @@ data class ChildRestriction(
 
         /** Lo mismo, dicho al tutor. */
         val ChildAllergen = ChildRestriction(Reason.ALLERGEN, "Tiene algo a lo que es alérgico")
+
+        /** El negocio lo apagó: se ve en el menú, pero nadie lo puede pedir (B10). */
+        val SoldOut = ChildRestriction(Reason.SOLD_OUT, "Agotado")
     }
 }
+
+/**
+ * Por qué no se puede agregar un producto del menú: agotado para cualquiera, y para el alumno con tutor
+ * además lo que su tutor bloqueó o tiene un alérgeno suyo.
+ */
+fun MyGuardianControls?.restrictionFor(product: Product): ChildRestriction? =
+    if (!product.available) ChildRestriction.SoldOut else this?.restriction(product.id)
 
 /**
  * Los controles que el tutor le puso al hijo, vistos por el hijo antes de pagar o por el tutor al apartarle.
@@ -220,6 +231,28 @@ data class MyGuardianControls(
 
     /** ¿Este total cabe en lo que le queda hoy? Sin límite, siempre. */
     fun fitsToday(total: BigDecimal): Boolean = availableToday == null || total <= availableToday
+
+    /** Bajo "Te cuida…" en Cartera, como iOS: su límite y lo que le queda hoy, y cuántos productos no puede pedir. */
+    val walletDetail: String?
+        get() {
+            val details = mutableListOf<String>()
+            if (dailyLimit != null && availableToday != null) {
+                details +=
+                    "Límite de ${compactMoney(dailyLimit)} al día; hoy te quedan ${compactMoney(availableToday)}."
+            }
+            val restricted = (blockedProductIds + allergenProductIds + unreviewedProductIds).size
+            if (restricted > 0) {
+                details +=
+                    if (restricted ==
+                        1
+                    ) {
+                        "1 producto no está a tu alcance."
+                    } else {
+                        "$restricted productos no están a tu alcance."
+                    }
+            }
+            return details.takeIf { it.isNotEmpty() }?.joinToString(" ")
+        }
 
     /** "Te cuida Ana" o "Te cuidan Ana y Luis". */
     val caretakerLine: String?

@@ -151,6 +151,8 @@ data class OrderDetailDto(
     @SerialName("reserva") val reservation: OrderReservationDto? = null,
     @SerialName("llegada_en") val arrivedAt: String? = null,
     @SerialName("sesion_espacio_id") val tableSessionId: String? = null,
+    /** El backend dispensa el QR para entregar este pedido (va a una cuenta abierta); uno anterior no lo envía. */
+    @SerialName("entrega_sin_qr") val deliveryWithoutQr: Boolean = false,
     /** Solo viene en pedidos de mostrador; un servidor anterior no lo envía. */
     @SerialName("nombre_cliente_snapshot") val customerName: String? = null,
 )

@@ -90,6 +90,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.guardianship.restrictionFor
 import com.vaiinilla.app.domain.model.CART_LINE_NOTE_MAX
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
@@ -141,8 +142,8 @@ fun ProductDetailSheet(
         )
     val tone = productTone(product)
     val reduceMotion = reducedMotion()
-    // Lo que el tutor del alumno bloqueó o tiene un alérgeno suyo se ve, pero no se agrega.
-    val childRestriction = LocalChildControls.current?.restriction(product.id)
+    // Lo agotado, y lo que el tutor del alumno bloqueó o tiene un alérgeno suyo, se ve pero no se agrega.
+    val childRestriction = LocalChildControls.current.restrictionFor(product)
     val canAdd = canAdd && childRestriction == null
     val errorMessage = childRestriction?.label ?: errorMessage
     val isCustomized = selectedOptionIds != defaultOptionIds

@@ -46,6 +46,7 @@ import com.vaiinilla.app.core.notifications.OrderNotificationTarget
 import com.vaiinilla.app.data.auth.student.GoogleSignInHelper
 import com.vaiinilla.app.data.auth.student.GoogleSignInUnavailableException
 import com.vaiinilla.app.domain.counter.CounterScope
+import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
@@ -78,6 +79,7 @@ import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
 import com.vaiinilla.app.ui.operational.CourtsViewModel
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
+import com.vaiinilla.app.ui.operational.PendingRefundsViewModel
 import com.vaiinilla.app.ui.operational.WaiterViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.canPayWithCard
@@ -96,6 +98,7 @@ import com.vaiinilla.app.ui.screens.AssistantChatScreen
 import com.vaiinilla.app.ui.screens.AuthorizedModeScreen
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CashierOperationalScreen
+import com.vaiinilla.app.ui.screens.CashierRefundsSection
 import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.CounterOrderSheet
 import com.vaiinilla.app.ui.screens.DiscoveryScreen
@@ -186,6 +189,7 @@ fun AppNavHost(
     // Caja de una escuela (alumnos sin teléfono) y "Para mañana" de Cocina: padres e hijos.
     val studentCounterViewModel: StudentCounterViewModel = viewModel()
     val reservedOrdersViewModel: ReservedOrdersViewModel = viewModel()
+    val pendingRefundsViewModel: PendingRefundsViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
     val waiterState by waiterViewModel.uiState
@@ -207,6 +211,10 @@ fun AppNavHost(
     LaunchedEffect(orderState.guestVenue) {
         discoveryViewModel.refreshSelectedVenue()
         studentAuthViewModel.refreshGuestVenue()
+    }
+    // La mesa compartida no pasa de un negocio a otro (C08).
+    LaunchedEffect(orderState.guestVenue?.establishment?.id) {
+        sharedTableViewModel.bindVenue(orderState.guestVenue?.establishment?.id)
     }
 
     // Warm product imagery as soon as catalog data exists, before cards enter composition.
@@ -1073,14 +1081,35 @@ fun AppNavHost(
             }
 
             composable(Routes.RESERVATIONS) {
-                val reservationsState = reservationsViewModel.uiState.value
-                val reservationsHasAccount = !orderFlowViewModel.requiresStudentAuth()
                 val reservationsVenueSlug = orderState.guestVenue?.establishment?.slug
-                DisposableEffect(reservationsHasAccount, reservationsVenueSlug) {
-                    reservationsViewModel.onVisible(
-                        guestSlug = reservationsVenueSlug,
-                        hasAccount = reservationsHasAccount,
-                    )
+                // Con sesión se renta con la cuenta: si en este lugar aún no hay contexto de cliente se prepara
+                // primero, en vez de caer en "Renta sin cuenta". Si falla, el error se ve arriba.
+                val reservationsSignedIn = studentAuthState.session != null
+                var reservationsVenueReady by remember(reservationsSignedIn, reservationsVenueSlug) {
+                    mutableStateOf(!orderFlowViewModel.requiresStudentAuth())
+                }
+                LaunchedEffect(reservationsSignedIn, reservationsVenueSlug) {
+                    if (reservationsSignedIn && !reservationsVenueReady) {
+                        studentAuthViewModel.ensureVenueContext(
+                            onReady = { reservationsVenueReady = true },
+                            onNeedsAuth = { navController.navigate(Routes.authLandingRoute(Routes.RESERVATIONS)) },
+                            onFailed = reservationsViewModel::showError,
+                        )
+                    }
+                }
+                val reservationsHasAccount = reservationsVenueReady
+                val preparingAccount = reservationsSignedIn && !reservationsVenueReady
+                val reservationsState =
+                    reservationsViewModel.uiState.value.let { state ->
+                        if (preparingAccount) state.copy(guestEntry = false, loading = state.error == null) else state
+                    }
+                DisposableEffect(reservationsHasAccount, reservationsVenueSlug, preparingAccount) {
+                    if (!preparingAccount) {
+                        reservationsViewModel.onVisible(
+                            guestSlug = reservationsVenueSlug,
+                            hasAccount = reservationsHasAccount,
+                        )
+                    }
                     onDispose { reservationsViewModel.onHidden() }
                 }
                 // El pago crea un pedido de renta: se sigue en la confirmación de pedido
@@ -1151,7 +1180,11 @@ fun AppNavHost(
                     orderState.guestVenue?.establishment?.id,
                 ) {
                     studentAuthViewModel.ensureVenueContext(
-                        onReady = walletViewModel::refresh,
+                        onReady = {
+                            walletViewModel.refresh()
+                            // Con el contexto ya de esta escuela: si es escuela, Mis hijos (F19).
+                            orderFlowViewModel.refreshOperationalStatusForWallet()
+                        },
                         onNeedsAuth = { navigateStudentAuth(Routes.WALLET, replaceReturnScreen = true) },
                     )
                 }
@@ -1165,7 +1198,9 @@ fun AppNavHost(
                 }
                 // Padres e hijos: solo una escuela muestra Mis hijos y Opciones avanzadas, y para saberlo hace
                 // falta el estado operativo con el contexto de cliente.
-                LaunchedEffect(Unit) { orderFlowViewModel.refreshOperationalStatusForWallet() }
+                LaunchedEffect(orderState.guestVenue?.establishment?.id) {
+                    orderFlowViewModel.refreshOperationalStatusForWallet()
+                }
                 ParentModeWalletHost(
                     enabled = orderState.operationalStatus?.isSchool == true,
                     childrenViewModel = childrenViewModel,
@@ -1191,6 +1226,7 @@ fun AppNavHost(
                         onMenu = { navController.navigateStudent(Routes.CATALOG) },
                         onCodeOpenChange = { walletCodeOpen = it },
                         caretakerLine = guardianControlsViewModel.controls?.caretakerLine,
+                        caretakerDetail = guardianControlsViewModel.controls?.walletDetail,
                         familySection = familySection,
                     )
                 }
@@ -1331,6 +1367,7 @@ fun AppNavHost(
 
             composable(Routes.CART) {
                 val guestAuthRequired = orderFlowViewModel.requiresAccountAuth()
+                LaunchedEffect(Unit) { orderFlowViewModel.refreshOperationalStatusForCheckout() }
                 CompositionLocalProvider(LocalVenueArt provides venueArt) {
                     CartScreen(
                         state = orderState,
@@ -1376,6 +1413,7 @@ fun AppNavHost(
                             navController.navigateStudent(Routes.STUDENT_TRACKING)
                         },
                         preparingCheckout = guestAuthRequired && studentAuthState.loading,
+                        onCheckoutOpened = orderFlowViewModel::refreshOperationalStatusForCheckout,
                     )
                 }
             }
@@ -1666,9 +1704,17 @@ fun AppNavHost(
                         order = confirmationOrder,
                         deliveryRequiresQr = orderState.operationalStatus?.deliveryRequiresQr != false,
                         showTrackingButton = isFreshConfirmation,
-                        onCurrentWaiterCall = operationalViewModel::currentWaiterCall,
-                        onCallWaiter = operationalViewModel::callWaiter,
+                        // Como en el menú: la llamada va con el contexto de este negocio, no el del anterior (K02).
+                        onCurrentWaiterCall = { id ->
+                            orderFlowViewModel.ensureClientContext()
+                            operationalViewModel.currentWaiterCall(id)
+                        },
+                        onCallWaiter = { id, reason, orderId ->
+                            orderFlowViewModel.ensureClientContext()
+                            operationalViewModel.callWaiter(id, reason, orderId)
+                        },
                         onCancelWaiter = operationalViewModel::cancelWaiterCall,
+                        onViewReceipt = { navController.navigate(Routes.receiptStickerRoute()) },
                         onReturnToMenu = {
                             // Abierto desde Pedidos: atrás regresa a la lista. La selección se limpia allá,
                             // cuando esta pantalla ya salió, para no quedarse sin pedido a media animación.
@@ -1711,7 +1757,7 @@ fun AppNavHost(
             ) { entry ->
                 val styleIndex = entry.arguments?.getInt("style") ?: 0
                 ReceiptStickerScreen(
-                    order = orderState.createdOrder ?: operationalState.selectedOrder,
+                    order = orderState.createdOrder ?: operationalState.selectedOrder ?: orderState.stripeObservedOrder,
                     onBack = { navController.popBackStack() },
                     initialStyleIndex = styleIndex,
                 )
@@ -1770,9 +1816,15 @@ fun AppNavHost(
                             },
                             onRefresh = { operationalViewModel.refresh() },
                             canCallWaiter = ::canCallWaiter,
-                            onCurrentWaiterCall = operationalViewModel::currentWaiterCall,
+                            onCurrentWaiterCall = { id ->
+                                orderFlowViewModel.ensureClientContext()
+                                operationalViewModel.currentWaiterCall(id)
+                            },
                             onAnnounceArrival = operationalViewModel::announceArrival,
-                            onCallWaiter = operationalViewModel::callWaiter,
+                            onCallWaiter = { id, reason, orderId ->
+                                orderFlowViewModel.ensureClientContext()
+                                operationalViewModel.callWaiter(id, reason, orderId)
+                            },
                             onCancelWaiter = operationalViewModel::cancelWaiterCall,
                             sharedTable = {
                                 // Solo consulta la mesa mientras Mis pedidos está a la vista.
@@ -1792,6 +1844,7 @@ fun AppNavHost(
                                     },
                                     onClaim = sharedTableViewModel::claim,
                                     onLeave = sharedTableViewModel::leave,
+                                    spaceType = orderState.guestVenue?.space?.type,
                                 )
                             },
                         )
@@ -1827,6 +1880,10 @@ fun AppNavHost(
                     var studentsSheetOpen by rememberSaveable { mutableStateOf(false) }
                     // Una sola lectura del tablero para el contador de mesas; el sondeo es del tablero.
                     LaunchedEffect(Unit) { waiterViewModel.refresh() }
+                    DisposableEffect(Unit) {
+                        pendingRefundsViewModel.onVisible()
+                        onDispose { pendingRefundsViewModel.onHidden() }
+                    }
                     CashierOperationalScreen(
                         state = operationalState,
                         onBack = returnToModes(navController, operationalViewModel),
@@ -1842,6 +1899,10 @@ fun AppNavHost(
                         onScanDeliver = { orderId, version ->
                             pendingPickupDelivery = PendingPickupDelivery(orderId, version)
                         },
+                        onDeliver = { orderId, version -> operationalViewModel.deliver(orderId, version) },
+                        onRejectOrder = operationalViewModel::rejectOrder,
+                        onRejectItem = operationalViewModel::rejectItem,
+                        onActionNoticed = operationalViewModel::consumeActionNotice,
                         onChangeMode =
                             if (authorizedAccessState.hasMultipleModes) {
                                 returnToModes(navController, operationalViewModel)
@@ -1886,6 +1947,16 @@ fun AppNavHost(
                                     )
                                 }
                             },
+                        placeName = authorizedAccessState.activeContext?.establishmentName.orEmpty(),
+                        refundsEntry = {
+                            CashierRefundsSection(
+                                state = pendingRefundsViewModel.uiState.value,
+                                canConfirm =
+                                    authorizedAccessState.activeContext?.restrictedMode != RestrictedMode.READ_ONLY,
+                                colors = rememberOperationalColors(),
+                                onConfirm = pendingRefundsViewModel::confirm,
+                            )
+                        },
                         notice = waiterState.toastMessage,
                         onDismissError = operationalViewModel::dismissMutationError,
                         onRefresh = operationalViewModel::refresh,

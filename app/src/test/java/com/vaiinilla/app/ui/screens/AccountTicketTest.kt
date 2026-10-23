@@ -35,6 +35,16 @@ class AccountTicketTest {
     }
 
     @Test
+    fun `con abonos el ticket cobra lo que falta`() {
+        // I07: "Por cobrar" es el restante del backend (pendiente menos abonado), no el pendiente.
+        val withPaidIn = account.copy(paidIn = "50.00", remaining = "70.00")
+        val html = buildAccountTicketHtml("Mesa 5", withPaidIn, "hoy")
+        assertTrue(html.contains("<td class=\"l\">Abonado</td><td class=\"r\">$50.00</td>"))
+        assertTrue(html.contains("<td class=\"l\">Por cobrar</td><td class=\"r\">$70.00</td>"))
+        assertFalse(buildAccountTicketHtml("Mesa 5", account, "hoy").contains("Abonado"))
+    }
+
+    @Test
     fun `el texto de usuario se escapa para no romper el documento`() {
         val html = buildAccountTicketHtml("Cancha <1>", account, "hoy")
         assertTrue(html.contains("Hamburguesa &lt;doble&gt;"))

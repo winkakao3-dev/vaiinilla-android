@@ -59,6 +59,8 @@ fun OrderConfirmationScreen(
     onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
+    /** Pedido entregado: abre el recibo con el método de pago, que se comparte como sticker. */
+    onViewReceipt: (() -> Unit)? = null,
 ) {
     Box(
         modifier =
@@ -101,6 +103,7 @@ fun OrderConfirmationScreen(
             onCurrentWaiterCall = onCurrentWaiterCall,
             onCallWaiter = onCallWaiter,
             onCancelWaiter = onCancelWaiter,
+            onViewReceipt = onViewReceipt,
             // Las rentas de cancha no se cobran en la caja del mostrador: no imprimen ticket.
             printsTicket = activeCelebration != null && order.reservation == null,
         )

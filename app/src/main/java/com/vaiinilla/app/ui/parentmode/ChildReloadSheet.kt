@@ -39,6 +39,7 @@ import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.domain.guardianship.DependentAccountRepository
 import com.vaiinilla.app.domain.guardianship.TypedAmount
 import com.vaiinilla.app.domain.guardianship.compactMoney
+import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.order.STRIPE_CONFIRMATION_MAX_POLLS
 import com.vaiinilla.app.ui.order.STRIPE_CONFIRMATION_POLL_INTERVAL_MS
@@ -103,7 +104,7 @@ class ChildReloadModel(
     }
 
     fun edit(text: String) {
-        amountText = text.filter { it.isDigit() || it == '.' }.take(8)
+        amountText = MoneyInput.sanitize(text).take(8)
         if (phase is Phase.Failed) phase = Phase.Editing
     }
 

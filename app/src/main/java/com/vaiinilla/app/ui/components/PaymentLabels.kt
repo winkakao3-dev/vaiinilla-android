@@ -26,8 +26,8 @@ fun orderStateLabel(summary: OrderSummary): String =
     if (summary.payAtEnd && summary.state == OrderState.PAID) "Recibido" else summary.state.label
 
 /**
- * ¿El cliente tiene que mostrar su QR para recibir el pedido? Para llevar, siempre; en un espacio
- * solo si el establecimiento no dispensa el QR al entregar.
+ * ¿El cliente tiene que mostrar su QR para recibir el pedido? No, si el backend lo dispensa para este
+ * pedido (`entrega_sin_qr`); para llevar, siempre; en un espacio solo si el establecimiento pide el QR.
  */
 fun OrderDetail.needsPickupQr(deliveryRequiresQr: Boolean): Boolean =
-    summary.destination != OrderDestination.IN_SPACE || deliveryRequiresQr
+    !summary.deliveryWithoutQr && (summary.destination != OrderDestination.IN_SPACE || deliveryRequiresQr)

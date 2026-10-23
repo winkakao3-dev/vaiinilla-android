@@ -16,6 +16,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 import org.json.JSONObject
+import java.net.URLEncoder
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -56,11 +57,23 @@ class DeviceTokenRegistrar
             scope.launch { registerTokenIfNeeded(token) }
         }
 
+        /**
+         * Al cerrar sesión: DELETE /devices/{token} con la sesión que sale (todavía guardada) para que sus
+         * avisos dejen de llegar a este teléfono, y luego se invalida el token local.
+         */
         suspend fun clearRegistration() {
             registrationMutex.withLock {
+                // Instalaciones de antes no guardaban el token registrado: se usa el vigente.
+                val registered = prefs.getString(KEY_REGISTERED_TOKEN, null) ?: currentFcmTokenOrNull()
+                if (registered != null && !sessionStore.readAccessToken().isNullOrBlank()) {
+                    apiClient
+                        .delete(unregisterPath(registered))
+                        .onFailure { e -> Log.w(TAG, "No se pudo borrar el token FCM del servidor: ${e.message}") }
+                }
                 prefs
                     .edit()
                     .remove(KEY_MARKER)
+                    .remove(KEY_REGISTERED_TOKEN)
                     .remove(LEGACY_KEY_TOKEN)
                     .apply()
             }
@@ -72,6 +85,15 @@ class DeviceTokenRegistrar
                 Log.w(TAG, "No se pudo invalidar el token FCM local", e)
             }
         }
+
+        private suspend fun currentFcmTokenOrNull(): String? =
+            try {
+                FirebaseMessaging.getInstance().token.await()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
 
         private suspend fun registerTokenIfNeeded(fcmToken: String) {
             if (fcmToken.isBlank()) return
@@ -92,7 +114,11 @@ class DeviceTokenRegistrar
                         if (currentToken != null &&
                             deviceRegistrationMarker(currentToken, fcmToken) == marker
                         ) {
-                            prefs.edit().putString(KEY_MARKER, marker).apply()
+                            prefs
+                                .edit()
+                                .putString(KEY_MARKER, marker)
+                                .putString(KEY_REGISTERED_TOKEN, fcmToken)
+                                .apply()
                         }
                         Log.d(TAG, "Token FCM registrado")
                     }.onFailure { e ->
@@ -105,6 +131,7 @@ class DeviceTokenRegistrar
             const val TAG = "DeviceTokenRegistrar"
             const val PREFS = "device_tokens"
             const val KEY_MARKER = "fcm_registration_marker"
+            const val KEY_REGISTERED_TOKEN = "fcm_registered_token"
             const val LEGACY_KEY_TOKEN = "fcm_token_registered"
         }
     }
@@ -113,3 +140,6 @@ internal fun deviceRegistrationMarker(
     sessionToken: String,
     fcmToken: String,
 ): String = JwtContextScope.sha256("${JwtContextScope.storageKey(sessionToken)}\u0000$fcmToken")
+
+internal fun unregisterPath(fcmToken: String): String =
+    "devices/" + URLEncoder.encode(fcmToken, "UTF-8").replace("+", "%20")

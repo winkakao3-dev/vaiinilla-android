@@ -44,6 +44,18 @@ class SharedTableViewModel
         val uiState: State<SharedTableUiState> = _uiState
 
         private var pollingJob: Job? = null
+        private var venueId: String? = null
+
+        /**
+         * La mesa es del negocio donde se cargó. Al entrar a otro negocio se olvida: si no, el menú de allá
+         * llamaba al mesero a la mesa de acá y el servidor respondía 404 (C08, K02).
+         */
+        fun bindVenue(establishmentId: String?) {
+            if (establishmentId == venueId) return
+            val changed = venueId != null
+            venueId = establishmentId
+            if (changed) _uiState.value = SharedTableUiState(aliasInput = _uiState.value.aliasInput)
+        }
 
         fun onVisible() {
             pollingJob?.cancel()
