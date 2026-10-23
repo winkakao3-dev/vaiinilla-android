@@ -66,6 +66,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -369,6 +370,9 @@ fun CashierOperationalScreen(
 
     // Caja solo actúa sobre pedidos por cobrar o listos para entregar; el resto es de cocina.
     var selectedCashierOrderId by remember { mutableStateOf<String?>(null) }
+    // Lo que el cajero lleva escrito (efectivo y propina) por pedido. Vive fuera de la lista: el sondeo
+    // trae una copia nueva del pedido cada pocos segundos y la tarjeta se rehace, pero el cobro sigue.
+    val cashDrafts = remember { mutableStateMapOf<String, CashierCashDraft>() }
     val canReloadWallet =
         state.cashSessionOpen == true &&
             !state.acting &&
@@ -383,6 +387,8 @@ fun CashierOperationalScreen(
             ?: actionableCashierOrders.firstOrNull()
     val queuedCashierOrders =
         actionableCashierOrders.filterNot { it.summary.id == recentOrder?.summary?.id }
+    val actionableIds = actionableCashierOrders.map { it.summary.id }.toSet()
+    LaunchedEffect(actionableIds) { cashDrafts.keys.filterNot { it in actionableIds }.forEach(cashDrafts::remove) }
     val cashierQueue = queuePresentation(actionableCashierOrders.isNotEmpty(), state.lastRefreshOk)
     val products = state.catalog?.products.orEmpty()
     val activeCount = products.count { it.available }
@@ -451,7 +457,7 @@ fun CashierOperationalScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Topline
-            item {
+            item(key = "cashier-topline") {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -638,8 +644,8 @@ fun CashierOperationalScreen(
                 CashierQueueHeader(count = actionableCashierOrders.size, colors = colors)
             }
 
-            // Hero Recent Order Card or Empty State
-            item {
+            // Con llave fija: si aparece un aviso arriba, la tarjeta no cambia de lugar ni se rehace.
+            item(key = "cashier-hero") {
                 AnimatedContent(
                     targetState = recentOrder,
                     contentKey = { it?.summary?.id },
@@ -651,14 +657,16 @@ fun CashierOperationalScreen(
                         val isDelivered = recentOrder.summary.state == OrderState.DELIVERED
                         val isOrderReady = recentOrder.summary.state == OrderState.READY
                         val isPendingPayment = recentOrder.summary.state == OrderState.PENDING_PAYMENT
-                        var cashReceivedInput by
-                            remember(recentOrder.summary.id) {
-                                mutableStateOf(recentOrder.summary.total)
-                            }
-                        var cashTipChoice by
-                            remember(recentOrder.summary.id) {
-                                mutableStateOf<TipChoice>(TipChoice.None)
-                            }
+                        val draftOrderId = recentOrder.summary.id
+                        // Si el total cambió (se quitó un artículo), lo escrito ya no aplica y se vuelve a sugerir.
+                        val cashDraft =
+                            cashDrafts[draftOrderId]?.takeIf { it.orderTotal == recentOrder.summary.total }
+                                ?: CashierCashDraft(
+                                    orderTotal = recentOrder.summary.total,
+                                    received = recentOrder.summary.total,
+                                )
+                        val cashReceivedInput = cashDraft.received
+                        val cashTipChoice = cashDraft.tip
                         // El progreso es del cobro: otra acción en curso solo deshabilita el botón.
                         var collecting by remember(recentOrder.summary.id) { mutableStateOf(false) }
                         LaunchedEffect(state.acting, state.errorMessage) {
@@ -767,10 +775,15 @@ fun CashierOperationalScreen(
                                             tipAmount = tipAmount,
                                             enabled = !state.acting,
                                             onChange = { next ->
-                                                cashTipChoice = next
                                                 // El efectivo sugerido sigue al pedido más la propina.
-                                                cashReceivedInput =
-                                                    Money.format(orderTotal + next.amountFor(orderTotal))
+                                                cashDrafts[draftOrderId] =
+                                                    cashDraft.copy(
+                                                        received =
+                                                            Money.format(
+                                                                orderTotal + next.amountFor(orderTotal),
+                                                            ),
+                                                        tip = next,
+                                                    )
                                             },
                                         )
                                         // Pedido pagado en efectivo: hay que cobrarlo antes de que exista
@@ -778,7 +791,8 @@ fun CashierOperationalScreen(
                                         BasicTextField(
                                             value = cashReceivedInput,
                                             onValueChange = { raw ->
-                                                cashReceivedInput = MoneyInput.sanitize(raw)
+                                                cashDrafts[draftOrderId] =
+                                                    cashDraft.copy(received = MoneyInput.sanitize(raw))
                                             },
                                             singleLine = true,
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -2756,3 +2770,11 @@ internal fun kitchenQueueLabel(order: OrderDetail): String =
         OrderState.READY -> "Lista"
         else -> "En espera"
     }
+
+/** El cobro en efectivo que el cajero va armando: lo recibido y la propina elegida. */
+internal data class CashierCashDraft(
+    /** El total del pedido cuando se empezó a escribir. */
+    val orderTotal: String,
+    val received: String,
+    val tip: TipChoice = TipChoice.None,
+)
