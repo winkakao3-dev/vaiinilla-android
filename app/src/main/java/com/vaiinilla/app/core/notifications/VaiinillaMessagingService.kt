@@ -14,7 +14,7 @@ import javax.inject.Inject
  * notification the in-app poller produces, but works even with the app killed.
  * `staff_alert` (caja/cocina/mesero): new actionable work for the venue staff.
  * Padres e hijos: `order_state` con `dependienteUsuarioId` (el pedido de un hijo), `saldo_bajo` y
- * `recarga_acreditada` se ven como aviso normal, sin abrir al hijo.
+ * `recarga_acreditada` abren la ficha del hijo en su escuela (`establecimientoId`).
  */
 @AndroidEntryPoint
 class VaiinillaMessagingService : FirebaseMessagingService() {
@@ -68,7 +68,7 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
         val text =
             GuardianPushNotifier.orderStateText(childName(data), data["folio"] ?: return, data["state"] ?: return)
                 ?: return
-        GuardianPushNotifier.post(applicationContext, "hijo:$orderId", text)
+        GuardianPushNotifier.post(applicationContext, "hijo:$orderId", text, ChildDeepLink.fromPush(data))
     }
 
     private fun notifyGuardian(
@@ -80,6 +80,7 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
             applicationContext,
             "$kind:${data["dependienteUsuarioId"].orEmpty()}",
             text(childName(data)),
+            ChildDeepLink.fromPush(data),
         )
     }
 

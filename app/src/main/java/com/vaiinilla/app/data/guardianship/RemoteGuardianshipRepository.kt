@@ -149,6 +149,15 @@ class RemoteGuardianshipRepository(
             .mapCatching(json::parseClaimedName)
             .mapGuardianshipErrors()
 
+    override fun unlockParent(
+        schoolCode: String,
+        idempotencyKey: String,
+    ): Result<Unit> =
+        apiClient
+            .post("$BASE/habilitar", json.encodeSchoolCode(schoolCode), key(idempotencyKey))
+            .map { }
+            .mapGuardianshipErrors()
+
     override fun studentRequests(dependentId: String): Result<List<StudentRequest>> =
         apiClient.get("$BASE/$dependentId/solicitudes").mapCatching(json::parseStudentRequests).mapGuardianshipErrors()
 

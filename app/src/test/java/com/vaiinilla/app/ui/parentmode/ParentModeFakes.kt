@@ -105,6 +105,11 @@ internal open class FakeGuardianship(
         idempotencyKey: String,
     ): Result<String> = unused()
 
+    override fun unlockParent(
+        schoolCode: String,
+        idempotencyKey: String,
+    ): Result<Unit> = unused()
+
     override fun studentRequests(dependentId: String): Result<List<StudentRequest>> = Result.success(emptyList())
 
     override fun requestForStudent(
@@ -157,10 +162,12 @@ internal class FakeAccount(
     ): Result<Unit> = unused()
 }
 
-internal class FakeCatalog : CatalogRepository {
+internal class FakeCatalog(
+    private val status: OperationalStatus? = null,
+) : CatalogRepository {
     override fun getCatalog(): Result<Catalog> = Result.success(Catalog(emptyList(), emptyList(), null))
 
-    override fun getOperationalStatus(): Result<OperationalStatus> = unused()
+    override fun getOperationalStatus(): Result<OperationalStatus> = status?.let { Result.success(it) } ?: unused()
 
     override fun createProduct(
         draft: CatalogProductDraft,
@@ -243,5 +250,6 @@ internal object ParentFixtures {
     fun services(
         guardianship: GuardianshipRepository,
         account: DependentAccountRepository = FakeAccount(wallet),
-    ) = ParentModeServices(guardianship, { account }, FakeCatalog())
+        catalog: CatalogRepository = FakeCatalog(),
+    ) = ParentModeServices(guardianship, { account }, catalog)
 }

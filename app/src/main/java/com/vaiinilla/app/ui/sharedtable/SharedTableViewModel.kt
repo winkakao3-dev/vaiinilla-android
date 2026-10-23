@@ -74,6 +74,15 @@ class SharedTableViewModel
             perform { repository.join(qrToken, alias) }
         }
 
+        /** Llamar al mesero desde el menú sin haberse unido: lo sienta con su nombre, sin pasar por la tarjeta. */
+        suspend fun joinForWaiterCall(
+            qrToken: String,
+            alias: String,
+        ): Result<Unit> =
+            withContext(Dispatchers.IO) { repository.join(qrToken, alias) }
+                .onSuccess { _uiState.value = _uiState.value.copy(loaded = true, table = it) }
+                .map { }
+
         fun claim(
             folio: Int,
             payIt: Boolean,

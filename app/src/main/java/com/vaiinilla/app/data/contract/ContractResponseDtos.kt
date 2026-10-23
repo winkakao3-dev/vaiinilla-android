@@ -51,6 +51,8 @@ data class OperationalStatusDto(
     @SerialName("dentro_de_franja") val withinOrderWindow: Boolean = true,
     /** Un servidor anterior no lo envía: no es escuela. */
     @SerialName("modo_escuela") val isSchool: Boolean = false,
+    /** Un servidor anterior no lo envía: el papá puede agregar hijos como antes. */
+    @SerialName("tutor_habilitado") val isParentUnlocked: Boolean = true,
 )
 
 @Serializable

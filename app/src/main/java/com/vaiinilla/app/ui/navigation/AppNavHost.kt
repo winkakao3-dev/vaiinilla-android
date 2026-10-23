@@ -60,6 +60,7 @@ import com.vaiinilla.app.ui.admin.AdminStaffViewModel
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.admin.AdminViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
+import com.vaiinilla.app.ui.components.MenuWaiterLayer
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.isRental
 import com.vaiinilla.app.ui.components.prefetchProductImages
@@ -82,7 +83,9 @@ import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.canPayWithCard
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.isEstablishmentSwitch
+import com.vaiinilla.app.ui.order.menuWaiterSpaceId
 import com.vaiinilla.app.ui.order.toRuntimeConfiguration
+import com.vaiinilla.app.ui.order.waiterCallAlias
 import com.vaiinilla.app.ui.parentmode.ChildrenViewModel
 import com.vaiinilla.app.ui.parentmode.GuardianControlsViewModel
 import com.vaiinilla.app.ui.parentmode.ParentModeWalletHost
@@ -425,6 +428,29 @@ fun AppNavHost(
         }
         entranceEntered = true
     }
+
+    // Aviso de un hijo (Padres e hijos): su escuela y su ficha en Cartera.
+    ChildNoticeEffect(
+        action =
+            resolveOrderNotificationAction(
+                target = OrderNotificationTarget.CLIENT,
+                hasStudentSession = studentAuthState.session != null,
+                studentAuthLoading = studentAuthState.loading,
+                operationalRole = operationalState.role,
+                accessLoading = authorizedAccessState.loading,
+                hasStaffModes = authorizedAccessState.modes.any { it.role != OperationalRole.CLIENT },
+            ),
+        currentEstablishmentId = orderState.guestVenue?.establishment?.id,
+        returnToClient = { onReturned -> authorizedAccessViewModel.returnToClient(onReturned) },
+        findSchool = discoveryViewModel::schoolFor,
+        openSchool = { school, onEntered ->
+            discoveryViewModel.openSchool(school) { venue ->
+                enterVenueAndOpenCatalog(venue)
+                onEntered()
+            }
+        },
+        openWallet = { navController.navigateStudent(Routes.WALLET) },
+    )
 
     LaunchedEffect(pendingEstablishmentSlug) {
         val slug = pendingEstablishmentSlug?.trim().orEmpty()
@@ -810,6 +836,8 @@ fun AppNavHost(
             }
 
             composable(Routes.DISCOVERY) {
+                // Tus escuelas: las de sus accesos, para volver sin código.
+                LaunchedEffect(studentAuthState.session?.uid) { discoveryViewModel.loadMySchools() }
                 DiscoveryScreen(
                     tableCodeRequest = tableCodeRequest,
                     state = discoveryState,
@@ -845,6 +873,10 @@ fun AppNavHost(
                     onEnableNearby = discoveryViewModel::enableNearby,
                     onNearbyPermissionDenied = discoveryViewModel::onNearbyPermissionDenied,
                     onDisableNearby = discoveryViewModel::disableNearby,
+                    onOpenSchool = { school ->
+                        startEntrance(null)
+                        discoveryViewModel.openSchool(school, onEntered = ::enterVenueAndOpenCatalog)
+                    },
                 )
 
                 if (qrScannerOpen) {
@@ -970,6 +1002,38 @@ fun AppNavHost(
                     onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
                     onOpenCart = { navController.navigateStudent(Routes.CART) },
                     onOpenFeed = { navController.navigate(Routes.MENU_FEED) { launchSingleTop = true } },
+                    waiterLayer =
+                        menuWaiterSpaceId(
+                            guestSpaceId = orderState.guestVenue?.space?.id,
+                            sharedTableSpaceId =
+                                sharedTableViewModel.uiState.value.table
+                                    ?.spaceId,
+                            signedIn = studentAuthState.session != null,
+                        )?.let { spaceId ->
+                            val qrToken = orderState.guestVenue?.space?.qrToken
+                            val alias = waiterCallAlias(studentAuthState.session?.displayName.orEmpty())
+                            val layer: @Composable (Boolean, Boolean) -> Unit = { compact, visible ->
+                                MenuWaiterLayer(
+                                    spaceId = spaceId,
+                                    visible = visible,
+                                    compact = compact,
+                                    onCurrent = { id ->
+                                        orderFlowViewModel.ensureClientContext()
+                                        operationalViewModel.currentWaiterCall(id)
+                                    },
+                                    onCall = { id, reason, orderId ->
+                                        orderFlowViewModel.ensureClientContext()
+                                        operationalViewModel.callWaiter(id, reason, orderId)
+                                    },
+                                    onCancel = operationalViewModel::cancelWaiterCall,
+                                    onJoinTable =
+                                        qrToken?.let { token ->
+                                            { sharedTableViewModel.joinForWaiterCall(token, alias) }
+                                        },
+                                )
+                            }
+                            layer
+                        },
                     // Sin cuenta también se renta, salvo en los lugares que piden cuenta: ahí se entra primero.
                     onOpenCourts =
                         if (courtsViewModel.uiState.value.courts

@@ -84,6 +84,12 @@ interface GuardianshipRepository {
         idempotencyKey: String,
     ): Result<String>
 
+    /** El papá que entró sin código lo escribe para poder agregar o vincular hijos. */
+    fun unlockParent(
+        schoolCode: String,
+        idempotencyKey: String,
+    ): Result<Unit>
+
     fun studentRequests(dependentId: String): Result<List<StudentRequest>>
 
     fun requestForStudent(
@@ -153,5 +159,10 @@ class GuardianshipException(
         const val GUARDIAN_NOT_PRINCIPAL = "GUARDIAN_NOT_PRINCIPAL"
         const val PRODUCT_BLOCKED_BY_GUARDIAN = "PRODUCT_BLOCKED_BY_GUARDIAN"
         const val DAILY_LIMIT_EXCEEDED = "DAILY_LIMIT_EXCEEDED"
+
+        /** Alta o vínculo de quien entró a la escuela sin su código: primero lo escribe. */
+        const val PARENT_CODE_REQUIRED = "PARENT_CODE_REQUIRED"
+        const val JOIN_CODE_INVALID = "JOIN_CODE_INVALID"
+        const val RATE_LIMITED = "RATE_LIMITED"
     }
 }

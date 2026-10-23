@@ -365,6 +365,17 @@ class OrderFlowViewModel
             }
         }
 
+        /**
+         * Lo que se hace como cliente fuera del pedido (llamar al mesero desde el menú) necesita el contexto de
+         * cliente de este negocio; entrar por el QR solo carga el catálogo público.
+         */
+        suspend fun ensureClientContext() {
+            val venue = _uiState.value.guestVenue ?: return
+            if (sessionStore.readAccessToken().isNullOrBlank()) {
+                withContext(Dispatchers.IO) { refreshClientContext(venue) }
+            }
+        }
+
         private fun fetchOperationalStatus(): Result<OperationalStatus> {
             val slug = guestSlugFor(_uiState.value.guestVenue) ?: return getOperationalStatus()
             return guestOrders.operationalStatus(slug)
