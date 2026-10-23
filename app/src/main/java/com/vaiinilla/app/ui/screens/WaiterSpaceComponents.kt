@@ -26,8 +26,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Checkbox
@@ -968,273 +970,289 @@ internal fun CollectAccountContent(
     val quickAmounts = remember(chargeLabel) { quickCashAmounts(chargeAmount) }
     val changeInk = animateSelectionColor(if (shortfall) StateCoral else colors.textPrimary, "change-ink")
 
+    // Con letra grande o dividiendo la cuenta el contenido no cabe: lo de arriba se desplaza y el botón
+    // de cobrar se queda fijo abajo, siempre a la mano.
     Column(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 22.dp)
                 .navigationBarsPadding()
                 .padding(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Column(modifier = Modifier.arrive(0)) {
-            Text(
-                title ?: when {
-                    !byOrders -> "Abonar a la cuenta"
-                    splitting && !allSelected -> "Cobrar parte de la cuenta"
-                    else -> "Cobrar cuenta"
-                },
-                fontSize = 13.sp,
-                color = colors.textSecondary,
-                fontWeight = FontWeight.SemiBold,
-            )
-            RollingText(
-                text = "$$totalLabel",
-                style = TextStyle(fontSize = 48.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.6).sp),
-                color = colors.textPrimary,
-            )
-        }
-        if (onAbono != null) {
-            if (paidInAmount.signum() > 0) {
+        Column(
+            modifier =
+                Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 22.dp)
+                    .padding(bottom = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Column(modifier = Modifier.arrive(0)) {
                 Text(
-                    "Abonado $${Money.format(paidInAmount)} · Falta $${Money.format(remainingAmount)}",
+                    title ?: when {
+                        !byOrders -> "Abonar a la cuenta"
+                        splitting && !allSelected -> "Cobrar parte de la cuenta"
+                        else -> "Cobrar cuenta"
+                    },
                     fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colors.textPrimary,
-                    modifier = Modifier.arrive(1),
-                )
-            }
-            Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    "Cómo dividir",
-                    fontSize = 12.5.sp,
                     color = colors.textSecondary,
                     fontWeight = FontWeight.SemiBold,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    SplitMode.entries.forEach { mode ->
-                        ChipButton(
-                            label = mode.label,
-                            enabled = !confirming && !(mode == SplitMode.ORDERS && splitLocked),
-                            colors = colors,
-                            modifier = Modifier.weight(1f),
-                            selected = split == mode,
-                        ) {
-                            split = mode
-                            typed = null
-                        }
-                    }
-                }
-                if (splitLocked) {
+                RollingText(
+                    text = "$$totalLabel",
+                    style = TextStyle(fontSize = 48.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.6).sp),
+                    color = colors.textPrimary,
+                )
+            }
+            if (onAbono != null) {
+                if (paidInAmount.signum() > 0) {
                     Text(
-                        "Hay abonos sin liquidar: termina la división por montos.",
-                        fontSize = 12.sp,
-                        color = colors.textSecondary,
+                        "Abonado $${Money.format(paidInAmount)} · Falta $${Money.format(remainingAmount)}",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textPrimary,
+                        modifier = Modifier.arrive(1),
                     )
                 }
-                if (split == SplitMode.AMOUNT) {
-                    OperationalField(
-                        value = abonoText,
-                        onValueChange = { raw ->
-                            abonoText = raw.filter { c -> c.isDigit() || c == '.' }
-                            typed = null
-                        },
-                        label = "Monto de este abono",
-                        colors = colors,
-                        supporting = "Falta $${Money.format(remainingAmount)}",
-                        isError = abonoText.isNotBlank() && !abonoValid,
-                        enabled = !confirming,
-                        keyboardType = KeyboardType.Decimal,
-                    )
-                }
-                if (split == SplitMode.PARTS) {
+                Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "¿Entre cuántos? Paga $${Money.format(
-                            AccountSplit.partAmount(remainingAmount, people),
-                        )} cada uno; " +
-                            "el último paga lo que quede.",
-                        fontSize = 12.sp,
+                        "Cómo dividir",
+                        fontSize = 12.5.sp,
                         color = colors.textSecondary,
+                        fontWeight = FontWeight.SemiBold,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                        PartsChoices.forEach { n ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        SplitMode.entries.forEach { mode ->
                             ChipButton(
-                                label = if (n == 1) "Resto" else "$n",
-                                enabled = !confirming,
+                                label = mode.label,
+                                enabled = !confirming && !(mode == SplitMode.ORDERS && splitLocked),
                                 colors = colors,
                                 modifier = Modifier.weight(1f),
-                                selected = people == n,
+                                selected = split == mode,
                             ) {
-                                people = n
+                                split = mode
                                 typed = null
+                            }
+                        }
+                    }
+                    if (splitLocked) {
+                        Text(
+                            "Hay abonos sin liquidar: termina la división por montos.",
+                            fontSize = 12.sp,
+                            color = colors.textSecondary,
+                        )
+                    }
+                    if (split == SplitMode.AMOUNT) {
+                        OperationalField(
+                            value = abonoText,
+                            onValueChange = { raw ->
+                                abonoText = raw.filter { c -> c.isDigit() || c == '.' }
+                                typed = null
+                            },
+                            label = "Monto de este abono",
+                            colors = colors,
+                            supporting = "Falta $${Money.format(remainingAmount)}",
+                            isError = abonoText.isNotBlank() && !abonoValid,
+                            enabled = !confirming,
+                            keyboardType = KeyboardType.Decimal,
+                        )
+                    }
+                    if (split == SplitMode.PARTS) {
+                        Text(
+                            "¿Entre cuántos? Paga $${Money.format(
+                                AccountSplit.partAmount(remainingAmount, people),
+                            )} cada uno; " +
+                                "el último paga lo que quede.",
+                            fontSize = 12.sp,
+                            color = colors.textSecondary,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                            PartsChoices.forEach { n ->
+                                ChipButton(
+                                    label = if (n == 1) "Resto" else "$n",
+                                    enabled = !confirming,
+                                    colors = colors,
+                                    modifier = Modifier.weight(1f),
+                                    selected = people == n,
+                                ) {
+                                    people = n
+                                    typed = null
+                                }
                             }
                         }
                     }
                 }
             }
-        }
-        if (splitting) {
-            PayerShortcuts(
-                orders = payable,
-                enabled = !confirming,
-                colors = colors,
-                onPick = { ids ->
-                    selected = ids
-                    typed = null
-                },
-            )
-            SplitOrdersPicker(
-                orders = payable,
-                selected = selected,
-                enabled = !confirming,
-                colors = colors,
-                onToggle = { id ->
-                    selected = if (id in selected) selected - id else selected + id
-                    typed = null
-                },
-            )
-        }
-        if (allowTerminal) {
-            Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    "¿Cómo paga?",
-                    fontSize = 12.5.sp,
-                    color = colors.textSecondary,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    ChipButton(
-                        label = "Efectivo",
-                        enabled = !confirming,
-                        colors = colors,
-                        modifier = Modifier.weight(1f),
-                        selected = method == AccountPaymentMethod.CASH,
-                    ) { method = AccountPaymentMethod.CASH }
-                    ChipButton(
-                        label = "Terminal",
-                        enabled = !confirming,
-                        colors = colors,
-                        modifier = Modifier.weight(1f),
-                        selected = method == AccountPaymentMethod.TERMINAL,
-                    ) { method = AccountPaymentMethod.TERMINAL }
-                }
-            }
-        }
-        if (allowTip) {
-            Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    if (tipAmount.signum() > 0) "Propina $${Money.format(tipAmount)} · es del negocio" else "Propina",
-                    fontSize = 12.5.sp,
-                    color = colors.textSecondary,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                    ChipButton(
-                        label = "Sin",
-                        enabled = !confirming,
-                        colors = colors,
-                        modifier = Modifier.weight(1f),
-                        selected = tipChoice == TipChoice.None,
-                    ) {
-                        tipChoice = TipChoice.None
+            if (splitting) {
+                PayerShortcuts(
+                    orders = payable,
+                    enabled = !confirming,
+                    colors = colors,
+                    onPick = { ids ->
+                        selected = ids
                         typed = null
-                    }
-                    TipPercents.forEach { percent ->
+                    },
+                )
+                SplitOrdersPicker(
+                    orders = payable,
+                    selected = selected,
+                    enabled = !confirming,
+                    colors = colors,
+                    onToggle = { id ->
+                        selected = if (id in selected) selected - id else selected + id
+                        typed = null
+                    },
+                )
+            }
+            if (allowTerminal) {
+                Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "¿Cómo paga?",
+                        fontSize = 12.5.sp,
+                        color = colors.textSecondary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         ChipButton(
-                            label = "$percent%",
+                            label = "Efectivo",
                             enabled = !confirming,
                             colors = colors,
                             modifier = Modifier.weight(1f),
-                            selected = tipChoice == TipChoice.Percent(percent),
+                            selected = method == AccountPaymentMethod.CASH,
+                        ) { method = AccountPaymentMethod.CASH }
+                        ChipButton(
+                            label = "Terminal",
+                            enabled = !confirming,
+                            colors = colors,
+                            modifier = Modifier.weight(1f),
+                            selected = method == AccountPaymentMethod.TERMINAL,
+                        ) { method = AccountPaymentMethod.TERMINAL }
+                    }
+                }
+            }
+            if (allowTip) {
+                Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        if (tipAmount.signum() >
+                            0
                         ) {
-                            tipChoice = TipChoice.Percent(percent)
+                            "Propina $${Money.format(tipAmount)} · es del negocio"
+                        } else {
+                            "Propina"
+                        },
+                        fontSize = 12.5.sp,
+                        color = colors.textSecondary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                        ChipButton(
+                            label = "Sin",
+                            enabled = !confirming,
+                            colors = colors,
+                            modifier = Modifier.weight(1f),
+                            selected = tipChoice == TipChoice.None,
+                        ) {
+                            tipChoice = TipChoice.None
+                            typed = null
+                        }
+                        TipPercents.forEach { percent ->
+                            ChipButton(
+                                label = "$percent%",
+                                enabled = !confirming,
+                                colors = colors,
+                                modifier = Modifier.weight(1f),
+                                selected = tipChoice == TipChoice.Percent(percent),
+                            ) {
+                                tipChoice = TipChoice.Percent(percent)
+                                typed = null
+                            }
+                        }
+                        ChipButton(
+                            label = "Otro",
+                            enabled = !confirming,
+                            colors = colors,
+                            modifier = Modifier.weight(1f),
+                            selected = tipChoice is TipChoice.Custom,
+                        ) {
+                            tipChoice = TipChoice.Custom((tipChoice as? TipChoice.Custom)?.amount.orEmpty())
                             typed = null
                         }
                     }
-                    ChipButton(
-                        label = "Otro",
-                        enabled = !confirming,
-                        colors = colors,
-                        modifier = Modifier.weight(1f),
-                        selected = tipChoice is TipChoice.Custom,
-                    ) {
-                        tipChoice = TipChoice.Custom((tipChoice as? TipChoice.Custom)?.amount.orEmpty())
-                        typed = null
+                    val custom = tipChoice as? TipChoice.Custom
+                    if (custom != null) {
+                        OperationalField(
+                            value = custom.amount,
+                            onValueChange = { raw ->
+                                tipChoice = TipChoice.Custom(raw.filter { c -> c.isDigit() || c == '.' })
+                                typed = null
+                            },
+                            label = "Monto de la propina",
+                            colors = colors,
+                            enabled = !confirming,
+                            keyboardType = KeyboardType.Decimal,
+                        )
                     }
                 }
-                val custom = tipChoice as? TipChoice.Custom
-                if (custom != null) {
+            }
+            if (withTerminal) {
+                Text(
+                    "Cobra $$chargeLabel en tu terminal de tarjeta y confirma aquí. No entra al efectivo de la caja.",
+                    fontSize = 13.sp,
+                    color = colors.textSecondary,
+                    modifier = Modifier.arrive(2),
+                )
+            } else {
+                Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Efectivo recibido",
+                        fontSize = 12.5.sp,
+                        color = colors.textSecondary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        ChipButton(
+                            label = "Justo",
+                            enabled = !confirming,
+                            colors = colors,
+                            modifier = Modifier.weight(1f),
+                            selected = received != null && received.compareTo(chargeAmount) == 0,
+                        ) { typed = null }
+                        quickAmounts.forEach { amount ->
+                            ChipButton(
+                                label = "$${amount.setScale(0)}",
+                                enabled = !confirming,
+                                colors = colors,
+                                modifier = Modifier.weight(1f),
+                                selected = received != null && received.compareTo(amount) == 0,
+                            ) { typed = Money.format(amount) }
+                        }
+                    }
                     OperationalField(
-                        value = custom.amount,
-                        onValueChange = { raw ->
-                            tipChoice = TipChoice.Custom(raw.filter { c -> c.isDigit() || c == '.' })
-                            typed = null
-                        },
-                        label = "Monto de la propina",
+                        value = text,
+                        onValueChange = { typed = it.filter { c -> c.isDigit() || c == '.' } },
+                        label = "Otro monto",
                         colors = colors,
                         enabled = !confirming,
                         keyboardType = KeyboardType.Decimal,
                     )
                 }
-            }
-        }
-        if (withTerminal) {
-            Text(
-                "Cobra $$chargeLabel en tu terminal de tarjeta y confirma aquí. No entra al efectivo de la caja.",
-                fontSize = 13.sp,
-                color = colors.textSecondary,
-                modifier = Modifier.arrive(2),
-            )
-        } else {
-            Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    "Efectivo recibido",
-                    fontSize = 12.5.sp,
-                    color = colors.textSecondary,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    ChipButton(
-                        label = "Justo",
-                        enabled = !confirming,
-                        colors = colors,
-                        modifier = Modifier.weight(1f),
-                        selected = received != null && received.compareTo(chargeAmount) == 0,
-                    ) { typed = null }
-                    quickAmounts.forEach { amount ->
-                        ChipButton(
-                            label = "$${amount.setScale(0)}",
-                            enabled = !confirming,
-                            colors = colors,
-                            modifier = Modifier.weight(1f),
-                            selected = received != null && received.compareTo(amount) == 0,
-                        ) { typed = Money.format(amount) }
-                    }
+                Column(modifier = Modifier.arrive(2)) {
+                    Text(
+                        if (shortfall) "Falta" else "Cambio",
+                        fontSize = 12.5.sp,
+                        color = colors.textSecondary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    RollingText(
+                        text = "$${Money.format((difference ?: BigDecimal.ZERO).abs())}",
+                        style = TextStyle(fontSize = 44.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.4).sp),
+                        color = changeInk,
+                    )
                 }
-                OperationalField(
-                    value = text,
-                    onValueChange = { typed = it.filter { c -> c.isDigit() || c == '.' } },
-                    label = "Otro monto",
-                    colors = colors,
-                    enabled = !confirming,
-                    keyboardType = KeyboardType.Decimal,
-                )
-            }
-            Column(modifier = Modifier.arrive(2)) {
-                Text(
-                    if (shortfall) "Falta" else "Cambio",
-                    fontSize = 12.5.sp,
-                    color = colors.textSecondary,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                RollingText(
-                    text = "$${Money.format((difference ?: BigDecimal.ZERO).abs())}",
-                    style = TextStyle(fontSize = 44.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.4).sp),
-                    color = changeInk,
-                )
             }
         }
-        Box(modifier = Modifier.arrive(3)) {
+        Box(modifier = Modifier.padding(horizontal = 22.dp).arrive(3)) {
             ActionPill(
                 label =
                     when {
