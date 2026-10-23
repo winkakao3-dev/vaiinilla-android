@@ -115,7 +115,7 @@ internal fun AdminCashbackSection(
                             onValueChange = { draft = current.copy(startTime = timeInput(it)) },
                             label = "Desde",
                             colors = colors,
-                            placeholder = "08:00",
+                            placeholder = "Ej. 08:00",
                             enabled = enabled,
                             modifier = Modifier.weight(1f),
                         )
@@ -124,12 +124,21 @@ internal fun AdminCashbackSection(
                             onValueChange = { draft = current.copy(endTime = timeInput(it)) },
                             label = "Hasta",
                             colors = colors,
-                            placeholder = "11:00",
+                            placeholder = "Ej. 11:00",
                             enabled = enabled,
                             modifier = Modifier.weight(1f),
                         )
                     }
-                    AdminHint("Si termina antes de empezar, cruza la medianoche.", colors)
+                    // Sin horario los campos vacíos muestran solo el ejemplo; se dice que aplica siempre para que el
+                    // ejemplo no se lea como el horario de la regla.
+                    AdminHint(
+                        if (current.startTime == null && current.endTime == null) {
+                            "Sin horario: aplica a cualquier hora."
+                        } else {
+                            "Si termina antes de empezar, cruza la medianoche."
+                        },
+                        colors,
+                    )
                     Text("Días activos", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -156,7 +165,7 @@ internal fun AdminCashbackSection(
                             onValueChange = { draft = current.copy(validFrom = dateInput(it)) },
                             label = "Desde",
                             colors = colors,
-                            placeholder = "2026-11-01",
+                            placeholder = "Ej. 2026-11-01",
                             enabled = enabled,
                             modifier = Modifier.weight(1f),
                         )
@@ -165,10 +174,13 @@ internal fun AdminCashbackSection(
                             onValueChange = { draft = current.copy(validTo = dateInput(it)) },
                             label = "Hasta",
                             colors = colors,
-                            placeholder = "2026-12-31",
+                            placeholder = "Ej. 2026-12-31",
                             enabled = enabled,
                             modifier = Modifier.weight(1f),
                         )
+                    }
+                    if (current.validFrom == null && current.validTo == null) {
+                        AdminHint("Sin vigencia: aplica siempre.", colors)
                     }
                     if (!readOnly) {
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

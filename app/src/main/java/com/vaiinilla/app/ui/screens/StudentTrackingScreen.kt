@@ -164,6 +164,7 @@ import com.vaiinilla.app.ui.components.trackingStepTitle
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.canCancelMenuCall
+import com.vaiinilla.app.ui.order.orderCancellationNotice
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.SeaGlassButton
 import com.vaiinilla.app.ui.theme.SeaGlassTone
@@ -1923,6 +1924,20 @@ private fun PastOrderRow(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 2.dp),
             )
+            // Como iOS: el motivo del rechazo también se lee en la lista, sin abrir el pedido.
+            orderCancellationNotice(order)?.let { notice ->
+                notice.reason?.let { reason ->
+                    Text(
+                        "${notice.title}: $reason",
+                        color = colors.muted,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+            }
         }
         Spacer(Modifier.width(10.dp))
         Column(horizontalAlignment = Alignment.End) {

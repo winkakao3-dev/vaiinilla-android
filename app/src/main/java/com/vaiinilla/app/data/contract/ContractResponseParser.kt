@@ -54,6 +54,7 @@ class ContractResponseParser
                 deliveryRequiresQr = envelope.data.deliveryRequiresQr,
                 allowsPayAtEnd = envelope.data.allowsPayAtEnd,
                 acceptsCard = envelope.data.acceptsCard,
+                allowsBalance = envelope.data.allowsBalance,
                 businessType = envelope.data.businessType,
                 orderWindows = envelope.data.orderWindows.map { OrderWindow(it.from, it.to) },
                 withinOrderWindow = envelope.data.withinOrderWindow,
