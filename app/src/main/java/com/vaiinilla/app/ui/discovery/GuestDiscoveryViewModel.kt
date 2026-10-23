@@ -19,6 +19,7 @@ import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -386,9 +387,11 @@ class GuestDiscoveryViewModel
         }
 
         private fun launchTracked(block: suspend () -> Unit): Job {
+            // LAZY: en Main.immediate un bloque que no suspende (invitado sin sesión) termina dentro de
+            // launch, y el finally leería job antes de asignarse.
             lateinit var job: Job
             job =
-                viewModelScope.launch {
+                viewModelScope.launch(start = CoroutineStart.LAZY) {
                     try {
                         block()
                     } finally {
@@ -396,6 +399,7 @@ class GuestDiscoveryViewModel
                     }
                 }
             activeJobs += job
+            job.start()
             return job
         }
 
