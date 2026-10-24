@@ -274,7 +274,7 @@ fun WalletScreen(
                     matrix = matrix,
                     shown = codeOpen,
                     fill = jarFillLevel(shownBalance),
-                    label = shownBalance?.let { "$$it" },
+                    label = shownBalance?.let { moneyLabel(it) },
                     onClose = { codeOpen = false },
                 )
             }

@@ -101,6 +101,7 @@ import com.vaiinilla.app.ui.components.NumberTicker
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductDetailSheet
 import com.vaiinilla.app.ui.components.ProductImage
+import com.vaiinilla.app.ui.components.initialOf
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.prefetchProductImages
@@ -1004,7 +1005,7 @@ private fun InitialPlane(
     BoxWithConstraints(modifier.background(Color(0xFF2A2927)), contentAlignment = Alignment.Center) {
         val side = minOf(maxWidth, maxHeight)
         Text(
-            name.trim().take(1).uppercase(),
+            initialOf(name),
             color = Color.White.copy(alpha = 0.75f),
             fontWeight = FontWeight.Black,
             fontSize = (side.value * 0.45f).coerceIn(12f, 96f).sp,

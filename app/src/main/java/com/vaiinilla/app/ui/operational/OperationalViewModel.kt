@@ -43,6 +43,7 @@ import com.vaiinilla.app.domain.usecase.GetOrderUseCase
 import com.vaiinilla.app.domain.usecase.ListOrdersUseCase
 import com.vaiinilla.app.domain.usecase.OpenCashSessionUseCase
 import com.vaiinilla.app.domain.usecase.TransitionOrderUseCase
+import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.discovery.QrPayload
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -559,7 +560,9 @@ class OperationalViewModel
             if (stored != null && (stored.userId != userId || stored.amount != normalizedAmount)) {
                 showMutationError(
                     "Hay una recarga anterior sin confirmar. " +
-                        "Reintenta con el mismo cliente y monto (\$${stored.amount}) para confirmarla sin duplicarla.",
+                        "Reintenta con el mismo cliente y monto (${moneyLabel(
+                            stored.amount,
+                        )}) para confirmarla sin duplicarla.",
                 )
                 return
             }
@@ -643,7 +646,7 @@ class OperationalViewModel
                         } else if (_uiState.value.role == OperationalRole.CASHIER) {
                             showMutationError(
                                 "Hay una recarga pendiente de confirmar. " +
-                                    "Reintenta con el mismo cliente y monto (\$${pending.amount}).",
+                                    "Reintenta con el mismo cliente y monto (${moneyLabel(pending.amount)}).",
                             )
                         }
                     }
@@ -713,7 +716,7 @@ class OperationalViewModel
                                     selectedOrderId = receipt.order.summary.id,
                                     cashChangeNotice =
                                         if (change != null && change > BigDecimal.ZERO) {
-                                            "Cobro confirmado · Cambio: \$${receipt.change}"
+                                            "Cobro confirmado · Cambio: ${moneyLabel(receipt.change)}"
                                         } else {
                                             "Cobro confirmado"
                                         },

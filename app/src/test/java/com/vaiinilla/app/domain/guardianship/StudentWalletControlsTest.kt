@@ -32,7 +32,7 @@ class StudentWalletControlsTest {
     @Test
     fun juntaElLimiteConLoQueNoPuedePedir() {
         assertEquals(
-            "Límite de \$80 al día; hoy te quedan \$80. 2 productos no están a tu alcance.",
+            "Límite de \$80 al día; hoy te quedan \$80.\n2 productos no están a tu alcance.",
             controls(limit = "80.00", available = "80.00", blocked = setOf(1), allergen = setOf(1, 2)).walletDetail,
         )
         assertEquals("1 producto no está a tu alcance.", controls(blocked = setOf(3)).walletDetail)

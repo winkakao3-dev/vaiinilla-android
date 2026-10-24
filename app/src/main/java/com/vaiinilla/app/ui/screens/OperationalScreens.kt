@@ -42,8 +42,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -142,6 +144,7 @@ import com.vaiinilla.app.ui.components.assistantProductSwitchAnchor
 import com.vaiinilla.app.ui.components.assistantQueueOrderAnchor
 import com.vaiinilla.app.ui.components.cashierAssistantGuides
 import com.vaiinilla.app.ui.components.kitchenAssistantGuides
+import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
@@ -717,7 +720,8 @@ fun CashierOperationalScreen(
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.Top,
                                     ) {
-                                        Column {
+                                        // El sello se mide primero; el folio toma lo que sobra.
+                                        Column(modifier = Modifier.weight(1f)) {
                                             Text(
                                                 "PEDIDO · ${elapsedShort(
                                                     recentOrder.summary.createdAt,
@@ -728,12 +732,22 @@ fun CashierOperationalScreen(
                                                 fontWeight = FontWeight.ExtraBold,
                                                 letterSpacing = 1.6.sp,
                                             )
-                                            Text(
+                                            // Con la letra del sistema al doble el folio se partía en dos renglones.
+                                            BasicText(
                                                 "#${recentOrder.summary.folio}",
-                                                fontSize = 46.sp,
-                                                fontWeight = FontWeight.Black,
-                                                letterSpacing = (-1.5).sp,
-                                                color = TicketInk,
+                                                style =
+                                                    TextStyle(
+                                                        fontWeight = FontWeight.Black,
+                                                        letterSpacing = (-1.5).sp,
+                                                        color = TicketInk,
+                                                    ),
+                                                maxLines = 1,
+                                                autoSize =
+                                                    TextAutoSize.StepBased(
+                                                        minFontSize = 24.sp,
+                                                        maxFontSize = 46.sp,
+                                                        stepSize = 2.sp,
+                                                    ),
                                             )
                                         }
                                         StampLabel(
@@ -768,7 +782,7 @@ fun CashierOperationalScreen(
                                                     item.options
                                                         .joinToString(" · ") { it.name }
                                                         .ifEmpty { null },
-                                                price = "$${item.subtotal}",
+                                                price = moneyLabel(item.subtotal),
                                                 onRemove = if (canRemoveItems) ({ rejectingItem = item }) else null,
                                             )
                                         }
@@ -789,7 +803,7 @@ fun CashierOperationalScreen(
                                             color = TicketMuted,
                                         )
                                         Text(
-                                            "$${recentOrder.summary.total}",
+                                            moneyLabel(recentOrder.summary.total),
                                             fontSize = 28.sp,
                                             fontWeight = FontWeight.Black,
                                             letterSpacing = (-1).sp,
@@ -1322,7 +1336,7 @@ private fun TicketTipRow(
 ) {
     Column(modifier = Modifier.padding(top = 12.dp)) {
         Text(
-            if (tipAmount.signum() > 0) "PROPINA \$${Money.format(tipAmount)}" else "PROPINA",
+            if (tipAmount.signum() > 0) "PROPINA ${moneyLabel(Money.format(tipAmount))}" else "PROPINA",
             fontSize = 10.5.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = 1.4.sp,
@@ -1486,6 +1500,8 @@ private fun StampLabel(
     ) {
         Text(
             text,
+            maxLines = 1,
+            softWrap = false,
             fontSize = 9.5.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = 1.3.sp,
@@ -1697,7 +1713,7 @@ private fun ProductGridCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "$${product.digitalPrice}",
+                    moneyLabel(product.digitalPrice),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = colors.textPrimary,
@@ -2049,7 +2065,7 @@ fun KitchenOperationalScreen(
                                                     item.options
                                                         .joinToString(" · ") { it.name }
                                                         .ifEmpty { null },
-                                                price = "$${item.subtotal}",
+                                                price = moneyLabel(item.subtotal),
                                                 onRemove =
                                                     if (canRemoveItems && !state.acting) {
                                                         { rejectingItem = item }
@@ -2238,7 +2254,7 @@ fun KitchenOperationalScreen(
                         color = colors.textPrimary,
                     )
                     Text(
-                        "${upcomingOrders.size} comandas",
+                        if (upcomingOrders.size == 1) "1 comanda" else "${upcomingOrders.size} comandas",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.textSecondary,

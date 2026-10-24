@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
@@ -484,7 +485,11 @@ private fun CatalogContent(
                         }
                     }
 
-                    if (filteredProducts.isEmpty()) {
+                    if (catalog.products.isEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            EmptyMenuState()
+                        }
+                    } else if (filteredProducts.isEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
                             EmptySearchState(onClearSearch = { onSearchChange("") })
                         }
@@ -744,6 +749,15 @@ private fun ProductCard(
             ChildRestrictionTag(it, colors.muted, Modifier.padding(start = 2.dp, top = 4.dp, end = 2.dp))
         }
     }
+}
+
+@Composable
+private fun EmptyMenuState() {
+    EmptyState(
+        icon = Icons.Outlined.Restaurant,
+        title = "Aún no hay productos",
+        message = "Esta cafetería todavía no sube su menú.",
+    )
 }
 
 @Composable

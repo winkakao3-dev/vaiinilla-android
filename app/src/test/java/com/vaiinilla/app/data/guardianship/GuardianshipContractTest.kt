@@ -108,8 +108,8 @@ class GuardianshipContractTest {
         val range = wallet.reloadRange!!
         assertNull(range.problem(BigDecimal("300")))
         assertEquals("El mínimo es \$50.", range.problem(BigDecimal("20")))
-        assertEquals("El máximo es \$2000.", range.problem(BigDecimal("2500")))
-        assertEquals("De \$50 a \$2000", range.label)
+        assertEquals("El máximo es \$2,000.", range.problem(BigDecimal("2500")))
+        assertEquals("De \$50 a \$2,000", range.label)
         assertTrue(wallet.movements.single().isDebit)
     }
 

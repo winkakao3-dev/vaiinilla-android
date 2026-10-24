@@ -82,7 +82,7 @@ internal fun pickupHint(
     val toSpace = order.summary.destination == OrderDestination.IN_SPACE
     return when {
         order.cashPending() -> "Muestra tu código en Caja para pagar."
-        toSpace && state == OrderState.READY -> "¡Listo! Te lo llevan a ${order.spaceName()}."
+        toSpace && state == OrderState.READY -> "Ya va en camino a ${order.spaceName()}."
         toSpace && (state == OrderState.PAID || state == OrderState.PREPARING) -> "Te lo llevan a ${order.spaceName()}."
         state == OrderState.PENDING_PAYMENT -> "Estamos confirmando tu pago."
         state == OrderState.PAID -> "Cocina recibió la comanda."

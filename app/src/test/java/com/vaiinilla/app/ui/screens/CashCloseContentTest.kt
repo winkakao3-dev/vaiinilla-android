@@ -67,7 +67,7 @@ class CashCloseContentTest {
         showSheet()
         composeTestRule.onNode(hasSetTextAction()).performTextInput("1200")
         composeTestRule
-            .onNodeWithContentDescription("Desliza para cerrar con $1200")
+            .onNodeWithContentDescription("Desliza para cerrar con $1,200")
             .performSemanticsAction(SemanticsActions.OnClick)
         assertEquals(listOf("1200.00"), closes)
     }

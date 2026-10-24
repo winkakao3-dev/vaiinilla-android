@@ -8,6 +8,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.vaiinilla.app.MainActivity
 import com.vaiinilla.app.R
+import com.vaiinilla.app.domain.guardianship.compactMoney
 
 /**
  * Avisos de Padres e hijos (notifications.service del backend). Al tocarlos abren la ficha del hijo en
@@ -64,7 +65,8 @@ object GuardianPushNotifier {
             body = balance?.let { "Saldo: ${money(it)}." } ?: "Ya entró la recarga.",
         )
 
-    private fun money(value: String): String = "$" + value.removeSuffix(".00")
+    private fun money(value: String): String =
+        value.toBigDecimalOrNull()?.let(::compactMoney) ?: ("$" + value.removeSuffix(".00"))
 
     @SuppressLint("MissingPermission")
     fun post(

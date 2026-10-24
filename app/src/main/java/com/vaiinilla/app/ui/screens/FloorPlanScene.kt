@@ -901,7 +901,11 @@ internal object FloorPlanArt {
             .replace(Regex("\\p{Mn}+"), "")
             .uppercase()
             .filter { it in pixelFont }
-            .take(18)
+            .let { text ->
+                if (text.length <= 18) return@let text
+                val cut = text.take(19).lastIndexOf(' ')
+                if (cut > 0) text.take(cut) else text.take(18)
+            }
 
     /** Escribe [text] en letra de pixeles de 3 × 5 (×[scale]), una letra cada 4 pixeles. */
     fun write(

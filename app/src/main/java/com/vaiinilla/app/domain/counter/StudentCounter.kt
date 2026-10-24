@@ -1,5 +1,6 @@
 package com.vaiinilla.app.domain.counter
 
+import com.vaiinilla.app.domain.model.NameInitials
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.school.SchoolAllergen
@@ -76,13 +77,7 @@ data class StudentCard(
                 ?.takeIf { it.isNotEmpty() } ?: name
 
     val initials: String
-        get() =
-            name
-                .trim()
-                .split(Regex("\\s+"))
-                .filter { it.isNotEmpty() }
-                .take(2)
-                .joinToString("") { it.first().uppercase() }
+        get() = NameInitials.of(name)
 }
 
 enum class StudentCredentialKind(

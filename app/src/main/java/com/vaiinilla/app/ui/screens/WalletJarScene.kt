@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.reducedMotion
 import kotlinx.coroutines.launch
 import kotlin.math.ln
@@ -133,7 +134,7 @@ internal fun WalletJarBackdrop(
                     happy = happy,
                     fill = fill.value,
                     falling = falling.value.takeIf { it < 1f },
-                    label = balance?.let { "$$it" },
+                    label = balance?.let(::moneyLabel),
                 ),
         )
     }

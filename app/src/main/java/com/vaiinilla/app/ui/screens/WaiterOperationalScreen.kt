@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -876,7 +877,14 @@ private fun WaiterSummaryCard(
                 lineHeight = 26.sp,
             )
         }
-        Text(label, color = labelColor, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            label,
+            color = labelColor,
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -953,7 +961,7 @@ private fun WaiterTile(
             modifier
                 .physicalPress(onClick = onClick)
                 .pulseGlow(active = ringing, color = WaiterCoral, spread = 7.dp, corner = 20.dp)
-                .height(WaiterTileHeight)
+                .heightIn(min = WaiterTileHeight)
                 .clip(shape)
                 .background(container)
                 .border(1.dp, border, shape)

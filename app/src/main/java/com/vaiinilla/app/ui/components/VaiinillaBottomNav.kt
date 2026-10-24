@@ -546,8 +546,13 @@ private fun FloatingNavTab(
                             .offset(x = 7.dp, y = (-4).dp)
                             .scale(badgeScale.value)
                             .height(18.dp)
-                            .width(if (badge > 9) 23.dp else 18.dp)
-                            .clip(RoundedCornerShape(99.dp))
+                            .width(
+                                when {
+                                    badge > 99 -> 28.dp
+                                    badge > 9 -> 23.dp
+                                    else -> 18.dp
+                                },
+                            ).clip(RoundedCornerShape(99.dp))
                             .background(Coral)
                             .border(1.dp, colors.navPill, RoundedCornerShape(99.dp)),
                     contentAlignment = Alignment.Center,
@@ -566,10 +571,11 @@ private fun FloatingNavTab(
                         label = "cart_badge_ticker",
                     ) { count ->
                         Text(
-                            text = count.coerceAtMost(99).toString(),
+                            text = if (count > 99) "99+" else count.toString(),
                             color = Color.White,
-                            fontSize = 10.sp,
-                            lineHeight = 10.sp,
+                            // La burbuja mide 18 dp fijos: con la letra del sistema al doble tapaba el ícono.
+                            fontSize = with(LocalDensity.current) { 10.dp.toSp() },
+                            lineHeight = with(LocalDensity.current) { 10.dp.toSp() },
                             fontWeight = FontWeight.Black,
                         )
                     }

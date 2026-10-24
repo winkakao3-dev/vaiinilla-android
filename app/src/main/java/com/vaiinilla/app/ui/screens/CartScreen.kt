@@ -85,6 +85,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -1023,12 +1024,14 @@ private fun CartLineRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        // En 320 dp la foto de 76 dejaba al nombre y al precio unos 70 dp.
+        val narrow = LocalConfiguration.current.screenWidthDp < 360
         ProductImage(
             imageUrl = line.product.imageUrl,
             contentDescription = line.product.name,
             modifier =
                 Modifier
-                    .size(76.dp)
+                    .size(if (narrow) 56.dp else 76.dp)
                     .clip(RoundedCornerShape(18.dp)),
             placeholder = { m -> ProductMonogram(line.product.name, m) },
         )
@@ -1085,6 +1088,8 @@ private fun CartLineRow(
                     lineHeight = 24.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = 4.dp),
+                    maxLines = 1,
+                    softWrap = false,
                 )
             }
         }
