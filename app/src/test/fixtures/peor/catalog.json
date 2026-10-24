@@ -1,0 +1,297 @@
+{
+ "data": {
+  "categorias": [
+   {
+    "id": 10,
+    "nombre": "Bebidas",
+    "orden": 1
+   },
+   {
+    "id": 11,
+    "nombre": "Desayunos calientes (de lunes a viernes, solo antes de las 10:30 a. m.)",
+    "orden": 2
+   },
+   {
+    "id": 12,
+    "nombre": "Comida corrida",
+    "orden": 3
+   },
+   {
+    "id": 13,
+    "nombre": "Paquetes para eventos escolares y fiestas de fin de curso",
+    "orden": 4
+   },
+   {
+    "id": 14,
+    "nombre": "Snacks",
+    "orden": 5
+   },
+   {
+    "id": 15,
+    "nombre": "Postres",
+    "orden": 6
+   },
+   {
+    "id": 16,
+    "nombre": "Saludable",
+    "orden": 7
+   },
+   {
+    "id": 17,
+    "nombre": "Sin gluten",
+    "orden": 8
+   },
+   {
+    "id": 18,
+    "nombre": "Antojitos",
+    "orden": 9
+   },
+   {
+    "id": 19,
+    "nombre": "Café",
+    "orden": 10
+   },
+   {
+    "id": 20,
+    "nombre": "Fruta",
+    "orden": 11
+   },
+   {
+    "id": 21,
+    "nombre": "Promociones del Día del Estudiante",
+    "orden": 12
+   }
+  ],
+  "productos": [
+   {
+    "id": 1101,
+    "categoria_id": 11,
+    "estacion_preparacion": "cocina",
+    "nombre": "Chilaquiles verdes con pollo deshebrado, crema, queso fresco, cebolla morada, aguacate y frijoles refritos de la olla",
+    "descripcion": "Totopos de maíz nixtamalizado hechos en casa, bañados en salsa verde de tomatillo asado con chile serrano y cilantro. Se sirven con pollo deshebrado cocido con laurel, crema ácida, queso fresco desmoronado, rodajas de cebolla morada curtida en limón, aguacate en láminas y una porción de frijoles refritos de la olla con un toque de manteca. Pide la salsa aparte si los vas a comer más tarde: así no se aguadan. Disponible solo en el turno matutino mientras haya existencias.",
+    "ingredientes": "Tortilla de maíz, aceite vegetal, tomatillo, chile serrano, cilantro, ajo, cebolla, pollo, laurel, crema, queso fresco, cebolla morada, limón, aguacate, frijol, manteca de cerdo, sal",
+    "alergenos": "Leche, lactosa, puede contener trazas de cacahuate, nueces, soya, mostaza y ajonjolí por manejarse en la misma cocina",
+    "tiempo_estimado_min": 25,
+    "precio_mostrador": "89.00",
+    "precio_digital": "95.00",
+    "disponible": true,
+    "imagen_url": "fixture://quesa",
+    "grupos_opcion": [
+     {
+      "id": 2101,
+      "nombre": "Elige tu proteína (puedes cambiarla por huevo estrellado sin costo extra)",
+      "min_selecciones": 1,
+      "max_selecciones": 1,
+      "opciones": [
+       {
+        "id": 3101,
+        "nombre": "Pollo deshebrado",
+        "precio_extra": "0.00"
+       },
+       {
+        "id": 3102,
+        "nombre": "Huevo estrellado",
+        "precio_extra": "0.00"
+       },
+       {
+        "id": 3103,
+        "nombre": "Bistec de res a la mexicana con jitomate, cebolla y un toque de chipotle",
+        "precio_extra": "35.50"
+       },
+       {
+        "id": 3104,
+        "nombre": "Cecina enchilada de Yecapixtla",
+        "precio_extra": "42.00"
+       },
+       {
+        "id": 3105,
+        "nombre": "Sin proteína",
+        "precio_extra": "0.00"
+       },
+       {
+        "id": 3106,
+        "nombre": "Chorizo de Toluca",
+        "precio_extra": "18.00"
+       },
+       {
+        "id": 3107,
+        "nombre": "Arrachera marinada",
+        "precio_extra": "55.00"
+       },
+       {
+        "id": 3108,
+        "nombre": "Queso panela asado",
+        "precio_extra": "15.00"
+       }
+      ]
+     },
+     {
+      "id": 2102,
+      "nombre": "Extras",
+      "min_selecciones": 0,
+      "max_selecciones": 6,
+      "opciones": [
+       {
+        "id": 3110,
+        "nombre": "Crema extra",
+        "precio_extra": "6.00"
+       },
+       {
+        "id": 3111,
+        "nombre": "Aguacate extra",
+        "precio_extra": "18.00"
+       },
+       {
+        "id": 3112,
+        "nombre": "Queso extra",
+        "precio_extra": "10.00"
+       },
+       {
+        "id": 3113,
+        "nombre": "Frijoles extra",
+        "precio_extra": "8.00"
+       },
+       {
+        "id": 3114,
+        "nombre": "Salsa roja aparte",
+        "precio_extra": "0.00"
+       },
+       {
+        "id": 3115,
+        "nombre": "Totopos aparte para que no se aguaden",
+        "precio_extra": "0.00"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "id": 1001,
+    "categoria_id": 10,
+    "estacion_preparacion": "caja",
+    "nombre": "Té",
+    "descripcion": null,
+    "ingredientes": null,
+    "alergenos": null,
+    "tiempo_estimado_min": 1,
+    "precio_mostrador": "12.00",
+    "precio_digital": "12.00",
+    "disponible": true,
+    "imagen_url": "https://storage.vaiinilla.app/productos/te-manzanilla-no-existe.jpg",
+    "grupos_opcion": []
+   },
+   {
+    "id": 1301,
+    "categoria_id": 13,
+    "estacion_preparacion": "cocina",
+    "nombre": "Paquete fiesta de fin de curso para 30 alumnos (incluye pastel, aguas frescas y bocadillos)",
+    "descripcion": "Se aparta con 3 días de anticipación.",
+    "ingredientes": null,
+    "alergenos": "Gluten, leche, huevo",
+    "tiempo_estimado_min": 180,
+    "precio_mostrador": "4850.00",
+    "precio_digital": "4850.00",
+    "disponible": true,
+    "imagen_url": "fixture://torta",
+    "grupos_opcion": []
+   },
+   {
+    "id": 1102,
+    "categoria_id": 11,
+    "estacion_preparacion": "cocina",
+    "nombre": "COMBO_DESAYUNO_ESCOLAR_GRANDE_JUGO_NARANJA_500ML",
+    "descripcion": "Importado de la hoja de cálculo del proveedor.",
+    "ingredientes": null,
+    "alergenos": null,
+    "tiempo_estimado_min": 8,
+    "precio_mostrador": "65.00",
+    "precio_digital": "69.50",
+    "disponible": true,
+    "imagen_url": "https://storage.vaiinilla.app/productos/combo.jpg",
+    "grupos_opcion": []
+   },
+   {
+    "id": 1801,
+    "categoria_id": 18,
+    "estacion_preparacion": "cocina",
+    "nombre": "🌮 Tacos al pastor (orden de 5)",
+    "descripcion": "Con piña, cebolla y cilantro.",
+    "ingredientes": null,
+    "alergenos": null,
+    "tiempo_estimado_min": 12,
+    "precio_mostrador": "75.00",
+    "precio_digital": "80.00",
+    "disponible": true,
+    "imagen_url": "https://storage.vaiinilla.app/productos/tacos.jpg",
+    "grupos_opcion": []
+   },
+   {
+    "id": 1002,
+    "categoria_id": 10,
+    "estacion_preparacion": "caja",
+    "nombre": "Agua de horchata con canela",
+    "descripcion": "Se acabó por hoy.",
+    "ingredientes": null,
+    "alergenos": "Leche",
+    "tiempo_estimado_min": 1,
+    "precio_mostrador": "20.00",
+    "precio_digital": "22.00",
+    "disponible": false,
+    "imagen_url": "fixture://jamaica",
+    "grupos_opcion": []
+   },
+   {
+    "id": 1003,
+    "categoria_id": 10,
+    "estacion_preparacion": "caja",
+    "nombre": "Vaso con agua natural",
+    "descripcion": null,
+    "ingredientes": null,
+    "alergenos": null,
+    "tiempo_estimado_min": 0,
+    "precio_mostrador": "0.00",
+    "precio_digital": "0.00",
+    "disponible": true,
+    "imagen_url": "https://storage.vaiinilla.app/productos/agua.jpg",
+    "grupos_opcion": []
+   },
+   {
+    "id": 1401,
+    "categoria_id": 14,
+    "estacion_preparacion": "caja",
+    "nombre": "Pan",
+    "descripcion": null,
+    "ingredientes": null,
+    "alergenos": "Gluten",
+    "tiempo_estimado_min": 0,
+    "precio_mostrador": "8.50",
+    "precio_digital": "8.50",
+    "disponible": true,
+    "imagen_url": "fixture://waffle",
+    "grupos_opcion": []
+   },
+   {
+    "id": 1601,
+    "categoria_id": 16,
+    "estacion_preparacion": "cocina",
+    "nombre": "Piña colada sin alcohol, ¡nueva!",
+    "descripcion": "Licuado de piña, leche de coco y hielo.",
+    "ingredientes": "Piña, leche de coco, hielo",
+    "alergenos": null,
+    "tiempo_estimado_min": 4,
+    "precio_mostrador": "45.00",
+    "precio_digital": "48.00",
+    "disponible": true,
+    "imagen_url": "fixture://fruta",
+    "grupos_opcion": []
+   }
+  ]
+ },
+ "meta": {
+  "page": null,
+  "total_pages": null,
+  "total_items": 9,
+  "cursor": null
+ },
+ "error": null
+}
