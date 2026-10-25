@@ -25,6 +25,7 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.RefundOutcome
 import com.vaiinilla.app.domain.model.cashAmountDue
 import com.vaiinilla.app.domain.model.needsCashCollection
 import com.vaiinilla.app.domain.repository.CallReason
@@ -968,7 +969,7 @@ class OperationalViewModel
                 return
             }
             val version = freshVersion(orderId, expectedVersion)
-            performMutation(successNotice = { order -> "Se quitó un artículo de la comanda #${order.summary.folio}" }) {
+            performMutation(successNotice = ::itemRejectedNotice) {
                 cancelOrder
                     .rejectItem(
                         orderId = orderId,
@@ -1694,9 +1695,30 @@ internal fun kitchenActionNotice(order: OrderDetail): String? =
     when (order.summary.state) {
         OrderState.PREPARING -> "Comanda #${order.summary.folio} en preparación"
         OrderState.READY -> "Comanda #${order.summary.folio} lista"
-        OrderState.CANCELED -> "Comanda #${order.summary.folio} rechazada"
+        OrderState.CANCELED -> withRefund("Comanda #${order.summary.folio} rechazada", order.refund)
         else -> null
     }
+
+internal fun itemRejectedNotice(order: OrderDetail): String =
+    withRefund("Se quitó un artículo de la comanda #${order.summary.folio}", order.refund)
+
+/** Lo que Caja debe hacer con el dinero del pedido o artículo ya pagado que se rechazó (CAJA-06). */
+private fun withRefund(
+    base: String,
+    refund: RefundOutcome?,
+): String {
+    val action =
+        when {
+            refund == null -> null
+            refund.cashHandedBack != null -> "Entrega ${moneyLabel(refund.cashHandedBack)} en efectivo al cliente."
+            refund.pendingForCashier != null ->
+                "Devolución pendiente de ${moneyLabel(refund.pendingForCashier)}: confírmala en Devoluciones."
+            refund.returnedToBalance != null -> "Se regresaron ${moneyLabel(refund.returnedToBalance)} a su saldo."
+            refund.cardRefund -> "El reembolso a su tarjeta ya está en camino."
+            else -> null
+        }
+    return if (action == null) base else "$base. $action"
+}
 
 /** A client order moved forward in the tracking flow; surfaced as a system notification. */
 data class OrderAdvance(

@@ -29,12 +29,18 @@ internal fun refundOriginLabel(origin: String): String =
         "sobrante_cuenta" -> "Se abonó de más a la cuenta"
         "rechazo_articulo" -> "Se quitó un artículo ya pagado"
         "cancelacion" -> "Se canceló un pedido ya pagado"
+        "reserva_cancelada" -> "Se canceló una reserva ya pagada"
         else -> "Dinero por devolver"
     }
 
-/** Se devuelve por donde entró; lo pagado con saldo o mezclado, Caja lo devuelve con la terminal o en efectivo. */
-internal fun suggestedRefundMethod(originalMethod: String): RefundMethod =
-    if (originalMethod == "efectivo") RefundMethod.CASH else RefundMethod.TERMINAL
+/**
+ * Se devuelve por donde entró: con tarjeta (terminal o Stripe) en la terminal; lo pagado en efectivo, con saldo o
+ * mezcla de ambos no pasó por la terminal, así que se sugiere efectivo (CAJA-22).
+ */
+internal fun suggestedRefundMethod(originalMethod: String): RefundMethod {
+    val methods = originalMethod.split("+")
+    return if (methods.any { it == "terminal" || it == "stripe" }) RefundMethod.TERMINAL else RefundMethod.CASH
+}
 
 /**
  * Devoluciones pendientes (G08, H03): dinero que el negocio debe regresar a mano. Caja confirma cuándo y cómo
@@ -44,6 +50,7 @@ internal fun suggestedRefundMethod(originalMethod: String): RefundMethod =
 internal fun CashierRefundsSection(
     state: PendingRefundsUiState,
     canConfirm: Boolean,
+    cashOpen: Boolean?,
     colors: OperationalColors,
     onConfirm: (PendingRefund, RefundMethod) -> Unit,
     modifier: Modifier = Modifier,
@@ -63,7 +70,7 @@ internal fun CashierRefundsSection(
             )
         }
         state.refunds.forEach { refund ->
-            RefundRow(refund, state, canConfirm, colors, onConfirm)
+            RefundRow(refund, state, canConfirm, cashOpen, colors, onConfirm)
         }
     }
 }
@@ -73,9 +80,12 @@ private fun RefundRow(
     refund: PendingRefund,
     state: PendingRefundsUiState,
     canConfirm: Boolean,
+    cashOpen: Boolean?,
     colors: OperationalColors,
     onConfirm: (PendingRefund, RefundMethod) -> Unit,
 ) {
+    // El servidor rechaza una devolución en efectivo con la caja cerrada; mejor no ofrecerla (CAJA-22).
+    val cashBlocked = cashOpen == false
     val shape = RoundedCornerShape(18.dp)
     val suggested = suggestedRefundMethod(refund.originalMethod)
     val busy = state.confirming?.first == refund.id
@@ -103,7 +113,7 @@ private fun RefundRow(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     ActionPill(
                         label = "Devuelto en ${suggested.label}",
-                        enabled = state.confirming == null,
+                        enabled = state.confirming == null && !(cashBlocked && suggested == RefundMethod.CASH),
                         loading = busy && state.confirming?.second == suggested,
                         colors = colors,
                         primary = false,
@@ -112,13 +122,20 @@ private fun RefundRow(
                     if (suggested != RefundMethod.CASH) {
                         ActionPill(
                             label = "En efectivo",
-                            enabled = state.confirming == null,
+                            enabled = state.confirming == null && !cashBlocked,
                             loading = busy && state.confirming?.second == RefundMethod.CASH,
                             colors = colors,
                             primary = false,
                             modifier = Modifier.weight(1f),
                         ) { onConfirm(refund, RefundMethod.CASH) }
                     }
+                }
+                if (cashBlocked) {
+                    Text(
+                        "Abre la caja para devolver en efectivo.",
+                        fontSize = 12.sp,
+                        color = colors.textSecondary,
+                    )
                 }
             }
         }

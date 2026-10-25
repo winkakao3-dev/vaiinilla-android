@@ -6,11 +6,13 @@ import com.vaiinilla.app.domain.model.CreatedOrder
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.RefundOutcome
 import com.vaiinilla.app.domain.model.StripePaymentSession
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -37,7 +39,48 @@ class OrderContractJson
         fun parseCancelledOrder(raw: String): OrderDetail {
             val envelope = json.decodeFromString<CancelOrderEnvelopeDto>(raw)
             requireEnvelopeSuccess(envelope.error)
-            return envelope.data.order.toDomain()
+            val data = envelope.data
+            return data.order.toDomain().copy(
+                refund =
+                    refundOutcome(
+                        cash = data.cashReturned,
+                        pending = data.pendingRefund,
+                        balance = data.balanceRefund,
+                        card = data.cardRefund != null && data.cardRefund !is JsonNull,
+                    ),
+            )
+        }
+
+        fun parseRejectedItem(raw: String): OrderDetail {
+            val envelope = json.decodeFromString<RejectItemEnvelopeDto>(raw)
+            requireEnvelopeSuccess(envelope.error)
+            val data = envelope.data
+            return data.order.toDomain().copy(
+                refund = refundOutcome(cash = null, pending = data.pendingRefund, balance = data.balanceRefund),
+            )
+        }
+
+        private fun refundOutcome(
+            cash: RefundAmountDto?,
+            pending: RefundAmountDto?,
+            balance: RefundAmountDto?,
+            card: Boolean = false,
+        ): RefundOutcome? {
+            fun RefundAmountDto?.positive() =
+                (this?.amount?.takeUnless { it is JsonNull }?.content)?.toBigDecimalOrNull()?.takeIf { it.signum() > 0 }
+            val outcome =
+                RefundOutcome(
+                    cashHandedBack = cash.positive(),
+                    pendingForCashier = pending.positive(),
+                    returnedToBalance = balance.positive(),
+                    cardRefund = card,
+                )
+            return outcome.takeIf {
+                it.cashHandedBack != null ||
+                    it.pendingForCashier != null ||
+                    it.returnedToBalance != null ||
+                    it.cardRefund
+            }
         }
 
         fun encodeCashCollection(
@@ -97,7 +140,7 @@ class OrderContractJson
         fun parseOrderList(raw: String): List<OrderDetail> {
             val envelope = json.decodeFromString<OrderListEnvelopeDto>(raw)
             requireEnvelopeSuccess(envelope.error)
-            return envelope.data.map { it.toDomain() }
+            return envelope.data.toDomainTolerant()
         }
 
         /** Una página del listado de pedidos con el cursor de la siguiente (null en la última). */
@@ -105,9 +148,20 @@ class OrderContractJson
             val envelope = json.decodeFromString<OrderListEnvelopeDto>(raw)
             requireEnvelopeSuccess(envelope.error)
             return OrderListPage(
-                orders = envelope.data.map { it.toDomain() },
+                orders = envelope.data.toDomainTolerant(),
                 nextCursor = envelope.meta.cursor?.takeIf { it.isNotBlank() },
             )
+        }
+
+        /**
+         * Un pedido con un valor que esta versión no conoce (un método de pago nuevo) no tira la lista entera: se
+         * omite ese y se muestran los demás. Si ninguno se entiende, el contrato cambió y el error sale (STAFF-21).
+         */
+        private fun List<OrderDetailDto>.toDomainTolerant(): List<OrderDetail> {
+            val parsed = map { runCatching { it.toDomain() } }
+            val understood = parsed.mapNotNull { it.getOrNull() }
+            if (understood.isEmpty() && parsed.isNotEmpty()) parsed.first().getOrThrow()
+            return understood
         }
 
         fun parsePickupToken(raw: String): String {

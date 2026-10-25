@@ -6,6 +6,7 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
@@ -50,6 +51,30 @@ data class CancelOrderRequestDto(
 @Serializable
 data class CancelOrderDataDto(
     @SerialName("pedido") val order: OrderDetailDto,
+    @SerialName("efectivo_devuelto") val cashReturned: RefundAmountDto? = null,
+    @SerialName("devolucion_pendiente") val pendingRefund: RefundAmountDto? = null,
+    @SerialName("devolucion") val balanceRefund: RefundAmountDto? = null,
+    @SerialName("reembolso") val cardRefund: JsonElement? = null,
+)
+
+/** Rechazar un artículo: aquí `devolucion` es la tarea de Caja y el saldo va en `saldo_devuelto`. */
+@Serializable
+data class RejectItemDataDto(
+    @SerialName("pedido") val order: OrderDetailDto,
+    @SerialName("devolucion") val pendingRefund: RefundAmountDto? = null,
+    @SerialName("saldo_devuelto") val balanceRefund: RefundAmountDto? = null,
+)
+
+@Serializable
+data class RefundAmountDto(
+    @SerialName("monto") val amount: JsonPrimitive? = null,
+)
+
+@Serializable
+data class RejectItemEnvelopeDto(
+    val data: RejectItemDataDto,
+    val meta: MetaDto,
+    val error: JsonElement? = null,
 )
 
 @Serializable

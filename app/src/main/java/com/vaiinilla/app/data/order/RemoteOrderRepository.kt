@@ -180,10 +180,10 @@ class RemoteOrderRepository(
         apiClient
             .post(
                 path = "pedidos/$orderId/articulos/$itemId/rechazos",
-                // Mismo cuerpo que cancelar (motivo + versión) y la respuesta también trae `data.pedido`.
+                // Mismo cuerpo que cancelar (motivo + versión); la respuesta trae `data.pedido` y dónde quedó el dinero.
                 body = contractJson.encodeCancelOrder(expectedVersion, reason),
                 headers = mapOf("Idempotency-Key" to idempotencyKey),
-            ).mapCatching { contractJson.parseCancelledOrder(it) }
+            ).mapCatching { contractJson.parseRejectedItem(it) }
             .mapCatching { pickupTokenStore.attach(it) }
             .mapApiErrors()
 

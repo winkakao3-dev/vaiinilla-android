@@ -2015,6 +2015,7 @@ fun AppNavHost(
                                 state = pendingRefundsViewModel.uiState.value,
                                 canConfirm =
                                     authorizedAccessState.activeContext?.restrictedMode != RestrictedMode.READ_ONLY,
+                                cashOpen = operationalState.cashSessionOpen,
                                 colors = rememberOperationalColors(),
                                 onConfirm = pendingRefundsViewModel::confirm,
                             )
