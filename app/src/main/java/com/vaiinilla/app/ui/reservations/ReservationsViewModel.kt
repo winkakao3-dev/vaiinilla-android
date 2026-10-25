@@ -19,7 +19,10 @@ import com.vaiinilla.app.domain.repository.ReservationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -44,8 +47,6 @@ data class ReservationsUiState(
     val error: String? = null,
     /** Aviso de éxito ("Cancha apartada", "Reserva cancelada"). */
     val notice: String? = null,
-    /** Pedido de renta listo para mostrarse en la confirmación de pedido (tarjeta, efectivo, saldo). */
-    val paidOrder: CreatedOrder? = null,
     /** Sin cuenta: se renta como invitado (sin saldo ni tarjeta). */
     val guestMode: Boolean = false,
     /** Sin cuenta y sin identidad de invitado: hay que dar el nombre y entrar antes de ver horarios. */
@@ -73,6 +74,11 @@ class ReservationsViewModel
         private val _uiState = mutableStateOf(ReservationsUiState())
         val uiState: State<ReservationsUiState> = _uiState
 
+        // El pedido de una renta pagada lo toma AppNavHost aunque la persona ya haya salido de Reservas con el
+        // pago en vuelo; como estado de la ruta se quedaba esperando y saltaba solo días después (FLOW-16).
+        private val paidOrders = Channel<CreatedOrder>(Channel.BUFFERED)
+        val paidOrderEvents: Flow<CreatedOrder> = paidOrders.receiveAsFlow()
+
         private var pollingJob: Job? = null
 
         /** Cuenta con sesión, o invitado en [guestSlug] si no la hay. Null = no hay negocio que rentar. */
@@ -98,7 +104,6 @@ class ReservationsViewModel
                     _uiState.value.copy(
                         mine = emptyList(),
                         pending = null,
-                        paidOrder = null,
                         selectedStart = null,
                         rentNow = false,
                         selectedDuration = null,
@@ -281,6 +286,7 @@ class ReservationsViewModel
         }
 
         fun pay(method: ReservationPaymentMethod) {
+            if (_uiState.value.working) return
             val reservation = _uiState.value.pending ?: return
             val access = reservationAccess ?: return
             _uiState.value = _uiState.value.copy(working = true, error = null)
@@ -301,9 +307,9 @@ class ReservationsViewModel
                             _uiState.value.copy(
                                 working = false,
                                 pending = null,
-                                paidOrder = payment.order,
                                 notice = paidNotice(method),
                             )
+                        payment.order?.let { paidOrders.trySend(it) }
                         refresh()
                     },
                     onFailure = { error ->
@@ -314,12 +320,8 @@ class ReservationsViewModel
             }
         }
 
-        /** La confirmación ya tomó el pedido de renta. */
-        fun consumePaidOrder() {
-            _uiState.value = _uiState.value.copy(paidOrder = null)
-        }
-
         fun cancel(reservation: Reservation) {
+            if (_uiState.value.working) return
             val access = reservationAccess ?: return
             _uiState.value = _uiState.value.copy(working = true, error = null)
             viewModelScope.launch {
@@ -347,6 +349,7 @@ class ReservationsViewModel
         private suspend fun refresh() {
             val state = _uiState.value
             val access = reservationAccess ?: return
+            val requestedDate = state.selectedDate
             val (dayResult, mineResult) =
                 withContext(Dispatchers.IO) {
                     repository.day(state.selectedDate, access) to repository.list(access)
@@ -358,15 +361,18 @@ class ReservationsViewModel
                 _uiState.value = _uiState.value.copy(loading = false, guestEntry = true, error = null)
                 return
             }
-            val day = dayResult.getOrNull()
             val current = _uiState.value
+            // Un sondeo que salió con la fecha anterior y termina después de cambiar de día trae el día viejo:
+            // se descarta para no pintarlo bajo la fecha nueva (FLOW-16).
+            val dateStillSelected = current.selectedDate == requestedDate
+            val day = dayResult.getOrNull()?.takeIf { dateStillSelected }
             val courtId =
                 current.selectedCourtId?.takeIf { id -> day?.courts?.any { it.id == id } == true }
                     ?: day?.courts?.firstOrNull { it.rentable }?.id
                     ?: day?.courts?.firstOrNull()?.id
             _uiState.value =
                 current.copy(
-                    loading = false,
+                    loading = if (dateStillSelected) false else current.loading,
                     day = day ?: current.day,
                     selectedCourtId = courtId,
                     mine = mineResult.getOrNull() ?: current.mine,
@@ -378,7 +384,7 @@ class ReservationsViewModel
                         },
                     error =
                         current.error
-                            ?: dayResult.exceptionOrNull()?.let {
+                            ?: dayResult.exceptionOrNull()?.takeIf { dateStillSelected }?.let {
                                 "No pudimos cargar las canchas. ${it.userMessage()}"
                             },
                 )

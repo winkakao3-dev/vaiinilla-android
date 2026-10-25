@@ -41,6 +41,7 @@ import com.vaiinilla.app.domain.usecase.CreateRemoteOrderUseCase
 import com.vaiinilla.app.domain.usecase.GetCatalogUseCase
 import com.vaiinilla.app.domain.usecase.GetOperationalStatusUseCase
 import com.vaiinilla.app.domain.usecase.GetOrderUseCase
+import com.vaiinilla.app.domain.usecase.KITCHEN_NOTES_MAX
 import com.vaiinilla.app.domain.usecase.RetryStripePaymentUseCase
 import com.vaiinilla.app.domain.usecase.generalKitchenNotes
 import com.vaiinilla.app.domain.usecase.kitchenLineNotesSummary
@@ -926,6 +927,17 @@ class OrderFlowViewModel
                         spaceId = current.checkoutSpaceId,
                         payAtEnd = current.checkoutPayAtEnd,
                     )
+                // La nota general más el resumen de las notas por línea pueden pasar el máximo del servidor, que
+                // respondería con un 400 sin explicación (COMPRA-18).
+                if (request.kitchenNotes.length > KITCHEN_NOTES_MAX) {
+                    _uiState.value =
+                        current.copy(
+                            creatingOrder = false,
+                            createOrderError =
+                                "Las notas del pedido son muy largas. Acorta las notas del carrito o de los productos.",
+                        )
+                    return@launchTracked
+                }
                 val requestFingerprint = createOrderFingerprint(request)
                 val idempotencyKey =
                     resolveIdempotencyKey(

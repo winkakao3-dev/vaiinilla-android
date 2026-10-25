@@ -32,6 +32,9 @@ data class DiscoveryUiState(
     val loading: Boolean = false,
     val resolving: Boolean = false,
     val establishments: List<PublicEstablishment> = emptyList(),
+    /** Cursor de la página siguiente del directorio; `null` cuando ya se ve todo. */
+    val nextCursor: String? = null,
+    val loadingMore: Boolean = false,
     val errorMessage: String? = null,
     val suspendedMessage: String? = null,
     val spaceTokenInput: String = "",
@@ -151,7 +154,7 @@ class GuestDiscoveryViewModel
                         }
                     if (revision != searchRevision) return@launch
                     result.fold(
-                        onSuccess = { (items, _) ->
+                        onSuccess = { (items, cursor) ->
                             val selected = _state.value.selected ?: guestSessionStore.readVenue()
                             val refreshedSelected =
                                 selected?.let { current ->
@@ -165,8 +168,10 @@ class GuestDiscoveryViewModel
                                     loading = false,
                                     establishments = items,
                                     selected = refreshedSelected,
+                                    nextCursor = cursor,
+                                    // Sin texto buscado, la pantalla ya explica la lista vacía.
                                     errorMessage =
-                                        if (items.isEmpty()) {
+                                        if (items.isEmpty() && query.isNotBlank()) {
                                             "No encontramos cafeterías con ese nombre."
                                         } else {
                                             null
@@ -184,6 +189,45 @@ class GuestDiscoveryViewModel
                         },
                     )
                 }
+        }
+
+        /** La siguiente página del directorio: más allá de las primeras no se llegaba a esos negocios (COMPRA-11). */
+        fun loadMore() {
+            val cursor = _state.value.nextCursor ?: return
+            if (_state.value.loadingMore || _state.value.loading) return
+            val revision = searchRevision
+            val query = _state.value.query.trim()
+            val nearTo = _state.value.nearbyOrigin
+            _state.value = _state.value.copy(loadingMore = true)
+            launchTracked {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        discoveryRepository.searchEstablishments(query = query, cursor = cursor, nearTo = nearTo)
+                    }
+                // Una búsqueda nueva mientras tanto invalida esta página.
+                if (revision != searchRevision) {
+                    _state.value = _state.value.copy(loadingMore = false)
+                    return@launchTracked
+                }
+                result.fold(
+                    onSuccess = { (items, nextCursor) ->
+                        val known = _state.value.establishments.mapTo(mutableSetOf()) { it.id }
+                        _state.value =
+                            _state.value.copy(
+                                loadingMore = false,
+                                establishments = _state.value.establishments + items.filter { it.id !in known },
+                                nextCursor = nextCursor,
+                            )
+                    },
+                    onFailure = { error ->
+                        _state.value =
+                            _state.value.copy(
+                                loadingMore = false,
+                                errorMessage = error.toUserFacingMessage("No pudimos traer más cafeterías."),
+                            )
+                    },
+                )
+            }
         }
 
         /** Llamar solo con permiso de ubicación concedido: la pantalla lo pide antes. */
@@ -250,6 +294,7 @@ class GuestDiscoveryViewModel
             onEntered: (GuestVenueContext) -> Unit,
             onFinished: () -> Unit = {},
         ) {
+            if (_state.value.resolving) return
             val token = _state.value.spaceTokenInput.trim()
             if (token.isEmpty()) {
                 _state.value = _state.value.copy(errorMessage = "Pega el token del QR de espacio.")

@@ -330,6 +330,17 @@ fun AppNavHost(
             walletViewModel.refreshIfStale(latestVenueId)
         }
     }
+    // El pago de una renta crea un pedido: se sigue en la confirmación (hoja de tarjeta, folio para pagar en caja o
+    // compra ya pagada con saldo). Si la persona ya salió de Reservas, el pedido se adopta y no se le arrastra (FLOW-16).
+    LaunchedEffect(Unit) {
+        reservationsViewModel.paidOrderEvents.collect { order ->
+            orderFlowViewModel.adoptReservationOrder(order)
+            orderFlowViewModel.refreshRentedCourt()
+            if (navController.currentDestination?.route == Routes.RESERVATIONS) {
+                navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
+            }
+        }
+    }
     // Se pregunta una sola vez por proceso: con "no volver a preguntar" Android ya no abre el diálogo, así que
     // pedirlo en cada cambio de rol no avisaba a nadie. Si dice que no, se le explica y se le lleva a Ajustes.
     var notificationPermissionAsked by rememberSaveable { mutableStateOf(false) }
@@ -443,9 +454,16 @@ fun AppNavHost(
         delay(ENTRANCE_TIMEOUT_MS)
         if (!entranceEntered) entranceTimedOut = true
     }
+    // Con el lugar ya abierto el menú puede tardar en cargar: pasado el mismo plazo la puerta se abre y el menú
+    // muestra su propia carga o su error, en vez de tapar la pantalla sin salida (COMPRA-21).
+    LaunchedEffect(entrance?.id, entranceEntered) {
+        if (entrance == null || !entranceEntered) return@LaunchedEffect
+        delay(ENTRANCE_TIMEOUT_MS)
+        entranceTimedOut = true
+    }
     val entranceOutcome =
         when {
-            entranceEntered && orderState.loading -> StoreEntranceOutcome.WAITING
+            entranceEntered && orderState.loading && !entranceTimedOut -> StoreEntranceOutcome.WAITING
             entranceEntered -> StoreEntranceOutcome.READY
             entranceTimedOut -> StoreEntranceOutcome.FAILED
             discoveryState.resolving -> StoreEntranceOutcome.WAITING
@@ -966,6 +984,7 @@ fun AppNavHost(
                     onEnableNearby = discoveryViewModel::enableNearby,
                     onNearbyPermissionDenied = discoveryViewModel::onNearbyPermissionDenied,
                     onDisableNearby = discoveryViewModel::disableNearby,
+                    onLoadMore = discoveryViewModel::loadMore,
                     onOpenSchool = { school ->
                         startEntrance(null)
                         discoveryViewModel.openSchool(school, onEntered = ::enterVenueAndOpenCatalog)
@@ -1197,15 +1216,6 @@ fun AppNavHost(
                     },
                     onStop = reservationsViewModel::onHidden,
                 )
-                // El pago crea un pedido de renta: se sigue en la confirmación de pedido
-                // (hoja de tarjeta, folio para pagar en caja o compra ya pagada con saldo).
-                LaunchedEffect(reservationsState.paidOrder) {
-                    val order = reservationsState.paidOrder ?: return@LaunchedEffect
-                    reservationsViewModel.consumePaidOrder()
-                    orderFlowViewModel.adoptReservationOrder(order)
-                    orderFlowViewModel.refreshRentedCourt()
-                    navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
-                }
                 ReservationsScreen(
                     state = reservationsState,
                     venueName = orderState.guestVenue?.establishment?.name,
