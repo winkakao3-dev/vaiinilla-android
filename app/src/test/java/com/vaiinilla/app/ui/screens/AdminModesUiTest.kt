@@ -44,7 +44,6 @@ class AdminModesUiTest {
                     state = AuthorizedAccessUiState(modes = modes, loading = false),
                     onBack = null,
                     onSelectMode = {},
-                    onReturnToClient = {},
                 )
             }
         }

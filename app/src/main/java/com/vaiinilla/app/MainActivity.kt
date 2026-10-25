@@ -35,7 +35,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        captureDeepLink(intent)
+        // Tras recrear la actividad (giro o proceso muerto) el intent original sigue en la tarea: releerlo
+        // volvería a abrir el pedido o la invitación que ya se atendieron.
+        if (savedInstanceState == null) captureDeepLink(intent)
         enableEdgeToEdge(
             statusBarStyle =
                 SystemBarStyle.light(
@@ -131,9 +133,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun captureDeepLink(source: Intent?) {
-        pendingEstablishmentSlug = establishmentSlugFrom(source)
-        pendingSpaceToken = spaceTokenFrom(source)
-        pendingInvitationToken = invitationTokenFrom(source)
+        // Un intent sin enlace (una notificación, el NFC) no borra el que aún espera su turno.
+        establishmentSlugFrom(source)?.let { pendingEstablishmentSlug = it }
+        spaceTokenFrom(source)?.let { pendingSpaceToken = it }
+        invitationTokenFrom(source)?.let { pendingInvitationToken = it }
         val orderId = orderIdFrom(source)
         val targetExtra = source?.getStringExtra(OrderAdvanceNotifier.EXTRA_NOTIFICATION_TARGET)
         if (orderId != null || targetExtra != null) {

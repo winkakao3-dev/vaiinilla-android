@@ -53,6 +53,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -94,6 +95,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.vaiinilla.app.core.permissions.openAppSettings
 import com.vaiinilla.app.domain.guardianship.SchoolJoinCodeRules
 import com.vaiinilla.app.domain.mode.MySchool
 import com.vaiinilla.app.domain.mode.MySchools
@@ -301,6 +303,12 @@ fun DiscoveryScreen(
                             tone = colors.muted,
                             modifier = Modifier.padding(top = 14.dp),
                         )
+                        if (
+                            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) !=
+                            PackageManager.PERMISSION_GRANTED
+                        ) {
+                            TextButton(onClick = { openAppSettings(context) }) { Text("Abrir ajustes") }
+                        }
                     }
                 }
                 state.suspendedMessage?.let { message ->

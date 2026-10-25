@@ -33,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -208,8 +209,8 @@ fun AuthorizedModeScreen(
     state: AuthorizedAccessUiState,
     onBack: (() -> Unit)?,
     onSelectMode: (AuthorizedMode) -> Unit,
-    onReturnToClient: () -> Unit,
     onSignOut: () -> Unit = {},
+    onRetry: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val activeContext = state.activeContext
@@ -277,17 +278,27 @@ fun AuthorizedModeScreen(
                             modifier = Modifier.padding(14.dp),
                         )
                     }
+                    TextButton(
+                        onClick = onRetry,
+                        enabled = !state.loading,
+                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                    ) {
+                        Text("Reintentar", color = colors.ink, fontWeight = FontWeight.Black)
+                    }
                 }
                 state.message?.let { message ->
                     Text(message, color = colors.muted, fontWeight = FontWeight.SemiBold)
                 }
-                SettingsGroup(title = "Cliente") {
-                    SettingsRow(
-                        title = "Pedir como cliente",
-                        icon = Icons.Outlined.Person,
-                        onClick = { if (clientMode != null) onSelectMode(clientMode) else onReturnToClient() },
-                        showDivider = false,
-                    )
+                // Sin acceso de cliente no hay a dónde volver: antes este botón cerraba la sesión sin avisar.
+                if (clientMode != null) {
+                    SettingsGroup(title = "Cliente") {
+                        SettingsRow(
+                            title = "Pedir como cliente",
+                            icon = Icons.Outlined.Person,
+                            onClick = { onSelectMode(clientMode) },
+                            showDivider = false,
+                        )
+                    }
                 }
                 SettingsGroup(title = null) {
                     SettingsRow(
@@ -367,7 +378,6 @@ private fun AuthorizedModeScreenPreview() {
                 ),
             onBack = {},
             onSelectMode = {},
-            onReturnToClient = {},
         )
     }
 }

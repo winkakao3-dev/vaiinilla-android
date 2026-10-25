@@ -297,12 +297,13 @@ private fun AssistantWelcomeContent(
             cream = colors.ink,
         )
         Text(
-            "¡Hola! Soy tu Asistente Vaiinilla. Pregúntame sobre el menú: dietas, recomendaciones, ingredientes y más.",
+            "¡Hola! Soy un asistente automático, no una persona de soporte. Te sugiero platillos del menú; " +
+                "confirma alérgenos con el negocio.",
             color = colors.muted,
             fontSize = 14.sp,
             lineHeight = 20.sp,
             textAlign = TextAlign.Center,
-            modifier = Modifier.widthIn(max = 240.dp).padding(top = 12.dp),
+            modifier = Modifier.widthIn(max = 280.dp).padding(top = 12.dp),
         )
         Column(
             modifier =

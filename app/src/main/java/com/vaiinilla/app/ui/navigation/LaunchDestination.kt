@@ -19,8 +19,12 @@ fun resolveLaunchDestination(
     session: StudentAuthSession?,
     hasStaffModes: Boolean,
     hasSavedVenue: Boolean,
+    /** Falso si la consulta de modos falló: sin ella no se sabe si esta cuenta es de personal. */
+    modesLoaded: Boolean = true,
 ): LaunchDestination {
     if (!pendingEstablishmentSlug.isNullOrBlank()) return LaunchDestination.Discovery
+    // Con red caída una cuenta de personal no debe terminar como cliente: Modos muestra el error y reintenta.
+    if (session != null && !modesLoaded && !hasSavedVenue) return LaunchDestination.StaffModes
     if (session == null && !hasSavedVenue) return LaunchDestination.Login
     if (hasStaffModes) return LaunchDestination.StaffModes
     if (!hasSavedVenue) return LaunchDestination.Discovery

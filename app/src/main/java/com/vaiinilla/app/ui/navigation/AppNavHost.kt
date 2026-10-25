@@ -31,6 +31,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -41,6 +42,7 @@ import com.stripe.android.PaymentConfiguration
 import com.stripe.android.paymentsheet.PaymentSheet
 import com.stripe.android.paymentsheet.PaymentSheetResult
 import com.vaiinilla.app.R
+import com.vaiinilla.app.core.notifications.ChildDeepLinkStore
 import com.vaiinilla.app.core.notifications.OrderAdvanceNotifier
 import com.vaiinilla.app.core.notifications.OrderNotificationTarget
 import com.vaiinilla.app.data.auth.student.GoogleSignInHelper
@@ -82,6 +84,7 @@ import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.operational.PendingRefundsViewModel
 import com.vaiinilla.app.ui.operational.WaiterViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
+import com.vaiinilla.app.ui.order.canPayWithBalance
 import com.vaiinilla.app.ui.order.canPayWithCard
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.isEstablishmentSwitch
@@ -142,6 +145,7 @@ import com.vaiinilla.app.ui.support.SupportLastOrder
 import com.vaiinilla.app.ui.support.SupportScreen
 import com.vaiinilla.app.ui.wallet.WalletViewModel
 import com.vaiinilla.app.ui.wallet.rememberWalletUiState
+import com.vaiinilla.app.ui.wallet.visibleFor
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -199,6 +203,8 @@ fun AppNavHost(
     val walletRemoteState by walletViewModel.state.collectAsStateWithLifecycle()
     val accountDeletionState by accountDeletionViewModel.state
     val walletState = rememberWalletUiState()
+    val currentVenueId = orderState.guestVenue?.establishment?.id
+    val walletForVenue = walletRemoteState.visibleFor(currentVenueId)
     // La cola de Caja sin conexión vive todo el turno de Caja, no solo con la hoja de Alumnos abierta.
     val cashierShift =
         authorizedAccessState.activeContext
@@ -232,10 +238,16 @@ fun AppNavHost(
     val lifecycleOwner = LocalLifecycleOwner.current
     // Solo el cliente tiene cartera: el personal recibía 403 en cada regreso a la app.
     val isClientRole by rememberUpdatedState(operationalState.role == OperationalRole.CLIENT)
+    val latestVenueId by rememberUpdatedState(currentVenueId)
+    // "Hoy te quedan $N" depende del día y de lo que ya se gastó: se pide de nuevo al volver a la app.
+    var resumeTick by remember { mutableIntStateOf(0) }
     DisposableEffect(lifecycleOwner) {
         val observer =
             LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME && isClientRole) walletViewModel.refreshIfStale()
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    resumeTick++
+                    if (isClientRole) walletViewModel.refreshIfStale(latestVenueId)
+                }
             }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -253,7 +265,7 @@ fun AppNavHost(
             orderState.guestVenue != null &&
             studentAuthViewModel.isReadyForCheckout()
         ) {
-            walletViewModel.refreshIfStale()
+            walletViewModel.refreshIfStale(currentVenueId)
         }
     }
 
@@ -264,6 +276,8 @@ fun AppNavHost(
         orderState.guestVenue?.establishment?.id,
         authorizedAccessState.activeContext?.role,
         orderState.createOrderError,
+        orderState.createdOrder?.summary?.id,
+        resumeTick,
     ) {
         val isClientInSchool =
             orderState.operationalStatus?.isSchool == true &&
@@ -302,19 +316,31 @@ fun AppNavHost(
                 folio = event.folio,
                 newState = event.newState,
             )
+            // Pagar, cancelar o devolver mueve el saldo: no se espera a que el dato envejezca.
+            walletViewModel.invalidate()
+            walletViewModel.refreshIfStale(latestVenueId)
         }
     }
+    // Se pregunta una sola vez por proceso: con "no volver a preguntar" Android ya no abre el diálogo, así que
+    // pedirlo en cada cambio de rol no avisaba a nadie. Si dice que no, se le explica y se le lleva a Ajustes.
+    var notificationPermissionAsked by rememberSaveable { mutableStateOf(false) }
+    var notificationPromptOpen by rememberSaveable { mutableStateOf(false) }
     val notificationPermissionLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (!granted) notificationPromptOpen = true
+        }
     LaunchedEffect(operationalState.role) {
         if (
             operationalState.role != null &&
+            !notificationPermissionAsked &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             !OrderAdvanceNotifier.canPost(appContext)
         ) {
+            notificationPermissionAsked = true
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
+    if (notificationPromptOpen) NotificationPermissionPrompt(onDismiss = { notificationPromptOpen = false })
 
     // Tap en notificación push/local: objetivo cliente -> STUDENT_TRACKING con
     // la orden seleccionada; staff con rol activo -> solo la selecciona en su
@@ -580,6 +606,7 @@ fun AppNavHost(
 
     LaunchedEffect(orderState.createdOrder?.summary?.id) {
         val created = orderState.createdOrder ?: return@LaunchedEffect
+        walletViewModel.invalidate()
         operationalViewModel.setRole(OperationalRole.CLIENT)
         operationalViewModel.refreshOrder(created.summary.id)
         operationalViewModel.selectOrder(created.summary.id)
@@ -624,7 +651,7 @@ fun AppNavHost(
         orderFlowViewModel.claimGuestOrders()
         studentAuthViewModel.refreshGuestVenue()
         authorizedAccessViewModel.refreshCurrentSession()
-        authorizedAccessViewModel.refreshModes(force = true) {
+        authorizedAccessViewModel.refreshModes(force = true) { modesLoaded ->
             val destination =
                 resolveLaunchDestination(
                     pendingEstablishmentSlug = pendingEstablishmentSlug,
@@ -635,6 +662,7 @@ fun AppNavHost(
                                 .map { it.role },
                         ),
                     hasSavedVenue = studentAuthViewModel.state.value.guestVenue != null,
+                    modesLoaded = modesLoaded,
                 )
             val route =
                 when (destination) {
@@ -672,16 +700,47 @@ fun AppNavHost(
         }
     }
 
-    fun finishAccountSession(noticeMessage: String? = null) {
+    // Todo cierre de sesión (salir, sesión vencida, cuenta eliminada) pasa por aquí: lo que viven los
+    // ViewModels de la actividad y los objetos globales no sobrevive al usuario que sale.
+    fun clearSessionScopedState() {
         orderFlowViewModel.clearForSessionTermination()
         walletViewModel.clearForSessionTermination()
         discoveryViewModel.clearForSessionTermination()
+        childrenViewModel.clearForSessionTermination()
+        guardianControlsViewModel.clear()
+        ChildDeepLinkStore.reset()
         operationalViewModel.clearRole()
         authorizedAccessViewModel.resetAfterSignOut()
-        studentAuthViewModel.markSessionCleared(noticeMessage)
+        accountDeletionViewModel.cancel()
+    }
+
+    fun navigateToSignedOutLanding() {
         navController.navigate(Routes.authLandingRoute(Routes.DISCOVERY)) {
             popUpTo(Routes.DISCOVERY) { inclusive = false }
             launchSingleTop = true
+        }
+    }
+
+    // La cuenta ya se cerró en el servidor y en el teléfono (borrado de cuenta).
+    fun finishAccountSession(noticeMessage: String? = null) {
+        clearSessionScopedState()
+        studentAuthViewModel.markSessionCleared(noticeMessage)
+        navigateToSignedOutLanding()
+    }
+
+    fun signOutAndFinish(noticeMessage: String? = null) {
+        studentAuthViewModel.signOut {
+            clearSessionScopedState()
+            if (noticeMessage != null) studentAuthViewModel.markSessionCleared(noticeMessage)
+            navigateToSignedOutLanding()
+        }
+    }
+
+    // Credenciales rechazadas varias veces seguidas: la sesión ya no sirve y reintentar no la arregla.
+    val latestSignedIn by rememberUpdatedState(studentAuthState.session != null)
+    LaunchedEffect(Unit) {
+        authorizedAccessViewModel.sessionExpired.collect {
+            if (latestSignedIn) signOutAndFinish("Tu sesión venció. Inicia sesión de nuevo.")
         }
     }
 
@@ -725,7 +784,7 @@ fun AppNavHost(
                         studentAuthState.session?.emailVerified == true &&
                         studentAuthViewModel.isReadyForCheckout()
                     ) {
-                        walletViewModel.refreshIfStale()
+                        walletViewModel.refreshIfStale(currentVenueId)
                     }
                 }
 
@@ -733,7 +792,7 @@ fun AppNavHost(
                     // El saldo decide si "Saldo Vaiinilla" alcanza para pagar:
                     // no debe quedar congelado desde la primera carga.
                     if (studentAuthState.session?.emailVerified == true) {
-                        walletViewModel.refreshIfStale()
+                        walletViewModel.refreshIfStale(currentVenueId)
                     }
                     // El vacío muestra "Pedidos anteriores": si el usuario entra
                     // a Carrito antes que a Pedidos, las órdenes aún no cargan.
@@ -823,7 +882,7 @@ fun AppNavHost(
                             ),
                         )
                     } else {
-                        authorizedAccessViewModel.refreshModes(force = true) {
+                        authorizedAccessViewModel.refreshModes(force = true) { modesLoaded ->
                             navigateLaunchDestination(
                                 resolveLaunchDestination(
                                     pendingEstablishmentSlug = pendingEstablishmentSlug,
@@ -834,6 +893,7 @@ fun AppNavHost(
                                                 .map { it.role },
                                         ),
                                     hasSavedVenue = studentAuthViewModel.state.value.guestVenue != null,
+                                    modesLoaded = modesLoaded,
                                 ),
                             )
                         }
@@ -950,16 +1010,8 @@ fun AppNavHost(
                             navigateAuthorizedMode(mode.role)
                         }
                     },
-                    onReturnToClient = ::returnToClientFromAuthorizedMode,
-                    onSignOut = {
-                        studentAuthViewModel.signOut {
-                            authorizedAccessViewModel.resetAfterSignOut()
-                            navController.navigate(Routes.authLandingRoute(Routes.DISCOVERY)) {
-                                popUpTo(Routes.SPLASH) { inclusive = false }
-                                launchSingleTop = true
-                            }
-                        }
-                    },
+                    onSignOut = { signOutAndFinish() },
+                    onRetry = { authorizedAccessViewModel.refreshModes(force = true) },
                 )
             }
 
@@ -1175,25 +1227,32 @@ fun AppNavHost(
             }
 
             composable(Routes.WALLET) {
+                var venueContextReady by remember { mutableStateOf(false) }
                 LaunchedEffect(
                     studentAuthState.session?.uid,
                     orderState.guestVenue?.establishment?.id,
                 ) {
+                    venueContextReady = false
                     studentAuthViewModel.ensureVenueContext(
                         onReady = {
-                            walletViewModel.refresh()
+                            venueContextReady = true
                             // Con el contexto ya de esta escuela: si es escuela, Mis hijos (F19).
                             orderFlowViewModel.refreshOperationalStatusForWallet()
                         },
                         onNeedsAuth = { navigateStudentAuth(Routes.WALLET, replaceReturnScreen = true) },
+                        // Sin contexto no hay saldo: se consulta igual para que el error salga con "Reintentar".
+                        onFailed = { walletViewModel.refresh() },
                     )
                 }
-                // Con Cartera visible el saldo se mueve por recargas en Caja:
-                // sondeo ligero mientras la pantalla siga en composición.
-                LaunchedEffect(Unit) {
-                    while (true) {
-                        walletViewModel.refresh()
-                        delay(WALLET_VISIBLE_REFRESH_MS)
+                // Con Cartera visible el saldo se mueve por recargas en Caja: sondeo ligero, solo con el
+                // contexto de esta escuela listo y mientras la app está a la vista.
+                LaunchedEffect(venueContextReady) {
+                    if (!venueContextReady) return@LaunchedEffect
+                    lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                        while (true) {
+                            walletViewModel.refresh()
+                            delay(WALLET_VISIBLE_REFRESH_MS)
+                        }
                     }
                 }
                 // Padres e hijos: solo una escuela muestra Mis hijos y lo de tutores y alumnos, y para saberlo hace
@@ -1205,6 +1264,7 @@ fun AppNavHost(
                     enabled = orderState.operationalStatus?.isSchool == true,
                     childrenViewModel = childrenViewModel,
                     hasTutors = guardianControlsViewModel.controls?.tutorNames?.isNotEmpty() == true,
+                    controlsLoaded = guardianControlsViewModel.hasLoaded,
                     onFullScreenChange = { walletCodeOpen = it },
                     onAccountClaimed = {
                         val renewed = CompletableDeferred<Unit>()
@@ -1219,10 +1279,10 @@ fun AppNavHost(
                     },
                 ) { familySection ->
                     WalletScreen(
-                        remoteState = walletRemoteState,
-                        userId =
-                            walletRemoteState.data?.wallet?.userId
-                                ?: studentAuthState.session?.uid,
+                        remoteState = walletForVenue,
+                        userId = walletForVenue.data?.wallet?.userId,
+                        venueName = orderState.guestVenue?.establishment?.name,
+                        canRecharge = orderState.canPayWithBalance,
                         onRetry = walletViewModel::refresh,
                         onMenu = { navController.navigateStudent(Routes.CATALOG) },
                         onCodeOpenChange = { walletCodeOpen = it },
@@ -1274,10 +1334,8 @@ fun AppNavHost(
                     onBack = { navController.popBackStack() },
                     displayName = studentAuthState.session?.displayName.orEmpty(),
                     email = studentAuthState.session?.email.orEmpty(),
-                    // ponytail: QR uses Firebase uid until wallets/me returns usuario_id; recarga still needs Railway id.
-                    userId =
-                        walletRemoteState.data?.wallet?.userId
-                            ?: studentAuthState.session?.uid,
+                    // El uid de Firebase no es el id de la cartera: Caja no lo encuentra. Sin cartera no hay código.
+                    userId = walletForVenue.data?.wallet?.userId,
                     signedIn = studentAuthState.session != null,
                     hasStaffModes = hasStaffModes,
                     onOpenStaffModes = {
@@ -1291,16 +1349,7 @@ fun AppNavHost(
                             popUpTo(Routes.DISCOVERY) { inclusive = false }
                         }
                     },
-                    onSignOut = {
-                        orderFlowViewModel.clearGuestVenue()
-                        studentAuthViewModel.signOut {
-                            authorizedAccessViewModel.resetAfterSignOut()
-                            navController.navigate(Routes.authLandingRoute(Routes.DISCOVERY)) {
-                                popUpTo(Routes.SPLASH) { inclusive = false }
-                                launchSingleTop = true
-                            }
-                        }
-                    },
+                    onSignOut = { signOutAndFinish() },
                     accountDeletionState = accountDeletionState,
                     onRequestAccountDeletion = accountDeletionViewModel::requestConfirmation,
                     onConfirmAccountDeletion = accountDeletionViewModel::confirm,
@@ -1397,7 +1446,7 @@ fun AppNavHost(
                                 navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
                             }
                         },
-                        walletBalance = walletRemoteState.data?.wallet?.visibleBalance,
+                        walletBalance = walletForVenue.data?.wallet?.visibleBalance,
                         guestAuthRequired = guestAuthRequired,
                         profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
                         onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
@@ -1613,6 +1662,7 @@ fun AppNavHost(
                 route = Routes.AUTH_FORGOT,
                 arguments = listOf(authReturnArg),
             ) {
+                DisposableEffect(Unit) { onDispose { studentAuthViewModel.resetPasswordRecovery() } }
                 StudentForgotPasswordScreen(
                     state = studentAuthState,
                     onBack = { navController.popBackStack() },

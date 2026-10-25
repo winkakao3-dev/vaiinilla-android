@@ -280,7 +280,6 @@ class CompleteUiScreenshotTest {
                     ),
                 onBack = {},
                 onSelectMode = {},
-                onReturnToClient = {},
             )
         }
     }

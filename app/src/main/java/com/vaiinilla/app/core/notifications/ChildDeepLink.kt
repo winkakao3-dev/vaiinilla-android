@@ -88,4 +88,10 @@ object ChildDeepLinkStore {
     fun consumeChild() {
         requestedFlow.value = null
     }
+
+    /** Al cerrar sesión: un aviso sin atender no debe abrir la ficha de un hijo para el siguiente usuario. */
+    fun reset() {
+        pendingFlow.value = null
+        requestedFlow.value = null
+    }
 }
