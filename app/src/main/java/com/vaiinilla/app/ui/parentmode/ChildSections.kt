@@ -64,6 +64,7 @@ import com.vaiinilla.app.domain.guardianship.StudentRequestStatus
 import com.vaiinilla.app.domain.guardianship.compactMoney
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.SlidingSegments
+import com.vaiinilla.app.ui.components.minTouchTarget
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
@@ -195,7 +196,7 @@ private fun GuardianRow(
                             modifier =
                                 Modifier
                                     .physicalPress(scale = PhysicalPressScale.Small) { menuOpen = true }
-                                    .size(40.dp)
+                                    .size(48.dp)
                                     .semantics { contentDescription = "Opciones de ${guardian.firstName}" },
                             contentAlignment = Alignment.Center,
                         ) {
@@ -345,7 +346,8 @@ internal fun ChildPinSheet(
                             .physicalPress(
                                 enabled = !busy,
                             ) { save(null) }
-                            .padding(vertical = 12.dp),
+                            .padding(vertical = 12.dp)
+                            .minTouchTarget(),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

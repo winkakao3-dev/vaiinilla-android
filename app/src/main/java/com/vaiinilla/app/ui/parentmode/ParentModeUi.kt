@@ -64,6 +64,7 @@ import com.vaiinilla.app.domain.guardianship.PrivacyNotice
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.SkeletonBlock
 import com.vaiinilla.app.ui.components.animateSelectionColor
+import com.vaiinilla.app.ui.components.minTouchTarget
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.screens.OperationalColors
@@ -128,23 +129,31 @@ internal fun ParentSheet(
                         )
                     }
                 }
+                // El círculo se ve de 34 dp; el toque es de 48.
                 Box(
                     modifier =
                         Modifier
                             .physicalPress(enabled = !busy, scale = PhysicalPressScale.Small, onClick = onDismiss)
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(colors.cardBackground)
-                            .border(1.dp, colors.cardBorder, CircleShape)
+                            .size(48.dp)
                             .semantics { contentDescription = "Cerrar" },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        Icons.Outlined.Close,
-                        contentDescription = null,
-                        tint = colors.textPrimary,
-                        modifier = Modifier.size(16.dp),
-                    )
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(colors.cardBackground)
+                                .border(1.dp, colors.cardBorder, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Outlined.Close,
+                            contentDescription = null,
+                            tint = colors.textPrimary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
                 }
             }
             Column(
@@ -313,7 +322,8 @@ internal fun ParentErrorCard(
                     Modifier
                         .padding(
                             top = 8.dp,
-                        ).physicalPress(scale = PhysicalPressScale.Small, onClick = action),
+                        ).physicalPress(scale = PhysicalPressScale.Small, onClick = action)
+                        .minTouchTarget(),
             )
         }
     }

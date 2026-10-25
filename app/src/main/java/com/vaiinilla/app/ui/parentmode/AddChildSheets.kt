@@ -40,6 +40,7 @@ import com.vaiinilla.app.domain.guardianship.PersonNames
 import com.vaiinilla.app.domain.guardianship.PrivacyNotice
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.SlidingSegments
+import com.vaiinilla.app.ui.components.minTouchTarget
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
@@ -299,7 +300,8 @@ private fun ConsentBlock(
                         enabled = loader.notice != null,
                         scale = PhysicalPressScale.Small,
                         onClick = onToggleNotice,
-                    ).padding(vertical = 6.dp),
+                    ).padding(vertical = 6.dp)
+                    .minTouchTarget(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(

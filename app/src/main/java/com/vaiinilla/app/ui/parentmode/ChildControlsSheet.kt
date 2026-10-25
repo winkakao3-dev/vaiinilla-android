@@ -29,6 +29,7 @@ import com.vaiinilla.app.domain.guardianship.DependentControls
 import com.vaiinilla.app.domain.guardianship.TypedAmount
 import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.school.SchoolAllergen
+import com.vaiinilla.app.ui.components.minTouchTarget
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
@@ -263,7 +264,8 @@ internal fun ChildControlsSheet(
                     .fillMaxWidth()
                     .testTag("controls-unlink")
                     .physicalPress(enabled = !unlinking) { confirmsUnlink = true }
-                    .padding(vertical = 10.dp),
+                    .padding(vertical = 10.dp)
+                    .minTouchTarget(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (unlinking) {

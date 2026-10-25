@@ -84,6 +84,7 @@ import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductDetailSheet
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.animateSelectionColor
+import com.vaiinilla.app.ui.components.minTouchTarget
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -385,7 +386,8 @@ internal fun WeekPlannerSheet(
                                     .align(
                                         Alignment.CenterHorizontally,
                                     ).physicalPress(scale = PhysicalPressScale.Small, onClick = onDismiss)
-                                    .padding(6.dp),
+                                    .padding(6.dp)
+                                    .minTouchTarget(),
                         )
                     }
                 }
@@ -734,7 +736,7 @@ private fun PlannerProductCard(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(44.dp)
+                            .height(48.dp)
                             .physicalPress(scale = PhysicalPressScale.Small) {
                                 haptics.selection()
                                 if (model.needsChoice(product, date)) onInfo(product) else model.step(product, 1)
@@ -807,8 +809,8 @@ private fun Stepper(
     Row(
         modifier =
             modifier
-                .height(44.dp)
-                .clip(RoundedCornerShape(22.dp))
+                .height(52.dp)
+                .clip(RoundedCornerShape(26.dp))
                 .background(colors.textPrimary)
                 .padding(horizontal = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -816,7 +818,7 @@ private fun Stepper(
     ) {
         Box(
             modifier =
-                Modifier.size(34.dp).physicalPress(scale = PhysicalPressScale.Small, onClick = onMinus).semantics {
+                Modifier.size(48.dp).physicalPress(scale = PhysicalPressScale.Small, onClick = onMinus).semantics {
                     contentDescription =
                         "Uno menos"
                 },
@@ -832,7 +834,7 @@ private fun Stepper(
         Text("$quantity", color = colors.background, fontWeight = FontWeight.Black, fontSize = 15.sp)
         Box(
             modifier =
-                Modifier.size(34.dp).physicalPress(scale = PhysicalPressScale.Small, onClick = onPlus).semantics {
+                Modifier.size(48.dp).physicalPress(scale = PhysicalPressScale.Small, onClick = onPlus).semantics {
                     contentDescription =
                         "Uno más"
                 },
