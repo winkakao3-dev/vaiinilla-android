@@ -21,6 +21,15 @@ data class WalletRemoteUiState(
     val error: String? = null,
 )
 
+/** El saldo que se puede enseñar en [establishmentId]: nunca el cargado para otro negocio. */
+fun WalletRemoteUiState.visibleFor(establishmentId: String?): WalletRemoteUiState =
+    if (data == null || data.belongsTo(establishmentId)) this else copy(data = null)
+
+private fun WalletData.belongsTo(establishmentId: String?): Boolean {
+    val owner = wallet.establishmentId
+    return establishmentId == null || owner == null || owner == establishmentId
+}
+
 @HiltViewModel
 class WalletViewModel
     @Inject
@@ -46,8 +55,10 @@ class WalletViewModel
                                 lastLoadedAtMs = System.currentTimeMillis()
                                 WalletRemoteUiState(data = it)
                             },
+                            // Un sondeo que falla no borra el saldo que ya se veía: queda el último y el aviso.
                             onFailure = {
                                 WalletRemoteUiState(
+                                    data = _state.value.data,
                                     error =
                                         it.toUserFacingMessage("No se pudo consultar la wallet."),
                                 )
@@ -61,10 +72,25 @@ class WalletViewModel
          * cargarlo una sola vez por sesión lo dejaba obsoleto hasta reiniciar la
          * app. Se reconsulta cuando el dato visible ya tiene edad.
          */
-        fun refreshIfStale(maxAgeMs: Long = STALE_AFTER_MS) {
-            val hasData = _state.value.data != null
-            if (hasData && System.currentTimeMillis() - lastLoadedAtMs < maxAgeMs) return
+        fun refreshIfStale(
+            establishmentId: String? = null,
+            maxAgeMs: Long = STALE_AFTER_MS,
+        ) {
+            val data = _state.value.data
+            // El saldo es por negocio: el de otro lugar no se reutiliza ni como caché.
+            if (data != null && !data.belongsTo(establishmentId)) {
+                refreshJob?.cancel()
+                lastLoadedAtMs = 0L
+                _state.value = WalletRemoteUiState()
+            } else if (data != null && System.currentTimeMillis() - lastLoadedAtMs < maxAgeMs) {
+                return
+            }
             refresh()
+        }
+
+        /** Un pedido pagado, cancelado o devuelto mueve el saldo: la próxima consulta no espera a que envejezca. */
+        fun invalidate() {
+            lastLoadedAtMs = 0L
         }
 
         fun clearForSessionTermination() {
