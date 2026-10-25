@@ -87,7 +87,7 @@ class StudentAuthViewModel
             pendingLoginSuccess = null
             pendingLoginBootstrapClientContext = false
             launchTracked {
-                withContext(Dispatchers.IO) { sessionCleanup.clear() }
+                sessionCleanup.clear()
                 _state.value = StudentAuthUiState()
                 refreshGuestVenue()
                 onDone()
@@ -627,6 +627,13 @@ class StudentAuthViewModel
                         }
                     },
                 )
+            }
+        }
+
+        /** Al salir de "Recuperar acceso": volver a entrar muestra el formulario, no el "Correo enviado" de antes. */
+        fun resetPasswordRecovery() {
+            if (_state.value.passwordResetSent) {
+                _state.value = _state.value.copy(passwordResetSent = false, errorMessage = null)
             }
         }
 

@@ -44,6 +44,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -88,6 +89,10 @@ import kotlinx.coroutines.delay
 fun WalletScreen(
     remoteState: WalletRemoteUiState = WalletRemoteUiState(),
     userId: String? = null,
+    /** El saldo es por negocio: el encabezado dice de cuál. */
+    venueName: String? = null,
+    /** Falso cuando el negocio apagó el saldo: se sigue viendo lo que hay, pero ya no se recarga. */
+    canRecharge: Boolean = true,
     onRetry: () -> Unit = {},
     onMenu: () -> Unit,
     /** Avisa cuando el QR personal abre o cierra, para quitar la barra de abajo mientras tanto. */
@@ -106,6 +111,7 @@ fun WalletScreen(
     val matrix = remember(qrValue) { qrValue?.let { runCatching { QrCodeEncoder.encode(it) }.getOrNull() } }
     // El QR personal está abierto sobre la casita: el frasco se vuelve el código.
     var codeOpen by rememberSaveable { mutableStateOf(false) }
+    var visibleMovements by rememberSaveable { mutableIntStateOf(MOVEMENTS_PAGE) }
     // El saldo de antes de una recarga, mientras el QR se deshace de vuelta en el frasco.
     var heldBalance by remember { mutableStateOf<String?>(null) }
     val balance = remoteState.data?.wallet?.visibleBalance
@@ -189,6 +195,8 @@ fun WalletScreen(
                     WalletBalanceHero(
                         remoteState = remoteState,
                         shownBalance = shownBalance,
+                        venueName = venueName,
+                        canRecharge = canRecharge,
                         onRetry = onRetry,
                         onRecharge = {
                             if (matrix != null && !codeOpen) {
@@ -248,13 +256,23 @@ fun WalletScreen(
                             }
                         }
                     }
-                    items(movements.take(12), key = { it.id }) { movement ->
+                    items(movements.take(visibleMovements), key = { it.id }) { movement ->
                         WalletMovementRow(
                             type = movement.type,
                             description = movement.description,
                             amount = movement.amount,
                             balanceAfter = movement.balanceAfter,
                         )
+                    }
+                    if (movements.size > visibleMovements) {
+                        item(key = "more-movements") {
+                            TextButton(
+                                onClick = { visibleMovements += MOVEMENTS_PAGE },
+                                contentPadding = PaddingValues(0.dp),
+                            ) {
+                                Text("Ver más movimientos", color = colors.ink, fontWeight = FontWeight.Black)
+                            }
+                        }
                     }
                 }
 
@@ -283,6 +301,7 @@ fun WalletScreen(
 }
 
 private const val CODE_POLL_MS = 4_000L
+private const val MOVEMENTS_PAGE = 12
 
 private fun String.walletAmount(): Double? = trim().replace(",", "").toDoubleOrNull()
 
@@ -292,15 +311,19 @@ private const val WALLET_SCENE_WINDOW = 0.4f
 private fun WalletBalanceHero(
     remoteState: WalletRemoteUiState,
     shownBalance: String?,
+    venueName: String?,
+    canRecharge: Boolean,
     onRetry: () -> Unit,
     onRecharge: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
+    // Antes de la primera respuesta todavía no hay error: se espera con el esqueleto, no con "No pudimos cargar".
+    val waiting = remoteState.data == null && remoteState.error == null
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        if (remoteState.data != null || remoteState.loading) {
+        if (remoteState.data != null || remoteState.loading || waiting) {
             Text(
-                text = "Saldo Vaiinilla",
+                text = venueName?.takeIf { it.isNotBlank() }?.let { "Saldo en $it" } ?: "Saldo Vaiinilla",
                 color = colors.muted,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 14.sp,
@@ -330,22 +353,41 @@ private fun WalletBalanceHero(
                         letterSpacing = (-1.6).sp,
                     )
                 }
-                SeaGlassButton(
-                    tone = SeaGlassTone.lima,
-                    onClick = onRecharge,
-                    modifier = Modifier.fillMaxWidth().padding(top = 18.dp).height(54.dp),
-                ) {
-                    Icon(Icons.Outlined.QrCode2, contentDescription = null, modifier = Modifier.size(20.dp))
+                if (remoteState.error != null) {
                     Text(
-                        "Recargar en caja",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.padding(start = 8.dp),
+                        text = "Sin conexión: puede que este saldo no sea el más reciente.",
+                        color = colors.muted,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+                if (canRecharge) {
+                    SeaGlassButton(
+                        tone = SeaGlassTone.lima,
+                        onClick = onRecharge,
+                        modifier = Modifier.fillMaxWidth().padding(top = 18.dp).height(54.dp),
+                    ) {
+                        Icon(Icons.Outlined.QrCode2, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Text(
+                            "Recargar en caja",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Black,
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "Este lugar ya no recibe recargas de saldo.",
+                        color = colors.muted,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                        modifier = Modifier.padding(top = 12.dp),
                     )
                 }
             }
 
-            remoteState.loading -> {
+            remoteState.loading || waiting -> {
                 Spacer(Modifier.height(8.dp))
                 SkeletonBlock(
                     modifier = Modifier.size(width = 170.dp, height = 50.dp),
@@ -540,16 +582,18 @@ private fun WalletMovementRow(
     }
 }
 
-private fun movementLabel(
+internal fun movementLabel(
     type: String,
     description: String,
 ): String =
     when (type) {
         "recarga_efectivo" -> "Recarga en Caja"
+        "recarga_stripe" -> "Recarga con tarjeta"
         "compra" -> "Compra"
         "cashback" -> "Cashback"
-        "cancelacion" -> "Cancelación"
-        "ajuste" -> "Ajuste autorizado"
+        "cancelacion" -> "Devolución por cancelación"
+        "devolucion_articulo" -> "Devolución de un artículo"
+        "ajuste" -> description.ifBlank { "Ajuste autorizado" }
         else -> description
     }
 

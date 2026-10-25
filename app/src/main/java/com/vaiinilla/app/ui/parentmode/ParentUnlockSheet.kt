@@ -118,7 +118,7 @@ internal fun ParentUnlockSheet(
                     onDismiss()
                 }.onFailure {
                     state = MorphState.Idle("Validar código")
-                    sendKey = newKey()
+                    sendKey = keyAfterFailure(it, sendKey)
                     haptics.impact()
                     error = parentUnlockMessage(it)
                     shakes++

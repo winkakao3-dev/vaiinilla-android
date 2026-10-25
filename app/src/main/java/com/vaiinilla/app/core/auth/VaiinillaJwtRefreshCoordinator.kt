@@ -1,13 +1,22 @@
 package com.vaiinilla.app.core.auth
 
+import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.data.auth.student.StudentAuthUserNotFoundException
 import com.vaiinilla.app.domain.model.OperationalRole
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
@@ -29,6 +38,15 @@ class VaiinillaJwtRefreshCoordinator
         private var refreshJob: Job? = null
         private val refreshLock = ReentrantLock()
         private var lastSuccessfulRefreshNanos: Long = Long.MIN_VALUE
+        private val consecutiveRejections = AtomicInteger(0)
+        private val sessionExpiredEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+        /**
+         * La cuenta fue deshabilitada, borrada o sus credenciales ya no valen: reintentar no la arregla y la
+         * app debe pedir iniciar sesión. Se emite tras [EXPIRY_REJECTION_COUNT] rechazos seguidos, no por un
+         * solo fallo de red.
+         */
+        val sessionExpired: SharedFlow<Unit> = sessionExpiredEvents.asSharedFlow()
 
         /**
          * [saveToken] guarda el token del modo nuevo dentro de refreshLock: si el refresh del modo anterior está en
@@ -47,6 +65,7 @@ class VaiinillaJwtRefreshCoordinator
                     activeRole.set(role)
                     activeRefresh.set(refresh)
                     lastSuccessfulRefreshNanos = Long.MIN_VALUE
+                    consecutiveRejections.set(0)
                     sessionGeneration.incrementAndGet()
                 }
             scheduleRefresh(expiresInSeconds, generation)
@@ -63,6 +82,7 @@ class VaiinillaJwtRefreshCoordinator
                 activeRole.set(null)
                 activeRefresh.set(null)
                 lastSuccessfulRefreshNanos = Long.MIN_VALUE
+                consecutiveRejections.set(0)
             }
             refreshJob?.cancel()
             refreshJob = null
@@ -86,6 +106,14 @@ class VaiinillaJwtRefreshCoordinator
                         ?: Result.failure(IllegalStateException("No hay sesión activa para refrescar."))
                 if (result.isSuccess) {
                     lastSuccessfulRefreshNanos = System.nanoTime()
+                    consecutiveRejections.set(0)
+                } else if (result.exceptionOrNull()?.isRejectedCredential() == true) {
+                    if (consecutiveRejections.incrementAndGet() >= EXPIRY_REJECTION_COUNT) {
+                        consecutiveRejections.set(0)
+                        sessionExpiredEvents.tryEmit(Unit)
+                    }
+                } else {
+                    consecutiveRejections.set(0)
                 }
                 result
             }
@@ -119,5 +147,23 @@ class VaiinillaJwtRefreshCoordinator
             const val MIN_REFRESH_DELAY_MS = 60_000L
             const val REFRESH_COALESCE_WINDOW_NANOS = 5_000_000_000L
             const val REFRESH_FAILURE_RETRY_MS = 30_000L
+            const val EXPIRY_REJECTION_COUNT = 3
         }
     }
+
+/** Firebase o el servidor dicen que esta cuenta o sus credenciales ya no valen (no es un fallo de red). */
+internal fun Throwable.isRejectedCredential(): Boolean =
+    generateSequence(this) { it.cause }.take(MAX_CAUSE_DEPTH).any { error ->
+        when (error) {
+            is StudentAuthUserNotFoundException,
+            is FirebaseAuthInvalidUserException,
+            is FirebaseAuthInvalidCredentialsException,
+            -> true
+            is FirebaseAuthException -> error.errorCode in REJECTED_FIREBASE_CODES
+            is ApiClientException -> error.httpStatus == 401
+            else -> false
+        }
+    }
+
+private const val MAX_CAUSE_DEPTH = 6
+private val REJECTED_FIREBASE_CODES = setOf("ERROR_USER_DISABLED", "ERROR_USER_NOT_FOUND", "ERROR_USER_TOKEN_EXPIRED")

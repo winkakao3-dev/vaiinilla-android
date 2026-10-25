@@ -229,7 +229,7 @@ internal fun ClaimAccountSheet(
                             onDismiss()
                         }.onFailure {
                             state = MorphState.Idle("Entrar a mi cuenta")
-                            sendKey = newKey()
+                            sendKey = keyAfterFailure(it, sendKey)
                             error = it.toUserFacingMessage("No pudimos entrar. Intenta otra vez.")
                         }
                 }

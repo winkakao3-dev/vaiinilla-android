@@ -8,6 +8,8 @@ import com.vaiinilla.app.domain.guardianship.ChildGuardian
 import com.vaiinilla.app.domain.guardianship.ChildWallet
 import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.domain.guardianship.DependentAccountRepository
+import com.vaiinilla.app.domain.guardianship.GuardianshipException
+import com.vaiinilla.app.domain.guardianship.OrderSchedule
 import com.vaiinilla.app.domain.guardianship.ScheduledOrder
 import com.vaiinilla.app.domain.guardianship.StudentRequest
 import kotlinx.coroutines.CoroutineDispatcher
@@ -29,7 +31,19 @@ class ChildAccountState(
         private set
     var scheduled by mutableStateOf<List<ScheduledOrder>>(emptyList())
         private set
+
+    /** Las horas de corte de la escuela; hasta que llegan, "Cancelar" solo mira el estado del pedido. */
+    var schedule by mutableStateOf<OrderSchedule?>(null)
+        private set
     var isLoading by mutableStateOf(false)
+        private set
+
+    /** El servidor ya no deja entrar a esta cuenta (la tutela se quitó): la ficha debe cerrarse. */
+    var accessLost by mutableStateOf(false)
+        private set
+
+    /** No se pudo traer lo apartado: sin avisar, el tutor podría volver a apartar lo mismo. */
+    var ordersFailed by mutableStateOf(false)
         private set
     var loadError by mutableStateOf<String?>(null)
         private set
@@ -42,6 +56,24 @@ class ChildAccountState(
     var requests by mutableStateOf<List<StudentRequest>>(emptyList())
         private set
     var notice by mutableStateOf<String?>(null)
+        private set
+    var noticeIsError by mutableStateOf(false)
+        private set
+
+    fun say(
+        text: String,
+        isError: Boolean = false,
+    ) {
+        notice = text
+        noticeIsError = isError
+    }
+
+    fun dismissNotice() {
+        notice = null
+    }
+
+    /** Recarga con tarjeta ya pagada que el banco no ha confirmado: mientras exista no se paga otra. */
+    var unsettledReloadId by mutableStateOf<String?>(null)
 
     /** Un token por hijo: todo lo de esta ficha sale como él. */
     val account: DependentAccountRepository = services.accounts.forDependent(child.userId)
@@ -56,20 +88,29 @@ class ChildAccountState(
             coroutineScope {
                 val walletCall = async(io) { account.wallet() }
                 val ordersCall = async(io) { account.orders() }
+                val scheduleCall = async(io) { account.menuCalendar() }
                 val walletResult = walletCall.await()
                 walletResult
                     .onSuccess {
                         wallet = it
                         loadError = null
                     }.onFailure {
-                        if (wallet ==
+                        if (it.isAccessLost()) {
+                            accessLost = true
+                        } else if (wallet ==
                             null
                         ) {
                             loadError =
                                 it.toUserFacingMessage("No pudimos abrir la cuenta de ${child.firstName}.")
                         }
                     }
-                ordersCall.await().onSuccess { scheduled = ScheduledOrder.upcoming(it) }
+                ordersCall
+                    .await()
+                    .onSuccess {
+                        scheduled = ScheduledOrder.upcoming(it)
+                        ordersFailed = false
+                    }.onFailure { if (!it.isAccessLost()) ordersFailed = true }
+                scheduleCall.await().onSuccess { schedule = it.schedule }
             }
             loadRequests()
         } finally {
@@ -88,11 +129,17 @@ class ChildAccountState(
     }
 
     suspend fun refreshWallet() {
-        withContext(io) { account.wallet() }.onSuccess { wallet = it }
+        withContext(io) { account.wallet() }
+            .onSuccess { wallet = it }
+            .onFailure { if (it.isAccessLost()) accessLost = true }
     }
 
     suspend fun refreshScheduled() {
-        withContext(io) { account.orders() }.onSuccess { scheduled = ScheduledOrder.upcoming(it) }
+        withContext(io) { account.orders() }
+            .onSuccess {
+                scheduled = ScheduledOrder.upcoming(it)
+                ordersFailed = false
+            }.onFailure { if (it.isAccessLost()) accessLost = true }
     }
 
     fun updateChild(dependent: Dependent) {
@@ -120,11 +167,11 @@ class ChildAccountState(
             return withContext(io) { call() }.fold(
                 onSuccess = {
                     child = it
-                    notice = done
+                    say(done)
                     it
                 },
                 onFailure = {
-                    notice = it.toUserFacingMessage("No se pudo cambiar.")
+                    say(it.toUserFacingMessage("No se pudo cambiar."), isError = true)
                     null
                 },
             )
@@ -135,7 +182,7 @@ class ChildAccountState(
 
     fun didSetPin(hasPin: Boolean): Dependent {
         child = child.copy(hasPin = hasPin)
-        notice = if (hasPin) "Caja le pedirá su PIN a ${child.firstName}." else "${child.firstName} ya no necesita PIN."
+        say(if (hasPin) "Caja le pedirá su PIN a ${child.firstName}." else "${child.firstName} ya no necesita PIN.")
         return child
     }
 
@@ -145,11 +192,11 @@ class ChildAccountState(
             return withContext(io) { services.guardianship.blockCredentials(child.userId, newKey()) }.fold(
                 onSuccess = {
                     child = child.copy(hasCredential = false)
-                    notice = "Credencial bloqueada. En Caja le dan otra."
+                    say("Credencial bloqueada. En Caja le dan otra.")
                     child
                 },
                 onFailure = {
-                    notice = it.toUserFacingMessage("No se pudo bloquear. Intenta otra vez.")
+                    say(it.toUserFacingMessage("No se pudo bloquear. Intenta otra vez."), isError = true)
                     null
                 },
             )
@@ -159,7 +206,7 @@ class ChildAccountState(
     }
 
     suspend fun didReserve(days: Int) {
-        notice = if (days == 1) "Apartado 1 día." else "Apartados $days días."
+        say(if (days == 1) "Apartado 1 día." else "Apartados $days días.")
         refreshScheduled()
         refreshWallet()
     }
@@ -170,11 +217,16 @@ class ChildAccountState(
             withContext(io) { account.cancel(order, newKey()) }
                 .onSuccess {
                     scheduled = scheduled.filterNot { it.id == order.id }
-                    notice = "Cancelado. El saldo regresó a ${child.firstName}."
+                    say("Cancelado. El saldo regresó a ${child.firstName}.")
                     refreshWallet()
-                }.onFailure { notice = it.toUserFacingMessage("No se pudo cancelar.") }
+                }.onFailure { say(it.toUserFacingMessage("No se pudo cancelar."), isError = true) }
         } finally {
             cancelingOrderId = null
         }
     }
 }
+
+private val ACCESS_LOST_CODES = setOf("CONTEXT_NOT_ALLOWED", "GUARDIANSHIP_NOT_FOUND")
+
+/** El servidor dice que este tutor ya no puede actuar por el hijo (lo desvincularon o la escuela lo quitó). */
+private fun Throwable.isAccessLost(): Boolean = (this as? GuardianshipException)?.code in ACCESS_LOST_CODES

@@ -58,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.domain.guardianship.GuardianLinkCode
 import com.vaiinilla.app.domain.guardianship.PrivacyNotice
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -73,6 +74,21 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 internal fun newKey(): String = UUID.randomUUID().toString()
+
+/**
+ * La llave de idempotencia para el siguiente intento. Tras un error del servidor (4xx) la acción no se aplicó y
+ * se estrena otra; tras un corte de red o un 5xx puede haberse aplicado, y el reintento debe llevar la misma
+ * llave para que el servidor devuelva lo que ya hizo en vez de un 409 engañoso.
+ */
+internal fun keyAfterFailure(
+    error: Throwable,
+    current: String,
+): String {
+    val status = (error as? ApiClientException)?.httpStatus
+    return if (status != null && status in 400..499 && status != REQUEST_TIMEOUT) newKey() else current
+}
+
+private const val REQUEST_TIMEOUT = 408
 
 /** Las hojas del Modo Padre: título, subtítulo, cerrar, el contenido con scroll y el botón fijo abajo. */
 @OptIn(ExperimentalMaterial3Api::class)

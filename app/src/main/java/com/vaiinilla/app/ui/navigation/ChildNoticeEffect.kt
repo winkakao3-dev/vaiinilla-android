@@ -50,7 +50,12 @@ internal fun ChildNoticeEffect(
     LaunchedEffect(pending, action) {
         val link = pending ?: return@LaunchedEffect
         when (action) {
-            OrderNotificationAction.OPEN_CLIENT_ORDER -> route(link)
+            OrderNotificationAction.OPEN_CLIENT_ORDER -> {
+                // Soltar `pending` cancela este efecto (es su clave): la ruta, que puede esperar a la red, corre en
+                // su propio scope para no morir a medio camino.
+                ChildDeepLinkStore.clearPending()
+                scope.launch { route(link) }
+            }
             OrderNotificationAction.SWITCH_TO_CLIENT_ORDER -> {
                 // Se suelta antes: al volver a cliente cambia el rol y este efecto correría otra vez.
                 ChildDeepLinkStore.clearPending()

@@ -4,6 +4,9 @@ import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.school.SchoolAllergen
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 
 // Padres e hijos (docs/padres-hijos.md del backend): un tutor ve a sus hijos, les recarga
 // saldo con tarjeta, les pone controles y les aparta la comida de la semana.
@@ -64,7 +67,8 @@ data class Dependent(
         get() {
             val threshold = controls?.lowBalanceAlert ?: return false
             val current = balance ?: return false
-            return current <= threshold
+            // El servidor avisa con el saldo estrictamente por debajo del umbral: la ficha dice lo mismo.
+            return current < threshold
         }
 
     /** "3°B · A-001", lo que identifica al hijo en la escuela. */
@@ -359,8 +363,23 @@ data class OrderSchedule(
 )
 
 object ScheduledOrderRules {
-    /** Lo apartado se cancela hasta el corte de su día aunque ya esté listo; el servidor revisa la hora. */
-    fun canCancel(statusWire: String): Boolean = statusWire == "cobrado" || statusWire == "listo"
+    /**
+     * Lo apartado se cancela hasta el corte de su día aunque ya esté listo. El servidor tiene la última palabra;
+     * aquí solo se deja de ofrecer el botón cuando ya es seguro que va a decir que no. Sin hora de corte vale
+     * el inicio del día, igual que en el servidor. Con [now] nulo (sin el calendario cargado) solo cuenta el estado.
+     */
+    fun canCancel(
+        statusWire: String,
+        deliveryDate: String? = null,
+        cancelCutoff: String? = null,
+        now: LocalDateTime? = null,
+    ): Boolean {
+        if (statusWire != "cobrado" && statusWire != "listo") return false
+        if (deliveryDate == null || now == null) return true
+        val date = runCatching { LocalDate.parse(deliveryDate) }.getOrNull() ?: return true
+        val cutoff = cancelCutoff?.let { runCatching { LocalTime.parse(it) }.getOrNull() } ?: LocalTime.MIDNIGHT
+        return now.isBefore(date.atTime(cutoff))
+    }
 
     /** Lo que se le dice al papá antes de apartar: hasta cuándo cancela y qué pasa si no lo recoge. */
     fun policy(cancelCutoff: String?): String {

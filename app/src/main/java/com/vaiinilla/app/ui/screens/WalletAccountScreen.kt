@@ -130,8 +130,14 @@ fun WalletAccountScreen(
                     SettingsGroup(title = "Cuenta", modifier = Modifier.arrive(index = 1)) {
                         SettingsRow(
                             title = "Mi código",
-                            subtitle = "Muéstralo en caja para recargar saldo",
+                            subtitle =
+                                if (qrValue != null) {
+                                    "Muéstralo en caja para recargar saldo"
+                                } else {
+                                    "Disponible cuando cargue tu saldo"
+                                },
                             icon = Icons.Outlined.QrCode2,
+                            enabled = qrValue != null,
                             onClick = {
                                 haptics.click()
                                 qrOpen = true

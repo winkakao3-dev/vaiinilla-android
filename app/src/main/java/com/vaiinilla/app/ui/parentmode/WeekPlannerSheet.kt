@@ -68,6 +68,7 @@ import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.domain.guardianship.DependentAccountRepository
 import com.vaiinilla.app.domain.guardianship.MenuCalendar
 import com.vaiinilla.app.domain.guardianship.MyGuardianControls
+import com.vaiinilla.app.domain.guardianship.ScheduledDayOrder
 import com.vaiinilla.app.domain.guardianship.ScheduledOrderRules
 import com.vaiinilla.app.domain.guardianship.SchoolCalendar
 import com.vaiinilla.app.domain.guardianship.WeekPlan
@@ -136,8 +137,12 @@ class WeekPlannerModel(
     var phase by mutableStateOf<Phase>(Phase.Editing)
         private set
 
-    /** La misma semana con la misma llave: un reintento no aparta dos veces. */
-    private val sendKey = newKey()
+    /**
+     * La misma semana con la misma llave: un reintento no aparta dos veces. Editar el plan después de un envío
+     * dudoso es otra petición y estrena llave, o el servidor la rechazaría por reutilizada con otro contenido.
+     */
+    private var sendKey = newKey()
+    private var sentOrders: List<ScheduledDayOrder>? = null
 
     suspend fun load() {
         coroutineScope {
@@ -266,12 +271,16 @@ class WeekPlannerModel(
     suspend fun reserve(): Int? {
         if (plan.plannedDates.isEmpty() || phase is Phase.Sending) return null
         phase = Phase.Sending
-        return withContext(io) { account.reserve(plan.orders, sendKey) }.fold(
+        val orders = plan.orders
+        if (sentOrders != null && sentOrders != orders) sendKey = newKey()
+        sentOrders = orders
+        return withContext(io) { account.reserve(orders, sendKey) }.fold(
             onSuccess = {
                 phase = Phase.Done(it)
                 it
             },
             onFailure = {
+                sendKey = keyAfterFailure(it, sendKey)
                 phase = Phase.Failed(it.toUserFacingMessage("No se pudo apartar."))
                 null
             },

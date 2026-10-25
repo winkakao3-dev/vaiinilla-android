@@ -10,7 +10,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -40,21 +42,37 @@ class DeviceTokenRegistrar
             prefs.edit().remove(LEGACY_KEY_TOKEN).apply()
         }
 
+        private var retryJob: Job? = null
+
+        /** Registra el token; si la red falla reintenta con espera creciente en vez de esperar al próximo turno. */
         fun register() {
-            scope.launch {
+            startRegistration {
                 try {
-                    val token = FirebaseMessaging.getInstance().token.await()
-                    registerTokenIfNeeded(token)
+                    registerTokenIfNeeded(FirebaseMessaging.getInstance().token.await())
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     Log.w(TAG, "No se pudo obtener el token FCM", e)
+                    false
                 }
             }
         }
 
         fun registerToken(token: String) {
-            scope.launch { registerTokenIfNeeded(token) }
+            startRegistration { registerTokenIfNeeded(token) }
+        }
+
+        @Synchronized
+        private fun startRegistration(attempt: suspend () -> Boolean) {
+            retryJob?.cancel()
+            retryJob =
+                scope.launch {
+                    for (waitMs in RETRY_DELAYS_MS) {
+                        if (attempt()) return@launch
+                        delay(waitMs)
+                    }
+                    attempt()
+                }
         }
 
         /**
@@ -62,6 +80,8 @@ class DeviceTokenRegistrar
          * avisos dejen de llegar a este teléfono, y luego se invalida el token local.
          */
         suspend fun clearRegistration() {
+            // Un reintento pendiente registraría de nuevo el token con la sesión que acaba de salir.
+            synchronized(this) { retryJob?.cancel() }
             registrationMutex.withLock {
                 // Instalaciones de antes no guardaban el token registrado: se usa el vigente.
                 val registered = prefs.getString(KEY_REGISTERED_TOKEN, null) ?: currentFcmTokenOrNull()
@@ -95,20 +115,21 @@ class DeviceTokenRegistrar
                 null
             }
 
-        private suspend fun registerTokenIfNeeded(fcmToken: String) {
-            if (fcmToken.isBlank()) return
+        /** `true` si ya quedó registrado o no hay nada que registrar; `false` si falló y conviene reintentar. */
+        private suspend fun registerTokenIfNeeded(fcmToken: String): Boolean {
+            if (fcmToken.isBlank()) return true
             val sessionToken =
-                sessionStore.readAccessToken()?.takeIf { it.isNotBlank() } ?: return
+                sessionStore.readAccessToken()?.takeIf { it.isNotBlank() } ?: return true
             val marker = deviceRegistrationMarker(sessionToken, fcmToken)
-            registrationMutex.withLock {
-                if (prefs.getString(KEY_MARKER, null) == marker) return@withLock
+            return registrationMutex.withLock {
+                if (prefs.getString(KEY_MARKER, null) == marker) return@withLock true
                 val body =
                     JSONObject()
                         .put("fcmToken", fcmToken)
                         .put("plataforma", "android")
                         .toString()
-                apiClient
-                    .post("devices", body)
+                val result = apiClient.post("devices", body)
+                result
                     .onSuccess {
                         val currentToken = sessionStore.readAccessToken()
                         if (currentToken != null &&
@@ -124,6 +145,7 @@ class DeviceTokenRegistrar
                     }.onFailure { e ->
                         Log.w(TAG, "Registro de token FCM falló (se reintentará): ${e.message}")
                     }
+                result.isSuccess
             }
         }
 
@@ -133,6 +155,7 @@ class DeviceTokenRegistrar
             const val KEY_MARKER = "fcm_registration_marker"
             const val KEY_REGISTERED_TOKEN = "fcm_registered_token"
             const val LEGACY_KEY_TOKEN = "fcm_token_registered"
+            val RETRY_DELAYS_MS = longArrayOf(5_000, 15_000, 45_000, 120_000, 300_000)
         }
     }
 

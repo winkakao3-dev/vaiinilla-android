@@ -76,6 +76,7 @@ import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.screens.LocalScene
 import com.vaiinilla.app.ui.screens.WalletJarBackdrop
+import com.vaiinilla.app.ui.screens.movementLabel
 import com.vaiinilla.app.ui.screens.scenePaletteForTheme
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.SeaGlassButton
@@ -83,6 +84,7 @@ import com.vaiinilla.app.ui.theme.SeaGlassTone
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 private enum class ChildSheet { RELOAD, CONTROLS, WEEK, OWN_ACCOUNT, GUARDIAN_CODE, REFUND, DATA_REMOVAL, PIN }
 
@@ -114,11 +116,24 @@ internal fun ChildAccountContent(
     var sheet by rememberSaveable { mutableStateOf<ChildSheet?>(null) }
     var orderToCancel by remember { mutableStateOf<ScheduledOrder?>(null) }
     LaunchedEffect(state) { state.load() }
+    // La lista de hijos lee el saldo de `child`: se mantiene al día con la cartera que esta ficha acaba de ver.
+    val liveBalance = state.wallet?.balance
+    LaunchedEffect(liveBalance) {
+        if (liveBalance != null && state.child.balance?.compareTo(liveBalance) != 0) {
+            val updated = state.child.copy(balance = liveBalance)
+            state.updateChild(updated)
+            onChildChanged(updated)
+        }
+    }
     LaunchedEffect(state.notice) {
         if (state.notice != null) {
             delay(2600)
-            state.notice = null
+            state.dismissNotice()
         }
+    }
+    // La tutela se quitó mientras la ficha estaba abierta: no se deja una cuenta que ya no es suya.
+    LaunchedEffect(state.accessLost) {
+        if (state.accessLost) onUnlinked(state.child.userId)
     }
     val child = state.child
     val balanceText = state.balance.toPlainString()
@@ -191,10 +206,49 @@ internal fun ChildAccountContent(
                         }
                     }
                 }
+                if (state.ordersFailed) {
+                    item(key = "orders-error") {
+                        Column(modifier = Modifier.padding(top = 20.dp)) {
+                            Text(
+                                "No pudimos traer lo apartado",
+                                color = glassColors.ink,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 16.sp,
+                            )
+                            Text(
+                                "Antes de apartar otra vez, vuelve a intentarlo para no repetir un día.",
+                                color = glassColors.muted,
+                                fontSize = 14.sp,
+                            )
+                            Text(
+                                "Reintentar",
+                                color = glassColors.ink,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 15.sp,
+                                modifier =
+                                    Modifier
+                                        .padding(top = 6.dp)
+                                        .physicalPress(scale = PhysicalPressScale.Small) {
+                                            scope.launch { state.refreshScheduled() }
+                                        },
+                            )
+                        }
+                    }
+                }
                 if (state.scheduled.isNotEmpty()) {
                     item(key = "scheduled-title") { SectionHeading("Apartado") }
                     items(state.scheduled, key = { "s-${it.id}" }) { order ->
-                        ScheduledRow(order, canceling = state.cancelingOrderId == order.id) { orderToCancel = order }
+                        ScheduledRow(
+                            order,
+                            canceling = state.cancelingOrderId == order.id,
+                            cancelable =
+                                ScheduledOrderRules.canCancel(
+                                    order.statusWire,
+                                    order.deliveryDate,
+                                    state.schedule?.cancelCutoff,
+                                    now = state.schedule?.let { LocalDateTime.now() },
+                                ),
+                        ) { orderToCancel = order }
                     }
                 }
                 if (child.guardians.isNotEmpty()) {
@@ -270,7 +324,7 @@ internal fun ChildAccountContent(
             onClick = onBack,
             modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(start = 16.dp, top = 6.dp),
         )
-        val isError = state.notice?.startsWith("No ") == true
+        val isError = state.noticeIsError
         ToastPill(
             message = state.notice,
             containerColor = colors.ink,
@@ -300,8 +354,10 @@ internal fun ChildAccountContent(
                 balance = state.balance,
                 account = state.account,
                 range = state.wallet?.reloadRange,
+                unsettledReloadId = state.unsettledReloadId,
+                onUnsettledChange = { state.unsettledReloadId = it },
                 onCredited = { amount ->
-                    state.notice = "Listo: ${compactMoney(amount)} para ${child.firstName}."
+                    state.say("Listo: ${compactMoney(amount)} para ${child.firstName}.")
                     scope.launch { state.refreshWallet() }
                 },
                 onDismiss = close,
@@ -313,7 +369,7 @@ internal fun ChildAccountContent(
                 onSaved = { updated ->
                     state.updateChild(updated)
                     onChildChanged(updated)
-                    state.notice = "Controles guardados."
+                    state.say("Controles guardados.")
                 },
                 onUnlinked = {
                     sheet = null
@@ -340,7 +396,7 @@ internal fun ChildAccountContent(
                 guardianship = state.services.guardianship,
                 onSent = { request ->
                     state.didSend(request)
-                    state.notice = "Le avisamos a la escuela."
+                    state.say("Le avisamos a la escuela.")
                 },
                 onDismiss = close,
             )
@@ -495,6 +551,7 @@ internal fun SectionHeading(text: String) {
 private fun ScheduledRow(
     order: ScheduledOrder,
     canceling: Boolean,
+    cancelable: Boolean,
     onCancel: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -534,7 +591,7 @@ private fun ScheduledRow(
                             strokeWidth = 2.dp,
                             modifier = Modifier.padding(top = 6.dp).size(16.dp),
                         )
-                    ScheduledOrderRules.canCancel(order.statusWire) ->
+                    cancelable ->
                         Text(
                             "Cancelar",
                             color = colors.ink,
@@ -570,7 +627,12 @@ private fun MovementRow(movement: ChildMovement) {
                 )
             }
             Column(modifier = Modifier.weight(1f).padding(horizontal = 13.dp)) {
-                Text(movementLabel(movement), color = colors.ink, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                Text(
+                    movementLabel(movement.type, movement.description),
+                    color = colors.ink,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 14.sp,
+                )
                 Text("Saldo después: ${compactMoney(movement.balanceAfter)}", color = colors.muted, fontSize = 12.sp)
             }
             Text(
@@ -589,14 +651,3 @@ private fun MovementRow(movement: ChildMovement) {
         HorizontalDivider(color = colors.line, thickness = 1.dp, modifier = Modifier.padding(start = 57.dp))
     }
 }
-
-private fun movementLabel(movement: ChildMovement): String =
-    when (movement.type) {
-        "recarga_efectivo" -> "Recarga en Caja"
-        "recarga_stripe" -> "Recarga con tarjeta"
-        "compra" -> "Compra"
-        "cashback" -> "Cashback"
-        "cancelacion" -> "Cancelación"
-        "ajuste" -> movement.description.ifBlank { "Ajuste autorizado" }
-        else -> movement.description
-    }

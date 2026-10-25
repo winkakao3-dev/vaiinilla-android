@@ -176,6 +176,8 @@ class GuardianshipRulesTest {
         assertTrue(model.canPay)
         runBlocking {
             model.start()
+            assertEquals(ChildReloadModel.Phase.Review(10350), model.phase)
+            model.proceedToPayment()
             assertEquals(ChildReloadModel.Phase.Paying, model.phase)
             model.onPaymentSheetCompleted()
         }

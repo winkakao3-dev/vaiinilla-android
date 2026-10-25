@@ -40,6 +40,11 @@ class RemoteResponseCache
             prefs.edit().putString(key, body).apply()
         }
 
+        /** Al cerrar sesión: el saldo y los pedidos de quien sale no deben quedar en disco. */
+        fun clear() {
+            prefs.edit().clear().apply()
+        }
+
         private fun scopedKey(
             path: String,
             query: Map<String, String>,

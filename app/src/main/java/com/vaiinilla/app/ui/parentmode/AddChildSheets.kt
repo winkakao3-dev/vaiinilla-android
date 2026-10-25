@@ -157,7 +157,7 @@ internal fun AddChildSheet(
                     onDismiss()
                 }.onFailure {
                     state = MorphState.Idle("Agregar")
-                    sendKey = newKey()
+                    sendKey = keyAfterFailure(it, sendKey)
                     error = it.toUserFacingMessage("No pudimos agregarlo. Intenta otra vez.")
                     if (it.isParentCodeRequired()) {
                         error = null
@@ -421,7 +421,7 @@ internal fun PrivacyConsentSheet(
                             onDismiss()
                         }.onFailure {
                             state = MorphState.Idle("Aceptar")
-                            sendKey = newKey()
+                            sendKey = keyAfterFailure(it, sendKey)
                             error = it.toUserFacingMessage("No se guardó. Intenta otra vez.")
                             if (it.isConsentRequired()) {
                                 // El aviso cambió mientras lo leía: se carga el nuevo y se vuelve a marcar.

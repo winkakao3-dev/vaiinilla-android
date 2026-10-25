@@ -244,6 +244,10 @@ fun StudentAuthLandingScreen(
                             ),
                     verticalArrangement = Arrangement.spacedBy(9.dp),
                 ) {
+                    // Tras cerrar sesión o eliminar la cuenta, el aviso se ve aquí, donde se aterriza.
+                    state.noticeMessage?.let { message ->
+                        AuthNoticeBanner(message)
+                    }
                     state.errorMessage?.let { error ->
                         AuthErrorBanner(error)
                     }

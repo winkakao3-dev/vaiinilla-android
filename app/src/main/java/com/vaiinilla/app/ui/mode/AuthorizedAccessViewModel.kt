@@ -16,6 +16,8 @@ import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -35,7 +37,12 @@ class AuthorizedAccessViewModel
         private var invitationJob: Job? = null
         private var modesJob: Job? = null
         private var actionJob: Job? = null
+        private var returnJob: Job? = null
+        private val returnCallbacks = mutableListOf<() -> Unit>()
         private var lastModesUid: String? = null
+
+        /** Las credenciales de la cuenta dejaron de valer: la app debe cerrar la sesión y pedir entrar de nuevo. */
+        val sessionExpired: SharedFlow<Unit> get() = refreshCoordinator.sessionExpired
 
         fun openInvitation(token: String) {
             val normalized = token.trim()
@@ -87,15 +94,16 @@ class AuthorizedAccessViewModel
                 }
         }
 
+        /** [onRefreshed] recibe `false` cuando la consulta falló: los modos que hay no son los de la cuenta. */
         fun refreshModes(
             force: Boolean = false,
-            onRefreshed: () -> Unit = {},
+            onRefreshed: (loaded: Boolean) -> Unit = {},
         ) {
             val session = authRepository.peekSession()
             if (session == null) {
                 lastModesUid = null
                 _state.value = _state.value.copy(session = null, modes = emptyList(), loading = false)
-                onRefreshed()
+                onRefreshed(true)
                 return
             }
             if (
@@ -105,12 +113,12 @@ class AuthorizedAccessViewModel
                 modesJob?.isActive != true
             ) {
                 _state.value = _state.value.copy(session = session, loading = false)
-                onRefreshed()
+                onRefreshed(true)
                 return
             }
             if (modesJob?.isActive == true && !force) {
                 _state.value = _state.value.copy(session = session)
-                onRefreshed()
+                onRefreshed(true)
                 return
             }
             modesJob?.cancel()
@@ -130,7 +138,7 @@ class AuthorizedAccessViewModel
                                     modes = modes,
                                     loading = false,
                                 )
-                            onRefreshed()
+                            onRefreshed(true)
                         },
                         onFailure = { error ->
                             _state.value =
@@ -138,7 +146,7 @@ class AuthorizedAccessViewModel
                                     loading = false,
                                     errorMessage = error.toUserFacingMessage(),
                                 )
-                            onRefreshed()
+                            onRefreshed(false)
                         },
                     )
                 }
@@ -159,7 +167,8 @@ class AuthorizedAccessViewModel
             _state.value = _state.value.copy(loading = true, errorMessage = null, message = null)
             actionJob =
                 viewModelScope.launch {
-                    withContext(Dispatchers.IO) { repository.acceptInvitation(token, session) }.fold(
+                    // La invitación es de un solo uso: si el servidor la aceptó, la app termina de registrarlo.
+                    withContext(Dispatchers.IO + NonCancellable) { repository.acceptInvitation(token, session) }.fold(
                         onSuccess = {
                             _state.value =
                                 _state.value.copy(
@@ -197,15 +206,18 @@ class AuthorizedAccessViewModel
                 viewModelScope.launch {
                     withContext(Dispatchers.IO) { repository.activateMode(mode, session) }.fold(
                         onSuccess = { context ->
-                            // Espera a que termine un refresh del modo anterior: fuera del hilo principal.
-                            withContext(Dispatchers.IO) { activateContext(mode, session, context) }
-                            _state.value =
-                                _state.value.copy(
-                                    loading = false,
-                                    session = session,
-                                    activeContext = context,
-                                    message = "Modo ${mode.role.label} activo.",
-                                )
+                            // El token del modo nuevo y su contexto se guardan juntos aunque cancelen la corrutina.
+                            withContext(NonCancellable) {
+                                // Espera a que termine un refresh del modo anterior: fuera del hilo principal.
+                                withContext(Dispatchers.IO) { activateContext(mode, session, context) }
+                                _state.value =
+                                    _state.value.copy(
+                                        loading = false,
+                                        session = session,
+                                        activeContext = context,
+                                        message = "Modo ${mode.role.label} activo.",
+                                    )
+                            }
                             onActivated()
                         },
                         onFailure = { error ->
@@ -239,23 +251,32 @@ class AuthorizedAccessViewModel
                     )
                 return
             }
+            // Dos avisos seguidos (o el temporizador de 30 s) piden lo mismo: la segunda llamada se suma
+            // a la que va en curso en vez de cancelarla y perder su destino.
+            returnCallbacks += onReturned
+            if (returnJob?.isActive == true) return
             actionJob?.cancel()
             _state.value = _state.value.copy(loading = true, errorMessage = null, message = null)
-            actionJob =
+            returnJob =
                 viewModelScope.launch {
                     withContext(Dispatchers.IO) { repository.activateMode(clientMode, session) }.fold(
                         onSuccess = { context ->
-                            withContext(Dispatchers.IO) { activateContext(clientMode, session, context) }
-                            _state.value =
-                                _state.value.copy(
-                                    loading = false,
-                                    activeContext = null,
-                                    message = "Regresaste al modo Alumno.",
-                                    errorMessage = null,
-                                )
-                            onReturned()
+                            withContext(NonCancellable) {
+                                withContext(Dispatchers.IO) { activateContext(clientMode, session, context) }
+                                _state.value =
+                                    _state.value.copy(
+                                        loading = false,
+                                        activeContext = null,
+                                        message = "Regresaste al modo Alumno.",
+                                        errorMessage = null,
+                                    )
+                            }
+                            val callbacks = returnCallbacks.toList()
+                            returnCallbacks.clear()
+                            callbacks.forEach { it() }
                         },
                         onFailure = { error ->
+                            returnCallbacks.clear()
                             _state.value =
                                 _state.value.copy(
                                     loading = false,
@@ -284,6 +305,8 @@ class AuthorizedAccessViewModel
             invitationJob?.cancel()
             modesJob?.cancel()
             actionJob?.cancel()
+            returnJob?.cancel()
+            returnCallbacks.clear()
             lastModesUid = null
             refreshCoordinator.clearSession()
             _state.value = AuthorizedAccessUiState()

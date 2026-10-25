@@ -84,6 +84,15 @@ class ChildrenState(
         replace(children.filterNot { it.userId == dependentId })
     }
 
+    /** Cierre de sesión: nada de los hijos de quien salió queda en memoria para el siguiente. */
+    fun reset() {
+        children = emptyList()
+        hasLoaded = false
+        error = null
+        isParentUnlocked = null
+        offeredConsent = false
+    }
+
     private fun replace(list: List<Dependent>) {
         children = list
         onNamesChanged(list.associate { it.userId to it.firstName })
@@ -103,4 +112,6 @@ class ChildrenViewModel
             ChildrenState(ParentModeServices(guardianship, accounts, catalog)) { names ->
                 DependentNamesStore.replace(context, names)
             }
+
+        fun clearForSessionTermination() = state.reset()
     }

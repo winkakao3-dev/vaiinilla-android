@@ -47,6 +47,12 @@ internal object ChildControlsRules {
     fun amountProblem(text: String): String? =
         if (text.isBlank() || TypedAmount.parse(text) != null) null else "Escribe un monto como 60 o 60.50."
 
+    /** Un monto en cero es válido pero no hace lo que parece: se dice antes de guardar. */
+    fun zeroNote(
+        text: String,
+        meaning: String,
+    ): String? = if (TypedAmount.parse(text)?.signum() == 0) meaning else null
+
     /** Los bloqueos de productos sueltos se conservan aunque esta hoja solo edite categorías. */
     fun edited(
         current: DependentControls,
@@ -163,7 +169,13 @@ internal fun ChildControlsSheet(
             label = "Límite por día",
             colors = colors,
             placeholder = "Sin límite",
-            supporting = limitProblem ?: "Lo más que ${child.firstName} gasta en un día sin ti.",
+            supporting =
+                limitProblem
+                    ?: ChildControlsRules.zeroNote(
+                        dailyLimit,
+                        "Con \$0 ${child.firstName} no puede comprar nada sin ti.",
+                    )
+                    ?: "Lo más que ${child.firstName} gasta en un día sin ti.",
             isError = limitProblem != null,
             keyboardType = KeyboardType.Decimal,
             enabled = principal,
@@ -174,7 +186,13 @@ internal fun ChildControlsSheet(
             label = "Avísame si su saldo baja de",
             colors = colors,
             placeholder = "Sin aviso",
-            supporting = lowProblem ?: "Te llega una notificación para recargarle.",
+            supporting =
+                lowProblem
+                    ?: ChildControlsRules.zeroNote(
+                        lowBalance,
+                        "Con \$0 no te avisamos nunca; deja el campo vacío si no quieres aviso.",
+                    )
+                    ?: "Te llega una notificación para recargarle.",
             isError = lowProblem != null,
             keyboardType = KeyboardType.Decimal,
         )

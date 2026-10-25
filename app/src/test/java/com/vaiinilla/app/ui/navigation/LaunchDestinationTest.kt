@@ -75,4 +75,32 @@ class LaunchDestinationTest {
         assertTrue(hasStaffLaunchModes(listOf(OperationalRole.KITCHEN)))
         assertTrue(hasStaffLaunchModes(listOf(OperationalRole.WAITER)))
     }
+
+    @Test
+    fun `staff whose modes could not load go to the modes screen and not to the client menu`() {
+        assertEquals(
+            LaunchDestination.StaffModes,
+            resolveLaunchDestination(
+                pendingEstablishmentSlug = null,
+                session = session,
+                hasStaffModes = false,
+                hasSavedVenue = false,
+                modesLoaded = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `a saved venue still opens its catalog when modes could not load`() {
+        assertEquals(
+            LaunchDestination.Catalog,
+            resolveLaunchDestination(
+                pendingEstablishmentSlug = null,
+                session = session,
+                hasStaffModes = false,
+                hasSavedVenue = true,
+                modesLoaded = false,
+            ),
+        )
+    }
 }
