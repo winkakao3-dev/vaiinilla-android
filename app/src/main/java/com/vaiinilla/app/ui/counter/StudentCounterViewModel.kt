@@ -136,6 +136,9 @@ class StudentCounterViewModel
             refreshPolicy()
         }
 
+        /** Caja cerrada: las ventas sin conexión esperan en la cola en vez de rebotar como problema (CAJA-28). */
+        fun setCashOpen(open: Boolean) = offline.setCashOpen(open)
+
         fun refreshPolicy() {
             work.launch {
                 withContext(io) { repository.schoolPolicy() }.onSuccess { state = state.copy(policy = it) }

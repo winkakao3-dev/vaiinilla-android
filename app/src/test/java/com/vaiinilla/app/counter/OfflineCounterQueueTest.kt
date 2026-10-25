@@ -175,6 +175,29 @@ class OfflineCounterQueueTest {
         }
 
     @Test
+    fun `con la caja cerrada no se reenvia y al abrirla se manda lo guardado`() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            repository.next = { Result.success(ScreenshotFixtures.sampleOrder()) }
+            val queue = queue(repository)
+            queue.start(shift)
+            queue.setCashOpen(false)
+            queue.enqueue(tilin, listOf(StudentPurchaseItem(4, 1)), BigDecimal("20.00"), "a")
+            queue.flush()
+            assertTrue(repository.keys.isEmpty())
+            assertEquals(1, queue.state.value.pending.size)
+
+            queue.setCashOpen(true)
+            runCurrent()
+            assertEquals(listOf("a"), repository.keys)
+            assertTrue(
+                queue.state.value.pending
+                    .isEmpty(),
+            )
+            queue.stop()
+        }
+
+    @Test
     fun `lo que el servidor rechaza va a Por resolver con su motivo y se quita a mano`() =
         runTest(dispatcher) {
             val repository = FakeRepository()

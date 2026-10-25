@@ -215,6 +215,9 @@ fun AppNavHost(
     LaunchedEffect(authorizedAccessState.activeContext?.membershipId) {
         waiterViewModel.bindContext(authorizedAccessState.activeContext?.membershipId)
     }
+    LaunchedEffect(operationalState.cashSessionOpen) {
+        studentCounterViewModel.setCashOpen(operationalState.cashSessionOpen != false)
+    }
 
     // Keep every in-memory copy of the selected venue aligned when persisted metadata
     // changes (for example, an establishment rename that also changes its slug).
