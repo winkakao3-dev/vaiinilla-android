@@ -1,11 +1,5 @@
 package com.vaiinilla.app.ui.screens
 
-import android.content.Context
-import android.media.RingtoneManager
-import android.os.Build
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
@@ -133,6 +127,7 @@ import com.vaiinilla.app.ui.components.waiterAssistantGuides
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.operational.WaiterBoardLink
 import com.vaiinilla.app.ui.operational.WaiterUiState
+import com.vaiinilla.app.ui.operational.playAlertFeedback
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
 import kotlinx.coroutines.delay
@@ -225,7 +220,7 @@ fun WaiterOperationalScreen(
 
     LaunchedEffect(newCallTable) {
         if (newCallTable != null) {
-            playWaiterAlert(context)
+            playAlertFeedback(context)
             onAlertConsumed()
         }
     }
@@ -640,7 +635,25 @@ fun WaiterOperationalScreen(
         )
     }
 
-    delivering?.let { order ->
+    // La hoja trabaja con el pedido vigente del tablero, no con la versión que tenía al abrirse (STAFF-15).
+    val liveDelivering =
+        delivering?.let { held ->
+            state.tables.firstNotNullOfOrNull { table -> table.orders.firstOrNull { it.id == held.id } }
+        }
+    var deliverSent by remember { mutableStateOf(false) }
+    LaunchedEffect(deliverSent, state.acting) {
+        if (deliverSent && !state.acting) {
+            deliverSent = false
+            if (liveDelivering == null || liveDelivering.state != OrderState.READY) delivering = null
+        }
+    }
+    LaunchedEffect(liveDelivering?.state, delivering?.id) {
+        if (delivering != null && (liveDelivering == null || liveDelivering.state != OrderState.READY)) {
+            delivering = null
+        }
+    }
+    delivering?.let { held ->
+        val order = liveDelivering ?: held
         WaiterDeliverSheet(
             order = order,
             acting = state.acting,
@@ -648,21 +661,21 @@ fun WaiterOperationalScreen(
             onDismiss = { delivering = null },
             onScan = { scannerOpen = true },
             onConfirm = { code ->
+                deliverSent = true
                 onDeliver(order, code)
-                delivering = null
             },
         )
     }
 
-    val scannerOrder = delivering
+    val scannerOrder = liveDelivering ?: delivering
     if (scannerOpen && scannerOrder != null) {
         QrScannerDialog(
             onClose = { scannerOpen = false },
             helperText = "Apunta al QR del pedido del cliente",
             onPayload = { raw ->
                 scannerOpen = false
+                deliverSent = true
                 onDeliver(scannerOrder, raw)
-                delivering = null
             },
         )
     }
@@ -754,7 +767,7 @@ private fun WaiterTitleBlock(
 }
 
 @Composable
-private fun WaiterLivePill(
+internal fun WaiterLivePill(
     link: WaiterBoardLink,
     colors: OperationalColors,
 ) {
@@ -1212,7 +1225,8 @@ private fun WaiterTableSheet(
                         }
                         CollectAccountContent(
                             total = account.pending,
-                            payable = account.orders.filter { it.pending && it.payAtEnd },
+                            // El servidor suma toda la cuenta sin cobrar, también el efectivo por cobrar (STAFF-03).
+                            payable = account.orders.filter { it.pending },
                             confirming = acting,
                             colors = colors,
                             onConfirm = onCollectAccount,
@@ -1474,7 +1488,24 @@ private fun WaiterSheetOrderRow(
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
-            if (order.state == OrderState.READY && canDeliver) {
+            if (order.state == OrderState.READY && order.paymentPending) {
+                // El servidor no entrega un pedido sin pagar: se avisa en lugar de ofrecer un botón que daría 409.
+                Box(
+                    modifier =
+                        Modifier
+                            .clip(CircleShape)
+                            .background(colors.pillBackground)
+                            .border(1.dp, colors.pillBorder, CircleShape)
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                ) {
+                    Text(
+                        "Cobrar primero",
+                        color = colors.textPrimary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            } else if (order.state == OrderState.READY && canDeliver) {
                 Button(
                     onClick = {
                         if (confirming) {
@@ -1631,32 +1662,6 @@ private fun WaiterDeliverSheet(
                 fontWeight = FontWeight.SemiBold,
             )
         }
-    }
-}
-
-private fun playWaiterAlert(context: Context) {
-    try {
-        val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-        RingtoneManager.getRingtone(context, uri)?.play()
-    } catch (_: Exception) {
-    }
-    try {
-        val pattern = longArrayOf(0, 120, 80, 120)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val manager = context.getSystemService(VibratorManager::class.java)
-            val vibrator = manager?.defaultVibrator
-            vibrator?.vibrate(VibrationEffect.createWaveform(pattern, -1))
-        } else {
-            @Suppress("DEPRECATION")
-            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator?.vibrate(VibrationEffect.createWaveform(pattern, -1))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator?.vibrate(pattern, -1)
-            }
-        }
-    } catch (_: Exception) {
     }
 }
 

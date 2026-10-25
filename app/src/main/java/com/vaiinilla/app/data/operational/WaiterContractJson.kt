@@ -77,6 +77,8 @@ data class BoardOrderDto(
     @SerialName("actualizado_en") val updatedAt: String,
     /** Pedido de una cuenta abierta: se entrega sin el QR de recogida. Un servidor anterior no lo manda. */
     @SerialName("entrega_sin_qr") val deliveryWithoutQr: Boolean = false,
+    /** El pedido sigue sin pagarse; un servidor anterior no lo manda. */
+    @SerialName("pago_pendiente") val paymentPending: Boolean = false,
 )
 
 @Serializable
@@ -435,6 +437,7 @@ fun BoardOrderDto.toDomain(): BoardOrder =
         itemsSummary = itemsSummary,
         updatedAt = updatedAt,
         deliveryWithoutQr = deliveryWithoutQr,
+        paymentPending = paymentPending,
     )
 
 fun BoardTableDto.toDomain(): BoardTable =

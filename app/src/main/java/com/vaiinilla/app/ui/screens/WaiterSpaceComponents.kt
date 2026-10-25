@@ -54,6 +54,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -110,6 +112,8 @@ private val BillDenominations = listOf(20, 50, 100, 200, 500, 1_000)
 private val StateCoral = Color(0xFFE5645A)
 private val StateAmber = Color(0xFFE9A23B)
 private val StateAmberInk = Color(0xFF3B2A05)
+
+private const val RELEASE_CONFIRM_WINDOW_MS = 4_000L
 
 /** "42 min", "1 h 05 min" o "0:45": lo que queda de un turno, dicho corto. */
 internal fun remainingText(ms: Long): String {
@@ -611,15 +615,35 @@ internal fun WaiterSpaceSection(
                             modifier = Modifier.padding(bottom = 10.dp),
                         )
                     }
+                    var confirmingRelease by remember { mutableStateOf(false) }
+                    LaunchedEffect(confirmingRelease) {
+                        if (confirmingRelease) {
+                            delay(RELEASE_CONFIRM_WINDOW_MS)
+                            confirmingRelease = false
+                        }
+                    }
+                    if (ordersInCourse > 0) {
+                        Text(
+                            "Hay pedidos sin entregar: no se puede liberar todavía.",
+                            color = colors.textSecondary,
+                            fontSize = 12.5.sp,
+                            modifier = Modifier.padding(bottom = 10.dp),
+                        )
+                    }
                     ActionPill(
-                        label = "Liberar espacio",
-                        enabled = enabled,
+                        label = if (confirmingRelease) "¿Seguro? Se cierra la cuenta" else "Liberar espacio",
+                        enabled = enabled && ordersInCourse == 0,
                         loading = acting && busyKey == "release",
                         colors = colors,
-                        primary = readyToRelease,
+                        primary = readyToRelease || confirmingRelease,
                     ) {
-                        busyKey = "release"
-                        onRelease()
+                        if (confirmingRelease) {
+                            confirmingRelease = false
+                            busyKey = "release"
+                            onRelease()
+                        } else {
+                            confirmingRelease = true
+                        }
                     }
                 }
             }
@@ -791,6 +815,7 @@ internal fun ChipButton(
     Box(
         modifier =
             modifier
+                .semantics { if (selected) this.selected = true }
                 .physicalPress(enabled = enabled, onClick = onClick)
                 .graphicsLayer { this.alpha = alpha }
                 .height(if (detail != null) 58.dp else 48.dp)
@@ -934,7 +959,7 @@ internal fun CollectAccountContent(
     /** El modo con que abre la hoja (capturas y pruebas). */
     initialSplit: SplitMode = SplitMode.ORDERS,
 ) {
-    var selected by remember(payable) { mutableStateOf(payable.map { it.id }.toSet()) }
+    var selected by remember(payable.map { it.id }) { mutableStateOf(payable.map { it.id }.toSet()) }
     val paidInAmount = paidIn.moneyOrZero()
     val remainingAmount = remaining?.moneyOrZero() ?: total.moneyOrZero()
     val splitLocked = paidInAmount.signum() > 0
