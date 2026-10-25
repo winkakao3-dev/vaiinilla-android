@@ -77,6 +77,8 @@ data class BoardOrder(
     val updatedAt: String,
     /** El backend dispensa el QR para este pedido (`entrega_sin_qr`): se entrega con solo confirmar. */
     val deliveryWithoutQr: Boolean = false,
+    /** Sigue sin pagarse (`pago_pendiente`): el servidor no deja entregarlo hasta cobrarlo (ORDER_PAYMENT_PENDING). */
+    val paymentPending: Boolean = false,
 ) {
     /** Si entregarlo pide el QR de recogida: lo pide el negocio y el pedido no va a una cuenta abierta. */
     fun needsQrToDeliver(deliveryRequiresQr: Boolean): Boolean = deliveryRequiresQr && !deliveryWithoutQr
@@ -275,6 +277,28 @@ fun BoardTable.tableState(): TableState =
 fun BoardTable.hasPendingAccount(): Boolean =
     availability?.let { it.state != SpaceAvailabilityState.LIBRE && !it.settled } == true
 
+/** "Mesa 2" antes que "Mesa 10": los números dentro del nombre se comparan como números (STAFF-20). */
+private val naturalNameOrder =
+    Comparator<String> { a, b ->
+        val left = NAME_CHUNK.findAll(a).map { it.value }.toList()
+        val right = NAME_CHUNK.findAll(b).map { it.value }.toList()
+        for (i in 0 until minOf(left.size, right.size)) {
+            val x = left[i]
+            val y = right[i]
+            val numeric = x.first().isDigit() && y.first().isDigit()
+            val order =
+                if (numeric) {
+                    x.toBigInteger().compareTo(y.toBigInteger())
+                } else {
+                    x.compareTo(y, ignoreCase = true)
+                }
+            if (order != 0) return@Comparator order
+        }
+        left.size.compareTo(right.size)
+    }
+
+private val NAME_CHUNK = Regex("\\d+|\\D+")
+
 fun sortWaiterTables(tables: List<BoardTable>): List<BoardTable> =
     tables.sortedWith(
         compareBy<BoardTable> {
@@ -285,8 +309,8 @@ fun sortWaiterTables(tables: List<BoardTable>): List<BoardTable> =
                 TableState.FREE -> 3
             }
         }.thenBy { table ->
-            table.call?.createdAt ?: table.space.name
-        }.thenBy { it.space.name },
+            table.call?.createdAt.orEmpty()
+        }.thenComparator { a, b -> naturalNameOrder.compare(a.space.name, b.space.name) },
     )
 
 /**

@@ -35,6 +35,7 @@ class PendingWalletReloadStore
                     amount = obj.getString("amount"),
                     idempotencyKey = obj.getString("idempotencyKey"),
                     storedAtEpochMs = obj.optLong("storedAtEpochMs", 0L),
+                    userName = obj.optString("userName").takeIf { it.isNotBlank() },
                 )
             }.getOrNull()
         }
@@ -47,6 +48,7 @@ class PendingWalletReloadStore
                     .put("amount", record.amount)
                     .put("idempotencyKey", record.idempotencyKey)
                     .put("storedAtEpochMs", record.storedAtEpochMs)
+                    .put("userName", record.userName ?: "")
                     .toString()
             prefs.edit { putString(key, json) }
         }
@@ -71,4 +73,6 @@ data class PendingWalletReload(
     val amount: String,
     val idempotencyKey: String,
     val storedAtEpochMs: Long = 0L,
+    /** A quién se abonaba, para que el cajero reconozca la recarga si queda sin confirmar. */
+    val userName: String? = null,
 )

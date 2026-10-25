@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -35,11 +36,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.operational.CloseCashUi
+import java.math.BigDecimal
 
 /** Efectivo contado válido: número no negativo con hasta dos decimales, normalizado a "725.50". */
 fun normalizeCountedCash(raw: String): String? {
@@ -63,6 +66,8 @@ fun CashCloseSheet(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
     onOpenAccounts: (() -> Unit)?,
+    ordersToExpire: Int = 0,
+    amountToExpire: BigDecimal = BigDecimal.ZERO,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -71,7 +76,7 @@ fun CashCloseSheet(
         containerColor = colors.background,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
     ) {
-        CashCloseContent(state, colors, onDismiss, onConfirm, onOpenAccounts)
+        CashCloseContent(state, colors, onDismiss, onConfirm, onOpenAccounts, ordersToExpire, amountToExpire)
     }
 }
 
@@ -82,6 +87,8 @@ fun CashCloseContent(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
     onOpenAccounts: (() -> Unit)?,
+    ordersToExpire: Int = 0,
+    amountToExpire: BigDecimal = BigDecimal.ZERO,
 ) {
     var amount by remember { mutableStateOf("") }
     val normalized = normalizeCountedCash(amount)
@@ -104,18 +111,25 @@ fun CashCloseContent(
                 modifier =
                     Modifier
                         .physicalPress(enabled = !state.closing, scale = PhysicalPressScale.Small) { onDismiss() }
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .background(colors.cardBackground)
-                        .border(1.dp, colors.cardBorder, CircleShape),
+                        .size(48.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    Icons.Outlined.Close,
-                    contentDescription = "Cerrar",
-                    tint = colors.textPrimary,
-                    modifier = Modifier.size(16.dp),
-                )
+                Box(
+                    modifier =
+                        Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(colors.cardBackground)
+                            .border(1.dp, colors.cardBorder, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Outlined.Close,
+                        contentDescription = "Cerrar",
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
             }
         }
         AnimatedContent(
@@ -154,6 +168,15 @@ fun CashCloseContent(
                         lineHeight = 20.sp,
                         color = colors.textSecondary,
                     )
+                    expiringOrdersNotice(ordersToExpire, amountToExpire)?.let {
+                        Text(
+                            it,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textPrimary,
+                        )
+                    }
                     val invalid = amount.isNotBlank() && normalized == null
                     OperationalField(
                         value = amount,
@@ -183,5 +206,92 @@ fun CashCloseContent(
                 }
             }
         }
+    }
+}
+
+/** Lo que se pierde al cerrar: el servidor expira los pedidos en efectivo que siguen por cobrar. */
+internal fun expiringOrdersNotice(
+    count: Int,
+    amount: BigDecimal,
+): String? =
+    when (count) {
+        0 -> null
+        1 -> "Hay 1 pedido por cobrar (${moneyLabel(Money.format(amount))}) que expirará al cerrar."
+        else -> "Hay $count pedidos por cobrar (${moneyLabel(Money.format(amount))}) que expirarán al cerrar."
+    }
+
+/** Abrir la caja: el cajero cuenta el efectivo del cajón y lo escribe; ese es el fondo con el que arranca el turno. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CashOpenSheet(
+    opening: Boolean,
+    errorMessage: String?,
+    colors: OperationalColors,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = colors.background,
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+    ) {
+        CashOpenContent(opening, errorMessage, colors, onConfirm)
+    }
+}
+
+@Composable
+fun CashOpenContent(
+    opening: Boolean,
+    errorMessage: String?,
+    colors: OperationalColors,
+    onConfirm: (String) -> Unit,
+) {
+    var amount by remember { mutableStateOf("") }
+    val normalized = normalizeCountedCash(amount)
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 22.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Text("Abrir caja", fontWeight = FontWeight.Bold, fontSize = 22.sp, color = colors.textPrimary)
+        Text(
+            "Cuenta el efectivo que hay en el cajón. Con ese fondo empieza el turno y contra él se compara el cierre.",
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+            color = colors.textSecondary,
+        )
+        val invalid = amount.isNotBlank() && normalized == null
+        OperationalField(
+            value = amount,
+            onValueChange = { amount = it },
+            label = "Efectivo en el cajón",
+            colors = colors,
+            placeholder = "0.00",
+            supporting = if (invalid) "Solo números, con hasta dos decimales" else null,
+            isError = invalid,
+            enabled = !opening,
+            keyboardType = KeyboardType.Decimal,
+        )
+        errorMessage?.let {
+            Text(it, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+        }
+        ActionPill(
+            label =
+                when {
+                    opening -> "Abriendo…"
+                    normalized == null -> "Escribe el efectivo del cajón"
+                    else -> "Abrir con ${moneyLabel(normalized)}"
+                },
+            enabled = normalized != null,
+            loading = opening,
+            colors = colors,
+            modifier = Modifier.fillMaxWidth(),
+        ) { normalized?.let(onConfirm) }
     }
 }

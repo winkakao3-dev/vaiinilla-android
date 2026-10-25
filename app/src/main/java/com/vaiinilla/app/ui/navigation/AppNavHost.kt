@@ -1896,6 +1896,9 @@ fun AppNavHost(
                         onSearchWalletClients = operationalViewModel::searchWalletClients,
                         onOpenWalletUserQr = { walletUserQrOpen = true },
                         onReloadWallet = operationalViewModel::reloadWallet,
+                        onConfirmPendingReload = operationalViewModel::confirmPendingWalletReload,
+                        onDiscardPendingReload = operationalViewModel::discardPendingWalletReload,
+                        deliveryRequiresQr = waiterState.deliveryRequiresQr,
                         onCashChangeNoticed = operationalViewModel::consumeCashChangeNotice,
                         onScanDeliver = { orderId, version ->
                             pendingPickupDelivery = PendingPickupDelivery(orderId, version)
@@ -1967,7 +1970,9 @@ fun AppNavHost(
                             state = studentCounterState,
                             offline = studentCounterOffline,
                             catalog = operationalState.catalog,
-                            canCharge = operationalState.cashSessionOpen == true,
+                            canCharge =
+                                operationalState.cashSessionOpen == true &&
+                                    authorizedAccessState.activeContext?.restrictedMode != RestrictedMode.READ_ONLY,
                             actions = remember(studentCounterViewModel) { studentCounterViewModel.actions() },
                             onDismiss = {
                                 studentsSheetOpen = false

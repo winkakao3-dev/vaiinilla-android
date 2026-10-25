@@ -106,6 +106,8 @@ class WaiterViewModel
         val newCallEvents: SharedFlow<TableCall> = _newCallEvents
 
         private var pollingJob: Job? = null
+        private var boardJob: Job? = null
+        private val pendingKeys = mutableMapOf<String, String>()
         private var openSpaceId: Int? = null
         private var knownCallIds: Set<String>? = null
         private var visible = false
@@ -128,21 +130,25 @@ class WaiterViewModel
             _uiState.value = _uiState.value.copy(filterAttending = attending)
         }
 
+        /** Una carga del tablero a la vez: otra en vuelo se cancela para que la vieja no pise a la nueva (STAFF-19). */
         fun refresh() {
             _uiState.value = _uiState.value.copy(loading = true, errorMessage = null)
-            viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { waiterRepository.board() }
-                result.fold(
-                    onSuccess = { board ->
-                        _uiState.value = _uiState.value.withBoard(board, Instant.now())
-                        detectNewCalls(board.tables)
-                        detectNewRejections(board.tables)
-                    },
-                    onFailure = { error ->
-                        _uiState.value = _uiState.value.withBoardFailure(error.toUserFacingMessage())
-                    },
-                )
-            }
+            boardJob?.cancel()
+            boardJob = viewModelScope.launch { loadBoard() }
+        }
+
+        private suspend fun loadBoard() {
+            val result = withContext(Dispatchers.IO) { waiterRepository.board() }
+            result.fold(
+                onSuccess = { board ->
+                    _uiState.value = _uiState.value.withBoard(board, Instant.now())
+                    detectNewCalls(board.tables)
+                    detectNewRejections(board.tables)
+                },
+                onFailure = { error ->
+                    _uiState.value = _uiState.value.withBoardFailure(error.toUserFacingMessage())
+                },
+            )
         }
 
         private var knownRejectionIds: Set<String>? = null
@@ -156,9 +162,12 @@ class WaiterViewModel
             val known = knownRejectionIds
             knownRejectionIds = all.map { it.second.id }.toSet()
             if (known == null) return
-            val (space, rejected) = all.firstOrNull { it.second.id !in known } ?: return
+            val fresh = all.filter { it.second.id !in known }
+            if (fresh.isEmpty()) return
+            val (space, rejected) = fresh.first()
             val reason = rejected.reason?.let { ": $it" }.orEmpty()
-            showToast("${rejected.byLabel} rechazó el #${rejected.folio} de ${space.name}$reason", isError = true)
+            val extra = if (fresh.size > 1) " (y ${fresh.size - 1} más)" else ""
+            showToast("${rejected.byLabel} rechazó el #${rejected.folio} de ${space.name}$reason$extra", isError = true)
         }
 
         private fun detectNewCalls(tables: List<BoardTable>) {
@@ -167,9 +176,15 @@ class WaiterViewModel
             if (known != null) {
                 val fresh = pending.filter { it.id !in known }
                 if (fresh.isNotEmpty()) {
+                    fresh.forEach { _newCallEvents.tryEmit(it) }
                     val first = fresh.first()
-                    _newCallEvents.tryEmit(first)
-                    showToast("${first.space.name} te llama · ${first.reason.staffLabel}")
+                    showToast(
+                        if (fresh.size == 1) {
+                            "${first.space.name} te llama · ${first.reason.staffLabel}"
+                        } else {
+                            "${fresh.size} mesas te llaman · ${first.space.name} y ${fresh.size - 1} más"
+                        },
+                    )
                 }
             }
             knownCallIds = pending.map { it.id }.toSet()
@@ -180,10 +195,15 @@ class WaiterViewModel
             viewModelScope.launch {
                 val result =
                     actionCall {
-                        waiterRepository.transitionCall(call, CallStatus.EN_CAMINO, UUID.randomUUID().toString())
+                        waiterRepository.transitionCall(
+                            call,
+                            CallStatus.EN_CAMINO,
+                            keyFor("voy", call.id, call.version),
+                        )
                     }
                 result.fold(
                     onSuccess = {
+                        forgetKey("voy", call.id, call.version)
                         showToast("Vas a ${call.space.name}")
                         refresh()
                     },
@@ -200,10 +220,15 @@ class WaiterViewModel
             viewModelScope.launch {
                 val result =
                     actionCall {
-                        waiterRepository.transitionCall(call, CallStatus.ATENDIDA, UUID.randomUUID().toString())
+                        waiterRepository.transitionCall(
+                            call,
+                            CallStatus.ATENDIDA,
+                            keyFor("atendida", call.id, call.version),
+                        )
                     }
                 result.fold(
                     onSuccess = {
+                        forgetKey("atendida", call.id, call.version)
                         showToast("${call.space.name} atendida")
                         refresh()
                     },
@@ -232,11 +257,12 @@ class WaiterViewModel
                         waiterRepository.deliver(
                             order,
                             token.takeIf { requiresQr && it.isNotEmpty() },
-                            UUID.randomUUID().toString(),
+                            keyFor("entregar", order.id, order.version),
                         )
                     }
                 result.fold(
                     onSuccess = {
+                        forgetKey("entregar", order.id, order.version)
                         showToast("#${order.folio} entregado")
                         refresh()
                         openSpaceId?.let { loadSpaceDetail(it, silent = true) }
@@ -465,12 +491,19 @@ class WaiterViewModel
         fun cancelPendingRental() {
             val reservation = _uiState.value.pendingRental ?: return
             _uiState.value = _uiState.value.copy(pendingRental = null)
-            viewModelScope.launch(Dispatchers.IO) {
-                reservationRepository.cancel(
-                    access = ReservationAccess.Account,
-                    reservationId = reservation.id,
-                    idempotencyKey = UUID.randomUUID().toString(),
-                )
+            viewModelScope.launch {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        reservationRepository.cancel(
+                            access = ReservationAccess.Account,
+                            reservationId = reservation.id,
+                            idempotencyKey = keyFor("cancelar-renta", reservation.id),
+                        )
+                    }
+                result.onFailure {
+                    showToast("No se pudo liberar el horario apartado: ${it.toUserFacingMessage()}", isError = true)
+                }
+                refresh()
             }
         }
 
@@ -508,12 +541,13 @@ class WaiterViewModel
                             received,
                             expectedTotal,
                             orderIds,
-                            UUID.randomUUID().toString(),
+                            keyFor("cobrar", spaceId, method.wire, received, expectedTotal, orderIds, tip),
                             tip,
                         )
                     }
                 result.fold(
                     onSuccess = { collection ->
+                        forgetKey("cobrar", spaceId, method.wire, received, expectedTotal, orderIds, tip)
                         _uiState.value = _uiState.value.copy(lastCollection = collection)
                         showToast(if (collection.settled) "Cuenta cobrada" else "Cobro registrado")
                     },
@@ -615,6 +649,18 @@ class WaiterViewModel
                 _uiState.value = _uiState.value.copy(acting = false)
             }
 
+        /**
+         * Llave de idempotencia por intento: si la respuesta se perdió y el mesero reintenta lo mismo, sale la misma
+         * llave y el servidor devuelve el resultado en lugar de cobrar o entregar dos veces (STAFF-10). Se olvida al
+         * tener éxito, para que una acción igual más tarde no repita una respuesta vieja.
+         */
+        private fun keyFor(vararg parts: Any?): String =
+            pendingKeys.getOrPut(parts.joinToString("|")) { UUID.randomUUID().toString() }
+
+        private fun forgetKey(vararg parts: Any?) {
+            pendingKeys.remove(parts.joinToString("|"))
+        }
+
         private fun showToast(
             message: String,
             isError: Boolean = false,
@@ -635,23 +681,15 @@ class WaiterViewModel
                     while (isActive && visible) {
                         delay(POLL_INTERVAL_MS)
                         if (!visible) break
-                        val result = withContext(Dispatchers.IO) { waiterRepository.board() }
-                        result.fold(
-                            onSuccess = { board ->
-                                _uiState.value = _uiState.value.withBoard(board, Instant.now())
-                                detectNewCalls(board.tables)
-                                openSpaceId?.let { loadSpaceDetail(it, silent = true) }
-                            },
-                            onFailure = { error ->
-                                _uiState.value = _uiState.value.withBoardFailure(error.toUserFacingMessage())
-                            },
-                        )
+                        loadBoard()
+                        openSpaceId?.let { loadSpaceDetail(it, silent = true) }
                     }
                 }
         }
 
         override fun onCleared() {
             pollingJob?.cancel()
+            boardJob?.cancel()
             super.onCleared()
         }
 

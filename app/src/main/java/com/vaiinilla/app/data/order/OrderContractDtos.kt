@@ -146,6 +146,9 @@ data class OrderDetailDto(
     @SerialName("pago") val payment: OrderPaymentDto? = null,
     @SerialName("pago_diferido") val payAtEnd: Boolean = false,
     @SerialName("pago_pendiente") val paymentPending: Boolean = false,
+    /** Cuánto lleva pagado el pedido y cuánto falta; un servidor anterior no los manda. */
+    @SerialName("monto_pagado") val amountPaid: String? = null,
+    @SerialName("saldo_pendiente") val balanceDue: String? = null,
     @SerialName("motivo_cancelacion") val cancelReason: String? = null,
     @SerialName("cancelado_por_rol") val canceledByRole: String? = null,
     @SerialName("reserva") val reservation: OrderReservationDto? = null,

@@ -12,6 +12,9 @@ interface WalletRepository {
 
     fun searchClients(query: String): Result<List<WalletClient>>
 
+    /** El cliente de este negocio con ese id (el del QR de su cuenta); falla con 404 si no es cliente de aquí. */
+    fun lookupClient(userId: String): Result<WalletClient>
+
     fun reloadCash(
         userId: String,
         amount: String,

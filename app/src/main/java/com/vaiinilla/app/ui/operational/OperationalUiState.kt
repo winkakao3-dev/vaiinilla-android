@@ -16,7 +16,11 @@ data class OperationalUiState(
     val selectedOrderId: String? = null,
     val loading: Boolean = false,
     val acting: Boolean = false,
+    /** Alta, foto o pausa de un producto en curso; aparte de `acting` para no apagar los botones de los pedidos. */
+    val catalogBusy: Boolean = false,
     val cashSessionOpen: Boolean? = null,
+    /** La caja nunca se pudo leer (sin red al entrar): la pantalla ofrece reintentar en vez de callar. */
+    val cashSessionCheckFailed: Boolean = false,
     val heartbeatOnline: Boolean? = null,
     val errorMessage: String? = null,
     /** Si la última carga de pedidos salió bien; null mientras no termina ninguna para este rol. */
@@ -25,6 +29,8 @@ data class OperationalUiState(
     val walletClients: List<WalletClient> = emptyList(),
     val walletSearchLoading: Boolean = false,
     val walletReloadReceipt: WalletReloadReceipt? = null,
+    /** Recarga en efectivo que quedó sin confirmar; Caja la muestra para confirmarla o descartarla. */
+    val pendingWalletReload: PendingReloadUi? = null,
     val catalog: Catalog? = null,
     /** Logo y foto del negocio para la tarjeta de Caja; null si el servidor aún no los ofrece a Caja. */
     val storeImages: StoreImages? = null,
@@ -64,3 +70,17 @@ data class CloseCashUi(
     val blockedByAccounts: Boolean = false,
     val errorMessage: String? = null,
 )
+
+/** La recarga sin confirmar tal como la ve el cajero: a quién y cuánto. */
+data class PendingReloadUi(
+    val userName: String?,
+    val amount: String,
+)
+
+/** El enlace con el servidor tal como lo ve Cocina: sin primera carga se conecta; un fallo es "sin conexión". */
+internal fun operationalLink(lastRefreshOk: Boolean?): WaiterBoardLink =
+    when (lastRefreshOk) {
+        null -> WaiterBoardLink.Connecting
+        true -> WaiterBoardLink.Live
+        false -> WaiterBoardLink.Offline
+    }

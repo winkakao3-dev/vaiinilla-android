@@ -57,6 +57,7 @@ class OfflineCounterQueue(
     private var snapshot = OfflineCounterSnapshot(day = today())
     private var reconnect: AutoCloseable? = null
     private var retryJob: Job? = null
+    private var flushJob: Job? = null
     private val sending = Mutex()
 
     /** Otra membresía u otro negocio tiene su propia cola: la anterior se queda guardada en su archivo. */
@@ -66,8 +67,13 @@ class OfflineCounterQueue(
         this.counterScope = counterScope
         snapshot = store.load(counterScope, today())
         publish()
-        reconnect = connectivity.onReconnect { scope.launch { flush() } }
-        scope.launch { flush() }
+        reconnect = connectivity.onReconnect { launchFlush() }
+        launchFlush()
+    }
+
+    private fun launchFlush() {
+        if (flushJob?.isActive == true) return
+        flushJob = scope.launch { flush() }
     }
 
     fun stop() {
@@ -75,6 +81,9 @@ class OfflineCounterQueue(
         reconnect = null
         retryJob?.cancel()
         retryJob = null
+        // Un envío en curso no debe seguir mandando compras de la cola anterior con la sesión nueva (FLOW-20).
+        flushJob?.cancel()
+        flushJob = null
         counterScope = null
         snapshot = OfflineCounterSnapshot(day = today())
         _state.value = OfflineCounterState()
@@ -122,9 +131,11 @@ class OfflineCounterQueue(
     suspend fun flush() {
         if (counterScope == null || snapshot.pending.isEmpty()) return
         if (!sending.tryLock()) return
+        val flushScope = counterScope
         _state.value = _state.value.copy(isSending = true)
         try {
             for (purchase in snapshot.pending) {
+                if (counterScope != flushScope) return
                 if (OfflineCounterRules.isTooOld(purchase, now())) {
                     mark(purchase.id, OfflineCounterRules.TOO_OLD_PROBLEM)
                     continue
@@ -138,6 +149,7 @@ class OfflineCounterQueue(
                             idempotencyKey = purchase.id,
                         )
                     }
+                if (counterScope != flushScope) return
                 val error = result.exceptionOrNull()
                 when {
                     error == null -> {
