@@ -168,7 +168,7 @@ internal fun WaitingArcadeCard(
                 ) {
                     Icon(
                         Icons.Outlined.EmojiEvents,
-                        contentDescription = "Leaderboard",
+                        contentDescription = "Marcadores",
                         tint = if (session.boardOpen) colors.accent else ArcadeDim,
                         modifier = Modifier.size(18.dp),
                     )
@@ -261,9 +261,9 @@ private fun ArcadeBoardOverlay(
                 .background(ArcadeWell)
                 .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
-        Text("Leaderboard", color = ArcadeInk, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+        Text("Marcadores", color = ArcadeInk, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
         Text(
-            "${kind.label} · top ${min(7, rows.size)}",
+            "${kind.label} · mejores ${min(7, rows.size)}",
             color = ArcadeDim,
             fontSize = 12.sp,
             modifier = Modifier.padding(top = 2.dp, bottom = 6.dp),

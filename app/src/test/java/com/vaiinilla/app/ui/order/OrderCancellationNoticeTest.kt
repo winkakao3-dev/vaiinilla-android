@@ -16,7 +16,7 @@ class OrderCancellationNoticeTest {
         val notice = orderCancellationNotice(order(OrderState.CANCELED, role = "cocina", reason = "  Se acabó el pan "))
         assertEquals("Cocina canceló tu pedido", notice?.title)
         assertEquals("Se acabó el pan", notice?.reason)
-        assertNull(notice?.note)
+        assertEquals("El importe regresó a tu saldo Vaiinilla.", notice?.note)
     }
 
     @Test

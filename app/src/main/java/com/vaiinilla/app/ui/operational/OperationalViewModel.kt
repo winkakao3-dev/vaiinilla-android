@@ -53,9 +53,12 @@ import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -100,8 +103,11 @@ class OperationalViewModel
         private var pendingWalletReload: PendingWalletReload? = null
         private var walletSearchJob: Job? = null
         private var mutationJob: Job? = null
-        private val _orderAdvanceEvents = MutableSharedFlow<OrderAdvance>(extraBufferCapacity = 8)
-        val orderAdvanceEvents: SharedFlow<OrderAdvance> = _orderAdvanceEvents
+
+        // Un solo consumidor (AppNavHost) que puede suscribirse unos fotogramas tarde: un canal con búfer guarda
+        // el aviso hasta que llega; un SharedFlow sin repetición lo descartaba (FLOW-08).
+        private val orderAdvances = Channel<OrderAdvance>(Channel.BUFFERED)
+        val orderAdvanceEvents: Flow<OrderAdvance> = orderAdvances.receiveAsFlow()
         private var clientTrackingBaselineReady = false
         private var mutationErrorVisible = false
         private var errorClearJob: Job? = null
@@ -405,11 +411,12 @@ class OperationalViewModel
                     val advanced = after.trackingIndex > before.trackingIndex
                     val resolvedTerminal = after.isTerminalWithoutDelivery && before != after
                     if (before != after && (advanced || resolvedTerminal)) {
-                        _orderAdvanceEvents.tryEmit(
+                        orderAdvances.trySend(
                             OrderAdvance(
                                 orderId = order.summary.id,
                                 folio = order.summary.folio,
                                 newState = after,
+                                inSpace = order.summary.destination == OrderDestination.IN_SPACE,
                             ),
                         )
                     }
@@ -1679,7 +1686,7 @@ internal fun resolveLatestClientOrder(
 internal fun visibleLatestMenuOrder(
     latest: OrderDetail?,
     dismissedOrderIds: Set<String>,
-): OrderDetail? = latest?.takeUnless { it.summary.id in dismissedOrderIds }
+): OrderDetail? = latest?.takeUnless { it.summary.id in dismissedOrderIds || it.summary.state.isClosed }
 
 internal fun filterDismissedClientOrders(
     role: OperationalRole?,
@@ -1736,4 +1743,5 @@ data class OrderAdvance(
     val orderId: String,
     val folio: Int,
     val newState: OrderState,
+    val inSpace: Boolean = false,
 )

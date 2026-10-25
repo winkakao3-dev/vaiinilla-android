@@ -6,6 +6,7 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.OrderRepository
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 class ListOrdersUseCase
@@ -27,11 +28,28 @@ class ListOrdersUseCase
         fun withRecoveredPickupTokens(orders: List<OrderDetail>): List<OrderDetail> =
             orders.map { order ->
                 if (order.summary.state == OrderState.READY && order.pickupToken.isNullOrBlank()) {
-                    repository.recoverPickupToken(order).getOrNull() ?: order
+                    recoverOrKeep(order)
                 } else {
                     order
                 }
             }
+
+        // Cada sondeo (5 s) volvería a pedir el QR de un pedido que ya falló: se espera antes de reintentar.
+        private val failedRecoveryAt = ConcurrentHashMap<String, Long>()
+
+        private fun recoverOrKeep(order: OrderDetail): OrderDetail {
+            val id = order.summary.id
+            val now = System.currentTimeMillis()
+            val failedAt = failedRecoveryAt[id]
+            if (failedAt != null && now - failedAt < RECOVERY_RETRY_DELAY_MS) return order
+            val recovered = repository.recoverPickupToken(order).getOrNull()
+            if (recovered == null) failedRecoveryAt[id] = now else failedRecoveryAt.remove(id)
+            return recovered ?: order
+        }
+
+        private companion object {
+            const val RECOVERY_RETRY_DELAY_MS = 30_000L
+        }
     }
 
 class GetOrderUseCase

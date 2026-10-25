@@ -2200,7 +2200,7 @@ fun KitchenOperationalScreen(
                                                 )
                                             }
                                             KitchenAgeText(
-                                                createdAt = activeOrder.summary.createdAt,
+                                                createdAt = kitchenAgeStart(activeOrder.summary),
                                                 ink = TicketInk,
                                                 muted = TicketMuted,
                                                 modifier = Modifier.padding(top = 2.dp),

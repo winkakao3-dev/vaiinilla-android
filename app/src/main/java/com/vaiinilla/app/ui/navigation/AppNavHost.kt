@@ -323,6 +323,7 @@ fun AppNavHost(
                 orderId = event.orderId,
                 folio = event.folio,
                 newState = event.newState,
+                inSpace = event.inSpace,
             )
             // Pagar, cancelar o devolver mueve el saldo: no se espera a que el dato envejezca.
             walletViewModel.invalidate()
@@ -634,7 +635,14 @@ fun AppNavHost(
         }
     }
 
-    val activeOrder = orderState.createdOrder ?: operationalState.menuOrder
+    // El pedido recién creado conserva el estado con que nació; la lista del sondeo trae el vigente. Un pedido
+    // cerrado ya no es "activo" (PEDIDO-08).
+    val activeOrder =
+        (
+            orderState.createdOrder?.let { created ->
+                operationalState.orders.firstOrNull { it.summary.id == created.summary.id } ?: created
+            } ?: operationalState.menuOrder
+        )?.takeUnless { it.summary.state.isClosed }
 
     fun dismissClientOrder(orderId: String) {
         operationalViewModel.dismissClientOrder(orderId)
@@ -1058,7 +1066,6 @@ fun AppNavHost(
                     onQuantityChange = orderFlowViewModel::changeSelectedQuantity,
                     onAddProduct = orderFlowViewModel::addSelectedProductToCart,
                     onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                    onDeleteOrder = ::dismissClientOrder,
                     onOpenWallet = { navController.navigateStudent(Routes.WALLET) },
                     onChangeVenue = {
                         navController.navigate(Routes.DISCOVERY) {
@@ -1833,11 +1840,18 @@ fun AppNavHost(
                     ),
             ) { entry ->
                 val styleIndex = entry.arguments?.getInt("style") ?: 0
-                ReceiptStickerScreen(
-                    order = orderState.createdOrder ?: operationalState.selectedOrder ?: orderState.stripeObservedOrder,
-                    onBack = { navController.popBackStack() },
-                    initialStyleIndex = styleIndex,
-                )
+                val receiptOrder =
+                    orderState.createdOrder ?: operationalState.selectedOrder ?: orderState.stripeObservedOrder
+                if (receiptOrder == null) {
+                    // El pedido se descartó con el recibo abierto: sin pedido no hay recibo que dibujar.
+                    LaunchedEffect(Unit) { navController.popBackStack() }
+                } else {
+                    ReceiptStickerScreen(
+                        order = receiptOrder,
+                        onBack = { navController.popBackStack() },
+                        initialStyleIndex = styleIndex,
+                    )
+                }
             }
 
             composable(Routes.STUDENT_TRACKING) {

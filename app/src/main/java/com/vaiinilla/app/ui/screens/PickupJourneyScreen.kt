@@ -120,6 +120,7 @@ import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.openTableCallSpaceId
 import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.components.orderStateLabel
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rentalCourtName
 import com.vaiinilla.app.ui.components.rentalScheduleLabel
@@ -1224,7 +1225,7 @@ private fun PickupCodeSheet(
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    order.summary.state.label,
+                    orderStateLabel(order.summary),
                     color = LimeInk,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,

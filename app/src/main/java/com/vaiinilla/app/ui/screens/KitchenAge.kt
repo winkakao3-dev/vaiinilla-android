@@ -10,8 +10,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.ui.components.animateSelectionColor
 import kotlinx.coroutines.delay
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
 
 /** Qué tan vieja es una comanda. La cocina lo lee de lejos por el color, como en una pantalla de cocina. */
 internal enum class KitchenAge { FRESH, WAITING, LATE }
@@ -22,6 +27,29 @@ internal fun kitchenAge(elapsedMs: Long): KitchenAge =
         elapsedMs >= 10 * 60_000 -> KitchenAge.WAITING
         else -> KitchenAge.FRESH
     }
+
+/**
+ * Desde cuándo cuenta el tiempo en cocina. Un pedido apartado para otro día (padres e hijos) se creó días antes:
+ * cuenta desde el inicio de su franja si es posterior a la creación (STAFF-20). La franja es hora local del negocio;
+ * el teléfono de cocina está en ese mismo lugar.
+ */
+internal fun kitchenAgeStart(
+    summary: OrderSummary,
+    zone: ZoneId = ZoneId.systemDefault(),
+): String {
+    val created = runCatching { Instant.parse(summary.createdAt) }.getOrNull() ?: return summary.createdAt
+    val slotStart =
+        runCatching {
+            val day = LocalDate.parse(summary.deliveryDate?.take(10))
+            val time =
+                summary.deliverySlot
+                    ?.substringBefore('-')
+                    ?.trim()
+                    ?.let(LocalTime::parse) ?: LocalTime.MIDNIGHT
+            day.atTime(time).atZone(zone).toInstant()
+        }.getOrNull()
+    return if (slotStart != null && slotStart.isAfter(created)) slotStart.toString() else summary.createdAt
+}
 
 /** Minutos enteros; pasada una hora el minuto exacto ya no ayuda. */
 internal fun kitchenAgeLabel(elapsedMs: Long): String {

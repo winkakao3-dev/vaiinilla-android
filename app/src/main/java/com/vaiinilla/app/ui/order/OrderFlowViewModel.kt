@@ -242,6 +242,7 @@ class OrderFlowViewModel
                         _uiState.value.copy(
                             loading = false,
                             catalog = effectiveCatalog,
+                            catalogStale = catalog == null && effectiveCatalog != null,
                             // Si falla al entrar (aún sin contexto de cliente) no se borra lo que ya se tenía del mismo lugar.
                             operationalStatus = status ?: _uiState.value.operationalStatus.takeIf { sameCart },
                             rentedCourt = rentedCourt,

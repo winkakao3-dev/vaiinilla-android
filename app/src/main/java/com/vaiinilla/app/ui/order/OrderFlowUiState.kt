@@ -45,6 +45,8 @@ data class OrderFlowUiState(
     val unavailableCartKeys: Set<String> = emptySet(),
     /** Aviso de lo que cambió en el menú mientras el carrito esperaba: precios o productos quitados. */
     val cartNotice: String? = null,
+    /** El menú salió de la memoria porque la recarga falló: precios y disponibilidad pueden haber cambiado. */
+    val catalogStale: Boolean = false,
     val createdOrder: OrderDetail? = null,
     val stripeObservedOrder: OrderDetail? = null,
     val stripePendingOrderId: String? = null,
@@ -234,6 +236,15 @@ val OrderFlowUiState.operationalBlockerMessage: String?
         val status = operationalStatus ?: return "No pudimos verificar si el establecimiento está recibiendo pedidos."
         return status.checkoutStaffBlocker()
     }
+
+/** Aviso de arriba del menú: el negocio no recibe pedidos ahora (antes de armar el carrito) o el menú es de memoria. */
+val OrderFlowUiState.menuNotice: String?
+    get() =
+        operationalStatus?.takeUnless { it.acceptingOrders }?.checkoutStaffBlocker()
+            ?: STALE_MENU_NOTICE.takeIf { catalogStale }
+
+private const val STALE_MENU_NOTICE =
+    "No pudimos actualizar el menú. Desliza hacia abajo para reintentar: los precios pueden haber cambiado."
 
 /** ¿Se ofrece "Pagar al final"? Solo en un espacio y si el establecimiento lo permite. */
 val OrderFlowUiState.canPayAtEnd: Boolean
