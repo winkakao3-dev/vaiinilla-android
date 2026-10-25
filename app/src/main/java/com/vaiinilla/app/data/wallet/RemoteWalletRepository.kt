@@ -57,6 +57,15 @@ class RemoteWalletRepository(
                 envelope.data.map { it.toDomain() }
             }.mapApiErrors()
 
+    override fun lookupClient(userId: String): Result<WalletClient> =
+        apiClient
+            .get("wallets/$userId", mapOf("limit" to "1"))
+            .mapCatching { raw ->
+                val envelope = json.decodeFromString<ClientLookupEnvelopeDto>(raw)
+                require(envelope.error == null) { "La consulta del cliente contiene error." }
+                envelope.data.cliente.toDomain()
+            }.mapApiErrors()
+
     override fun reloadCash(
         userId: String,
         amount: String,
@@ -161,6 +170,17 @@ private data class ClientDto(
 ) {
     fun toDomain() = WalletClient(userId = userId, name = nombre, contextualId = contextualId)
 }
+
+@Serializable
+private data class ClientLookupEnvelopeDto(
+    val data: ClientLookupDataDto,
+    val error: JsonElement? = null,
+)
+
+@Serializable
+private data class ClientLookupDataDto(
+    val cliente: ClientDto,
+)
 
 @Serializable
 private data class ReloadEnvelopeDto(

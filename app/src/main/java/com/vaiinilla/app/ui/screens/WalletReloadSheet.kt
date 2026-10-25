@@ -36,7 +36,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -52,6 +55,7 @@ import com.vaiinilla.app.ui.components.RollingText
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
+import com.vaiinilla.app.ui.operational.PendingReloadUi
 import java.math.BigDecimal
 
 /** Billetes con los que suele recargar la gente. */
@@ -87,6 +91,13 @@ internal fun WalletReloadSheet(
     onScan: () -> Unit,
     onReload: (userId: String, amount: String) -> Unit,
     onDismiss: () -> Unit,
+    blockedReason: String? = null,
+    reloading: Boolean = false,
+    errorMessage: String? = null,
+    pendingReload: PendingReloadUi? = null,
+    onConfirmPending: () -> Unit = {},
+    onDiscardPending: () -> Unit = {},
+    onDismissError: () -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -105,6 +116,13 @@ internal fun WalletReloadSheet(
             onScan = onScan,
             onReload = onReload,
             onDone = onDismiss,
+            blockedReason = blockedReason,
+            reloading = reloading,
+            errorMessage = errorMessage,
+            pendingReload = pendingReload,
+            onConfirmPending = onConfirmPending,
+            onDiscardPending = onDiscardPending,
+            onDismissError = onDismissError,
         )
     }
 }
@@ -124,6 +142,13 @@ internal fun WalletReloadContent(
     onScan: () -> Unit,
     onReload: (userId: String, amount: String) -> Unit,
     onDone: () -> Unit,
+    blockedReason: String? = null,
+    reloading: Boolean = false,
+    errorMessage: String? = null,
+    pendingReload: PendingReloadUi? = null,
+    onConfirmPending: () -> Unit = {},
+    onDiscardPending: () -> Unit = {},
+    onDismissError: () -> Unit = {},
 ) {
     var query by remember { mutableStateOf("") }
     var searched by remember { mutableStateOf(false) }
@@ -181,7 +206,15 @@ internal fun WalletReloadContent(
                             onSearch(query)
                         },
                         onScan = onScan,
-                        onPick = { selected = it },
+                        onPick = {
+                            onDismissError()
+                            selected = it
+                        },
+                        pendingReload = pendingReload,
+                        reloading = reloading,
+                        errorMessage = errorMessage,
+                        onConfirmPending = onConfirmPending,
+                        onDiscardPending = onDiscardPending,
                     )
                 1 ->
                     selected?.let { client ->
@@ -190,8 +223,15 @@ internal fun WalletReloadContent(
                             amountText = amountText,
                             onAmountChange = { amountText = it },
                             canReload = canReload,
+                            blockedReason = blockedReason,
+                            reloading = reloading,
+                            errorMessage = errorMessage,
+                            pendingReload = pendingReload,
+                            onConfirmPending = onConfirmPending,
+                            onDiscardPending = onDiscardPending,
                             colors = colors,
                             onChangeClient = {
+                                onDismissError()
                                 selected = null
                                 amountText = ""
                             },
@@ -216,11 +256,20 @@ private fun FindClientStep(
     onSearch: () -> Unit,
     onScan: () -> Unit,
     onPick: (WalletClient) -> Unit,
+    pendingReload: PendingReloadUi?,
+    reloading: Boolean,
+    errorMessage: String?,
+    onConfirmPending: () -> Unit,
+    onDiscardPending: () -> Unit,
 ) {
     Column {
         Text("Recargar saldo", fontSize = 13.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
         Text("¿A quién?", fontSize = 30.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
     }
+    if (pendingReload != null) {
+        PendingReloadCard(pendingReload, reloading, colors, onConfirmPending, onDiscardPending)
+    }
+    ReloadError(errorMessage)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         OperationalField(
             value = query,
@@ -292,6 +341,12 @@ private fun AmountStep(
     amountText: String,
     onAmountChange: (String) -> Unit,
     canReload: Boolean,
+    blockedReason: String?,
+    reloading: Boolean,
+    errorMessage: String?,
+    pendingReload: PendingReloadUi?,
+    onConfirmPending: () -> Unit,
+    onDiscardPending: () -> Unit,
     colors: OperationalColors,
     onChangeClient: () -> Unit,
     onReload: (BigDecimal) -> Unit,
@@ -334,19 +389,86 @@ private fun AmountStep(
         placeholder = "0.00",
         keyboardType = KeyboardType.Decimal,
     )
-    if (!canReload) {
+    if (!canReload && blockedReason != null) {
+        Text(blockedReason, fontSize = 13.sp, color = colors.textSecondary)
+    }
+    if (pendingReload != null) {
+        PendingReloadCard(pendingReload, reloading, colors, onConfirmPending, onDiscardPending)
+    }
+    ReloadError(errorMessage)
+    ActionPill(
+        label = walletReloadLabel(amount, client),
+        enabled = canReload && amount != null && pendingReload == null,
+        loading = reloading,
+        colors = colors,
+    ) { amount?.let(onReload) }
+}
+
+/** El error de la recarga, dentro de la hoja: detrás de ella la pantalla de Caja no se ve. */
+@Composable
+private fun ReloadError(message: String?) {
+    if (message == null) return
+    Text(
+        message,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = ReloadErrorInk,
+        modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Assertive },
+    )
+}
+
+private val ReloadErrorInk = Color(0xFFE5645A)
+
+/** Una recarga que quizá se abonó y quizá no: Caja la muestra con cliente y monto para que el cajero decida. */
+@Composable
+private fun PendingReloadCard(
+    pending: PendingReloadUi,
+    busy: Boolean,
+    colors: OperationalColors,
+    onConfirm: () -> Unit,
+    onDiscard: () -> Unit,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(colors.cardInner)
+                .border(1.dp, colors.highlightBorder, RoundedCornerShape(16.dp))
+                .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
         Text(
-            "Abre la caja para registrar recargas en efectivo.",
+            "Recarga sin confirmar",
+            fontWeight = FontWeight.Bold,
+            fontSize = 15.sp,
+            color = colors.textPrimary,
+        )
+        Text(
+            moneyLabel(pending.amount) + pending.userName?.let { " a $it" }.orEmpty() +
+                ". Quizá no llegó al servidor. Confírmala para abonarla una sola vez, " +
+                "o descártala si el cliente ya no la quiere.",
             fontSize = 13.sp,
             color = colors.textSecondary,
         )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            ChipButton(
+                label = "Descartar",
+                enabled = !busy,
+                colors = colors,
+                modifier = Modifier.weight(1f),
+                onClick = onDiscard,
+            )
+            ActionPill(
+                label = if (busy) "Confirmando…" else "Confirmar",
+                enabled = !busy,
+                loading = busy,
+                colors = colors,
+                modifier = Modifier.weight(1f),
+                onClick = onConfirm,
+            )
+        }
     }
-    ActionPill(
-        label = walletReloadLabel(amount, client),
-        enabled = canReload && amount != null,
-        loading = false,
-        colors = colors,
-    ) { amount?.let(onReload) }
 }
 
 @Composable
