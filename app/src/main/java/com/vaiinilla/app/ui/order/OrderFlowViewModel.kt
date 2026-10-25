@@ -126,9 +126,11 @@ class OrderFlowViewModel
                 activeJobs.toList().forEach(Job::cancel)
                 activeJobs.clear()
                 guestVenueLoadJob = null
+                // La llave persistida de crear pedido se conserva: si el POST ya salió y la respuesta se perdió al
+                // cambiar de lugar, volver y reintentar debe devolver ese pedido y no crear otro (PAGO-09). El
+                // servidor la acota por establecimiento y la app la vence a las 24 h.
                 pendingIdempotencyKey = null
                 pendingStripeRetryIdempotencyKey = null
-                guestSessionStore.clearPendingCreateIdempotency()
                 previous.createdOrder
                     ?.summary
                     ?.id
@@ -950,6 +952,8 @@ class OrderFlowViewModel
                         guestSessionStore.clearPendingCreateIdempotency()
                         pendingStripeRetryIdempotencyKey = null
                         val stripeSession = created.stripeSession
+                        val stripeSessionUnusable =
+                            stripeSession == null && created.order.summary.paymentMethod == PaymentMethod.STRIPE
                         val purchaseCelebration = purchaseCelebrationFor(created.order)
                         val stripePendingOrderId =
                             stripeSession?.let {
@@ -971,10 +975,8 @@ class OrderFlowViewModel
                                 stripePendingOrderId = stripePendingOrderId,
                                 stripePaymentSession = stripeSession,
                                 stripePresentationKey = stripeSession?.let { UUID.randomUUID().toString() },
-                                stripePaymentPhase =
-                                    if (stripeSession != null) StripePaymentPhase.READY else StripePaymentPhase.IDLE,
-                                stripePaymentMessage =
-                                    if (stripeSession != null) "Elige cómo pagar de forma segura." else null,
+                                stripePaymentPhase = stripePhaseFor(stripeSession, stripeSessionUnusable),
+                                stripePaymentMessage = stripeMessageFor(stripeSession, stripeSessionUnusable),
                                 purchaseCelebration = purchaseCelebration,
                                 createOrderError = null,
                                 cartNotice = null,
@@ -1063,6 +1065,8 @@ class OrderFlowViewModel
          */
         fun adoptReservationOrder(created: CreatedOrder) {
             val stripeSession = created.stripeSession
+            val stripeSessionUnusable =
+                stripeSession == null && created.order.summary.paymentMethod == PaymentMethod.STRIPE
             val stripePendingOrderId =
                 stripeSession?.let {
                     created.order.summary.id
@@ -1075,10 +1079,8 @@ class OrderFlowViewModel
                     stripePendingOrderId = stripePendingOrderId,
                     stripePaymentSession = stripeSession,
                     stripePresentationKey = stripeSession?.let { UUID.randomUUID().toString() },
-                    stripePaymentPhase =
-                        if (stripeSession != null) StripePaymentPhase.READY else StripePaymentPhase.IDLE,
-                    stripePaymentMessage =
-                        if (stripeSession != null) "Elige cómo pagar de forma segura." else null,
+                    stripePaymentPhase = stripePhaseFor(stripeSession, stripeSessionUnusable),
+                    stripePaymentMessage = stripeMessageFor(stripeSession, stripeSessionUnusable),
                     purchaseCelebration = null,
                     createOrderError = null,
                 )
@@ -1665,3 +1667,27 @@ internal fun firstGuestVenueFailure(
     catalogResult: Result<*>,
     _statusResult: Result<*>,
 ): Throwable? = catalogResult.exceptionOrNull()
+
+private const val STRIPE_SESSION_UNUSABLE_MESSAGE =
+    "Tu pedido ya se creó, pero no pudimos abrir el pago. Toca Reintentar pago; no se hizo ningún cargo."
+
+/** Sin sesión de pago utilizable el pedido ya existe: se muestra para reintentar el pago, no como listo (PAGO-11). */
+private fun stripePhaseFor(
+    session: StripePaymentSession?,
+    unusable: Boolean,
+): StripePaymentPhase =
+    when {
+        session != null -> StripePaymentPhase.READY
+        unusable -> StripePaymentPhase.CANCELED
+        else -> StripePaymentPhase.IDLE
+    }
+
+private fun stripeMessageFor(
+    session: StripePaymentSession?,
+    unusable: Boolean,
+): String? =
+    when {
+        session != null -> "Elige cómo pagar de forma segura."
+        unusable -> STRIPE_SESSION_UNUSABLE_MESSAGE
+        else -> null
+    }

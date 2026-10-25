@@ -62,6 +62,31 @@ class ReloadAndCancelRulesTest {
     )
 
     @Test
+    fun `a lost response retries with the same key for the same amount and a fresh one for another`() =
+        runBlocking {
+            val keys = mutableListOf<String>()
+            val flaky =
+                object : DependentAccountRepository by FakeAccount(ParentFixtures.wallet) {
+                    override fun startCardReload(
+                        amount: BigDecimal,
+                        idempotencyKey: String,
+                    ): Result<CardReloadCheckout> {
+                        keys += idempotencyKey
+                        return Result.failure(IOException("sin red"))
+                    }
+                }
+            val model = model(flaky)
+            model.choose(100)
+            model.start()
+            model.start()
+            model.choose(200)
+            model.start()
+
+            assertEquals(keys[0], keys[1])
+            assertNotEquals(keys[1], keys[2])
+        }
+
+    @Test
     fun `a reload the bank never confirmed blocks paying again`() =
         runBlocking {
             var starts = 0

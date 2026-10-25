@@ -298,9 +298,8 @@ enum class StripePaymentStatus(
         get() = this == PENDING || this == PROCESSING || this == REQUIRES_ACTION
 
     companion object {
-        fun fromWireValue(value: String): StripePaymentStatus =
-            entries.firstOrNull { it.wireValue == value }
-                ?: throw IllegalArgumentException("payment_status no soportado: $value")
+        /** Un estado de pago que la app no conoce se trata como pendiente: el servidor sigue siendo quien decide. */
+        fun fromWireValue(value: String): StripePaymentStatus = entries.firstOrNull { it.wireValue == value } ?: PENDING
     }
 }
 

@@ -121,10 +121,14 @@ class OrderContractJson
             val envelope = json.decodeFromString<OrderDetailEnvelopeDto>(raw)
             requireEnvelopeSuccess(envelope.error)
             val order = envelope.data.toDomain()
+            // El pedido ya existe en el servidor: si la sesión de pago no es utilizable no se tira la respuesta
+            // (reintentar crearía un pedido duplicado). Queda sin sesión y la persona reintenta el pago (PAGO-11).
             val session =
                 if (order.summary.paymentMethod == PaymentMethod.STRIPE) {
-                    requireNotNull(envelope.data.payment) { "Stripe order missing pago" }
-                        .toStripeSession(expectedTotalCents = orderTotalToCents(envelope.data.total))
+                    runCatching {
+                        requireNotNull(envelope.data.payment) { "Stripe order missing pago" }
+                            .toStripeSession(expectedTotalCents = orderTotalToCents(envelope.data.total))
+                    }.getOrNull()
                 } else {
                     null
                 }

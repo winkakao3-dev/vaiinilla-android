@@ -152,14 +152,22 @@ fun StripePaymentPendingScreen(
             else -> "Confirmando tu pago"
         }
     val body =
-        (if (orderClosed) closedNotice?.reason ?: ORDER_CLOSED_BODY else message)
+        (
+            if (orderClosed) {
+                closedNotice
+                    ?.let { listOfNotNull(it.reason, it.note).joinToString(" ") }
+                    ?.takeIf { it.isNotEmpty() } ?: ORDER_CLOSED_BODY
+            } else {
+                message
+            }
+        )
             ?: when {
                 phase == StripePaymentPhase.READY -> "Estamos preparando el pago seguro."
                 phase == StripePaymentPhase.PRESENTING -> "Termina el pago en la ventana de Stripe."
                 waiting -> "Estamos verificando el pago con Vaiinilla."
                 timedOut -> "El pago todavía no tiene una confirmación final."
-                failed -> "El backend confirmó que el pago no se completó."
-                canceled -> "El backend confirmó que el pago fue cancelado."
+                failed -> "Vaiinilla confirmó que el pago no se completó."
+                canceled -> "Vaiinilla confirmó que el pago se canceló."
                 confirmed -> "Tu pedido ya puede continuar."
                 else -> "Estamos verificando el estado del pago."
             }
