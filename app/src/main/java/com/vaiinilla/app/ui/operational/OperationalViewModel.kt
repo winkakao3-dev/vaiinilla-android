@@ -60,6 +60,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.math.BigDecimal
+import java.time.Duration
+import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
 
@@ -319,7 +321,7 @@ class OperationalViewModel
                             }
                         val newest = merged.maxOfOrNull { it.summary.updatedAt }
                         if (newest != null) {
-                            lastUpdatedSince = newest
+                            lastUpdatedSince = deltaCursor(newest)
                         }
                         val visibleOrders =
                             filterDismissedClientOrders(
@@ -1689,6 +1691,15 @@ internal fun filterDismissedClientOrders(
     } else {
         orders
     }
+
+/**
+ * `actualizado_en` es la hora del inicio de la transacción: una que confirma tarde trae un sello anterior al que
+ * ya tenemos y un cursor exacto la saltaría para siempre. Se pide con un margen; mezclar es idempotente (STAFF-11).
+ */
+internal fun deltaCursor(newest: String): String =
+    runCatching { Instant.parse(newest).minus(DELTA_CURSOR_MARGIN).toString() }.getOrDefault(newest)
+
+private val DELTA_CURSOR_MARGIN: Duration = Duration.ofSeconds(30)
 
 /** Confirmación de Cocina según el estado que devolvió el servidor; otro estado no confirma nada. */
 internal fun kitchenActionNotice(order: OrderDetail): String? =

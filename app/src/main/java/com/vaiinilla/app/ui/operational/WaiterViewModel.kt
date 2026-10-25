@@ -114,6 +114,29 @@ class WaiterViewModel
         private var toastClearJob: Job? = null
         private var counterOrderKey: CounterOrderKey? = null
 
+        private var contextKey: String? = null
+
+        /**
+         * El tablero es de una membresía en un negocio. Al cambiar de negocio o de usuario se olvida todo: lo
+         * conocido de uno hacía que las llamadas pendientes del otro se anunciaran como nuevas, y un refresco en
+         * vuelo pintaba mesas ajenas (FLOW-24).
+         */
+        fun bindContext(key: String?) {
+            if (key == contextKey) return
+            val previous = contextKey
+            contextKey = key
+            if (previous == null) return
+            boardJob?.cancel()
+            toastClearJob?.cancel()
+            pendingKeys.clear()
+            openSpaceId = null
+            knownCallIds = null
+            knownRejectionIds = null
+            counterOrderKey = null
+            _uiState.value = WaiterUiState()
+            if (visible && key != null) refresh()
+        }
+
         fun onVisible() {
             visible = true
             refresh()
@@ -383,6 +406,7 @@ class WaiterViewModel
         fun submitCounterOrder(
             lines: List<CartLine>,
             customerName: String,
+            cashier: CashierContext? = null,
         ) {
             if (_uiState.value.counterOrderSending) return
             val space = _uiState.value.counterOrderSpace
@@ -415,13 +439,7 @@ class WaiterViewModel
                                 counterOrderError = null,
                                 counterOrderSpace = null,
                             )
-                        showToast(
-                            when {
-                                space == null -> "Pedido #${created.summary.folio} enviado a Caja"
-                                toAccount -> "Pedido #${created.summary.folio} de ${space.name} enviado a cocina"
-                                else -> "Pedido #${created.summary.folio} de ${space.name} enviado a Caja"
-                            },
-                        )
+                        showToast(counterOrderToast(created.summary.folio, space?.name, toAccount, cashier))
                     },
                     onFailure = { error ->
                         _uiState.value = _uiState.value.copy(counterOrderError = error.toUserFacingMessage())
@@ -500,7 +518,10 @@ class WaiterViewModel
                             idempotencyKey = keyFor("cancelar-renta", reservation.id),
                         )
                     }
+                result.onSuccess { forgetKey("cancelar-renta", reservation.id) }
                 result.onFailure {
+                    // Sigue apartado: se devuelve a la pantalla para poder reintentar con la misma llave.
+                    _uiState.value = _uiState.value.copy(pendingRental = reservation)
                     showToast("No se pudo liberar el horario apartado: ${it.toUserFacingMessage()}", isError = true)
                 }
                 refresh()
@@ -758,3 +779,23 @@ internal fun abonoIdempotencyKey(
                 .joinToString("|")
                 .toByteArray(),
         ).toString()
+
+/** Quien crea el pedido es la propia Caja: el aviso no puede decir "enviado a Caja" (CAJA-21). */
+data class CashierContext(
+    val cashOpen: Boolean?,
+)
+
+internal fun counterOrderToast(
+    folio: Int,
+    spaceName: String?,
+    toAccount: Boolean,
+    cashier: CashierContext?,
+): String {
+    val label = if (spaceName == null) "Pedido #$folio" else "Pedido #$folio de $spaceName"
+    return when {
+        toAccount -> "$label enviado a cocina"
+        cashier == null -> "$label enviado a Caja"
+        cashier.cashOpen == false -> "$label creado. Abre la caja para poder cobrarlo."
+        else -> "$label creado. Cóbralo desde la lista de Caja."
+    }
+}

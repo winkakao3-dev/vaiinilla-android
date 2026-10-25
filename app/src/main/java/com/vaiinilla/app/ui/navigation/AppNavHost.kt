@@ -78,6 +78,7 @@ import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerAlternative
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
+import com.vaiinilla.app.ui.operational.CashierContext
 import com.vaiinilla.app.ui.operational.CourtsViewModel
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
@@ -211,6 +212,9 @@ fun AppNavHost(
             ?.takeIf { it.role == OperationalRole.CASHIER }
             ?.let { CounterScope(membershipId = it.membershipId, establishmentId = it.establishmentId) }
     LaunchedEffect(cashierShift) { studentCounterViewModel.setShift(cashierShift) }
+    LaunchedEffect(authorizedAccessState.activeContext?.membershipId) {
+        waiterViewModel.bindContext(authorizedAccessState.activeContext?.membershipId)
+    }
 
     // Keep every in-memory copy of the selected venue aligned when persisted metadata
     // changes (for example, an establishment rename that also changes its slug).
@@ -2044,7 +2048,13 @@ fun AppNavHost(
                             state = waiterState,
                             colors = rememberOperationalColors(),
                             onDismiss = waiterViewModel::closeCounterOrder,
-                            onSubmit = waiterViewModel::submitCounterOrder,
+                            onSubmit = { lines, name ->
+                                waiterViewModel.submitCounterOrder(
+                                    lines,
+                                    name,
+                                    CashierContext(cashOpen = operationalState.cashSessionOpen),
+                                )
+                            },
                             submitAction = "Crear pedido",
                         )
                     }
@@ -2242,7 +2252,14 @@ fun AppNavHost(
                         onOpenCounterOrder = waiterViewModel::openCounterOrder,
                         onOpenTableOrder = waiterViewModel::openTableOrder,
                         onCloseCounterOrder = waiterViewModel::closeCounterOrder,
-                        onSubmitCounterOrder = waiterViewModel::submitCounterOrder,
+                        onSubmitCounterOrder = { lines, name ->
+                            // Desde Caja el pedido no se "envía a Caja": se dice si se puede cobrar ya (CAJA-21).
+                            waiterViewModel.submitCounterOrder(
+                                lines,
+                                name,
+                                CashierContext(cashOpen = operationalState.cashSessionOpen),
+                            )
+                        },
                         onChangeMode = backToCashier,
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
                         placeName = authorizedAccessState.activeContext?.establishmentName.orEmpty(),
