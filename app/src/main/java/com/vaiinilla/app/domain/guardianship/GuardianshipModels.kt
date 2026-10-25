@@ -621,15 +621,20 @@ object TypedAmount {
     fun editable(value: BigDecimal?): String = value?.stripTrailingZeros()?.toPlainString().orEmpty()
 }
 
-/** "$50", "$12.50" o "$1,234.50": el formato compacto de la app, con miles como en México. */
+/**
+ * "$50", "$12.50" o "$1,234.50": el formato compacto de la app, con miles como en México.
+ * Un negativo lleva el signo antes del peso ("-$5"), no después.
+ */
 fun compactMoney(value: BigDecimal): String {
     val symbols =
         DecimalFormatSymbols(Locale.ROOT).apply {
             groupingSeparator = ','
             decimalSeparator = '.'
         }
-    val text = DecimalFormat("#,##0.00", symbols).format(value.setScale(2, RoundingMode.HALF_UP))
-    return "$" + text.removeSuffix(".00")
+    val rounded = value.setScale(2, RoundingMode.HALF_UP)
+    val text = DecimalFormat("#,##0.00", symbols).format(rounded.abs())
+    val sign = if (rounded.signum() < 0) "-" else ""
+    return sign + "$" + text.removeSuffix(".00")
 }
 
 /** Montos del servidor: siempre como número, nunca como texto. */

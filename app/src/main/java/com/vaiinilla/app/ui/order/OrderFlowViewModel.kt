@@ -467,10 +467,15 @@ class OrderFlowViewModel
 
         /**
          * Hay JWT y es de este negocio. Al volver a otra escuela por "Tus escuelas" queda el contexto del
-         * negocio anterior: con él, el estado operativo era el de allá y Cartera no mostraba Mis hijos (F19).
+         * negocio anterior: con él, el estado operativo era el de allá y Cartera no mostraba Mis hijos (F19). Un JWT
+         * de personal tampoco vale: el servidor lo rechaza como cliente (SESION-09).
          */
-        private fun hasClientContextFor(venue: GuestVenueContext): Boolean =
-            JwtContextScope.isContextFor(sessionStore.readAccessToken(), venue.establishment.id)
+        private fun hasClientContextFor(venue: GuestVenueContext): Boolean {
+            val token = sessionStore.readAccessToken()
+            return JwtContextScope.isContextFor(token, venue.establishment.id) &&
+                token != null &&
+                JwtContextScope.isClientToken(token)
+        }
 
         private fun fetchOperationalStatus(): Result<OperationalStatus> {
             val slug = guestSlugFor(_uiState.value.guestVenue) ?: return getOperationalStatus()

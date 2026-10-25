@@ -595,7 +595,7 @@ class StudentAuthViewModel
                 _state.value = _state.value.copy(errorMessage = "Ingresa tu correo.")
                 return
             }
-            if (_state.value.resendLockedUntilMs > System.currentTimeMillis()) return
+            if (_state.value.resetLockedUntilMs > System.currentTimeMillis()) return
             _state.value = _state.value.copy(loading = true, errorMessage = null)
             launchTracked {
                 sendPasswordResetEmail(email).fold(
@@ -605,7 +605,7 @@ class StudentAuthViewModel
                                 loading = false,
                                 passwordResetSent = true,
                             )
-                        lockResend(60, errorMessage = null)
+                        lockResend(60, errorMessage = null, forPasswordReset = true)
                         onSent()
                     },
                     onFailure = { error ->
@@ -617,7 +617,7 @@ class StudentAuthViewModel
                                         limited.code.equals("RATE_LIMITED", ignoreCase = true)
                                 )
                         if (rateLimited) {
-                            lockResend(limited.retryAfterSeconds ?: 60)
+                            lockResend(limited.retryAfterSeconds ?: 60, forPasswordReset = true)
                         } else {
                             _state.value =
                                 _state.value.copy(
@@ -880,22 +880,29 @@ class StudentAuthViewModel
             }
         }
 
+        /** Verificar correo y recuperar contraseña tienen cada uno su espera: reenviar uno no bloquea el otro. */
         private fun lockResend(
             seconds: Long,
             errorMessage: String? = "Espera ${seconds.coerceAtLeast(1)} s para reenviar el correo.",
+            forPasswordReset: Boolean = false,
         ) {
             val wait = seconds.coerceAtLeast(1)
             val until = System.currentTimeMillis() + wait * 1000
+            val before = _state.value
             _state.value =
-                _state.value.copy(
+                before.copy(
                     loading = false,
-                    resendLockedUntilMs = until,
-                    errorMessage = errorMessage ?: _state.value.errorMessage,
+                    resendLockedUntilMs = if (forPasswordReset) before.resendLockedUntilMs else until,
+                    resetLockedUntilMs = if (forPasswordReset) until else before.resetLockedUntilMs,
+                    errorMessage = errorMessage ?: before.errorMessage,
                 )
             launchTracked {
                 delay(wait * 1000)
-                if (_state.value.resendLockedUntilMs == until) {
-                    _state.value = _state.value.copy(resendLockedUntilMs = 0L)
+                val current = _state.value
+                if (forPasswordReset && current.resetLockedUntilMs == until) {
+                    _state.value = current.copy(resetLockedUntilMs = 0L)
+                } else if (!forPasswordReset && current.resendLockedUntilMs == until) {
+                    _state.value = current.copy(resendLockedUntilMs = 0L)
                 }
             }
         }

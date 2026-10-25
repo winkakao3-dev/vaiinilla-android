@@ -10,6 +10,7 @@ import com.google.firebase.auth.TotpMultiFactorGenerator
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.core.runCatchingCancellable
+import com.vaiinilla.app.core.security.JwtContextScope
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.domain.auth.student.StudentAuthMfaChallenge
 import com.vaiinilla.app.domain.auth.student.StudentAuthMfaFactor
@@ -40,9 +41,11 @@ class FirebaseStudentAuthRepository
 
         override fun isReadyForCheckout(establishmentId: String?): Boolean {
             val session = peekSession() ?: return false
+            val token = sessionStore.readAccessToken()
             return session.emailVerified &&
                 preferences.isEnrolledFor(establishmentId) &&
-                !sessionStore.readAccessToken().isNullOrBlank()
+                !token.isNullOrBlank() &&
+                JwtContextScope.isClientToken(token)
         }
 
         override suspend fun signUp(
