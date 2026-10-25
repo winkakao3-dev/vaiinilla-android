@@ -60,6 +60,10 @@ class OfflineCounterQueue(
     private var flushJob: Job? = null
     private val sending = Mutex()
 
+    /** Con la caja cerrada el servidor rechaza la venta como error de negocio y la deja como problema (CAJA-28). */
+    @Volatile
+    private var cashOpen = true
+
     /** Otra membresía u otro negocio tiene su propia cola: la anterior se queda guardada en su archivo. */
     fun start(counterScope: CounterScope) {
         if (this.counterScope == counterScope) return
@@ -74,6 +78,13 @@ class OfflineCounterQueue(
     private fun launchFlush() {
         if (flushJob?.isActive == true) return
         flushJob = scope.launch { flush() }
+    }
+
+    /** Solo `false` detiene el envío; si no se sabe, decide el servidor. Al abrirse la caja se manda lo guardado. */
+    fun setCashOpen(open: Boolean) {
+        if (cashOpen == open) return
+        cashOpen = open
+        if (open) launchFlush()
     }
 
     fun stop() {
@@ -129,7 +140,7 @@ class OfflineCounterQueue(
 
     /** Manda las pendientes una por una. Se detiene en la primera falla de conexión y reintenta después. */
     suspend fun flush() {
-        if (counterScope == null || snapshot.pending.isEmpty()) return
+        if (counterScope == null || snapshot.pending.isEmpty() || !cashOpen) return
         if (!sending.tryLock()) return
         val flushScope = counterScope
         _state.value = _state.value.copy(isSending = true)

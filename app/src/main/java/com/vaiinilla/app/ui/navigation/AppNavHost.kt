@@ -78,6 +78,7 @@ import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerAlternative
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
+import com.vaiinilla.app.ui.operational.CashierContext
 import com.vaiinilla.app.ui.operational.CourtsViewModel
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
@@ -211,6 +212,12 @@ fun AppNavHost(
             ?.takeIf { it.role == OperationalRole.CASHIER }
             ?.let { CounterScope(membershipId = it.membershipId, establishmentId = it.establishmentId) }
     LaunchedEffect(cashierShift) { studentCounterViewModel.setShift(cashierShift) }
+    LaunchedEffect(authorizedAccessState.activeContext?.membershipId) {
+        waiterViewModel.bindContext(authorizedAccessState.activeContext?.membershipId)
+    }
+    LaunchedEffect(operationalState.cashSessionOpen) {
+        studentCounterViewModel.setCashOpen(operationalState.cashSessionOpen != false)
+    }
 
     // Keep every in-memory copy of the selected venue aligned when persisted metadata
     // changes (for example, an establishment rename that also changes its slug).
@@ -2015,6 +2022,7 @@ fun AppNavHost(
                                 state = pendingRefundsViewModel.uiState.value,
                                 canConfirm =
                                     authorizedAccessState.activeContext?.restrictedMode != RestrictedMode.READ_ONLY,
+                                cashOpen = operationalState.cashSessionOpen,
                                 colors = rememberOperationalColors(),
                                 onConfirm = pendingRefundsViewModel::confirm,
                             )
@@ -2043,7 +2051,13 @@ fun AppNavHost(
                             state = waiterState,
                             colors = rememberOperationalColors(),
                             onDismiss = waiterViewModel::closeCounterOrder,
-                            onSubmit = waiterViewModel::submitCounterOrder,
+                            onSubmit = { lines, name ->
+                                waiterViewModel.submitCounterOrder(
+                                    lines,
+                                    name,
+                                    CashierContext(cashOpen = operationalState.cashSessionOpen),
+                                )
+                            },
                             submitAction = "Crear pedido",
                         )
                     }

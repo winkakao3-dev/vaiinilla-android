@@ -11,6 +11,8 @@ class CashCloseSheetTest {
         assertEquals("725.50", normalizeCountedCash(" $725.50 "))
         assertEquals("1200.00", normalizeCountedCash("1200"))
         assertEquals("725.50", normalizeCountedCash("725,50"))
+        assertEquals("1250.00", normalizeCountedCash("1,250"))
+        assertEquals("1250.50", normalizeCountedCash("$1,250.50"))
         assertEquals("0.00", normalizeCountedCash("0"))
         assertEquals("15.00", normalizeCountedCash("015"))
     }

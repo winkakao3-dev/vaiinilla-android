@@ -29,6 +29,14 @@ class UserFacingErrorMessageTest {
     }
 
     @Test
+    fun `dice por su codigo lo que el servidor nombra con un detalle tecnico`() {
+        val conflict = ApiClientException("ORDER_VERSION_CONFLICT", "Versión desactualizada.", 409)
+        val expected = "El pedido cambió mientras lo tenías abierto. Revísalo e inténtalo de nuevo."
+        assertEquals(expected, conflict.toUserFacingMessage())
+        assertEquals(expected, OrderRepositoryException(conflict.code, "Versión desactualizada.", conflict).toUserFacingMessage())
+    }
+
+    @Test
     fun `preserves an api message`() {
         assertEquals(
             "El código ya fue utilizado.",

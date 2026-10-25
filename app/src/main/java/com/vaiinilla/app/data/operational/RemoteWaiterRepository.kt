@@ -29,7 +29,7 @@ class RemoteWaiterRepository(
 ) : WaiterRepository {
     private var boardEndpoint = true
     private var callsEnabled = true
-    private var storePolicy: Pair<Long, DeliveryPolicyDto>? = null
+    private var storePolicyCache: Pair<Long, DeliveryPolicyDto>? = null
 
     override fun board(): Result<WaiterBoard> =
         runCatching {
@@ -64,11 +64,12 @@ class RemoteWaiterRepository(
                 } else {
                     tables
                 }
+            val policy = policy()
             WaiterBoard(
                 tables = withAvailability(withCalls),
                 callsEnabled = boardEndpoint || callsEnabled,
-                deliveryRequiresQr = policy().deliveryRequiresQr,
-                allowsPayAtEnd = policy().allowsPayAtEnd,
+                deliveryRequiresQr = policy.deliveryRequiresQr,
+                allowsPayAtEnd = policy.allowsPayAtEnd,
             )
         }.mapApiErrors()
 
@@ -91,20 +92,21 @@ class RemoteWaiterRepository(
 
     /**
      * Cómo trabaja la tienda: si dispensa el QR al entregar en un espacio y si deja pagar al final. Se
-     * consulta como mucho una vez por minuto; ante cualquier duda se exige el QR y no se ofrece pagar al final.
+     * consulta como mucho una vez por minuto. Un fallo no se guarda: sigue valiendo la última política conocida y
+     * solo sin ninguna se exige el QR y no se ofrece pagar al final (STAFF-19).
      */
     private fun policy(): DeliveryPolicyDto {
         val now = System.currentTimeMillis()
-        storePolicy?.let { (at, policy) -> if (now - at < POLICY_TTL_MS) return policy }
-        val policy =
+        storePolicyCache?.let { (at, policy) -> if (now - at < POLICY_TTL_MS) return policy }
+        val fetched =
             runCatching {
                 apiClient
                     .get("estado-operativo")
                     .mapCatching(contractJson::parseStorePolicy)
                     .getOrThrow()
-            }.getOrDefault(DeliveryPolicyDto())
-        storePolicy = now to policy
-        return policy
+            }.getOrNull()
+        if (fetched != null) storePolicyCache = now to fetched
+        return fetched ?: storePolicyCache?.second ?: DeliveryPolicyDto()
     }
 
     private fun fallbackBoard(): List<BoardTable> {

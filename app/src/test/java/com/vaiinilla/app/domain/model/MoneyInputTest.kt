@@ -19,6 +19,15 @@ class MoneyInputTest {
     }
 
     @Test
+    fun `la coma con tres digitos es de miles y no un decimal`() {
+        assertEquals("1250", MoneyInput.sanitize("1,250"))
+        assertEquals("1250000", MoneyInput.sanitize("1,250,000"))
+        assertEquals("1.25", MoneyInput.sanitize("1,25"))
+        assertEquals("0.50", MoneyInput.sanitize("0,500"))
+        assertEquals("1000.00", MoneyInput.toWire("$1,000"))
+    }
+
+    @Test
     fun `al backend va con dos decimales`() {
         assertEquals("200.00", MoneyInput.toWire("200"))
         assertEquals("12.50", MoneyInput.toWire("12.5"))

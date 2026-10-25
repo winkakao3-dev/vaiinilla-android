@@ -201,21 +201,25 @@ internal fun CounterOrderSheet(
                     color = colors.textPrimary,
                 )
                 Box(
-                    modifier =
-                        Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(colors.cardBackground)
-                            .border(1.dp, colors.cardBorder, CircleShape)
-                            .clickable { onDismiss() },
+                    modifier = Modifier.size(48.dp).clip(CircleShape).clickable { onDismiss() },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        Icons.Outlined.Close,
-                        contentDescription = "Cerrar",
-                        tint = colors.textPrimary,
-                        modifier = Modifier.size(16.dp),
-                    )
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(colors.cardBackground)
+                                .border(1.dp, colors.cardBorder, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Outlined.Close,
+                            contentDescription = "Cerrar",
+                            tint = colors.textPrimary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
                 }
             }
             OperationalField(
@@ -418,7 +422,7 @@ private fun ProductoMostradorTile(
                         Modifier
                             .physicalPress(scale = PhysicalPressScale.Small, onClick = onRestar)
                             .semantics { contentDescription = "Quitar uno de ${producto.name}" }
-                            .size(34.dp),
+                            .size(48.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text("−", color = colors.background, fontWeight = FontWeight.Bold, fontSize = 18.sp)

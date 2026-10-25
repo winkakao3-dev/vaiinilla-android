@@ -37,6 +37,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.Money
+import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
@@ -46,7 +47,7 @@ import java.math.BigDecimal
 
 /** Efectivo contado válido: número no negativo con hasta dos decimales, normalizado a "725.50". */
 fun normalizeCountedCash(raw: String): String? {
-    val text = raw.trim().removePrefix("$").replace(",", ".")
+    val text = MoneyInput.unifySeparators(raw.trim().removePrefix("$").trim())
     if (!Regex("""\d+(\.\d{1,2})?""").matches(text)) return null
     val parts = text.split(".")
     val cents = (parts.getOrNull(1) ?: "").padEnd(2, '0')

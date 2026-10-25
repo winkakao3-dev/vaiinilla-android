@@ -16,13 +16,27 @@ object MoneyInput {
         raw: String,
         maxIntegerDigits: Int = 8,
     ): String {
-        val unified = if (raw.contains('.')) raw.replace(",", "") else raw.replace(',', '.')
+        val unified = unifySeparators(raw)
         val clean = unified.filter { it.isDigit() || it == '.' }
         val dot = clean.indexOf('.')
         if (dot < 0) return clean.take(maxIntegerDigits)
         val decimals = clean.substring(dot + 1).replace(".", "").take(2)
         return clean.substring(0, dot).take(maxIntegerDigits) + "." + decimals
     }
+
+    /**
+     * Deja un solo separador decimal. Con punto, las comas son de miles; sin punto, "1,250" o "1,250,000" también
+     * son miles (un monto no lleva tres decimales) y cualquier otra coma es el decimal. Sirve a lo pegado y a los
+     * campos que reciben el texto crudo (CAJA-23).
+     */
+    fun unifySeparators(raw: String): String =
+        when {
+            raw.contains('.') -> raw.replace(",", "")
+            THOUSANDS_ONLY.matches(raw.trim().removePrefix("$").trim()) -> raw.replace(",", "")
+            else -> raw.replace(',', '.')
+        }
+
+    private val THOUSANDS_ONLY = Regex("""[1-9]\d{0,2}(,\d{3})+""")
 
     /** El monto escrito como número; null si está vacío o no es un monto. */
     fun parse(text: String): BigDecimal? {

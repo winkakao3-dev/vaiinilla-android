@@ -46,6 +46,9 @@ class SharedTableViewModel
         private var pollingJob: Job? = null
         private var venueId: String? = null
 
+        /** Sube al salir o cambiar de negocio: un sondeo que salió antes ya trae una mesa que no es la actual. */
+        private var epoch = 0
+
         /**
          * La mesa es del negocio donde se cargó. Al entrar a otro negocio se olvida: si no, el menú de allá
          * llamaba al mesero a la mesa de acá y el servidor respondía 404 (C08, K02).
@@ -54,7 +57,10 @@ class SharedTableViewModel
             if (establishmentId == venueId) return
             val changed = venueId != null
             venueId = establishmentId
-            if (changed) _uiState.value = SharedTableUiState(aliasInput = _uiState.value.aliasInput)
+            if (changed) {
+                epoch++
+                _uiState.value = SharedTableUiState(aliasInput = _uiState.value.aliasInput)
+            }
         }
 
         fun onVisible() {
@@ -101,6 +107,7 @@ class SharedTableViewModel
         ) = perform { repository.claim(folio, payIt) }
 
         fun leave() {
+            epoch++
             _uiState.value = _uiState.value.copy(busy = true, error = null)
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { repository.leave() }
@@ -135,7 +142,9 @@ class SharedTableViewModel
         }
 
         private suspend fun refresh() {
+            val startedAt = epoch
             val result = withContext(Dispatchers.IO) { repository.current() }
+            if (startedAt != epoch) return
             // Una consulta fallida no borra la mesa que ya se ve; la siguiente lo intenta otra vez.
             result.onSuccess { _uiState.value = _uiState.value.copy(loaded = true, table = it) }
             result.onFailure { if (!_uiState.value.loaded) _uiState.value = _uiState.value.copy(loaded = true) }

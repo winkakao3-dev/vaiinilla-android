@@ -707,7 +707,7 @@ private fun WaiterEmbeddedHeader(
         Row(
             modifier =
                 Modifier
-                    .height(40.dp)
+                    .height(48.dp)
                     .clip(CircleShape)
                     .background(colors.cardInner)
                     .border(1.dp, colors.cardBorder, CircleShape)
@@ -1267,21 +1267,25 @@ private fun WaiterTableSheet(
                                 color = colors.textPrimary,
                             )
                             Box(
-                                modifier =
-                                    Modifier
-                                        .size(34.dp)
-                                        .clip(CircleShape)
-                                        .background(colors.cardBackground)
-                                        .border(1.dp, colors.cardBorder, CircleShape)
-                                        .clickable { onDismiss() },
+                                modifier = Modifier.size(48.dp).clip(CircleShape).clickable { onDismiss() },
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Icon(
-                                    Icons.Outlined.Close,
-                                    contentDescription = "Cerrar",
-                                    tint = colors.textPrimary,
-                                    modifier = Modifier.size(16.dp),
-                                )
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .size(34.dp)
+                                            .clip(CircleShape)
+                                            .background(colors.cardBackground)
+                                            .border(1.dp, colors.cardBorder, CircleShape),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.Close,
+                                        contentDescription = "Cerrar",
+                                        tint = colors.textPrimary,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
                             }
                         }
                         Text(
@@ -1599,21 +1603,25 @@ private fun WaiterDeliverSheet(
                     color = colors.textPrimary,
                 )
                 Box(
-                    modifier =
-                        Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(colors.cardBackground)
-                            .border(1.dp, colors.cardBorder, CircleShape)
-                            .clickable { onDismiss() },
+                    modifier = Modifier.size(48.dp).clip(CircleShape).clickable { onDismiss() },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        Icons.Outlined.Close,
-                        contentDescription = "Cerrar",
-                        tint = colors.textPrimary,
-                        modifier = Modifier.size(16.dp),
-                    )
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(colors.cardBackground)
+                                .border(1.dp, colors.cardBorder, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Outlined.Close,
+                            contentDescription = "Cerrar",
+                            tint = colors.textPrimary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
                 }
             }
             Text(

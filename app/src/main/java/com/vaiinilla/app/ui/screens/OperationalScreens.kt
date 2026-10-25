@@ -1514,7 +1514,7 @@ private fun TicketTipRow(
                     Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp)
-                        .height(42.dp)
+                        .height(48.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(TicketInk.copy(alpha = 0.05f))
                         .border(1.dp, TicketLine, RoundedCornerShape(12.dp))
@@ -2568,7 +2568,7 @@ private fun OperationalErrorCard(
                         modifier =
                             Modifier
                                 .physicalPress(scale = PhysicalPressScale.Small, onClick = onDismiss)
-                                .size(44.dp)
+                                .size(48.dp)
                                 .clip(CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -2754,18 +2754,25 @@ private fun AddProductSheet(
                     modifier =
                         Modifier
                             .physicalPress(enabled = !saving, scale = PhysicalPressScale.Small) { onDismiss() }
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(colors.cardBackground)
-                            .border(1.dp, colors.cardBorder, CircleShape),
+                            .size(48.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        Icons.Outlined.Close,
-                        contentDescription = "Cerrar",
-                        tint = colors.textPrimary,
-                        modifier = Modifier.size(16.dp),
-                    )
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(colors.cardBackground)
+                                .border(1.dp, colors.cardBorder, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Outlined.Close,
+                            contentDescription = "Cerrar",
+                            tint = colors.textPrimary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
                 }
             }
 

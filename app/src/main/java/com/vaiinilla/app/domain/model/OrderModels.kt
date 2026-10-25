@@ -79,6 +79,18 @@ data class OrderDetail(
     val arrivedAt: Instant? = null,
     /** Nombre a cuyo nombre lo tomó el staff en mostrador; `null` en pedidos de la app. */
     val customerName: String? = null,
+    /** Qué hizo el servidor con el dinero; solo viene en la respuesta de cancelar o rechazar (CAJA-06). */
+    val refund: RefundOutcome? = null,
+)
+
+/** Cómo quedó el dinero de un pedido o artículo pagado que se canceló: lo que Caja debe hacer o ya no. */
+data class RefundOutcome(
+    /** Salió del cajón: Caja lo entrega en mano. */
+    val cashHandedBack: BigDecimal? = null,
+    /** Quedó como devolución pendiente en Caja. */
+    val pendingForCashier: BigDecimal? = null,
+    val returnedToBalance: BigDecimal? = null,
+    val cardRefund: Boolean = false,
 )
 
 data class OrderReservation(

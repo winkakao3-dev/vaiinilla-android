@@ -7,6 +7,14 @@ import java.net.UnknownHostException
 
 private const val DEFAULT_ERROR_MESSAGE = "No se pudo completar la operación. Intenta de nuevo."
 
+/** Mensajes del servidor que nombran un detalle técnico (versión, token): se dicen por su código (STAFF-21). */
+private val CODED_MESSAGES =
+    mapOf(
+        "ORDER_VERSION_CONFLICT" to "El pedido cambió mientras lo tenías abierto. Revísalo e inténtalo de nuevo.",
+        "INVALID_PICKUP_TOKEN" to "Ese código de recogida no es válido. Pide al cliente que lo muestre de nuevo.",
+        "UNAUTHENTICATED" to "Tu sesión caducó. Vuelve a iniciar sesión.",
+    )
+
 /**
  * Converts transport failures into copy that is safe and useful to show in the UI.
  * API/domain messages are preserved because they are already written for the user.
@@ -16,6 +24,8 @@ fun Throwable?.toUserFacingMessage(fallback: String = DEFAULT_ERROR_MESSAGE): St
 
     val causes = generateSequence(this) { it.cause }.toList()
     val combinedMessage = causes.joinToString(" ") { it.message.orEmpty() }.lowercase()
+
+    val codedMessage = causes.filterIsInstance<ApiClientException>().firstNotNullOfOrNull { CODED_MESSAGES[it.code] }
 
     return when {
         causes.any { it is UnknownHostException } ||
@@ -30,6 +40,8 @@ fun Throwable?.toUserFacingMessage(fallback: String = DEFAULT_ERROR_MESSAGE): St
             "failed to connect" in combinedMessage ||
             "connection refused" in combinedMessage ->
             "No pudimos contactar al servidor. Inténtalo de nuevo en unos segundos."
+
+        codedMessage != null -> codedMessage
 
         causes.any { it is ApiClientException && it.httpStatus in 500..599 } ->
             "Tuvimos un problema en el servidor. Intenta de nuevo en unos momentos."
