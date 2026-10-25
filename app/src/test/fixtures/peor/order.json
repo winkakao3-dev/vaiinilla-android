@@ -1,0 +1,135 @@
+{
+ "data": {
+  "id": "c0ffee00-0000-4000-8000-000000104382",
+  "folio": 104382,
+  "fecha_operativa": "2026-10-23",
+  "estado": "por_cobrar",
+  "metodo_pago": "efectivo",
+  "destino": "en_espacio",
+  "espacio": {
+   "id": 77,
+   "nombre": "Terraza de la cancha de básquetbol (junto a la tienda escolar)",
+   "tipo": "mesa"
+  },
+  "subtotal": "7241.50",
+  "ahorro_combinado": "120.00",
+  "cashback_otorgado": "71.22",
+  "total": "7121.50",
+  "version": 7,
+  "creado_en": "2026-10-23T14:58:00.000Z",
+  "actualizado_en": "2026-10-23T15:41:00.000Z",
+  "notas_cocina": "Sin cebolla en ninguno, por favor. El de los chilaquiles es para mi hijo que es alérgico al cacahuate: que no toquen la plancha donde hacen las tortas con crema de cacahuate. Los tacos con salsa aparte y bien doraditos. El paquete fiesta es para el salón de 3°B, lo recoge la maestra Rocío a las 12:30 en la puerta de la dirección; si no está ella, lo recibe el prefecto. Mándenlo con servilletas y cubiertos para 30 niños y velitas si tienen. Gracias, ya pagué con tarjeta.",
+  "usuario": {
+   "nombre": "María Guadalupe Hernández Villaseñor de la Fuente",
+   "matricula": "A-2026-00012345",
+   "alergias": [
+    "cacahuate",
+    "nueces",
+    "lacteos",
+    "gluten",
+    "huevo",
+    "soya"
+   ]
+  },
+  "items": [
+   {
+    "id": 9001,
+    "producto_id": 1101,
+    "nombre_producto": "Chilaquiles verdes con pollo deshebrado, crema, queso fresco, cebolla morada, aguacate y frijoles refritos de la olla",
+    "estacion_preparacion": "cocina",
+    "cantidad": 12,
+    "precio_digital_unitario": "172.50",
+    "subtotal": "2070.00",
+    "opciones": [
+     {
+      "opcion_id": 3103,
+      "nombre": "Bistec de res a la mexicana con jitomate, cebolla y un toque de chipotle",
+      "precio_extra": "35.50"
+     },
+     {
+      "opcion_id": 3110,
+      "nombre": "Crema extra",
+      "precio_extra": "6.00"
+     },
+     {
+      "opcion_id": 3111,
+      "nombre": "Aguacate extra",
+      "precio_extra": "18.00"
+     },
+     {
+      "opcion_id": 3112,
+      "nombre": "Queso extra",
+      "precio_extra": "10.00"
+     },
+     {
+      "opcion_id": 3113,
+      "nombre": "Frijoles extra",
+      "precio_extra": "8.00"
+     },
+     {
+      "opcion_id": 3115,
+      "nombre": "Totopos aparte para que no se aguaden",
+      "precio_extra": "0.00"
+     }
+    ]
+   },
+   {
+    "id": 9002,
+    "producto_id": 1001,
+    "nombre_producto": "Té",
+    "estacion_preparacion": "caja",
+    "cantidad": 1,
+    "precio_digital_unitario": "12.00",
+    "subtotal": "12.00",
+    "opciones": []
+   },
+   {
+    "id": 9003,
+    "producto_id": 1801,
+    "nombre_producto": "🌮 Tacos al pastor (orden de 5)",
+    "estacion_preparacion": "cocina",
+    "cantidad": 3,
+    "precio_digital_unitario": "80.00",
+    "subtotal": "240.00",
+    "opciones": []
+   },
+   {
+    "id": 9004,
+    "producto_id": 1301,
+    "nombre_producto": "Paquete fiesta de fin de curso para 30 alumnos (incluye pastel, aguas frescas y bocadillos)",
+    "estacion_preparacion": "cocina",
+    "cantidad": 1,
+    "precio_digital_unitario": "4850.00",
+    "subtotal": "4850.00",
+    "opciones": []
+   },
+   {
+    "id": 9005,
+    "producto_id": 1102,
+    "nombre_producto": "COMBO_DESAYUNO_ESCOLAR_GRANDE_JUGO_NARANJA_500ML",
+    "estacion_preparacion": "cocina",
+    "cantidad": 1,
+    "precio_digital_unitario": "69.50",
+    "subtotal": "69.50",
+    "opciones": []
+   },
+   {
+    "id": 9006,
+    "producto_id": 1003,
+    "nombre_producto": "Vaso con agua natural",
+    "estacion_preparacion": "caja",
+    "cantidad": 30,
+    "precio_digital_unitario": "0.00",
+    "subtotal": "0.00",
+    "opciones": []
+   }
+  ]
+ },
+ "meta": {
+  "page": null,
+  "total_pages": null,
+  "total_items": null,
+  "cursor": null
+ },
+ "error": null
+}

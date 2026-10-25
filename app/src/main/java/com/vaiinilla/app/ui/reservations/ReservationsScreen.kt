@@ -69,6 +69,7 @@ import com.vaiinilla.app.ui.components.EditorialConfirmSheet
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.RollingText
 import com.vaiinilla.app.ui.components.arrive
+import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaColors
@@ -421,7 +422,7 @@ private fun CourtStrip(
                 Text(court.name, color = ink, fontSize = 17.sp, fontWeight = FontWeight.Black)
                 court.customerPricePerHour?.let {
                     Text(
-                        "$${it.cashOrBalance} / hora",
+                        "${moneyLabel(it.cashOrBalance)} / hora",
                         color = ink.copy(alpha = 0.72f),
                         fontSize = 13.sp,
                         modifier = Modifier.padding(top = 2.dp),
@@ -936,7 +937,7 @@ private fun PayOption(
                 modifier = Modifier.padding(top = 2.dp),
             )
         }
-        Text("$$amount", color = colors.ink, fontSize = 18.sp, fontWeight = FontWeight.Black)
+        Text(moneyLabel(amount), color = colors.ink, fontSize = 18.sp, fontWeight = FontWeight.Black)
     }
 }
 

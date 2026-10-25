@@ -245,8 +245,20 @@ fun OrderTrackingCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text(moneyLabel(order.summary.total), color = cardText.copy(alpha = 0.82f), fontSize = 13.sp)
-                    Text(destinationDisplayLabel(order), color = cardText.copy(alpha = 0.82f), fontSize = 13.sp)
+                    Text(
+                        moneyLabel(order.summary.total),
+                        color = cardText.copy(alpha = 0.82f),
+                        fontSize = 13.sp,
+                        softWrap = false,
+                    )
+                    Text(
+                        destinationDisplayLabel(order),
+                        color = cardText.copy(alpha = 0.82f),
+                        fontSize = 13.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
                 Text(
                     orderPaymentLabel(order.summary),

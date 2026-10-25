@@ -41,6 +41,7 @@ import com.vaiinilla.app.domain.guardianship.DependentAccountRepository
 import com.vaiinilla.app.domain.guardianship.TypedAmount
 import com.vaiinilla.app.domain.guardianship.compactMoney
 import com.vaiinilla.app.domain.model.MoneyInput
+import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.order.STRIPE_CONFIRMATION_MAX_POLLS
 import com.vaiinilla.app.ui.order.STRIPE_CONFIRMATION_POLL_INTERVAL_MS
@@ -321,7 +322,7 @@ internal fun ChildReloadSheet(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 ChildReloadModel.QUICK_AMOUNTS.forEach { quick ->
                     ChipButton(
-                        label = "$$quick",
+                        label = moneyLabel(quick),
                         enabled = !model.isBusy,
                         colors = colors,
                         selected = amount != null && amount.compareTo(quick.toBigDecimal()) == 0,

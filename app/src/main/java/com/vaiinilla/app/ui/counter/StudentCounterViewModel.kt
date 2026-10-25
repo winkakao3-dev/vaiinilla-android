@@ -469,7 +469,3 @@ class StudentCounterViewModel
             const val SEARCH_DEBOUNCE_MS = 320L
         }
     }
-
-/** El dinero de Caja con el formato compacto de la app ($50, $12.50). */
-internal fun moneyLabel(value: BigDecimal): String =
-    moneyLabel(value.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString())

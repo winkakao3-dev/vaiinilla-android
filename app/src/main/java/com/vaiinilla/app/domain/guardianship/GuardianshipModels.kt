@@ -1,12 +1,16 @@
 package com.vaiinilla.app.domain.guardianship
 
+import com.vaiinilla.app.domain.model.NameInitials
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.school.SchoolAllergen
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.util.Locale
 
 // Padres e hijos (docs/padres-hijos.md del backend): un tutor ve a sus hijos, les recarga
 // saldo con tarjeta, les pone controles y les aparta la comida de la semana.
@@ -94,16 +98,7 @@ object PersonNames {
             .firstOrNull()
             ?.takeIf { it.isNotEmpty() } ?: name
 
-    fun initials(name: String): String {
-        val letters =
-            name
-                .trim()
-                .split(Regex("\\s+"))
-                .filter(String::isNotEmpty)
-                .take(2)
-                .map { it.first().uppercaseChar() }
-        return if (letters.isEmpty()) "?" else letters.joinToString("")
-    }
+    fun initials(name: String): String = NameInitials.of(name).ifEmpty { "?" }
 
     /** "Tilin", "Tilin y Ana" o "Tilin, Ana y Leo". */
     fun list(names: List<String>): String =
@@ -255,7 +250,7 @@ data class MyGuardianControls(
                         "$restricted productos no están a tu alcance."
                     }
             }
-            return details.takeIf { it.isNotEmpty() }?.joinToString(" ")
+            return details.takeIf { it.isNotEmpty() }?.joinToString("\n")
         }
 
     /** "Te cuida Ana" o "Te cuidan Ana y Luis". */
@@ -626,9 +621,16 @@ object TypedAmount {
     fun editable(value: BigDecimal?): String = value?.stripTrailingZeros()?.toPlainString().orEmpty()
 }
 
-/** "$50" o "$12.50": el formato compacto de la app. */
-fun compactMoney(value: BigDecimal): String =
-    "$" + value.setScale(2, RoundingMode.HALF_UP).toPlainString().removeSuffix(".00")
+/** "$50", "$12.50" o "$1,234.50": el formato compacto de la app, con miles como en México. */
+fun compactMoney(value: BigDecimal): String {
+    val symbols =
+        DecimalFormatSymbols(Locale.ROOT).apply {
+            groupingSeparator = ','
+            decimalSeparator = '.'
+        }
+    val text = DecimalFormat("#,##0.00", symbols).format(value.setScale(2, RoundingMode.HALF_UP))
+    return "$" + text.removeSuffix(".00")
+}
 
 /** Montos del servidor: siempre como número, nunca como texto. */
 internal fun String.toMoneyOrNull(): BigDecimal? = trim().toBigDecimalOrNull()?.setScale(2, RoundingMode.HALF_UP)

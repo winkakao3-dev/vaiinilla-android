@@ -26,6 +26,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,9 +36,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.components.moneyLabel
@@ -91,13 +94,18 @@ fun StickerStyleContent(
     size: StickerSize,
     modifier: Modifier = Modifier,
 ) {
-    when (style) {
-        StickerStyle.Editorial -> EditorialSticker(order, size, modifier)
-        StickerStyle.Core -> CoreDropSticker(order, modifier)
-        StickerStyle.Limited -> LimitedSticker(order, modifier)
-        StickerStyle.Breakfast -> BreakfastClubSticker(order, modifier)
-        StickerStyle.QrLive -> QrLiveSticker(order, modifier)
-        StickerStyle.Thermal -> ThermalSticker(order, modifier)
+    // La etiqueta es un dibujo de tamaño fijo, como impresa: con la letra del sistema al doble se partían
+    // la fecha y el total. El pedido se lee completo fuera de la etiqueta.
+    val density = LocalDensity.current
+    CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 1f)) {
+        when (style) {
+            StickerStyle.Editorial -> EditorialSticker(order, size, modifier)
+            StickerStyle.Core -> CoreDropSticker(order, modifier)
+            StickerStyle.Limited -> LimitedSticker(order, modifier)
+            StickerStyle.Breakfast -> BreakfastClubSticker(order, modifier)
+            StickerStyle.QrLive -> QrLiveSticker(order, modifier)
+            StickerStyle.Thermal -> ThermalSticker(order, modifier)
+        }
     }
 }
 

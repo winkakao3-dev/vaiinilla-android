@@ -83,7 +83,17 @@ fun ActiveOrderBanner(
                         .padding(top = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Text("$itemCount productos", color = colors.muted, fontSize = 12.sp)
+                Text(
+                    if (itemCount ==
+                        1
+                    ) {
+                        "1 producto"
+                    } else {
+                        "$itemCount productos"
+                    },
+                    color = colors.muted,
+                    fontSize = 12.sp,
+                )
                 Text(destination, color = colors.muted, fontSize = 12.sp)
             }
         }

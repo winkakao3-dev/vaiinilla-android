@@ -108,6 +108,7 @@ import com.vaiinilla.app.ui.components.GlassCircleButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.SlidingSegments
+import com.vaiinilla.app.ui.components.initialOf
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
@@ -282,7 +283,7 @@ fun DiscoveryScreen(
                     EditorialSearchField(
                         value = state.query,
                         onValueChange = onQueryChange,
-                        placeholder = "Buscar cafetería, facultad o campus…",
+                        placeholder = "Buscar cafetería o campus",
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }
@@ -339,13 +340,21 @@ fun DiscoveryScreen(
                         }
                     }
                 } else if (state.establishments.isEmpty()) {
-                    // Sin lugares listados basta la fila de QR, código y NFC de abajo; solo una búsqueda sin
-                    // resultados lleva su aviso.
-                    if (state.query.isNotBlank()) {
-                        item {
+                    // Sin lugares listados se entra por la fila de QR, código y NFC de abajo; una línea dice por qué
+                    // no hay lista.
+                    item {
+                        if (state.query.isNotBlank()) {
                             NoMatches(
                                 query = state.query,
                                 onClearQuery = { onQueryChange("") },
+                                modifier = Modifier.padding(top = 18.dp),
+                            )
+                        } else {
+                            Text(
+                                "Aún no hay cafeterías cerca. Si ya estás en una, escanea su QR o usa su código.",
+                                color = colors.muted,
+                                fontSize = 14.sp,
+                                lineHeight = 20.sp,
                                 modifier = Modifier.padding(top = 18.dp),
                             )
                         }
@@ -592,7 +601,7 @@ private fun VenueRow(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                establishment.name.take(1).uppercase(),
+                initialOf(establishment.name),
                 color = colors.muted,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Black,
@@ -605,7 +614,7 @@ private fun VenueRow(
                 fontSize = 17.sp,
                 lineHeight = 22.sp,
                 fontWeight = FontWeight.Bold,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(

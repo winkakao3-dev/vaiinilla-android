@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.components.ProductImage
+import com.vaiinilla.app.ui.components.initialOf
 import com.vaiinilla.app.ui.components.productImageIsRemote
 import com.vaiinilla.app.ui.components.productImageResource
 import com.vaiinilla.app.ui.components.rememberProductTone
@@ -131,7 +132,7 @@ internal fun ProductMonogram(
     val colors = LocalVaiinillaColors.current
     BoxWithConstraints(modifier.background(colors.paper2), contentAlignment = Alignment.Center) {
         Text(
-            text = name.trim().firstOrNull()?.uppercase() ?: "",
+            text = initialOf(name),
             color = colors.muted.copy(alpha = 0.55f),
             fontWeight = FontWeight.Black,
             fontSize = (maxWidth.value * 0.38f).sp,

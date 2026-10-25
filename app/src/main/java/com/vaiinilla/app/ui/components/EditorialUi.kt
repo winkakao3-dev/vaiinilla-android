@@ -47,6 +47,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -76,7 +77,7 @@ fun EditorialSearchField(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(if (seaGlass) 52.dp else 50.dp)
+                .heightIn(min = if (seaGlass) 52.dp else 50.dp)
                 .then(
                     if (seaGlass) {
                         Modifier.seaGlass(SeaGlassTone.vainilla, CircleShape, night)
@@ -108,6 +109,8 @@ fun EditorialSearchField(
                             color = if (seaGlass) ink.copy(alpha = 0.7f) else colors.muted,
                             fontSize = 14.5.sp,
                             fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                     input()

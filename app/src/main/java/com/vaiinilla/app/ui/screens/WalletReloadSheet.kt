@@ -373,7 +373,7 @@ private fun AmountStep(
         ReloadQuickAmounts.forEach { bill ->
             val value = bill.toBigDecimal()
             ChipButton(
-                label = "$$bill",
+                label = moneyLabel(bill),
                 enabled = true,
                 colors = colors,
                 modifier = Modifier.weight(1f),

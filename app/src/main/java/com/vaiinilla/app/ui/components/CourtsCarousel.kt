@@ -188,7 +188,7 @@ private fun CourtCard(
         )
         court.pricePerHour?.let {
             Text(
-                "$$it / hora",
+                "${moneyLabel(it)} / hora",
                 color = colors.ink.copy(alpha = 0.72f),
                 fontSize = 13.sp,
                 modifier = Modifier.padding(top = 2.dp),

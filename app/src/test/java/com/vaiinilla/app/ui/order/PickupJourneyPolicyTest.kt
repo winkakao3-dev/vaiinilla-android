@@ -70,7 +70,7 @@ class PickupJourneyPolicyTest {
         assertEquals("¡Listo!", pickupTitle(order(OrderState.READY)))
         assertEquals("Recógelo en la barra.", pickupHint(order(OrderState.READY)))
         assertEquals("Por pagar", pickupTitle(order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH)))
-        assertEquals("¡Listo! Te lo llevan a Mesa 4.", pickupHint(order(OrderState.READY, toSpace = true)))
+        assertEquals("Ya va en camino a Mesa 4.", pickupHint(order(OrderState.READY, toSpace = true)))
         assertEquals(
             "Tu mesero te lo lleva. Si te pide el código, muéstrale este.",
             pickupCodeHint(order(OrderState.READY, toSpace = true)),

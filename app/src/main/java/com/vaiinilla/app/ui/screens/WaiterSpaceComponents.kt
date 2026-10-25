@@ -490,7 +490,7 @@ internal fun WaiterSpaceSection(
                         fontWeight = FontWeight.SemiBold,
                     )
                     RollingText(
-                        text = "$${Money.format(remaining)}",
+                        text = moneyLabel(Money.format(remaining)),
                         style = TextStyle(fontSize = 30.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.8).sp),
                         color = if (hasPending) colors.textPrimary else colors.textSecondary,
                     )
@@ -508,7 +508,7 @@ internal fun WaiterSpaceSection(
                     Column(horizontalAlignment = Alignment.End) {
                         Text("Total", color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         RollingText(
-                            text = "$${account.total}",
+                            text = moneyLabel(account.total),
                             style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold),
                             color = colors.textPrimary,
                         )
@@ -695,7 +695,7 @@ private fun AccountOrderRow(
             }
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text("$${order.total}", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = colors.textPrimary)
+            Text(moneyLabel(order.total), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = colors.textPrimary)
             Text(
                 if (order.pending) "sin cobrar" else "cobrado",
                 fontSize = 11.5.sp,
@@ -774,7 +774,7 @@ internal fun CollectionResultCard(
                 modifier = Modifier.padding(top = 10.dp),
             )
             RollingText(
-                text = "$$shownChange",
+                text = moneyLabel(shownChange),
                 style = TextStyle(fontSize = 38.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.2).sp),
                 color = colors.textPrimary,
             )
@@ -1043,7 +1043,7 @@ internal fun CollectAccountContent(
                     fontWeight = FontWeight.SemiBold,
                 )
                 RollingText(
-                    text = "$$totalLabel",
+                    text = moneyLabel(totalLabel),
                     style = TextStyle(fontSize = 48.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.6).sp),
                     color = colors.textPrimary,
                 )
@@ -1263,7 +1263,7 @@ internal fun CollectAccountContent(
                         ) { typed = null }
                         quickAmounts.forEach { amount ->
                             ChipButton(
-                                label = "$${amount.setScale(0)}",
+                                label = moneyLabel(amount.setScale(0)),
                                 enabled = !confirming,
                                 colors = colors,
                                 modifier = Modifier.weight(1f),
@@ -1288,7 +1288,7 @@ internal fun CollectAccountContent(
                         fontWeight = FontWeight.SemiBold,
                     )
                     RollingText(
-                        text = "$${Money.format((difference ?: BigDecimal.ZERO).abs())}",
+                        text = moneyLabel(Money.format((difference ?: BigDecimal.ZERO).abs())),
                         style = TextStyle(fontSize = 44.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.4).sp),
                         color = changeInk,
                     )
@@ -1435,7 +1435,12 @@ private fun SplitOrdersPicker(
                         maxLines = 1,
                     )
                 }
-                Text("$${order.total}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.textPrimary)
+                Text(
+                    moneyLabel(order.total),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = colors.textPrimary,
+                )
             }
         }
     }

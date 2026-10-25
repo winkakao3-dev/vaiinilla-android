@@ -46,6 +46,7 @@ import com.vaiinilla.app.domain.usecase.GetOrderUseCase
 import com.vaiinilla.app.domain.usecase.ListOrdersUseCase
 import com.vaiinilla.app.domain.usecase.OpenCashSessionUseCase
 import com.vaiinilla.app.domain.usecase.TransitionOrderUseCase
+import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.discovery.QrPayload
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -1604,7 +1605,7 @@ internal fun cashCollectionNotice(receipt: CashCollectionResult): String {
     val change = runCatching { Money.parse(receipt.change) }.getOrNull()
     val folio = receipt.order.summary.folio
     return if (change != null && change > BigDecimal.ZERO) {
-        "Pedido #$folio cobrado · Cambio: \$${receipt.change}"
+        "Pedido #$folio cobrado · Cambio: ${moneyLabel(receipt.change)}"
     } else {
         "Pedido #$folio cobrado · Sin cambio"
     }
@@ -1635,7 +1636,7 @@ internal fun isStalePendingReload(
 private const val PENDING_RELOAD_AUTO_RETRY_MS = 30 * 60_000L
 
 private fun pendingReloadLabel(pending: PendingWalletReload): String =
-    "\$${pending.amount}" + (pending.userName?.let { " a $it" }.orEmpty())
+    moneyLabel(pending.amount) + (pending.userName?.let { " a $it" }.orEmpty())
 
 /** Suma lo que llegó a lo que ya hay; un pedido que llega con versión anterior a la guardada no la pisa. */
 internal fun mergeOrders(
