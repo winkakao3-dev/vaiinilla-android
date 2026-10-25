@@ -1,0 +1,66 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${SENADO_DIR:-}/Vaiinilla/Senado/bin/inicio-sesion.sh\"; [ -x \"$f\" ] && exec \"$f\"; exit 0",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${SENADO_DIR:-}/Vaiinilla/Senado/bin/guardia-push.sh\"; [ -x \"$f\" ] && exec \"$f\"; grep -qE 'git[^\"]*push|gh +pr +merge' || exit 0; echo 'Bloqueado por REGLAS.md regla 2: SENADO_DIR no apunta al Senado y no puedo revisar el push. Exporta SENADO_DIR con la raíz de la bóveda.' >&2; exit 2",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${SENADO_DIR:-}/Vaiinilla/Senado/bin/bitacora-commit.sh\"; [ -x \"$f\" ] && exec \"$f\"; exit 0",
+            "timeout": 25
+          },
+          {
+            "type": "command",
+            "command": "f=\"${SENADO_DIR:-}/Vaiinilla/Senado/bin/cierre-turno.sh\"; [ -x \"$f\" ] && exec \"$f\" marcar; exit 0",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${SENADO_DIR:-}/Vaiinilla/Senado/bin/cierre-turno.sh\"; [ -x \"$f\" ] && exec \"$f\" marcar; exit 0",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${SENADO_DIR:-}/Vaiinilla/Senado/bin/cierre-turno.sh\"; [ -x \"$f\" ] && exec \"$f\"; exit 0",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
