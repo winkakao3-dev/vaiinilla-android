@@ -99,6 +99,7 @@ class CashierHeroDraftUiTest {
         state = state.copy(orders = listOf(pending.copy(summary = pending.summary.copy(version = 2, total = "60.00"))))
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Cobrar $60.00").assertIsDisplayed()
+        // El efectivo se vuelve a sugerir con el total nuevo y la propina elegida se conserva (CAJA-19): 60 + 10 %.
+        composeTestRule.onNodeWithText("Cobrar $66").assertIsDisplayed()
     }
 }

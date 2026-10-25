@@ -67,17 +67,23 @@ class PickupTokenRecoveryTest {
     }
 
     @Test
-    fun `a failed recovery keeps the order without a token and is retried on the next refresh`() {
+    fun `a failed recovery keeps the order without a token and is retried after a short wait`() {
         val client =
             RecordingApiClient(
                 mapOf("pedidos" to orderListEnvelope(order("order-listo", "listo"))),
             )
         val useCase = ListOrdersUseCase(RemoteOrderRepository(client, OrderContractJson(), InMemoryPickupTokenStore()))
+        var clock = 0L
+        useCase.now = { clock }
 
         val first = useCase.withRecoveredPickupTokens(useCase(OperationalRole.CLIENT).getOrThrow())
         assertNull(first.single().pickupToken)
 
         client.responses["pedidos/order-listo/qr"] = qrEnvelope("v1.recuperado")
+        // El sondeo siguiente (5 s después) todavía no lo pide otra vez: espera 30 s (PEDIDO-20).
+        clock = 5_000L
+        assertNull(useCase.withRecoveredPickupTokens(useCase(OperationalRole.CLIENT).getOrThrow()).single().pickupToken)
+        clock = 31_000L
         val second = useCase.withRecoveredPickupTokens(useCase(OperationalRole.CLIENT).getOrThrow())
         assertEquals("v1.recuperado", second.single().pickupToken)
 

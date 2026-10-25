@@ -37,13 +37,16 @@ class ListOrdersUseCase
         // Cada sondeo (5 s) volvería a pedir el QR de un pedido que ya falló: se espera antes de reintentar.
         private val failedRecoveryAt = ConcurrentHashMap<String, Long>()
 
+        /** El reloj de la espera entre reintentos; las pruebas lo adelantan. */
+        internal var now: () -> Long = System::currentTimeMillis
+
         private fun recoverOrKeep(order: OrderDetail): OrderDetail {
             val id = order.summary.id
-            val now = System.currentTimeMillis()
+            val at = now()
             val failedAt = failedRecoveryAt[id]
-            if (failedAt != null && now - failedAt < RECOVERY_RETRY_DELAY_MS) return order
+            if (failedAt != null && at - failedAt < RECOVERY_RETRY_DELAY_MS) return order
             val recovered = repository.recoverPickupToken(order).getOrNull()
-            if (recovered == null) failedRecoveryAt[id] = now else failedRecoveryAt.remove(id)
+            if (recovered == null) failedRecoveryAt[id] = at else failedRecoveryAt.remove(id)
             return recovered ?: order
         }
 

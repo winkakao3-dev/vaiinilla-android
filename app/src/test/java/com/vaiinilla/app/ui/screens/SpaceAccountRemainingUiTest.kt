@@ -93,7 +93,7 @@ class SpaceAccountRemainingUiTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Abonado $120.00").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Abonado $120").assertIsDisplayed()
         composeTestRule.onNodeWithText("Total").assertIsDisplayed()
     }
 
