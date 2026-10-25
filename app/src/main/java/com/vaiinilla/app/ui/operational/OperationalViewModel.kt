@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.MutationIdempotency
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.notifications.DeviceTokenRegistrar
@@ -14,6 +15,7 @@ import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.data.order.DismissedClientOrdersStore
 import com.vaiinilla.app.data.wallet.PendingWalletReload
 import com.vaiinilla.app.data.wallet.PendingWalletReloadStore
+import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.Money
@@ -23,7 +25,8 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
-import com.vaiinilla.app.domain.model.WalletClient
+import com.vaiinilla.app.domain.model.cashAmountDue
+import com.vaiinilla.app.domain.model.needsCashCollection
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
@@ -98,6 +101,23 @@ class OperationalViewModel
         private var clientTrackingBaselineReady = false
         private var mutationErrorVisible = false
         private var errorClearJob: Job? = null
+
+        // Cada refresh() lleva su número: una respuesta más vieja que la ya aplicada se descarta.
+        private var refreshSeq = 0L
+        private var appliedRefreshSeq = 0L
+        private var pollsSinceFullSync = 0
+        private var fullSyncRequested = false
+
+        // Avisos de personal ya dados (o sembrados en la primera carga) para no repetir el mismo.
+        private val alertedKeys = mutableSetOf<String>()
+        private var staffBaselineReady = false
+
+        // Sin repetición: un aviso que nadie escuchaba (pantalla apagada o en otro modo) ya no sirve después.
+        private val _staffAlerts = MutableSharedFlow<StaffAlert>(extraBufferCapacity = 16)
+        val staffAlerts: SharedFlow<StaffAlert> = _staffAlerts
+
+        // Un cobro que terminó cuando el cajero ya había salido de la pantalla se avisa al volver.
+        private var deferredCashierNotice: String? = null
         private val heartbeatCoordinator =
             OperationalHeartbeatCoordinator(
                 scope = viewModelScope,
@@ -123,10 +143,16 @@ class OperationalViewModel
                 errorClearJob?.cancel()
                 errorClearJob = null
                 mutationErrorVisible = false
+                resetStaffSync()
             }
             _uiState.value =
                 _uiState.value.copy(
                     role = role,
+                    // La mutación del rol anterior se cancela y su resultado se descarta: no puede dejar
+                    // la bandera pegada y apagar todos los botones del rol nuevo.
+                    acting = if (roleChanged) false else _uiState.value.acting,
+                    catalogBusy = if (roleChanged) false else _uiState.value.catalogBusy,
+                    cashSessionCheckFailed = false,
                     orders = if (roleChanged) emptyList() else _uiState.value.orders,
                     latestClientOrder = if (roleChanged) null else _uiState.value.latestClientOrder,
                     menuOrder = if (roleChanged) null else _uiState.value.menuOrder,
@@ -137,9 +163,11 @@ class OperationalViewModel
                     walletClients = emptyList(),
                     walletSearchLoading = false,
                     walletReloadReceipt = null,
+                    pendingWalletReload = null,
                     catalog = null,
                 )
             pendingWalletReload = null
+            if (role == OperationalRole.CASHIER) surfaceDeferredCashierNotice()
             // Administración tiene su propia pantalla y su propio ViewModel: aquí no se sondean pedidos.
             if (role == OperationalRole.ADMIN) {
                 pollingJob?.cancel()
@@ -163,9 +191,10 @@ class OperationalViewModel
             pollingJob = null
             walletSearchJob?.cancel()
             walletSearchJob = null
-            mutationJob?.cancel()
-            mutationJob = null
+            // La mutación en vuelo NO se cancela: su POST ya salió y el cobro de Caja deja su aviso para
+            // cuando el cajero vuelva; las demás se descartan al ver que cambió la generación.
             heartbeatCoordinator.stop()
+            resetStaffSync()
             lastUpdatedSince = null
             pendingWalletReload = null
             clientTrackingBaselineReady = false
@@ -245,12 +274,19 @@ class OperationalViewModel
                             mutationErrorVisible || _uiState.value.lastRefreshOk == false
                         },
                 )
+            val seq = ++refreshSeq
+            // El personal pide cambios, pero el servidor no avisa de lo que dejó de ser suyo (cobrado por otro
+            // cajero, cancelado, expirado): cada cierto tiempo se pide la lista completa y se concilia.
+            val fullSync = role != OperationalRole.CLIENT && isFullSyncDue()
             viewModelScope.launch {
                 // Client orders always fetch the full list (like iOS): the delta can miss
                 // transitions that don't bump updatedAt. Staff keeps the delta.
-                val since = if (role == OperationalRole.CLIENT) null else lastUpdatedSince
+                val since = if (role == OperationalRole.CLIENT || fullSync) null else lastUpdatedSince
                 val result = withContext(Dispatchers.IO) { loadOrders(role, since) }
                 if (generation != roleGeneration || _uiState.value.role != role) return@launch
+                // Una respuesta que salió antes de otra ya aplicada traería el estado viejo encima del nuevo.
+                if (seq < appliedRefreshSeq) return@launch
+                appliedRefreshSeq = seq
                 result.fold(
                     onSuccess = { orders ->
                         if (role == OperationalRole.CLIENT) {
@@ -261,11 +297,15 @@ class OperationalViewModel
                         }
                         // Full-list fetch for CLIENT replaces state (iOS parity); staff merges deltas.
                         val merged =
-                            if (role == OperationalRole.CLIENT) {
-                                orders
-                            } else {
-                                mergeOrders(_uiState.value.orders, orders)
+                            when {
+                                role == OperationalRole.CLIENT -> orders
+                                fullSync -> reconcileOrders(_uiState.value.orders, orders)
+                                else -> mergeOrders(_uiState.value.orders, orders)
                             }
+                        if (fullSync) {
+                            pollsSinceFullSync = 0
+                            fullSyncRequested = false
+                        }
                         val latestClientOrder =
                             if (role == OperationalRole.CLIENT) {
                                 resolveLatestClientOrder(
@@ -285,6 +325,9 @@ class OperationalViewModel
                                 orders = merged,
                                 dismissedOrderIds = dismissedClientOrderIds,
                             )
+                        if (role == OperationalRole.CASHIER || role == OperationalRole.KITCHEN) {
+                            announceStaffOrders(role, visibleOrders)
+                        }
                         _uiState.value =
                             _uiState.value.copy(
                                 loading = false,
@@ -308,6 +351,37 @@ class OperationalViewModel
                     },
                 )
             }
+        }
+
+        /** La primera carga solo siembra lo que ya había; después, cada pedido nuevo para este rol avisa una vez. */
+        private fun announceStaffOrders(
+            role: OperationalRole,
+            orders: List<OrderDetail>,
+        ) {
+            val fresh = staffAlertsFor(role, orders).filter { alertedKeys.add(it.key) }
+            if (staffBaselineReady) fresh.forEach { _staffAlerts.tryEmit(it) }
+            staffBaselineReady = true
+        }
+
+        private fun isFullSyncDue(): Boolean {
+            if (fullSyncRequested || lastUpdatedSince == null) return true
+            pollsSinceFullSync += 1
+            return pollsSinceFullSync >= FULL_SYNC_EVERY_POLLS
+        }
+
+        /** Pide la lista completa en el siguiente refresh (tras un error de estado o un cierre de caja). */
+        private fun requestFullSync() {
+            fullSyncRequested = true
+            refresh()
+        }
+
+        private fun resetStaffSync() {
+            refreshSeq = 0
+            appliedRefreshSeq = 0
+            pollsSinceFullSync = 0
+            fullSyncRequested = false
+            alertedKeys.clear()
+            staffBaselineReady = false
         }
 
         /**
@@ -377,8 +451,14 @@ class OperationalViewModel
             }
         }
 
-        fun openCashRegister(initialAmount: String = "500.00") {
+        /** Abre la caja con el fondo que el cajero contó; el servidor lo guarda como monto inicial del arqueo. */
+        fun openCashRegister(initialAmount: String) {
             if (_uiState.value.role != OperationalRole.CASHIER || _uiState.value.acting) return
+            val wireAmount = MoneyInput.toWire(initialAmount)
+            if (wireAmount == null) {
+                showMutationError("Escribe el efectivo con el que abres la caja (puede ser 0).")
+                return
+            }
             val generation = roleGeneration
             mutationErrorVisible = false
             _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
@@ -386,7 +466,7 @@ class OperationalViewModel
                 viewModelScope.launch {
                     val result =
                         withContext(Dispatchers.IO) {
-                            openCashSession(initialAmount, UUID.randomUUID().toString())
+                            openCashSession(wireAmount, UUID.randomUUID().toString())
                         }
                     if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
                     result
@@ -440,17 +520,36 @@ class OperationalViewModel
                 result
                     .onSuccess {
                         _uiState.value = _uiState.value.copy(closeCash = null, cashSessionOpen = false)
+                        // Al cerrar, el servidor expira los pedidos por cobrar: que no queden como cobrables.
+                        requestFullSync()
                     }.onFailure { error ->
                         val blocked =
                             error is OrderRepositoryException && error.code == CASH_HAS_OPEN_ACCOUNTS_CODE
+                        // Si la respuesta del cierre se perdió, la caja ya pudo cerrarse: se relee el estado real
+                        // en vez de dejar "abierta" en pantalla y un error que el reintento no puede arreglar.
+                        val stillOpen =
+                            if (blocked) {
+                                true
+                            } else {
+                                withContext(Dispatchers.IO) { cashSessionRepository.hasActiveSession() }
+                                    .getOrDefault(true)
+                            }
+                        if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) {
+                            return@launch
+                        }
                         _uiState.value =
-                            _uiState.value.copy(
-                                closeCash =
-                                    CloseCashUi(
-                                        blockedByAccounts = blocked,
-                                        errorMessage = if (blocked) null else error.toUserFacingMessage(),
-                                    ),
-                            )
+                            if (stillOpen) {
+                                _uiState.value.copy(
+                                    closeCash =
+                                        CloseCashUi(
+                                            blockedByAccounts = blocked,
+                                            errorMessage = if (blocked) null else error.toUserFacingMessage(),
+                                        ),
+                                )
+                            } else {
+                                _uiState.value.copy(closeCash = null, cashSessionOpen = false)
+                            }
+                        if (!stillOpen) requestFullSync()
                     }
             }
         }
@@ -475,23 +574,25 @@ class OperationalViewModel
             _uiState.value = _uiState.value.copy(walletSearchLoading = true, errorMessage = null)
             walletSearchJob =
                 viewModelScope.launch {
-                    val scanned =
-                        WalletClient(userId = userId, name = "Cliente escaneado", contextualId = userId)
-                    val result = withContext(Dispatchers.IO) { walletRepository.searchClients(userId) }
+                    // El QR trae solo un id: se resuelve a nombre antes de pedir el monto, para que el cajero
+                    // vea a quién abona y un QR ajeno o inexistente se rechace aquí.
+                    val result = withContext(Dispatchers.IO) { walletRepository.lookupClient(userId) }
                     if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
                     result
-                        .onSuccess { clients ->
+                        .onSuccess { client ->
                             _uiState.value =
-                                _uiState.value.copy(
-                                    walletClients = clients.ifEmpty { listOf(scanned) },
-                                    walletSearchLoading = false,
-                                )
-                        }.onFailure {
+                                _uiState.value.copy(walletClients = listOf(client), walletSearchLoading = false)
+                        }.onFailure { error ->
                             _uiState.value =
-                                _uiState.value.copy(
-                                    walletClients = listOf(scanned),
-                                    walletSearchLoading = false,
-                                )
+                                _uiState.value.copy(walletClients = emptyList(), walletSearchLoading = false)
+                            val notClient = (error as? WalletRepositoryException)?.httpStatus == 404
+                            showMutationError(
+                                if (notClient) {
+                                    "Ese QR no es de un cliente de este negocio."
+                                } else {
+                                    error.toUserFacingMessage("No se pudo identificar al cliente. Inténtalo otra vez.")
+                                },
+                            )
                         }
                 }
         }
@@ -557,12 +658,17 @@ class OperationalViewModel
             }
             val stored = pendingWalletReloadStore.read()
             if (stored != null && (stored.userId != userId || stored.amount != normalizedAmount)) {
+                publishPendingWalletReload(stored)
                 showMutationError(
-                    "Hay una recarga anterior sin confirmar. " +
-                        "Reintenta con el mismo cliente y monto (\$${stored.amount}) para confirmarla sin duplicarla.",
+                    "Hay una recarga anterior sin confirmar (${pendingReloadLabel(stored)}). " +
+                        "Confírmala o descártala antes de hacer otra.",
                 )
                 return
             }
+            val userName =
+                _uiState.value.walletClients
+                    .firstOrNull { it.userId == userId }
+                    ?.name
             val attempt =
                 stored
                     ?: PendingWalletReload(
@@ -570,6 +676,7 @@ class OperationalViewModel
                         amount = normalizedAmount,
                         idempotencyKey = UUID.randomUUID().toString(),
                         storedAtEpochMs = System.currentTimeMillis(),
+                        userName = userName,
                     ).also {
                         // Persistir ANTES del POST: si el proceso muere tras el abono,
                         // la misma Idempotency-Key sobrevive y el retry confirma.
@@ -594,6 +701,7 @@ class OperationalViewModel
                                 _uiState.value.copy(
                                     acting = false,
                                     walletReloadReceipt = receipt,
+                                    pendingWalletReload = null,
                                     errorMessage = null,
                                 )
                         }.onFailure { error ->
@@ -602,37 +710,73 @@ class OperationalViewModel
                                 pendingWalletReload = null
                                 pendingWalletReloadStore.clear()
                             }
-                            _uiState.value =
-                                _uiState.value.copy(acting = false)
+                            _uiState.value = _uiState.value.copy(acting = false)
                             showMutationError(error.toUserFacingMessage("No se pudo registrar la recarga."))
                         }
                 }
         }
 
         /**
-         * Reintenta una recarga que quedó persistida porque el proceso murió a mitad
-         * del POST. El replay usa la MISMA Idempotency-Key, así que es seguro: si el
-         * servidor ya la aplicó devuelve el comprobante, y si nunca llegó la completa
-         * ahora. Solo corre bajo el mismo contexto JWT (cajero + establecimiento).
+         * Al abrir Caja con una recarga persistida (el proceso murió a mitad del POST): si es reciente se
+         * confirma sola con la MISMA Idempotency-Key, que es segura; si es vieja se deja a la vista para que el
+         * cajero decida, porque abonar saldo días después de un cobro que nadie recuerda no es confirmar.
          */
         private fun reconcilePendingWalletReload() {
             val pending = pendingWalletReloadStore.read() ?: return
             pendingWalletReload = pending
+            if (isStalePendingReload(pending, System.currentTimeMillis())) {
+                publishPendingWalletReload(pending)
+                return
+            }
+            replayPendingWalletReload(pending, userInitiated = false)
+        }
+
+        /** El cajero confirma la recarga pendiente que ve en la hoja. */
+        fun confirmPendingWalletReload() {
+            val pending = pendingWalletReloadStore.read() ?: return
+            if (_uiState.value.role != OperationalRole.CASHIER || _uiState.value.acting) return
+            replayPendingWalletReload(pending, userInitiated = true)
+        }
+
+        /** El cajero descarta la recarga pendiente: no se abonó nada o ya se resolvió fuera de la app. */
+        fun discardPendingWalletReload() {
+            pendingWalletReload = null
+            pendingWalletReloadStore.clear()
+            _uiState.value = _uiState.value.copy(pendingWalletReload = null)
+        }
+
+        private fun publishPendingWalletReload(pending: PendingWalletReload) {
+            _uiState.value =
+                _uiState.value.copy(
+                    pendingWalletReload = PendingReloadUi(userName = pending.userName, amount = pending.amount),
+                )
+        }
+
+        private fun replayPendingWalletReload(
+            pending: PendingWalletReload,
+            userInitiated: Boolean,
+        ) {
             val generation = roleGeneration
+            if (userInitiated) _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
                         walletRepository.reloadCash(pending.userId, pending.amount, pending.idempotencyKey)
                     }
                 if (generation != roleGeneration) return@launch
+                val isCashier = _uiState.value.role == OperationalRole.CASHIER
                 result
                     .onSuccess { receipt ->
                         pendingWalletReload = null
                         pendingWalletReloadStore.clear()
-                        if (_uiState.value.role == OperationalRole.CASHIER) {
+                        if (isCashier) {
                             _uiState.value =
                                 _uiState.value.copy(
+                                    acting = false,
                                     walletReloadReceipt = receipt,
+                                    pendingWalletReload = null,
+                                    // La hoja de recarga no está abierta al confirmar en segundo plano.
+                                    actionNotice = "Se confirmó la recarga pendiente de \$${pending.amount}",
                                     errorMessage = null,
                                 )
                         }
@@ -640,11 +784,23 @@ class OperationalViewModel
                         if (isDefinitiveWalletReloadFailure(error)) {
                             pendingWalletReload = null
                             pendingWalletReloadStore.clear()
-                        } else if (_uiState.value.role == OperationalRole.CASHIER) {
-                            showMutationError(
-                                "Hay una recarga pendiente de confirmar. " +
-                                    "Reintenta con el mismo cliente y monto (\$${pending.amount}).",
-                            )
+                        }
+                        if (isCashier) {
+                            val stillPending = pendingWalletReloadStore.read()
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    acting = false,
+                                    pendingWalletReload =
+                                        stillPending?.let {
+                                            PendingReloadUi(userName = it.userName, amount = it.amount)
+                                        },
+                                )
+                            if (userInitiated || stillPending != null) {
+                                showMutationError(
+                                    "No se pudo confirmar la recarga pendiente (${pendingReloadLabel(pending)}). " +
+                                        "Inténtalo otra vez o descártala.",
+                                )
+                            }
                         }
                     }
             }
@@ -657,6 +813,8 @@ class OperationalViewModel
             tip: String? = null,
         ) {
             val role = _uiState.value.role ?: return
+            // Dos toques en el mismo cuadro lanzarían dos cobros y perderían el rastro del primero.
+            if (_uiState.value.acting) return
             // El ticket pudo abrirse hace varios ciclos de polling: cobrar con la
             // versión que el servidor tiene ahora, no con la del render viejo.
             val freshest = _uiState.value.orders.firstOrNull { it.summary.id == orderId }
@@ -671,7 +829,7 @@ class OperationalViewModel
                 showMutationError("Escribe el efectivo recibido (ej. 100 o 100.50).")
                 return
             }
-            val total = freshest?.summary?.total?.let { runCatching { Money.parse(it) }.getOrNull() }
+            val total = freshest?.summary?.cashAmountDue?.let { runCatching { Money.parse(it) }.getOrNull() }
             val tipAmount = tip?.let { runCatching { BigDecimal(it) }.getOrNull() } ?: BigDecimal.ZERO
             if (total != null && received < total + tipAmount) {
                 showMutationError("El efectivo recibido no cubre el total del pedido más la propina.")
@@ -699,30 +857,38 @@ class OperationalViewModel
                                 tip = tip,
                             )
                         }
-                    if (generation != roleGeneration || _uiState.value.role != role) return@launch
+                    if (generation != roleGeneration || _uiState.value.role != role) {
+                        // El cajero salió de la pantalla con el cobro en vuelo: el dinero ya se movió, así que
+                        // se le dice al volver en vez de dejarlo sin saber si cobró.
+                        result.onSuccess { receipt -> deferredCashierNotice = cashCollectionNotice(receipt) }
+                        return@launch
+                    }
                     result
                         .onSuccess { receipt ->
                             val updated =
                                 _uiState.value.orders
                                     .filterNot { it.summary.id == receipt.order.summary.id } + receipt.order
-                            val change = runCatching { Money.parse(receipt.change) }.getOrNull()
                             _uiState.value =
                                 _uiState.value.copy(
                                     acting = false,
                                     orders = updated.sortedByDescending { it.summary.updatedAt },
                                     selectedOrderId = receipt.order.summary.id,
-                                    cashChangeNotice =
-                                        if (change != null && change > BigDecimal.ZERO) {
-                                            "Cobro confirmado · Cambio: \$${receipt.change}"
-                                        } else {
-                                            "Cobro confirmado"
-                                        },
+                                    cashChangeNotice = cashCollectionNotice(receipt),
                                 )
+                            // Cobrado el pedido, el servidor deja de ofrecerlo a Caja: se concilia la lista.
+                            requestFullSync()
                         }.onFailure { error ->
                             _uiState.value = _uiState.value.copy(acting = false)
                             showMutationError(error.toUserFacingMessage())
+                            if (isStaleOrderError(error)) requestFullSync()
                         }
                 }
+        }
+
+        private fun surfaceDeferredCashierNotice() {
+            val notice = deferredCashierNotice ?: return
+            deferredCashierNotice = null
+            _uiState.value = _uiState.value.copy(cashChangeNotice = notice)
         }
 
         fun consumeCashChangeNotice() {
@@ -901,7 +1067,8 @@ class OperationalViewModel
                 OrderState.EXPIRED -> "Este pedido expiró."
             }
 
-        private fun refreshCashSession() {
+        /** Relee si la caja está abierta; otro dispositivo o el administrador pudo abrirla o cerrarla. */
+        fun refreshCashSession() {
             if (_uiState.value.role != OperationalRole.CASHIER) return
             val generation = roleGeneration
             viewModelScope.launch {
@@ -909,13 +1076,11 @@ class OperationalViewModel
                 if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
                 result
                     .onSuccess { open ->
-                        _uiState.value = _uiState.value.copy(cashSessionOpen = open)
-                    }.onFailure { error ->
-                        mutationErrorVisible = false
+                        _uiState.value = _uiState.value.copy(cashSessionOpen = open, cashSessionCheckFailed = false)
+                    }.onFailure {
+                        // Con la caja ya conocida se conserva lo último; solo si nunca se supo, la pantalla pide reintentar.
                         _uiState.value =
-                            _uiState.value.copy(
-                                errorMessage = error.toUserFacingMessage(),
-                            )
+                            _uiState.value.copy(cashSessionCheckFailed = _uiState.value.cashSessionOpen == null)
                     }
             }
         }
@@ -925,8 +1090,12 @@ class OperationalViewModel
             successNotice: (OrderDetail) -> String? = { null },
             block: () -> OrderDetail,
         ) {
-            if (_uiState.value.acting) return
             val role = _uiState.value.role ?: return
+            if (_uiState.value.acting) {
+                // El personal tocó un botón que se ignoró: que lo sepa en vez de quedarse esperando.
+                if (role != OperationalRole.CLIENT) showMutationError("Espera un momento: hay otra acción en curso.")
+                return
+            }
             val generation = roleGeneration
             mutationErrorVisible = false
             _uiState.value = _uiState.value.copy(acting = true, errorMessage = null, actionNotice = null)
@@ -948,7 +1117,9 @@ class OperationalViewModel
                                 )
                         }.onFailure { error ->
                             _uiState.value = _uiState.value.copy(acting = false)
-                            showMutationError(error.toUserFacingMessage())
+                            showMutationError(staffMutationMessage(error))
+                            // Pedido cancelado, ya avanzado o de otro: la tarjeta que se ve ya no es la real.
+                            if (isStaleOrderError(error)) requestFullSync()
                         }
                 }
         }
@@ -989,15 +1160,6 @@ class OperationalViewModel
             }
         }
 
-        private fun mergeOrders(
-            current: List<OrderDetail>,
-            incoming: List<OrderDetail>,
-        ): List<OrderDetail> {
-            val byId = current.associateBy { it.summary.id }.toMutableMap()
-            incoming.forEach { order -> byId[order.summary.id] = order }
-            return byId.values.toList()
-        }
-
         private fun startPolling() {
             pollingJob?.cancel()
             pollingJob =
@@ -1005,6 +1167,7 @@ class OperationalViewModel
                     while (isActive) {
                         delay(POLL_INTERVAL_MS)
                         refresh()
+                        refreshCashSession()
                     }
                 }
         }
@@ -1013,6 +1176,8 @@ class OperationalViewModel
             if (_uiState.value.role != role) return
             heartbeatCoordinator.start(role)
             _uiState.value = _uiState.value.copy(heartbeatOnline = false)
+            // Al volver de segundo plano pudo pasar de todo: se concilia la lista completa.
+            if (role != OperationalRole.CLIENT && role != OperationalRole.ADMIN) requestFullSync()
         }
 
         fun onOperationalBackground(role: OperationalRole) {
@@ -1031,8 +1196,10 @@ class OperationalViewModel
         fun refreshCatalog() {
             if (_uiState.value.role != OperationalRole.CASHIER) return
             loadStoreImages()
+            val generation = roleGeneration
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }
+                if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
                 _uiState.value =
                     _uiState.value.copy(
                         catalog = result.getOrNull(),
@@ -1043,7 +1210,8 @@ class OperationalViewModel
                                     result.exceptionOrNull().toUserFacingMessage(
                                         _uiState.value.errorMessage ?: "No se pudo cargar el catálogo.",
                                     )
-                                else -> null
+                                // Un error de la carga de pedidos sigue ahí hasta que esa carga salga bien.
+                                else -> _uiState.value.errorMessage.takeIf { _uiState.value.lastRefreshOk == false }
                             },
                     )
             }
@@ -1051,8 +1219,10 @@ class OperationalViewModel
 
         /** Un servidor que aún no da las imágenes a Caja responde 403: la tarjeta simplemente no aparece. */
         private fun loadStoreImages() {
+            val generation = roleGeneration
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { catalogRepository.getStoreImages() }
+                if (generation != roleGeneration) return@launch
                 result.onSuccess { images -> _uiState.value = _uiState.value.copy(storeImages = images) }
             }
         }
@@ -1140,9 +1310,9 @@ class OperationalViewModel
             productId: Int,
             available: Boolean,
         ) {
-            if (_uiState.value.acting) return
+            if (_uiState.value.catalogBusy) return
             mutationErrorVisible = false
-            _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
+            _uiState.value = _uiState.value.copy(catalogBusy = true, errorMessage = null)
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
@@ -1157,7 +1327,7 @@ class OperationalViewModel
                         val catalog = _uiState.value.catalog
                         _uiState.value =
                             _uiState.value.copy(
-                                acting = false,
+                                catalogBusy = false,
                                 catalog =
                                     catalog?.copy(
                                         products =
@@ -1168,7 +1338,7 @@ class OperationalViewModel
                             )
                     },
                     onFailure = { error ->
-                        _uiState.value = _uiState.value.copy(acting = false)
+                        _uiState.value = _uiState.value.copy(catalogBusy = false)
                         showMutationError(
                             error.toUserFacingMessage(
                                 "No se pudo actualizar la disponibilidad (producto $productId).",
@@ -1191,9 +1361,9 @@ class OperationalViewModel
                 showMutationError("La foto no puede pesar más de 5 MB.")
                 return
             }
-            if (_uiState.value.acting) return
+            if (_uiState.value.catalogBusy) return
             mutationErrorVisible = false
-            _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
+            _uiState.value = _uiState.value.copy(catalogBusy = true, errorMessage = null)
             viewModelScope.launch {
                 val created =
                     withContext(Dispatchers.IO) {
@@ -1202,7 +1372,7 @@ class OperationalViewModel
                 val createdProduct =
                     created
                         .getOrElse { error ->
-                            _uiState.value = _uiState.value.copy(acting = false)
+                            _uiState.value = _uiState.value.copy(catalogBusy = false)
                             showMutationError(error.toUserFacingMessage("No se pudo crear el producto."))
                             // Si el POST llegó pero la respuesta se perdió, el producto ya
                             // existe: el refresh lo muestra en lugar de dejar un duplicado.
@@ -1229,7 +1399,7 @@ class OperationalViewModel
                             )
                         _uiState.value =
                             _uiState.value.copy(
-                                acting = false,
+                                catalogBusy = false,
                                 catalog =
                                     catalog?.copy(
                                         products = catalog.products + createdProduct,
@@ -1245,7 +1415,7 @@ class OperationalViewModel
                 val catalog = _uiState.value.catalog
                 _uiState.value =
                     _uiState.value.copy(
-                        acting = false,
+                        catalogBusy = false,
                         catalog =
                             catalog?.copy(
                                 products =
@@ -1269,9 +1439,9 @@ class OperationalViewModel
                 showMutationError("La foto no puede pesar más de 5 MB.")
                 return
             }
-            if (_uiState.value.acting) return
+            if (_uiState.value.catalogBusy) return
             mutationErrorVisible = false
-            _uiState.value = _uiState.value.copy(acting = true, errorMessage = null)
+            _uiState.value = _uiState.value.copy(catalogBusy = true, errorMessage = null)
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
@@ -1288,7 +1458,7 @@ class OperationalViewModel
                         val catalog = _uiState.value.catalog
                         _uiState.value =
                             _uiState.value.copy(
-                                acting = false,
+                                catalogBusy = false,
                                 catalog =
                                     catalog?.copy(
                                         products =
@@ -1299,7 +1469,7 @@ class OperationalViewModel
                             )
                     },
                     onFailure = { error ->
-                        _uiState.value = _uiState.value.copy(acting = false)
+                        _uiState.value = _uiState.value.copy(catalogBusy = false)
                         showMutationError(
                             error.toUserFacingMessage("No se pudo subir la foto (producto $productId)."),
                         )
@@ -1358,8 +1528,90 @@ class OperationalViewModel
             const val MUTATION_ERROR_VISIBLE_MS = 9_000L
             const val MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024
             const val MIN_REJECTION_REASON = 3
+            const val FULL_SYNC_EVERY_POLLS = 6
         }
     }
+
+/** Qué pasó en la fila de pedidos que el personal debe notar aunque no esté mirando la pantalla. */
+enum class StaffAlertKind { NEW_KITCHEN_ORDER, CASH_DUE, READY_FOR_PICKUP }
+
+data class StaffAlert(
+    val kind: StaffAlertKind,
+    val orderId: String,
+    val folio: Int,
+) {
+    internal val key: String get() = "$kind:$orderId"
+}
+
+/** Avisos que corresponden a este rol con los pedidos que tiene hoy: comandas por empezar, efectivo por cobrar, listos. */
+internal fun staffAlertsFor(
+    role: OperationalRole,
+    orders: List<OrderDetail>,
+): List<StaffAlert> =
+    orders.mapNotNull { order ->
+        val summary = order.summary
+        val kind =
+            when (role) {
+                OperationalRole.KITCHEN ->
+                    StaffAlertKind.NEW_KITCHEN_ORDER.takeIf {
+                        summary.state == OrderState.PENDING_PAYMENT || summary.state == OrderState.PAID
+                    }
+                OperationalRole.CASHIER ->
+                    when {
+                        summary.state == OrderState.PENDING_PAYMENT && summary.needsCashCollection ->
+                            StaffAlertKind.CASH_DUE
+                        summary.state == OrderState.READY && summary.destination == OrderDestination.TAKE_AWAY ->
+                            StaffAlertKind.READY_FOR_PICKUP
+                        else -> null
+                    }
+                else -> null
+            }
+        kind?.let { StaffAlert(it, summary.id, summary.folio) }
+    }
+
+/** El pedido que se tocó ya no está como se veía: cancelado, expirado, cobrado por otro o con otra versión. */
+internal fun isStaleOrderError(error: Throwable): Boolean =
+    generateSequence(error) { it.cause }.any { cause ->
+        (cause is ApiClientException && cause.httpStatus in setOf(403, 404, 409)) ||
+            (cause is OrderRepositoryException && cause.code in STALE_ORDER_CODES)
+    }
+
+private val STALE_ORDER_CODES =
+    setOf(
+        "ORDER_INVALID_STATE",
+        "ORDER_NOT_FOUND",
+        "ORDER_VERSION_CONFLICT",
+        "ORDER_ALREADY_PAID",
+        "ORDER_PAYMENT_PENDING",
+    )
+
+/** El error de una acción del personal; la versión desactualizada se dice como lo que es, sin código. */
+internal fun staffMutationMessage(error: Throwable): String {
+    val conflict =
+        generateSequence(error) { it.cause }.any {
+            (it as? OrderRepositoryException)?.code == "ORDER_VERSION_CONFLICT" ||
+                (it as? ApiClientException)?.code == "ORDER_VERSION_CONFLICT"
+        }
+    return if (conflict) {
+        "El pedido cambió mientras lo tenías abierto. Ya lo actualizamos: revísalo e inténtalo de nuevo."
+    } else {
+        error.toUserFacingMessage()
+    }
+}
+
+/** Lo que Caja dice al cobrar: el folio y el cambio, que el cajero necesita mientras cuenta el efectivo. */
+internal fun cashCollectionNotice(receipt: CashCollectionResult): String {
+    val change = runCatching { Money.parse(receipt.change) }.getOrNull()
+    val folio = receipt.order.summary.folio
+    return if (change != null && change > BigDecimal.ZERO) {
+        "Pedido #$folio cobrado · Cambio: \$${receipt.change}"
+    } else {
+        "Pedido #$folio cobrado · Sin cambio"
+    }
+}
+
+/** El servidor devuelve a lo más esta cantidad por página; una lista de ese tamaño puede estar cortada. */
+internal const val FULL_LIST_LIMIT = 50
 
 /**
  * Una recarga rechazada por el servidor (4xx) nunca abonó saldo: el registro
@@ -1367,7 +1619,51 @@ class OperationalViewModel
  * POST pudo haber llegado — así que el registro se conserva para el replay.
  */
 internal fun isDefinitiveWalletReloadFailure(error: Throwable): Boolean =
-    (error as? WalletRepositoryException)?.httpStatus in 400..499
+    (error as? WalletRepositoryException)?.httpStatus.let { status ->
+        status != null && status in 400..499 && status != HTTP_REQUEST_TIMEOUT && status != HTTP_TOO_MANY_REQUESTS
+    }
+
+private const val HTTP_REQUEST_TIMEOUT = 408
+private const val HTTP_TOO_MANY_REQUESTS = 429
+
+/** Una recarga persistida de otro turno ya no se repite sola: hace falta que el cajero la reconozca. */
+internal fun isStalePendingReload(
+    pending: PendingWalletReload,
+    nowMs: Long,
+): Boolean = pending.storedAtEpochMs <= 0L || nowMs - pending.storedAtEpochMs > PENDING_RELOAD_AUTO_RETRY_MS
+
+private const val PENDING_RELOAD_AUTO_RETRY_MS = 30 * 60_000L
+
+private fun pendingReloadLabel(pending: PendingWalletReload): String =
+    "\$${pending.amount}" + (pending.userName?.let { " a $it" }.orEmpty())
+
+/** Suma lo que llegó a lo que ya hay; un pedido que llega con versión anterior a la guardada no la pisa. */
+internal fun mergeOrders(
+    current: List<OrderDetail>,
+    incoming: List<OrderDetail>,
+): List<OrderDetail> {
+    val byId = current.associateBy { it.summary.id }.toMutableMap()
+    incoming.forEach { order -> byId[order.summary.id] = newerOrder(byId[order.summary.id], order) }
+    return byId.values.toList()
+}
+
+/**
+ * Lista completa del servidor: lo que ya no llega dejó de ser de este rol (cobrado por otro cajero, cancelado,
+ * expirado, entregado) y se retira. Con la página llena la lista puede estar cortada, así que solo se suma.
+ */
+internal fun reconcileOrders(
+    current: List<OrderDetail>,
+    incoming: List<OrderDetail>,
+): List<OrderDetail> {
+    if (incoming.size >= FULL_LIST_LIMIT) return mergeOrders(current, incoming)
+    val localById = current.associateBy { it.summary.id }
+    return incoming.map { order -> newerOrder(localById[order.summary.id], order) }
+}
+
+private fun newerOrder(
+    known: OrderDetail?,
+    incoming: OrderDetail,
+): OrderDetail = if (known != null && known.summary.version > incoming.summary.version) known else incoming
 
 internal fun resolveLatestClientOrder(
     previous: OrderDetail?,

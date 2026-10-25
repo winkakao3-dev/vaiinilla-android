@@ -20,19 +20,41 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.PaymentMethod
 
 /**
- * Las comandas de Cocina como en iOS: primero lo que falta preparar y al final lo listo, así al marcar una lista
- * sube la siguiente. Lo rechazado o entregado ya no es de Cocina y sale de la fila.
+ * Las comandas de Cocina: primero lo que falta preparar y al final lo listo, así al marcar una lista sube la
+ * siguiente. Cada grupo va del más antiguo al más nuevo (el que llegó primero se prepara primero) y un pedido
+ * que llega no desplaza al que se está atendiendo. Lo rechazado o entregado ya no es de Cocina y sale de la fila,
+ * y un pedido con tarjeta o saldo que aún no se paga tampoco entra: Caja no puede cobrarlo.
  */
 internal fun kitchenQueue(orders: List<OrderDetail>): List<OrderDetail> {
+    val oldestFirst = orders.sortedBy { it.summary.createdAt }
     val pending =
-        orders.filter {
-            it.summary.state == OrderState.PENDING_PAYMENT ||
-                it.summary.state == OrderState.PAID ||
-                it.summary.state == OrderState.PREPARING
+        oldestFirst.filter {
+            val state = it.summary.state
+            state == OrderState.PAID ||
+                state == OrderState.PREPARING ||
+                (state == OrderState.PENDING_PAYMENT && it.summary.paymentMethod == PaymentMethod.CASH)
         }
-    return pending + orders.filter { it.summary.state == OrderState.READY }
+    return pending + oldestFirst.filter { it.summary.state == OrderState.READY }
+}
+
+/**
+ * La comanda abierta: la elegida a mano, o la primera de la fila. Una elegida que ya quedó lista cede su lugar a
+ * la siguiente por preparar, para que "Marcar lista" no deje la tarjeta pegada en una comanda terminada.
+ */
+internal fun kitchenActiveOrder(
+    queue: List<OrderDetail>,
+    selectedOrderId: String?,
+): OrderDetail? {
+    val selected = queue.firstOrNull { it.summary.id == selectedOrderId }
+    val firstPending = queue.firstOrNull { it.summary.state != OrderState.READY }
+    return when {
+        selected == null -> queue.firstOrNull()
+        selected.summary.state == OrderState.READY && firstPending != null -> firstPending
+        else -> selected
+    }
 }
 
 /** La nota del pedido ("sin cebolla") con el resumen de las notas por producto, tal como la manda el cliente. */
