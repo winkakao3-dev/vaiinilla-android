@@ -65,6 +65,7 @@ import com.vaiinilla.app.ui.admin.AdminViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.components.MenuWaiterLayer
 import com.vaiinilla.app.ui.components.StudentTab
+import com.vaiinilla.app.ui.components.WhileStarted
 import com.vaiinilla.app.ui.components.isRental
 import com.vaiinilla.app.ui.components.prefetchProductImages
 import com.vaiinilla.app.ui.counter.CashierStudentsEntry
@@ -600,12 +601,14 @@ fun AppNavHost(
         authorizedAccessState.activeContext?.membershipId,
     ) {
         if (authorizedAccessState.activeContext == null) return@LaunchedEffect
-        while (isActive) {
-            delay(AUTHORIZED_ACCESS_SYNC_INTERVAL_MS)
-            if (!isActive) break
-            authorizedAccessViewModel.syncAuthorizedAccessOrReturnToClient(
-                onForcedToClient = ::returnToClientFromAuthorizedMode,
-            )
+        // Solo con la app a la vista; al volver revisa de inmediato por si el acceso se revocó mientras tanto (FLOW-15).
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (isActive) {
+                authorizedAccessViewModel.syncAuthorizedAccessOrReturnToClient(
+                    onForcedToClient = ::returnToClientFromAuthorizedMode,
+                )
+                delay(AUTHORIZED_ACCESS_SYNC_INTERVAL_MS)
+            }
         }
     }
 
@@ -1033,10 +1036,13 @@ fun AppNavHost(
                 // Con sesión el mapa sale del negocio; sin sesión, del mapa público del slug que se está mirando.
                 val hasStudentSession = !orderFlowViewModel.requiresStudentAuth()
                 val venueSlug = orderState.guestVenue?.establishment?.slug
-                DisposableEffect(hasStudentSession, venueSlug) {
-                    courtsViewModel.onVisible(hasStudentSession, venueSlug)
-                    onDispose { courtsViewModel.onHidden() }
-                }
+                // Los sondeos de pantalla se pausan con la app en segundo plano (FLOW-15).
+                WhileStarted(
+                    hasStudentSession,
+                    venueSlug,
+                    onStart = { courtsViewModel.onVisible(hasStudentSession, venueSlug) },
+                    onStop = courtsViewModel::onHidden,
+                )
                 CatalogScreen(
                     courts = courtsViewModel.uiState.value.courts,
                     state = orderState,
@@ -1170,15 +1176,20 @@ fun AppNavHost(
                     reservationsViewModel.uiState.value.let { state ->
                         if (preparingAccount) state.copy(guestEntry = false, loading = state.error == null) else state
                     }
-                DisposableEffect(reservationsHasAccount, reservationsVenueSlug, preparingAccount) {
-                    if (!preparingAccount) {
-                        reservationsViewModel.onVisible(
-                            guestSlug = reservationsVenueSlug,
-                            hasAccount = reservationsHasAccount,
-                        )
-                    }
-                    onDispose { reservationsViewModel.onHidden() }
-                }
+                WhileStarted(
+                    reservationsHasAccount,
+                    reservationsVenueSlug,
+                    preparingAccount,
+                    onStart = {
+                        if (!preparingAccount) {
+                            reservationsViewModel.onVisible(
+                                guestSlug = reservationsVenueSlug,
+                                hasAccount = reservationsHasAccount,
+                            )
+                        }
+                    },
+                    onStop = reservationsViewModel::onHidden,
+                )
                 // El pago crea un pedido de renta: se sigue en la confirmación de pedido
                 // (hoja de tarjeta, folio para pagar en caja o compra ya pagada con saldo).
                 LaunchedEffect(reservationsState.paidOrder) {
@@ -1894,10 +1905,10 @@ fun AppNavHost(
                             onCancelWaiter = operationalViewModel::cancelWaiterCall,
                             sharedTable = {
                                 // Solo consulta la mesa mientras Mis pedidos está a la vista.
-                                DisposableEffect(Unit) {
-                                    sharedTableViewModel.onVisible()
-                                    onDispose { sharedTableViewModel.onHidden() }
-                                }
+                                WhileStarted(
+                                    onStart = sharedTableViewModel::onVisible,
+                                    onStop = sharedTableViewModel::onHidden,
+                                )
                                 SharedTableCard(
                                     state = sharedTableViewModel.uiState.value,
                                     qrToken = orderState.guestVenue?.space?.qrToken,
@@ -1946,10 +1957,10 @@ fun AppNavHost(
                     var studentsSheetOpen by rememberSaveable { mutableStateOf(false) }
                     // Una sola lectura del tablero para el contador de mesas; el sondeo es del tablero.
                     LaunchedEffect(Unit) { waiterViewModel.refresh() }
-                    DisposableEffect(Unit) {
-                        pendingRefundsViewModel.onVisible()
-                        onDispose { pendingRefundsViewModel.onHidden() }
-                    }
+                    WhileStarted(
+                        onStart = pendingRefundsViewModel::onVisible,
+                        onStop = pendingRefundsViewModel::onHidden,
+                    )
                     CashierOperationalScreen(
                         state = operationalState,
                         onBack = returnToModes(navController, operationalViewModel),
