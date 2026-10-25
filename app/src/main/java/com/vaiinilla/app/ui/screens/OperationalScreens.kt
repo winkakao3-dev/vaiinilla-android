@@ -950,7 +950,7 @@ fun CashierOperationalScreen(
                                                 ) {
                                                     if (cashReceivedInput.isEmpty()) {
                                                         Text(
-                                                            "Efectivo recibido · $${Money.format(required)}",
+                                                            "Efectivo recibido · ${moneyLabel(Money.format(required))}",
                                                             color = TicketMuted,
                                                             fontSize = 14.sp,
                                                             fontWeight = FontWeight.SemiBold,
@@ -1043,7 +1043,7 @@ fun CashierOperationalScreen(
                                                 if (collecting && state.acting) {
                                                     "Cobrando…"
                                                 } else {
-                                                    "Cobrar $${Money.format(required)}"
+                                                    "Cobrar ${moneyLabel(Money.format(required))}"
                                                 },
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 14.sp,
@@ -3107,8 +3107,8 @@ internal fun tipProblem(
 internal fun cashChangeHint(change: BigDecimal?): String? =
     when {
         change == null -> null
-        change.signum() < 0 -> "Faltan $${Money.format(change.negate())}"
-        else -> "Cambio: $${Money.format(change)}"
+        change.signum() < 0 -> "Faltan ${moneyLabel(Money.format(change.negate()))}"
+        else -> "Cambio: ${moneyLabel(Money.format(change))}"
     }
 
 /** Aviso antes de rechazar un pedido que ya tiene dinero cobrado: el servidor registra la devolución. */
@@ -3122,7 +3122,7 @@ internal fun paidRejectionWarning(
             ?: if (summary.state == OrderState.PENDING_PAYMENT) BigDecimal.ZERO else summary.total.toBigDecimalOrNull()
     val amount = removed.toBigDecimalOrNull()
     if (paid == null || amount == null || paid.signum() <= 0) return null
-    return "Este pedido ya está pagado: hay que devolver $${Money.format(paid.min(amount))} al cliente."
+    return "Este pedido ya está pagado: hay que devolver ${moneyLabel(Money.format(paid.min(amount)))} al cliente."
 }
 
 /** El cobro que acaba de confirmarse, con el cambio, hasta que el cajero lo descarte: cuenta billetes con él a la vista. */

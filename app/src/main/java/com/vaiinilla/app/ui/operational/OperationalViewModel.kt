@@ -777,7 +777,7 @@ class OperationalViewModel
                                     walletReloadReceipt = receipt,
                                     pendingWalletReload = null,
                                     // La hoja de recarga no está abierta al confirmar en segundo plano.
-                                    actionNotice = "Se confirmó la recarga pendiente de \$${pending.amount}",
+                                    actionNotice = "Se confirmó la recarga pendiente de ${moneyLabel(pending.amount)}",
                                     errorMessage = null,
                                 )
                         }

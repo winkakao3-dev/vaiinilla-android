@@ -496,7 +496,7 @@ internal fun WaiterSpaceSection(
                     )
                     if (paidIn.signum() > 0) {
                         Text(
-                            "Abonado $${Money.format(paidIn)}",
+                            "Abonado ${moneyLabel(Money.format(paidIn))}",
                             color = colors.textSecondary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -754,13 +754,13 @@ internal fun CollectionResultCard(
         }
         Text(
             buildString {
-                append("Total $${collection.total}")
+                append("Total ${moneyLabel(collection.total)}")
                 if (collection.method == AccountPaymentMethod.TERMINAL) {
                     append(" · Cobrado con la terminal")
                 } else {
-                    append(" · Recibido $${collection.received}")
+                    append(" · Recibido ${moneyLabel(collection.received)}")
                 }
-                if (!collection.settled) append(" · Quedan $${collection.remaining} por cobrar")
+                if (!collection.settled) append(" · Quedan ${moneyLabel(collection.remaining)} por cobrar")
             },
             fontSize = 12.5.sp,
             color = colors.textSecondary,
@@ -1051,7 +1051,7 @@ internal fun CollectAccountContent(
             if (onAbono != null) {
                 if (paidInAmount.signum() > 0) {
                     Text(
-                        "Abonado $${Money.format(paidInAmount)} · Falta $${Money.format(remainingAmount)}",
+                        "Abonado ${moneyLabel(Money.format(paidInAmount))} · Falta ${moneyLabel(Money.format(remainingAmount))}",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = colors.textPrimary,
@@ -1095,7 +1095,7 @@ internal fun CollectAccountContent(
                             },
                             label = "Monto de este abono",
                             colors = colors,
-                            supporting = "Falta $${Money.format(remainingAmount)}",
+                            supporting = "Falta ${moneyLabel(Money.format(remainingAmount))}",
                             isError = abonoText.isNotBlank() && !abonoValid,
                             enabled = !confirming,
                             keyboardType = KeyboardType.Decimal,
@@ -1180,7 +1180,7 @@ internal fun CollectAccountContent(
                         if (tipAmount.signum() >
                             0
                         ) {
-                            "Propina $${Money.format(tipAmount)} · es del negocio"
+                            "Propina ${moneyLabel(Money.format(tipAmount))} · es del negocio"
                         } else {
                             "Propina"
                         },
