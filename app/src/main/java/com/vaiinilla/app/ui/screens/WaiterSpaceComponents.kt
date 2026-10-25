@@ -1051,7 +1051,7 @@ internal fun CollectAccountContent(
             if (onAbono != null) {
                 if (paidInAmount.signum() > 0) {
                     Text(
-                        "Abonado ${moneyLabel(Money.format(paidInAmount))} · Falta ${moneyLabel(Money.format(remainingAmount))}",
+                        "Abonado ${moneyLabel(paidInAmount)} · Falta ${moneyLabel(remainingAmount)}",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = colors.textPrimary,
