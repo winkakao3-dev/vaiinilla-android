@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -90,15 +91,17 @@ fun EditorialSearchField(
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
+            // El campo ocupa todo el alto de la pieza: antes solo la línea de texto (~22 dp) recibía el toque (BOT-09).
             modifier =
                 Modifier
                     .weight(1f)
+                    .fillMaxHeight()
                     .semantics { contentDescription = placeholder },
             singleLine = true,
             textStyle = TextStyle(color = ink, fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold),
             cursorBrush = SolidColor(ink),
             decorationBox = { input ->
-                Box {
+                Box(Modifier.fillMaxHeight(), contentAlignment = Alignment.CenterStart) {
                     if (value.isEmpty()) {
                         Text(
                             placeholder,

@@ -681,6 +681,7 @@ private fun CategoryChips(
                 label = "Todo",
                 selected = selectedCategoryId == null,
                 onClick = { onCategorySelected(null) },
+                height = 48.dp,
                 seaGlass = true,
             )
         }
@@ -689,6 +690,7 @@ private fun CategoryChips(
                 label = category.name,
                 selected = selectedCategoryId == category.id,
                 onClick = { onCategorySelected(category.id) },
+                height = 48.dp,
                 seaGlass = true,
             )
         }

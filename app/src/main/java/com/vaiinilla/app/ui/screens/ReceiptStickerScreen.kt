@@ -20,11 +20,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -71,6 +72,9 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -135,17 +139,20 @@ fun ReceiptStickerScreen(
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver", tint = colors.ink)
                 }
                 Text(
-                    "Tu receipt sticker",
+                    "Tu recibo",
                     modifier = Modifier.weight(1f),
                     color = colors.ink,
                     fontWeight = FontWeight.Black,
                     fontSize = 17.sp,
                 )
-                IconButton(onClick = { shareReceiptSticker(context, stickerOrder) }) {
+                IconButton(
+                    onClick = { shareReceiptSticker(context, stickerOrder) },
+                    modifier = Modifier.size(48.dp),
+                ) {
                     Icon(Icons.Outlined.Share, contentDescription = "Compartir", tint = colors.ink)
                 }
             }
@@ -319,7 +326,8 @@ private fun StyleChip(
     Surface(
         modifier =
             Modifier
-                .heightIn(min = 48.dp)
+                // Las tallas (S, M) eran más angostas que 48 dp (BOT-07).
+                .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                 .semantics {
                     this.role = role
                     this.selected = selected
@@ -328,13 +336,15 @@ private fun StyleChip(
         color = background,
         shape = RoundedCornerShape(99.dp),
     ) {
-        Text(
-            label,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-            color = content,
-            fontWeight = FontWeight.Black,
-            fontSize = 12.sp,
-        )
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                label,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                color = content,
+                fontWeight = FontWeight.Black,
+                fontSize = 12.sp,
+            )
+        }
     }
 }
 
@@ -343,18 +353,18 @@ private fun shareReceiptSticker(
     order: StickerOrderData,
 ) {
     val shareText =
-        "Vaiinilla receipt sticker #${order.folio}\n" +
+        "Recibo de Vaiinilla #${order.folio}\n" +
             "${order.productName} · ${order.total} MXN\n" +
             "${order.paymentLabel} · ${order.destinationLabel}\n" +
             "${order.date} · ${order.time}"
     val intent =
         Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, "Vaiinilla receipt sticker #${order.folio}")
+            putExtra(Intent.EXTRA_SUBJECT, "Recibo de Vaiinilla #${order.folio}")
             putExtra(Intent.EXTRA_TEXT, shareText)
         }
     try {
-        context.startActivity(Intent.createChooser(intent, "Compartir receipt sticker"))
+        context.startActivity(Intent.createChooser(intent, "Compartir recibo"))
     } catch (_: ActivityNotFoundException) {
         Toast.makeText(context, "No hay una app disponible para compartir", Toast.LENGTH_SHORT).show()
     }
@@ -362,7 +372,7 @@ private fun shareReceiptSticker(
 
 private fun OrderDetail?.toStickerOrderData(): StickerOrderData {
     if (this == null) return emptyStickerOrderData()
-    val productName = items.firstOrNull()?.productName ?: "Pedido"
+    val productName = receiptProductName(items.map { it.productName })
     val paymentLabel = paymentMethodLabel(summary.paymentMethod)
     return StickerOrderData(
         folio = summary.folio,
@@ -371,10 +381,26 @@ private fun OrderDetail?.toStickerOrderData(): StickerOrderData {
         paymentLabel = paymentLabel,
         destinationLabel = summary.destination.label,
         date = summary.operationalDate,
-        time =
-            summary.createdAt
-                .substringAfter('T', "")
-                .take(5)
-                .ifBlank { "—" },
+        time = receiptLocalTime(summary.createdAt),
     )
 }
+
+/** Un producto con su nombre; varios, el primero y cuántos más (antes solo salía el primero). */
+internal fun receiptProductName(names: List<String>): String =
+    when (names.size) {
+        0 -> "Pedido"
+        1 -> names.first()
+        else -> "${names.first()} y ${names.size - 1} más"
+    }
+
+/** La hora del pedido en la zona del teléfono; `createdAt` viene en UTC y antes se mostraba tal cual. */
+internal fun receiptLocalTime(
+    createdAt: String,
+    zone: ZoneId = ZoneId.systemDefault(),
+): String =
+    runCatching {
+        Instant
+            .parse(createdAt)
+            .atZone(zone)
+            .format(DateTimeFormatter.ofPattern("HH:mm"))
+    }.getOrDefault("—")

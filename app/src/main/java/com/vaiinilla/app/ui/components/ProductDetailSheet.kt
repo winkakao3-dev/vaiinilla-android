@@ -77,6 +77,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -145,8 +146,20 @@ fun ProductDetailSheet(
     // Lo agotado, y lo que el tutor del alumno bloqueó o tiene un alérgeno suyo, se ve pero no se agrega.
     val childRestriction = LocalChildControls.current.restrictionFor(product)
     val canAdd = canAdd && childRestriction == null
-    val errorMessage = childRestriction?.label ?: errorMessage
-    val isCustomized = selectedOptionIds != defaultOptionIds
+    // Un grupo obligatorio sin elegir es lo que deja "Agregar" apagado: se dice cuál (COMPRA-15).
+    val missingGroup =
+        product.optionGroups.firstOrNull { group ->
+            group.options.count { it.id in selectedOptionIds } < group.minimumSelections
+        }
+    val errorMessage =
+        childRestriction?.label ?: errorMessage ?: missingGroup?.let { "Elige ${it.name.lowercase()} para agregar" }
+    // Escoger el tamaño u otra opción obligatoria no es personalizar: solo cuentan las opciones extra.
+    val requiredChoiceIds =
+        product.optionGroups
+            .filter { it.minimumSelections > 0 }
+            .flatMap { group -> group.options.map { it.id } }
+            .toSet()
+    val isCustomized = (selectedOptionIds - requiredChoiceIds) != (defaultOptionIds - requiredChoiceIds)
     val interactionSource = remember { MutableInteractionSource() }
     val visibility = remember { MutableTransitionState(false) }
     var dismissing by remember { mutableStateOf(false) }
@@ -282,10 +295,16 @@ fun ProductDetailSheet(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = (scrimAlpha * (1f - backProgress * 0.9f)).coerceIn(0f, 1f)))
-                .clickable(onClick = ::requestDismiss),
+                .background(Color.Black.copy(alpha = (scrimAlpha * (1f - backProgress * 0.9f)).coerceIn(0f, 1f))),
         contentAlignment = Alignment.BottomCenter,
     ) {
+        // Aparte de la hoja: como contenedor del contenido, su etiqueta se mezclaba con todo lo de adentro (BOT-02).
+        Box(
+            Modifier
+                .fillMaxSize()
+                .clickable(onClickLabel = "Cerrar", role = Role.Button, onClick = ::requestDismiss)
+                .semantics { contentDescription = "Cerrar" },
+        )
         AnimatedVisibility(
             visibleState = visibility,
             modifier =
@@ -808,6 +827,7 @@ private fun ProductDetailDock(
                 }
                 QuantityControl(
                     quantity = quantity,
+                    plusEnabled = quantity < MAX_LINE_QUANTITY,
                     onMinus = { onQuantityChange(-1) },
                     onPlus = { onQuantityChange(1) },
                 )
@@ -875,6 +895,7 @@ private fun ProductDetailDock(
 @Composable
 private fun QuantityControl(
     quantity: Int,
+    plusEnabled: Boolean,
     onMinus: () -> Unit,
     onPlus: () -> Unit,
 ) {
@@ -883,6 +904,7 @@ private fun QuantityControl(
         QuantityButton(
             icon = Icons.Rounded.Remove,
             description = "Quitar uno",
+            enabled = true,
             onClick = onMinus,
         )
         AnimatedContent(
@@ -911,6 +933,7 @@ private fun QuantityControl(
         QuantityButton(
             icon = Icons.Rounded.Add,
             description = "Agregar uno",
+            enabled = plusEnabled,
             onClick = onPlus,
         )
     }
@@ -920,6 +943,7 @@ private fun QuantityControl(
 private fun QuantityButton(
     icon: ImageVector,
     description: String,
+    enabled: Boolean,
     onClick: () -> Unit,
 ) {
     // Plano y neutro: el único volumen de la hoja es "Agregar".
@@ -927,16 +951,24 @@ private fun QuantityButton(
     Box(
         modifier =
             Modifier
-                .size(44.dp)
+                .size(48.dp)
                 .clip(CircleShape)
                 .background(colors.ink.copy(alpha = 0.06f))
-                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small, onClick = onClick)
                 .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(19.dp))
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = if (enabled) colors.ink else colors.ink.copy(alpha = 0.3f),
+            modifier = Modifier.size(19.dp),
+        )
     }
 }
+
+/** Tope de piezas por línea que acepta el pedido; el servidor lo valida igual. */
+private const val MAX_LINE_QUANTITY = 20
 
 private val HeroHeight = 300.dp
 private val HaloFade = 96.dp
