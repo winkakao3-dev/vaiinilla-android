@@ -20,14 +20,14 @@ val Line = Color(0x1F171817)
 val NavGlassLight = Color(0xFFFFFFFF)
 val NavBorderLight = Color(0x24171817)
 val NavPillLight = Color(0xFFE9E9E7)
-val NavTextIdleLight = Color(0xFF6F7168)
-val NavTextActiveLight = Ink
+val NavTextIdleLight = Ink
+val NavTextActiveLight = Color(0xFF0A62C9) // acento azul del vidrio; ~5.8:1 sobre el dock claro
 
 // Dark bottom nav — measured from the approved Vaiinilla navbar reference.
 val NavGlass = Color(0xFF2F2F2F)
 val NavBorder = Color(0xFF4E4E4C)
 val NavPill = Color(0xFF111111)
-val NavTextActive = Color(0xFFCCE088)
+val NavTextActive = Color(0xFF5AAEFF) // acento azul del vidrio; ~5.8:1 sobre el dock oscuro
 val NavTextIdle = Color(0xFFF8F8F8)
 val NavInsetHighlight = Color(0x06FFFFFF) // inset hairline ~2.5%
 val NavShadow = Color(0xB3000000)
