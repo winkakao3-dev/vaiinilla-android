@@ -1,5 +1,6 @@
 package com.vaiinilla.app.domain.model
 
+import java.math.BigDecimal
 import java.time.Instant
 
 /** Largo máximo de la nota de una línea; la nota general de cocina usa el mismo límite en el carrito. */
@@ -126,7 +127,30 @@ data class OrderSummary(
     val tableSessionId: String? = null,
     /** Se entrega sin escanear el QR de recogida (`entrega_sin_qr`, pedidos a una cuenta abierta). */
     val deliveryWithoutQr: Boolean = false,
+    /** Lo que el servidor ya registró como pagado; `null` en un servidor que no lo manda. */
+    val amountPaid: String? = null,
+    /** Lo que aún falta cobrar (`saldo_pendiente`); `null` en un servidor que no lo manda. */
+    val balanceDue: String? = null,
 )
+
+/**
+ * Efectivo que Caja todavía tiene que cobrar. Cocina puede arrancar un pedido en efectivo antes del cobro, así
+ * que el saldo pendiente sigue existiendo en preparando y en listo: el estado solo no lo dice.
+ * Un servidor que no manda `saldo_pendiente` solo deja pendiente al pedido por cobrar.
+ */
+val OrderSummary.needsCashCollection: Boolean
+    get() {
+        if (paymentMethod != PaymentMethod.CASH || payAtEnd) return false
+        if (state != OrderState.PENDING_PAYMENT && state != OrderState.PREPARING && state != OrderState.READY) {
+            return false
+        }
+        val due = balanceDue?.let { runCatching { BigDecimal(it) }.getOrNull() }
+        return if (due != null) due.signum() > 0 else state == OrderState.PENDING_PAYMENT
+    }
+
+/** Lo que Caja cobra hoy de este pedido: el saldo pendiente o, si el servidor no lo manda, el total. */
+val OrderSummary.cashAmountDue: String
+    get() = balanceDue?.takeIf { runCatching { BigDecimal(it).signum() > 0 }.getOrDefault(false) } ?: total
 
 data class CashCollectionResult(
     val order: OrderDetail,
