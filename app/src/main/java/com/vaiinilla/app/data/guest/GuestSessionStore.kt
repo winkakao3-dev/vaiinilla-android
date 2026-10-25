@@ -161,6 +161,11 @@ class GuestSessionStore
         fun readPendingCreateIdempotency(fingerprint: String): String? {
             val storedFingerprint = prefs.getString(KEY_CREATE_IDEMPOTENCY_FINGERPRINT, null)
             if (storedFingerprint != fingerprint) return null
+            val savedAt = prefs.getLong(KEY_CREATE_IDEMPOTENCY_SAVED_AT, 0L)
+            if (!isPendingCreateKeyFresh(savedAt, System.currentTimeMillis())) {
+                clearPendingCreateIdempotency()
+                return null
+            }
             return prefs.getString(KEY_CREATE_IDEMPOTENCY_KEY, null)
         }
 
@@ -171,6 +176,7 @@ class GuestSessionStore
             prefs.edit {
                 putString(KEY_CREATE_IDEMPOTENCY_FINGERPRINT, fingerprint)
                 putString(KEY_CREATE_IDEMPOTENCY_KEY, idempotencyKey)
+                putLong(KEY_CREATE_IDEMPOTENCY_SAVED_AT, System.currentTimeMillis())
             }
         }
 
@@ -178,6 +184,7 @@ class GuestSessionStore
             prefs.edit {
                 remove(KEY_CREATE_IDEMPOTENCY_FINGERPRINT)
                 remove(KEY_CREATE_IDEMPOTENCY_KEY)
+                remove(KEY_CREATE_IDEMPOTENCY_SAVED_AT)
             }
         }
 
@@ -271,11 +278,23 @@ class GuestSessionStore
             const val KEY_SPACE_QR_TOKEN = "space_qr_token"
             const val KEY_CREATE_IDEMPOTENCY_FINGERPRINT = "create_idempotency_fingerprint"
             const val KEY_CREATE_IDEMPOTENCY_KEY = "create_idempotency_key"
+            const val KEY_CREATE_IDEMPOTENCY_SAVED_AT = "create_idempotency_saved_at"
             const val KEY_PENDING_STRIPE_CONFIRMATION_ORDER_ID = "pending_stripe_confirmation_order_id"
             const val KEY_GUEST_KEY_LEGACY = "guest_key"
             const val KEY_GUEST_NAME = "guest_name"
         }
     }
+
+private const val PENDING_CREATE_KEY_TTL_MS = 24L * 60 * 60 * 1000
+
+/**
+ * Pasado este tiempo una respuesta perdida ya no se reintenta: el mismo carrito de otro día es un pedido nuevo.
+ * Una llave guardada sin fecha (versión anterior de la app) se trata como vencida.
+ */
+internal fun isPendingCreateKeyFresh(
+    savedAtMs: Long,
+    nowMs: Long,
+): Boolean = savedAtMs > 0 && nowMs - savedAtMs in 0..PENDING_CREATE_KEY_TTL_MS
 
 @Serializable
 data class GuestCartLineSnapshot(

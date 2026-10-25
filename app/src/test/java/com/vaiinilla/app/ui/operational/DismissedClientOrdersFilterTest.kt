@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.operational
 
 import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -9,6 +10,17 @@ import org.junit.Test
 class DismissedClientOrdersFilterTest {
     private val first = ScreenshotFixtures.sampleOrder()
     private val second = first.copy(summary = first.summary.copy(id = "second-order", folio = 9999))
+
+    @Test
+    fun `the menu banner only follows orders that are still open`() {
+        val delivered = first.copy(summary = first.summary.copy(state = OrderState.DELIVERED))
+        val canceled = first.copy(summary = first.summary.copy(state = OrderState.CANCELED))
+        val preparing = first.copy(summary = first.summary.copy(state = OrderState.PREPARING))
+
+        assertEquals(null, visibleLatestMenuOrder(delivered, emptySet()))
+        assertEquals(null, visibleLatestMenuOrder(canceled, emptySet()))
+        assertEquals(preparing, visibleLatestMenuOrder(preparing, emptySet()))
+    }
 
     @Test
     fun `client list hides locally dismissed orders`() {

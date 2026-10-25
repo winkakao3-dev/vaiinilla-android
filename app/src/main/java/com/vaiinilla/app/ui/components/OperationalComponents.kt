@@ -3,16 +3,11 @@ package com.vaiinilla.app.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -22,7 +17,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -58,67 +52,6 @@ fun OrderStatusBadge(state: OrderState) {
         )
     }
 }
-
-@Composable
-fun OrderTimeline(current: OrderState) {
-    val colors = LocalVaiinillaColors.current
-    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-        OrderState.trackingFlow.forEachIndexed { index, step ->
-            val completed = step.trackingIndex <= current.trackingIndex
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(if (completed) colors.accent else colors.paper2),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (completed) {
-                            Text("✓", color = colors.accentInk, fontWeight = FontWeight.Black)
-                        }
-                    }
-                    if (index < OrderState.trackingFlow.lastIndex) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .width(2.dp)
-                                    .height(36.dp)
-                                    .background(if (completed) colors.accent else colors.paper2),
-                        )
-                    }
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.padding(top = 4.dp)) {
-                    Text(
-                        text = step.label,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = if (completed) colors.ink else colors.muted,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = timelineCopy(step),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.muted,
-                    )
-                }
-            }
-        }
-    }
-}
-
-private fun timelineCopy(step: OrderState): String =
-    when (step) {
-        OrderState.PENDING_PAYMENT -> "Esperando pago en Caja."
-        OrderState.PAID -> "Cobro confirmado."
-        OrderState.PREPARING -> "Cocina preparando tu pedido."
-        OrderState.READY -> "Listo para entregar."
-        OrderState.DELIVERED -> "Entrega completada."
-        OrderState.CANCELED -> "Pedido cancelado."
-        OrderState.NOT_PICKED_UP -> "Pedido no recogido."
-        OrderState.EXPIRED -> "Pedido expirado."
-    }
 
 @Composable
 fun OrderSummaryCard(

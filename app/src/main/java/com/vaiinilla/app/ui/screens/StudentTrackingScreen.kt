@@ -159,11 +159,13 @@ import com.vaiinilla.app.ui.components.rentalScheduleLabel
 import com.vaiinilla.app.ui.components.rentalStateLabel
 import com.vaiinilla.app.ui.components.rentalStep
 import com.vaiinilla.app.ui.components.rentalStepDescription
+import com.vaiinilla.app.ui.components.scheduledDeliveryLabel
 import com.vaiinilla.app.ui.components.trackingStepDescription
 import com.vaiinilla.app.ui.components.trackingStepTitle
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.canCancelMenuCall
+import com.vaiinilla.app.ui.order.cancellationMoneyNote
 import com.vaiinilla.app.ui.order.orderCancellationNotice
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.SeaGlassButton
@@ -418,6 +420,7 @@ fun StudentTrackingScreen(
                                     SwipeToDeleteOrder(
                                         orderFolio = animatedSelected.summary.folio.toString(),
                                         onDelete = { onDeleteOrder(animatedSelected.summary.id) },
+                                        enabled = !animatedSelected.isActiveForCustomer,
                                     ) {
                                         OrderTrackingCard(
                                             order = animatedSelected,
@@ -537,6 +540,7 @@ fun StudentTrackingScreen(
                                         SwipeToDeleteOrder(
                                             orderFolio = order.summary.folio.toString(),
                                             onDelete = { onDeleteOrder(order.summary.id) },
+                                            enabled = !order.isActiveForCustomer,
                                         ) {
                                             ActiveOrderCard(
                                                 order = order,
@@ -562,7 +566,9 @@ fun StudentTrackingScreen(
                                                 onCancelWaiter = onCancelWaiter,
                                             )
                                         }
-                                        if (index == 0) {
+                                        // El juego es para la espera de la comida: no aparece con un pago por
+                                        // confirmar, una renta o un pedido que ya está listo para recoger.
+                                        if (index == 0 && order.isWaitingForFood) {
                                             Spacer(modifier = Modifier.height(16.dp))
                                             WaitingArcadeCard()
                                         }
@@ -797,9 +803,9 @@ private fun CancelReasonCard(order: OrderDetail) {
                     modifier = Modifier.padding(top = 6.dp),
                 )
             }
-            if (order.summary.payAtEnd) {
+            cancellationMoneyNote(order)?.let { note ->
                 Text(
-                    "No se te cobrará: este pedido iba a tu cuenta.",
+                    note,
                     color = colors.muted,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(top = 6.dp),
@@ -860,7 +866,7 @@ private fun PickupCodeCard(order: OrderDetail) {
                 )
             } else {
                 Text(
-                    "El código de recogida no está disponible en este dispositivo. Conserva la app donde hiciste el pedido.",
+                    "Estamos trayendo tu código. Si no aparece, dile al personal tu folio ${order.summary.folio}.",
                     color = colors.coral,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
@@ -971,12 +977,12 @@ private fun TrackingSectionHead() {
     Text("Seguimiento", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
 }
 
-private val OrderState.isPast: Boolean
-    get() = this == OrderState.DELIVERED || isTerminalWithoutDelivery
-
 /** Una renta queda "entregada" al pagarse, pero sigue en curso hasta que termina su horario. */
 private val OrderDetail.isActiveForCustomer: Boolean
-    get() = if (isRental) isLiveRental() else !summary.state.isPast
+    get() = if (isRental) isLiveRental() else !summary.state.isClosed
+
+private val OrderDetail.isWaitingForFood: Boolean
+    get() = !isRental && summary.state in setOf(OrderState.PAID, OrderState.PREPARING)
 
 private fun customerStateLabel(order: OrderDetail): String =
     if (order.isRental) rentalStateLabel(order) else orderStateLabel(order.summary)
@@ -1092,6 +1098,7 @@ private fun ActiveOrderCard(
                         listOf(
                             destinationDisplayLabel(order),
                             order.reservation?.let { rentalScheduleLabel(it) },
+                            scheduledDeliveryLabel(summary),
                             orderPaymentLabel(summary),
                         ).filterNotNull().joinToString(" · "),
                         color = OrderTrackingCardText.copy(alpha = 0.58f),
@@ -1743,6 +1750,7 @@ private fun CompactTrackingSteps(
                                 paymentMethod,
                                 paymentStatus,
                                 spaceType,
+                                payAtEnd,
                             )
                         },
                     skipped = skipped,

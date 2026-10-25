@@ -80,6 +80,8 @@ fun SwipeToDeleteOrder(
     orderFolio: String,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Solo un pedido cerrado se puede quitar de la lista: ocultar uno vivo esconde su código (PEDIDO-09). */
+    enabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val haptics = rememberVaiinillaHaptics()
@@ -117,20 +119,22 @@ fun SwipeToDeleteOrder(
 
     SwipeToDismissBox(
         state = dismissState,
-        enableDismissFromStartToEnd = true,
-        enableDismissFromEndToStart = true,
+        enableDismissFromStartToEnd = enabled,
+        enableDismissFromEndToStart = enabled,
         modifier =
             modifier
                 .fillMaxWidth()
                 .clip(OrderDeleteShape)
                 .semantics {
-                    customActions =
-                        listOf(
-                            CustomAccessibilityAction(label = "Eliminar pedido") {
-                                requestDeleteConfirmation()
-                                true
-                            },
-                        )
+                    if (enabled) {
+                        customActions =
+                            listOf(
+                                CustomAccessibilityAction(label = "Eliminar pedido") {
+                                    requestDeleteConfirmation()
+                                    true
+                                },
+                            )
+                    }
                 },
         backgroundContent = {
             // Las tarjetas son de vidrio y dejan ver lo que tienen detrás: el rojo no va debajo de la

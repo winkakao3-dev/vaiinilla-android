@@ -206,6 +206,7 @@ object OrderAdvanceNotifier {
         orderId: String,
         folio: Int,
         newState: OrderState,
+        inSpace: Boolean = false,
     ) {
         if (!canPost(context)) return
         ensureChannel(context)
@@ -215,7 +216,7 @@ object OrderAdvanceNotifier {
                 .Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_order_notification)
                 .setContentTitle("Pedido #$folio")
-                .setContentText(messageFor(newState))
+                .setContentText(messageFor(newState, inSpace))
                 .setAutoCancel(true)
                 .setContentIntent(launchIntent)
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
@@ -272,15 +273,19 @@ object OrderAdvanceNotifier {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-    private fun messageFor(state: OrderState): String =
+    internal fun messageFor(
+        state: OrderState,
+        inSpace: Boolean = false,
+    ): String =
         when (state) {
             OrderState.PENDING_PAYMENT -> "Caja espera tu pago."
-            OrderState.PAID -> "Pago confirmado. Cocina recibio tu comanda."
-            OrderState.PREPARING -> "Tu comida se esta preparando."
-            OrderState.READY -> "Tu pedido esta listo. Recogelo en la barra."
+            OrderState.PAID -> "Pago confirmado. Cocina recibió tu comanda."
+            OrderState.PREPARING -> "Tu comida se está preparando."
+            OrderState.READY ->
+                if (inSpace) "Tu pedido está listo. Ya va a tu mesa." else "Tu pedido está listo. Recógelo en la barra."
             OrderState.DELIVERED -> "Pedido entregado. Buen provecho."
             OrderState.CANCELED -> "Tu pedido fue cancelado."
             OrderState.NOT_PICKED_UP -> "Tu pedido no fue recogido."
-            OrderState.EXPIRED -> "Tu pedido expiro."
+            OrderState.EXPIRED -> "Tu pedido expiró."
         }
 }

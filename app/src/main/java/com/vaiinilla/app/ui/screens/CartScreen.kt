@@ -555,6 +555,14 @@ private fun PaymentMethodOverlay(
         mutableStateOf(if (!payAtEndSelected && initialAllowed) initialMethod else null)
     }
     var selectionLocked by remember { mutableStateOf(false) }
+    var selectionTouched by remember { mutableStateOf(false) }
+    // El estado operativo y el saldo pueden llegar con la hoja ya abierta: la preselección se recalcula mientras la
+    // persona no haya elegido nada (COMPRA-17).
+    LaunchedEffect(payAtEndAvailable, initialAllowed) {
+        if (selectionTouched) return@LaunchedEffect
+        payAtEndSelected = initialPayAtEnd && payAtEndAvailable
+        selectedMethod = if (!payAtEndSelected && initialAllowed) initialMethod else null
+    }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val hasSelection = selectedMethod != null || payAtEndSelected
 
@@ -639,6 +647,7 @@ private fun PaymentMethodOverlay(
                         selected = payAtEndSelected,
                         enabled = !selectionLocked,
                         onClick = {
+                            selectionTouched = true
                             payAtEndSelected = true
                             selectedMethod = null
                         },
@@ -652,6 +661,7 @@ private fun PaymentMethodOverlay(
                     selected = selectedMethod == PaymentMethod.CASH,
                     enabled = !selectionLocked,
                     onClick = {
+                        selectionTouched = true
                         payAtEndSelected = false
                         selectedMethod = PaymentMethod.CASH
                     },
@@ -670,6 +680,7 @@ private fun PaymentMethodOverlay(
                         selected = selectedMethod == PaymentMethod.BALANCE,
                         enabled = !selectionLocked && balanceAffordable,
                         onClick = {
+                            selectionTouched = true
                             payAtEndSelected = false
                             selectedMethod = PaymentMethod.BALANCE
                         },
@@ -683,6 +694,7 @@ private fun PaymentMethodOverlay(
                         selected = selectedMethod == PaymentMethod.STRIPE,
                         enabled = !selectionLocked,
                         onClick = {
+                            selectionTouched = true
                             payAtEndSelected = false
                             selectedMethod = PaymentMethod.STRIPE
                         },

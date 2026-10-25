@@ -41,6 +41,7 @@ import com.vaiinilla.app.domain.usecase.CreateRemoteOrderUseCase
 import com.vaiinilla.app.domain.usecase.GetCatalogUseCase
 import com.vaiinilla.app.domain.usecase.GetOperationalStatusUseCase
 import com.vaiinilla.app.domain.usecase.GetOrderUseCase
+import com.vaiinilla.app.domain.usecase.KITCHEN_NOTES_MAX
 import com.vaiinilla.app.domain.usecase.RetryStripePaymentUseCase
 import com.vaiinilla.app.domain.usecase.generalKitchenNotes
 import com.vaiinilla.app.domain.usecase.kitchenLineNotesSummary
@@ -126,9 +127,11 @@ class OrderFlowViewModel
                 activeJobs.toList().forEach(Job::cancel)
                 activeJobs.clear()
                 guestVenueLoadJob = null
+                // La llave persistida de crear pedido se conserva: si el POST ya salió y la respuesta se perdió al
+                // cambiar de lugar, volver y reintentar debe devolver ese pedido y no crear otro (PAGO-09). El
+                // servidor la acota por establecimiento y la app la vence a las 24 h.
                 pendingIdempotencyKey = null
                 pendingStripeRetryIdempotencyKey = null
-                guestSessionStore.clearPendingCreateIdempotency()
                 previous.createdOrder
                     ?.summary
                     ?.id
@@ -240,6 +243,7 @@ class OrderFlowViewModel
                         _uiState.value.copy(
                             loading = false,
                             catalog = effectiveCatalog,
+                            catalogStale = catalog == null && effectiveCatalog != null,
                             // Si falla al entrar (aún sin contexto de cliente) no se borra lo que ya se tenía del mismo lugar.
                             operationalStatus = status ?: _uiState.value.operationalStatus.takeIf { sameCart },
                             rentedCourt = rentedCourt,
@@ -918,6 +922,17 @@ class OrderFlowViewModel
                         spaceId = current.checkoutSpaceId,
                         payAtEnd = current.checkoutPayAtEnd,
                     )
+                // La nota general más el resumen de las notas por línea pueden pasar el máximo del servidor, que
+                // respondería con un 400 sin explicación (COMPRA-18).
+                if (request.kitchenNotes.length > KITCHEN_NOTES_MAX) {
+                    _uiState.value =
+                        current.copy(
+                            creatingOrder = false,
+                            createOrderError =
+                                "Las notas del pedido son muy largas. Acorta las notas del carrito o de los productos.",
+                        )
+                    return@launchTracked
+                }
                 val requestFingerprint = createOrderFingerprint(request)
                 val idempotencyKey =
                     resolveIdempotencyKey(
@@ -945,6 +960,8 @@ class OrderFlowViewModel
                         guestSessionStore.clearPendingCreateIdempotency()
                         pendingStripeRetryIdempotencyKey = null
                         val stripeSession = created.stripeSession
+                        val stripeSessionUnusable =
+                            stripeSession == null && created.order.summary.paymentMethod == PaymentMethod.STRIPE
                         val purchaseCelebration = purchaseCelebrationFor(created.order)
                         val stripePendingOrderId =
                             stripeSession?.let {
@@ -967,9 +984,17 @@ class OrderFlowViewModel
                                 stripePaymentSession = stripeSession,
                                 stripePresentationKey = stripeSession?.let { UUID.randomUUID().toString() },
                                 stripePaymentPhase =
-                                    if (stripeSession != null) StripePaymentPhase.READY else StripePaymentPhase.IDLE,
+                                    when {
+                                        stripeSession != null -> StripePaymentPhase.READY
+                                        stripeSessionUnusable -> StripePaymentPhase.CANCELED
+                                        else -> StripePaymentPhase.IDLE
+                                    },
                                 stripePaymentMessage =
-                                    if (stripeSession != null) "Elige cómo pagar de forma segura." else null,
+                                    when {
+                                        stripeSession != null -> "Elige cómo pagar de forma segura."
+                                        stripeSessionUnusable -> STRIPE_SESSION_UNUSABLE_MESSAGE
+                                        else -> null
+                                    },
                                 purchaseCelebration = purchaseCelebration,
                                 createOrderError = null,
                                 cartNotice = null,
@@ -1058,6 +1083,8 @@ class OrderFlowViewModel
          */
         fun adoptReservationOrder(created: CreatedOrder) {
             val stripeSession = created.stripeSession
+            val stripeSessionUnusable =
+                stripeSession == null && created.order.summary.paymentMethod == PaymentMethod.STRIPE
             val stripePendingOrderId =
                 stripeSession?.let {
                     created.order.summary.id
@@ -1071,9 +1098,17 @@ class OrderFlowViewModel
                     stripePaymentSession = stripeSession,
                     stripePresentationKey = stripeSession?.let { UUID.randomUUID().toString() },
                     stripePaymentPhase =
-                        if (stripeSession != null) StripePaymentPhase.READY else StripePaymentPhase.IDLE,
+                        when {
+                            stripeSession != null -> StripePaymentPhase.READY
+                            stripeSessionUnusable -> StripePaymentPhase.CANCELED
+                            else -> StripePaymentPhase.IDLE
+                        },
                     stripePaymentMessage =
-                        if (stripeSession != null) "Elige cómo pagar de forma segura." else null,
+                        when {
+                            stripeSession != null -> "Elige cómo pagar de forma segura."
+                            stripeSessionUnusable -> STRIPE_SESSION_UNUSABLE_MESSAGE
+                            else -> null
+                        },
                     purchaseCelebration = null,
                     createOrderError = null,
                 )
@@ -1653,6 +1688,8 @@ class OrderFlowViewModel
             val catalogMemoryCache = ConcurrentHashMap<String, Catalog>()
             const val GUEST_CANNOT_USE_BALANCE = "GUEST_CANNOT_USE_BALANCE"
             const val PRODUCT_UNAVAILABLE = "PRODUCT_UNAVAILABLE"
+            const val STRIPE_SESSION_UNUSABLE_MESSAGE =
+                "Tu pedido ya se creó, pero no pudimos abrir el pago. Toca Reintentar pago; no se hizo ningún cargo."
         }
     }
 

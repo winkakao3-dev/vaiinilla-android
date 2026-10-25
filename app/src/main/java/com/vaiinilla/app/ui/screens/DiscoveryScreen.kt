@@ -141,6 +141,7 @@ fun DiscoveryScreen(
     onDisableNearby: () -> Unit = {},
     nfcAvailable: Boolean = rememberHasNfcReader(),
     onOpenSchool: (MySchool) -> Unit = {},
+    onLoadMore: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -191,6 +192,7 @@ fun DiscoveryScreen(
             query = state.query,
             loading = state.loading,
             hasActiveVenue = state.selected != null,
+            nearbyActive = state.nearbyOrigin != null,
         )
     LaunchedEffect(onlyVenue?.id) {
         if (onlyVenue != null && !autoOpened) {
@@ -387,6 +389,16 @@ fun DiscoveryScreen(
                             onClick = { enterVenue(establishment) },
                             modifier = Modifier.animateItem(),
                         )
+                    }
+                    if (state.nextCursor != null) {
+                        item(key = "load-more") {
+                            EditorialSecondaryButton(
+                                text = if (state.loadingMore) "Cargando…" else "Ver más cafeterías",
+                                onClick = onLoadMore,
+                                enabled = !state.loadingMore,
+                                modifier = Modifier.padding(top = 12.dp),
+                            )
+                        }
                     }
                 }
                 if (activeVideos.isNotEmpty()) {
@@ -639,7 +651,12 @@ internal fun onlyVenueToAutoOpen(
     query: String,
     loading: Boolean,
     hasActiveVenue: Boolean,
-): PublicEstablishment? = establishments.singleOrNull()?.takeIf { !loading && query.isBlank() && !hasActiveVenue }
+    nearbyActive: Boolean = false,
+): PublicEstablishment? =
+    establishments
+        .singleOrNull()
+        // Con "Cerca de mí" el único resultado es de un filtro, no el único negocio que existe (COMPRA-13).
+        ?.takeIf { !loading && query.isBlank() && !hasActiveVenue && !nearbyActive }
 
 /**
  * ¿Ya estás en la mesa? QR o código en dos tarjetas grandes y NFC a lo ancho. Va debajo de la lista, o sola

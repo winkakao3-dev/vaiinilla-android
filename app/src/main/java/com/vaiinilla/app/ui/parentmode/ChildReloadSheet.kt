@@ -108,6 +108,11 @@ class ChildReloadModel(
     var checkout by mutableStateOf<CardReloadCheckout?>(null)
         private set
 
+    // Una respuesta perdida al abrir el pago se reintenta con la misma llave y el mismo monto: el servidor
+    // devuelve la recarga que ya creó en vez de crear (y cobrar) otra (PAGO-16).
+    private var startKey = newKey()
+    private var startKeyAmount: BigDecimal? = null
+
     val amount: BigDecimal? get() = TypedAmount.parse(amountText.trimEnd('.', ','))
 
     val problem: String?
@@ -151,17 +156,31 @@ class ChildReloadModel(
         val value = amount ?: return
         if (!canPay) return
         phase = Phase.Starting
-        withContext(io) { account.startCardReload(value, newKey()) }
+        if (startKeyAmount?.compareTo(value) != 0) startKey = newKey()
+        startKeyAmount = value
+        withContext(io) { account.startCardReload(value, startKey) }
             .onSuccess {
                 checkout = it
+                startKey = newKey()
+                startKeyAmount = null
                 val extra = it.reload.chargedCents - value.movePointRight(2).toLong()
-                phase = if (extra > 0) Phase.Review(it.reload.chargedCents) else Phase.Paying
-            }.onFailure { phase = Phase.Failed(it.toUserFacingMessage("No pudimos abrir el pago.")) }
+                if (extra > 0) phase = Phase.Review(it.reload.chargedCents) else beginPaying(it)
+            }.onFailure {
+                startKey = keyAfterFailure(it, startKey)
+                phase = Phase.Failed(it.toUserFacingMessage("No pudimos abrir el pago."))
+            }
     }
 
     /** Ya vio el total con comisión: ahora sí se abre Stripe. */
     fun proceedToPayment() {
-        if (phase is Phase.Review) phase = Phase.Paying
+        if (phase is Phase.Review) checkout?.let(::beginPaying)
+    }
+
+    // El id queda guardado antes de abrir la hoja: si el sistema recrea la pantalla a mitad del pago, el
+    // resultado se sigue contra esta recarga en vez de perderse (PAGO-16, PAGO-17).
+    private fun beginPaying(opened: CardReloadCheckout) {
+        unsettledReloadId = opened.reload.id
+        phase = Phase.Paying
     }
 
     suspend fun finish(result: PaymentSheetResult) {

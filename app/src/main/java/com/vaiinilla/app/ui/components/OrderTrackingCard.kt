@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PREPARING_SKIPPED_NOTE
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.SpaceCopy
@@ -58,6 +59,9 @@ import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaColors
 import java.time.Instant
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 private val TaskCardDark = Color(0xFF1C1D1B)
 private val TaskCardText = Color(0xFFF5F2E8)
@@ -121,6 +125,19 @@ private val timelineSteps =
             "Pedido completado."
         },
     )
+
+/** "Para el lun 27 oct · 12:00-13:00" en un pedido apartado; `null` en uno para ahora (PEDIDO-15). */
+internal fun scheduledDeliveryLabel(
+    summary: OrderSummary,
+    locale: Locale = Locale("es", "MX"),
+): String? {
+    val date = summary.deliveryDate ?: return null
+    val day =
+        runCatching {
+            LocalDate.parse(date.take(10)).format(DateTimeFormatter.ofPattern("EEE d MMM", locale))
+        }.getOrNull() ?: return null
+    return listOfNotNull("Para el $day".replace(".", ""), summary.deliverySlot).joinToString(" · ")
+}
 
 internal fun destinationDisplayLabel(order: OrderDetail): String =
     order.rentalCourtName ?: order.summary.space?.name ?: order.summary.destination.label
@@ -265,6 +282,9 @@ fun OrderTrackingCard(
                     color = cardText.copy(alpha = 0.82f),
                     fontSize = 13.sp,
                 )
+                scheduledDeliveryLabel(order.summary)?.let { scheduled ->
+                    Text(scheduled, color = cardText.copy(alpha = 0.82f), fontSize = 13.sp)
+                }
             }
 
             if (leadingImageUrl != null) {
@@ -369,6 +389,8 @@ fun OrderTrackingTimeline(
                 isSkipped = skipped,
                 isDone = !skipped && stepIndex < currentIndex,
                 isCurrent = stepIndex == currentIndex,
+                // Un pedido entregado ya no espera nada: el halo se queda quieto (PEDIDO-23).
+                settled = current == OrderState.DELIVERED,
                 showLine = index < timelineSteps.lastIndex,
                 staggerMs = index * 70,
                 colors = colors,
@@ -422,6 +444,7 @@ private fun TimelineRow(
     showLine: Boolean,
     staggerMs: Int,
     colors: VaiinillaColors,
+    settled: Boolean = false,
 ) {
     val reduceMotion = reducedMotion()
     val duration = if (reduceMotion) 0 else 520
@@ -471,7 +494,7 @@ private fun TimelineRow(
             ),
         label = "track-halo-scale",
     )
-    val haloPulse = if (isCurrent && !reduceMotion) pulse else 1f
+    val haloPulse = if (isCurrent && !settled && !reduceMotion) pulse else 1f
     Row(modifier = Modifier.fillMaxWidth()) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.size(38.dp)) {

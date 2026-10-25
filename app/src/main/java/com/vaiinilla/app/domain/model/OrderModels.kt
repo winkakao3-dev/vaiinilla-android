@@ -131,6 +131,9 @@ data class OrderSummary(
     val amountPaid: String? = null,
     /** Lo que aún falta cobrar (`saldo_pendiente`); `null` en un servidor que no lo manda. */
     val balanceDue: String? = null,
+    /** Día (AAAA-MM-DD) y franja (HH:MM-HH:MM) de un pedido apartado para otro día; `null` si es para ahora. */
+    val deliveryDate: String? = null,
+    val deliverySlot: String? = null,
 )
 
 /**
@@ -286,9 +289,8 @@ enum class StripePaymentStatus(
         get() = this == PENDING || this == PROCESSING || this == REQUIRES_ACTION
 
     companion object {
-        fun fromWireValue(value: String): StripePaymentStatus =
-            entries.firstOrNull { it.wireValue == value }
-                ?: throw IllegalArgumentException("payment_status no soportado: $value")
+        /** Un estado de pago que la app no conoce se trata como pendiente: el servidor sigue siendo quien decide. */
+        fun fromWireValue(value: String): StripePaymentStatus = entries.firstOrNull { it.wireValue == value } ?: PENDING
     }
 }
 
@@ -327,6 +329,10 @@ enum class OrderState(
 
     val isTerminalWithoutDelivery: Boolean
         get() = this == CANCELED || this == NOT_PICKED_UP || this == EXPIRED
+
+    /** Ya no hay nada que seguir ni recoger: entregado o terminado sin entrega. */
+    val isClosed: Boolean
+        get() = this == DELIVERED || isTerminalWithoutDelivery
 
     companion object {
         val trackingFlow =

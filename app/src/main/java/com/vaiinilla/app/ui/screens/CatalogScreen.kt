@@ -90,7 +90,6 @@ import com.vaiinilla.app.ui.components.ProductDetailSheet
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.SlidingSegments
-import com.vaiinilla.app.ui.components.SwipeToDeleteOrder
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavSideMargin
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavTop
@@ -102,6 +101,8 @@ import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.cartPreviewTotal
 import com.vaiinilla.app.ui.order.filteredProducts
 import com.vaiinilla.app.ui.order.isSelectedProductValid
+import com.vaiinilla.app.ui.order.menuNotice
+import com.vaiinilla.app.ui.order.pickupTitle
 import com.vaiinilla.app.ui.order.selectedProduct
 import com.vaiinilla.app.ui.order.selectedProductPreviewPrice
 import com.vaiinilla.app.ui.order.selectedProductPreviewTotal
@@ -133,7 +134,6 @@ fun CatalogScreen(
     onQuantityChange: (Int) -> Unit,
     onAddProduct: () -> Unit,
     onOpenTracking: () -> Unit = {},
-    onDeleteOrder: (String) -> Unit = {},
     onOpenWallet: () -> Unit = {},
     onChangeVenue: () -> Unit = {},
     onOpenModes: (() -> Unit)? = null,
@@ -181,7 +181,6 @@ fun CatalogScreen(
                 onQuantityChange = onQuantityChange,
                 onAddProduct = onAddProduct,
                 onOpenTracking = onOpenTracking,
-                onDeleteOrder = onDeleteOrder,
                 onOpenWallet = onOpenWallet,
                 onChangeVenue = onChangeVenue,
                 onOpenModes = onOpenModes,
@@ -336,7 +335,6 @@ private fun CatalogContent(
     onQuantityChange: (Int) -> Unit,
     onAddProduct: () -> Unit,
     onOpenTracking: () -> Unit,
-    onDeleteOrder: (String) -> Unit,
     onOpenWallet: () -> Unit,
     onChangeVenue: () -> Unit,
     onOpenModes: (() -> Unit)?,
@@ -436,6 +434,24 @@ private fun CatalogContent(
                             onOpenFeed = onOpenFeed,
                         )
                     }
+                    state.menuNotice?.let { notice ->
+                        item(key = "closed-notice", span = { GridItemSpan(maxLineSpan) }) {
+                            Text(
+                                notice,
+                                color = colors.ink,
+                                fontSize = 13.sp,
+                                lineHeight = 18.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(colors.paper2)
+                                        .border(1.dp, colors.coral.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                                        .padding(14.dp),
+                            )
+                        }
+                    }
                     // Las categorías se quedan arriba al bajar por el menú: cambiar de sección no obliga a regresar.
                     stickyHeader(key = "categories") {
                         CategoryChips(
@@ -456,19 +472,14 @@ private fun CatalogContent(
                             key = "active-order-${order.summary.id}",
                             span = { GridItemSpan(maxLineSpan) },
                         ) {
-                            SwipeToDeleteOrder(
-                                orderFolio = order.summary.folio.toString(),
-                                onDelete = { onDeleteOrder(order.summary.id) },
+                            ActiveOrderBanner(
+                                folio = order.summary.folio.toString(),
+                                statusLabel = pickupTitle(order),
+                                itemCount = order.items.sumOf { it.quantity },
+                                destination = order.summary.destination.label,
                                 modifier = Modifier.padding(bottom = 4.dp),
-                            ) {
-                                ActiveOrderBanner(
-                                    folio = order.summary.folio.toString(),
-                                    statusLabel = order.summary.state.label,
-                                    itemCount = order.items.sumOf { it.quantity },
-                                    destination = order.summary.destination.label,
-                                    onClick = onOpenTracking,
-                                )
-                            }
+                                onClick = onOpenTracking,
+                            )
                         }
                     }
 

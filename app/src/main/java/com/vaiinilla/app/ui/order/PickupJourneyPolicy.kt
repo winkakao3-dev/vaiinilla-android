@@ -81,7 +81,13 @@ internal fun pickupHint(
     val state = order.summary.state
     val toSpace = order.summary.destination == OrderDestination.IN_SPACE
     return when {
-        order.cashPending() -> "Muestra tu código en Caja para pagar."
+        // El código de efectivo solo vive en el dispositivo donde se hizo el pedido: en otro, el folio basta.
+        order.cashPending() ->
+            if (order.pickupToken.isNullOrBlank()) {
+                "Di en Caja el folio ${order.summary.folio} para pagar."
+            } else {
+                "Muestra tu código en Caja para pagar."
+            }
         toSpace && state == OrderState.READY -> "Ya va en camino a ${order.spaceName()}."
         toSpace && (state == OrderState.PAID || state == OrderState.PREPARING) -> "Te lo llevan a ${order.spaceName()}."
         state == OrderState.PENDING_PAYMENT -> "Estamos confirmando tu pago."

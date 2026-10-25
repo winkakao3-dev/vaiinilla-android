@@ -48,6 +48,9 @@ class BuildCreateOrderRequestUseCase
         }
     }
 
+/** Largo máximo de `notas_cocina` que acepta el servidor. */
+const val KITCHEN_NOTES_MAX = 500
+
 /** Resumen por línea como lo lee cocina: "Burrito: sin cebolla · Agua: sin hielo". Omite líneas sin nota. */
 internal fun kitchenLineNotesSummary(namesAndNotes: List<Pair<String, String>>): String =
     namesAndNotes

@@ -78,10 +78,14 @@ class OrderContractJson
             val envelope = json.decodeFromString<OrderDetailEnvelopeDto>(raw)
             requireEnvelopeSuccess(envelope.error)
             val order = envelope.data.toDomain()
+            // El pedido ya existe en el servidor: si la sesión de pago no es utilizable no se tira la respuesta
+            // (reintentar crearía un pedido duplicado). Queda sin sesión y la persona reintenta el pago (PAGO-11).
             val session =
                 if (order.summary.paymentMethod == PaymentMethod.STRIPE) {
-                    requireNotNull(envelope.data.payment) { "Stripe order missing pago" }
-                        .toStripeSession(expectedTotalCents = orderTotalToCents(envelope.data.total))
+                    runCatching {
+                        requireNotNull(envelope.data.payment) { "Stripe order missing pago" }
+                            .toStripeSession(expectedTotalCents = orderTotalToCents(envelope.data.total))
+                    }.getOrNull()
                 } else {
                     null
                 }
@@ -97,15 +101,19 @@ class OrderContractJson
         fun parseOrderList(raw: String): List<OrderDetail> {
             val envelope = json.decodeFromString<OrderListEnvelopeDto>(raw)
             requireEnvelopeSuccess(envelope.error)
-            return envelope.data.map { it.toDomain() }
+            return envelope.data.mapNotNull(::toDomainOrNull)
         }
+
+        // Un pedido con un estado o método que esta versión no conoce se omite; romper la lista entera dejaba al
+        // cliente sin ver ninguno (PEDIDO-18).
+        private fun toDomainOrNull(dto: OrderDetailDto): OrderDetail? = runCatching { dto.toDomain() }.getOrNull()
 
         /** Una página del listado de pedidos con el cursor de la siguiente (null en la última). */
         fun parseOrderListPage(raw: String): OrderListPage {
             val envelope = json.decodeFromString<OrderListEnvelopeDto>(raw)
             requireEnvelopeSuccess(envelope.error)
             return OrderListPage(
-                orders = envelope.data.map { it.toDomain() },
+                orders = envelope.data.mapNotNull(::toDomainOrNull),
                 nextCursor = envelope.meta.cursor?.takeIf { it.isNotBlank() },
             )
         }

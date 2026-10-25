@@ -128,6 +128,9 @@ data class OrderDetailDto(
     val id: String,
     val folio: Int,
     @SerialName("fecha_operativa") val operationalDate: String,
+    /** Día y franja de un pedido apartado para después (padres e hijos); nulos en un pedido para ahora. */
+    @SerialName("fecha_entrega") val deliveryDate: String? = null,
+    @SerialName("franja_entrega") val deliverySlot: String? = null,
     @SerialName("estado") val state: String,
     @SerialName("metodo_pago") val paymentMethod: String,
     @SerialName("destino") val destination: String,

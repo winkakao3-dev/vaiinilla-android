@@ -66,9 +66,7 @@ enum class PreparationStation(
     ;
 
     companion object {
-        fun fromWireValue(value: String): PreparationStation =
-            entries.firstOrNull {
-                it.wireValue == value
-            } ?: throw IllegalArgumentException("estacion_preparacion no soportada: $value")
+        /** Una estación nueva no rompe el menú entero: el producto se trata como de cocina. */
+        fun fromWireValue(value: String): PreparationStation = entries.firstOrNull { it.wireValue == value } ?: KITCHEN
     }
 }

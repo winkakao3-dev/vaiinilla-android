@@ -315,10 +315,22 @@ fun AppNavHost(
                 orderId = event.orderId,
                 folio = event.folio,
                 newState = event.newState,
+                inSpace = event.inSpace,
             )
             // Pagar, cancelar o devolver mueve el saldo: no se espera a que el dato envejezca.
             walletViewModel.invalidate()
             walletViewModel.refreshIfStale(latestVenueId)
+        }
+    }
+    // El pago de una renta crea un pedido: se sigue en la confirmación (hoja de tarjeta, folio para pagar en caja o
+    // compra ya pagada con saldo). Si la persona ya salió de Reservas, el pedido se adopta y no se le arrastra.
+    LaunchedEffect(Unit) {
+        reservationsViewModel.paidOrderEvents.collect { order ->
+            orderFlowViewModel.adoptReservationOrder(order)
+            orderFlowViewModel.refreshRentedCourt()
+            if (navController.currentDestination?.route == Routes.RESERVATIONS) {
+                navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
+            }
         }
     }
     // Se pregunta una sola vez por proceso: con "no volver a preguntar" Android ya no abre el diálogo, así que
@@ -434,9 +446,16 @@ fun AppNavHost(
         delay(ENTRANCE_TIMEOUT_MS)
         if (!entranceEntered) entranceTimedOut = true
     }
+    // Con el lugar ya abierto el menú puede tardar en cargar: pasado el mismo plazo la puerta se abre y el menú
+    // muestra su propia carga o su error, en vez de tapar la pantalla sin salida (COMPRA-21).
+    LaunchedEffect(entrance?.id, entranceEntered) {
+        if (entrance == null || !entranceEntered) return@LaunchedEffect
+        delay(ENTRANCE_TIMEOUT_MS)
+        entranceTimedOut = true
+    }
     val entranceOutcome =
         when {
-            entranceEntered && orderState.loading -> StoreEntranceOutcome.WAITING
+            entranceEntered && orderState.loading && !entranceTimedOut -> StoreEntranceOutcome.WAITING
             entranceEntered -> StoreEntranceOutcome.READY
             entranceTimedOut -> StoreEntranceOutcome.FAILED
             discoveryState.resolving -> StoreEntranceOutcome.WAITING
@@ -624,7 +643,14 @@ fun AppNavHost(
         }
     }
 
-    val activeOrder = orderState.createdOrder ?: operationalState.menuOrder
+    // El pedido recién creado conserva el estado con que nació; la lista del sondeo trae el vigente. Un pedido
+    // cerrado ya no es "activo" (PEDIDO-08).
+    val activeOrder =
+        (
+            orderState.createdOrder?.let { created ->
+                operationalState.orders.firstOrNull { it.summary.id == created.summary.id } ?: created
+            } ?: operationalState.menuOrder
+        )?.takeUnless { it.summary.state.isClosed }
 
     fun dismissClientOrder(orderId: String) {
         operationalViewModel.dismissClientOrder(orderId)
@@ -948,6 +974,7 @@ fun AppNavHost(
                     onEnableNearby = discoveryViewModel::enableNearby,
                     onNearbyPermissionDenied = discoveryViewModel::onNearbyPermissionDenied,
                     onDisableNearby = discoveryViewModel::disableNearby,
+                    onLoadMore = discoveryViewModel::loadMore,
                     onOpenSchool = { school ->
                         startEntrance(null)
                         discoveryViewModel.openSchool(school, onEntered = ::enterVenueAndOpenCatalog)
@@ -1045,7 +1072,6 @@ fun AppNavHost(
                     onQuantityChange = orderFlowViewModel::changeSelectedQuantity,
                     onAddProduct = orderFlowViewModel::addSelectedProductToCart,
                     onOpenTracking = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
-                    onDeleteOrder = ::dismissClientOrder,
                     onOpenWallet = { navController.navigateStudent(Routes.WALLET) },
                     onChangeVenue = {
                         navController.navigate(Routes.DISCOVERY) {
@@ -1171,15 +1197,6 @@ fun AppNavHost(
                         )
                     }
                     onDispose { reservationsViewModel.onHidden() }
-                }
-                // El pago crea un pedido de renta: se sigue en la confirmación de pedido
-                // (hoja de tarjeta, folio para pagar en caja o compra ya pagada con saldo).
-                LaunchedEffect(reservationsState.paidOrder) {
-                    val order = reservationsState.paidOrder ?: return@LaunchedEffect
-                    reservationsViewModel.consumePaidOrder()
-                    orderFlowViewModel.adoptReservationOrder(order)
-                    orderFlowViewModel.refreshRentedCourt()
-                    navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
                 }
                 ReservationsScreen(
                     state = reservationsState,
@@ -1815,11 +1832,18 @@ fun AppNavHost(
                     ),
             ) { entry ->
                 val styleIndex = entry.arguments?.getInt("style") ?: 0
-                ReceiptStickerScreen(
-                    order = orderState.createdOrder ?: operationalState.selectedOrder ?: orderState.stripeObservedOrder,
-                    onBack = { navController.popBackStack() },
-                    initialStyleIndex = styleIndex,
-                )
+                val receiptOrder =
+                    orderState.createdOrder ?: operationalState.selectedOrder ?: orderState.stripeObservedOrder
+                if (receiptOrder == null) {
+                    // El pedido se descartó con el recibo abierto: sin pedido no hay recibo que dibujar.
+                    LaunchedEffect(Unit) { navController.popBackStack() }
+                } else {
+                    ReceiptStickerScreen(
+                        order = receiptOrder,
+                        onBack = { navController.popBackStack() },
+                        initialStyleIndex = styleIndex,
+                    )
+                }
             }
 
             composable(Routes.STUDENT_TRACKING) {

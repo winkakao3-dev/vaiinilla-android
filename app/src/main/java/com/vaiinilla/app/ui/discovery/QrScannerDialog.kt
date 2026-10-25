@@ -67,6 +67,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
@@ -109,6 +111,11 @@ fun QrScannerDialog(
     LaunchedEffect(Unit) {
         if (!permissionGranted) permissionLauncher.launch(Manifest.permission.CAMERA)
     }
+    // Quien activa la cámara en Ajustes y vuelve no debe seguir viendo el aviso de permiso (COMPRA-14).
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        permissionGranted =
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+    }
 
     val systemBars = rememberHostSystemBars()
 
@@ -146,6 +153,11 @@ fun QrScannerDialog(
                         onClick = { cameraError = null },
                         modifier = Modifier.padding(top = 20.dp),
                     )
+                    alternative?.let { alt ->
+                        TextButton(onClick = alt.onClick) {
+                            Text(alt.label, color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
                     EditorialSecondaryButton(
                         text = "Cerrar",
                         onClick = onClose,

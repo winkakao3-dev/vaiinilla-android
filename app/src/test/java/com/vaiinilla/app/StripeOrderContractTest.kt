@@ -82,15 +82,12 @@ class StripeOrderContractTest {
         // Dev exige pk_test_ y prod exige pk_live_: ninguna variante acepta la llave del otro modo.
         val mismatched = stripeCreatedEnvelope().replace(stripePublishableKey, otherModePublishableKey)
 
-        val result = runCatching { json.parseCreatedOrder(mismatched) }
+        val created = json.parseCreatedOrder(mismatched)
 
-        assertTrue(result.isFailure)
+        assertNull(created.stripeSession)
         assertTrue(
-            result
-                .exceptionOrNull()
-                ?.message
-                .orEmpty()
-                .contains("Mode for this build"),
+            created.order.summary.id
+                .isNotBlank(),
         )
     }
 
@@ -133,15 +130,12 @@ class StripeOrderContractTest {
                     "\"payment_status\": \"pendiente_pago\", \"amount_cents\": 9999, \"currency\": \"mxn\"",
                 )
 
-        val result = runCatching { json.parseCreatedOrder(envelope) }
+        val created = json.parseCreatedOrder(envelope)
 
-        assertTrue(result.isFailure)
+        assertNull(created.stripeSession)
         assertTrue(
-            result
-                .exceptionOrNull()
-                ?.message
-                .orEmpty()
-                .contains("does not match"),
+            created.order.summary.id
+                .isNotBlank(),
         )
     }
 
@@ -154,15 +148,12 @@ class StripeOrderContractTest {
                     "\"payment_status\": \"pendiente_pago\", \"amount_cents\": 6200, \"currency\": \"usd\"",
                 )
 
-        val result = runCatching { json.parseCreatedOrder(envelope) }
+        val created = json.parseCreatedOrder(envelope)
 
-        assertTrue(result.isFailure)
+        assertNull(created.stripeSession)
         assertTrue(
-            result
-                .exceptionOrNull()
-                ?.message
-                .orEmpty()
-                .contains("must be mxn"),
+            created.order.summary.id
+                .isNotBlank(),
         )
     }
 
