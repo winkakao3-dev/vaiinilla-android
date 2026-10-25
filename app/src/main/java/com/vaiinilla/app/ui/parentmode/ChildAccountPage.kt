@@ -62,6 +62,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.vaiinilla.app.domain.guardianship.ChildMovement
 import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.domain.guardianship.ScheduledOrder
@@ -72,6 +75,7 @@ import com.vaiinilla.app.domain.guardianship.compactMoney
 import com.vaiinilla.app.ui.components.GlassCircleButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ToastPill
+import com.vaiinilla.app.ui.components.minTouchTarget
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.screens.LocalScene
@@ -85,6 +89,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalDateTime
+
+/** Cada cuánto pregunta la ficha por una solicitud que espera a la escuela. */
+private const val REQUESTS_POLL_MS = 20_000L
 
 private enum class ChildSheet { RELOAD, CONTROLS, WEEK, OWN_ACCOUNT, GUARDIAN_CODE, REFUND, DATA_REMOVAL, PIN }
 
@@ -123,6 +130,17 @@ internal fun ChildAccountContent(
             val updated = state.child.copy(balance = liveBalance)
             state.updateChild(updated)
             onChildChanged(updated)
+        }
+    }
+    // Con una devolución o baja esperando a la escuela, la ficha pregunta de vez en cuando (solo a la vista).
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(state, state.hasPendingRequest) {
+        if (!state.hasPendingRequest) return@LaunchedEffect
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (state.hasPendingRequest) {
+                delay(REQUESTS_POLL_MS)
+                state.refreshRequests()
+            }
         }
     }
     LaunchedEffect(state.notice) {
@@ -201,7 +219,7 @@ internal fun ChildAccountContent(
                                             top = 6.dp,
                                         ).physicalPress(scale = PhysicalPressScale.Small) {
                                             scope.launch { state.load() }
-                                        },
+                                        }.minTouchTarget(),
                             )
                         }
                     }
@@ -230,7 +248,7 @@ internal fun ChildAccountContent(
                                         .padding(top = 6.dp)
                                         .physicalPress(scale = PhysicalPressScale.Small) {
                                             scope.launch { state.refreshScheduled() }
-                                        },
+                                        }.minTouchTarget(),
                             )
                         }
                     }
@@ -601,6 +619,7 @@ private fun ScheduledRow(
                                 Modifier
                                     .padding(top = 6.dp)
                                     .physicalPress(scale = PhysicalPressScale.Small, onClick = onCancel)
+                                    .minTouchTarget()
                                     .semantics { contentDescription = "Cancelar lo apartado para $label" },
                         )
                 }

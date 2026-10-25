@@ -25,4 +25,13 @@ class JwtContextEstablishmentTest {
         assertFalse(JwtContextScope.isContextFor(" ", "escuela"))
         assertTrue(JwtContextScope.isContextFor("opaco", "escuela"))
     }
+
+    @Test
+    fun unTokenDePersonalNoSirveParaPagarComoCliente() {
+        val caja = jwt("""{"uid":"u","rol":"caja","establecimiento_id":"cafe","membresia_id":"m"}""")
+        val cliente = jwt("""{"uid":"u","rol":"cliente","establecimiento_id":"cafe","membresia_id":"m"}""")
+        assertFalse(JwtContextScope.isClientToken(caja))
+        assertTrue(JwtContextScope.isClientToken(cliente))
+        assertTrue(JwtContextScope.isClientToken("opaco"))
+    }
 }

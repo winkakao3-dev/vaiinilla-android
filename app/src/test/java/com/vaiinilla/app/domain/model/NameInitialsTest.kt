@@ -22,6 +22,6 @@ class NameInitialsTest {
         assertEquals("\$1,000", compactMoney(BigDecimal("1000.00")))
         assertEquals("\$999.50", compactMoney(BigDecimal("999.5")))
         assertEquals("\$0", compactMoney(BigDecimal.ZERO))
-        assertEquals("\$-1,200", compactMoney(BigDecimal("-1200")))
+        assertEquals("-\$1,200", compactMoney(BigDecimal("-1200")))
     }
 }

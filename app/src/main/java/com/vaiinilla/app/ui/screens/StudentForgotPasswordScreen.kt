@@ -83,13 +83,13 @@ fun StudentForgotPasswordScreen(
                 item {
                     EditorialAccentButton(
                         text =
-                            if (state.resendLockedUntilMs > System.currentTimeMillis()) {
+                            if (state.resetLockedUntilMs > System.currentTimeMillis()) {
                                 "Enviar enlace (espera)"
                             } else {
                                 "Enviar enlace"
                             },
                         onClick = onSendReset,
-                        enabled = !state.loading && state.resendLockedUntilMs <= System.currentTimeMillis(),
+                        enabled = !state.loading && state.resetLockedUntilMs <= System.currentTimeMillis(),
                     )
                 }
                 item {

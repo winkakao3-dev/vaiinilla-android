@@ -52,6 +52,7 @@ import com.vaiinilla.app.domain.model.WalletClient
 import com.vaiinilla.app.domain.model.WalletReloadReceipt
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.RollingText
+import com.vaiinilla.app.ui.components.minTouchTarget
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -366,7 +367,8 @@ private fun AmountStep(
             modifier =
                 Modifier
                     .physicalPress(scale = PhysicalPressScale.Small, onClick = onChangeClient)
-                    .padding(horizontal = 8.dp, vertical = 10.dp),
+                    .padding(horizontal = 8.dp, vertical = 10.dp)
+                    .minTouchTarget(),
         )
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {

@@ -31,6 +31,7 @@ data class StudentAuthUiState(
     val clientIdLabel: String = "Identificador",
     val clientIdRequired: Boolean = false,
     val resendLockedUntilMs: Long = 0L,
+    val resetLockedUntilMs: Long = 0L,
     val mfaChallenge: StudentAuthMfaChallenge? = null,
     val mfaCode: String = "",
     val mfaFactorUid: String? = null,

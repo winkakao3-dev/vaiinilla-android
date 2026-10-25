@@ -71,6 +71,7 @@ import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.domain.guardianship.compactMoney
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.SkeletonBlock
+import com.vaiinilla.app.ui.components.minTouchTarget
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
@@ -434,7 +435,8 @@ private fun QuietRow(
                 .fillMaxWidth()
                 .testTag(tag)
                 .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
-                .padding(vertical = 10.dp),
+                .padding(vertical = 10.dp)
+                .minTouchTarget(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, contentDescription = null, tint = colors.muted, modifier = Modifier.size(16.dp))
@@ -489,9 +491,11 @@ private fun ChildrenList(
                 fontWeight = FontWeight.Black,
                 fontSize = 15.sp,
                 modifier =
-                    Modifier.physicalPress(
-                        scale = PhysicalPressScale.Small,
-                    ) { scope.launch { children.load() } },
+                    Modifier
+                        .physicalPress(
+                            scale = PhysicalPressScale.Small,
+                        ) { scope.launch { children.load() } }
+                        .minTouchTarget(),
             )
         }
         else -> {

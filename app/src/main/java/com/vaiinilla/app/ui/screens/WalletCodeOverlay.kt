@@ -250,7 +250,7 @@ private fun WalletCodeChrome(
                 Modifier
                     .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .size(42.dp)
+                    .size(48.dp)
                     .graphicsLayer {
                         val scale = 0.6f + 0.4f * button
                         scaleX = scale

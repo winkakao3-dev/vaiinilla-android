@@ -91,6 +91,7 @@ class OperationalViewModel
         val uiState: State<OperationalUiState> = _uiState
 
         private var pollingJob: Job? = null
+        private var appVisible = true
         private var lastUpdatedSince: String? = null
         private var roleGeneration: Long = 0
         private var dismissedClientOrderIds: Set<String> = dismissedClientOrdersStore.read()
@@ -1161,8 +1162,28 @@ class OperationalViewModel
             }
         }
 
+        /** La app pasó a segundo plano: sin nadie mirando, el sondeo de 5 s solo gasta batería y datos. */
+        fun onAppHidden() {
+            appVisible = false
+            pollingJob?.cancel()
+            pollingJob = null
+        }
+
+        fun onAppVisible() {
+            if (appVisible) return
+            appVisible = true
+            val role = _uiState.value.role ?: return
+            if (role == OperationalRole.ADMIN) return
+            refresh()
+            startPolling()
+        }
+
         private fun startPolling() {
             pollingJob?.cancel()
+            if (!appVisible) {
+                pollingJob = null
+                return
+            }
             pollingJob =
                 viewModelScope.launch {
                     while (isActive) {

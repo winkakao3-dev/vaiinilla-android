@@ -10,6 +10,7 @@ import java.util.Base64
 
 internal object JwtContextScope {
     private val json = Json
+    private const val CLIENT_ROLE = "cliente"
 
     /** El negocio del contexto, o `null` si el token no lo dice. */
     fun establishmentId(token: String): String? =
@@ -23,6 +24,15 @@ internal object JwtContextScope {
         if (token.isNullOrBlank()) return false
         val tokenEstablishment = establishmentId(token) ?: return true
         return tokenEstablishment == establishmentId
+    }
+
+    /**
+     * El token sirve para actuar como cliente: dice rol cliente, o no dice rol (uno opaco se da por bueno,
+     * como en [isContextFor]). Un JWT de personal que sigue guardado no cuenta como sesión para pagar.
+     */
+    fun isClientToken(token: String): Boolean {
+        val role = claims(token)?.textClaim("rol") ?: return true
+        return role == CLIENT_ROLE
     }
 
     private fun claims(token: String): JsonObject? {

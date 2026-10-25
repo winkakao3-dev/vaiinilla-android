@@ -12,6 +12,7 @@ import com.vaiinilla.app.domain.guardianship.GuardianshipException
 import com.vaiinilla.app.domain.guardianship.OrderSchedule
 import com.vaiinilla.app.domain.guardianship.ScheduledOrder
 import com.vaiinilla.app.domain.guardianship.StudentRequest
+import com.vaiinilla.app.domain.guardianship.StudentRequestStatus
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -122,6 +123,27 @@ class ChildAccountState(
     private suspend fun loadRequests() {
         if (!child.isPrincipal) return
         withContext(io) { services.guardianship.studentRequests(child.userId) }.onSuccess { requests = it }
+    }
+
+    /** Hay una solicitud esperando a la escuela: la ficha la vigila para enseñar el resultado sin salir y entrar. */
+    val hasPendingRequest: Boolean get() = requests.any { it.status == StudentRequestStatus.PENDING }
+
+    /**
+     * Pregunta cómo van las solicitudes. Si una pendiente ya se resolvió, la escuela movió el saldo (una
+     * devolución lo vacía): se refresca también la cartera y lo apartado (CARTERA-30).
+     */
+    suspend fun refreshRequests() {
+        if (!child.isPrincipal) return
+        val pendingBefore = requests.filter { it.status == StudentRequestStatus.PENDING }.map { it.id }.toSet()
+        withContext(io) { services.guardianship.studentRequests(child.userId) }
+            .onSuccess { latest ->
+                requests = latest
+                val settled = latest.any { it.id in pendingBefore && it.status != StudentRequestStatus.PENDING }
+                if (settled) {
+                    refreshWallet()
+                    refreshScheduled()
+                }
+            }.onFailure { if (it.isAccessLost()) accessLost = true }
     }
 
     fun didSend(request: StudentRequest) {
