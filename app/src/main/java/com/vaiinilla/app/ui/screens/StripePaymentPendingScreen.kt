@@ -53,6 +53,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
@@ -60,6 +61,7 @@ import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.order.STRIPE_ABANDON_VISIBLE_AFTER_MS
 import com.vaiinilla.app.ui.order.StripePaymentPhase
 import com.vaiinilla.app.ui.order.canShowStripeAbandon
+import com.vaiinilla.app.ui.order.orderCancellationNotice
 import kotlinx.coroutines.delay
 
 private val StripeBg = Color(0xFF0D0D0D)
@@ -70,6 +72,7 @@ private val StripeLine = Color(0x42F3EFE4)
 private val StripeLime = Color(0xFFB7D464)
 private val StripeLimeInk = Color(0xFF172008)
 private val StripeCoral = Color(0xFFFF8F77)
+private const val ORDER_CLOSED_BODY = "Este pedido ya no sigue. Si se hizo algún cargo, se te reembolsa."
 
 @Composable
 fun StripePaymentPendingScreen(
@@ -88,15 +91,19 @@ fun StripePaymentPendingScreen(
     var abandonConfirmOpen by remember { mutableStateOf(false) }
     var abandonElapsedMs by remember { mutableStateOf(0L) }
     val reduceMotion = reducedMotion()
+    // Si el servidor ya cerró el pedido (cancelado por el staff, expirado), la fase local del pago no manda (PAGO-05).
+    val orderClosed = order.summary.state.isTerminalWithoutDelivery
+    val shownPhase = if (orderClosed) StripePaymentPhase.CANCELED else phase
     val waiting =
-        phase in
+        !orderClosed &&
+            phase in
             setOf(
                 StripePaymentPhase.READY,
                 StripePaymentPhase.PRESENTING,
                 StripePaymentPhase.PENDING,
                 StripePaymentPhase.PROCESSING_CONFIRMATION,
             )
-    val timedOut = phase == StripePaymentPhase.TIMED_OUT
+    val timedOut = !orderClosed && phase == StripePaymentPhase.TIMED_OUT
     val stripeStuck = waiting || timedOut
     LaunchedEffect(stripeStuck, abandonVisibleAfterMs) {
         abandonElapsedMs = 0L
@@ -114,15 +121,25 @@ fun StripePaymentPendingScreen(
             isStuck = stripeStuck,
             visibleAfterMs = abandonVisibleAfterMs,
         )
-    val failed = phase == StripePaymentPhase.FAILED
-    val canceled = phase == StripePaymentPhase.CANCELED
-    val confirmed = phase == StripePaymentPhase.CONFIRMED
+    val failed = !orderClosed && phase == StripePaymentPhase.FAILED
+    val canceled = !orderClosed && phase == StripePaymentPhase.CANCELED
+    val confirmed = !orderClosed && phase == StripePaymentPhase.CONFIRMED
+    val closedNotice = if (orderClosed) orderCancellationNotice(order) else null
     BackHandler(enabled = failed || canceled) {
         if (!retrying) onReturnToCart()
     }
     val status = order.payment?.status
     val title =
         when {
+            orderClosed ->
+                closedNotice?.title
+                    ?: when (order.summary.state) {
+                        OrderState.EXPIRED -> "Pedido expirado"
+                        OrderState.NOT_PICKED_UP -> "Pedido no recogido"
+                        else -> "Pedido cancelado"
+                    }
+            phase == StripePaymentPhase.REFUNDING -> "Reembolso en proceso"
+            phase == StripePaymentPhase.REFUNDED -> "Pago reembolsado"
             confirmed -> "Pago confirmado"
             failed -> "Pago no completado"
             canceled -> "Pago cancelado"
@@ -135,7 +152,7 @@ fun StripePaymentPendingScreen(
             else -> "Confirmando tu pago"
         }
     val body =
-        message
+        (if (orderClosed) closedNotice?.reason ?: ORDER_CLOSED_BODY else message)
             ?: when {
                 phase == StripePaymentPhase.READY -> "Estamos preparando el pago seguro."
                 phase == StripePaymentPhase.PRESENTING -> "Termina el pago en la ventana de Stripe."
@@ -201,7 +218,7 @@ fun StripePaymentPendingScreen(
                 verticalArrangement = Arrangement.Center,
             ) {
                 Crossfade(
-                    targetState = phase,
+                    targetState = shownPhase,
                     animationSpec = tween(durationMillis = if (reduceMotion) 0 else 180),
                     label = "stripe-payment-status-transition",
                 ) {
@@ -305,7 +322,7 @@ fun StripePaymentPendingScreen(
                     ) {
                         Column {
                             Text(
-                                "Total a pagar",
+                                if (waiting || timedOut || failed || canceled) "Total a pagar" else "Total del pedido",
                                 color = StripeMuted,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
@@ -333,7 +350,13 @@ fun StripePaymentPendingScreen(
                         StripeActionButton(
                             label = "Actualizar estado",
                             onClick = onRefresh,
-                            enabled = !abandoning,
+                            enabled = !abandoning && !retrying,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        StripeSecondaryAction(
+                            label = if (retrying) "Preparando pago…" else "Reintentar pago",
+                            onClick = onRetry,
+                            enabled = !abandoning && !retrying,
                         )
                     }
                     failed || canceled -> {
@@ -368,7 +391,7 @@ fun StripePaymentPendingScreen(
                 if (showAbandon) {
                     Spacer(Modifier.height(10.dp))
                     StripeSecondaryAction(
-                        label = if (abandoning) "Cancelando…" else "Cancelar pedido",
+                        label = if (abandoning) "Saliendo…" else "Salir del pago",
                         onClick = { abandonConfirmOpen = true },
                         enabled = !abandoning,
                     )

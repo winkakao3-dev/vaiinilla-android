@@ -1,8 +1,10 @@
 package com.vaiinilla.app.ui.order
 
 import com.vaiinilla.app.domain.model.CartLine
+import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -61,5 +63,33 @@ class OrderFlowBalanceTest {
         assertTrue(state.isBalancePaymentAffordable(null))
         assertTrue(state.isBalancePaymentAffordable(""))
         assertTrue(state.isBalancePaymentAffordable("no-es-numero"))
+    }
+
+    private fun commissionedState(): OrderFlowUiState =
+        OrderFlowUiState(
+            cartLines =
+                listOf(
+                    CartLine(
+                        product = productWithDigitalPrice("100.00").copy(digitalPrice = "104.50"),
+                        quantity = 2,
+                        selectedOptionIds = emptySet(),
+                    ),
+                ),
+        )
+
+    @Test
+    fun `cash and balance charge the counter price while the card keeps the digital one`() {
+        val state = commissionedState()
+
+        assertEquals("200.00", state.cartTotalFor(PaymentMethod.CASH))
+        assertEquals("200.00", state.cartTotalFor(PaymentMethod.BALANCE))
+        assertEquals("209.00", state.cartTotalFor(PaymentMethod.STRIPE))
+        assertEquals("200.00", state.copy(checkoutPayment = PaymentMethod.CASH).checkoutTotal)
+    }
+
+    @Test
+    fun `balance that covers the counter total is affordable even if the digital total is higher`() {
+        assertTrue(commissionedState().isBalancePaymentAffordable("200.00"))
+        assertFalse(commissionedState().isBalancePaymentAffordable("199.99"))
     }
 }

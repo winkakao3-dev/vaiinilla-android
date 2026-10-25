@@ -129,9 +129,10 @@ import com.vaiinilla.app.ui.order.canCreateOrder
 import com.vaiinilla.app.ui.order.canPayAtEnd
 import com.vaiinilla.app.ui.order.canPayWithBalance
 import com.vaiinilla.app.ui.order.canPayWithCard
-import com.vaiinilla.app.ui.order.cartPreviewTotal
+import com.vaiinilla.app.ui.order.cartTotalFor
 import com.vaiinilla.app.ui.order.checkoutSpace
 import com.vaiinilla.app.ui.order.checkoutSpaces
+import com.vaiinilla.app.ui.order.checkoutTotal
 import com.vaiinilla.app.ui.order.hasUnresolvedStripePayment
 import com.vaiinilla.app.ui.order.isBalancePaymentAffordable
 import com.vaiinilla.app.ui.order.operationalBlockerMessage
@@ -194,12 +195,14 @@ fun CartScreen(
             state.cartLines.isNotEmpty() &&
                 !state.creatingOrder &&
                 !preparingCheckout &&
-                !state.hasUnresolvedStripePayment
+                !state.hasUnresolvedStripePayment &&
+                state.unavailableCartKeys.isEmpty()
         } else {
             state.cartLines.isNotEmpty() &&
                 !state.creatingOrder &&
                 !preparingCheckout &&
                 !state.hasUnresolvedStripePayment &&
+                state.unavailableCartKeys.isEmpty() &&
                 (state.canCreateOrder || state.operationalStatus == null)
         }
 
@@ -250,7 +253,7 @@ fun CartScreen(
             CartCounterBackdrop(
                 sheetTop = sheetTop,
                 lines = state.cartLines,
-                totalLabel = if (state.cartLines.isEmpty()) null else moneyLabel(state.cartPreviewTotal),
+                totalLabel = if (state.cartLines.isEmpty()) null else moneyLabel(state.checkoutTotal),
             )
         }
         PullToRefreshBox(
@@ -314,6 +317,9 @@ fun CartScreen(
                             CartSectionHead("Pedido", productCountLabel)
                             CartItemsPanel(
                                 lines = state.cartLines,
+                                // El pedido ya salió con estas líneas: no se editan hasta que responda (COMPRA-04).
+                                editable = !state.creatingOrder,
+                                unavailableKeys = state.unavailableCartKeys,
                                 onQuantityChange = { lineKey, delta ->
                                     haptics.click()
                                     onQuantityChange(lineKey, delta)
@@ -406,6 +412,12 @@ fun CartScreen(
                                 )
                             }
                         }
+                        state.cartNotice?.let { notice ->
+                            item {
+                                Spacer(Modifier.height(12.dp))
+                                WarningBanner(message = notice)
+                            }
+                        }
                         state.createOrderError?.let { error ->
                             item {
                                 Spacer(Modifier.height(12.dp))
@@ -443,7 +455,7 @@ fun CartScreen(
                         CheckoutDockButton(
                             label = confirmLabel(guestAuthRequired),
                             subtitle = "$productCountLabel · $destinationLabel",
-                            price = moneyLabel(state.cartPreviewTotal),
+                            price = moneyLabel(state.checkoutTotal),
                             enabled = canConfirm,
                             loading = state.creatingOrder || preparingCheckout,
                             onClick = {
@@ -458,7 +470,7 @@ fun CartScreen(
 
             if (paymentDialogOpen) {
                 PaymentMethodOverlay(
-                    total = moneyLabel(state.cartPreviewTotal),
+                    totalFor = { method -> moneyLabel(state.cartTotalFor(method)) },
                     initialMethod = state.checkoutPayment,
                     initialPayAtEnd = state.checkoutPayAtEnd,
                     balanceAffordable = state.isBalancePaymentAffordable(walletBalance),
@@ -514,7 +526,7 @@ internal fun cartSceneWindow(lineCount: Int): Float = if (lineCount > 1) 0.3f el
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PaymentMethodOverlay(
-    total: String,
+    totalFor: (PaymentMethod) -> String,
     initialMethod: PaymentMethod,
     initialPayAtEnd: Boolean,
     balanceAffordable: Boolean,
@@ -695,7 +707,14 @@ private fun PaymentMethodOverlay(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
-                        text = paymentActionLabel(selectedMethod, payAtEndSelected, total),
+                        text =
+                            paymentActionLabel(
+                                selectedMethod,
+                                payAtEndSelected,
+                                totalFor(
+                                    selectedMethod ?: initialMethod,
+                                ),
+                            ),
                         color = if (hasSelection) colors.accentInk else colors.muted,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Black,
@@ -968,6 +987,8 @@ private fun confirmLabel(guestAuthRequired: Boolean): String =
 @Composable
 private fun CartItemsPanel(
     lines: List<CartLine>,
+    editable: Boolean,
+    unavailableKeys: Set<String>,
     onQuantityChange: (lineKey: String, delta: Int) -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -980,6 +1001,8 @@ private fun CartItemsPanel(
             lines.forEachIndexed { index, line ->
                 CartLineRow(
                     line = line,
+                    editable = editable,
+                    unavailable = line.key in unavailableKeys,
                     onMinus = { onQuantityChange(line.key, -1) },
                     onPlus = { onQuantityChange(line.key, 1) },
                 )
@@ -1000,6 +1023,8 @@ private fun CartItemsPanel(
 @Composable
 private fun CartLineRow(
     line: CartLine,
+    editable: Boolean,
+    unavailable: Boolean,
     onMinus: () -> Unit,
     onPlus: () -> Unit,
 ) {
@@ -1053,6 +1078,20 @@ private fun CartLineRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (unavailable) {
+                Text(
+                    "Ya no está disponible · quítalo para pagar",
+                    color = colors.ink,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier =
+                        Modifier
+                            .padding(top = 4.dp)
+                            .background(colors.coral.copy(alpha = 0.28f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
+                )
+            }
             if (line.notes.isNotEmpty()) {
                 Text(
                     "Nota: ${line.notes}",
@@ -1090,6 +1129,7 @@ private fun CartLineRow(
         }
         QuantityStepper(
             quantity = line.quantity,
+            enabled = editable,
             onMinus = onMinus,
             onPlus = onPlus,
         )
@@ -1099,6 +1139,7 @@ private fun CartLineRow(
 @Composable
 private fun QuantityStepper(
     quantity: Int,
+    enabled: Boolean,
     onMinus: () -> Unit,
     onPlus: () -> Unit,
 ) {
@@ -1109,13 +1150,14 @@ private fun QuantityStepper(
         shape = RoundedCornerShape(22.dp),
     ) {
         Row(
-            modifier = Modifier.height(44.dp).padding(horizontal = 4.dp),
+            modifier = Modifier.height(QUANTITY_BUTTON_SIZE),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             QuantityButton(
                 icon = Icons.Rounded.Remove,
                 description = "Quitar uno",
                 tint = foreground,
+                enabled = enabled,
                 onClick = onMinus,
             )
             AnimatedContent(
@@ -1137,13 +1179,14 @@ private fun QuantityStepper(
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.width(28.dp),
+                    modifier = Modifier.width(24.dp),
                 )
             }
             QuantityButton(
                 icon = Icons.Rounded.Add,
                 description = "Agregar uno",
                 tint = foreground,
+                enabled = enabled,
                 onClick = onPlus,
             )
         }
@@ -1155,19 +1198,28 @@ private fun QuantityButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     description: String,
     tint: androidx.compose.ui.graphics.Color,
+    enabled: Boolean,
     onClick: () -> Unit,
 ) {
     Box(
         modifier =
             Modifier
-                .size(38.dp)
+                .size(QUANTITY_BUTTON_SIZE)
                 .clip(CircleShape)
-                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick),
+                .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = description, tint = tint, modifier = Modifier.size(18.dp))
+        Icon(
+            icon,
+            contentDescription = description,
+            tint = if (enabled) tint else tint.copy(alpha = 0.38f),
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
+
+/** Área de toque mínima de Quitar y Agregar (BOT-04). */
+private val QUANTITY_BUTTON_SIZE = 48.dp
 
 @Composable
 private fun GuestNameField(
@@ -1373,7 +1425,7 @@ private fun OrderSummaryCard(state: OrderFlowUiState) {
                     lineHeight = 26.sp,
                 )
                 NumberTicker(
-                    value = state.cartPreviewTotal.toBigDecimalOrNull() ?: BigDecimal.ZERO,
+                    value = state.checkoutTotal.toBigDecimalOrNull() ?: BigDecimal.ZERO,
                     label = "cart-total-ticker",
                 ) { total ->
                     Text(
@@ -1388,7 +1440,7 @@ private fun OrderSummaryCard(state: OrderFlowUiState) {
             // El alumno con límite diario ve cuánto le queda hoy antes de pagar.
             dailyLimitLine(
                 LocalChildControls.current,
-                state.cartPreviewTotal.toBigDecimalOrNull() ?: BigDecimal.ZERO,
+                state.checkoutTotal.toBigDecimalOrNull() ?: BigDecimal.ZERO,
             )?.let {
                 Text(
                     it,

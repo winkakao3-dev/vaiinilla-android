@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import com.vaiinilla.app.domain.model.OrderPayment
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
@@ -155,11 +156,11 @@ class StripeCheckoutUiTest {
         composeTestRule.onNodeWithText("Procesando compra").assertIsDisplayed()
         composeTestRule.onAllNodesWithText("Reintentar pago").assertCountEquals(0)
         composeTestRule.onAllNodesWithText("Pasa a Caja").assertCountEquals(0)
-        composeTestRule.onAllNodesWithText("Cancelar pedido").assertCountEquals(0)
+        composeTestRule.onAllNodesWithText("Salir del pago").assertCountEquals(0)
     }
 
     @Test
-    fun `stuck Stripe can show cancel immediately when abandon delay is zero`() {
+    fun `stuck Stripe can show leave immediately when abandon delay is zero`() {
         val order =
             ScreenshotFixtures
                 .sampleOrder(
@@ -187,7 +188,7 @@ class StripeCheckoutUiTest {
         }
 
         composeTestRule.onNodeWithText("Procesando compra").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Cancelar pedido").assertExists()
+        composeTestRule.onNodeWithText("Salir del pago").assertExists()
     }
 
     @Test
@@ -299,5 +300,72 @@ class StripeCheckoutUiTest {
 
         composeTestRule.onNodeWithText("¡Compra confirmada!").assertIsDisplayed()
         composeTestRule.onNodeWithText("Tu pago fue autorizado y tu pedido ya está en marcha.").assertIsDisplayed()
+    }
+
+    @Test
+    fun `order closed by staff never offers a payment retry even with a stale local phase`() {
+        val order =
+            ScreenshotFixtures
+                .sampleOrder(
+                    state = OrderState.CANCELED,
+                    paymentMethod = PaymentMethod.STRIPE,
+                ).copy(
+                    payment =
+                        OrderPayment(
+                            paymentAttemptId = "attempt-1",
+                            paymentIntentId = "pi_test_001",
+                            stripeAccountId = "acct_test_001",
+                            status = StripePaymentStatus.CANCELED,
+                        ),
+                )
+
+        composeTestRule.setContent {
+            VaiinillaTheme {
+                OrderConfirmationScreen(
+                    order = order,
+                    onReturnToMenu = {},
+                    stripePaymentPhase = StripePaymentPhase.CONFIRMED,
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Pedido cancelado").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Pago confirmado").assertCountEquals(0)
+        composeTestRule.onAllNodesWithText("Reintentar pago").assertCountEquals(0)
+        composeTestRule.onNodeWithText("Ver mis pedidos").assertIsDisplayed()
+    }
+
+    @Test
+    fun `timed out confirmation offers a retry besides refreshing`() {
+        val order =
+            ScreenshotFixtures
+                .sampleOrder(
+                    state = OrderState.PENDING_PAYMENT,
+                    paymentMethod = PaymentMethod.STRIPE,
+                ).copy(
+                    payment =
+                        OrderPayment(
+                            paymentAttemptId = "attempt-1",
+                            paymentIntentId = "pi_test_001",
+                            stripeAccountId = "acct_test_001",
+                            status = StripePaymentStatus.PENDING,
+                        ),
+                )
+        var retried = false
+
+        composeTestRule.setContent {
+            VaiinillaTheme {
+                OrderConfirmationScreen(
+                    order = order,
+                    onReturnToMenu = {},
+                    stripePaymentPhase = StripePaymentPhase.TIMED_OUT,
+                    onRetryStripePayment = { retried = true },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Actualizar estado").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Reintentar pago").performClick()
+        assertTrue(retried)
     }
 }
