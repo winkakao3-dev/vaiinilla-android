@@ -92,6 +92,7 @@ class OrderFlowViewModel
         private var pendingStripeRetryIdempotencyKey: String? = null
         private var activeCartStorageKey: String? = null
         private var guestVenueLoadJob: Job? = null
+        private var cartReconcileJob: Job? = null
         private val activeJobs = mutableSetOf<Job>()
         private var stripeConfirmationJob: Job? = null
         private var stripeConfirmationOrderId: String? = null
@@ -132,6 +133,12 @@ class OrderFlowViewModel
                     ?.summary
                     ?.id
                     ?.let(guestSessionStore::clearPendingStripeRetryIdempotency)
+                // El sondeo de Stripe no es un job rastreado y el candado es de otro negocio: allá el
+                // pedido no existe para esta cuenta, así que el carrito quedaría bloqueado sin salida (PAGO-04).
+                stripeConfirmationJob?.cancel()
+                stripeConfirmationJob = null
+                stripeConfirmationOrderId = null
+                previous.stripePendingOrderId?.let(guestSessionStore::clearPendingStripeConfirmationOrderId)
             } else {
                 guestVenueLoadJob?.cancel()
             }
@@ -161,6 +168,13 @@ class OrderFlowViewModel
                     selectedQuantity = 1,
                     createOrderError = null,
                     createdOrder = if (switchingEstablishment) null else previous.createdOrder,
+                    stripeObservedOrder = if (switchingEstablishment) null else previous.stripeObservedOrder,
+                    stripePendingOrderId = if (switchingEstablishment) null else previous.stripePendingOrderId,
+                    // Los trabajos en vuelo se cancelaron arriba: sus banderas no se bajarían solas (PAGO-09).
+                    creatingOrder = if (switchingEstablishment) false else previous.creatingOrder,
+                    refreshing = if (switchingEstablishment) false else previous.refreshing,
+                    resolvingPendingStripePayment =
+                        if (switchingEstablishment) false else previous.resolvingPendingStripePayment,
                     stripePaymentSession = if (switchingEstablishment) null else previous.stripePaymentSession,
                     stripePresentationKey = if (switchingEstablishment) null else previous.stripePresentationKey,
                     stripePaymentPhase =
@@ -191,12 +205,10 @@ class OrderFlowViewModel
                         catalogMemoryCache[resolvedVenue.establishment.slug] = catalog
                     }
                     val effectiveCatalog = catalog ?: _uiState.value.catalog
+                    val savedLines = guestSessionStore.readCartSnapshot(storageKey)
                     val restored =
                         if (effectiveCatalog != null) {
-                            guestSessionStore.restoreCartLines(
-                                guestSessionStore.readCartSnapshot(storageKey),
-                                effectiveCatalog.products,
-                            )
+                            guestSessionStore.restoreCartLines(savedLines, effectiveCatalog.products)
                         } else {
                             emptyList()
                         }
@@ -204,6 +216,12 @@ class OrderFlowViewModel
                         restored.ifEmpty {
                             if (sameCart) _uiState.value.cartLines else emptyList()
                         }
+                    // Lo guardado que el menú ya no tiene se avisa; lo agotado queda marcado para quitarlo (COMPRA-08).
+                    val droppedFromSavedCart = if (effectiveCatalog != null) savedLines.size - restored.size else 0
+                    val unavailableKeys =
+                        effectiveCatalog
+                            ?.let { reconcileCartLines(nextCart, it.products).unavailableKeys }
+                            .orEmpty()
                     // Public guest discovery is valid without identity. Operational status is
                     // authenticated, so its failure must not hide a catalog that loaded correctly.
                     // Load it right away: without it the cart cannot offer "Pagar al final".
@@ -227,6 +245,8 @@ class OrderFlowViewModel
                             rentedCourt = rentedCourt,
                             selectedSpaceId = rentedCourt?.id ?: _uiState.value.selectedSpaceId,
                             cartLines = nextCart,
+                            unavailableCartKeys = unavailableKeys,
+                            cartNotice = droppedCartLinesNotice(droppedFromSavedCart) ?: _uiState.value.cartNotice,
                             errorMessage = if (effectiveCatalog == null) failure?.toUserFacingMessage() else null,
                             guestVenueSuspended = suspended,
                             guestVenue = resolvedVenue,
@@ -320,6 +340,7 @@ class OrderFlowViewModel
                             statusResult.getOrNull() ?: _uiState.value.operationalStatus,
                     )
             }
+            reconcileCartWithCatalog()
         }
 
         /** Persists guest cart before leaving for auth. Venue/cart keys stay in GuestSessionStore. */
@@ -378,6 +399,8 @@ class OrderFlowViewModel
          */
         fun refreshOperationalStatusForCheckout() {
             val venue = _uiState.value.guestVenue ?: return
+            // Un rechazo de antes (negocio cerrado, sin red) no debe seguir en pantalla cuando se vuelve a intentar.
+            clearCreateOrderError()
             launchTracked {
                 if (guestSlugFor(venue) == null && sessionStore.readAccessToken().isNullOrBlank()) {
                     withContext(Dispatchers.IO) { refreshClientContext(venue) }
@@ -396,6 +419,39 @@ class OrderFlowViewModel
                 }
                 _uiState.value = _uiState.value.copy(operationalStatus = status)
             }
+            reconcileCartWithCatalog()
+        }
+
+        /**
+         * Vuelve a leer el menú y concilia el carrito con él: marca lo agotado, avisa del precio que cambió y
+         * quita lo que ya no existe. Sin esto el cambio solo se descubría cuando el servidor rechazaba el pago.
+         */
+        private fun reconcileCartWithCatalog() {
+            if (cartReconcileJob?.isActive == true) return
+            val venue = _uiState.value.guestVenue ?: return
+            if (_uiState.value.cartLines.isEmpty()) return
+            cartReconcileJob =
+                launchTracked {
+                    val catalog =
+                        withContext(Dispatchers.IO) {
+                            discoveryRepository.getGuestCatalog(venue.establishment.slug)
+                        }.getOrNull() ?: return@launchTracked
+                    val state = _uiState.value
+                    if (state.guestVenue?.establishment?.id != venue.establishment.id || state.creatingOrder) {
+                        return@launchTracked
+                    }
+                    catalogMemoryCache[venue.establishment.slug] = catalog
+                    val result = reconcileCartLines(state.cartLines, catalog.products)
+                    if (result.lines.size != state.cartLines.size) pendingIdempotencyKey = null
+                    _uiState.value =
+                        state.copy(
+                            catalog = catalog,
+                            cartLines = result.lines,
+                            unavailableCartKeys = result.unavailableKeys,
+                            cartNotice = result.notice ?: state.cartNotice,
+                        )
+                    persistCurrentCartIfNeeded()
+                }
         }
 
         /**
@@ -562,6 +618,7 @@ class OrderFlowViewModel
 
         fun addSelectedProductToCart() {
             val state = _uiState.value
+            if (state.creatingOrder) return
             val product = state.selectedProduct ?: return
             val validation = runCatching { ContractRules.validateSelections(product, state.selectedOptionIds) }
             if (validation.isFailure) {
@@ -617,6 +674,7 @@ class OrderFlowViewModel
         /** El "+" del menú deslizable: agrega uno directo o, con opciones obligatorias, abre la ficha. */
         fun quickAddProduct(productId: Int) {
             val state = _uiState.value
+            if (state.creatingOrder) return
             val product = state.catalog?.products?.firstOrNull { it.id == productId } ?: return
             if (MenuFeed.needsChoice(product)) {
                 openProduct(productId)
@@ -635,10 +693,16 @@ class OrderFlowViewModel
         /** El "−" del menú deslizable: uno menos del platillo. */
         fun quickRemoveProduct(productId: Int) {
             val state = _uiState.value
+            if (state.creatingOrder) return
             val updated = MenuFeed.removeOne(state.cartLines, productId)
             if (updated == state.cartLines) return
             pendingIdempotencyKey = null
-            _uiState.value = state.copy(cartLines = updated, createOrderError = null)
+            _uiState.value =
+                state.copy(
+                    cartLines = updated,
+                    unavailableCartKeys = state.unavailableCartKeys.stillIn(updated),
+                    createOrderError = null,
+                )
             persistCurrentCartIfNeeded()
         }
 
@@ -647,6 +711,8 @@ class OrderFlowViewModel
             delta: Int,
         ) {
             val state = _uiState.value
+            // El pedido ya salió con estas líneas: lo que se cambie ahora se perdería al vaciar el carrito (COMPRA-04).
+            if (state.creatingOrder) return
             val line = state.cartLines.firstOrNull { it.key == lineKey } ?: return
             val nextQuantity = line.quantity + delta
             if (nextQuantity > 20) {
@@ -662,13 +728,26 @@ class OrderFlowViewModel
                     }
                 }
             pendingIdempotencyKey = null
-            _uiState.value = state.copy(cartLines = updated, createOrderError = null)
+            _uiState.value =
+                state.copy(
+                    cartLines = updated,
+                    unavailableCartKeys = state.unavailableCartKeys.stillIn(updated),
+                    cartNotice = null,
+                    createOrderError = null,
+                )
             persistCurrentCartIfNeeded()
         }
 
         private fun persistCurrentCartIfNeeded() {
             val key = activeCartStorageKey ?: return
             guestSessionStore.saveCartSnapshot(key, _uiState.value.cartLines)
+        }
+
+        /** Lo muestra quien lo pidió (aviso del menú) y lo baja, para que el mismo texto vuelva a avisar. */
+        fun clearCreateOrderError() {
+            if (_uiState.value.createOrderError != null) {
+                _uiState.value = _uiState.value.copy(createOrderError = null)
+            }
         }
 
         /** Un fallo previo al pedido (alta en el negocio) se ve donde se ven los del pedido. */
@@ -750,6 +829,11 @@ class OrderFlowViewModel
                 return
             }
             if (state.creatingOrder) return
+            if (state.unavailableCartKeys.isNotEmpty()) {
+                _uiState.value =
+                    state.copy(createOrderError = "Quita del carrito lo que ya no está disponible para continuar.")
+                return
+            }
 
             if (requiresAccountAuth()) {
                 _uiState.value =
@@ -766,8 +850,10 @@ class OrderFlowViewModel
 
             _uiState.value = state.copy(creatingOrder = true, createOrderError = null)
             launchTracked {
-                var current = _uiState.value
-                current.guestVenue?.let { venue ->
+                // Tras cada espera el estado puede haber cambiado (método de pago, destino, notas): las escrituras
+                // parten del estado vigente y no de esta foto, y la solicitud se arma justo antes de enviarla.
+                val venueAtStart = _uiState.value.guestVenue
+                venueAtStart?.let { venue ->
                     if (!hasClientContextFor(venue)) {
                         withContext(Dispatchers.IO) { refreshClientContext(venue) }
                     }
@@ -782,7 +868,7 @@ class OrderFlowViewModel
                             "Intenta de nuevo en unos minutos.",
                         )
                     _uiState.value =
-                        current.copy(
+                        _uiState.value.copy(
                             creatingOrder = false,
                             createOrderError = "No pudimos validar la disponibilidad operativa. $reason",
                         )
@@ -791,15 +877,15 @@ class OrderFlowViewModel
                 var statusResult = withContext(Dispatchers.IO) { fetchOperationalStatus() }
                 if (
                     statusResult.isFailure &&
-                    current.guestVenue?.establishment?.clientIdRequired == false
+                    venueAtStart?.establishment?.clientIdRequired == false
                 ) {
-                    refreshClientContext(requireNotNull(current.guestVenue))
+                    refreshClientContext(venueAtStart)
                     statusResult = withContext(Dispatchers.IO) { fetchOperationalStatus() }
                 }
                 val status =
                     statusResult.getOrElse { error ->
                         _uiState.value =
-                            current.copy(
+                            _uiState.value.copy(
                                 creatingOrder = false,
                                 createOrderError =
                                     "No pudimos verificar si el establecimiento está recibiendo pedidos. " +
@@ -807,18 +893,19 @@ class OrderFlowViewModel
                             )
                         return@launchTracked
                     }
-                current = current.copy(operationalStatus = status)
-                _uiState.value = current.copy(creatingOrder = true, createOrderError = null)
+                _uiState.value =
+                    _uiState.value.copy(
+                        operationalStatus = status,
+                        creatingOrder = true,
+                        createOrderError = null,
+                    )
+                val current = _uiState.value
 
                 if (current.requiresOperationalReady && !current.isOperationallyReady) {
                     val blocker =
                         current.operationalBlockerMessage
                             ?: "El establecimiento no está recibiendo pedidos en este momento."
-                    _uiState.value =
-                        current.copy(
-                            creatingOrder = false,
-                            createOrderError = blocker,
-                        )
+                    _uiState.value = current.copy(creatingOrder = false, createOrderError = blocker)
                     return@launchTracked
                 }
 
@@ -885,20 +972,25 @@ class OrderFlowViewModel
                                     if (stripeSession != null) "Elige cómo pagar de forma segura." else null,
                                 purchaseCelebration = purchaseCelebration,
                                 createOrderError = null,
+                                cartNotice = null,
+                                unavailableCartKeys = emptySet(),
                             )
                         activeCartStorageKey?.let { guestSessionStore.clearCart(it) }
                     },
                     onFailure = { error ->
+                        val code = (error as? OrderRepositoryException)?.code
                         _uiState.value =
                             _uiState.value.copy(
                                 creatingOrder = false,
                                 createOrderError =
-                                    if ((error as? OrderRepositoryException)?.code == GUEST_CANNOT_USE_BALANCE) {
+                                    if (code == GUEST_CANNOT_USE_BALANCE) {
                                         "El saldo Vaiinilla es de una cuenta. Paga en caja o con tarjeta."
                                     } else {
                                         error.toUserFacingMessage("No se pudo crear el pedido.")
                                     },
                             )
+                        // El servidor no dice cuál producto; el menú vigente sí: se marca para poder quitarlo.
+                        if (code == PRODUCT_UNAVAILABLE) reconcileCartWithCatalog()
                     },
                 )
             }
@@ -1007,16 +1099,26 @@ class OrderFlowViewModel
                 _uiState.value.copy(
                     stripePaymentPhase = StripePaymentPhase.PRESENTING,
                     stripePaymentMessage = null,
+                    // La hoja ya se abrió: sin la llave, recrear la actividad no abre una segunda encima (FLOW-13).
+                    stripePresentationKey = null,
                 )
         }
 
         fun onStripePaymentSheetCompleted() {
-            val orderId = currentStripeOrder()?.summary?.id ?: return
+            val orderId = stripeOrderIdForSheetResult() ?: return
             startStripeConfirmation(
                 orderId = orderId,
                 initialMessage = "Procesando compra…",
+                sheetCompleted = true,
             )
         }
+
+        /**
+         * Si el proceso murió durante 3-D Secure, el pedido en memoria ya no existe pero el candado persistido
+         * sí: el resultado de la hoja se sigue contra ese pedido en vez de perderse (FLOW-13).
+         */
+        private fun stripeOrderIdForSheetResult(): String? =
+            currentStripeOrder()?.summary?.id ?: _uiState.value.stripePendingOrderId?.takeIf { it.isNotBlank() }
 
         fun onStripePaymentSheetCanceled() {
             val order = currentStripeOrder() ?: return
@@ -1038,7 +1140,7 @@ class OrderFlowViewModel
         fun onStripePaymentSheetFailed(
             @Suppress("UNUSED_PARAMETER") errorMessage: String?,
         ) {
-            val orderId = currentStripeOrder()?.summary?.id ?: return
+            val orderId = stripeOrderIdForSheetResult() ?: return
             startStripeConfirmation(
                 orderId = orderId,
                 initialMessage = "Procesando compra…",
@@ -1139,13 +1241,7 @@ class OrderFlowViewModel
             order: OrderDetail,
             onReady: () -> Unit,
         ) {
-            val status = order.payment?.status
-            if (
-                order.summary.paymentMethod != PaymentMethod.STRIPE ||
-                status !in setOf(StripePaymentStatus.FAILED, StripePaymentStatus.CANCELED)
-            ) {
-                return
-            }
+            if (!canReturnStripeOrderToCart(order, _uiState.value.stripePaymentPhase)) return
             restoreStripeOrderToCart(order, onReady)
         }
 
@@ -1293,12 +1389,8 @@ class OrderFlowViewModel
             val order = currentStripeOrder() ?: return
             if (order.summary.paymentMethod != PaymentMethod.STRIPE || _uiState.value.retryingStripePayment) return
             val paymentStatus = order.payment?.status
-            val locallyCanceled = _uiState.value.stripePaymentPhase == StripePaymentPhase.CANCELED
-            if (!locallyCanceled &&
-                paymentStatus !in setOf(StripePaymentStatus.FAILED, StripePaymentStatus.CANCELED)
-            ) {
-                return
-            }
+            val phaseBeforeRetry = _uiState.value.stripePaymentPhase
+            if (!canRetryStripePayment(paymentStatus, phaseBeforeRetry)) return
 
             val key =
                 resolveIdempotencyKey(
@@ -1338,7 +1430,12 @@ class OrderFlowViewModel
                         _uiState.value =
                             _uiState.value.copy(
                                 retryingStripePayment = false,
-                                stripePaymentPhase = stripePhaseFromBackend(order),
+                                stripePaymentPhase =
+                                    if (phaseBeforeRetry == StripePaymentPhase.TIMED_OUT) {
+                                        phaseBeforeRetry
+                                    } else {
+                                        stripePhaseFromBackend(order)
+                                    },
                                 stripePaymentMessage =
                                     error.toUserFacingMessage(
                                         "No se pudo preparar el reintento.",
@@ -1366,6 +1463,7 @@ class OrderFlowViewModel
         private fun startStripeConfirmation(
             orderId: String,
             initialMessage: String? = null,
+            sheetCompleted: Boolean = false,
         ) {
             if (
                 stripeConfirmationOrderId == orderId &&
@@ -1392,6 +1490,7 @@ class OrderFlowViewModel
                         pollStripePaymentConfirmation(
                             orderId = orderId,
                             fetch = { id -> withContext(Dispatchers.IO) { fetchOrder(id) } },
+                            failedGracePolls = if (sheetCompleted) STRIPE_FAILED_GRACE_POLLS_AFTER_SHEET else 0,
                         )
                     val latest = result.order ?: seed
                     val phase = if (result.timedOut) StripePaymentPhase.TIMED_OUT else result.phase
@@ -1553,6 +1652,7 @@ class OrderFlowViewModel
         private companion object {
             val catalogMemoryCache = ConcurrentHashMap<String, Catalog>()
             const val GUEST_CANNOT_USE_BALANCE = "GUEST_CANNOT_USE_BALANCE"
+            const val PRODUCT_UNAVAILABLE = "PRODUCT_UNAVAILABLE"
         }
     }
 

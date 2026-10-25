@@ -323,7 +323,8 @@ fun callWaiterSpaceId(
 ): Int? {
     val summary = order.summary
     val space = summary.space
-    if (summary.destination == OrderDestination.IN_SPACE && space != null && summary.state != OrderState.CANCELED) {
+    // Un pedido cancelado, expirado o no recogido ya no está en la mesa: el backend rechaza la llamada.
+    if (summary.destination == OrderDestination.IN_SPACE && space != null && !summary.state.isTerminalWithoutDelivery) {
         return space.id
     }
     val reservation = order.reservation ?: return null

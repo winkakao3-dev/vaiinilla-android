@@ -7,6 +7,12 @@ import kotlinx.coroutines.delay
 internal const val STRIPE_CONFIRMATION_POLL_INTERVAL_MS = 3_000L
 internal const val STRIPE_CONFIRMATION_TIMEOUT_MS = 90_000L
 internal const val STRIPE_ABANDON_VISIBLE_AFTER_MS = 15_000L
+
+/**
+ * Tras un Completed de la hoja, el reconciliador del servidor puede marcar "fallido" un intento que apenas se
+ * estaba pagando y el webhook lo corrige segundos después: esas primeras lecturas no cierran el sondeo (PAGO-02).
+ */
+internal const val STRIPE_FAILED_GRACE_POLLS_AFTER_SHEET = 4
 internal val STRIPE_CONFIRMATION_MAX_POLLS: Int =
     ((STRIPE_CONFIRMATION_TIMEOUT_MS / STRIPE_CONFIRMATION_POLL_INTERVAL_MS) + 1).toInt()
 
@@ -31,6 +37,7 @@ internal suspend fun pollStripePaymentConfirmation(
     orderId: String,
     fetch: suspend (String) -> Result<OrderDetail>,
     maxPolls: Int = STRIPE_CONFIRMATION_MAX_POLLS,
+    failedGracePolls: Int = 0,
     intervalMillis: Long = STRIPE_CONFIRMATION_POLL_INTERVAL_MS,
     wait: suspend (Long) -> Unit = { delay(it) },
 ): StripePaymentPollResult {
@@ -51,7 +58,10 @@ internal suspend fun pollStripePaymentConfirmation(
         )
 
         val phase = stripePhaseFromBackend(latest)
-        if (phase.isTerminalStripeConfirmationPhase()) {
+        val ignoredFailure =
+            index < failedGracePolls &&
+                (phase == StripePaymentPhase.FAILED || phase == StripePaymentPhase.CANCELED)
+        if (phase.isTerminalStripeConfirmationPhase() && !ignoredFailure) {
             return StripePaymentPollResult(
                 order = latest,
                 phase = phase,

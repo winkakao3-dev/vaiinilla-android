@@ -41,6 +41,10 @@ data class OrderFlowUiState(
     val checkoutPayAtEnd: Boolean = false,
     val creatingOrder: Boolean = false,
     val createOrderError: String? = null,
+    /** Líneas del carrito que el menú vigente ya no permite pedir (agotadas o con opciones que cambiaron). */
+    val unavailableCartKeys: Set<String> = emptySet(),
+    /** Aviso de lo que cambió en el menú mientras el carrito esperaba: precios o productos quitados. */
+    val cartNotice: String? = null,
     val createdOrder: OrderDetail? = null,
     val stripeObservedOrder: OrderDetail? = null,
     val stripePendingOrderId: String? = null,
@@ -141,6 +145,19 @@ val OrderFlowUiState.cartItemCount: Int
 val OrderFlowUiState.cartPreviewTotal: String
     get() = Money.cartPreview(cartLines)
 
+/**
+ * Lo que se cobra por cada método: la tarjeta paga el precio digital del menú y efectivo o saldo el de mostrador
+ * más extras, que difieren cuando el negocio pasa la comisión de la tarjeta al cliente (COMPRA-01, PAGO-10).
+ * El servidor confirma el total; la tarjeta además calcula la cuota sobre el carrito completo, así que ahí
+ * pueden sobrar o faltar centavos (se resuelve en el backend).
+ */
+fun OrderFlowUiState.cartTotalFor(method: PaymentMethod): String =
+    if (method == PaymentMethod.STRIPE) Money.cartPreview(cartLines) else Money.counterPreview(cartLines)
+
+/** El total del método de pago que está elegido ahora. */
+val OrderFlowUiState.checkoutTotal: String
+    get() = cartTotalFor(checkoutPayment)
+
 val OrderFlowUiState.selectedProductPreviewPrice: String
     get() = selectedProduct?.let { Money.productUnitPreview(it, selectedOptionIds) } ?: "0.00"
 
@@ -160,7 +177,7 @@ val OrderFlowUiState.isOperationallyReady: Boolean
         operationalStatus?.acceptingOrders == true
 
 val OrderFlowUiState.canSubmitCart: Boolean
-    get() = cartLines.isNotEmpty() && !creatingOrder && !hasUnresolvedStripePayment
+    get() = cartLines.isNotEmpty() && !creatingOrder && !hasUnresolvedStripePayment && unavailableCartKeys.isEmpty()
 
 val OrderFlowUiState.hasUnresolvedStripePayment: Boolean
     get() = !stripePendingOrderId.isNullOrBlank()
@@ -199,7 +216,7 @@ val OrderFlowUiState.selectedSpaceName: String
  */
 fun OrderFlowUiState.isBalancePaymentAffordable(walletBalance: String?): Boolean {
     val balance = walletBalance?.let { runCatching { Money.parse(it) }.getOrNull() } ?: return true
-    val total = runCatching { Money.parse(cartPreviewTotal) }.getOrNull() ?: return true
+    val total = runCatching { Money.parse(cartTotalFor(PaymentMethod.BALANCE)) }.getOrNull() ?: return true
     return balance >= total
 }
 

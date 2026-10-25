@@ -100,6 +100,16 @@ class OrderContractJson
             return envelope.data.map { it.toDomain() }
         }
 
+        /** Una página del listado de pedidos con el cursor de la siguiente (null en la última). */
+        fun parseOrderListPage(raw: String): OrderListPage {
+            val envelope = json.decodeFromString<OrderListEnvelopeDto>(raw)
+            requireEnvelopeSuccess(envelope.error)
+            return OrderListPage(
+                orders = envelope.data.map { it.toDomain() },
+                nextCursor = envelope.meta.cursor?.takeIf { it.isNotBlank() },
+            )
+        }
+
         fun parsePickupToken(raw: String): String {
             val envelope = json.decodeFromString<PickupTokenEnvelopeDto>(raw)
             requireEnvelopeSuccess(envelope.error)
@@ -134,3 +144,8 @@ class OrderContractJson
             require(error == null) { "La API devolvió un error en el envelope." }
         }
     }
+
+class OrderListPage(
+    val orders: List<OrderDetail>,
+    val nextCursor: String?,
+)

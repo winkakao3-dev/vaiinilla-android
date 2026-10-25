@@ -374,6 +374,10 @@ fun StudentTrackingScreen(
                                 }
                             }
                         }
+                        // Con pedidos ya cargados, un error de red o de "Ya llegué" no se veía en ningún lado (PEDIDO-05).
+                        trackingNoticeFor(state)?.let { notice ->
+                            item(key = "tracking-notice") { TrackingNotice(notice) }
+                        }
                         if (animatedSelected == null) {
                             item(key = "shared-table") { sharedTable() }
                         }
@@ -445,6 +449,11 @@ fun StudentTrackingScreen(
                                 }
                                 if (animatedSelected.isRental) {
                                     item { RentalTrackingTimeline(order = animatedSelected) }
+                                } else if (animatedSelected.summary.state.isTerminalWithoutDelivery) {
+                                    // Cinco pasos pendientes de un pedido que ya no avanza confundían (PEDIDO-07).
+                                    if (animatedSelected.summary.state != OrderState.CANCELED) {
+                                        item { ClosedOrderCard(animatedSelected) }
+                                    }
                                 } else {
                                     item {
                                         OrderTrackingTimeline(
@@ -488,7 +497,10 @@ fun StudentTrackingScreen(
                                                 contentColor = colors.ink,
                                             ),
                                     ) {
-                                        Text("Ver recibo", fontWeight = FontWeight.Black)
+                                        Text(
+                                            if (animatedSelected.isRental) "Ver mi renta" else "Ver recibo",
+                                            fontWeight = FontWeight.Black,
+                                        )
                                     }
                                 }
                             }
@@ -701,6 +713,54 @@ private fun OrderTrackingSkeleton() {
             SkeletonBlock(modifier = Modifier.fillMaxWidth(0.45f).height(14.dp), corner = 7.dp)
             SkeletonBlock(modifier = Modifier.fillMaxWidth(0.55f).height(44.dp), corner = 14.dp)
         }
+    }
+}
+
+/** Qué pasó con un pedido que expiró o no se recogió, y a quién preguntar. */
+@Composable
+private fun ClosedOrderCard(order: OrderDetail) {
+    val colors = LocalVaiinillaColors.current
+    val notPickedUp = order.summary.state == OrderState.NOT_PICKED_UP
+    Surface(
+        modifier = Modifier.fillMaxWidth().arrive(0, key = order.summary.id),
+        color = colors.paper2,
+        shape = RoundedCornerShape(24.dp),
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Text(
+                if (notPickedUp) "No se recogió a tiempo" else "Este pedido expiró",
+                color = colors.coral,
+                fontWeight = FontWeight.Black,
+                fontSize = 16.sp,
+            )
+            Text(
+                "Pasó el tiempo sin que se cobrara o se recogiera. Si ya pagaste algo, pregunta en el negocio.",
+                color = colors.ink,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
+    }
+}
+
+/** Aviso sobre la lista de pedidos: último cambio que falló o datos que no se pudieron actualizar. */
+internal fun trackingNoticeFor(state: OperationalUiState): String? =
+    state.errorMessage?.takeIf { state.orders.isNotEmpty() }
+        ?: "Sin conexión. Mostramos lo último que vimos; desliza hacia abajo para actualizar."
+            .takeIf { state.orders.isNotEmpty() && state.lastRefreshOk == false }
+
+@Composable
+private fun TrackingNotice(message: String) {
+    val colors = LocalVaiinillaColors.current
+    Surface(
+        color = colors.coral.copy(alpha = 0.22f),
+        shape = RoundedCornerShape(16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+    ) {
+        Text(message, color = colors.ink, fontSize = 14.sp, modifier = Modifier.padding(14.dp))
     }
 }
 

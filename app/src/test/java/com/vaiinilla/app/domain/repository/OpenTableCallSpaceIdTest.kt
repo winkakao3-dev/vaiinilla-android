@@ -45,6 +45,13 @@ class OpenTableCallSpaceIdTest {
     }
 
     @Test
+    fun expiredAndNotPickedUpOrdersNeverCall() {
+        listOf(OrderState.EXPIRED, OrderState.NOT_PICKED_UP).forEach { state ->
+            assertNull(openTableCallSpaceId(order(state, updatedAt = "2026-10-12T11:30:00.000Z"), now))
+        }
+    }
+
+    @Test
     fun takeAwayHasNoTable() {
         val order = order(OrderState.DELIVERED, updatedAt = "2026-10-12T11:30:00.000Z", toSpace = false)
         assertNull(openTableCallSpaceId(order, now))

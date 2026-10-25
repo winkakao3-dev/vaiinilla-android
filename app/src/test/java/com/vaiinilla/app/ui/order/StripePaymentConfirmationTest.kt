@@ -128,6 +128,70 @@ class StripePaymentConfirmationTest {
         assertTrue(canShowStripeAbandon(elapsedMs = 0L, isStuck = true, visibleAfterMs = 0L))
     }
 
+    @Test
+    fun `a failed read right after the sheet completed does not close the poll`() {
+        runBlocking {
+            val failed = stripeOrder(StripePaymentStatus.FAILED)
+            val confirmed = stripeOrder(StripePaymentStatus.CONFIRMED, OrderState.PAID)
+            var calls = 0
+
+            val result =
+                pollStripePaymentConfirmation(
+                    orderId = failed.summary.id,
+                    fetch = {
+                        calls += 1
+                        Result.success(if (calls <= 2) failed else confirmed)
+                    },
+                    maxPolls = 10,
+                    failedGracePolls = STRIPE_FAILED_GRACE_POLLS_AFTER_SHEET,
+                    wait = {},
+                )
+
+            assertEquals(StripePaymentPhase.CONFIRMED, result.phase)
+            assertEquals(3, calls)
+        }
+    }
+
+    @Test
+    fun `a failure that outlasts the grace window is still reported as failed`() {
+        runBlocking {
+            val failed = stripeOrder(StripePaymentStatus.FAILED)
+            var calls = 0
+
+            val result =
+                pollStripePaymentConfirmation(
+                    orderId = failed.summary.id,
+                    fetch = {
+                        calls += 1
+                        Result.success(failed)
+                    },
+                    maxPolls = 10,
+                    failedGracePolls = STRIPE_FAILED_GRACE_POLLS_AFTER_SHEET,
+                    wait = {},
+                )
+
+            assertEquals(StripePaymentPhase.FAILED, result.phase)
+            assertEquals(STRIPE_FAILED_GRACE_POLLS_AFTER_SHEET + 1, calls)
+        }
+    }
+
+    @Test
+    fun `returning to the cart works after the sheet was closed locally while the server still says pending`() {
+        val pending = stripeOrder(StripePaymentStatus.PENDING)
+
+        assertTrue(canReturnStripeOrderToCart(pending, StripePaymentPhase.CANCELED))
+        assertFalse(canReturnStripeOrderToCart(pending, StripePaymentPhase.PENDING))
+        assertTrue(canReturnStripeOrderToCart(stripeOrder(StripePaymentStatus.FAILED), StripePaymentPhase.FAILED))
+    }
+
+    @Test
+    fun `retry is allowed once confirmation timed out but not while it is still waiting`() {
+        assertTrue(canRetryStripePayment(StripePaymentStatus.PENDING, StripePaymentPhase.TIMED_OUT))
+        assertFalse(canRetryStripePayment(StripePaymentStatus.PENDING, StripePaymentPhase.PENDING))
+        assertFalse(canRetryStripePayment(StripePaymentStatus.PROCESSING, StripePaymentPhase.PROCESSING_CONFIRMATION))
+        assertTrue(canRetryStripePayment(StripePaymentStatus.FAILED, StripePaymentPhase.FAILED))
+    }
+
     private fun stripeOrder(
         status: StripePaymentStatus,
         state: OrderState = OrderState.PENDING_PAYMENT,

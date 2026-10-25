@@ -47,8 +47,31 @@ class RemoteOrderRepository(
             buildMap {
                 updatedSince?.let { put("actualizado_desde", it) }
             }
-        return apiClient.get("pedidos", query).mapCatching(::parseOrderList).mapApiErrors()
+        return fetchAllOrderPages(query).mapApiErrors()
     }
+
+    /**
+     * El servidor entrega los pedidos más viejos primero y en páginas: quedarse con la primera ocultaba los
+     * recientes a quien tuviera más de 50. La primera petición no lleva más parámetros para que siga siendo la
+     * que guarda la caché de [cachedClientOrders]; las siguientes siguen el cursor (PEDIDO-01).
+     */
+    private fun fetchAllOrderPages(query: Map<String, String>): Result<List<OrderDetail>> =
+        runCatching {
+            val orders = mutableListOf<OrderDetail>()
+            var cursor: String? = null
+            repeat(MAX_ORDER_PAGES) {
+                val pageQuery = cursor?.let { query + ("cursor" to it) } ?: query
+                val page =
+                    apiClient
+                        .get("pedidos", pageQuery)
+                        .mapCatching(contractJson::parseOrderListPage)
+                        .getOrThrow()
+                orders += page.orders.map(pickupTokenStore::attach)
+                cursor = page.nextCursor
+                if (cursor == null) return@runCatching orders.toList()
+            }
+            orders.toList()
+        }
 
     override fun cachedClientOrders(): List<OrderDetail>? =
         apiClient
@@ -179,3 +202,6 @@ class RemoteOrderRepository(
             },
         )
 }
+
+/** Tope de páginas por consulta (50 pedidos cada una): evita un ciclo largo si el cursor no avanza. */
+private const val MAX_ORDER_PAGES = 20

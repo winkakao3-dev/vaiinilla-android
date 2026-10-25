@@ -64,6 +64,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -160,6 +161,7 @@ fun MenuFeedScreen(
     onQuantityChange: (Int) -> Unit,
     onAddSelected: () -> Unit,
     onOpenCart: () -> Unit,
+    onConsumeCreateOrderError: () -> Unit = {},
 ) {
     val catalog = state.catalog
     val products = remember(catalog) { catalog?.let(MenuFeed::products).orEmpty() }
@@ -191,8 +193,16 @@ fun MenuFeedScreen(
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }.collect { if (it > 0) hintVisible = false }
     }
+    // El aviso se baja al mostrarlo: así el mismo texto vuelve a avisar y uno viejo del carrito no reaparece al entrar.
+    val currentConsumeError by rememberUpdatedState(onConsumeCreateOrderError)
+    var firstEffectRun by remember { mutableStateOf(true) }
     LaunchedEffect(state.createOrderError) {
-        if (state.selectedProduct == null) toast = state.createOrderError
+        val staleOnEntry = firstEffectRun
+        firstEffectRun = false
+        val error = state.createOrderError ?: return@LaunchedEffect
+        if (state.selectedProduct != null) return@LaunchedEffect
+        if (!staleOnEntry) toast = error
+        currentConsumeError()
     }
     LaunchedEffect(toast) {
         if (toast != null) {
