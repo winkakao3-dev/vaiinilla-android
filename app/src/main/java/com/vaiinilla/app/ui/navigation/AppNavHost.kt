@@ -351,6 +351,13 @@ fun AppNavHost(
             operationalViewModel.refreshOrder(orderId)
             operationalViewModel.selectOrder(orderId)
             navController.navigateStudent(Routes.STUDENT_TRACKING)
+            // Un pedido que no es renta se abre en su pantalla de recogida, como al tocarlo en la lista; sin esto
+            // el aviso de "listo" dejaba al cliente en la lista (PEDIDO-12). Si aún no se cargó, queda la lista.
+            val known = operationalState.orders.firstOrNull { it.summary.id == orderId }
+            if (known != null && !known.isRental) {
+                orderFlowViewModel.clearCreatedOrder()
+                navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
+            }
             onOrderConsumed()
         }
 
@@ -1077,6 +1084,7 @@ fun AppNavHost(
                     onAddSelected = orderFlowViewModel::addSelectedProductToCart,
                     // Atrás desde el carrito regresa al platillo donde ibas.
                     onOpenCart = { navController.navigate(Routes.CART) { launchSingleTop = true } },
+                    onConsumeCreateOrderError = orderFlowViewModel::clearCreateOrderError,
                 )
             }
 
