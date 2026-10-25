@@ -88,7 +88,23 @@ object OrderAdvanceNotifier {
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .build()
-        NotificationManagerCompat.from(context).notify("staff:$orderId:$alert".hashCode(), notification)
+        NotificationManagerCompat.from(context).notify(staffNotificationId(orderId, alert), notification)
+    }
+
+    internal fun staffNotificationId(
+        orderId: String,
+        alert: String,
+    ): Int = "staff:$orderId:$alert".hashCode()
+
+    /** ¿Ya hay en pantalla un aviso de ese pedido? Entonces el push ya sonó y la app no lo repite. */
+    fun hasActiveStaffNotification(
+        context: Context,
+        orderId: String,
+        alert: String,
+    ): Boolean {
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return false
+        val id = staffNotificationId(orderId, alert)
+        return runCatching { manager.activeNotifications.any { it.id == id } }.getOrDefault(false)
     }
 
     /** Aviso a meseros: una mesa llamó. Tocar la notificación cae en la consola de personal. */
@@ -204,8 +220,11 @@ object OrderAdvanceNotifier {
                 .setContentIntent(launchIntent)
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
+                // El mismo avance llega por push y por el sondeo: el segundo aviso reemplaza al primero sin sonar.
+                .setOnlyAlertOnce(true)
                 .build()
-        NotificationManagerCompat.from(context).notify(orderId.hashCode(), notification)
+        // Un id por avance: el mismo avance se reemplaza en silencio, pero el siguiente estado sí suena.
+        NotificationManagerCompat.from(context).notify("$orderId:${newState.wireValue}".hashCode(), notification)
     }
 
     internal fun notificationRequestCode(
