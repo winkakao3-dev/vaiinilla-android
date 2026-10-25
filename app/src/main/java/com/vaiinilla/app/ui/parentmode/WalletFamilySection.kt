@@ -64,6 +64,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.vaiinilla.app.core.notifications.ChildDeepLinkStore
 import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.domain.guardianship.compactMoney
@@ -77,6 +79,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val CHILD_NOTICE_RETRY_MS = 1_500L
+private const val UNATTENDED_NOTICE_TTL_MS = 20_000L
 
 /** Lo que el host del Modo Padre tiene abierto encima de la cartera. */
 private enum class ParentSheetKind { ADD, CONSENT, LINK_CODE }
@@ -92,6 +95,8 @@ fun ParentModeWalletHost(
     childrenViewModel: ChildrenViewModel,
     /** Este cliente es un hijo con tutor (mis-controles trae tutores): lo de tutor no le sirve. */
     hasTutors: Boolean,
+    /** `mis-controles` ya contestó: antes de eso no se sabe si es alumno y no se le ofrece elegir. */
+    controlsLoaded: Boolean = true,
     /** Una página del Modo Padre tapa la cartera: la barra de abajo se esconde mientras tanto. */
     onFullScreenChange: (Boolean) -> Unit,
     /** Tras reclamar su cuenta, el alumno vuelve a pedir el contexto de cliente con su Google. */
@@ -99,6 +104,13 @@ fun ParentModeWalletHost(
     content: @Composable (familySection: (@Composable () -> Unit)?) -> Unit,
 ) {
     if (!enabled) {
+        // Un aviso de hijo que esta cartera no puede atender no debe esperar días a otra escuela u otro usuario.
+        val unattended by ChildDeepLinkStore.requestedChild.collectAsState()
+        LaunchedEffect(unattended) {
+            if (unattended == null) return@LaunchedEffect
+            delay(UNATTENDED_NOTICE_TTL_MS)
+            ChildDeepLinkStore.consumeChild()
+        }
         content(null)
         return
     }
@@ -121,6 +133,11 @@ fun ParentModeWalletHost(
             children.offeredConsent = true
             sheet = ParentSheetKind.CONSENT
         }
+    }
+
+    // La escuela aprueba o rechaza desde otro lado y no hay aviso: al volver a la app se vuelve a preguntar.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (children.hasLoaded) scope.launch { children.load() }
     }
 
     // Aviso de un hijo: su ficha, ya en su escuela. Si ya no es su tutor, se queda en Cartera.
@@ -149,7 +166,7 @@ fun ParentModeWalletHost(
                 onOpen = { openChildId = it.userId },
                 onAdd = { sheet = ParentSheetKind.ADD },
                 onConsent = { sheet = ParentSheetKind.CONSENT },
-                entry = schoolEntryFor(children.children.isNotEmpty(), hasTutors, children.hasLoaded),
+                entry = schoolEntryFor(children.children.isNotEmpty(), hasTutors, children.hasLoaded && controlsLoaded),
                 onRole = { optionsRole = it },
                 onLinkCode = { sheet = ParentSheetKind.LINK_CODE },
             )

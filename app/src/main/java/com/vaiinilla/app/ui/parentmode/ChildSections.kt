@@ -323,7 +323,7 @@ internal fun ChildPinSheet(
                 }.onFailure {
                     removing = false
                     state = MorphState.Idle("Guardar PIN")
-                    sendKey = newKey()
+                    sendKey = keyAfterFailure(it, sendKey)
                     error = it.toUserFacingMessage("No se guardó el PIN. Intenta otra vez.")
                 }
         }
@@ -436,7 +436,7 @@ internal fun StudentRequestsSection(
             kind = StudentRequestKind.REFUND,
             requests = requests,
             title = "Pedir que le devuelvan su saldo",
-            idle = "La escuela te entrega lo que le quede, en efectivo o por transferencia.",
+            idle = "La escuela te entrega lo que le quede el día que lo resuelva, en efectivo o por transferencia.",
             onOpen = onOpen,
         )
         RequestRow(
@@ -569,7 +569,7 @@ internal fun StudentRequestSheet(
                 onDismiss()
             }.onFailure {
                 state = MorphState.Idle(idleTitle)
-                sendKey = newKey()
+                sendKey = keyAfterFailure(it, sendKey)
                 error = it.toUserFacingMessage("No pudimos avisarle a la escuela. Intenta otra vez.")
             }
         }

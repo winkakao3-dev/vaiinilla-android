@@ -52,22 +52,31 @@ class GuardianControlsViewModel
             }
         private var job: Job? = null
 
+        /** El servidor ya contestó: `controls` nulo significa "sin tutor", no "todavía no llega". */
+        var hasLoaded by mutableStateOf(false)
+            private set
+
         fun refresh(enabled: Boolean) {
             job?.cancel()
             if (!enabled) {
                 controls = null
+                hasLoaded = false
                 return
             }
             job =
                 viewModelScope.launch {
                     // Si falla (sin contexto, sin red) se queda lo último: el servidor sigue rechazando con 422.
-                    withContext(Dispatchers.IO) { guardianship.myControls() }.onSuccess { controls = it }
+                    withContext(Dispatchers.IO) { guardianship.myControls() }.onSuccess {
+                        controls = it
+                        hasLoaded = true
+                    }
                 }
         }
 
         fun clear() {
             job?.cancel()
             controls = null
+            hasLoaded = false
         }
     }
 
