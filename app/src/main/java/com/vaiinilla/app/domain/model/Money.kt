@@ -18,6 +18,12 @@ object Money {
         selectedOptionIds: Set<Int>,
     ): String = format(parse(product.digitalPrice) + optionExtras(product, selectedOptionIds))
 
+    /** Precio de una unidad en mostrador (sin el cargo digital) con los extras elegidos. */
+    fun counterUnitPreview(
+        product: Product,
+        selectedOptionIds: Set<Int>,
+    ): String = format(parse(product.counterPrice) + optionExtras(product, selectedOptionIds))
+
     fun cartLinePreview(line: CartLine): String =
         format(
             parse(productUnitPreview(line.product, line.selectedOptionIds)) * line.quantity.toBigDecimal(),

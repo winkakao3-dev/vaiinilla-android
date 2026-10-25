@@ -536,7 +536,8 @@ internal fun StudentCardPane(
     var choosing by remember(card.userId) { mutableStateOf<Product?>(null) }
     val products = catalog?.products.orEmpty()
     val sellable = products.filter(StudentPurchaseRules::isSellable)
-    val prices = products.associate { it.id to (it.digitalPrice.toBigDecimalOrNull() ?: BigDecimal.ZERO) }
+    // La venta a un alumno se cobra a precio de mostrador, no al digital (CAJA-15).
+    val prices = products.associate { it.id to (it.counterPrice.toBigDecimalOrNull() ?: BigDecimal.ZERO) }
     val extras = StudentPurchaseRules.extras(products)
     val total = StudentPurchaseRules.total(state.cart, prices, state.cartChoices, extras)
 
@@ -832,7 +833,7 @@ private fun SellRow(
 ) {
     val haptics = rememberVaiinillaHaptics()
     val warnings = StudentPurchaseRules.allergenWarnings(product, card.allergens)
-    val price = moneyLabel(product.digitalPrice.toBigDecimalOrNull() ?: BigDecimal.ZERO)
+    val price = moneyLabel(product.counterPrice.toBigDecimalOrNull() ?: BigDecimal.ZERO)
     Column {
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
@@ -1065,7 +1066,7 @@ private fun StudentProductChoice(
     var selected by remember(product.id) { mutableStateOf<Set<Int>>(defaults) }
     var quantity by remember(product.id) { mutableStateOf(1) }
     var error by remember(product.id) { mutableStateOf<String?>(null) }
-    val unit = runCatching { Money.productUnitPreview(product, selected) }.getOrDefault(product.digitalPrice)
+    val unit = runCatching { Money.counterUnitPreview(product, selected) }.getOrDefault(product.counterPrice)
     val lineTotal = runCatching { Money.format(Money.parse(unit) * quantity.toBigDecimal()) }.getOrDefault(unit)
     ProductDetailSheet(
         product = product,
