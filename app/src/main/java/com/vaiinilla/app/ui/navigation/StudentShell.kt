@@ -17,12 +17,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
 
 /** Routes that participate in the persistent student shell (content swaps; nav stays). */
 fun studentTabForRoute(route: String?): StudentTab? =
@@ -95,11 +95,11 @@ fun StudentShellHost(
     val showNav =
         shouldShowStudentNav(route, catalogDetailOpen, cartHasItems = cartCount > 0, walletCodeOpen = walletCodeOpen)
 
-    val hazeState = rememberHazeState()
+    val screenBackdrop = rememberLayerBackdrop()
     val colors = LocalVaiinillaColors.current
     Box(modifier = Modifier.fillMaxSize().background(colors.paper)) {
         Box(
-            modifier = Modifier.fillMaxSize().hazeSource(hazeState),
+            modifier = Modifier.fillMaxSize().layerBackdrop(screenBackdrop),
         ) {
             content()
         }
@@ -124,7 +124,7 @@ fun StudentShellHost(
                 VaiinillaBottomNav(
                     activeTab = activeTab,
                     cartCount = cartCount,
-                    hazeState = hazeState,
+                    backdrop = screenBackdrop,
                     enableDrag = true,
                     onTabPreparing = onPrepareStudent,
                     onTabSelected = { tab ->

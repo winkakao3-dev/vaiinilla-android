@@ -3,9 +3,8 @@ package com.vaiinilla.app.ui.components
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -35,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -47,12 +47,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -62,24 +59,23 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.vaiinilla.app.R
 import com.vaiinilla.app.ui.theme.Coral
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import dev.chrisbanes.haze.HazeInputScale
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.blur.HazeColorEffect
-import dev.chrisbanes.haze.blur.blurEffect
-import dev.chrisbanes.haze.hazeEffect
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.floor
+import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import androidx.compose.ui.graphics.lerp as lerpColor
@@ -105,34 +101,28 @@ internal object StudentNavPillMotion {
  *
  * Chrome (dock/pill/text) comes from the active theme: near-white in Light, Uber dark in
  * Dark/Amoled. See [com.vaiinilla.app.ui.theme.VaiinillaThemeMode.resolveColors].
+ *
+ * The dock is liquid glass (see LiquidGlassSurfaces.kt) and the moving pill is its lens.
  */
 private val NavDockHeight = 55.dp
 private val NavMaxWidth = 568.dp
 private val NavDockGapAboveSafeArea = 8.dp
 private val NavDockHorizontalMargin = 19.dp
-private val NavDockShape = RoundedCornerShape(28.dp)
-private val NavBubbleShape = RoundedCornerShape(25.dp)
 private val NavContentInsetX = 10.dp
 private val NavPillExtraWidth = 12.dp
 private val NavPillInsetY = 3.dp
 private val NavDockElevation = 5.dp
+private const val NAV_MAX_FONT_SCALE = 1.3f
+private const val NAV_DRAG_PILL_GROWTH = 0.14f
 private val NavIconSize = 24.dp
-private val NavLabelSize = 8.sp
+private val NavLabelSize = 10.sp
 private val NavIconLabelGap = 4.dp
-private val NavColorMotionMs = 240
-
-/**
- * Flutter: damping / (2 * sqrt(stiffness * mass)) = 28 / (2 * sqrt(450)) ≈ 0.66
- */
-private val NavMotionEase = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
 
 private val NavPillSpring =
     spring<Float>(
         dampingRatio = 0.82f,
         stiffness = 310f,
     )
-
-private fun navTapDurationMs(distance: Float): Int = (220f + 50f * (distance - 1f).coerceAtLeast(0f)).roundToInt()
 
 /** Content clearance: dock + float gap + breathing room (excludes system inset). */
 val VaiinillaBottomNavClearance: Dp = NavDockHeight + NavDockGapAboveSafeArea + 16.dp
@@ -142,6 +132,9 @@ val VaiinillaBottomNavTop: Dp = NavDockHeight + NavDockGapAboveSafeArea
 
 /** Margen lateral del dock, para alinear con su orilla lo que flota encima. */
 val VaiinillaBottomNavSideMargin: Dp = NavDockHorizontalMargin
+
+/** Pestañas que muestra la barra hoy; el asistente sigue reservado. */
+internal val StudentNavTabs = listOf(StudentTab.MENU, StudentTab.ORDERS, StudentTab.WALLET, StudentTab.CART)
 
 enum class StudentTab {
     MENU,
@@ -157,56 +150,18 @@ fun VaiinillaBottomNav(
     cartCount: Int,
     onTabSelected: (StudentTab) -> Unit,
     modifier: Modifier = Modifier,
-    hazeState: HazeState? = null,
+    backdrop: Backdrop? = null,
     onTabPreparing: (StudentTab) -> Unit = {},
     enableDrag: Boolean = false,
+    visibleTabs: List<StudentTab> = StudentNavTabs,
 ) {
-    val context = LocalContext.current
     val density = LocalDensity.current
     val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val colors = LocalVaiinillaColors.current
-    val reducedMotion =
-        remember {
-            runCatching {
-                android.provider.Settings.Global.getFloat(
-                    context.contentResolver,
-                    android.provider.Settings.Global.TRANSITION_ANIMATION_SCALE,
-                ) == 0f
-            }.getOrDefault(false)
-        }
+    val reducedMotion = reducedMotion()
 
-    val tabs =
-        listOf(
-            NavTab(
-                StudentTab.MENU,
-                "Menú",
-                R.drawable.ic_nav_home_reference,
-                iconWidth = 24.55.dp,
-                iconHeight = 21.82.dp,
-            ),
-            NavTab(
-                StudentTab.ORDERS,
-                "Pedidos",
-                R.drawable.ic_nav_orders_reference,
-                iconWidth = 24.25.dp,
-                iconHeight = 18.79.dp,
-            ),
-            NavTab(
-                StudentTab.WALLET,
-                "Cartera",
-                R.drawable.ic_nav_wallet_reference,
-                iconWidth = 17.27.dp,
-                iconHeight = 22.12.dp,
-            ),
-            NavTab(
-                StudentTab.CART,
-                "Carrito",
-                R.drawable.ic_nav_cart_reference,
-                iconWidth = 23.03.dp,
-                iconHeight = 20.31.dp,
-            ),
-        )
+    val tabs = visibleTabs.map { navTabFor(it) }
 
     val activeIndex = tabs.indexOfFirst { it.tab == activeTab }.coerceAtLeast(0)
     val indexAnim = remember { Animatable(StudentNavPillMotion.index) }
@@ -249,6 +204,13 @@ fun VaiinillaBottomNav(
         StudentNavPillMotion.lastTab = activeTab
     }
 
+    val dockBackdrop = rememberLayerBackdrop()
+    val pressGrowth by animateFloatAsState(
+        targetValue = if (isDragging) NAV_DRAG_PILL_GROWTH else 0f,
+        animationSpec = NavPillSpring,
+        label = "nav_lens_press",
+    )
+
     Box(
         modifier =
             modifier
@@ -267,29 +229,14 @@ fun VaiinillaBottomNav(
                     .widthIn(max = NavMaxWidth)
                     .fillMaxWidth()
                     .height(NavDockHeight)
-                    .shadow(NavDockElevation, NavDockShape)
-                    .clip(NavDockShape)
-                    .then(
-                        if (hazeState != null) {
-                            Modifier.hazeEffect(hazeState) {
-                                inputScale = HazeInputScale.Fixed(0.33f)
-                                clipToAreasBounds = true
-                                blurEffect {
-                                    blurEnabled = true
-                                    blurRadius = 16.dp
-                                    noiseFactor = 0f
-                                    backgroundColor = Color.Transparent
-                                    colorEffects =
-                                        listOf(
-                                            HazeColorEffect.tint(colors.navGlass.copy(alpha = 0.72f)),
-                                        )
-                                    fallbackTint = HazeColorEffect.tint(colors.navGlass.copy(alpha = 0.94f))
-                                }
-                            }
-                        } else {
-                            Modifier.background(colors.navGlass)
-                        },
-                    ).border(1.dp, colors.navBorder, NavDockShape),
+                    .liquidGlassDock(
+                        backdrop = backdrop,
+                        dockBackdrop = dockBackdrop,
+                        tint = colors.navGlass.copy(alpha = GLASS_TINT_ALPHA),
+                        solid = colors.navGlass,
+                        border = colors.navBorder,
+                        elevation = NavDockElevation,
+                    ),
         ) {
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val tabCount = tabs.size.coerceAtLeast(1)
@@ -408,76 +355,78 @@ fun VaiinillaBottomNav(
                                     )
                                 }.width(pillWidth)
                                 .height(NavDockHeight - NavPillInsetY * 2)
-                                .graphicsLayer {
-                                    scaleY = 1f + 0.025f * stretchProgress
-                                }.clip(NavBubbleShape)
-                                .background(colors.navPill),
+                                .liquidGlassLens(
+                                    source = backdrop?.let { dockBackdrop },
+                                    tint = colors.navTextIdle.copy(alpha = LENS_TINT_ALPHA),
+                                    solid = colors.navPill,
+                                    layerBlock = {
+                                        val grow = pressGrowth
+                                        scaleX = 1f + grow
+                                        scaleY = 1f + 0.025f * stretchProgress + grow
+                                    },
+                                ),
                     )
 
-                    Row(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = NavContentInsetX),
+                    // El texto de las pestañas crece hasta 1.3x: con 4 pestañas en 320 dp, más se corta.
+                    CompositionLocalProvider(
+                        LocalDensity provides Density(density.density, min(density.fontScale, NAV_MAX_FONT_SCALE)),
                     ) {
-                        tabs.forEachIndexed { index, entry ->
-                            val selection =
-                                (1f - abs(boundedVisualIndex - index.toFloat())).coerceIn(0f, 1f)
-                            FloatingNavTab(
-                                modifier =
-                                    Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight(),
-                                label = entry.label,
-                                iconRes = entry.iconRes,
-                                selected = index == activeIndex,
-                                selection = selection,
-                                directSelection = isDragging,
-                                badge = if (entry.tab == StudentTab.CART) cartCount else 0,
-                                iconWidth = entry.iconWidth,
-                                iconHeight = entry.iconHeight,
-                                reduceMotion = reducedMotion,
-                                onClick = {
-                                    val targetIndex = index
-                                    val targetValue = targetIndex.toFloat()
-                                    if (targetIndex == activeIndexLatest && optimisticTargetIndex == null) {
-                                        return@FloatingNavTab
-                                    }
-                                    optimisticTargetIndex = targetIndex
-                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    val selectedTab = entry.tab
-                                    motionJob?.cancel()
-                                    motionJob =
-                                        scope.launch {
-                                            launch {
-                                                delay(24)
-                                                onTabPreparingLatest(selectedTab)
-                                            }
-                                            if (reducedMotion) {
-                                                travelOrigin = Float.NaN
-                                                indexAnim.snapTo(targetValue)
-                                            } else {
-                                                travelOrigin = indexAnim.value
-                                                travelTarget = targetValue
-                                                indexAnim.animateTo(
-                                                    targetValue,
-                                                    tween(
-                                                        durationMillis =
-                                                            navTapDurationMs(
-                                                                abs(targetValue - indexAnim.value),
-                                                            ),
-                                                        easing = NavMotionEase,
-                                                    ),
-                                                )
-                                                travelOrigin = Float.NaN
-                                            }
-                                            StudentNavPillMotion.index = targetValue
-                                            StudentNavPillMotion.lastTab = selectedTab
-                                            if (selectedTab != activeTabLatest) {
-                                                onTabSelectedLatest(selectedTab)
-                                            } else {
-                                                optimisticTargetIndex = null
-                                            }
+                        Row(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = NavContentInsetX),
+                        ) {
+                            tabs.forEachIndexed { index, entry ->
+                                val selection =
+                                    (1f - abs(boundedVisualIndex - index.toFloat())).coerceIn(0f, 1f)
+                                FloatingNavTab(
+                                    modifier =
+                                        Modifier
+                                            .weight(1f)
+                                            .fillMaxHeight(),
+                                    label = entry.label,
+                                    iconRes = entry.iconRes,
+                                    selected = index == activeIndex,
+                                    selection = selection,
+                                    directSelection = isDragging,
+                                    badge = if (entry.tab == StudentTab.CART) cartCount else 0,
+                                    iconWidth = entry.iconWidth,
+                                    iconHeight = entry.iconHeight,
+                                    reduceMotion = reducedMotion,
+                                    onClick = {
+                                        val targetIndex = index
+                                        val targetValue = targetIndex.toFloat()
+                                        if (targetIndex == activeIndexLatest && optimisticTargetIndex == null) {
+                                            return@FloatingNavTab
                                         }
-                                },
-                            )
+                                        optimisticTargetIndex = targetIndex
+                                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        val selectedTab = entry.tab
+                                        motionJob?.cancel()
+                                        motionJob =
+                                            scope.launch {
+                                                launch {
+                                                    delay(24)
+                                                    onTabPreparingLatest(selectedTab)
+                                                }
+                                                if (reducedMotion) {
+                                                    travelOrigin = Float.NaN
+                                                    indexAnim.snapTo(targetValue)
+                                                } else {
+                                                    travelOrigin = indexAnim.value
+                                                    travelTarget = targetValue
+                                                    indexAnim.animateTo(targetValue, NavPillSpring)
+                                                    travelOrigin = Float.NaN
+                                                }
+                                                StudentNavPillMotion.index = targetValue
+                                                StudentNavPillMotion.lastTab = selectedTab
+                                                if (selectedTab != activeTabLatest) {
+                                                    onTabSelectedLatest(selectedTab)
+                                                } else {
+                                                    optimisticTargetIndex = null
+                                                }
+                                            }
+                                    },
+                                )
+                            }
                         }
                     }
                 }
@@ -512,7 +461,7 @@ private fun FloatingNavTab(
                 .semantics {
                     role = Role.Tab
                     this.selected = selected
-                }.padding(horizontal = 6.dp, vertical = 4.dp),
+                }.padding(horizontal = 2.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -597,6 +546,19 @@ internal fun nearestStudentNavIndex(
     if (tabCount <= 0) return 0
     return index.roundToInt().coerceIn(0, tabCount - 1)
 }
+
+private fun navTabFor(tab: StudentTab): NavTab =
+    when (tab) {
+        StudentTab.MENU ->
+            NavTab(tab, "Menú", R.drawable.ic_nav_home_reference, iconWidth = 24.55.dp, iconHeight = 21.82.dp)
+        StudentTab.ORDERS ->
+            NavTab(tab, "Pedidos", R.drawable.ic_nav_orders_reference, iconWidth = 24.25.dp, iconHeight = 18.79.dp)
+        StudentTab.WALLET ->
+            NavTab(tab, "Cartera", R.drawable.ic_nav_wallet_reference, iconWidth = 17.27.dp, iconHeight = 22.12.dp)
+        StudentTab.CART ->
+            NavTab(tab, "Carrito", R.drawable.ic_nav_cart_reference, iconWidth = 23.03.dp, iconHeight = 20.31.dp)
+        StudentTab.ASSISTANT -> error("El asistente aún no está en la barra")
+    }
 
 private data class NavTab(
     val tab: StudentTab,
