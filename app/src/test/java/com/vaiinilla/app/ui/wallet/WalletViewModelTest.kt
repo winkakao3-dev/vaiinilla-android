@@ -120,6 +120,8 @@ class WalletViewModelTest {
 
         override fun searchClients(query: String): Result<List<WalletClient>> = Result.success(emptyList())
 
+        override fun lookupClient(userId: String): Result<WalletClient> = Result.failure(UnsupportedOperationException())
+
         override fun reloadCash(
             userId: String,
             amount: String,
