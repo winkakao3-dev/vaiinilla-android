@@ -64,6 +64,7 @@ import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.admin.AdminViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.components.MenuWaiterLayer
+import com.vaiinilla.app.ui.components.NavProfile
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.WhileStarted
 import com.vaiinilla.app.ui.components.isRental
@@ -853,6 +854,8 @@ fun AppNavHost(
         },
         catalogDetailOpen = orderState.selectedProductId != null || entrance != null,
         walletCodeOpen = walletCodeOpen,
+        profile = NavProfile(initials = studentAuthState.session?.displayName?.let(::displayInitials)),
+        onOpenProfile = { navController.navigate(Routes.WALLET_ACCOUNT) { launchSingleTop = true } },
         overlay = {
             entrance?.let { current ->
                 CompositionLocalProvider(

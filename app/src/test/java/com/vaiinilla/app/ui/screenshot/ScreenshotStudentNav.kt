@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.vaiinilla.app.ui.components.NavProfile
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.navigation.routeForStudentTab
@@ -31,7 +32,7 @@ fun ScreenshotWithStudentNav(
                 activeTab = activeTab,
                 cartCount = cartCount,
                 onTabSelected = {},
-                enableDrag = false,
+                profile = NavProfile(initials = "AL"),
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
