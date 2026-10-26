@@ -40,7 +40,7 @@ class VaiinillaBottomNavSemanticsTest {
     }
 
     @Test
-    fun `every tab keeps a 48dp touch target on a narrow screen with large text`() {
+    fun `every tab and the profile keep a 48dp touch target on a narrow screen with large text`() {
         composeTestRule.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
@@ -49,13 +49,14 @@ class VaiinillaBottomNavSemanticsTest {
                         activeTab = StudentTab.MENU,
                         cartCount = 3,
                         onTabSelected = {},
+                        profile = NavProfile(initials = "AL"),
                         modifier = Modifier.width(320.dp),
                     )
                 }
             }
         }
 
-        listOf("Menú", "Pedidos", "Cartera", "Carrito").forEach { label ->
+        listOf("Menú", "Pedidos", "Cartera", "Carrito", "Tu cuenta").forEach { label ->
             composeTestRule
                 .onNodeWithContentDescription(label)
                 .assertWidthIsAtLeast(48.dp)

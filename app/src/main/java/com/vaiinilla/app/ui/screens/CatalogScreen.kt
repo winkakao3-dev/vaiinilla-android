@@ -88,7 +88,6 @@ import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductCardSkeleton
 import com.vaiinilla.app.ui.components.ProductDetailSheet
 import com.vaiinilla.app.ui.components.ProductImage
-import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.SlidingSegments
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavSideMargin
@@ -112,7 +111,6 @@ import com.vaiinilla.app.ui.parentmode.LocalChildControls
 import com.vaiinilla.app.ui.theme.AmoledLimeWash
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
-import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.delay
@@ -137,8 +135,6 @@ fun CatalogScreen(
     onOpenWallet: () -> Unit = {},
     onChangeVenue: () -> Unit = {},
     onOpenModes: (() -> Unit)? = null,
-    profileInitials: String = "?",
-    onOpenAccount: () -> Unit = {},
     courts: List<SpaceAvailability> = emptyList(),
     onOpenCourts: (() -> Unit)? = null,
     /** Abre el carrito desde el atajo flotante; sin él, el atajo no aparece. */
@@ -184,8 +180,6 @@ fun CatalogScreen(
                 onOpenWallet = onOpenWallet,
                 onChangeVenue = onChangeVenue,
                 onOpenModes = onOpenModes,
-                profileInitials = profileInitials,
-                onOpenAccount = onOpenAccount,
                 courts = courts,
                 onOpenCourts = onOpenCourts,
                 onOpenCart =
@@ -338,8 +332,6 @@ private fun CatalogContent(
     onOpenWallet: () -> Unit,
     onChangeVenue: () -> Unit,
     onOpenModes: (() -> Unit)?,
-    profileInitials: String,
-    onOpenAccount: () -> Unit,
     courts: List<SpaceAvailability> = emptyList(),
     onOpenCourts: (() -> Unit)? = null,
     /** Abre el carrito desde el atajo flotante; sin él, el atajo no aparece. */
@@ -350,7 +342,6 @@ private fun CatalogContent(
     val catalog = requireNotNull(state.catalog)
     val colors = LocalVaiinillaColors.current
     val themeMode = LocalVaiinillaThemeMode.current
-    val themeChanger = LocalVaiinillaThemeModeChanger.current
     val focusManager = LocalFocusManager.current
     val sortedCategories = remember(catalog.categories) { catalog.categories.sortedBy(Category::order) }
     val filteredProducts =
@@ -428,9 +419,6 @@ private fun CatalogContent(
                             onSearchChange = onSearchChange,
                             onChangeVenue = onChangeVenue,
                             onOpenModes = onOpenModes,
-                            onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
-                            profileInitials = profileInitials,
-                            onOpenAccount = onOpenAccount,
                             onOpenFeed = onOpenFeed,
                         )
                     }
@@ -559,9 +547,6 @@ private fun CatalogHeader(
     onSearchChange: (String) -> Unit,
     onChangeVenue: () -> Unit,
     onOpenModes: (() -> Unit)?,
-    onCycleTheme: () -> Unit,
-    profileInitials: String,
-    onOpenAccount: () -> Unit,
     onOpenFeed: (() -> Unit)? = null,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -615,8 +600,6 @@ private fun CatalogHeader(
                     )
                 }
             }
-            Spacer(Modifier.size(10.dp))
-            ProfileInitialsButton(profileInitials, onClick = onOpenAccount, onLongClick = onCycleTheme)
         }
 
         if (onOpenFeed != null) {
@@ -819,13 +802,6 @@ private fun LoadingCatalog() {
                             .background(colors.paper2),
                 )
             }
-            Box(
-                modifier =
-                    Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(colors.paper2),
-            )
         }
         Spacer(Modifier.height(20.dp))
         LazyVerticalGrid(

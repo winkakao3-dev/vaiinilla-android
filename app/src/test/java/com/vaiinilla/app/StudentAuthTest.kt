@@ -468,6 +468,51 @@ class StudentAuthViewModelTest {
         }
 
     @Test
+    fun `without a saved venue an existing client context opens wallet instead of looping to sign in`() =
+        runTest {
+            authRepository.signUp("wk@test.com", "secret1", "Wen Kao")
+            authRepository.markCurrentEmailVerified()
+            // Entrar como cliente desde Modos de personal deja el contexto de cliente y borra el comedor guardado.
+            val context = RuntimeEnvironment.getApplication()
+            StudentAuthPreferences(context).markEnrolled("est-1")
+            sessionStore.saveAccessToken("jwt-cliente")
+            GuestSessionStore(context).clearVenue()
+            var ready = false
+            var needsAuth = false
+            var needsVenue = false
+
+            viewModel.ensureVenueContext(
+                onReady = { ready = true },
+                onNeedsAuth = { needsAuth = true },
+                onNeedsVenue = { needsVenue = true },
+            )
+
+            assertTrue(ready)
+            assertFalse(needsAuth)
+            assertFalse(needsVenue)
+            assertEquals(0, enrollmentCalls)
+        }
+
+    @Test
+    fun `without a saved venue nor client context it asks for a venue, not for sign in`() =
+        runTest {
+            authRepository.signUp("ana-sin-comedor@test.com", "secret1", "Ana")
+            authRepository.markCurrentEmailVerified()
+            GuestSessionStore(RuntimeEnvironment.getApplication()).clearVenue()
+            var needsAuth = false
+            var needsVenue = false
+
+            viewModel.ensureVenueContext(
+                onReady = {},
+                onNeedsAuth = { needsAuth = true },
+                onNeedsVenue = { needsVenue = true },
+            )
+
+            assertTrue(needsVenue)
+            assertFalse(needsAuth)
+        }
+
+    @Test
     fun `venue context failure reports the message instead of leaving the cart silent`() =
         runTest {
             enrollmentFailure = IOException("timeout")

@@ -2,6 +2,7 @@ package com.vaiinilla.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -84,6 +85,8 @@ fun WalletAccountScreen(
     onAccountDeletionMfaFactorSelected: (String) -> Unit = {},
     onSubmitAccountDeletionMfa: () -> Unit = {},
     onRetryAccountDeletion: () -> Unit = {},
+    /** Padres e hijos, solo en escuelas: va bajo el nombre porque el perfil de la barra abre aquí. */
+    familySection: (@Composable () -> Unit)? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -125,6 +128,9 @@ fun WalletAccountScreen(
                     if (email.isNotBlank()) {
                         Text(email, color = colors.muted, fontSize = 15.sp, modifier = Modifier.padding(top = 4.dp))
                     }
+                }
+                if (familySection != null) {
+                    Box(modifier = Modifier.arrive(index = 1)) { familySection() }
                 }
                 if (signedIn) {
                     SettingsGroup(title = "Cuenta", modifier = Modifier.arrive(index = 1)) {
