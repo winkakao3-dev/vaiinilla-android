@@ -1116,8 +1116,6 @@ fun AppNavHost(
                         } else {
                             null
                         },
-                    profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
-                    onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
                     onOpenCart = { navController.navigateStudent(Routes.CART) },
                     onOpenFeed = { navController.navigate(Routes.MENU_FEED) { launchSingleTop = true } },
                     waiterLayer =
