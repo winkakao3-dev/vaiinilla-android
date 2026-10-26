@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.auth.student
 
+import android.util.Log
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -784,12 +785,27 @@ class StudentAuthViewModel
             onReady: () -> Unit,
             onNeedsAuth: () -> Unit,
             onFailed: (String) -> Unit = {},
+            /**
+             * Sin comedor guardado ni contexto de cliente no hay a qué vincular la cuenta: el acceso terminaría
+             * sin comedor y regresaría aquí, en ciclo. Quien pueda, manda a elegir comedor.
+             */
+            onNeedsVenue: () -> Unit = onNeedsAuth,
         ) {
             refreshGuestVenue()
             val session = authRepository.peekSession()
             val venue = _state.value.guestVenue
-            if (session == null || !session.emailVerified || venue == null) {
+            if (session == null || !session.emailVerified) {
                 onNeedsAuth()
+                return
+            }
+            if (venue == null) {
+                // Al entrar como cliente desde Modos de personal no queda comedor guardado, pero sí su contexto.
+                if (authRepository.isReadyForCheckout(null)) {
+                    onReady()
+                } else {
+                    Log.w(TAG, "Contexto de comedor pedido sin comedor guardado ni contexto de cliente")
+                    onNeedsVenue()
+                }
                 return
             }
             if (authRepository.isReadyForCheckout(venue.establishment.id)) {
@@ -935,3 +951,5 @@ class StudentAuthViewModel
             super.onCleared()
         }
     }
+
+private const val TAG = "StudentAuth"

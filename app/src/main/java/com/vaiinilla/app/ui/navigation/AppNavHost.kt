@@ -724,6 +724,14 @@ fun AppNavHost(
         }
     }
 
+    // Cartera y Pedidos sin comedor guardado: el acceso no lo resuelve, elegir comedor sí.
+    fun navigateChooseVenue() {
+        navController.navigate(Routes.DISCOVERY) {
+            launchSingleTop = true
+            popUpTo(Routes.DISCOVERY) { inclusive = false }
+        }
+    }
+
     fun navigateStudentAuth(
         returnRoute: String = Routes.CART,
         // Cartera y Pedidos mandan al acceso solas al abrirse: si quedaran debajo, atrás las volvería a abrir y
@@ -1287,6 +1295,7 @@ fun AppNavHost(
                             orderFlowViewModel.refreshOperationalStatusForWallet()
                         },
                         onNeedsAuth = { navigateStudentAuth(Routes.WALLET, replaceReturnScreen = true) },
+                        onNeedsVenue = ::navigateChooseVenue,
                         // Sin contexto no hay saldo: se consulta igual para que el error salga con "Reintentar".
                         onFailed = { walletViewModel.refresh() },
                     )
@@ -1885,6 +1894,7 @@ fun AppNavHost(
                                 }
                             },
                             onNeedsAuth = { navigateStudentAuth(Routes.STUDENT_TRACKING, replaceReturnScreen = true) },
+                            onNeedsVenue = ::navigateChooseVenue,
                         )
                     } else if (operationalState.role != OperationalRole.CLIENT) {
                         operationalViewModel.setRole(OperationalRole.CLIENT)
