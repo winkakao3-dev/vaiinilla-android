@@ -1825,6 +1825,7 @@ fun AppNavHost(
                         },
                         onCancelWaiter = operationalViewModel::cancelWaiterCall,
                         onViewReceipt = { navController.navigate(Routes.receiptStickerRoute()) },
+                        guest = studentAuthState.session == null,
                         onReturnToMenu = {
                             // Abierto desde Pedidos: atrás regresa a la lista. La selección se limpia allá,
                             // cuando esta pantalla ya salió, para no quedarse sin pedido a media animación.

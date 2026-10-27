@@ -263,6 +263,7 @@ internal fun PickupJourneyScreen(
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
     printsTicket: Boolean = false,
     onViewReceipt: (() -> Unit)? = null,
+    guestNotice: String? = null,
 ) {
     val palette = scenePaletteForTheme()
     CompositionLocalProvider(LocalScene provides palette) {
@@ -279,6 +280,7 @@ internal fun PickupJourneyScreen(
             onCancelWaiter = onCancelWaiter,
             printsTicket = printsTicket,
             onViewReceipt = onViewReceipt,
+            guestNotice = guestNotice,
         )
     }
 }
@@ -297,6 +299,7 @@ private fun PickupJourney(
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
     printsTicket: Boolean = false,
     onViewReceipt: (() -> Unit)? = null,
+    guestNotice: String? = null,
 ) {
     val palette = LocalScene.current
     val reduceMotion = reducedMotion()
@@ -631,6 +634,7 @@ private fun PickupJourney(
             onCallWaiter = onCallWaiter,
             onCancelWaiter = onCancelWaiter,
             onViewReceipt = onViewReceipt?.takeIf { order.summary.state == OrderState.DELIVERED },
+            guestNotice = guestNotice,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
 
@@ -916,6 +920,7 @@ private fun StatusSheet(
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
     onViewReceipt: (() -> Unit)? = null,
+    guestNotice: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val c = LocalScene.current
@@ -1033,6 +1038,15 @@ private fun StatusSheet(
             }
             Spacer(Modifier.height(14.dp))
             OrderSummaryCard(order)
+            guestNotice?.let {
+                Text(
+                    it,
+                    color = c.muted,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 10.dp),
+                )
+            }
             val tableSpaceId = openTableCallSpaceId(order)
             if (tableSpaceId != null && onCurrentWaiterCall != null && onCallWaiter != null && onCancelWaiter != null) {
                 CallWaiterButton(

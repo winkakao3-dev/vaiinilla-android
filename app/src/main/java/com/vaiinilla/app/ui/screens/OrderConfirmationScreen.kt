@@ -61,6 +61,8 @@ fun OrderConfirmationScreen(
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
     /** Pedido entregado: abre el recibo con el método de pago, que se comparte como sticker. */
     onViewReceipt: (() -> Unit)? = null,
+    /** Sin sesión el pedido solo vive en este teléfono: se le avisa al invitado (A06). */
+    guest: Boolean = false,
 ) {
     Box(
         modifier =
@@ -104,11 +106,15 @@ fun OrderConfirmationScreen(
             onCallWaiter = onCallWaiter,
             onCancelWaiter = onCancelWaiter,
             onViewReceipt = onViewReceipt,
+            guestNotice = GUEST_ORDER_NOTICE.takeIf { guest },
             // Las rentas de cancha no se cobran en la caja del mostrador: no imprimen ticket.
             printsTicket = activeCelebration != null && order.reservation == null,
         )
     }
 }
+
+internal const val GUEST_ORDER_NOTICE =
+    "Sin cuenta, este pedido solo se ve en este teléfono: si borras la app o cambias de teléfono, ya no lo verás."
 
 @Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
