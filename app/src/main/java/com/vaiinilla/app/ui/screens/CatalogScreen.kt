@@ -1,37 +1,57 @@
 package com.vaiinilla.app.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Storefront
+import androidx.compose.material.icons.rounded.SwipeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,6 +62,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -51,17 +72,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -89,7 +111,6 @@ import com.vaiinilla.app.ui.components.ProductCardSkeleton
 import com.vaiinilla.app.ui.components.ProductDetailSheet
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.ProfileInitialsButton
-import com.vaiinilla.app.ui.components.SlidingSegments
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavSideMargin
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavTop
@@ -136,7 +157,6 @@ fun CatalogScreen(
     onOpenTracking: () -> Unit = {},
     onOpenWallet: () -> Unit = {},
     onChangeVenue: () -> Unit = {},
-    onOpenModes: (() -> Unit)? = null,
     profileInitials: String = "?",
     onOpenAccount: () -> Unit = {},
     courts: List<SpaceAvailability> = emptyList(),
@@ -183,7 +203,6 @@ fun CatalogScreen(
                 onOpenTracking = onOpenTracking,
                 onOpenWallet = onOpenWallet,
                 onChangeVenue = onChangeVenue,
-                onOpenModes = onOpenModes,
                 profileInitials = profileInitials,
                 onOpenAccount = onOpenAccount,
                 courts = courts,
@@ -319,7 +338,7 @@ private fun CatalogScreenPreviewContent() {
     )
 }
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CatalogContent(
     state: OrderFlowUiState,
@@ -337,7 +356,6 @@ private fun CatalogContent(
     onOpenTracking: () -> Unit,
     onOpenWallet: () -> Unit,
     onChangeVenue: () -> Unit,
-    onOpenModes: (() -> Unit)?,
     profileInitials: String,
     onOpenAccount: () -> Unit,
     courts: List<SpaceAvailability> = emptyList(),
@@ -392,6 +410,28 @@ private fun CatalogContent(
                         ),
             )
         }
+        val gridState = rememberLazyGridState()
+        val scope = rememberCoroutineScope()
+        val compactBarHeight =
+            with(LocalDensity.current) {
+                (
+                    WindowInsets.statusBars.getTop(this) +
+                        CompactBarHeight.roundToPx()
+                )
+            }
+        // La cabecera compacta aparece cuando las categorías de la lista ya pasaron debajo de ella.
+        val compactVisible by remember(gridState) {
+            derivedStateOf {
+                val chips = gridState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == CATEGORIES_KEY }
+                if (chips !=
+                    null
+                ) {
+                    chips.offset.y + chips.size.height < compactBarHeight
+                } else {
+                    gridState.firstVisibleItemIndex > 0
+                }
+            }
+        }
         PullToRefreshBox(
             isRefreshing = state.loading,
             onRefresh = onRefresh,
@@ -405,15 +445,13 @@ private fun CatalogContent(
             CompositionLocalProvider(LocalScene provides scene, LocalVaiinillaColors provides shelfColors) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .statusBarsPadding(),
+                    state = gridState,
+                    modifier = Modifier.fillMaxSize(),
                     contentPadding =
                         PaddingValues(
                             start = CatalogSideMargin,
                             end = CatalogSideMargin,
-                            top = 16.dp,
+                            top = 0.dp,
                             // Con el atajo al carrito encima del dock, el último renglón sube lo que mide.
                             bottom =
                                 VaiinillaBottomNavClearance + 48.dp +
@@ -427,7 +465,6 @@ private fun CatalogContent(
                             state = state,
                             onSearchChange = onSearchChange,
                             onChangeVenue = onChangeVenue,
-                            onOpenModes = onOpenModes,
                             onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
                             profileInitials = profileInitials,
                             onOpenAccount = onOpenAccount,
@@ -452,17 +489,13 @@ private fun CatalogContent(
                             )
                         }
                     }
-                    // Las categorías se quedan arriba al bajar por el menú: cambiar de sección no obliga a regresar.
-                    stickyHeader(key = "categories") {
+                    // Al bajar, estas categorías pasan a la cabecera compacta: cambiar de sección no obliga a regresar.
+                    item(key = CATEGORIES_KEY, span = { GridItemSpan(maxLineSpan) }) {
                         CategoryChips(
                             categories = sortedCategories,
                             selectedCategoryId = state.selectedCategoryId,
                             onCategorySelected = onCategorySelected,
-                            modifier =
-                                Modifier
-                                    .bleedHorizontally(CatalogSideMargin)
-                                    .fadeBelow(colors.paper, 16.dp)
-                                    .background(colors.paper),
+                            modifier = Modifier.bleedHorizontally(CatalogSideMargin),
                             sideMargin = CatalogSideMargin,
                         )
                     }
@@ -515,6 +548,20 @@ private fun CatalogContent(
             }
         }
 
+        CompositionLocalProvider(LocalScene provides scene, LocalVaiinillaColors provides shelfColors) {
+            CompactMenuBar(
+                visible = compactVisible && state.selectedProduct == null,
+                state = state,
+                categories = sortedCategories,
+                onCategorySelected = onCategorySelected,
+                onChangeVenue = onChangeVenue,
+                onSearch = { scope.launch { gridState.animateScrollToItem(0) } },
+                profileInitials = profileInitials,
+                onOpenAccount = onOpenAccount,
+                background = colors.paper,
+            )
+        }
+
         MenuCartShortcut(
             count = state.cartItemCount,
             total = moneyLabel(state.cartPreviewTotal),
@@ -558,44 +605,279 @@ private fun CatalogHeader(
     state: OrderFlowUiState,
     onSearchChange: (String) -> Unit,
     onChangeVenue: () -> Unit,
-    onOpenModes: (() -> Unit)?,
     onCycleTheme: () -> Unit,
     profileInitials: String,
     onOpenAccount: () -> Unit,
     onOpenFeed: (() -> Unit)? = null,
 ) {
+    Column {
+        MenuHero(
+            state = state,
+            onChangeVenue = onChangeVenue,
+            onCycleTheme = onCycleTheme,
+            profileInitials = profileInitials,
+            onOpenAccount = onOpenAccount,
+            modifier = Modifier.bleedHorizontally(CatalogSideMargin),
+        )
+        Spacer(Modifier.height(18.dp))
+        EditorialSearchField(
+            value = state.searchQuery,
+            onValueChange = onSearchChange,
+            placeholder = "Buscar productos…",
+            seaGlass = true,
+        )
+        if (onOpenFeed != null) {
+            Spacer(Modifier.height(10.dp))
+            MenuModeTabs(onOpenFeed = onOpenFeed)
+        }
+    }
+}
+
+/** La foto del negocio a lo ancho, con su logo y su nombre en grande encima; sin foto, su logo sobre el papel. */
+@Composable
+private fun MenuHero(
+    state: OrderFlowUiState,
+    onChangeVenue: () -> Unit,
+    onCycleTheme: () -> Unit,
+    profileInitials: String,
+    onOpenAccount: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val colors = LocalVaiinillaColors.current
     val venue = state.guestVenue
-    Column {
-        // Un solo título: el lugar donde estás pidiendo, que también sirve para cambiarlo (como Wonder).
+    val establishment = venue?.establishment
+    val name = establishment?.name ?: "Menú"
+    Box(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(HeroHeight),
+    ) {
+        val photoUrl = establishment?.photoUrl
+        if (photoUrl != null) {
+            ProductImage(
+                imageUrl = photoUrl,
+                contentDescription = "Foto de $name",
+                modifier = Modifier.fillMaxSize(),
+                placeholder = { m -> HeroLogoFallback(establishment.logoUrl, name, m) },
+            )
+        } else {
+            HeroLogoFallback(establishment?.logoUrl, name, Modifier.fillMaxSize())
+        }
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0f to Color.Black.copy(alpha = 0.35f),
+                            0.24f to Color.Transparent,
+                            0.42f to Color.Transparent,
+                            0.8f to colors.paper.copy(alpha = 0.86f),
+                            1f to colors.paper,
+                        ),
+                    ),
+        )
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(start = CatalogSideMargin, end = CatalogSideMargin, top = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(
+            if (venue != null) {
+                HeroGlassPill(label = "Cambiar lugar", icon = Icons.Rounded.Storefront, onClick = onChangeVenue)
+            } else {
+                Spacer(Modifier.size(1.dp))
+            }
+            ProfileInitialsButton(profileInitials, onClick = onOpenAccount, onLongClick = onCycleTheme)
+        }
+        Column(
+            modifier =
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 24.dp, end = 24.dp, bottom = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                VenueLogo(establishment?.logoUrl, name, size = 28.dp)
+                venue?.space?.let { space ->
+                    Text(
+                        text = "${space.name} · ${space.type}",
+                        color = colors.ink,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = 10.dp),
+                    )
+                }
+            }
+            Text(
+                text = name.uppercase(),
+                color = colors.ink,
+                fontWeight = FontWeight.Black,
+                fontSize = 46.sp,
+                lineHeight = 44.sp,
+                letterSpacing = (-1.2).sp,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
                 modifier =
                     Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(14.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .clickable(
                             enabled = venue != null,
                             onClickLabel = "Cambiar de cafetería",
                             onClick = onChangeVenue,
                         ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun HeroLogoFallback(
+    logoUrl: String?,
+    name: String,
+    modifier: Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    Box(modifier = modifier.background(colors.paper2), contentAlignment = Alignment.Center) {
+        VenueLogo(logoUrl, name, size = 120.dp, modifier = Modifier.padding(bottom = 90.dp))
+    }
+}
+
+@Composable
+private fun VenueLogo(
+    logoUrl: String?,
+    name: String,
+    size: Dp,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    val shape = RoundedCornerShape(size * 0.28f)
+    val initials = remember(name) { venueInitials(name) }
+    val fallback: @Composable (Modifier) -> Unit = { m ->
+        Box(m.background(colors.ink), contentAlignment = Alignment.Center) {
+            Text(initials, color = colors.onInk, fontWeight = FontWeight.Black, fontSize = (size.value * 0.36f).sp)
+        }
+    }
+    val boxModifier = modifier.size(size).clip(shape)
+    if (logoUrl != null) {
+        ProductImage(
+            imageUrl = logoUrl,
+            contentDescription = "Logo de $name",
+            modifier = boxModifier,
+            placeholder = fallback,
+        )
+    } else {
+        fallback(boxModifier)
+    }
+}
+
+private fun venueInitials(name: String): String =
+    name
+        .split(' ')
+        .filter { word -> word.firstOrNull()?.isLetterOrDigit() == true }
+        .take(2)
+        .joinToString("") { it.first().uppercase() }
+        .ifEmpty { "V" }
+
+/** Botón de vidrio oscuro sobre la foto: se lee igual sobre cualquier imagen. */
+@Composable
+private fun HeroGlassPill(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+) {
+    val haptics = rememberVaiinillaHaptics()
+    Row(
+        modifier =
+            Modifier
+                .height(44.dp)
+                .physicalPress(onClick = {
+                    haptics.click()
+                    onClick()
+                })
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.42f))
+                .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
+                .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+        Text(label, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+    }
+}
+
+/** Arriba al bajar: el negocio en chico, la lupa, la cuenta y las categorías, para cambiar de sección sin regresar. */
+@Composable
+private fun BoxScope.CompactMenuBar(
+    visible: Boolean,
+    state: OrderFlowUiState,
+    categories: List<Category>,
+    onCategorySelected: (Int?) -> Unit,
+    onChangeVenue: () -> Unit,
+    onSearch: () -> Unit,
+    profileInitials: String,
+    onOpenAccount: () -> Unit,
+    background: Color,
+) {
+    val colors = LocalVaiinillaColors.current
+    val establishment = state.guestVenue?.establishment
+    val name = establishment?.name ?: "Menú"
+    AnimatedVisibility(
+        visible = visible,
+        modifier = Modifier.align(Alignment.TopCenter),
+        enter =
+            fadeIn(spring(stiffness = Spring.StiffnessMediumLow)) +
+                slideInVertically(spring(dampingRatio = 0.86f, stiffness = Spring.StiffnessMediumLow)) { -it / 3 },
+        exit =
+            fadeOut(spring(stiffness = Spring.StiffnessMedium)) +
+                slideOutVertically(spring(stiffness = Spring.StiffnessMedium)) { -it / 3 },
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .background(background.copy(alpha = 0.97f))
+                    .statusBarsPadding(),
+        ) {
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(CompactBarHeight)
+                        .padding(horizontal = CatalogSideMargin),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(
+                                enabled = state.guestVenue != null,
+                                onClickLabel = "Cambiar de cafetería",
+                                onClick = onChangeVenue,
+                            ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    VenueLogo(establishment?.logoUrl, name, size = 32.dp)
                     Text(
-                        text = venue?.establishment?.name ?: "Menú",
+                        text = name.uppercase(),
                         color = colors.ink,
                         fontWeight = FontWeight.Black,
-                        fontSize = 24.sp,
-                        lineHeight = 28.sp,
-                        letterSpacing = (-0.6).sp,
+                        fontSize = 20.sp,
+                        letterSpacing = (-0.4).sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
+                        modifier = Modifier.padding(start = 10.dp).weight(1f, fill = false),
                     )
-                    if (venue != null) {
+                    if (state.guestVenue != null) {
                         Icon(
                             Icons.Rounded.KeyboardArrowDown,
                             contentDescription = null,
@@ -604,49 +886,24 @@ private fun CatalogHeader(
                         )
                     }
                 }
-                venue?.space?.let { space ->
-                    Text(
-                        text = "${space.name} · ${space.type}",
-                        color = colors.muted,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                IconButton(onClick = onSearch) {
+                    Icon(Icons.Rounded.Search, contentDescription = "Buscar productos", tint = colors.ink)
                 }
+                ProfileInitialsButton(profileInitials, onClick = onOpenAccount)
             }
-            Spacer(Modifier.size(10.dp))
-            ProfileInitialsButton(profileInitials, onClick = onOpenAccount, onLongClick = onCycleTheme)
-        }
-
-        if (onOpenFeed != null) {
-            Spacer(Modifier.height(14.dp))
-            MenuModeTabs(onOpenFeed = onOpenFeed)
-        }
-
-        Spacer(Modifier.height(16.dp))
-        EditorialSearchField(
-            value = state.searchQuery,
-            onValueChange = onSearchChange,
-            placeholder = "Buscar productos…",
-            seaGlass = true,
-        )
-
-        if (onOpenModes != null) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                TextButton(
-                    onClick = onOpenModes,
-                    modifier = Modifier.padding(top = 2.dp),
-                ) {
-                    Text("Cambiar modo", color = colors.muted, fontWeight = FontWeight.Bold)
-                }
-            }
+            CategoryChips(
+                categories = categories,
+                selectedCategoryId = state.selectedCategoryId,
+                onCategorySelected = onCategorySelected,
+                sideMargin = CatalogSideMargin,
+            )
         }
     }
 }
+
+private val HeroHeight = 380.dp
+private val CompactBarHeight = 60.dp
+private const val CATEGORIES_KEY = "categories"
 
 private val CatalogSideMargin = 20.dp
 
@@ -657,26 +914,6 @@ private fun Modifier.bleedHorizontally(margin: Dp): Modifier =
         val width = constraints.maxWidth + extra
         val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
         layout(constraints.maxWidth, placeable.height) { placeable.place(-extra / 2, 0) }
-    }
-
-/** Un degradado del color de fondo bajo la barra: los productos se desvanecen al pasar, sin un corte. */
-private fun Modifier.fadeBelow(
-    color: Color,
-    height: Dp,
-): Modifier =
-    drawWithContent {
-        drawContent()
-        drawRect(
-            brush =
-                Brush.verticalGradient(
-                    listOf(color, color.copy(alpha = 0f)),
-                    startY = size.height,
-                    endY =
-                        size.height + height.toPx(),
-                ),
-            topLeft = Offset(0f, size.height),
-            size = Size(size.width, height.toPx()),
-        )
     }
 
 @Composable
@@ -720,46 +957,56 @@ private fun ProductCard(
 ) {
     val colors = LocalVaiinillaColors.current
     val kind = remember(product.name) { trayItemKind(product.name) }
-    // Como antes del vidrio (y como iOS): la foto redondeada sobre el papel y, debajo, el nombre y el precio.
-    Column(
+    // La foto llena la tarjeta y el nombre y el precio van encima, sobre una sombra que los deja leer.
+    Box(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(bottom = 14.dp)
-                .physicalPress(scale = PhysicalPressScale.ProductCard, onClick = onClick),
+                .aspectRatio(0.84f)
+                .physicalPress(scale = PhysicalPressScale.ProductCard, onClick = onClick)
+                .clip(RoundedCornerShape(26.dp))
+                .background(colors.paper2),
     ) {
         ProductImage(
             imageUrl = product.imageUrl,
             contentDescription = product.name,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(colors.paper2),
+            modifier = Modifier.fillMaxSize(),
             placeholder = { m -> ProductIllustration(kind, m) },
         )
-        Text(
-            text = product.name,
-            color = colors.ink,
-            fontWeight = FontWeight.Black,
-            fontSize = 17.sp,
-            lineHeight = 21.sp,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 2.dp, top = 12.dp, end = 2.dp),
-        )
-        Text(
-            text = moneyLabel(product.digitalPrice),
-            color = colors.muted,
-            fontWeight = FontWeight.Bold,
-            fontSize = 15.sp,
-            lineHeight = 19.sp,
-            modifier = Modifier.padding(start = 2.dp, top = 4.dp, end = 2.dp),
-        )
-        // Lo agotado sale para todos; el alumno con tutor ve además con candado lo que no se le vende.
-        LocalChildControls.current.restrictionFor(product)?.let {
-            ChildRestrictionTag(it, colors.muted, Modifier.padding(start = 2.dp, top = 4.dp, end = 2.dp))
+        Column(
+            modifier =
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            0f to Color.Transparent,
+                            0.45f to Color.Black.copy(alpha = 0.55f),
+                            1f to Color.Black.copy(alpha = 0.78f),
+                        ),
+                    ).padding(start = 14.dp, end = 14.dp, top = 34.dp, bottom = 12.dp),
+        ) {
+            Text(
+                text = product.name,
+                color = Color.White,
+                fontWeight = FontWeight.Black,
+                fontSize = 17.sp,
+                lineHeight = 20.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = moneyLabel(product.digitalPrice),
+                color = Color.White.copy(alpha = 0.88f),
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            // Lo agotado sale para todos; el alumno con tutor ve además con candado lo que no se le vende.
+            LocalChildControls.current.restrictionFor(product)?.let {
+                ChildRestrictionTag(it, Color.White.copy(alpha = 0.88f), Modifier.padding(top = 4.dp))
+            }
         }
     }
 }
@@ -918,17 +1165,7 @@ private fun MenuModeTabs(onOpenFeed: () -> Unit) {
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SlidingSegments(
-            labels = listOf("Menú", "Desliza"),
-            selectedIndex = selected,
-            onSelect = { if (it == 1) open() },
-            trackColor = colors.paper2,
-            indicatorColor = colors.ink,
-            selectedContentColor = colors.onInk,
-            idleContentColor = colors.muted,
-            borderColor = colors.line,
-            verticalPadding = 9.dp,
-        )
+        MenuModeIcons(selectedIndex = selected, onSelect = { if (it == 1) open() })
         AnimatedVisibility(visible = inviteVisible) {
             Row(
                 modifier =
@@ -962,5 +1199,62 @@ private fun MenuModeTabs(onOpenFeed: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+/** Menú (cuadrícula) y Desliza (la mano), como pestañas de ícono; una raya se desliza bajo la elegida. */
+@Composable
+private fun MenuModeIcons(
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    val tabs = listOf("Menú" to Icons.Rounded.GridView, "Desliza" to Icons.Rounded.SwipeUp)
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val tabWidth = maxWidth / tabs.size
+        val indicatorX by animateDpAsState(
+            targetValue = tabWidth * selectedIndex,
+            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+            label = "menu-mode-indicator",
+        )
+        Row(modifier = Modifier.fillMaxWidth()) {
+            tabs.forEachIndexed { index, (label, icon) ->
+                val selected = index == selectedIndex
+                val tint by animateColorAsState(
+                    targetValue = if (selected) colors.ink else colors.muted,
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                    label = "menu-mode-tint",
+                )
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .height(52.dp)
+                            .selectable(selected = selected, role = Role.Tab, onClick = { onSelect(index) })
+                            .semantics { contentDescription = label },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(28.dp))
+                }
+            }
+        }
+        Box(
+            modifier =
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(colors.line),
+        )
+        Box(
+            modifier =
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .offset(x = indicatorX)
+                    .width(tabWidth)
+                    .height(3.dp)
+                    .clip(CircleShape)
+                    .background(colors.ink),
+        )
     }
 }

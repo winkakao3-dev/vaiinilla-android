@@ -1099,19 +1099,6 @@ fun AppNavHost(
                             launchSingleTop = true
                         }
                     },
-                    onOpenModes =
-                        if (
-                            authorizedAccessState.activeContext == null &&
-                            authorizedAccessState.modes.any { mode ->
-                                mode.role == OperationalRole.CASHIER ||
-                                    mode.role == OperationalRole.KITCHEN ||
-                                    mode.role == OperationalRole.WAITER
-                            }
-                        ) {
-                            { navController.navigate(Routes.STAFF_MODES) { launchSingleTop = true } }
-                        } else {
-                            null
-                        },
                     profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
                     onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
                     onOpenCart = { navController.navigateStudent(Routes.CART) },
