@@ -42,12 +42,27 @@ class SharedTableVenueTest {
         assertNull(vm.uiState.value.table)
     }
 
+    @Test
+    fun `si esto lo pago yo falla el error va junto al pedido y la mesa se vuelve a leer`() {
+        val repository = FakeRepository(claimFails = true)
+        val vm = SharedTableViewModel(repository)
+
+        vm.claim(folio = 7, payIt = true)
+
+        assertEquals(7, vm.uiState.value.errorFolio)
+        assertEquals("Ese pedido ya está pagado", vm.uiState.value.error)
+        assertEquals(1, repository.currentCalls)
+    }
+
     private fun spaceId(vm: SharedTableViewModel): Int? {
         val table = vm.uiState.value.table ?: return null
         return table.spaceId
     }
 
-    private class FakeRepository : SharedTableRepository {
+    private class FakeRepository(
+        private val claimFails: Boolean = false,
+    ) : SharedTableRepository {
+        var currentCalls = 0
         private val zero = SharedTableAmounts(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO)
         private val table =
             SharedTable(
@@ -62,7 +77,10 @@ class SharedTableVenueTest {
                 myShare = zero,
             )
 
-        override fun current(): Result<SharedTable?> = Result.success(table)
+        override fun current(): Result<SharedTable?> {
+            currentCalls++
+            return Result.success(table)
+        }
 
         override fun join(
             qrToken: String,
@@ -74,6 +92,13 @@ class SharedTableVenueTest {
         override fun claim(
             folio: Int,
             payIt: Boolean,
-        ): Result<SharedTable> = Result.success(table)
+        ): Result<SharedTable> =
+            if (claimFails) {
+                Result.failure(
+                    IllegalStateException("Ese pedido ya está pagado"),
+                )
+            } else {
+                Result.success(table)
+            }
     }
 }
