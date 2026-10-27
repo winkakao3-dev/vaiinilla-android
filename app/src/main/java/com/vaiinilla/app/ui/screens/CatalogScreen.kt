@@ -468,6 +468,7 @@ private fun CatalogContent(
                             onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
                             profileInitials = profileInitials,
                             onOpenAccount = onOpenAccount,
+                            pageColor = colors.paper,
                             onOpenFeed = onOpenFeed,
                         )
                     }
@@ -608,6 +609,7 @@ private fun CatalogHeader(
     onCycleTheme: () -> Unit,
     profileInitials: String,
     onOpenAccount: () -> Unit,
+    pageColor: Color,
     onOpenFeed: (() -> Unit)? = null,
 ) {
     Column {
@@ -617,6 +619,7 @@ private fun CatalogHeader(
             onCycleTheme = onCycleTheme,
             profileInitials = profileInitials,
             onOpenAccount = onOpenAccount,
+            pageColor = pageColor,
             modifier = Modifier.bleedHorizontally(CatalogSideMargin),
         )
         Spacer(Modifier.height(18.dp))
@@ -633,7 +636,11 @@ private fun CatalogHeader(
     }
 }
 
-/** La foto del negocio a lo ancho, con su logo y su nombre en grande encima; sin foto, su logo sobre el papel. */
+/**
+ * La foto del negocio a lo ancho, con su logo y su nombre en grande encima; sin foto, su logo sobre el papel,
+ * y sin foto ni logo, solo el nombre en un encabezado más bajo. Abajo se funde con [pageColor], el fondo de la
+ * pantalla: dentro de la lista el papel es transparente y no sirve para fundir.
+ */
 @Composable
 private fun MenuHero(
     state: OrderFlowUiState,
@@ -641,19 +648,21 @@ private fun MenuHero(
     onCycleTheme: () -> Unit,
     profileInitials: String,
     onOpenAccount: () -> Unit,
+    pageColor: Color,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
     val venue = state.guestVenue
     val establishment = venue?.establishment
     val name = establishment?.name ?: "Menú"
+    val photoUrl = establishment?.photoUrl
+    val logoUrl = establishment?.logoUrl
     Box(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(HeroHeight),
+                .height(if (photoUrl != null || logoUrl != null) HeroHeight else HeroHeightNameOnly),
     ) {
-        val photoUrl = establishment?.photoUrl
         if (photoUrl != null) {
             ProductImage(
                 imageUrl = photoUrl,
@@ -661,8 +670,8 @@ private fun MenuHero(
                 modifier = Modifier.fillMaxSize(),
                 placeholder = { m -> HeroLogoFallback(establishment.logoUrl, name, m) },
             )
-        } else {
-            HeroLogoFallback(establishment?.logoUrl, name, Modifier.fillMaxSize())
+        } else if (logoUrl != null) {
+            HeroLogoFallback(logoUrl, name, Modifier.fillMaxSize())
         }
         Box(
             modifier =
@@ -671,10 +680,10 @@ private fun MenuHero(
                     .background(
                         Brush.verticalGradient(
                             0f to Color.Black.copy(alpha = 0.35f),
-                            0.24f to Color.Transparent,
-                            0.42f to Color.Transparent,
-                            0.8f to colors.paper.copy(alpha = 0.86f),
-                            1f to colors.paper,
+                            0.22f to Color.Black.copy(alpha = 0f),
+                            0.5f to pageColor.copy(alpha = 0f),
+                            0.82f to pageColor.copy(alpha = 0.88f),
+                            1f to pageColor,
                         ),
                     ),
         )
@@ -902,6 +911,7 @@ private fun BoxScope.CompactMenuBar(
 }
 
 private val HeroHeight = 380.dp
+private val HeroHeightNameOnly = 250.dp
 private val CompactBarHeight = 60.dp
 private const val CATEGORIES_KEY = "categories"
 
