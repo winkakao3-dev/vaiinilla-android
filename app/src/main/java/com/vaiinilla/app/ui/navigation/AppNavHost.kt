@@ -174,6 +174,9 @@ fun AppNavHost(
     onInvitationConsumed: () -> Unit = {},
     onOrderConsumed: () -> Unit = {},
 ) {
+    // Vive lo que vive esta composición: si la actividad se recrea (p. ej. al cambiar el tamaño de letra), lo que
+    // espera aquí se cancela y no navega con un NavController que ya no está en pantalla (L01).
+    val launchNavScope = rememberCoroutineScope()
     val orderFlowViewModel: OrderFlowViewModel = viewModel()
     val operationalViewModel: OperationalViewModel = viewModel()
     val adminViewModel: AdminViewModel = viewModel()
@@ -695,7 +698,10 @@ fun AppNavHost(
         orderFlowViewModel.claimGuestOrders()
         studentAuthViewModel.refreshGuestVenue()
         authorizedAccessViewModel.refreshCurrentSession()
-        authorizedAccessViewModel.refreshModes(force = true) { modesLoaded ->
+        val modesRefreshed = CompletableDeferred<Boolean>()
+        authorizedAccessViewModel.refreshModes(force = true) { modesRefreshed.complete(it) }
+        launchNavScope.launch {
+            val modesLoaded = modesRefreshed.await()
             val destination =
                 resolveLaunchDestination(
                     pendingEstablishmentSlug = pendingEstablishmentSlug,
@@ -926,21 +932,24 @@ fun AppNavHost(
                             ),
                         )
                     } else {
-                        authorizedAccessViewModel.refreshModes(force = true) { modesLoaded ->
-                            navigateLaunchDestination(
-                                resolveLaunchDestination(
-                                    pendingEstablishmentSlug = pendingEstablishmentSlug,
-                                    session = authorizedAccessViewModel.state.value.session,
-                                    hasStaffModes =
-                                        hasStaffLaunchModes(
-                                            authorizedAccessViewModel.state.value.modes
-                                                .map { it.role },
-                                        ),
-                                    hasSavedVenue = studentAuthViewModel.state.value.guestVenue != null,
-                                    modesLoaded = modesLoaded,
-                                ),
-                            )
-                        }
+                        // El callback del ViewModel sobrevive a la actividad; se espera aquí para que, si la
+                        // actividad se recrea, este efecto se cancele y navegue el del NavController nuevo (L01).
+                        val modesRefreshed = CompletableDeferred<Boolean>()
+                        authorizedAccessViewModel.refreshModes(force = true) { modesRefreshed.complete(it) }
+                        val modesLoaded = modesRefreshed.await()
+                        navigateLaunchDestination(
+                            resolveLaunchDestination(
+                                pendingEstablishmentSlug = pendingEstablishmentSlug,
+                                session = authorizedAccessViewModel.state.value.session,
+                                hasStaffModes =
+                                    hasStaffLaunchModes(
+                                        authorizedAccessViewModel.state.value.modes
+                                            .map { it.role },
+                                    ),
+                                hasSavedVenue = studentAuthViewModel.state.value.guestVenue != null,
+                                modesLoaded = modesLoaded,
+                            ),
+                        )
                     }
                 }
 
