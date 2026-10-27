@@ -419,6 +419,10 @@ fun CashierOperationalScreen(
     val queuedCashierOrders =
         actionableCashierOrders.filterNot { it.summary.id == recentOrder?.summary?.id }
     val actionableIds = actionableCashierOrders.map { it.summary.id }.toSet()
+    // Un pedido de mostrador que el cajero eligió cobrar ya llega aquí seleccionado: pasa al frente (G03).
+    LaunchedEffect(state.selectedOrderId, actionableIds) {
+        state.selectedOrderId?.takeIf { it in actionableIds }?.let { selectedCashierOrderId = it }
+    }
     LaunchedEffect(actionableIds) {
         cashDrafts.keys.filterNot { it in actionableIds }.forEach(cashDrafts::remove)
         if (rejectingOrderId !in actionableIds) rejectingOrderId = null

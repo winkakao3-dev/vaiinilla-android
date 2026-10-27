@@ -409,6 +409,8 @@ class WaiterViewModel
             lines: List<CartLine>,
             customerName: String,
             cashier: CashierContext? = null,
+            /** Caja eligió cobrarlo ya: recibe el id para abrir su cobro (G03). */
+            onCreated: ((orderId: String) -> Unit)? = null,
         ) {
             if (_uiState.value.counterOrderSending) return
             val space = _uiState.value.counterOrderSpace
@@ -441,7 +443,11 @@ class WaiterViewModel
                                 counterOrderError = null,
                                 counterOrderSpace = null,
                             )
-                        showToast(counterOrderToast(created.summary.folio, space?.name, toAccount, cashier))
+                        if (onCreated != null) {
+                            onCreated(created.summary.id)
+                        } else {
+                            showToast(counterOrderToast(created.summary.folio, space?.name, toAccount, cashier))
+                        }
                     },
                     onFailure = { error ->
                         _uiState.value = _uiState.value.copy(counterOrderError = error.toUserFacingMessage())

@@ -2110,7 +2110,21 @@ fun AppNavHost(
                                     CashierContext(cashOpen = operationalState.cashSessionOpen),
                                 )
                             },
-                            submitAction = "Crear pedido",
+                            submitAction =
+                                if (operationalState.cashSessionOpen == true) "Dejar por cobrar" else "Crear pedido",
+                            onSubmitAndCollect =
+                                if (operationalState.cashSessionOpen == true) {
+                                    { lines, name ->
+                                        waiterViewModel.submitCounterOrder(
+                                            lines,
+                                            name,
+                                            CashierContext(cashOpen = true),
+                                            onCreated = operationalViewModel::refreshOrder,
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
                         )
                     }
                 }
