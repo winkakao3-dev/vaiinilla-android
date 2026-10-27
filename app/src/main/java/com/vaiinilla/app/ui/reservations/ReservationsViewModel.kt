@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.data.guest.GuestIdentityRequiredException
 import com.vaiinilla.app.data.guest.GuestReservationSession
 import com.vaiinilla.app.domain.model.CourtDay
@@ -409,5 +410,4 @@ class ReservationsViewModel
         }
     }
 
-internal fun Throwable.userMessage(): String =
-    message?.takeIf { it.isNotBlank() } ?: "Algo salió mal. Intenta de nuevo."
+internal fun Throwable.userMessage(): String = toUserFacingMessage("Algo salió mal. Intenta de nuevo.")

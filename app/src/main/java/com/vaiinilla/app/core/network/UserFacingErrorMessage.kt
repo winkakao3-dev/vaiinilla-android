@@ -13,6 +13,7 @@ private val CODED_MESSAGES =
         "ORDER_VERSION_CONFLICT" to "El pedido cambió mientras lo tenías abierto. Revísalo e inténtalo de nuevo.",
         "INVALID_PICKUP_TOKEN" to "Ese código de recogida no es válido. Pide al cliente que lo muestre de nuevo.",
         "UNAUTHENTICATED" to "Tu sesión caducó. Vuelve a iniciar sesión.",
+        "ACCOUNT_REQUIRED" to "Para apartar necesitas una cuenta. Crea una o inicia sesión.",
     )
 
 /**
