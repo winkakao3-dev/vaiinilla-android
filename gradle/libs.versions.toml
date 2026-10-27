@@ -5,6 +5,7 @@ ksp = "2.2.21-2.0.5"
 hilt = "2.57.1"
 serialization = "1.9.0"
 composeBom = "2026.06.01"
+haze = "2.0.0-alpha03"
 # 2.0.0-alpha01 es la última que compila con Kotlin 2.2 y compileSdk 36 (2.0.0 y 2.0.1 piden Kotlin 2.4 y compileSdk 37).
 backdrop = "2.0.0-alpha01"
 activityCompose = "1.12.4"
@@ -44,6 +45,8 @@ androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-mani
 androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 backdrop = { module = "io.github.kyant0:backdrop", version.ref = "backdrop" }
+haze-core = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
+haze-blur = { module = "dev.chrisbanes.haze:haze-blur", version.ref = "haze" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
