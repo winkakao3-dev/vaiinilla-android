@@ -51,14 +51,16 @@ fun ProductImage(
     contentScale: ContentScale = ContentScale.Crop,
     /** Lo que se ve si no hay foto; por defecto el ícono con "Sin foto". */
     placeholder: @Composable (Modifier) -> Unit = { ProductImagePlaceholder(it) },
+    /** Para miniaturas y tarjetas de una cuadrícula: se decodifica a [CARD_DECODE_DIMENSION] en vez de a lo grande. */
+    card: Boolean = false,
 ) {
     if (productImageIsRemote(imageUrl)) {
-        var remote by remember(imageUrl) {
-            mutableStateOf(remoteProductImageCache.get(imageUrl)?.asImageBitmap())
+        var remote by remember(imageUrl, card) {
+            mutableStateOf(remoteProductImageCache.get(cacheKey(imageUrl, card))?.asImageBitmap())
         }
-        LaunchedEffect(imageUrl) {
+        LaunchedEffect(imageUrl, card) {
             if (remote == null) {
-                remote = withContext(Dispatchers.IO) { loadRemoteProductImage(imageUrl) }
+                remote = withContext(Dispatchers.IO) { loadRemoteProductImage(imageUrl, card) }
             }
         }
         val bitmap = remote
@@ -170,11 +172,20 @@ internal fun dominantTone(pixels: IntArray): Int? {
 private const val TONE_SAMPLE = 16
 private val productToneCache = ConcurrentHashMap<String, Int>()
 
-private fun loadRemoteProductImage(imageUrl: String): ImageBitmap? {
-    remoteProductImageCache.get(imageUrl)?.let { return it.asImageBitmap() }
-    val lock = remoteProductImageLocks.computeIfAbsent(imageUrl) { Any() }
+private fun cacheKey(
+    imageUrl: String,
+    card: Boolean,
+): String = if (card) "$imageUrl#card" else imageUrl
+
+private fun loadRemoteProductImage(
+    imageUrl: String,
+    card: Boolean = false,
+): ImageBitmap? {
+    val key = cacheKey(imageUrl, card)
+    remoteProductImageCache.get(key)?.let { return it.asImageBitmap() }
+    val lock = remoteProductImageLocks.computeIfAbsent(key) { Any() }
     return synchronized(lock) {
-        remoteProductImageCache.get(imageUrl)?.let { return@synchronized it.asImageBitmap() }
+        remoteProductImageCache.get(key)?.let { return@synchronized it.asImageBitmap() }
         runCatching {
             val url = URL(imageUrl)
             val connection = url.openConnection() as? HttpURLConnection ?: return@runCatching null
@@ -198,8 +209,11 @@ private fun loadRemoteProductImage(imageUrl: String): ImageBitmap? {
                     connection.inputStream.use { input ->
                         input.readBytesLimited(REMOTE_IMAGE_MAX_BYTES)
                     } ?: return@runCatching null
-                decodeBoundedImage(bytes)?.let { bitmap ->
-                    remoteProductImageCache.put(imageUrl, bitmap)
+                val maxDimension = if (card) CARD_DECODE_DIMENSION else REMOTE_IMAGE_MAX_DECODE_DIMENSION
+                decodeBoundedImage(bytes, maxDimension)?.let { bitmap ->
+                    // Sube la textura a la GPU desde aquí: si no, la primera vez que se pinta frena el scroll.
+                    bitmap.prepareToDraw()
+                    remoteProductImageCache.put(key, bitmap)
                     bitmap.asImageBitmap()
                 }
             } finally {
@@ -220,8 +234,11 @@ fun rememberRemoteImage(imageUrl: String?): ImageBitmap? {
     return image
 }
 
-/** Warms the in-memory cache before product cards are composed. */
-suspend fun prefetchProductImages(imageUrls: List<String>) =
+/** Warms the in-memory cache before product cards are composed; [card] must match the cards that will show them. */
+suspend fun prefetchProductImages(
+    imageUrls: List<String>,
+    card: Boolean = false,
+) {
     coroutineScope {
         val limiter = Semaphore(REMOTE_IMAGE_PREFETCH_CONCURRENCY)
         imageUrls
@@ -230,14 +247,17 @@ suspend fun prefetchProductImages(imageUrls: List<String>) =
             .filter(::productImageIsRemote)
             .map { imageUrl ->
                 async(Dispatchers.IO) {
-                    limiter.withPermit { loadRemoteProductImage(imageUrl) }
+                    limiter.withPermit { loadRemoteProductImage(imageUrl, card) }
                 }
             }.toList()
             .awaitAll()
-        Unit
     }
+}
 
-private fun decodeBoundedImage(bytes: ByteArray): android.graphics.Bitmap? {
+private fun decodeBoundedImage(
+    bytes: ByteArray,
+    maxDimension: Int,
+): android.graphics.Bitmap? {
     if (bytes.isEmpty()) return null
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
@@ -246,18 +266,26 @@ private fun decodeBoundedImage(bytes: ByteArray): android.graphics.Bitmap? {
         return null
     }
     var sample = 1
-    while (
-        bounds.outWidth / sample > REMOTE_IMAGE_MAX_DECODE_DIMENSION ||
-        bounds.outHeight / sample > REMOTE_IMAGE_MAX_DECODE_DIMENSION
-    ) {
+    while (bounds.outWidth / (sample * 2) >= maxDimension || bounds.outHeight / (sample * 2) >= maxDimension) {
         sample *= 2
     }
-    return BitmapFactory.decodeByteArray(
-        bytes,
-        0,
-        bytes.size,
-        BitmapFactory.Options().apply { inSampleSize = sample },
-    )
+    val decoded =
+        BitmapFactory.decodeByteArray(
+            bytes,
+            0,
+            bytes.size,
+            BitmapFactory.Options().apply { inSampleSize = sample },
+        ) ?: return null
+    // inSampleSize solo divide entre potencias de 2: el resto se ajusta con un escalado para no guardar de más.
+    val scale = maxDimension.toFloat() / maxOf(decoded.width, decoded.height)
+    if (scale >= 1f) return decoded
+    return android.graphics.Bitmap
+        .createScaledBitmap(
+            decoded,
+            (decoded.width * scale).toInt().coerceAtLeast(1),
+            (decoded.height * scale).toInt().coerceAtLeast(1),
+            true,
+        ).also { if (it !== decoded) decoded.recycle() }
 }
 
 @Composable
@@ -328,7 +356,10 @@ fun productImageResource(imageUrl: String): Int? {
 private val remoteProductImageLocks = ConcurrentHashMap<String, Any>()
 
 private val remoteProductImageCache =
-    object : LruCache<String, android.graphics.Bitmap>(48 * 1024) {
+    // Un octavo del heap (al menos 48 MB): con 48 MB fijos cabían unas 9 fotos y el menú las volvía a bajar al subir.
+    object : LruCache<String, android.graphics.Bitmap>(
+        maxOf(48 * 1024, (Runtime.getRuntime().maxMemory() / 8 / 1024).toInt()),
+    ) {
         override fun sizeOf(
             key: String,
             value: android.graphics.Bitmap,
@@ -337,6 +368,7 @@ private val remoteProductImageCache =
 
 private const val REMOTE_IMAGE_MAX_BYTES = 8 * 1024 * 1024
 private const val REMOTE_IMAGE_MAX_DECODE_DIMENSION = 1280
+private const val CARD_DECODE_DIMENSION = 640
 private const val REMOTE_IMAGE_MAX_SOURCE_DIMENSION = 32_768
 private const val REMOTE_IMAGE_PREFETCH_CONCURRENCY = 6
 private const val REMOTE_IMAGE_CONNECT_TIMEOUT_MS = 7_000

@@ -238,7 +238,7 @@ fun AppNavHost(
                 ?.products
                 ?.map { it.imageUrl }
                 .orEmpty()
-        if (urls.isNotEmpty()) prefetchProductImages(urls)
+        if (urls.isNotEmpty()) prefetchProductImages(urls, card = true)
     }
 
     // Volver del background refresca el saldo: la recarga la hace Caja desde

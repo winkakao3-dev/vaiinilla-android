@@ -982,6 +982,7 @@ private fun ProductCard(
             contentDescription = product.name,
             modifier = Modifier.fillMaxSize(),
             placeholder = { m -> ProductIllustration(kind, m) },
+            card = true,
         )
         Column(
             modifier =

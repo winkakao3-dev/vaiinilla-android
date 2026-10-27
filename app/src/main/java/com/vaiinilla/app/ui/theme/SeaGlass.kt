@@ -8,6 +8,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Shader
+import android.util.LruCache
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
@@ -175,7 +176,12 @@ private class SeaGlassNode(
             val key = listOf(tone, shape, night, grounded, size, layoutDirection, density)
             val bitmaps =
                 piece?.takeIf { pieceKey == key }
-                    ?: renderSeaGlass(tone, shape, night, grounded, size, layoutDirection, this).also {
+                    ?: (
+                        renderedSeaGlass.get(key)
+                            ?: renderSeaGlass(tone, shape, night, grounded, size, layoutDirection, this).also {
+                                renderedSeaGlass.put(key, it)
+                            }
+                    ).also {
                         piece = it
                         pieceKey = key
                     }
@@ -190,10 +196,26 @@ private class SeaGlassNode(
     }
 }
 
+/**
+ * Piezas ya pintadas, compartidas entre nodos: al hacer scroll las listas desechan y recrean sus chips, y la barra
+ * compacta del menú los crea de nuevo cada vez que aparece; sin esto cada uno volvía a desenfocar en el hilo de UI.
+ */
+private val renderedSeaGlass =
+    object : LruCache<List<Any>, SeaGlassBitmaps>(SEA_GLASS_CACHE_KB) {
+        override fun sizeOf(
+            key: List<Any>,
+            value: SeaGlassBitmaps,
+        ): Int = (value.body.bytes + (value.shadow?.bytes ?: 0)) / 1024 + 1
+    }
+
+private const val SEA_GLASS_CACHE_KB = 12 * 1024
+
 private class MarginBitmap(
     val image: ImageBitmap,
     val margin: Float,
-)
+) {
+    val bytes: Int get() = image.width * image.height * 4
+}
 
 private class SeaGlassBitmaps(
     val body: MarginBitmap,
