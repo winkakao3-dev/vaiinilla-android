@@ -17,6 +17,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.CornerRadius
@@ -49,7 +50,9 @@ import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.order.TrayItemKind
 import com.vaiinilla.app.ui.order.traySlots
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 // El carrito en el Vainiverso es el mostrador: Vaini detrás con la bandeja, lo que pides cae sobre ella
 // y la pizarra lleva el total. Vacío, Vaini busca con la mirada qué servirte.
@@ -116,7 +119,10 @@ internal fun CartCounterBackdrop(
 ) {
     val palette = LocalScene.current
     val venue = LocalVenueArt.current
-    val wall = remember(venue) { counterWall(venue) }
+    // Escalar el logo y decidir el estilo de la pared lee pixeles: fuera del hilo principal (problema 1 del QA).
+    val wall by produceState<CounterWall?>(null, venue) {
+        value = withContext(Dispatchers.Default) { counterWall(venue) }
+    }
     val reduceMotion = reducedMotion()
     val textMeasurer = rememberTextMeasurer()
     val slots = remember(lines) { traySlots(lines) }
