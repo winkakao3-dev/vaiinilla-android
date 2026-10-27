@@ -48,6 +48,27 @@ class CashierRefundsSectionUiTest {
     }
 
     @Test
+    fun `otro se ofrece aunque la caja este cerrada`() {
+        val refund = PendingRefund("r-3", "cancelacion", null, "p-3", "efectivo", "15.00", "pendiente", "")
+        var confirmed: RefundMethod? = null
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                CashierRefundsSection(
+                    state = PendingRefundsUiState(refunds = listOf(refund)),
+                    canConfirm = true,
+                    cashOpen = false,
+                    colors = rememberOperationalColors(),
+                    onConfirm = { _, method -> confirmed = method },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Devuelto en efectivo").assertIsNotEnabled()
+        composeTestRule.onNodeWithText("Otro").assertIsEnabled().performClick()
+        assertEquals(RefundMethod.OTHER, confirmed)
+    }
+
+    @Test
     fun `con la caja cerrada no se ofrece devolver en efectivo`() {
         val refund = PendingRefund("r-2", "cancelacion", null, "p-2", "terminal", "35.00", "pendiente", "")
         composeTestRule.setContent {

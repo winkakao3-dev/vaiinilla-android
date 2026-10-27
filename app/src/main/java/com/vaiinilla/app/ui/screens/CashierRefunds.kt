@@ -129,6 +129,17 @@ private fun RefundRow(
                             modifier = Modifier.weight(1f),
                         ) { onConfirm(refund, RefundMethod.CASH) }
                     }
+                    if (suggested != RefundMethod.OTHER) {
+                        // No sale del cajón: se puede confirmar aunque la caja esté cerrada.
+                        ActionPill(
+                            label = "Otro",
+                            enabled = state.confirming == null,
+                            loading = busy && state.confirming?.second == RefundMethod.OTHER,
+                            colors = colors,
+                            primary = false,
+                            modifier = Modifier.weight(1f),
+                        ) { onConfirm(refund, RefundMethod.OTHER) }
+                    }
                 }
                 if (cashBlocked) {
                     Text(
