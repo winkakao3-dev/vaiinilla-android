@@ -138,6 +138,7 @@ import com.vaiinilla.app.ui.screens.admin.AdminActions
 import com.vaiinilla.app.ui.screens.admin.AdminCashActions
 import com.vaiinilla.app.ui.screens.admin.AdminScreen
 import com.vaiinilla.app.ui.screens.admin.AdminSectionsHost
+import com.vaiinilla.app.ui.screens.admin.AdminTakeOrderTab
 import com.vaiinilla.app.ui.screens.rememberOperationalColors
 import com.vaiinilla.app.ui.screens.rememberReduceMotion
 import com.vaiinilla.app.ui.screens.rememberVenueArt
@@ -2236,6 +2237,25 @@ fun AppNavHost(
                                     )
                                 },
                                 school = adminSchoolViewModel,
+                                // Pedir: el pedido de mostrador o de mesa del mesero, con el estilo del menú. Sondea
+                                // las mesas solo mientras se ve.
+                                orderTaker = { header ->
+                                    DisposableEffect(Unit) {
+                                        waiterViewModel.onVisible()
+                                        onDispose {
+                                            waiterViewModel.closeCounterOrder()
+                                            waiterViewModel.onHidden()
+                                        }
+                                    }
+                                    AdminTakeOrderTab(
+                                        state = waiterState,
+                                        colors = rememberOperationalColors(),
+                                        header = header,
+                                        onPickCounter = waiterViewModel::openCounterOrder,
+                                        onPickTable = waiterViewModel::openTableOrder,
+                                        onSubmit = { lines, name -> waiterViewModel.submitCounterOrder(lines, name) },
+                                    )
+                                },
                             ),
                         scope = scope,
                         rentsSpaces = spacesState.spaces.orEmpty().any { it.hourlyPrice != null },
@@ -2246,6 +2266,8 @@ fun AppNavHost(
                                 stripe.payoutsEnabled &&
                                 stripe.passFeeToCustomer,
                         isSchool = storeState.config?.isSchool == true,
+                        photoUrl = storeState.images.photoUrl,
+                        logoUrl = storeState.images.logoUrl,
                         onChangeMode = returnToModes(navController, operationalViewModel),
                     )
                 }

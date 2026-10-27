@@ -13,15 +13,20 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.PointOfSale
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.RestaurantMenu
@@ -50,6 +55,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.mode.RestrictedMode
@@ -59,7 +65,6 @@ import com.vaiinilla.app.ui.admin.AdminStaffViewModel
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.components.ToastPill
-import com.vaiinilla.app.ui.components.VaiinillaMark
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
@@ -76,6 +81,9 @@ enum class AdminTab(
 ) {
     HOME("Inicio", Icons.Outlined.Home),
     MENU("Menú", Icons.Outlined.RestaurantMenu),
+
+    /** Tomar un pedido para una mesa o para el mostrador, con el flujo del mesero. */
+    TAKE_ORDER("Pedir", Icons.Outlined.AddCircleOutline),
     ORDERS("Pedidos", Icons.Outlined.ReceiptLong),
     BUSINESS("Negocio", Icons.Outlined.Storefront),
 }
@@ -108,6 +116,16 @@ class AdminSectionsHost(
     val tablesBoard: (@Composable () -> Unit)? = null,
     /** Negocio › Escuela; null la esconde. */
     val school: com.vaiinilla.app.ui.admin.school.AdminSchoolViewModel? = null,
+    /** La pestaña Pedir; null si no hay con qué tomar pedidos. */
+    val orderTaker: (@Composable (AdminHeader) -> Unit)? = null,
+)
+
+/** Lo que comparten las cabeceras de las pestañas: el negocio, sus imágenes y el botón de la cuenta. */
+class AdminHeader(
+    val placeName: String,
+    val photoUrl: String?,
+    val logoUrl: String?,
+    val avatar: @Composable () -> Unit,
 )
 
 /** Lo que la pantalla puede pedirle al ViewModel; agrupado para no pasar veinte lambdas sueltas. */
@@ -139,6 +157,9 @@ fun AdminScreen(
     cardFeeToCustomer: Boolean = false,
     /** Escuela solo si el negocio dijo que lo es (Flujo de mi tienda › Escuela). */
     isSchool: Boolean = false,
+    /** La foto y el logo del negocio (Flujo de mi tienda) para las cabeceras. */
+    photoUrl: String? = null,
+    logoUrl: String? = null,
 ) {
     val colors = rememberOperationalColors()
     var tab by rememberSaveable { mutableStateOf(AdminTab.HOME) }
@@ -160,10 +181,18 @@ fun AdminScreen(
         return
     }
 
+    val header =
+        AdminHeader(
+            placeName = placeName.ifBlank { "Vaiinilla" },
+            photoUrl = photoUrl,
+            logoUrl = logoUrl,
+            avatar = { AdminAvatar(colors = colors, onChangeMode = onChangeMode) },
+        )
     Box(modifier = Modifier.fillMaxSize().background(colors.background)) {
-        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-            AdminTopBar(placeName = placeName, colors = colors, onChangeMode = onChangeMode)
-            if (restrictedMode != null) RestrictedBanner(restrictedMode, colors)
+        Column(modifier = Modifier.fillMaxSize()) {
+            if (restrictedMode != null) {
+                Box(Modifier.statusBarsPadding()) { RestrictedBanner(restrictedMode, colors) }
+            }
             AnimatedContent(
                 targetState = tab,
                 transitionSpec = {
@@ -183,6 +212,8 @@ fun AdminScreen(
                             colors = colors,
                             readOnly = readOnly,
                             actions = actions,
+                            header = header,
+                            onOpenOrders = { tab = AdminTab.ORDERS },
                         )
                     AdminTab.MENU ->
                         AdminMenuTab(
@@ -190,15 +221,29 @@ fun AdminScreen(
                             colors = colors,
                             readOnly = readOnly,
                             actions = actions,
+                            header = header,
                             rentsSpaces = rentsSpaces,
                             cardFeeToCustomer = cardFeeToCustomer,
                             isSchool = isSchool,
                         )
+                    AdminTab.TAKE_ORDER ->
+                        sections.orderTaker?.invoke(header)
+                            ?: Box(Modifier.fillMaxSize().statusBarsPadding().padding(24.dp)) {
+                                Text("No se pudo abrir la toma de pedidos.", color = colors.textSecondary)
+                            }
                     AdminTab.ORDERS ->
-                        AdminOrdersTab(state = state, colors = colors, actions = actions, tables = sections.tablesBoard)
+                        AdminOrdersTab(
+                            state = state,
+                            colors = colors,
+                            actions = actions,
+                            header = header,
+                            tables = sections.tablesBoard,
+                        )
                     AdminTab.BUSINESS ->
                         AdminBusinessTab(
+                            state = state,
                             colors = colors,
+                            header = header,
                             sections =
                                 AdminSection.entries.filter {
                                     it != AdminSection.SCHOOL || (isSchool && sections.school != null)
@@ -219,49 +264,31 @@ fun AdminScreen(
     }
 }
 
+/** La cuenta: tema y cambiar de modo. Va arriba a la derecha de cada cabecera. */
 @Composable
-private fun AdminTopBar(
-    placeName: String,
+private fun AdminAvatar(
     colors: OperationalColors,
     onChangeMode: () -> Unit,
 ) {
     val haptics = rememberVaiinillaHaptics()
     val themeMode = LocalVaiinillaThemeMode.current
     val themeChanger = LocalVaiinillaThemeModeChanger.current
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            VaiinillaMark(modifier = Modifier.size(34.dp))
-            Column {
-                Text(
-                    placeName.ifBlank { "Vaiinilla" },
-                    fontWeight = FontWeight.Black,
-                    fontSize = 16.sp,
-                    color = colors.textPrimary,
-                )
-                Text("Administración", fontSize = 12.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
-            }
-        }
-        StaffAvatarMenu(
-            initials = "AD",
-            colors = colors,
-            themeMode = themeMode,
-            onThemeChange =
-                themeChanger?.let { change ->
-                    { mode ->
-                        haptics.selection()
-                        change(mode)
-                    }
-                },
-            onChangeMode = {
-                haptics.impact()
-                onChangeMode()
+    StaffAvatarMenu(
+        initials = "AD",
+        colors = colors,
+        themeMode = themeMode,
+        onThemeChange =
+            themeChanger?.let { change ->
+                { mode ->
+                    haptics.selection()
+                    change(mode)
+                }
             },
-        )
-    }
+        onChangeMode = {
+            haptics.impact()
+            onChangeMode()
+        },
+    )
 }
 
 @Composable
@@ -366,45 +393,192 @@ private fun AdminSectionContent(
     }
 }
 
-/** "Negocio": el resto del panel web, una fila por sección. */
+/**
+ * "Negocio": la foto y el nombre del negocio arriba (cambiarlos abre Flujo de mi tienda), las secciones del día a
+ * día en mosaicos y el resto del panel web en una lista.
+ */
 @Composable
 private fun AdminBusinessTab(
+    state: AdminUiState,
     colors: OperationalColors,
+    header: AdminHeader,
     sections: List<AdminSection>,
     onOpen: (AdminSection) -> Unit,
 ) {
-    androidx.compose.foundation.lazy.LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding =
-            androidx.compose.foundation.layout
-                .PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        items(sections.size) { index ->
-            val item = sections[index]
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .physicalPress { onOpen(item) }
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(colors.cardBackground)
-                        .border(1.dp, colors.cardBorder, RoundedCornerShape(20.dp))
-                        .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Icon(item.icon, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(24.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(item.label, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                    Text(item.description, fontSize = 12.sp, color = colors.textSecondary)
-                }
-                Icon(
-                    Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = colors.textSecondary,
+    val listState = rememberLazyListState()
+    val heroGone by rememberHeroGone(listState)
+    val tiles = sections.filter { it in BusinessTiles }
+    val rows = sections.filter { it !in BusinessTiles }
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+            item(key = "hero") {
+                AdminHero(
+                    title = header.placeName,
+                    subtitle = "Administración",
+                    colors = colors,
+                    height = 300.dp,
+                    photoUrl = header.photoUrl,
+                    logoUrl = header.logoUrl,
+                    showLogo = true,
+                    logoName = header.placeName,
+                    leading = {
+                        AdminHeroPill("Cambiar foto", icon = Icons.Outlined.PhotoCamera) {
+                            onOpen(AdminSection.STORE)
+                        }
+                    },
+                    trailing = header.avatar,
                 )
             }
+            item(key = "tiles") {
+                Column(
+                    Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    tiles.chunked(2).forEach { pair ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            pair.forEach { item ->
+                                BusinessTile(
+                                    section = item,
+                                    detail = businessDetail(item, state),
+                                    colors = colors,
+                                    modifier = Modifier.weight(1f),
+                                ) { onOpen(item) }
+                            }
+                            if (pair.size == 1) Box(Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+            if (rows.isNotEmpty()) {
+                item(key = "rows") {
+                    val shape = RoundedCornerShape(24.dp)
+                    Column(
+                        Modifier
+                            .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 24.dp)
+                            .fillMaxWidth()
+                            .clip(shape)
+                            .background(colors.cardBackground)
+                            .border(1.dp, colors.cardBorder, shape),
+                    ) {
+                        rows.forEachIndexed { index, item ->
+                            if (index > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.cardBorder))
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .physicalPress { onOpen(item) }
+                                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                Icon(
+                                    item.icon,
+                                    contentDescription = null,
+                                    tint = colors.textSecondary,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        item.label,
+                                        fontSize = 15.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.textPrimary,
+                                    )
+                                    Text(item.description, fontSize = 12.sp, color = colors.textSecondary)
+                                }
+                                Icon(
+                                    Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                                    contentDescription = null,
+                                    tint = colors.textSecondary,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        AdminCompactBar(
+            visible = heroGone,
+            title = header.placeName,
+            logoUrl = header.logoUrl,
+            colors = colors,
+            trailing = { header.avatar() },
+        )
+    }
+}
+
+private val BusinessTiles = setOf(AdminSection.CASH, AdminSection.SPACES, AdminSection.STAFF, AdminSection.CASHBACK)
+
+private fun businessDetail(
+    section: AdminSection,
+    state: AdminUiState,
+): String =
+    when (section) {
+        AdminSection.CASH ->
+            when (state.live?.cashOpen) {
+                true -> "Abierta"
+                false -> "Cerrada"
+                null -> "Abrir y cerrar"
+            }
+        AdminSection.STAFF ->
+            state.live?.pendingInvitations?.let {
+                if (it ==
+                    1
+                ) {
+                    "1 invitación pendiente"
+                } else {
+                    "$it invitaciones pendientes"
+                }
+            }
+                ?: "Equipo y accesos"
+        AdminSection.SPACES -> "QR, canchas y reservas"
+        AdminSection.CASHBACK -> "Regla y cartera"
+        else -> section.description
+    }
+
+@Composable
+private fun BusinessTile(
+    section: AdminSection,
+    detail: String,
+    colors: OperationalColors,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(26.dp)
+    Column(
+        modifier =
+            modifier
+                .height(128.dp)
+                .physicalPress(onClick = onClick)
+                .clip(shape)
+                .background(colors.cardBackground)
+                .border(1.dp, colors.cardBorder, shape)
+                .padding(16.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Box(
+            Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(colors.textPrimary.copy(alpha = 0.1f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(section.icon, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(21.dp))
+        }
+        Column {
+            Text(
+                section.label,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Black,
+                color = colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                detail,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

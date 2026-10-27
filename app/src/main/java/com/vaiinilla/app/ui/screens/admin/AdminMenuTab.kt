@@ -4,10 +4,12 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,20 +17,26 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -43,16 +51,25 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.admin.AdminCategoryInput
@@ -68,11 +85,15 @@ import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.school.SchoolAllergen
 import com.vaiinilla.app.ui.admin.AdminImage
 import com.vaiinilla.app.ui.admin.AdminUiState
+import com.vaiinilla.app.ui.components.EditorialSearchField
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.SlidingSegments
+import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.components.productImageIsRemote
+import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.ActionPill
 import com.vaiinilla.app.ui.screens.ChipButton
@@ -103,6 +124,7 @@ internal fun AdminMenuTab(
     cardFeeToCustomer: Boolean = false,
     /** En una escuela, cada producto necesita sus alérgenos revisados para venderse a alumnos con alergias. */
     isSchool: Boolean = false,
+    header: AdminHeader,
 ) {
     var sheet by remember { mutableStateOf<MenuSheet?>(null) }
     val catalog = state.catalog
@@ -111,7 +133,7 @@ internal fun AdminMenuTab(
     when {
         catalog == null && state.catalogError != null ->
             Column(
-                Modifier.padding(16.dp),
+                Modifier.statusBarsPadding().padding(16.dp),
             ) { AdminLoadError(state.catalogError, colors) { actions.onRefreshCatalog() } }
         catalog == null -> Box(Modifier.fillMaxSize())
         else ->
@@ -122,6 +144,7 @@ internal fun AdminMenuTab(
                 actions,
                 onOpen = { sheet = it },
                 saving = state.saving,
+                header = header,
                 isSchool = isSchool,
             )
     }
@@ -164,6 +187,7 @@ private fun MenuList(
     readOnly: Boolean,
     actions: AdminActions,
     saving: Boolean,
+    header: AdminHeader,
     isSchool: Boolean = false,
     onOpen: (MenuSheet) -> Unit,
 ) {
@@ -184,155 +208,209 @@ private fun MenuList(
                 availability.matches(product)
         }
     val orphans = if (categoryFilter == null) visible.filter { it.categoryId !in known } else emptyList()
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        if (!readOnly) {
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ActionPill(
-                        label = "Nuevo producto",
-                        enabled = categories.isNotEmpty() && !saving,
-                        loading = false,
-                        colors = colors,
-                        modifier = Modifier.weight(1f),
-                    ) { onOpen(MenuSheet.EditProduct(null)) }
-                    ActionPill(
-                        label = "Nueva categoría",
-                        enabled = !saving,
-                        loading = false,
-                        colors = colors,
-                        primary = false,
-                        modifier = Modifier.weight(1f),
-                    ) { onOpen(MenuSheet.EditCategory(null)) }
+    val soldOut = catalog.products.count { !it.available }
+    val heroPhoto =
+        remember(catalog) { catalog.products.firstOrNull { productImageIsRemote(it.imageUrl) }?.imageUrl }
+    val gridState = rememberLazyGridState()
+    val heroGone by rememberHeroGone(gridState)
+    val chips: @Composable () -> Unit = {
+        AdminChipRow {
+            AdminGlassChip("Todo", categoryFilter == null && availability == AvailabilityFilter.ALL) {
+                categoryFilter = null
+                availability = AvailabilityFilter.ALL
+            }
+            allCategories.forEach { category ->
+                AdminGlassChip(category.name, category.id == categoryFilter) {
+                    categoryFilter = if (categoryFilter == category.id) null else category.id
                 }
             }
-        }
-        val unreviewed = if (isSchool) catalog.products.count { !it.allergensReviewed } else 0
-        if (unreviewed > 0) {
-            item(key = "alergenos-sin-revisar") {
-                AdminCard(colors) {
-                    Text(
-                        if (unreviewed == 1) {
-                            "1 producto sin alérgenos revisados"
+            if (soldOut > 0 || availability == AvailabilityFilter.HIDDEN) {
+                AdminGlassChip("Agotados · $soldOut", availability == AvailabilityFilter.HIDDEN) {
+                    availability =
+                        if (availability ==
+                            AvailabilityFilter.HIDDEN
+                        ) {
+                            AvailabilityFilter.ALL
                         } else {
-                            "$unreviewed productos sin alérgenos revisados"
-                        },
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textPrimary,
-                    )
-                    Text(
-                        "Un alumno con alergias no puede pedirlos hasta que marques qué tienen.",
-                        fontSize = 13.sp,
-                        color = colors.textSecondary,
+                            AvailabilityFilter.HIDDEN
+                        }
+                }
+            }
+            if (!readOnly) AdminGlassChip("+ Categoría", false) { onOpen(MenuSheet.EditCategory(null)) }
+        }
+    }
+    Box(Modifier.fillMaxSize()) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            state = gridState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = MenuSide, end = MenuSide, bottom = if (readOnly) 24.dp else 96.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item(key = "hero", span = { GridItemSpan(maxLineSpan) }) {
+                Box(Modifier.bleed(MenuSide)) {
+                    AdminHero(
+                        title = "Menú",
+                        subtitle =
+                            buildString {
+                                append(
+                                    if (catalog.products.size ==
+                                        1
+                                    ) {
+                                        "1 producto"
+                                    } else {
+                                        "${catalog.products.size} productos"
+                                    },
+                                )
+                                if (soldOut > 0) append(" · ${if (soldOut == 1) "1 agotado" else "$soldOut agotados"}")
+                            },
+                        colors = colors,
+                        height = 290.dp,
+                        photoUrl = heroPhoto,
+                        logoUrl = header.logoUrl,
+                        logoName = header.placeName,
+                        trailing = header.avatar,
                     )
                 }
             }
-        }
-        if (catalog.products.isNotEmpty()) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OperationalField(
+            val unreviewed = if (isSchool) catalog.products.count { !it.allergensReviewed } else 0
+            if (unreviewed > 0) {
+                item(key = "alergenos-sin-revisar", span = { GridItemSpan(maxLineSpan) }) {
+                    AdminCard(colors) {
+                        Text(
+                            if (unreviewed == 1) {
+                                "1 producto sin alérgenos revisados"
+                            } else {
+                                "$unreviewed productos sin alérgenos revisados"
+                            },
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textPrimary,
+                        )
+                        Text(
+                            "Un alumno con alergias no puede pedirlos hasta que marques qué tienen.",
+                            fontSize = 13.sp,
+                            color = colors.textSecondary,
+                        )
+                    }
+                }
+            }
+            if (catalog.products.isNotEmpty()) {
+                item(key = "buscar", span = { GridItemSpan(maxLineSpan) }) {
+                    EditorialSearchField(
                         value = query,
                         onValueChange = { query = it },
-                        label = "Buscar en el menú",
-                        colors = colors,
+                        placeholder = "Buscar en tu menú…",
+                        seaGlass = true,
+                        modifier = Modifier.padding(top = 14.dp),
                     )
-                    Row(
-                        Modifier.horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        AvailabilityFilter.entries.forEach { filter ->
-                            ChipButton(
-                                label = filter.label,
-                                enabled = true,
-                                colors = colors,
-                                selected =
-                                    filter == availability,
-                            ) {
-                                availability = filter
-                            }
+                }
+            }
+            item(key = "chips", span = { GridItemSpan(maxLineSpan) }) { Box(Modifier.bleed(MenuSide)) { chips() } }
+            if (allCategories.isEmpty()) {
+                item(key = "sin-categorias", span = { GridItemSpan(maxLineSpan) }) {
+                    AdminCard(colors) {
+                        Text(
+                            "Todavía no hay categorías",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = colors.textPrimary,
+                        )
+                        Text(
+                            "Crea una categoría (Bebidas, Comida…) para empezar a agregar productos.",
+                            fontSize = 13.sp,
+                            color = colors.textSecondary,
+                        )
+                    }
+                }
+            }
+            categories.forEach { category ->
+                val products = visible.filter { it.categoryId == category.id }
+                if (products.isEmpty() &&
+                    (needle.isNotEmpty() || availability != AvailabilityFilter.ALL)
+                ) {
+                    return@forEach
+                }
+                item(key = "c${category.id}", span = { GridItemSpan(maxLineSpan) }) {
+                    CategoryHeader(category, products.size, colors, readOnly) {
+                        onOpen(MenuSheet.EditCategory(category))
+                    }
+                }
+                items(products, key = { "p${it.id}" }) { product ->
+                    Box(Modifier.animateItem()) {
+                        AdminProductCard(product, colors, readOnly, saving, actions, isSchool) {
+                            onOpen(MenuSheet.EditProduct(product))
                         }
                     }
-                    Row(
-                        Modifier.horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        ChipButton(
-                            label = "Todas",
-                            enabled = true,
-                            colors = colors,
-                            selected = categoryFilter == null,
-                        ) {
-                            categoryFilter =
-                                null
-                        }
-                        allCategories.forEach { category ->
-                            ChipButton(
-                                label = category.name,
-                                enabled = true,
-                                colors = colors,
-                                selected =
-                                    category.id == categoryFilter,
-                            ) {
-                                categoryFilter = category.id
-                            }
+                }
+            }
+            if (orphans.isNotEmpty()) {
+                item(key = "sin-categoria", span = { GridItemSpan(maxLineSpan) }) {
+                    AdminSectionTitle("Sin categoría", colors, Modifier.padding(top = 8.dp))
+                }
+                items(orphans, key = { "p${it.id}" }) { product ->
+                    Box(Modifier.animateItem()) {
+                        AdminProductCard(product, colors, readOnly, saving, actions, isSchool) {
+                            onOpen(MenuSheet.EditProduct(product))
                         }
                     }
                 }
             }
         }
-        if (allCategories.isEmpty()) {
-            item {
-                AdminCard(colors) {
-                    Text(
-                        "Todavía no hay categorías",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = colors.textPrimary,
-                    )
-                    Text(
-                        "Crea una categoría (Bebidas, Comida…) para empezar a agregar productos.",
-                        fontSize = 13.sp,
-                        color = colors.textSecondary,
-                    )
-                }
-            }
+        if (!readOnly) {
+            NewProductPill(
+                enabled = allCategories.isNotEmpty() && !saving,
+                colors = colors,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 16.dp),
+            ) { onOpen(MenuSheet.EditProduct(null)) }
         }
-        categories.forEach { category ->
-            val products = visible.filter { it.categoryId == category.id }
-            if (products.isEmpty() && (needle.isNotEmpty() || availability != AvailabilityFilter.ALL)) return@forEach
-            item(key = "c${category.id}") {
-                CategoryHeader(category, products.size, colors, readOnly) { onOpen(MenuSheet.EditCategory(category)) }
-            }
-            items(products, key = { "p${it.id}" }) { product ->
-                ProductRow(
-                    product,
-                    colors,
-                    readOnly,
-                    saving,
-                    actions,
-                    isSchool,
-                ) { onOpen(MenuSheet.EditProduct(product)) }
-            }
-        }
-        if (orphans.isNotEmpty()) {
-            item { AdminSectionTitle("Sin categoría", colors, Modifier.padding(top = 8.dp)) }
-            items(orphans, key = { "p${it.id}" }) { product ->
-                ProductRow(
-                    product,
-                    colors,
-                    readOnly,
-                    saving,
-                    actions,
-                    isSchool,
-                ) { onOpen(MenuSheet.EditProduct(product)) }
-            }
-        }
-        item { Box(Modifier.height(8.dp)) }
+        AdminCompactBar(
+            visible = heroGone,
+            title = header.placeName,
+            logoUrl = header.logoUrl,
+            colors = colors,
+            trailing = { header.avatar() },
+            below = chips,
+        )
+    }
+}
+
+private val MenuSide = 20.dp
+
+/** Ocupa también el margen lateral de la cuadrícula, para que la foto y los chips lleguen de borde a borde. */
+private fun Modifier.bleed(margin: Dp): Modifier =
+    layout { measurable, constraints ->
+        val extra = (margin * 2).roundToPx()
+        val width = constraints.maxWidth + extra
+        val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
+        layout(constraints.maxWidth, placeable.height) { placeable.place(-extra / 2, 0) }
+    }
+
+@Composable
+private fun NewProductPill(
+    enabled: Boolean,
+    colors: OperationalColors,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    val haptics = rememberVaiinillaHaptics()
+    Row(
+        modifier =
+            modifier
+                .height(52.dp)
+                .physicalPress(enabled = enabled) {
+                    haptics.click()
+                    onClick()
+                }.shadow(14.dp, CircleShape)
+                .clip(CircleShape)
+                .background(if (enabled) colors.textPrimary else colors.cardBorder)
+                .padding(horizontal = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(Icons.Rounded.Add, contentDescription = null, tint = colors.background, modifier = Modifier.size(20.dp))
+        Text("Nuevo producto", color = colors.background, fontWeight = FontWeight.Black, fontSize = 15.sp)
     }
 }
 
@@ -345,11 +423,11 @@ private fun CategoryHeader(
     onEdit: () -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(category.name, fontWeight = FontWeight.Black, fontSize = 18.sp, color = colors.textPrimary)
+            Text(category.name, fontWeight = FontWeight.Black, fontSize = 20.sp, color = colors.textPrimary)
             Text(if (count == 1) "1 producto" else "$count productos", fontSize = 12.sp, color = colors.textSecondary)
         }
         if (!readOnly) {
@@ -370,8 +448,12 @@ private fun CategoryHeader(
     }
 }
 
+/**
+ * Un producto con su foto completa, como en el menú del alumno. Tocarlo abre el editor; la etiqueta de arriba
+ * cambia Disponible/Agotado de un toque, sin abrir nada. Agotado se ve apagado.
+ */
 @Composable
-private fun ProductRow(
+private fun AdminProductCard(
     product: Product,
     colors: OperationalColors,
     readOnly: Boolean,
@@ -380,67 +462,149 @@ private fun ProductRow(
     isSchool: Boolean,
     onOpen: () -> Unit,
 ) {
-    val haptics = rememberVaiinillaHaptics()
-    val shape = RoundedCornerShape(18.dp)
-    Row(
+    val reduced = reducedMotion()
+    val soldOut by animateFloatAsState(
+        targetValue = if (product.available) 0f else 1f,
+        animationSpec = if (reduced) snap() else spring(stiffness = 500f),
+        label = "agotado",
+    )
+    Box(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .physicalPress(enabled = !readOnly, onClick = onOpen)
-                .clip(shape)
-                .background(colors.cardBackground)
-                .border(1.dp, colors.cardBorder, shape)
-                .padding(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .aspectRatio(0.84f)
+                .physicalPress(enabled = !readOnly, scale = PhysicalPressScale.ProductCard, onClick = onOpen)
+                .semantics { contentDescription = "Editar ${product.name}" }
+                .clip(RoundedCornerShape(26.dp))
+                .background(colors.cardInner),
     ) {
         ProductImage(
             imageUrl = product.imageUrl,
             contentDescription = product.name,
-            modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)),
+            modifier = Modifier.fillMaxSize(),
+            placeholder = { m ->
+                Box(m.background(colors.cardInner), contentAlignment = Alignment.Center) {
+                    Text(
+                        product.name
+                            .trim()
+                            .firstOrNull()
+                            ?.uppercase()
+                            .orEmpty(),
+                        color = colors.textMuted,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 40.sp,
+                    )
+                }
+            },
+            card = true,
         )
-        Column(Modifier.weight(1f)) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = soldOut }
+                .background(Color.Black.copy(alpha = 0.55f)),
+        )
+        Column(
+            modifier =
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .background(CardScrim)
+                    .padding(start = 14.dp, end = 14.dp, top = 34.dp, bottom = 12.dp),
+        ) {
             Text(
                 product.name,
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
-                color = colors.textPrimary,
+                color = Color.White,
+                fontWeight = FontWeight.Black,
+                fontSize = 16.sp,
+                lineHeight = 19.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                buildString {
-                    append(moneyLabel(product.counterPrice))
-                    append(" · ")
-                    append(stationLabel(product.preparationStation))
-                    when (product.optionGroups.size) {
-                        0 -> Unit
-                        1 -> append(" · 1 grupo de opciones")
-                        else -> append(" · ${product.optionGroups.size} grupos de opciones")
-                    }
-                },
-                fontSize = 12.sp,
-                color = colors.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                moneyLabel(product.counterPrice),
+                color = Color.White.copy(alpha = 0.88f),
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(top = 3.dp),
             )
-            if (!product.available) Text("Agotado", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AdminCoral)
             if (isSchool && !product.allergensReviewed) {
                 Text("Alérgenos sin revisar", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AdminCoral)
             }
         }
-        Switch(
-            checked = product.available,
-            onCheckedChange = {
-                haptics.selection()
-                actions.onSetAvailable(product, it)
-            },
+        if (!readOnly) {
+            Box(
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(10.dp)
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Outlined.Edit,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
+        AvailabilityBadge(
+            product = product,
             enabled = !readOnly && !saving,
-            colors = adminSwitchColors(colors),
-            modifier = Modifier.semantics { contentDescription = "${product.name} disponible" },
+            modifier = Modifier.align(Alignment.TopEnd).padding(10.dp),
+        ) { actions.onSetAvailable(product, !product.available) }
+    }
+}
+
+@Composable
+private fun AvailabilityBadge(
+    product: Product,
+    enabled: Boolean,
+    modifier: Modifier,
+    onToggle: () -> Unit,
+) {
+    val haptics = rememberVaiinillaHaptics()
+    val available = product.available
+    val background = animateSelectionColor(if (available) Color.Black.copy(alpha = 0.45f) else SoldOutBadge, "badge")
+    Row(
+        modifier =
+            modifier
+                .height(32.dp)
+                .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small) {
+                    haptics.selection()
+                    onToggle()
+                }.semantics {
+                    role = Role.Switch
+                    stateDescription = if (available) "Disponible" else "Agotado"
+                    contentDescription = "${product.name} disponible"
+                }.clip(CircleShape)
+                .background(background)
+                .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+                .padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(Modifier.size(8.dp).clip(CircleShape).background(if (available) AvailableDot else AdminCoral))
+        Text(
+            if (available) "Disponible" else "Agotado",
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
         )
     }
 }
+
+private val CardScrim =
+    Brush.verticalGradient(
+        0f to Color.Transparent,
+        0.45f to Color.Black.copy(alpha = 0.55f),
+        1f to Color.Black.copy(alpha = 0.78f),
+    )
+private val SoldOutBadge = Color(0xC0782818)
+private val AvailableDot = Color(0xFFB9DA6E)
 
 @Composable
 private fun CategorySheet(

@@ -71,8 +71,8 @@ import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.operational.WaiterUiState
 
-private const val CUSTOMER_NAME_MAX = 120
-private const val COUNTER_LINE_QUANTITY_MAX = 20
+internal const val CUSTOMER_NAME_MAX = 120
+internal const val COUNTER_LINE_QUANTITY_MAX = 20
 private val MorphSpring = spring<Float>(dampingRatio = 0.89f, stiffness = 180f)
 
 /** Opciones que trae cada grupo al abrir el producto: las mínimas obligatorias, como en el carrito del cliente. */
@@ -100,7 +100,7 @@ internal fun alternarOpcionMostrador(
     }
 }
 
-private fun opcionesValidas(linea: CartLine): Boolean =
+internal fun opcionesValidas(linea: CartLine): Boolean =
     runCatching { ContractRules.validateSelections(linea.product, linea.selectedOptionIds) }.isSuccess
 
 /** Lo que dice la barra fija: cuántos artículos, cuánto y qué pasa al tocar. */
@@ -443,7 +443,7 @@ private fun ProductoMostradorTile(
 
 /** Las opciones de un producto ya agregado, con la misma regla del carrito del cliente; lo elegido en tinta. */
 @Composable
-private fun OpcionesMostrador(
+internal fun OpcionesMostrador(
     modifier: Modifier = Modifier,
     linea: CartLine,
     colors: OperationalColors,

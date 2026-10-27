@@ -1,6 +1,14 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,8 +20,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePickerDialog
@@ -37,19 +46,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.admin.AdminLiveCounts
+import com.vaiinilla.app.domain.admin.AdminMetric
 import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminSummary
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccount
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccounts
-import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.ui.admin.AdminPeriodPreset
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
+import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
-import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.screens.ActionPill
-import com.vaiinilla.app.ui.screens.ChipButton
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
 import java.math.BigDecimal
@@ -59,110 +68,180 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** Inicio: cómo va el negocio en el periodo elegido, como el panel de la web. */
+/**
+ * Inicio: cómo va el negocio en el periodo elegido, como el panel de la web. Arriba el negocio con su foto y si
+ * recibe pedidos; las ventas en grande; lo que pasa ahora a la vista (sin deslizar: en hora pico nadie desliza) y
+ * el resto del resumen abajo. Al bajar queda una barra fija con los periodos.
+ */
 @Composable
 internal fun AdminHomeTab(
     state: AdminUiState,
     colors: OperationalColors,
     readOnly: Boolean,
     actions: AdminActions,
+    header: AdminHeader,
+    onOpenOrders: () -> Unit,
 ) {
-    val haptics = rememberVaiinillaHaptics()
     var choosingPeriod by remember { mutableStateOf(false) }
     var closing by remember { mutableStateOf<AdminUnpaidAccount?>(null) }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AdminPeriodPreset.entries.forEach { preset ->
-                    ChipButton(
-                        label = preset.label,
-                        enabled = true,
-                        colors = colors,
-                        selected = state.customPeriod == null && preset == state.preset,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        haptics.selection()
-                        actions.onSelectPeriod(preset)
-                    }
+    val listState = rememberLazyListState()
+    val heroGone by rememberHeroGone(listState)
+    val status = state.operationalStatus
+    val receiving = status?.let { it.acceptingOrders && it.withinOrderWindow }
+    val periodChips: @Composable () -> Unit = {
+        AdminChipRow {
+            AdminPeriodPreset.entries.forEach { preset ->
+                AdminGlassChip(preset.label, state.customPeriod == null && preset == state.preset) {
+                    actions.onSelectPeriod(preset)
                 }
-                ChipButton(
-                    label = "Otro",
-                    enabled = true,
-                    colors = colors,
-                    selected = state.customPeriod != null,
-                    modifier = Modifier.weight(1f),
-                ) { choosingPeriod = true }
             }
-            state.customPeriod?.let { period ->
-                Text(
-                    "Del ${period.from.format(PeriodFormat)} al ${period.to.format(PeriodFormat)}",
-                    fontSize = 12.sp,
-                    color = colors.textSecondary,
-                    modifier = Modifier.padding(top = 6.dp),
+            AdminGlassChip("Otro", state.customPeriod != null) { choosingPeriod = true }
+        }
+    }
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 24.dp),
+        ) {
+            item(key = "hero") {
+                AdminHero(
+                    title = header.placeName,
+                    subtitle = homeSubtitle(state.live),
+                    colors = colors,
+                    height = 330.dp,
+                    photoUrl = header.photoUrl,
+                    logoUrl = header.logoUrl,
+                    showLogo = true,
+                    logoName = header.placeName,
+                    leading =
+                        receiving?.let { on ->
+                            {
+                                AdminHeroPill(
+                                    if (on) "Recibiendo pedidos" else "Sin recibir pedidos",
+                                    dot = if (on) colors.accentLime else AdminCoral,
+                                )
+                            }
+                        },
+                    trailing = header.avatar,
                 )
             }
-        }
-        state.live?.let { live -> item { LiveCard(live, colors) } }
-        state.operationalStatus?.let { status -> item { StatusCard(status, colors) } }
-        val summary = state.summary
-        when {
-            summary == null && state.summaryError != null ->
-                item { AdminLoadError(state.summaryError, colors, actions.onRefreshHome) }
-            summary == null ->
-                item {
-                    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(
-                            color = colors.textPrimary,
-                            strokeWidth = 2.5.dp,
-                            modifier = Modifier.size(28.dp),
+            item(key = "periodo") {
+                Column {
+                    periodChips()
+                    state.customPeriod?.let { period ->
+                        Text(
+                            "Del ${period.from.format(PeriodFormat)} al ${period.to.format(PeriodFormat)}",
+                            fontSize = 12.sp,
+                            color = colors.textSecondary,
+                            modifier = Modifier.padding(horizontal = 22.dp),
                         )
                     }
                 }
-            else -> {
-                item { KpiGrid(summary, colors, loading = state.summaryLoading) }
-                if (summary.dailySales.size > 1) item { DailySalesCard(summary, colors) }
-                val usedMethods = summary.paymentMethods.filter { it.orders > 0 }
-                if (usedMethods.isNotEmpty()) {
-                    item {
-                        AdminCard(colors) {
-                            AdminSectionTitle("Por método de pago", colors)
-                            usedMethods.forEach {
-                                AdminValueRow(
-                                    it.label,
-                                    moneyLabel(it.amount),
-                                    colors,
-                                    detail = adminOrdersText(it.orders),
-                                )
+            }
+            val summary = state.summary
+            when {
+                summary == null && state.summaryError != null ->
+                    item(key = "error") {
+                        Box(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                            AdminLoadError(state.summaryError, colors, actions.onRefreshHome)
+                        }
+                    }
+                summary == null ->
+                    item(key = "cargando") {
+                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(
+                                color = colors.textPrimary,
+                                strokeWidth = 2.5.dp,
+                                modifier = Modifier.size(28.dp),
+                            )
+                        }
+                    }
+                else -> item(key = "ventas") { SalesHeadline(summary, state, colors) }
+            }
+            item(key = "ahora-titulo") {
+                val live = state.live
+                AdminCremeSectionTitle(
+                    "Ahora mismo",
+                    colors,
+                    detail =
+                        live?.activeOrders?.let {
+                            val count = if (live.moreActiveOrders) "$it+" else "$it"
+                            if (it == 1 && !live.moreActiveOrders) "1 pedido activo" else "$count pedidos activos"
+                        },
+                    action = "Ver pedidos",
+                    onAction = onOpenOrders,
+                )
+            }
+            item(key = "ahora") { LiveGrid(state, receiving, colors) }
+            if (summary != null) {
+                val tiles = secondaryKpis(summary)
+                if (tiles.isNotEmpty()) {
+                    item(key = "kpis") {
+                        Column(
+                            Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            tiles.chunked(2).forEach { pair ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    pair.forEach { (label, value) ->
+                                        AdminStatTile(
+                                            label,
+                                            value,
+                                            colors,
+                                            modifier = Modifier.weight(1f),
+                                            muted = state.summaryLoading,
+                                        )
+                                    }
+                                    if (pair.size == 1) Box(Modifier.weight(1f))
+                                }
                             }
                         }
                     }
                 }
-                if (summary.topProducts.isNotEmpty()) {
-                    item {
-                        AdminCard(colors) {
-                            AdminSectionTitle("Lo más vendido", colors)
-                            summary.topProducts.forEach { AdminValueRow(it.label, "${it.count}", colors) }
+                if (summary.dailySales.size > 1) {
+                    item(key = "por-dia") {
+                        Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp)) {
+                            DailySalesCard(summary, colors)
                         }
                     }
                 }
+                if (summary.topProducts.isNotEmpty()) {
+                    item(key = "top-titulo") { AdminCremeSectionTitle("Lo más vendido", colors) }
+                    item(key = "top") { TopProducts(summary, state, colors) }
+                }
+                val usedMethods = summary.paymentMethods.filter { it.orders > 0 }
+                if (usedMethods.isNotEmpty()) {
+                    item(key = "pago-titulo") { AdminCremeSectionTitle("Por método de pago", colors) }
+                    item(key = "pago") { PaymentBars(usedMethods, colors) }
+                }
                 if (summary.ordersByStatus.isNotEmpty()) {
-                    item {
-                        AdminCard(colors) {
-                            AdminSectionTitle("Pedidos por estado", colors)
-                            summary.ordersByStatus.forEach { AdminValueRow(it.label, "${it.count}", colors) }
+                    item(key = "estados") {
+                        Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp)) {
+                            AdminCard(colors) {
+                                AdminSectionTitle("Pedidos por estado", colors)
+                                summary.ordersByStatus.forEach { AdminValueRow(it.label, "${it.count}", colors) }
+                            }
                         }
                     }
                 }
             }
+            state.unpaid?.takeIf { it.accounts.isNotEmpty() }?.let { unpaid ->
+                item(key = "sin-pagar") {
+                    Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp)) {
+                        UnpaidCard(unpaid, colors, canClose = !readOnly) { closing = it }
+                    }
+                }
+            }
         }
-        state.unpaid?.takeIf { it.accounts.isNotEmpty() }?.let { unpaid ->
-            item { UnpaidCard(unpaid, colors, canClose = !readOnly) { closing = it } }
-        }
-        item { Box(Modifier.height(8.dp)) }
+        AdminCompactBar(
+            visible = heroGone,
+            title = header.placeName,
+            logoUrl = header.logoUrl,
+            colors = colors,
+            trailing = { header.avatar() },
+            below = periodChips,
+        )
     }
     if (choosingPeriod) {
         PeriodPicker(colors = colors, onDismiss = { choosingPeriod = false }) { period ->
@@ -180,22 +259,243 @@ internal fun AdminHomeTab(
     }
 }
 
+private fun homeSubtitle(live: AdminLiveCounts?): String =
+    when (live?.cashOpen) {
+        true -> "Administración · Caja abierta"
+        false -> "Administración · Caja cerrada"
+        null -> "Administración"
+    }
+
+/** Las ventas del periodo en grande; al cambiar de periodo la cifra entra con un resorte. */
 @Composable
-private fun LiveCard(
-    live: AdminLiveCounts,
+private fun SalesHeadline(
+    summary: AdminSummary,
+    state: AdminUiState,
     colors: OperationalColors,
 ) {
-    AdminCard(colors) {
-        AdminSectionTitle("Ahora mismo", colors)
-        live.activeOrders?.let {
-            AdminValueRow(
-                "Pedidos activos",
-                if (live.moreActiveOrders) "$it+" else "$it",
-                colors,
+    val reduced = reducedMotion()
+    val period = if (state.customPeriod != null) "periodo elegido" else state.preset.label.lowercase()
+    Column(Modifier.padding(start = 22.dp, end = 22.dp, top = 10.dp)) {
+        Text(
+            "VENTAS · ${period.uppercase()}",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.4.sp,
+            color = colors.textSecondary,
+        )
+        AnimatedContent(
+            targetState = moneyLabel(summary.sales),
+            transitionSpec = {
+                if (reduced) {
+                    fadeIn(snap()) togetherWith fadeOut(snap())
+                } else {
+                    (
+                        fadeIn(spring(stiffness = 500f)) +
+                            slideInVertically(spring(dampingRatio = 0.8f, stiffness = 500f)) { it / 3 }
+                    ) togetherWith fadeOut(spring(stiffness = 900f))
+                }
+            },
+            label = "admin-ventas",
+        ) { value ->
+            Text(
+                value,
+                fontSize = 60.sp,
+                lineHeight = 66.sp,
+                letterSpacing = (-2).sp,
+                fontWeight = FontWeight.Black,
+                color = if (state.summaryLoading) colors.textMuted else colors.textPrimary,
+                maxLines = 1,
             )
         }
-        live.cashOpen?.let { AdminValueRow("Caja", if (it) "Abierta" else "Cerrada", colors) }
-        live.pendingInvitations?.let { AdminValueRow("Invitaciones pendientes", "$it", colors) }
+        Text(
+            "${adminOrdersText(summary.orders)} · ticket promedio ${moneyLabel(summary.averageTicket)}",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = colors.textSecondary,
+        )
+    }
+}
+
+/** Lo de ahorita, todo a la vista en mosaicos: si la cocina se cae, se ve sin buscarlo. */
+@Composable
+private fun LiveGrid(
+    state: AdminUiState,
+    receiving: Boolean?,
+    colors: OperationalColors,
+) {
+    val status = state.operationalStatus
+    val live = state.live
+    val tiles =
+        buildList {
+            receiving?.let {
+                add(
+                    Triple(
+                        "Pedidos",
+                        if (it) "Recibiendo" else "Sin recibir",
+                        if (it) colors.accentLime else AdminCoral,
+                    ),
+                )
+            }
+            (live?.cashOpen ?: status?.cashSessionOpen)?.let {
+                add(Triple("Caja", if (it) "Abierta" else "Cerrada", if (it) colors.accentLime else colors.textMuted))
+            }
+            status?.let {
+                add(
+                    Triple(
+                        "Cocina",
+                        if (it.kitchenOnline) "En línea" else "Sin conexión",
+                        if (it.kitchenOnline) colors.accentLime else AdminCoral,
+                    ),
+                )
+                add(
+                    Triple(
+                        "Cajero",
+                        if (it.cashierOnline) "En línea" else "Sin conexión",
+                        if (it.cashierOnline) colors.accentLime else colors.textMuted,
+                    ),
+                )
+            }
+            live?.pendingInvitations?.let {
+                add(
+                    Triple(
+                        "Invitaciones",
+                        if (it == 1) "1 pendiente" else "$it pendientes",
+                        if (it > 0) colors.textPrimary else colors.textMuted,
+                    ),
+                )
+            }
+        }
+    Column(
+        Modifier.padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        tiles.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                pair.forEach { (label, value, dot) ->
+                    AdminStatTile(label, value, colors, modifier = Modifier.weight(1f), dot = dot)
+                }
+                if (pair.size == 1) Box(Modifier.weight(1f))
+            }
+        }
+        status?.outsideOrderHoursMessage?.let { Text(it, fontSize = 12.sp, color = colors.textSecondary) }
+    }
+}
+
+private fun secondaryKpis(summary: AdminSummary): List<Pair<String, String>> =
+    buildList {
+        add("Productos vendidos" to "${summary.productsSold}")
+        summary.tips?.let { add("Propinas" to moneyLabel(it)) }
+        add("Recargas de saldo" to moneyLabel(summary.walletReloads))
+        summary.canceledOrders?.let { add("Cancelados" to "$it") }
+        summary.commissions?.let { add("Comisiones" to moneyLabel(it)) }
+    }
+
+/** Lo más vendido con la foto del platillo, si el menú la tiene. */
+@Composable
+private fun TopProducts(
+    summary: AdminSummary,
+    state: AdminUiState,
+    colors: OperationalColors,
+) {
+    val photos =
+        remember(state.catalog) {
+            state.catalog
+                ?.products
+                .orEmpty()
+                .associate { it.name.trim().lowercase() to it.imageUrl }
+        }
+    Column(Modifier.padding(horizontal = 22.dp)) {
+        summary.topProducts.forEachIndexed { index, item ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Text(
+                    "${index + 1}",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black,
+                    color = colors.textSecondary,
+                    modifier = Modifier.width(22.dp),
+                )
+                val photo = photos[item.label.trim().lowercase()]
+                val thumb = Modifier.size(54.dp).clip(RoundedCornerShape(16.dp))
+                if (photo != null) {
+                    ProductImage(
+                        imageUrl = photo,
+                        contentDescription = item.label,
+                        modifier = thumb,
+                        placeholder = { m -> Box(m.background(colors.cardInner)) },
+                        card = true,
+                    )
+                } else {
+                    Box(thumb.background(colors.cardInner))
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        item.label,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        if (item.count == 1) "1 vendido" else "${item.count} vendidos",
+                        fontSize = 13.sp,
+                        color = colors.textSecondary,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Cuánto entró por cada forma de pago, con una barra por su parte del total. */
+@Composable
+private fun PaymentBars(
+    methods: List<AdminMetric>,
+    colors: OperationalColors,
+) {
+    val amounts = methods.map { it.amount.toBigDecimalOrNull()?.toFloat() ?: 0f }
+    val total = amounts.sum().takeIf { it > 0f } ?: 1f
+    val shape = RoundedCornerShape(24.dp)
+    Column(
+        Modifier
+            .padding(horizontal = 20.dp)
+            .fillMaxWidth()
+            .clip(shape)
+            .background(colors.cardBackground)
+            .border(1.dp, colors.cardBorder, shape)
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        methods.zip(amounts).forEachIndexed { index, (method, amount) ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(method.label, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                Text(
+                    moneyLabel(method.amount),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary,
+                )
+            }
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(colors.cardInner),
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth((amount / total).coerceIn(0.02f, 1f))
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (index % 2 == 0) colors.textPrimary else colors.accentLime),
+                )
+            }
+        }
     }
 }
 
@@ -267,106 +567,6 @@ private fun CloseWithoutChargingSheet(
         )
         AdminSheetError(error)
         ActionPill(label = "Cerrar sin cobrar", enabled = true, loading = saving, colors = colors) { onConfirm(note) }
-    }
-}
-
-@Composable
-private fun StatusCard(
-    status: OperationalStatus,
-    colors: OperationalColors,
-) {
-    AdminCard(colors) {
-        AdminSectionTitle("Ahora", colors)
-        StatusLine("Recibiendo pedidos", status.acceptingOrders && status.withinOrderWindow, colors)
-        StatusLine("Caja abierta", status.cashSessionOpen, colors)
-        StatusLine("Caja en línea", status.cashierOnline, colors)
-        StatusLine("Cocina en línea", status.kitchenOnline, colors)
-        status.outsideOrderHoursMessage?.let { Text(it, fontSize = 12.sp, color = colors.textSecondary) }
-    }
-}
-
-@Composable
-private fun StatusLine(
-    label: String,
-    on: Boolean,
-    colors: OperationalColors,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        modifier =
-            Modifier.semantics(mergeDescendants = true) {
-                contentDescription =
-                    "$label: ${if (on) "sí" else "no"}"
-            },
-    ) {
-        Box(
-            Modifier
-                .size(10.dp)
-                .clip(CircleShape)
-                .background(if (on) colors.accentLime else colors.cardBorder),
-        )
-        Text(label, fontSize = 14.sp, color = colors.textPrimary, modifier = Modifier.weight(1f))
-        Text(
-            if (on) "Sí" else "No",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (on) colors.textPrimary else colors.textSecondary,
-        )
-    }
-}
-
-@Composable
-private fun KpiGrid(
-    summary: AdminSummary,
-    colors: OperationalColors,
-    loading: Boolean,
-) {
-    val tiles =
-        buildList {
-            add("Ventas" to moneyLabel(summary.sales))
-            add("Pedidos" to "${summary.orders}")
-            add("Ticket promedio" to moneyLabel(summary.averageTicket))
-            add("Productos vendidos" to "${summary.productsSold}")
-            summary.tips?.let { add("Propinas" to moneyLabel(it)) }
-            add("Recargas de saldo" to moneyLabel(summary.walletReloads))
-            summary.canceledOrders?.let { add("Cancelados" to "$it") }
-            summary.commissions?.let { add("Comisiones" to moneyLabel(it)) }
-        }
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        tiles.chunked(2).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                row.forEach { (label, value) -> KpiTile(label, value, colors, loading, Modifier.weight(1f)) }
-                if (row.size == 1) Box(Modifier.weight(1f))
-            }
-        }
-    }
-}
-
-@Composable
-private fun KpiTile(
-    label: String,
-    value: String,
-    colors: OperationalColors,
-    loading: Boolean,
-    modifier: Modifier,
-) {
-    AdminCard(colors, modifier = modifier) {
-        Text(
-            label,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = colors.textSecondary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            value,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Black,
-            color = if (loading) colors.textMuted else colors.textPrimary,
-            maxLines = 1,
-        )
     }
 }
 
