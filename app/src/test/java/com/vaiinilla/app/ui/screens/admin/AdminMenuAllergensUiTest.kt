@@ -79,7 +79,14 @@ class AdminMenuAllergensUiTest {
     @Test
     fun `a school menu counts and marks products without reviewed allergens`() {
         composeTestRule.setContent {
-            AdminMenuTab(state, rememberOperationalColors(), readOnly = false, actions = actions, isSchool = true)
+            AdminMenuTab(
+                state,
+                rememberOperationalColors(),
+                readOnly = false,
+                actions = actions,
+                isSchool = true,
+                header = testHeader,
+            )
         }
         composeTestRule.onNodeWithText("1 producto sin alérgenos revisados").assertExists()
         composeTestRule
@@ -93,7 +100,14 @@ class AdminMenuAllergensUiTest {
     @Test
     fun `a menu that is not a school says nothing about allergens`() {
         composeTestRule.setContent {
-            AdminMenuTab(state, rememberOperationalColors(), readOnly = false, actions = actions, isSchool = false)
+            AdminMenuTab(
+                state,
+                rememberOperationalColors(),
+                readOnly = false,
+                actions = actions,
+                isSchool = false,
+                header = testHeader,
+            )
         }
         composeTestRule.onNodeWithText("1 producto sin alérgenos revisados").assertDoesNotExist()
         composeTestRule.onNodeWithText("Alérgenos sin revisar").assertDoesNotExist()
@@ -131,3 +145,5 @@ class AdminMenuAllergensUiTest {
         assertEquals("Lácteos, nuez", legacyAllergensText("Lácteos, nuez"))
     }
 }
+
+private val testHeader = AdminHeader(placeName = "Comedor", photoUrl = null, logoUrl = null) {}

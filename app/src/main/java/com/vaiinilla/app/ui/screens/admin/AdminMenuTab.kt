@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -37,10 +38,12 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -72,10 +75,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.text.normalizeForSearch
 import com.vaiinilla.app.domain.admin.AdminCategoryInput
 import com.vaiinilla.app.domain.admin.AdminOptionGroupInput
 import com.vaiinilla.app.domain.admin.AdminOptionInput
-import com.vaiinilla.app.core.text.normalizeForSearch
 import com.vaiinilla.app.domain.admin.AdminProductInput
 import com.vaiinilla.app.domain.admin.AdminProductRules
 import com.vaiinilla.app.domain.model.Catalog
@@ -725,6 +728,7 @@ private fun ProductSheet(
     // Solo lo que el admin revisó se manda: guardar el precio no marca revisado un producto que nadie miró.
     var allergensTouched by remember { mutableStateOf(false) }
     var available by remember { mutableStateOf(product?.available ?: true) }
+    var confirmRental by remember { mutableStateOf(false) }
     var image by remember { mutableStateOf<AdminImage?>(null) }
     var imageError by remember { mutableStateOf<String?>(null) }
     val groups =
@@ -852,13 +856,15 @@ private fun ProductSheet(
             fontSize = 12.sp,
             color = colors.textSecondary,
         )
-        if (rentsSpaces) {
-            val looksLikeRental = RentalWords.containsMatchIn(name)
+        val looksLikeRental = RentalWords.containsMatchIn(name)
+        if (looksLikeRental || rentsSpaces) {
             Text(
-                if (looksLikeRental) {
-                    "Esto parece una renta de cancha. Las rentas se cobran desde Mesas y espacios, con su precio por hora."
-                } else {
-                    "Este negocio renta canchas desde Mesas y espacios. No crees la renta como producto."
+                when {
+                    looksLikeRental && rentsSpaces ->
+                        "Esto parece una renta de cancha. Las rentas se cobran desde Mesas y espacios, con su precio por hora."
+                    looksLikeRental ->
+                        "Esto parece una renta. Si cobras un espacio por hora, dalo de alta en Mesas y espacios."
+                    else -> "Este negocio renta canchas desde Mesas y espacios. No crees la renta como producto."
                 },
                 fontSize = 12.sp,
                 fontWeight = if (looksLikeRental) FontWeight.Bold else FontWeight.Normal,
@@ -905,14 +911,24 @@ private fun ProductSheet(
             }
         }
 
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        // Toda la fila cambia el interruptor: tocar el texto «Disponible» no hacía nada y el interruptor solo
+        // respondía en su borde (EQUIPO-14).
+        Row(
+            Modifier.fillMaxWidth().toggleable(
+                value = available,
+                enabled = !saving,
+                role = Role.Switch,
+                onValueChange = { available = it },
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Column(Modifier.weight(1f)) {
                 Text("Disponible", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                 Text("Apagado, sale como agotado y no se puede pedir.", fontSize = 12.sp, color = colors.textSecondary)
             }
             Switch(
                 checked = available,
-                onCheckedChange = { available = it },
+                onCheckedChange = null,
                 enabled = !saving,
                 colors = adminSwitchColors(colors),
             )
@@ -934,6 +950,41 @@ private fun ProductSheet(
         }
 
         error?.let { SheetError(it) }
+        val save = {
+            val category = categoryId
+            if (category != null) {
+                onSave(
+                    AdminProductInput(
+                        categoryId = category,
+                        preparationStation = station,
+                        name = name,
+                        description = description,
+                        ingredients = ingredients,
+                        allergens = allergens,
+                        estimatedTimeMinutes = minutes.toIntOrNull() ?: 0,
+                        counterPrice = price,
+                        available = available,
+                        optionGroups = groups.map { it.toInput() },
+                        allergenCodes = allergenCodes.takeIf { isSchool && allergensTouched },
+                    ),
+                    image,
+                )
+            }
+        }
+        if (confirmRental) {
+            AlertDialog(
+                onDismissRequest = { confirmRental = false },
+                title = { Text("¿Guardar como producto?") },
+                text = { Text("«${name.trim()}» parece una renta. Como producto se vende por pieza, no por hora.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmRental = false
+                        save()
+                    }) { Text("Guardar") }
+                },
+                dismissButton = { TextButton(onClick = { confirmRental = false }) { Text("Cambiar nombre") } },
+            )
+        }
         ActionPill(
             label = if (product == null) "Crear producto" else "Guardar cambios",
             enabled = name.isNotBlank() && price.isNotBlank() && categoryId != null,
@@ -942,23 +993,8 @@ private fun ProductSheet(
             modifier = Modifier.padding(top = 8.dp),
         ) {
             haptics.impact()
-            val category = categoryId ?: return@ActionPill
-            onSave(
-                AdminProductInput(
-                    categoryId = category,
-                    preparationStation = station,
-                    name = name,
-                    description = description,
-                    ingredients = ingredients,
-                    allergens = allergens,
-                    estimatedTimeMinutes = minutes.toIntOrNull() ?: 0,
-                    counterPrice = price,
-                    available = available,
-                    optionGroups = groups.map { it.toInput() },
-                    allergenCodes = allergenCodes.takeIf { isSchool && allergensTouched },
-                ),
-                image,
-            )
+            // Solo se pregunta si el nombre de renta es nuevo: editar un producto que ya se llamaba así no vuelve a frenar.
+            if (looksLikeRental && name.trim() != product?.name?.trim()) confirmRental = true else save()
         }
     }
 }
