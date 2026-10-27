@@ -506,7 +506,9 @@ fun CashierOperationalScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    // Con un nombre de negocio largo, el texto se corta y las iniciales siguen visibles (G09).
                     Row(
+                        modifier = Modifier.weight(1f, fill = false).padding(end = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
