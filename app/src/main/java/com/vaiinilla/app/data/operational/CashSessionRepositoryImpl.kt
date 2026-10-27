@@ -3,6 +3,7 @@ package com.vaiinilla.app.data.operational
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.data.order.OrderContractJson
+import com.vaiinilla.app.domain.repository.CashSessionInfo
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
 
@@ -35,6 +36,13 @@ class RemoteCashSessionRepository(
             .get("sesiones-caja/activa")
             .mapCatching { contractJson.parseCashSession(it)?.id }
             .mapApiErrors()
+
+    override fun activeSession(): Result<CashSessionInfo?> =
+        apiClient
+            .get("sesiones-caja/activa")
+            .mapCatching { body ->
+                contractJson.parseCashSession(body)?.let { CashSessionInfo(it.id, it.initialAmount, it.openedAt) }
+            }.mapApiErrors()
 
     override fun closeSession(
         sessionId: String,

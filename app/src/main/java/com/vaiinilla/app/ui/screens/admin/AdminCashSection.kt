@@ -8,9 +8,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.input.KeyboardType
 import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.ui.admin.AdminUiState
+import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.screens.ActionPill
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
+import com.vaiinilla.app.ui.screens.receiptLocalTime
 
 /** Lo que la sección de Caja necesita del resto del modo. */
 class AdminCashActions(
@@ -47,7 +49,11 @@ internal fun AdminCashSection(
                 AdminSectionTitle("Sesión de caja", colors)
                 when {
                     !state.cashLoaded -> AdminHint("Consultando la caja…", colors)
-                    open -> AdminValueRow("Estado", "Abierta", colors, strong = true)
+                    open -> {
+                        AdminValueRow("Estado", "Abierta", colors, strong = true)
+                        state.cashOpeningAmount?.let { AdminValueRow("Fondo inicial", moneyLabel(it), colors) }
+                        state.cashOpenedAt?.let { AdminValueRow("Abierta a las", receiptLocalTime(it), colors) }
+                    }
                     else -> AdminValueRow("Estado", "Cerrada", colors, strong = true)
                 }
                 if (state.cashLoaded && !readOnly) {
