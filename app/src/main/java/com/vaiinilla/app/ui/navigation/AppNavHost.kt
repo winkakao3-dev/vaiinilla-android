@@ -518,8 +518,7 @@ fun AppNavHost(
                 onEntered()
             }
         },
-        // Padres e hijos vive en Cuenta, la que abre el círculo de perfil de la barra.
-        openWallet = { navController.navigate(Routes.WALLET_ACCOUNT) { launchSingleTop = true } },
+        openWallet = { navController.navigateStudent(Routes.WALLET) },
     )
 
     LaunchedEffect(pendingEstablishmentSlug) {
@@ -1291,7 +1290,7 @@ fun AppNavHost(
                     studentAuthViewModel.ensureVenueContext(
                         onReady = {
                             venueContextReady = true
-                            // Con el contexto ya de esta escuela, su estado operativo (si es escuela, F19).
+                            // Con el contexto ya de esta escuela: si es escuela, Mis hijos (F19).
                             orderFlowViewModel.refreshOperationalStatusForWallet()
                         },
                         onNeedsAuth = { navigateStudentAuth(Routes.WALLET, replaceReturnScreen = true) },
@@ -1311,17 +1310,42 @@ fun AppNavHost(
                         }
                     }
                 }
-                WalletScreen(
-                    remoteState = walletForVenue,
-                    userId = walletForVenue.data?.wallet?.userId,
-                    venueName = orderState.guestVenue?.establishment?.name,
-                    canRecharge = orderState.canPayWithBalance,
-                    onRetry = walletViewModel::refresh,
-                    onMenu = { navController.navigateStudent(Routes.CATALOG) },
-                    onCodeOpenChange = { walletCodeOpen = it },
-                    caretakerLine = guardianControlsViewModel.controls?.caretakerLine,
-                    caretakerDetail = guardianControlsViewModel.controls?.walletDetail,
-                )
+                // Padres e hijos: solo una escuela muestra Mis hijos y lo de tutores y alumnos, y para saberlo hace
+                // falta el estado operativo con el contexto de cliente.
+                LaunchedEffect(orderState.guestVenue?.establishment?.id) {
+                    orderFlowViewModel.refreshOperationalStatusForWallet()
+                }
+                ParentModeWalletHost(
+                    enabled = orderState.operationalStatus?.isSchool == true,
+                    childrenViewModel = childrenViewModel,
+                    hasTutors = guardianControlsViewModel.controls?.tutorNames?.isNotEmpty() == true,
+                    controlsLoaded = guardianControlsViewModel.hasLoaded,
+                    onFullScreenChange = { walletCodeOpen = it },
+                    onAccountClaimed = {
+                        val renewed = CompletableDeferred<Unit>()
+                        studentAuthViewModel.completeEnrollment(
+                            onSuccess = { renewed.complete(Unit) },
+                            onNeedsVerify = { renewed.complete(Unit) },
+                            onNeedsContextualId = { renewed.complete(Unit) },
+                            onFailed = { renewed.complete(Unit) },
+                        )
+                        renewed.await()
+                        walletViewModel.refresh()
+                    },
+                ) { familySection ->
+                    WalletScreen(
+                        remoteState = walletForVenue,
+                        userId = walletForVenue.data?.wallet?.userId,
+                        venueName = orderState.guestVenue?.establishment?.name,
+                        canRecharge = orderState.canPayWithBalance,
+                        onRetry = walletViewModel::refresh,
+                        onMenu = { navController.navigateStudent(Routes.CATALOG) },
+                        onCodeOpenChange = { walletCodeOpen = it },
+                        caretakerLine = guardianControlsViewModel.controls?.caretakerLine,
+                        caretakerDetail = guardianControlsViewModel.controls?.walletDetail,
+                        familySection = familySection,
+                    )
+                }
             }
 
             composable(
@@ -1360,100 +1384,69 @@ fun AppNavHost(
 
             composable(Routes.WALLET_ACCOUNT) {
                 LaunchedEffect(Unit) { walletViewModel.refresh() }
-                val signedIn = studentAuthState.session != null
-                // Padres e hijos: solo una escuela muestra Mis hijos y lo de tutores y alumnos, y para saberlo hace
-                // falta el estado operativo con el contexto de cliente de esta escuela.
-                LaunchedEffect(studentAuthState.session?.uid, orderState.guestVenue?.establishment?.id) {
-                    if (!signedIn) return@LaunchedEffect
-                    studentAuthViewModel.ensureVenueContext(
-                        onReady = { orderFlowViewModel.refreshOperationalStatusForWallet() },
-                        onNeedsAuth = {},
-                        onFailed = {},
-                    )
-                }
-                ParentModeWalletHost(
-                    enabled = signedIn && orderState.operationalStatus?.isSchool == true,
-                    childrenViewModel = childrenViewModel,
-                    hasTutors = guardianControlsViewModel.controls?.tutorNames?.isNotEmpty() == true,
-                    controlsLoaded = guardianControlsViewModel.hasLoaded,
-                    onFullScreenChange = {},
-                    onAccountClaimed = {
-                        val renewed = CompletableDeferred<Unit>()
-                        studentAuthViewModel.completeEnrollment(
-                            onSuccess = { renewed.complete(Unit) },
-                            onNeedsVerify = { renewed.complete(Unit) },
-                            onNeedsContextualId = { renewed.complete(Unit) },
-                            onFailed = { renewed.complete(Unit) },
-                        )
-                        renewed.await()
-                        walletViewModel.refresh()
+                val hasStaffModes = authorizedAccessState.modes.any { it.role != OperationalRole.CLIENT }
+                WalletAccountScreen(
+                    onBack = { navController.popBackStack() },
+                    displayName = studentAuthState.session?.displayName.orEmpty(),
+                    email = studentAuthState.session?.email.orEmpty(),
+                    // El uid de Firebase no es el id de la cartera: Caja no lo encuentra. Sin cartera no hay código.
+                    userId = walletForVenue.data?.wallet?.userId,
+                    signedIn = studentAuthState.session != null,
+                    hasStaffModes = hasStaffModes,
+                    onOpenStaffModes = {
+                        navController.navigate(Routes.STAFF_MODES) {
+                            launchSingleTop = true
+                        }
                     },
-                ) { familySection ->
-                    val hasStaffModes = authorizedAccessState.modes.any { it.role != OperationalRole.CLIENT }
-                    WalletAccountScreen(
-                        onBack = { navController.popBackStack() },
-                        familySection = familySection,
-                        displayName = studentAuthState.session?.displayName.orEmpty(),
-                        email = studentAuthState.session?.email.orEmpty(),
-                        // El uid de Firebase no es el id de la cartera: Caja no lo encuentra. Sin cartera no hay código.
-                        userId = walletForVenue.data?.wallet?.userId,
-                        signedIn = studentAuthState.session != null,
-                        hasStaffModes = hasStaffModes,
-                        onOpenStaffModes = {
-                            navController.navigate(Routes.STAFF_MODES) {
-                                launchSingleTop = true
-                            }
-                        },
-                        onChangeVenue = {
-                            navController.navigate(Routes.DISCOVERY) {
-                                launchSingleTop = true
-                                popUpTo(Routes.DISCOVERY) { inclusive = false }
-                            }
-                        },
-                        onSignOut = { signOutAndFinish() },
-                        accountDeletionState = accountDeletionState,
-                        onRequestAccountDeletion = accountDeletionViewModel::requestConfirmation,
-                        onConfirmAccountDeletion = accountDeletionViewModel::confirm,
-                        onCancelAccountDeletion = accountDeletionViewModel::cancel,
-                        onSubmitAccountDeletionPassword = { password ->
-                            accountDeletionViewModel.submitPassword(
-                                password = password,
-                                onDeleted = {
-                                    finishAccountSession("Tu cuenta fue eliminada correctamente")
-                                },
-                                onSessionInvalidated = { finishAccountSession() },
-                            )
-                        },
-                        onAccountDeletionMfaCodeChange = accountDeletionViewModel::updateMfaCode,
-                        onAccountDeletionMfaFactorSelected = accountDeletionViewModel::selectMfaFactor,
-                        onSubmitAccountDeletionMfa = {
-                            accountDeletionViewModel.submitMfaCode(
-                                onDeleted = {
-                                    finishAccountSession("Tu cuenta fue eliminada correctamente")
-                                },
-                                onSessionInvalidated = { finishAccountSession() },
-                            )
-                        },
-                        onRetryAccountDeletion = {
-                            accountDeletionViewModel.retry(
-                                onDeleted = {
-                                    finishAccountSession("Tu cuenta fue eliminada correctamente")
-                                },
-                                onSessionInvalidated = { finishAccountSession() },
-                            )
-                        },
-                        onSignIn = {
-                            navController.navigate(Routes.authLandingRoute(Routes.DISCOVERY)) {
-                                launchSingleTop = true
-                            }
-                        },
-                        onOpenSupport = {
-                            navController.navigate(Routes.SUPPORT) {
-                                launchSingleTop = true
-                            }
-                        },
-                    )
-                }
+                    onChangeVenue = {
+                        navController.navigate(Routes.DISCOVERY) {
+                            launchSingleTop = true
+                            popUpTo(Routes.DISCOVERY) { inclusive = false }
+                        }
+                    },
+                    onSignOut = { signOutAndFinish() },
+                    accountDeletionState = accountDeletionState,
+                    onRequestAccountDeletion = accountDeletionViewModel::requestConfirmation,
+                    onConfirmAccountDeletion = accountDeletionViewModel::confirm,
+                    onCancelAccountDeletion = accountDeletionViewModel::cancel,
+                    onSubmitAccountDeletionPassword = { password ->
+                        accountDeletionViewModel.submitPassword(
+                            password = password,
+                            onDeleted = {
+                                finishAccountSession("Tu cuenta fue eliminada correctamente")
+                            },
+                            onSessionInvalidated = { finishAccountSession() },
+                        )
+                    },
+                    onAccountDeletionMfaCodeChange = accountDeletionViewModel::updateMfaCode,
+                    onAccountDeletionMfaFactorSelected = accountDeletionViewModel::selectMfaFactor,
+                    onSubmitAccountDeletionMfa = {
+                        accountDeletionViewModel.submitMfaCode(
+                            onDeleted = {
+                                finishAccountSession("Tu cuenta fue eliminada correctamente")
+                            },
+                            onSessionInvalidated = { finishAccountSession() },
+                        )
+                    },
+                    onRetryAccountDeletion = {
+                        accountDeletionViewModel.retry(
+                            onDeleted = {
+                                finishAccountSession("Tu cuenta fue eliminada correctamente")
+                            },
+                            onSessionInvalidated = { finishAccountSession() },
+                        )
+                    },
+                    onSignIn = {
+                        navController.navigate(Routes.authLandingRoute(Routes.DISCOVERY)) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onOpenSupport = {
+                        navController.navigate(Routes.SUPPORT) {
+                            launchSingleTop = true
+                        }
+                    },
+                )
             }
 
             composable(Routes.SUPPORT) {
