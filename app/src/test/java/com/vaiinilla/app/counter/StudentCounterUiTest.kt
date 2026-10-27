@@ -7,12 +7,16 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import com.vaiinilla.app.domain.counter.OfflineStudentPurchase
 import com.vaiinilla.app.domain.counter.SchoolPolicy
 import com.vaiinilla.app.domain.counter.StudentCard
 import com.vaiinilla.app.domain.counter.StudentPurchaseItem
 import com.vaiinilla.app.domain.counter.StudentTodayOrder
+import com.vaiinilla.app.domain.model.Catalog
+import com.vaiinilla.app.domain.model.PreparationStation
+import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.counter.CashierStudentsEntry
 import com.vaiinilla.app.ui.counter.ChargePhase
 import com.vaiinilla.app.ui.counter.OfflineCounterSection
@@ -109,6 +113,44 @@ class StudentCounterUiTest {
         composeTestRule.onNodeWithText("El PIN no coincide; quedan 3 intentos.").assertIsDisplayed()
         composeTestRule.onNodeWithText("Cobrar", substring = true).assertIsEnabled().performClick()
         assertEquals(BigDecimal.ZERO, charged)
+    }
+
+    @Test
+    fun `lo que tiene un alergeno del alumno se ve bloqueado con el motivo`() {
+        val brownie =
+            Product(
+                id = 9,
+                categoryId = 1,
+                preparationStation = PreparationStation.KITCHEN,
+                name = "Brownie",
+                description = "",
+                ingredients = "",
+                allergens = "",
+                estimatedTimeMinutes = 5,
+                counterPrice = "30.00",
+                digitalPrice = "30.00",
+                available = true,
+                imageUrl = "",
+                optionGroups = emptyList(),
+                allergenCodes = listOf("nueces"),
+                allergensReviewed = true,
+            )
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                StudentCardPane(
+                    card = tilin,
+                    state = StudentCounterUiState(selected = tilin),
+                    catalog = Catalog(categories = emptyList(), products = listOf(brownie), cursor = null),
+                    canCharge = true,
+                    requiresCredential = false,
+                    colors = rememberOperationalColors(),
+                    actions = StudentCounterActions(),
+                )
+            }
+        }
+        composeTestRule.onNodeWithText("Brownie").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Contiene nueces", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Agregar Brownie").assertDoesNotExist()
     }
 
     @Test
