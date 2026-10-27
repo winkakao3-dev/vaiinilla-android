@@ -47,6 +47,8 @@ data class DiscoveryUiState(
     /** Escuelas donde ya es cliente, para volver de un toque al pedir en otro lado. */
     val mySchools: List<MySchool> = emptyList(),
     val openingSchoolId: String? = null,
+    /** Sube cada vez que se limpia por cambio de sesión: «Dónde pedir» vuelve a buscar al verlo. */
+    val sessionEpoch: Int = 0,
 )
 
 @HiltViewModel
@@ -428,7 +430,7 @@ class GuestDiscoveryViewModel
             locateJob = null
             activeJobs.toList().forEach(Job::cancel)
             activeJobs.clear()
-            _state.value = DiscoveryUiState()
+            _state.value = DiscoveryUiState(sessionEpoch = _state.value.sessionEpoch + 1)
         }
 
         private fun launchTracked(block: suspend () -> Unit): Job {

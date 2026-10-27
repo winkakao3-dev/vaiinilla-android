@@ -958,7 +958,13 @@ fun AppNavHost(
 
             composable(Routes.DISCOVERY) {
                 // Tus escuelas: las de sus accesos, para volver sin código.
-                LaunchedEffect(studentAuthState.session?.uid) { discoveryViewModel.loadMySchools() }
+                // Tras cambiar de cuenta o de modo el estado se limpió y no se pasa por SPLASH: se vuelve a buscar.
+                LaunchedEffect(studentAuthState.session?.uid, discoveryState.sessionEpoch) {
+                    discoveryViewModel.loadMySchools()
+                    if (discoveryState.sessionEpoch > 0 && discoveryState.establishments.isEmpty()) {
+                        discoveryViewModel.search("")
+                    }
+                }
                 DiscoveryScreen(
                     tableCodeRequest = tableCodeRequest,
                     state = discoveryState,
