@@ -480,6 +480,7 @@ fun CartScreen(
                     payAtEndAvailable = state.canPayAtEnd,
                     cardAvailable = state.canPayWithCard,
                     toTable = state.checkoutDestination == OrderDestination.IN_SPACE,
+                    spaceType = state.checkoutSpace?.type,
                     onDismiss = { paymentDialogOpen = false },
                     onSelectPayAtEnd = {
                         paymentDialogOpen = false
@@ -541,6 +542,7 @@ private fun PaymentMethodOverlay(
     cardAvailable: Boolean = false,
     /** Comer en la mesa: nadie recoge en barra, se lo llevan. */
     toTable: Boolean = false,
+    spaceType: String? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     // Arranca con el último método que usó, si hoy sigue disponible: pagar vuelve a ser un toque.
@@ -657,7 +659,7 @@ private fun PaymentMethodOverlay(
                     icon = Icons.Outlined.Payments,
                     title = "Pago en caja",
                     subtitle =
-                        if (toTable) "Pagas en caja y te lo llevamos a tu mesa" else "Pagas en caja antes de recogerlo",
+                        if (toTable) SpaceCopy.payAtCashierHint(spaceType) else "Pagas en caja antes de recogerlo",
                     selected = selectedMethod == PaymentMethod.CASH,
                     enabled = !selectionLocked,
                     onClick = {

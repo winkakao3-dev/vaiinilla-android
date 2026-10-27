@@ -417,6 +417,7 @@ class OperationalViewModel
                                 folio = order.summary.folio,
                                 newState = after,
                                 inSpace = order.summary.destination == OrderDestination.IN_SPACE,
+                                spaceType = order.summary.space?.type,
                             ),
                         )
                     }
@@ -1744,4 +1745,5 @@ data class OrderAdvance(
     val folio: Int,
     val newState: OrderState,
     val inSpace: Boolean = false,
+    val spaceType: String? = null,
 )

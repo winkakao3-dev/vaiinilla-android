@@ -324,6 +324,7 @@ fun AppNavHost(
                 folio = event.folio,
                 newState = event.newState,
                 inSpace = event.inSpace,
+                spaceType = event.spaceType,
             )
             // Pagar, cancelar o devolver mueve el saldo: no se espera a que el dato envejezca.
             walletViewModel.invalidate()

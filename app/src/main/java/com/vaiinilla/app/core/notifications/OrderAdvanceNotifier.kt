@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import com.vaiinilla.app.MainActivity
 import com.vaiinilla.app.R
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.SpaceCopy
 
 /**
  * Posts local notifications when a client order advances through the tracking flow.
@@ -207,6 +208,7 @@ object OrderAdvanceNotifier {
         folio: Int,
         newState: OrderState,
         inSpace: Boolean = false,
+        spaceType: String? = null,
     ) {
         if (!canPost(context)) return
         ensureChannel(context)
@@ -216,7 +218,7 @@ object OrderAdvanceNotifier {
                 .Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_order_notification)
                 .setContentTitle("Pedido #$folio")
-                .setContentText(messageFor(newState, inSpace))
+                .setContentText(messageFor(newState, inSpace, spaceType))
                 .setAutoCancel(true)
                 .setContentIntent(launchIntent)
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
@@ -276,13 +278,14 @@ object OrderAdvanceNotifier {
     internal fun messageFor(
         state: OrderState,
         inSpace: Boolean = false,
+        spaceType: String? = null,
     ): String =
         when (state) {
             OrderState.PENDING_PAYMENT -> "Caja espera tu pago."
             OrderState.PAID -> "Pago confirmado. Cocina recibió tu comanda."
             OrderState.PREPARING -> "Tu comida se está preparando."
             OrderState.READY ->
-                if (inSpace) "Tu pedido está listo. Ya va a tu mesa." else "Tu pedido está listo. Recógelo en la barra."
+                if (inSpace) SpaceCopy.readyInSpace(spaceType) else "Tu pedido está listo. Recógelo en la barra."
             OrderState.DELIVERED -> "Pedido entregado. Buen provecho."
             OrderState.CANCELED -> "Tu pedido fue cancelado."
             OrderState.NOT_PICKED_UP -> "Tu pedido no fue recogido."

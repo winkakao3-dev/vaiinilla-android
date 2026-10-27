@@ -36,6 +36,22 @@ object SpaceCopy {
             else -> "Comer aquí"
         }
 
+    /** Carrito en efectivo con destino a un espacio. En la barra se entrega ahí; no "se lleva". */
+    fun payAtCashierHint(type: String?): String =
+        if (type == "barra") {
+            "Pagas en caja y te lo entregamos en la barra"
+        } else {
+            "Pagas en caja y te lo llevamos a ${yourPlace(type)}"
+        }
+
+    /** Aviso de pedido listo con destino a un espacio. */
+    fun readyInSpace(type: String?): String =
+        if (type == "barra") {
+            "Tu pedido está listo. Te lo entregamos en la barra."
+        } else {
+            "Tu pedido está listo. Ya va a ${yourPlace(type)}."
+        }
+
     fun destinationSubtitle(type: String?): String =
         if (type == null) "Te lo llevamos a tu espacio" else "Te lo llevamos a ${yourPlace(type)}"
 
