@@ -1,27 +1,23 @@
 package com.vaiinilla.app.ui.components
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,23 +30,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
-import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.ShoppingCart
-import androidx.compose.material.icons.rounded.AccountBalanceWallet
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.ShoppingCart
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -58,22 +45,15 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -81,67 +61,88 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.vaiinilla.app.R
 import com.vaiinilla.app.ui.theme.Coral
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.math.sin
 import androidx.compose.ui.graphics.lerp as lerpColor
 
-/*
- * Barra del alumno al estilo de la barra de pestañas de iOS 26: una cápsula de vidrio con las
- * pestañas y, a su derecha, un círculo del mismo vidrio con el perfil. Al tocar, la lente se
- * levanta, sigue al dedo y se asienta con un resorte en la pestaña donde lo sueltas.
+/**
+ * Process-local seed so a rare remount can spring from the previous index
+ * (same role as Flutter's unbounded AnimationController value).
  */
+internal object StudentNavPillMotion {
+    var index: Float = 0f
+    var lastTab: StudentTab = StudentTab.MENU
+}
 
-private val BarHeight = 62.dp
-private val BarMaxWidth = 560.dp
-private val BarSideMargin = 16.dp
-private val BarBottomGap = 6.dp
-private val ProfileGap = 8.dp
-private val LensInset = 5.dp
-private val IconSize = 24.dp
-private val LabelSize = 10.5.sp
-private const val MAX_FONT_SCALE = 1.3f
+/**
+ * Port of [SpringFloatingNavBar](https://github.com/Damantha126/Floating-Navbar-M3-Flutter)
+ * (lib/Navigation/navbar.dart) to Compose — 4 student tabs (asistente hidden until a later update).
+ *
+ * Flutter SoT:
+ * - SpringDescription(mass:1, stiffness:450, damping:28)
+ * - Pill: left = index * itemWidth + inset, inset top/bottom 6
+ * - Dock proportions now follow the supplied Vaiinilla navbar reference.
+ * - Selected icon scale 1.15, filled vs outlined
+ *
+ * Chrome (dock/pill/text) comes from the active theme: near-white in Light, Uber dark in
+ * Dark/Amoled. See [com.vaiinilla.app.ui.theme.VaiinillaThemeMode.resolveColors].
+ *
+ * The dock is liquid glass (see LiquidGlassSurfaces.kt) and the moving pill is its lens.
+ */
+private val NavDockHeight = 55.dp
+private val NavMaxWidth = 568.dp
+private val NavDockGapAboveSafeArea = 8.dp
+private val NavDockHorizontalMargin = 19.dp
+private val NavContentInsetX = 10.dp
+private val NavPillExtraWidth = 12.dp
+private val NavPillInsetY = 3.dp
+private val NavDockElevation = 5.dp
+private const val NAV_MAX_FONT_SCALE = 1.3f
+private const val NAV_DRAG_PILL_GROWTH = 0.14f
+private val NavIconSize = 24.dp
+private val NavLabelSize = 10.sp
+private val NavIconLabelGap = 4.dp
 
-/** Cuánto crece la lente levantada; en iOS es la gota que se ve más grande que la pestaña. */
-private const val LENS_LIFT_SCALE = 0.16f
+private val NavPillSpring =
+    spring<Float>(
+        dampingRatio = 0.82f,
+        stiffness = 310f,
+    )
 
-/** Cuánto se estira la lente según su velocidad, en anchos de pestaña. */
-private const val LENS_STRETCH = 0.22f
+/** Content clearance: dock + float gap + breathing room (excludes system inset). */
+val VaiinillaBottomNavClearance: Dp = NavDockHeight + NavDockGapAboveSafeArea + 16.dp
 
-private val LensSettle = spring<Float>(dampingRatio = 0.72f, stiffness = 380f)
-private val LensFollow = spring<Float>(dampingRatio = 0.9f, stiffness = 1100f)
-private val LiftSpring = spring<Float>(dampingRatio = 0.6f, stiffness = 520f)
+/** Dónde termina el dock por arriba (sin el área del sistema): lo que flota encima va arriba de esto. */
+val VaiinillaBottomNavTop: Dp = NavDockHeight + NavDockGapAboveSafeArea
 
-/** Lo que el contenido deja libre abajo: la barra, su hueco y un respiro (sin el área del sistema). */
-val VaiinillaBottomNavClearance: Dp = BarHeight + BarBottomGap + 16.dp
-
-/** Dónde termina la barra por arriba (sin el área del sistema): lo que flota encima va arriba de esto. */
-val VaiinillaBottomNavTop: Dp = BarHeight + BarBottomGap
-
-/** Margen lateral de la barra, para alinear con su orilla lo que flota encima. */
-val VaiinillaBottomNavSideMargin: Dp = BarSideMargin
+/** Margen lateral del dock, para alinear con su orilla lo que flota encima. */
+val VaiinillaBottomNavSideMargin: Dp = NavDockHorizontalMargin
 
 /** Pestañas que muestra la barra hoy; el asistente sigue reservado. */
 internal val StudentNavTabs = listOf(StudentTab.MENU, StudentTab.ORDERS, StudentTab.WALLET, StudentTab.CART)
 
 enum class StudentTab {
     MENU,
-    ASSISTANT, // reservada; no entra en la barra hasta que salga el asistente
+    ASSISTANT, // reserved; not in the dock until the next assistant drop
     ORDERS,
     WALLET,
     CART,
 }
-
-/** Lo que dibuja el círculo de la derecha: iniciales con sesión, una silueta sin ella. */
-data class NavProfile(
-    val initials: String?,
-)
 
 @Composable
 fun VaiinillaBottomNav(
@@ -150,193 +151,283 @@ fun VaiinillaBottomNav(
     onTabSelected: (StudentTab) -> Unit,
     modifier: Modifier = Modifier,
     backdrop: Backdrop? = null,
-    profile: NavProfile? = null,
-    onOpenProfile: () -> Unit = {},
     onTabPreparing: (StudentTab) -> Unit = {},
+    enableDrag: Boolean = false,
     visibleTabs: List<StudentTab> = StudentNavTabs,
-) {
-    val glass = navGlassStyle()
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(start = BarSideMargin, end = BarSideMargin, bottom = BarBottomGap),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .weight(1f, fill = false)
-                    .widthIn(max = BarMaxWidth)
-                    .fillMaxWidth()
-                    .height(BarHeight)
-                    .navGlass(backdrop, glass),
-        ) {
-            TabStrip(
-                tabs = visibleTabs,
-                activeTab = activeTab,
-                cartCount = cartCount,
-                glass = glass,
-                onTabSelected = onTabSelected,
-                onTabPreparing = onTabPreparing,
-            )
-        }
-        if (profile != null) {
-            Spacer(Modifier.width(ProfileGap))
-            ProfileOrb(profile = profile, backdrop = backdrop, glass = glass, onClick = onOpenProfile)
-        }
-    }
-}
-
-@Composable
-private fun TabStrip(
-    tabs: List<StudentTab>,
-    activeTab: StudentTab,
-    cartCount: Int,
-    glass: NavGlassStyle,
-    onTabSelected: (StudentTab) -> Unit,
-    onTabPreparing: (StudentTab) -> Unit,
 ) {
     val density = LocalDensity.current
     val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
-    val reduced = reducedMotion()
     val colors = LocalVaiinillaColors.current
+    val reducedMotion = reducedMotion()
 
-    val activeIndex = tabs.indexOf(activeTab).coerceAtLeast(0)
-    val lensIndex = remember { Animatable(activeIndex.toFloat()) }
-    val lift = remember { Animatable(0f) }
-    var touching by remember { mutableStateOf(false) }
-    val onSelected by rememberUpdatedState(onTabSelected)
-    val onPreparing by rememberUpdatedState(onTabPreparing)
-    val currentActive by rememberUpdatedState(activeIndex)
+    val tabs = visibleTabs.map { navTabFor(it) }
 
-    // La ruta también cambia sin la barra (un botón de "ver pedido", el atrás del sistema).
-    LaunchedEffect(activeIndex, reduced) {
-        if (touching) return@LaunchedEffect
-        if (reduced) lensIndex.snapTo(activeIndex.toFloat()) else lensIndex.animateTo(activeIndex.toFloat(), LensSettle)
-    }
+    val activeIndex = tabs.indexOfFirst { it.tab == activeTab }.coerceAtLeast(0)
+    val indexAnim = remember { Animatable(StudentNavPillMotion.index) }
+    var dragIndex by remember { mutableFloatStateOf(StudentNavPillMotion.index) }
+    var isDragging by remember { mutableStateOf(false) }
+    var optimisticTargetIndex by remember { mutableStateOf<Int?>(null) }
+    var motionJob by remember { mutableStateOf<Job?>(null) }
+    var travelOrigin by remember { mutableFloatStateOf(Float.NaN) }
+    var travelTarget by remember { mutableFloatStateOf(Float.NaN) }
+    val onTabSelectedLatest by rememberUpdatedState(onTabSelected)
+    val onTabPreparingLatest by rememberUpdatedState(onTabPreparing)
+    val activeTabLatest by rememberUpdatedState(activeTab)
+    val activeIndexLatest by rememberUpdatedState(activeIndex)
 
-    fun commit(index: Int) {
-        val tab = tabs[index]
-        if (index != currentActive) {
-            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            onPreparing(tab)
-            onSelected(tab)
+    // Navigation confirms the selected route after the local pill has already started moving.
+    // If this route change matches our optimistic target, do not restart the animation.
+    LaunchedEffect(activeIndex, reducedMotion) {
+        val optimisticTarget = optimisticTargetIndex
+        if (optimisticTarget == activeIndex) {
+            optimisticTargetIndex = null
+            StudentNavPillMotion.lastTab = activeTab
+            return@LaunchedEffect
         }
+        optimisticTargetIndex = null
+        motionJob?.cancel()
+        motionJob = null
+        if (reducedMotion) {
+            travelOrigin = Float.NaN
+            indexAnim.snapTo(activeIndex.toFloat())
+        } else {
+            travelOrigin = indexAnim.value
+            travelTarget = activeIndex.toFloat()
+            indexAnim.animateTo(
+                targetValue = activeIndex.toFloat(),
+                animationSpec = NavPillSpring,
+            )
+            travelOrigin = Float.NaN
+        }
+        StudentNavPillMotion.index = indexAnim.value
+        StudentNavPillMotion.lastTab = activeTab
     }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(LensInset)) {
-        val count = tabs.size.coerceAtLeast(1)
-        val slot = maxWidth / count
-        val slotPx = with(density) { slot.toPx() }
-        val last = (count - 1).toFloat()
-        fun indexAt(x: Float) = (x / slotPx - 0.5f).coerceIn(0f, last)
+    val dockBackdrop = rememberLayerBackdrop()
+    val pressGrowth by animateFloatAsState(
+        targetValue = if (isDragging) NAV_DRAG_PILL_GROWTH else 0f,
+        animationSpec = NavPillSpring,
+        label = "nav_lens_press",
+    )
 
-        val gesture =
-            Modifier.pointerInput(slotPx, count, reduced) {
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    touching = true
-                    scope.launch { lift.animateTo(1f, if (reduced) spring() else LiftSpring) }
-                    scope.launch {
-                        val target = indexAt(down.position.x).roundToInt().toFloat()
-                        if (reduced) lensIndex.snapTo(target) else lensIndex.animateTo(target, LensSettle)
-                    }
-                    var lastX = down.position.x
-                    var moved = false
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                        if (!change.pressed) break
-                        if (abs(change.position.x - down.position.x) > viewConfiguration.touchSlop) moved = true
-                        if (moved && change.position.x != lastX) {
-                            lastX = change.position.x
-                            val follow = indexAt(lastX)
-                            scope.launch { lensIndex.animateTo(follow, LensFollow) }
-                            change.consume()
-                        }
-                    }
-                    val chosen = indexAt(lastX).roundToInt()
-                    touching = false
-                    scope.launch { lift.animateTo(0f, if (reduced) spring() else LiftSpring) }
-                    scope.launch {
-                        if (reduced) lensIndex.snapTo(chosen.toFloat()) else lensIndex.animateTo(chosen.toFloat(), LensSettle)
-                    }
-                    commit(chosen)
-                }
-            }
-
-        val position = lensIndex.value.coerceIn(0f, last)
-        val stretch = (abs(lensIndex.velocity) / 9f).coerceIn(0f, 1f)
-        val liftValue = lift.value
-
+    Box(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.navigationBars)
+                .padding(
+                    start = NavDockHorizontalMargin,
+                    end = NavDockHorizontalMargin,
+                    bottom = NavDockGapAboveSafeArea,
+                ),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
         Box(
             modifier =
                 Modifier
-                    .fillMaxSize()
-                    .then(gesture)
-                    .drawBehind {
-                        val baseWidth = slotPx
-                        val width = baseWidth * (1f + LENS_STRETCH * stretch)
-                        val height = size.height * (1f - 0.06f * stretch)
-                        val scale = 1f + LENS_LIFT_SCALE * liftValue
-                        val w = width * scale
-                        val h = height * (1f + LENS_LIFT_SCALE * 0.55f * liftValue)
-                        val center = Offset((position + 0.5f) * slotPx, size.height / 2f)
-                        val topLeft = Offset(center.x - w / 2f, center.y - h / 2f)
-                        val radius = CornerRadius(h / 2f)
-                        // En reposo es un gris plano; levantada se vuelve gota clara con borde y sombra.
-                        if (liftValue > 0.01f) {
-                            drawRoundRect(
-                                color = glass.lensShadow.copy(alpha = glass.lensShadow.alpha * liftValue),
-                                topLeft = topLeft + Offset(0f, 3.dp.toPx() * liftValue),
-                                size = Size(w, h),
-                                cornerRadius = radius,
-                            )
-                        }
-                        drawRoundRect(
-                            color = lerpColor(glass.lensRest, glass.lensLifted, liftValue),
-                            topLeft = topLeft,
-                            size = Size(w, h),
-                            cornerRadius = radius,
-                        )
-                        if (liftValue > 0.01f) {
-                            drawRoundRect(
-                                brush =
-                                    Brush.verticalGradient(
-                                        listOf(glass.rim.copy(alpha = glass.rim.alpha * liftValue), Color.Transparent),
-                                        startY = topLeft.y,
-                                        endY = topLeft.y + h,
-                                    ),
-                                topLeft = topLeft,
-                                size = Size(w, h),
-                                cornerRadius = radius,
-                                style = Stroke(width = 1.dp.toPx()),
-                            )
-                        }
-                    },
+                    .widthIn(max = NavMaxWidth)
+                    .fillMaxWidth()
+                    .height(NavDockHeight)
+                    .liquidGlassDock(
+                        backdrop = backdrop,
+                        dockBackdrop = dockBackdrop,
+                        tint = colors.navGlass.copy(alpha = GLASS_TINT_ALPHA),
+                        solid = colors.navGlass,
+                        border = colors.navBorder,
+                        elevation = NavDockElevation,
+                    ),
         ) {
-            CompositionLocalProvider(
-                LocalDensity provides Density(density.density, min(density.fontScale, MAX_FONT_SCALE)),
-            ) {
-                Row(modifier = Modifier.fillMaxSize()) {
-                    tabs.forEachIndexed { index, tab ->
-                        val nearness = (1f - abs(position - index)).coerceIn(0f, 1f)
-                        TabItem(
-                            item = navItemFor(tab),
-                            selected = index == activeIndex,
-                            nearness = nearness,
-                            pressed = touching && abs(position - index) < 0.5f,
-                            badge = if (tab == StudentTab.CART) cartCount else 0,
-                            idle = colors.navTextIdle,
-                            active = colors.navTextActive,
-                            badgeRing = glass.badgeRing,
-                            onSemanticClick = { commit(index) },
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                        )
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val tabCount = tabs.size.coerceAtLeast(1)
+                val contentWidth = maxWidth - NavContentInsetX * 2
+                val itemWidth = contentWidth / tabCount
+                val basePillWidth = itemWidth + NavPillExtraWidth
+                val itemWidthPx = with(density) { itemWidth.toPx() }
+                val contentInsetXPx = with(density) { NavContentInsetX.toPx() }
+                val pillInsetYPx = with(density) { NavPillInsetY.toPx() }
+                val lastIndex = (tabCount - 1).toFloat()
+
+                val visualIndex = if (isDragging) dragIndex else indexAnim.value
+                val boundedVisualIndex = visualIndex.coerceIn(0f, lastIndex)
+                val segmentProgress = boundedVisualIndex - floor(boundedVisualIndex)
+                val travelSpan = travelTarget - travelOrigin
+                val traveling = !isDragging && !travelOrigin.isNaN() && abs(travelSpan) > 0.001f
+                val stretchProgress =
+                    if (traveling) {
+                        val journey = ((boundedVisualIndex - travelOrigin) / travelSpan).coerceIn(0f, 1f)
+                        sin(PI.toFloat() * journey).coerceIn(0f, 1f)
+                    } else {
+                        sin(PI.toFloat() * segmentProgress).coerceIn(0f, 1f)
+                    }
+                val stretchWidth = itemWidth * (0.72f * stretchProgress)
+                val pillWidth = basePillWidth + stretchWidth
+                val pillWidthPx = with(density) { pillWidth.toPx() }
+                val dragModifier =
+                    if (enableDrag && !reducedMotion) {
+                        Modifier.pointerInput(itemWidthPx, lastIndex) {
+                            detectHorizontalDragGestures(
+                                onDragStart = {
+                                    motionJob?.cancel()
+                                    motionJob = null
+                                    optimisticTargetIndex = null
+                                    travelOrigin = Float.NaN
+                                    // Freeze the visible position into synchronous drag state.
+                                    // This avoids launching one coroutine per pointer movement.
+                                    dragIndex = indexAnim.value.coerceIn(0f, lastIndex)
+                                    isDragging = true
+                                },
+                                onHorizontalDrag = { _, dragAmount ->
+                                    dragIndex =
+                                        (dragIndex + dragAmount / itemWidthPx)
+                                            .coerceIn(0f, lastIndex)
+                                },
+                                onDragEnd = {
+                                    val releaseIndex = dragIndex.coerceIn(0f, lastIndex)
+                                    val nearest = nearestStudentNavIndex(releaseIndex, tabCount)
+                                    val targetIndex = nearest.toFloat()
+                                    val tab = tabs[nearest].tab
+                                    optimisticTargetIndex = nearest
+                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+
+                                    // Snap navigation and pill from the exact same resolved slot.
+                                    // Keep drag rendering active until Animatable is seeded from the
+                                    // release position, preventing a one-frame jump back to the old tab.
+                                    motionJob?.cancel()
+                                    motionJob =
+                                        scope.launch {
+                                            indexAnim.snapTo(releaseIndex)
+                                            isDragging = false
+                                            launch {
+                                                delay(24)
+                                                onTabPreparingLatest(tab)
+                                            }
+                                            if (reducedMotion) {
+                                                travelOrigin = Float.NaN
+                                                indexAnim.snapTo(targetIndex)
+                                            } else {
+                                                travelOrigin = releaseIndex
+                                                travelTarget = targetIndex
+                                                indexAnim.animateTo(targetIndex, NavPillSpring)
+                                                travelOrigin = Float.NaN
+                                            }
+                                            StudentNavPillMotion.index = targetIndex
+                                            StudentNavPillMotion.lastTab = tab
+                                            if (tab != activeTabLatest) {
+                                                onTabSelectedLatest(tab)
+                                            } else {
+                                                optimisticTargetIndex = null
+                                            }
+                                        }
+                                },
+                                onDragCancel = {
+                                    val releaseIndex = dragIndex.coerceIn(0f, lastIndex)
+                                    val targetIndex = activeIndexLatest.toFloat()
+                                    motionJob?.cancel()
+                                    motionJob =
+                                        scope.launch {
+                                            indexAnim.snapTo(releaseIndex)
+                                            isDragging = false
+                                            travelOrigin = releaseIndex
+                                            travelTarget = targetIndex
+                                            indexAnim.animateTo(targetIndex, NavPillSpring)
+                                            travelOrigin = Float.NaN
+                                        }
+                                },
+                            )
+                        }
+                    } else {
+                        Modifier
+                    }
+
+                Box(modifier = Modifier.fillMaxSize().then(dragModifier)) {
+                    // Active pill — Flutter Positioned(left: value * itemWidth + inset, …)
+                    val pillCenterPx =
+                        contentInsetXPx + (boundedVisualIndex + 0.5f) * itemWidthPx
+                    val pillLeftPx = pillCenterPx - pillWidthPx / 2f
+                    Box(
+                        modifier =
+                            Modifier
+                                .offset {
+                                    IntOffset(
+                                        x = pillLeftPx.roundToInt(),
+                                        y = pillInsetYPx.roundToInt(),
+                                    )
+                                }.width(pillWidth)
+                                .height(NavDockHeight - NavPillInsetY * 2)
+                                .liquidGlassLens(
+                                    source = backdrop?.let { dockBackdrop },
+                                    tint = colors.navTextIdle.copy(alpha = LENS_TINT_ALPHA),
+                                    solid = colors.navPill,
+                                    layerBlock = {
+                                        val grow = pressGrowth
+                                        scaleX = 1f + grow
+                                        scaleY = 1f + 0.025f * stretchProgress + grow
+                                    },
+                                ),
+                    )
+
+                    // El texto de las pestañas crece hasta 1.3x: con 4 pestañas en 320 dp, más se corta.
+                    CompositionLocalProvider(
+                        LocalDensity provides Density(density.density, min(density.fontScale, NAV_MAX_FONT_SCALE)),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = NavContentInsetX),
+                        ) {
+                            tabs.forEachIndexed { index, entry ->
+                                val selection =
+                                    (1f - abs(boundedVisualIndex - index.toFloat())).coerceIn(0f, 1f)
+                                FloatingNavTab(
+                                    modifier =
+                                        Modifier
+                                            .weight(1f)
+                                            .fillMaxHeight(),
+                                    label = entry.label,
+                                    iconRes = entry.iconRes,
+                                    selected = index == activeIndex,
+                                    selection = selection,
+                                    directSelection = isDragging,
+                                    badge = if (entry.tab == StudentTab.CART) cartCount else 0,
+                                    iconWidth = entry.iconWidth,
+                                    iconHeight = entry.iconHeight,
+                                    reduceMotion = reducedMotion,
+                                    onClick = {
+                                        val targetIndex = index
+                                        val targetValue = targetIndex.toFloat()
+                                        if (targetIndex == activeIndexLatest && optimisticTargetIndex == null) {
+                                            return@FloatingNavTab
+                                        }
+                                        optimisticTargetIndex = targetIndex
+                                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        val selectedTab = entry.tab
+                                        motionJob?.cancel()
+                                        motionJob =
+                                            scope.launch {
+                                                launch {
+                                                    delay(24)
+                                                    onTabPreparingLatest(selectedTab)
+                                                }
+                                                if (reducedMotion) {
+                                                    travelOrigin = Float.NaN
+                                                    indexAnim.snapTo(targetValue)
+                                                } else {
+                                                    travelOrigin = indexAnim.value
+                                                    travelTarget = targetValue
+                                                    indexAnim.animateTo(targetValue, NavPillSpring)
+                                                    travelOrigin = Float.NaN
+                                                }
+                                                StudentNavPillMotion.index = targetValue
+                                                StudentNavPillMotion.lastTab = selectedTab
+                                                if (selectedTab != activeTabLatest) {
+                                                    onTabSelectedLatest(selectedTab)
+                                                } else {
+                                                    optimisticTargetIndex = null
+                                                }
+                                            }
+                                    },
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -345,189 +436,140 @@ private fun TabStrip(
 }
 
 @Composable
-private fun TabItem(
-    item: NavItem,
+private fun FloatingNavTab(
+    label: String,
+    iconRes: Int,
     selected: Boolean,
-    nearness: Float,
-    pressed: Boolean,
-    badge: Int,
-    idle: Color,
-    active: Color,
-    badgeRing: Color,
-    onSemanticClick: () -> Unit,
+    selection: Float,
+    directSelection: Boolean,
+    onClick: () -> Unit,
+    reduceMotion: Boolean,
+    iconWidth: Dp,
+    iconHeight: Dp,
     modifier: Modifier = Modifier,
+    badge: Int = 0,
 ) {
-    val tint = lerpColor(idle, active, nearness)
-    val press by animateFloatAsState(
-        targetValue = if (pressed) 1.08f else 1f,
-        animationSpec = spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMedium),
-        label = "tab_press",
-    )
+    val colors = LocalVaiinillaColors.current
+    val visualSelection = selection
+    val foreground = lerpColor(colors.navTextIdle, colors.navTextActive, visualSelection)
+
     Column(
         modifier =
             modifier
-                .semantics(mergeDescendants = true) {
+                .physicalPress(scale = PhysicalPressScale.Nav, onClick = onClick)
+                // La píldora solo se dibuja: sin esto TalkBack no sabe en qué pestaña estás.
+                .semantics {
                     role = Role.Tab
                     this.selected = selected
-                    contentDescription = item.label
-                    onClick(label = item.label) {
-                        onSemanticClick()
-                        true
-                    }
-                }.graphicsLayer {
-                    scaleX = press
-                    scaleY = press
-                },
+                }.padding(horizontal = 2.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Box(modifier = Modifier.size(IconSize), contentAlignment = Alignment.Center) {
-            // El ícono relleno aparece conforme la lente llega, igual que el .fill de SF Symbols.
+        Box(
+            modifier = Modifier.size(width = iconWidth, height = iconHeight),
+            contentAlignment = Alignment.Center,
+        ) {
             Icon(
-                imageVector = item.outlined,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 1f - nearness },
+                painter = painterResource(iconRes),
+                contentDescription = label,
+                tint = foreground,
+                modifier = Modifier.fillMaxSize(),
             )
-            Icon(
-                imageVector = item.filled,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = nearness },
-            )
-            CartBadge(
-                count = badge,
-                ring = badgeRing,
-                modifier = Modifier.align(Alignment.TopEnd).offset(x = 9.dp, y = (-5).dp),
-            )
+            if (badge > 0) {
+                val badgeScale = remember { Animatable(1f) }
+                LaunchedEffect(badge) {
+                    badgeScale.snapTo(1.4f)
+                    badgeScale.animateTo(
+                        targetValue = 1f,
+                        animationSpec =
+                            spring(
+                                dampingRatio = 0.45f,
+                                stiffness = 500f,
+                            ),
+                    )
+                }
+                Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 7.dp, y = (-4).dp)
+                            .scale(badgeScale.value)
+                            .height(18.dp)
+                            .width(
+                                when {
+                                    badge > 99 -> 28.dp
+                                    badge > 9 -> 23.dp
+                                    else -> 18.dp
+                                },
+                            ).clip(RoundedCornerShape(99.dp))
+                            .background(Coral)
+                            .border(1.dp, colors.navPill, RoundedCornerShape(99.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AnimatedContent(
+                        targetState = badge,
+                        transitionSpec = {
+                            if (targetState > initialState) {
+                                (slideInVertically { height -> height } + fadeIn()) togetherWith
+                                    (slideOutVertically { height -> -height } + fadeOut())
+                            } else {
+                                (slideInVertically { height -> -height } + fadeIn()) togetherWith
+                                    (slideOutVertically { height -> height } + fadeOut())
+                            }.using(SizeTransform(clip = false))
+                        },
+                        label = "cart_badge_ticker",
+                    ) { count ->
+                        Text(
+                            text = if (count > 99) "99+" else count.toString(),
+                            color = Color.White,
+                            // La burbuja mide 18 dp fijos: con la letra del sistema al doble tapaba el ícono.
+                            fontSize = with(LocalDensity.current) { 10.dp.toSp() },
+                            lineHeight = with(LocalDensity.current) { 10.dp.toSp() },
+                            fontWeight = FontWeight.Black,
+                        )
+                    }
+                }
+            }
         }
         Text(
-            text = item.label,
-            color = tint,
-            fontSize = LabelSize,
-            lineHeight = 12.sp,
-            fontWeight = if (nearness > 0.5f) FontWeight.SemiBold else FontWeight.Medium,
+            text = label,
+            color = foreground,
+            fontSize = NavLabelSize,
+            lineHeight = 10.sp,
+            fontWeight = if (visualSelection >= 0.5f) FontWeight.SemiBold else FontWeight.Normal,
+            letterSpacing = (-0.04).sp,
             maxLines = 1,
             overflow = TextOverflow.Clip,
-            modifier = Modifier.padding(top = 3.dp),
+            modifier = Modifier.padding(top = NavIconLabelGap),
         )
     }
 }
 
-@Composable
-private fun CartBadge(
-    count: Int,
-    ring: Color,
-    modifier: Modifier = Modifier,
-) {
-    AnimatedVisibility(
-        visible = count > 0,
-        modifier = modifier,
-        enter = scaleIn(spring(dampingRatio = 0.5f, stiffness = 600f)) + fadeIn(),
-        exit = scaleOut(spring(stiffness = 700f)) + fadeOut(),
-    ) {
-        val pop = remember { Animatable(1f) }
-        LaunchedEffect(count) {
-            pop.snapTo(1.3f)
-            pop.animateTo(1f, spring(dampingRatio = 0.42f, stiffness = 520f))
-        }
-        Box(
-            modifier =
-                Modifier
-                    .graphicsLayer {
-                        scaleX = pop.value
-                        scaleY = pop.value
-                    }.height(18.dp)
-                    .widthIn(min = 18.dp)
-                    .background(ring, CircleShape)
-                    .padding(1.5.dp)
-                    .background(Coral, CircleShape)
-                    .padding(horizontal = 4.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            AnimatedContent(
-                targetState = count.coerceAtLeast(1),
-                transitionSpec = {
-                    val up = targetState > initialState
-                    (slideInVertically { if (up) it else -it } + fadeIn()) togetherWith
-                        (slideOutVertically { if (up) -it else it } + fadeOut())
-                },
-                label = "cart_badge_count",
-            ) { value ->
-                Text(
-                    text = if (value > 99) "99+" else value.toString(),
-                    color = Color.White,
-                    // La burbuja mide 18 dp fijos: con la letra del sistema al doble taparía el ícono.
-                    fontSize = with(LocalDensity.current) { 10.dp.toSp() },
-                    lineHeight = with(LocalDensity.current) { 10.dp.toSp() },
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-        }
-    }
+internal fun nearestStudentNavIndex(
+    index: Float,
+    tabCount: Int,
+): Int {
+    if (tabCount <= 0) return 0
+    return index.roundToInt().coerceIn(0, tabCount - 1)
 }
 
-@Composable
-private fun ProfileOrb(
-    profile: NavProfile,
-    backdrop: Backdrop?,
-    glass: NavGlassStyle,
-    onClick: () -> Unit,
-) {
-    val colors = LocalVaiinillaColors.current
-    val initials = profile.initials?.takeIf { it.isNotBlank() && it != "?" }
-    Box(
-        modifier =
-            Modifier
-                .size(BarHeight)
-                .physicalPress(scale = PhysicalPressScale.Nav, onClick = onClick)
-                .semantics {
-                    role = Role.Button
-                    contentDescription = "Tu cuenta"
-                }.navGlass(backdrop, glass),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (initials != null) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(BarHeight - 10.dp)
-                        .background(
-                            Brush.linearGradient(listOf(colors.navTextActive.copy(alpha = 0.78f), colors.navTextActive)),
-                            CircleShape,
-                        ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = initials,
-                    color = Color.White,
-                    fontSize = with(LocalDensity.current) { 18.dp.toSp() },
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.2.sp,
-                )
-            }
-        } else {
-            Icon(
-                imageVector = Icons.Rounded.Person,
-                contentDescription = null,
-                tint = colors.navTextIdle,
-                modifier = Modifier.size(28.dp),
-            )
-        }
-    }
-}
-
-private data class NavItem(
-    val label: String,
-    val outlined: ImageVector,
-    val filled: ImageVector,
-)
-
-private fun navItemFor(tab: StudentTab): NavItem =
+private fun navTabFor(tab: StudentTab): NavTab =
     when (tab) {
-        StudentTab.MENU -> NavItem("Menú", Icons.Outlined.Home, Icons.Rounded.Home)
-        StudentTab.ORDERS -> NavItem("Pedidos", Icons.AutoMirrored.Outlined.ReceiptLong, Icons.AutoMirrored.Rounded.ReceiptLong)
-        StudentTab.WALLET -> NavItem("Cartera", Icons.Outlined.AccountBalanceWallet, Icons.Rounded.AccountBalanceWallet)
-        StudentTab.CART -> NavItem("Carrito", Icons.Outlined.ShoppingCart, Icons.Rounded.ShoppingCart)
+        StudentTab.MENU ->
+            NavTab(tab, "Menú", R.drawable.ic_nav_home_reference, iconWidth = 24.55.dp, iconHeight = 21.82.dp)
+        StudentTab.ORDERS ->
+            NavTab(tab, "Pedidos", R.drawable.ic_nav_orders_reference, iconWidth = 24.25.dp, iconHeight = 18.79.dp)
+        StudentTab.WALLET ->
+            NavTab(tab, "Cartera", R.drawable.ic_nav_wallet_reference, iconWidth = 17.27.dp, iconHeight = 22.12.dp)
+        StudentTab.CART ->
+            NavTab(tab, "Carrito", R.drawable.ic_nav_cart_reference, iconWidth = 23.03.dp, iconHeight = 20.31.dp)
         StudentTab.ASSISTANT -> error("El asistente aún no está en la barra")
     }
+
+private data class NavTab(
+    val tab: StudentTab,
+    val label: String,
+    val iconRes: Int,
+    val iconWidth: Dp = NavIconSize,
+    val iconHeight: Dp = NavIconSize,
+)

@@ -19,7 +19,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import com.vaiinilla.app.ui.components.NavProfile
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -74,7 +73,7 @@ fun shouldShowStudentNav(
  * Persistent student chrome — Compose equivalent of Flutter
  * `Scaffold(extendBody: true, bottomNavigationBar: SpringFloatingNavBar)`.
  *
- * [content] (NavHost) fills the screen; the glass tab bar and profile circle overlay and never remounts when
+ * [content] (NavHost) fills the screen; the solid floating dock overlays and never remounts when
  * switching student tabs. Detail surfaces can hide the dock while the route remains `catalog`.
  */
 @Composable
@@ -86,9 +85,6 @@ fun StudentShellHost(
     catalogDetailOpen: Boolean = false,
     /** El QR personal de la cartera está abierto sobre la casita: la barra se va mientras tanto. */
     walletCodeOpen: Boolean = false,
-    /** El círculo de la derecha de la barra; null lo quita. */
-    profile: NavProfile? = null,
-    onOpenProfile: () -> Unit = {},
     /** Lo que va encima de todo, también de la barra (la entrada a un lugar). */
     overlay: @Composable () -> Unit = {},
     content: @Composable () -> Unit,
@@ -129,8 +125,7 @@ fun StudentShellHost(
                     activeTab = activeTab,
                     cartCount = cartCount,
                     backdrop = screenBackdrop,
-                    profile = profile,
-                    onOpenProfile = onOpenProfile,
+                    enableDrag = true,
                     onTabPreparing = onPrepareStudent,
                     onTabSelected = { tab ->
                         val target = routeForStudentTab(tab)
