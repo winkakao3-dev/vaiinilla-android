@@ -127,9 +127,10 @@ val OrderFlowUiState.filteredProducts: List<Product>
         // Lo agotado se queda en el menú, al final, con "Agotado" y sin Agregar (B10).
         val products = catalog?.products.orEmpty().sortedBy { !it.available }
         val categoryFiltered =
-            selectedCategoryId?.let { categoryId ->
-                products.filter { it.categoryId == categoryId }
-            } ?: products
+            selectedCategoryId
+                ?.takeIf { id -> catalog?.categories.orEmpty().any { it.id == id } }
+                ?.let { categoryId -> products.filter { it.categoryId == categoryId } }
+                ?: products
         val query = searchQuery.normalizeForSearch()
         return if (query.isEmpty()) {
             categoryFiltered
