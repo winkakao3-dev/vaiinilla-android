@@ -607,6 +607,7 @@ fun WaiterOperationalScreen(
                     }
                 },
             onDismissCollection = onDismissCollection,
+            remainingParts = state.remainingParts[open.space.id],
         )
     }
 
@@ -1153,6 +1154,8 @@ private fun WaiterTableSheet(
     onCollectAccount: (AccountPaymentMethod, String?, String, List<String>?, String?) -> Unit,
     onDismissCollection: () -> Unit,
     onAbono: AbonoHandler? = null,
+    /** Personas que faltan tras un abono en partes; la hoja abre en Partes con ese número (I06). */
+    remainingParts: Int? = null,
     rentable: Boolean = false,
     onStartRental: (Int, Instant?) -> Unit = { _, _ -> },
     rentalDurations: List<Int> = DefaultRentalDurations,
@@ -1241,6 +1244,8 @@ private fun WaiterTableSheet(
                             remaining = account.remaining,
                             paidIn = account.paidIn,
                             onAbono = onAbono,
+                            initialPeople = remainingParts,
+                            initialSplit = if (remainingParts != null) SplitMode.PARTS else SplitMode.ORDERS,
                         )
                     }
                 } else {

@@ -70,6 +70,8 @@ data class WaiterUiState(
     /** Cambio de la última cuenta cobrada, para que se lo entregue al cliente. */
     val lastCollection: AccountCollection? = null,
     val lastAbono: AbonoResult? = null,
+    /** Personas que faltan por pagar su parte, por espacio, tras un abono en partes iguales (I06). */
+    val remainingParts: Map<Int, Int> = emptyMap(),
     /** Renta de mostrador apartada esperando que se cobre en efectivo. */
     val pendingRental: Reservation? = null,
     /** Pedido de mostrador: hoja abierta, catálogo cargado y envío en curso. */
@@ -534,6 +536,7 @@ class WaiterViewModel
                 _uiState.value.spaceDetail
                     ?.session
                     ?.version
+            _uiState.value = _uiState.value.copy(remainingParts = _uiState.value.remainingParts - spaceId)
             runSpaceAction(spaceId, "Espacio liberado") {
                 waiterRepository.releaseSpace(spaceId, version, UUID.randomUUID().toString())
             }
@@ -614,7 +617,16 @@ class WaiterViewModel
                     }
                 result.fold(
                     onSuccess = { abono ->
-                        _uiState.value = _uiState.value.copy(lastAbono = abono)
+                        val saved = _uiState.value.remainingParts
+                        val nextParts =
+                            when {
+                                abono.settled -> saved - spaceId
+                                mode == AbonoMode.PARTS && parts != null ->
+                                    saved + (spaceId to (parts - 1).coerceAtLeast(1))
+                                // Un abono por monto rompe la cuenta de partes: se vuelve a elegir.
+                                else -> saved - spaceId
+                            }
+                        _uiState.value = _uiState.value.copy(lastAbono = abono, remainingParts = nextParts)
                         showToast(if (abono.settled) "Cuenta saldada" else "Abono registrado")
                     },
                     onFailure = { error -> showToast(error.toUserFacingMessage(), isError = true) },

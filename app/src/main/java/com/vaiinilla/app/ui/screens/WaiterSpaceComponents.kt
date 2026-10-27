@@ -958,12 +958,14 @@ internal fun CollectAccountContent(
     onAbono: AbonoHandler? = null,
     /** El modo con que abre la hoja (capturas y pruebas). */
     initialSplit: SplitMode = SplitMode.ORDERS,
+    /** Personas que faltan tras un abono en partes; null empieza en 2. */
+    initialPeople: Int? = null,
 ) {
     var selected by remember(payable.map { it.id }) { mutableStateOf(payable.map { it.id }.toSet()) }
     val paidInAmount = paidIn.moneyOrZero()
     val remainingAmount = remaining?.moneyOrZero() ?: total.moneyOrZero()
     val splitLocked = paidInAmount.signum() > 0
-    var split by remember {
+    var split by remember(initialSplit) {
         mutableStateOf(
             if (splitLocked &&
                 initialSplit == SplitMode.ORDERS
@@ -976,7 +978,7 @@ internal fun CollectAccountContent(
     }
     if (splitLocked && split == SplitMode.ORDERS) split = SplitMode.AMOUNT
     var abonoText by remember { mutableStateOf("") }
-    var people by remember { mutableIntStateOf(2) }
+    var people by remember(initialPeople) { mutableIntStateOf(initialPeople ?: 2) }
     val byOrders = onAbono == null || split == SplitMode.ORDERS
     val splitting = byOrders && payable.size >= 2
     val allSelected = selected.size == payable.size
