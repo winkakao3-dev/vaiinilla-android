@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
@@ -825,14 +826,16 @@ internal fun ChipButton(
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // Con 4 duraciones «+1 h 30» no cabía y se cortaba en «+1 h»: la letra se achica antes (D07).
             Text(
                 label,
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
                 color = ink,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
-                modifier = Modifier.padding(horizontal = 14.dp),
+                softWrap = false,
+                autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = 14.sp, stepSize = 0.5.sp),
+                modifier = Modifier.padding(horizontal = 6.dp),
             )
             if (detail != null) {
                 Text(detail, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = detailInk, maxLines = 1)
