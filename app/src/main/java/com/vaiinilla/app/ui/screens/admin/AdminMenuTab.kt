@@ -75,6 +75,7 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.admin.AdminCategoryInput
 import com.vaiinilla.app.domain.admin.AdminOptionGroupInput
 import com.vaiinilla.app.domain.admin.AdminOptionInput
+import com.vaiinilla.app.core.text.normalizeForSearch
 import com.vaiinilla.app.domain.admin.AdminProductInput
 import com.vaiinilla.app.domain.admin.AdminProductRules
 import com.vaiinilla.app.domain.model.Catalog
@@ -197,13 +198,13 @@ private fun MenuList(
     val allCategories = catalog.categories.sortedBy { it.order }
     val categories = allCategories.filter { categoryFilter == null || it.id == categoryFilter }
     val known = allCategories.map { it.id }.toSet()
-    val needle = query.trim().lowercase()
+    val needle = query.normalizeForSearch()
     val visible =
         catalog.products.filter { product ->
             (
                 needle.isEmpty() ||
-                    product.name.lowercase().contains(needle) ||
-                    product.description.lowercase().contains(needle)
+                    product.name.normalizeForSearch().contains(needle) ||
+                    product.description.normalizeForSearch().contains(needle)
             ) &&
                 availability.matches(product)
         }
