@@ -119,30 +119,32 @@ internal fun StoreEntranceOverlay(
         }
         arrived = true
     }
+    var failed by remember(entrance.id) { mutableStateOf(false) }
     LaunchedEffect(arrived, outcome) {
-        if (!arrived || finishing) return@LaunchedEffect
-        when (outcome) {
-            StoreEntranceOutcome.WAITING -> Unit
-            StoreEntranceOutcome.READY -> {
-                finishing = true
-                fade.animateTo(0f, tween(if (reduceMotion) 200 else 450))
-                latestOnFinished()
-            }
-            StoreEntranceOutcome.FAILED -> {
-                finishing = true
-                if (!reduceMotion) {
-                    launch {
-                        p.animateTo(
-                            START_WITHOUT_CODE,
-                            spring(dampingRatio = 1f, stiffness = 60f),
-                        )
-                    }
+        if (!arrived || finishing || outcome == StoreEntranceOutcome.WAITING) return@LaunchedEffect
+        failed = outcome == StoreEntranceOutcome.FAILED
+        finishing = true
+    }
+    // El cierre no depende de `outcome`: si cambia a media salida (READY → WAITING al recargar el negocio), el
+    // efecto de arriba se cancelaba antes de llamar onFinished y la capa quedaba pegada, invisible, comiéndose los
+    // toques (problema 2 del QA del 27 oct).
+    LaunchedEffect(finishing) {
+        if (!finishing) return@LaunchedEffect
+        if (failed) {
+            if (!reduceMotion) {
+                launch {
+                    p.animateTo(
+                        START_WITHOUT_CODE,
+                        spring(dampingRatio = 1f, stiffness = 60f),
+                    )
                 }
-                delay(if (reduceMotion) 0 else 450)
-                fade.animateTo(0f, tween(500))
-                latestOnFinished()
             }
+            delay(if (reduceMotion) 0 else 450)
+            fade.animateTo(0f, tween(500))
+        } else {
+            fade.animateTo(0f, tween(if (reduceMotion) 200 else 450))
         }
+        latestOnFinished()
     }
 
     var table by remember(entrance.id) { mutableStateOf(entrance.table) }
@@ -158,8 +160,8 @@ internal fun StoreEntranceOverlay(
             .fillMaxSize()
             .graphicsLayer { alpha = fade.value }
             .background(palette.stage)
-            // La entrada tapa la pantalla: nada de abajo se toca mientras cruza la puerta.
-            .pointerInput(Unit) {}
+            // La entrada tapa la pantalla: nada de abajo se toca mientras cruza la puerta. Al desvanecerse ya no.
+            .then(if (finishing) Modifier else Modifier.pointerInput(Unit) {})
             .semantics { contentDescription = "Entrando" },
     ) {
         val stage = with(density) { Size(maxWidth.toPx(), maxHeight.toPx()) }
