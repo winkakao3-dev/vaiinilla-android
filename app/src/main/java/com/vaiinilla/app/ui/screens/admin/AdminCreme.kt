@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.components.ChoiceChip
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
+import com.vaiinilla.app.ui.components.WholeWordTitle
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.OperationalColors
@@ -131,15 +132,13 @@ internal fun AdminHero(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Text(
-                    title.uppercase(),
+                WholeWordTitle(
+                    text = title.uppercase(),
                     color = colors.textPrimary,
                     fontSize = 46.sp,
                     lineHeight = 46.sp,
                     letterSpacing = (-1.2).sp,
-                    fontWeight = FontWeight.Black,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
                 )
             }
             titleTrailing?.let { Box(Modifier.padding(bottom = 8.dp)) { it() } }

@@ -114,6 +114,7 @@ import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavSideMargin
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavTop
+import com.vaiinilla.app.ui.components.WholeWordTitle
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
@@ -724,15 +725,13 @@ private fun MenuHero(
                     )
                 }
             }
-            Text(
+            WholeWordTitle(
                 text = name.uppercase(),
                 color = colors.ink,
-                fontWeight = FontWeight.Black,
                 fontSize = 46.sp,
                 lineHeight = 44.sp,
                 letterSpacing = (-1.2).sp,
                 maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
                 modifier =
                     Modifier
                         .clip(RoundedCornerShape(12.dp))
