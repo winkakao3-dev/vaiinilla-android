@@ -114,7 +114,7 @@ fun OrderConfirmationScreen(
 }
 
 internal const val GUEST_ORDER_NOTICE =
-    "Sin cuenta, este pedido solo se ve en este teléfono: si borras la app o cambias de teléfono, ya no lo verás."
+    "Guarda este pedido: solo se ve en este teléfono."
 
 @Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
