@@ -512,11 +512,16 @@ class OrderFlowViewModel
          * Tras identificarse: los pedidos hechos como invitado en este dispositivo pasan a la cuenta.
          * La llave es del dispositivo, así que no depende de tener un negocio abierto.
          */
-        fun claimGuestOrders() {
+        fun claimGuestOrders(onClaimed: () -> Unit = {}) {
             if (!guestOrders.hasIdentity()) return
             launchTracked {
                 val token = studentAuthRepository.getIdToken().getOrNull() ?: return@launchTracked
-                withContext(Dispatchers.IO) { guestOrders.claim(token) }
+                withContext(Dispatchers.IO) { guestOrders.claim(token) }.onSuccess {
+                    // Ya reclamado (la llave del invitado se borró): el pedido de invitado que seguía en pantalla
+                    // no es de esta cuenta y no se queda (EQUIPO-28). Primero se reclama, después se limpia.
+                    clearCreatedOrder()
+                    onClaimed()
+                }
             }
         }
 

@@ -67,6 +67,15 @@ class SharedTableViewModel
             }
         }
 
+        /** Al salir o cambiar de cuenta: el nombre y la mesa eran del usuario anterior (EQUIPO-28). */
+        fun clearForSessionTermination() {
+            pollingJob?.cancel()
+            pollingJob = null
+            venueId = null
+            mutationVersion++
+            _uiState.value = SharedTableUiState()
+        }
+
         fun onVisible() {
             pollingJob?.cancel()
             pollingJob =

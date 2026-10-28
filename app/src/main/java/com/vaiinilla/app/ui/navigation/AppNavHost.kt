@@ -674,7 +674,7 @@ fun AppNavHost(
 
     fun finishStudentAuth(returnRoute: String) {
         orderFlowViewModel.restoreGuestSessionAfterAuth()
-        orderFlowViewModel.claimGuestOrders()
+        orderFlowViewModel.claimGuestOrders(onClaimed = operationalViewModel::refresh)
         studentAuthViewModel.refreshGuestVenue()
         authorizedAccessViewModel.refreshCurrentSession()
         if (!navController.popBackStack(returnRoute, inclusive = false)) {
@@ -696,7 +696,7 @@ fun AppNavHost(
 
     fun finishLaunchAuth() {
         orderFlowViewModel.restoreGuestSessionAfterAuth()
-        orderFlowViewModel.claimGuestOrders()
+        orderFlowViewModel.claimGuestOrders(onClaimed = operationalViewModel::refresh)
         studentAuthViewModel.refreshGuestVenue()
         authorizedAccessViewModel.refreshCurrentSession()
         val modesRefreshed = CompletableDeferred<Boolean>()
@@ -767,6 +767,7 @@ fun AppNavHost(
         discoveryViewModel.clearForSessionTermination()
         childrenViewModel.clearForSessionTermination()
         guardianControlsViewModel.clear()
+        sharedTableViewModel.clearForSessionTermination()
         ChildDeepLinkStore.reset()
         operationalViewModel.clearRole()
         authorizedAccessViewModel.resetAfterSignOut()
