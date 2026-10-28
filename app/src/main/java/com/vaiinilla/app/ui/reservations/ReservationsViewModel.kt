@@ -53,6 +53,8 @@ data class ReservationsUiState(
     /** Sin cuenta y sin identidad de invitado: hay que dar el nombre y entrar antes de ver horarios. */
     val guestEntry: Boolean = false,
     val guestName: String = "",
+    /** El lugar pide cuenta para rentar: al invitado no se le ofrece la renta sin cuenta. */
+    val accountRequired: Boolean = false,
 ) {
     val selectedCourt: CourtSchedule?
         get() = day?.courts?.firstOrNull { it.id == selectedCourtId }
@@ -116,6 +118,7 @@ class ReservationsViewModel
                 _uiState.value.copy(
                     guestMode = guest != null,
                     guestEntry = needsEntry,
+                    accountRequired = false,
                     loading = next != null && !needsEntry,
                     error = if (next == null) "Elige un lugar para ver sus canchas." else _uiState.value.error,
                 )
@@ -159,11 +162,16 @@ class ReservationsViewModel
                     onFailure = { error ->
                         val message =
                             if ((error as? ApiClientException)?.code == GUEST_NOT_ALLOWED) {
-                                "Este lugar pide cuenta para rentar. Inicia sesión para continuar."
+                                null
                             } else {
                                 error.userMessage()
                             }
-                        _uiState.value = _uiState.value.copy(working = false, error = message)
+                        _uiState.value =
+                            _uiState.value.copy(
+                                working = false,
+                                error = message,
+                                accountRequired = message == null || _uiState.value.accountRequired,
+                            )
                     },
                 )
             }
@@ -375,6 +383,7 @@ class ReservationsViewModel
                 current.copy(
                     loading = if (dateStillSelected) false else current.loading,
                     day = day ?: current.day,
+                    accountRequired = current.guestMode && (day ?: current.day)?.requiresAccount == true,
                     selectedCourtId = courtId,
                     mine = mineResult.getOrNull() ?: current.mine,
                     // Un inicio que alguien más tomó mientras tanto deja de estar elegido.

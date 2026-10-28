@@ -72,6 +72,8 @@ data class CourtDayDto(
     @SerialName("apartado_min") val apartadoMin: Int = 10,
     val ahora: String,
     val canchas: List<CourtScheduleDto> = emptyList(),
+    // Un servidor anterior no lo manda: se sigue ofreciendo la renta sin cuenta.
+    @SerialName("requiere_cuenta") val requiereCuenta: Boolean = false,
 )
 
 @Serializable
@@ -224,6 +226,7 @@ private fun CourtDayDto.toDomain() =
         daysAhead = diasAdelanto,
         holdMinutes = apartadoMin,
         now = Instant.parse(ahora),
+        requiresAccount = requiereCuenta,
         courts =
             canchas.map { court ->
                 CourtSchedule(

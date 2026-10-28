@@ -131,6 +131,20 @@ class ReservationContractJsonTest {
     }
 
     @Test
+    fun `lee requiere_cuenta y sin el campo se renta sin cuenta`() {
+        fun day(extra: String) =
+            json.parseDay(
+                """
+                {"data":{"fecha":"2026-10-01","hoy":"2026-09-30","zona_horaria":"America/Chihuahua",
+                "abre":"2026-10-01T14:00:00.000Z","cierra":"2026-10-02T04:00:00.000Z",
+                "ahora":"2026-09-30T19:00:00.000Z","canchas":[]$extra},"error":null}
+                """.trimIndent(),
+            )
+        assertTrue(day(""","requiere_cuenta":true""").requiresAccount)
+        assertFalse(day("").requiresAccount)
+    }
+
+    @Test
     fun `lee el pago en efectivo con su pedido de renta y el cambio`() {
         val payment =
             json.parsePayment(

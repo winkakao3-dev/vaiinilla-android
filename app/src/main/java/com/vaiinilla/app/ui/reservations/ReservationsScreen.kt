@@ -115,6 +115,8 @@ fun ReservationsScreen(
     onGuestNameChange: (String) -> Unit = {},
     onEnterAsGuest: () -> Unit = {},
     onSignIn: (() -> Unit)? = null,
+    /** Cuando el lugar pide cuenta: llevar al registro. */
+    onCreateAccount: (() -> Unit)? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     val day = state.day
@@ -142,7 +144,11 @@ fun ReservationsScreen(
                 item(key = "notice") { Banner(message, colors.accent, colors, onDismissMessage) }
             }
 
-            if (state.guestEntry) {
+            if (state.accountRequired) {
+                item(key = "account-required") {
+                    AccountRequiredCard(onCreateAccount = onCreateAccount, onSignIn = onSignIn, colors = colors)
+                }
+            } else if (state.guestEntry) {
                 item(key = "guest-entry") {
                     GuestEntryCard(
                         name = state.guestName,
@@ -676,6 +682,47 @@ private fun DurationRow(
                     onClick = { onSelect(minutes) },
                     colors = colors,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountRequiredCard(
+    onCreateAccount: (() -> Unit)?,
+    onSignIn: (() -> Unit)?,
+    colors: VaiinillaColors,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .arrive(1)
+                .clip(RoundedCornerShape(26.dp))
+                .border(1.dp, colors.line, RoundedCornerShape(26.dp))
+                .padding(20.dp),
+    ) {
+        Text(
+            "Necesitas una cuenta",
+            color = colors.ink,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = (-0.6).sp,
+        )
+        Text(
+            "Aquí las canchas se rentan con cuenta. Crea una o inicia sesión para apartar.",
+            color = colors.muted,
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        Spacer(Modifier.height(16.dp))
+        if (onCreateAccount != null) {
+            EditorialAccentButton(text = "Crear cuenta", onClick = onCreateAccount)
+        }
+        if (onSignIn != null) {
+            TextButton(onClick = onSignIn, modifier = Modifier.fillMaxWidth()) {
+                Text("Ya tengo cuenta, iniciar sesión", color = colors.ink)
             }
         }
     }

@@ -1252,6 +1252,12 @@ fun AppNavHost(
                         } else {
                             { navController.navigate(Routes.authLandingRoute(Routes.RESERVATIONS)) }
                         },
+                    onCreateAccount =
+                        if (reservationsHasAccount) {
+                            null
+                        } else {
+                            { navController.navigate(Routes.authRegisterRoute(Routes.RESERVATIONS)) }
+                        },
                 )
             }
 

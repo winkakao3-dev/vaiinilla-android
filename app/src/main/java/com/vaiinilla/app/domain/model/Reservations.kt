@@ -75,6 +75,8 @@ data class CourtDay(
     val holdMinutes: Int,
     val now: Instant,
     val courts: List<CourtSchedule>,
+    /** El lugar no renta a invitados: hace falta una cuenta (`requiere_cuenta`). */
+    val requiresAccount: Boolean = false,
 )
 
 data class Reservation(
