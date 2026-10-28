@@ -634,7 +634,8 @@ private fun PickupJourney(
             onCallWaiter = onCallWaiter,
             onCancelWaiter = onCancelWaiter,
             onViewReceipt = onViewReceipt?.takeIf { order.summary.state == OrderState.DELIVERED },
-            guestNotice = guestNotice,
+            // Recién pedido, el aviso va en la tarjeta de celebración, que es lo que el invitado sí lee (EQUIPO-01).
+            guestNotice = guestNotice.takeIf { celebration == null },
             modifier = Modifier.align(Alignment.BottomCenter),
         )
 
@@ -654,6 +655,7 @@ private fun PickupJourney(
                 backdrop = drawWorld,
                 appear = eased(checkout.value, 0.9f, 1f),
                 onPlaced = { cardRect = it },
+                guestNotice = guestNotice,
                 modifier = Modifier.align(Alignment.Center),
             )
         }
@@ -699,6 +701,7 @@ private fun CelebrationCard(
     modifier: Modifier = Modifier,
     appear: Float = 1f,
     onPlaced: (Rect) -> Unit = {},
+    guestNotice: String? = null,
 ) {
     val c = LocalScene.current
     val paid = kind == PurchaseCelebrationKind.PAYMENT_CONFIRMED
@@ -764,6 +767,17 @@ private fun CelebrationCard(
             )
             Spacer(Modifier.height(8.dp))
             Text(message, color = c.muted, fontSize = 15.sp, lineHeight = 21.sp, textAlign = TextAlign.Center)
+            guestNotice?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    it,
+                    color = c.ink,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                )
+            }
             Spacer(Modifier.height(18.dp))
             Row(
                 modifier =
