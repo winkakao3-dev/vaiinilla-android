@@ -166,6 +166,43 @@ class StudentCounterUiTest {
     }
 
     @Test
+    fun `lo que el tutor bloqueo por categoria se ve con su motivo y sin agregar`() {
+        val refresco =
+            Product(
+                id = 11,
+                categoryId = 5,
+                preparationStation = PreparationStation.KITCHEN,
+                name = "Refresco",
+                description = "",
+                ingredients = "",
+                allergens = "",
+                estimatedTimeMinutes = 1,
+                counterPrice = "20.00",
+                digitalPrice = "20.00",
+                available = true,
+                imageUrl = "",
+                optionGroups = emptyList(),
+            )
+        val card = tilin.copy(blockedCategories = setOf(5))
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                StudentCardPane(
+                    card = card,
+                    state = StudentCounterUiState(selected = card),
+                    catalog = Catalog(categories = emptyList(), products = listOf(refresco), cursor = null),
+                    canCharge = true,
+                    requiresCredential = false,
+                    colors = rememberOperationalColors(),
+                    actions = StudentCounterActions(),
+                )
+            }
+        }
+        composeTestRule.onNodeWithText("Refresco").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("No permitido por su tutor", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Agregar Refresco").assertDoesNotExist()
+    }
+
+    @Test
     fun `con QR obligatorio lo listo se escanea antes de entregar`() {
         setCard(StudentCounterUiState(selected = tilin, policy = SchoolPolicy(true, true)))
         composeTestRule.onNodeWithText("Escanear").assertIsDisplayed()

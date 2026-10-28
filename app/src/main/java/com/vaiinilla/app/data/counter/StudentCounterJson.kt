@@ -113,6 +113,11 @@ class StudentCounterJson {
         @SerialName("pedidos_hoy") val todayOrders: List<TodayOrderDto> = emptyList(),
         @SerialName("pide_pin") val requiresPin: Boolean = false,
         @SerialName("nota_tutor") val guardianNote: String? = null,
+        // Un servidor sin controles del tutor no los manda: no se bloquea nada.
+        @SerialName("productos_bloqueados") val blockedProducts: List<Int> = emptyList(),
+        @SerialName("categorias_bloqueadas") val blockedCategories: List<Int> = emptyList(),
+        @SerialName("productos_con_alergeno") val allergenProducts: List<Int> = emptyList(),
+        @SerialName("productos_sin_revisar") val unreviewedProducts: List<Int> = emptyList(),
     ) {
         fun toDomain(): StudentCard =
             StudentCard(
@@ -138,6 +143,10 @@ class StudentCounterJson {
                     },
                 requiresPin = requiresPin,
                 guardianNote = guardianNote?.trim()?.takeIf { it.isNotEmpty() },
+                blockedProducts = blockedProducts.toSet(),
+                blockedCategories = blockedCategories.toSet(),
+                allergenProducts = allergenProducts.toSet(),
+                unreviewedProducts = unreviewedProducts.toSet(),
             )
     }
 

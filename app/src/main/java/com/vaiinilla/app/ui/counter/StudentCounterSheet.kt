@@ -846,7 +846,7 @@ private fun SellRow(
     onPlus: () -> Unit,
 ) {
     val haptics = rememberVaiinillaHaptics()
-    val warnings = StudentPurchaseRules.allergenWarnings(product, card.allergens)
+    val blocked = StudentPurchaseRules.blockReason(product, card)
     val price = moneyLabel(product.counterPrice.toBigDecimalOrNull() ?: BigDecimal.ZERO)
     Column {
         Row(
@@ -870,11 +870,11 @@ private fun SellRow(
                         maxLines = 1,
                     )
                 }
-                if (warnings.isEmpty()) {
+                if (blocked == null) {
                     Text(price, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
                 } else {
                     Text(
-                        "$price · Contiene ${warnings.joinToString(", ") { StudentAllergens.label(it) }.lowercase()}",
+                        "$price · $blocked",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = CounterCoral,
@@ -882,8 +882,8 @@ private fun SellRow(
                 }
             }
             Spacer(Modifier.width(8.dp))
-            // Lo que tiene un alérgeno del alumno se ve, pero no se agrega (Kao, 27 oct).
-            if (warnings.isNotEmpty() && quantity == 0) {
+            // Lo bloqueado (alérgeno o tutor) se ve con su motivo, pero no se agrega (Kao, 27 oct).
+            if (blocked != null && quantity == 0) {
                 Text(
                     "No disponible",
                     fontSize = 12.sp,

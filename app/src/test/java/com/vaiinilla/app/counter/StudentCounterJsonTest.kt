@@ -44,6 +44,23 @@ class StudentCounterJsonTest {
     }
 
     @Test
+    fun `la ficha trae lo bloqueado por el tutor y nada si el servidor no lo manda`() {
+        val with =
+            json
+                .parseCards(
+                    """{"data":[{"usuario_id":"u","nombre":"Leo","productos_bloqueados":[4],"categorias_bloqueadas":[2],
+                    "productos_con_alergeno":[7],"productos_sin_revisar":[8]}],"error":null}""",
+                ).single()
+        assertEquals(setOf(4), with.blockedProducts)
+        assertEquals(setOf(2), with.blockedCategories)
+        assertEquals(setOf(7), with.allergenProducts)
+        assertEquals(setOf(8), with.unreviewedProducts)
+        val without = json.parseCards("""{"data":[{"usuario_id":"u","nombre":"Leo"}],"error":null}""").single()
+        assertTrue(without.blockedProducts.isEmpty() && without.blockedCategories.isEmpty())
+        assertTrue(without.allergenProducts.isEmpty() && without.unreviewedProducts.isEmpty())
+    }
+
+    @Test
     fun `sin limite puede gastar todo su saldo`() {
         val raw =
             """{"data":[{"usuario_id":"u","nombre":"Leo","saldo":"80.50","gastado_hoy":"20.00","limite_diario":null,

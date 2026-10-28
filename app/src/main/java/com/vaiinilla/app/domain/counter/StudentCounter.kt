@@ -58,6 +58,12 @@ data class StudentCard(
     val requiresPin: Boolean = false,
     /** Lo que su tutor le dejó dicho a Caja (`nota_tutor`); null si no dejó nada. */
     val guardianNote: String? = null,
+    /** Lo que su tutor le prohibió, por producto y por categoría. Vacío si no hay controles. */
+    val blockedProducts: Set<Int> = emptySet(),
+    val blockedCategories: Set<Int> = emptySet(),
+    /** Productos que el servidor ya cruzó con sus alergias, y los que no tienen alérgenos revisados. */
+    val allergenProducts: Set<Int> = emptySet(),
+    val unreviewedProducts: Set<Int> = emptySet(),
 ) {
     /** Lo que todavía puede gastar hoy: el menor entre su saldo y lo que le queda del límite. */
     val spendableToday: BigDecimal
@@ -141,6 +147,26 @@ object StudentPurchaseRules {
     }
 
     fun isSellable(product: Product): Boolean = product.available
+
+    /**
+     * Por qué Caja no le puede vender este producto al alumno, en texto corto, o null si sí puede.
+     * El tutor manda primero; luego las alergias (del servidor o del texto del dueño) y lo sin revisar.
+     */
+    fun blockReason(
+        product: Product,
+        card: StudentCard,
+    ): String? {
+        if (product.id in card.blockedProducts || product.categoryId in card.blockedCategories) {
+            return "No permitido por su tutor"
+        }
+        val warnings = allergenWarnings(product, card.allergens)
+        if (warnings.isNotEmpty()) {
+            return "Contiene ${warnings.joinToString(", ") { StudentAllergens.label(it) }.lowercase()}"
+        }
+        if (product.id in card.allergenProducts) return "Tiene un alérgeno del alumno"
+        if (product.id in card.unreviewedProducts) return "Alérgenos sin revisar"
+        return null
+    }
 
     /** Lo que pide elegir opciones (tamaño, sabor) se agrega desde su ficha, no con el "+". */
     fun needsChoice(product: Product): Boolean = product.optionGroups.any { it.minimumSelections > 0 }
