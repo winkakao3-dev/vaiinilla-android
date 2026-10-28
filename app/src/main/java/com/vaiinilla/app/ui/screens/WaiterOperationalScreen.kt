@@ -57,6 +57,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -1475,13 +1476,8 @@ internal fun WaiterSheetOrderRow(
     colors: OperationalColors,
     onDeliver: (BoardOrder) -> Unit,
 ) {
+    // La pregunta se queda hasta que el mesero confirme o cancele: si se iba sola, parecía que el botón no hacía nada.
     var confirming by remember(order.id) { mutableStateOf(false) }
-    LaunchedEffect(confirming) {
-        if (confirming) {
-            delay(DELIVER_CONFIRM_WINDOW_MS)
-            confirming = false
-        }
-    }
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = colors.cardBackground,
@@ -1524,6 +1520,11 @@ internal fun WaiterSheetOrderRow(
                     )
                 }
             } else if (order.state == OrderState.READY && canDeliver) {
+                if (confirming) {
+                    TextButton(onClick = { confirming = false }, enabled = !readOnly) {
+                        Text("Cancelar", color = colors.textSecondary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
                 Button(
                     onClick = {
                         if (confirming) {
@@ -1568,8 +1569,6 @@ internal fun WaiterSheetOrderRow(
         }
     }
 }
-
-private const val DELIVER_CONFIRM_WINDOW_MS = 4_000L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

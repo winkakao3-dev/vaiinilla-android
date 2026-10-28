@@ -41,6 +41,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -113,8 +114,6 @@ private val BillDenominations = listOf(20, 50, 100, 200, 500, 1_000)
 private val StateCoral = Color(0xFFE5645A)
 private val StateAmber = Color(0xFFE9A23B)
 private val StateAmberInk = Color(0xFF3B2A05)
-
-private const val RELEASE_CONFIRM_WINDOW_MS = 4_000L
 
 /** "42 min", "1 h 05 min" o "0:45": lo que queda de un turno, dicho corto. */
 internal fun remainingText(ms: Long): String {
@@ -616,13 +615,8 @@ internal fun WaiterSpaceSection(
                             modifier = Modifier.padding(bottom = 10.dp),
                         )
                     }
+                    // La pregunta se queda hasta que confirme o cancele; si se iba sola, parecía que no pasaba nada.
                     var confirmingRelease by remember { mutableStateOf(false) }
-                    LaunchedEffect(confirmingRelease) {
-                        if (confirmingRelease) {
-                            delay(RELEASE_CONFIRM_WINDOW_MS)
-                            confirmingRelease = false
-                        }
-                    }
                     if (ordersInCourse > 0) {
                         Text(
                             "Hay pedidos sin entregar: no se puede liberar todavía.",
@@ -644,6 +638,14 @@ internal fun WaiterSpaceSection(
                             onRelease()
                         } else {
                             confirmingRelease = true
+                        }
+                    }
+                    if (confirmingRelease) {
+                        TextButton(
+                            onClick = { confirmingRelease = false },
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        ) {
+                            Text("Cancelar", color = colors.textSecondary, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
