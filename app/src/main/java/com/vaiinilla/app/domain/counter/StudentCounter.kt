@@ -56,6 +56,8 @@ data class StudentCard(
     val todayOrders: List<StudentTodayOrder>,
     /** Su tutor le puso PIN: Caja lo pide antes de cobrar. */
     val requiresPin: Boolean = false,
+    /** Lo que su tutor le dejó dicho a Caja (`nota_tutor`); null si no dejó nada. */
+    val guardianNote: String? = null,
 ) {
     /** Lo que todavía puede gastar hoy: el menor entre su saldo y lo que le queda del límite. */
     val spendableToday: BigDecimal

@@ -99,6 +99,18 @@ class StudentCounterUiTest {
     }
 
     @Test
+    fun `la nota del tutor sale bajo el nombre`() {
+        setCard(StudentCounterUiState(selected = tilin.copy(guardianNote = "sin picante")))
+        composeTestRule.onNodeWithText("Nota del tutor: sin picante").assertIsDisplayed()
+    }
+
+    @Test
+    fun `sin nota del tutor no sale nada`() {
+        setCard(StudentCounterUiState(selected = tilin))
+        composeTestRule.onNodeWithText("Nota del tutor", substring = true).assertDoesNotExist()
+    }
+
+    @Test
     fun `con el PIN completo se cobra, y un PIN equivocado le habla a la cajera`() {
         var charged: BigDecimal? = null
         setCard(

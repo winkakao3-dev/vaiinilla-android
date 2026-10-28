@@ -559,6 +559,19 @@ internal fun StudentCardPane(
                     bottom = 20.dp,
                 ),
         ) {
+            card.guardianNote?.let { note ->
+                item(key = "guardian-note") {
+                    Text(
+                        "Nota del tutor: $note",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textPrimary,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+                }
+            }
             item(key = "head") { SpendableHeader(card, colors) { showsCredential = true } }
             if (card.allergens.isNotEmpty()) {
                 item(key = "allergy") { StudentAllergyBanner(card.allergens, colors, Modifier.padding(top = 16.dp)) }
