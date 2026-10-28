@@ -3,13 +3,16 @@ package com.vaiinilla.app.ui.screens.admin
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performSemanticsAction
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.model.PreparationStation
@@ -135,6 +138,29 @@ class AdminMenuAllergensUiTest {
         assertEquals(setOf("lacteos"), codes)
         composeTestRule.onNodeWithText("No tiene ninguno").performClick()
         assertEquals(emptySet<String>(), codes)
+    }
+
+    @Test
+    fun `a reviewed product can go back to unreviewed`() {
+        composeTestRule.setContent {
+            AdminMenuTab(
+                state,
+                rememberOperationalColors(),
+                readOnly = false,
+                actions = actions,
+                isSchool = true,
+                header = testHeader,
+            )
+        }
+        composeTestRule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Agua"))
+        composeTestRule.onAllNodesWithText("Agua").onFirst().performClick()
+        // La hoja es más alta que la pantalla de prueba: se toca por su acción, no por coordenadas.
+        composeTestRule.onNodeWithText("Volver a sin revisar").performSemanticsAction(SemanticsActions.OnClick)
+        composeTestRule
+            .onNodeWithText(
+                "Sin revisar: un alumno con alergias no lo puede pedir. Marca lo que tiene o \"No tiene ninguno\".",
+            ).assertExists()
+        composeTestRule.onNodeWithText("Volver a sin revisar").assertDoesNotExist()
     }
 
     @Test

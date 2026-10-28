@@ -30,6 +30,11 @@ data class Product(
     val allergenCodes: List<String> = emptyList(),
     /** En una escuela, sin revisar no se le vende a un alumno con alergias. */
     val allergensReviewed: Boolean = true,
+    /**
+     * Catálogo visto por un alumno: por qué no lo puede pedir (`alergeno`, `producto`, `categoria` o
+     * `sin_revisar`), o null si puede. Se muestra bloqueado, no se oculta (Kao, 27 oct).
+     */
+    val blockReason: String? = null,
 )
 
 data class CatalogProductDraft(

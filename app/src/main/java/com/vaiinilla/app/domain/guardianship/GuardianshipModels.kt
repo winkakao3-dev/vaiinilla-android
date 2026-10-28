@@ -187,6 +187,17 @@ data class ChildRestriction(
 
         /** El negocio lo apagó: se ve en el menú, pero nadie lo puede pedir (B10). */
         val SoldOut = ChildRestriction(Reason.SOLD_OUT, "Agotado")
+
+        /** El motivo que manda el catálogo del alumno (`motivo_bloqueo`); uno desconocido cuenta como bloqueo. */
+        fun fromServer(
+            reason: String,
+            forGuardian: Boolean = false,
+        ): ChildRestriction =
+            when (reason) {
+                "alergeno" -> if (forGuardian) ChildAllergen else Allergen
+                "sin_revisar" -> AllergensUnknown
+                else -> Blocked
+            }
     }
 }
 
@@ -195,7 +206,12 @@ data class ChildRestriction(
  * además lo que su tutor bloqueó o tiene un alérgeno suyo.
  */
 fun MyGuardianControls?.restrictionFor(product: Product): ChildRestriction? =
-    if (!product.available) ChildRestriction.SoldOut else this?.restriction(product.id)
+    when {
+        !product.available -> ChildRestriction.SoldOut
+        else ->
+            this?.restriction(product)
+                ?: product.blockReason?.let { ChildRestriction.fromServer(it) }
+    }
 
 /**
  * Los controles que el tutor le puso al hijo, vistos por el hijo antes de pagar o por el tutor al apartarle.
@@ -210,8 +226,13 @@ data class MyGuardianControls(
     /** Sin alérgenos revisados por la escuela; solo llegan si el hijo tiene alguna alergia. */
     val unreviewedProductIds: Set<Int> = emptySet(),
     val allergens: List<SchoolAllergen>,
+    /** Categorías enteras que el tutor bloqueó; un servidor anterior no las manda. */
+    val blockedCategoryIds: Set<Int> = emptySet(),
 ) {
     /** El bloqueo del tutor gana sobre el alérgeno: es lo que el backend responde primero. */
+    fun restriction(product: Product): ChildRestriction? =
+        if (product.categoryId in blockedCategoryIds) ChildRestriction.Blocked else restriction(product.id)
+
     fun restriction(productId: Int): ChildRestriction? =
         when (productId) {
             in blockedProductIds -> ChildRestriction.Blocked

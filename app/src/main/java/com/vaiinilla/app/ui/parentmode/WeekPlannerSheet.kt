@@ -194,7 +194,11 @@ class WeekPlannerModel(
     }
 
     /** Las alergias del hijo frenan también lo que su papá le aparta. */
-    fun restriction(product: Product): ChildRestriction? = controls?.guardianRestriction(product.id)
+    fun restriction(product: Product): ChildRestriction? =
+        controls?.guardianRestriction(product.id)
+            ?: product.blockReason
+                ?.takeIf { it == "alergeno" || it == "sin_revisar" }
+                ?.let { ChildRestriction.fromServer(it, forGuardian = true) }
 
     fun categoryName(product: Product): String =
         catalog?.categories?.firstOrNull { it.id == product.categoryId }?.name ?: "Producto"

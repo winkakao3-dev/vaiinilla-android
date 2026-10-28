@@ -63,20 +63,28 @@ class MenuFeedChildRestrictionUiTest {
         optionGroups = emptyList(),
     )
 
-    private fun showFeed(blocked: Set<Int>) {
+    private fun showFeed(
+        blocked: Set<Int>,
+        products: List<Product> = listOf(product(10, "Papas con chile"), product(11, "Manzana")),
+        withControls: Boolean = true,
+    ) {
         LocalChildControls.value =
-            MyGuardianControls(
-                tutorNames = listOf("Ana"),
-                dailyLimit = null,
-                availableToday = null,
-                blockedProductIds = blocked,
-                allergenProductIds = emptySet(),
-                allergens = emptyList(),
-            )
+            if (!withControls) {
+                null
+            } else {
+                MyGuardianControls(
+                    tutorNames = listOf("Ana"),
+                    dailyLimit = null,
+                    availableToday = null,
+                    blockedProductIds = blocked,
+                    allergenProductIds = emptySet(),
+                    allergens = emptyList(),
+                )
+            }
         val catalog =
             Catalog(
                 categories = listOf(Category(1, "Snacks", order = 1)),
-                products = listOf(product(10, "Papas con chile"), product(11, "Manzana")),
+                products = products,
                 cursor = null,
             )
         composeTestRule.setContent {
@@ -140,5 +148,22 @@ class MenuFeedChildRestrictionUiTest {
         composeTestRule.waitForIdle()
 
         assertEquals(listOf(10), added)
+    }
+
+    @Test
+    fun `lo que el catalogo del alumno manda bloqueado se ve con su motivo aunque no haya controles`() {
+        showFeed(
+            blocked = emptySet(),
+            products =
+                listOf(
+                    product(10, "Papas con chile").copy(blockReason = "alergeno"),
+                    product(11, "Manzana"),
+                ),
+            withControls = false,
+        )
+
+        composeTestRule.onNodeWithText("Papas con chile").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Tiene algo que no puedes comer").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Agregar Papas con chile").assertDoesNotExist()
     }
 }

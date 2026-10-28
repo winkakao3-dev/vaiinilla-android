@@ -38,6 +38,15 @@ class SoldOutRestrictionTest {
         assertNull(null.restrictionFor(product(id = 3, available = true)))
     }
 
+    @Test
+    fun `a blocked category and the server reason both show as blocked`() {
+        val byCategory = controls.copy(blockedCategoryIds = setOf(1))
+        assertEquals(ChildRestriction.Blocked, byCategory.restrictionFor(product(id = 3, available = true)))
+        val fromServer = product(id = 3, available = true).copy(blockReason = "sin_revisar")
+        assertEquals(ChildRestriction.AllergensUnknown, null.restrictionFor(fromServer))
+        assertEquals(ChildRestriction.Blocked, null.restrictionFor(fromServer.copy(blockReason = "categoria")))
+    }
+
     private fun product(
         id: Int,
         available: Boolean,

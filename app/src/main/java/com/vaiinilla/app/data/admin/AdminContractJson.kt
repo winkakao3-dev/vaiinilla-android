@@ -121,7 +121,8 @@ class AdminContractJson {
                         )
                     },
                 // Sin la clave, el backend deja los alérgenos como estaban.
-                alergenosCodigos = input.allergenCodes?.sorted(),
+                alergenosCodigos = input.allergenCodes?.sorted()?.takeUnless { input.markUnreviewed },
+                alergenosRevisados = false.takeIf { input.markUnreviewed },
             ),
         )
 
@@ -242,6 +243,7 @@ private data class ProductWriteDto(
     val disponible: Boolean,
     @SerialName("grupos_opcion") val grupos: List<GroupWriteDto>,
     @SerialName("alergenos_codigos") val alergenosCodigos: List<String>? = null,
+    @SerialName("alergenos_revisados") val alergenosRevisados: Boolean? = null,
 )
 
 @Serializable

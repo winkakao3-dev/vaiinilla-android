@@ -254,4 +254,44 @@ class SchoolAdminContractTest {
             some["alergenos_codigos"]!!.jsonArray.map { it.jsonPrimitive.content },
         )
     }
+
+    @Test
+    fun `catalog product reads bloqueado and motivo_bloqueo, and nothing when they are missing`() {
+        val parser = ContractResponseParser()
+
+        fun product(extra: String) =
+            parser.parseProduct(
+                """
+                {"data":{"id":4,"categoria_id":3,"estacion_preparacion":"caja","nombre":"Galleta",
+                  "tiempo_estimado_min":1,"precio_mostrador":"20.00","precio_digital":"20.00",
+                  "disponible":true$extra},"error":null}
+                """.trimIndent(),
+            )
+        assertEquals("categoria", product(""","bloqueado":true,"motivo_bloqueo":"categoria"""").blockReason)
+        assertEquals("producto", product(""","bloqueado":true""").blockReason)
+        assertNull(product(""","bloqueado":false,"motivo_bloqueo":null""").blockReason)
+        assertNull(product("").blockReason)
+    }
+
+    @Test
+    fun `product body sends alergenos_revisados false only to mark it unreviewed`() {
+        val input =
+            AdminProductInput(
+                categoryId = 3,
+                preparationStation = PreparationStation.CASHIER,
+                name = "Galleta",
+                description = "",
+                ingredients = "",
+                allergens = "",
+                estimatedTimeMinutes = 1,
+                counterPrice = "20.00",
+                available = true,
+                optionGroups = emptyList(),
+            )
+        val admin = AdminContractJson()
+        assertFalse(obj(admin.encodeProduct(input)).containsKey("alergenos_revisados"))
+        val back = obj(admin.encodeProduct(input.copy(allergenCodes = setOf("gluten"), markUnreviewed = true)))
+        assertEquals("false", back["alergenos_revisados"]!!.jsonPrimitive.content)
+        assertFalse(back.containsKey("alergenos_codigos"))
+    }
 }

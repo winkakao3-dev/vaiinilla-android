@@ -204,6 +204,7 @@ class GuardianshipJson {
             allergenProductIds = controls.ints("productos_con_alergeno").toSet(),
             unreviewedProductIds = controls.ints("productos_sin_revisar").toSet(),
             allergens = controls.strings("alergenos").mapNotNull(SchoolAllergen::fromCode),
+            blockedCategoryIds = controls.ints("categorias_bloqueadas").toSet(),
         )
     }
 

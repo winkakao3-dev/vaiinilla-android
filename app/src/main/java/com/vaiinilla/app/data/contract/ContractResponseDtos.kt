@@ -88,6 +88,9 @@ data class ProductDto(
     @SerialName("alergenos_codigos") val allergenCodes: List<String> = emptyList(),
     // Un backend sin el campo no sabe de revisiones: no se avisa de nada.
     @SerialName("alergenos_revisados") val allergensReviewed: Boolean = true,
+    // Solo en el catálogo de un alumno; un servidor sin el campo no bloquea nada.
+    @SerialName("bloqueado") val blocked: Boolean = false,
+    @SerialName("motivo_bloqueo") val blockReason: String? = null,
 )
 
 @Serializable

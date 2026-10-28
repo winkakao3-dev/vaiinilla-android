@@ -727,6 +727,7 @@ private fun ProductSheet(
     var allergensReviewed by remember { mutableStateOf(product?.allergensReviewed ?: false) }
     // Solo lo que el admin revisó se manda: guardar el precio no marca revisado un producto que nadie miró.
     var allergensTouched by remember { mutableStateOf(false) }
+    var markUnreviewed by remember { mutableStateOf(false) }
     var available by remember { mutableStateOf(product?.available ?: true) }
     var confirmRental by remember { mutableStateOf(false) }
     var image by remember { mutableStateOf<AdminImage?>(null) }
@@ -908,6 +909,23 @@ private fun ProductSheet(
                 allergenCodes = codes
                 allergensReviewed = true
                 allergensTouched = true
+                markUnreviewed = false
+            }
+            if (allergensReviewed && product != null) {
+                Text(
+                    "Volver a sin revisar",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary,
+                    modifier =
+                        Modifier
+                            .physicalPress(scale = PhysicalPressScale.Small, enabled = !saving) {
+                                haptics.selection()
+                                allergensReviewed = false
+                                allergensTouched = false
+                                markUnreviewed = true
+                            }.padding(vertical = 8.dp),
+                )
             }
         }
 
@@ -966,6 +984,7 @@ private fun ProductSheet(
                         available = available,
                         optionGroups = groups.map { it.toInput() },
                         allergenCodes = allergenCodes.takeIf { isSchool && allergensTouched },
+                        markUnreviewed = isSchool && markUnreviewed,
                     ),
                     image,
                 )
