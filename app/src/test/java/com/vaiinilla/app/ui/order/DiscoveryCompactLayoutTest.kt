@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.Density
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.ui.discovery.DiscoveryUiState
+import com.vaiinilla.app.ui.discovery.SEARCH_FAILED_MESSAGE
 import com.vaiinilla.app.ui.screens.DiscoveryScreen
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import org.junit.Assert.assertEquals
@@ -189,5 +190,33 @@ class DiscoveryCompactLayoutTest {
             }
         }
         composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun `search failure shows only the error with retry`() {
+        var retries = 0
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                DiscoveryScreen(
+                    state =
+                        DiscoveryUiState(
+                            query = "PADEL",
+                            searchFailed = true,
+                            errorMessage = SEARCH_FAILED_MESSAGE,
+                        ),
+                    onQueryChange = {},
+                    onSpaceTokenChange = {},
+                    onSelectEstablishment = {},
+                    onResolveSpace = {},
+                    onContinueSelected = {},
+                    onRetrySearch = { retries++ },
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText(SEARCH_FAILED_MESSAGE).assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Sin coincidencias").assertCountEquals(0)
+        composeTestRule.onNodeWithText("Reintentar").performClick()
+        assertEquals(1, retries)
     }
 }

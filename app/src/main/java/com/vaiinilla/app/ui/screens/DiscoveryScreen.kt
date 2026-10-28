@@ -142,6 +142,7 @@ fun DiscoveryScreen(
     nfcAvailable: Boolean = rememberHasNfcReader(),
     onOpenSchool: (MySchool) -> Unit = {},
     onLoadMore: () -> Unit = {},
+    onRetrySearch: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -330,9 +331,15 @@ fun DiscoveryScreen(
                             tone = colors.coral,
                             modifier = Modifier.padding(top = 14.dp),
                         )
+                        if (state.searchFailed) {
+                            TextButton(onClick = onRetrySearch) { Text("Reintentar") }
+                        }
                     }
                 }
-                if (state.loading && state.establishments.isEmpty()) {
+                // Con la búsqueda caída no se sabe si hay coincidencias: basta el error de arriba (EQUIPO-22).
+                if (state.searchFailed) {
+                    Unit
+                } else if (state.loading && state.establishments.isEmpty()) {
                     item {
                         Box(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 28.dp),

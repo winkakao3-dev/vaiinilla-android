@@ -36,6 +36,8 @@ data class DiscoveryUiState(
     val nextCursor: String? = null,
     val loadingMore: Boolean = false,
     val errorMessage: String? = null,
+    /** La búsqueda misma falló: la pantalla muestra solo el error con «Reintentar», sin «Sin coincidencias». */
+    val searchFailed: Boolean = false,
     val suspendedMessage: String? = null,
     val spaceTokenInput: String = "",
     val pendingSwitch: GuestVenueContext? = null,
@@ -97,6 +99,10 @@ class GuestDiscoveryViewModel
             launchSearch(query = query, debounceMs = 220L)
         }
 
+        fun retrySearch() {
+            launchSearch(query = _state.value.query, debounceMs = 0L)
+        }
+
         fun updateSpaceToken(token: String) {
             _state.value = _state.value.copy(spaceTokenInput = token)
         }
@@ -145,7 +151,8 @@ class GuestDiscoveryViewModel
         ) {
             searchJob?.cancel()
             val revision = ++searchRevision
-            _state.value = _state.value.copy(loading = true, errorMessage = null, suspendedMessage = null)
+            _state.value =
+                _state.value.copy(loading = true, errorMessage = null, searchFailed = false, suspendedMessage = null)
             searchJob =
                 viewModelScope.launch {
                     if (debounceMs > 0) delay(debounceMs)
@@ -185,8 +192,8 @@ class GuestDiscoveryViewModel
                                 _state.value.copy(
                                     loading = false,
                                     establishments = emptyList(),
-                                    errorMessage =
-                                        error.toUserFacingMessage("No se pudo cargar el descubrimiento."),
+                                    searchFailed = true,
+                                    errorMessage = SEARCH_FAILED_MESSAGE,
                                 )
                         },
                     )
@@ -487,3 +494,5 @@ class GuestDiscoveryViewModel
             onEntered(next)
         }
     }
+
+internal const val SEARCH_FAILED_MESSAGE = "No pudimos cargar los lugares."

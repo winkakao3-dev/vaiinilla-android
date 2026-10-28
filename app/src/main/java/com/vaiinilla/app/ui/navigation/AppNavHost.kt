@@ -978,6 +978,7 @@ fun AppNavHost(
                     tableCodeRequest = tableCodeRequest,
                     state = discoveryState,
                     onQueryChange = discoveryViewModel::updateQuery,
+                    onRetrySearch = discoveryViewModel::retrySearch,
                     onSpaceTokenChange = discoveryViewModel::updateSpaceToken,
                     onOpenQrScanner = { qrScannerOpen = true },
                     onSelectEstablishment = { establishment ->
