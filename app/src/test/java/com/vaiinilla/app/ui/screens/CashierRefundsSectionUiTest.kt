@@ -3,9 +3,11 @@ package com.vaiinilla.app.ui.screens
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import com.vaiinilla.app.domain.repository.PendingRefund
 import com.vaiinilla.app.domain.repository.RefundMethod
 import com.vaiinilla.app.ui.operational.PendingRefundsUiState
@@ -36,7 +38,7 @@ class CashierRefundsSectionUiTest {
                     canConfirm = true,
                     cashOpen = true,
                     colors = rememberOperationalColors(),
-                    onConfirm = { _, method -> confirmed = method },
+                    onConfirm = { _, method, _ -> confirmed = method },
                 )
             }
         }
@@ -48,9 +50,10 @@ class CashierRefundsSectionUiTest {
     }
 
     @Test
-    fun `otro se ofrece aunque la caja este cerrada`() {
+    fun `otro se ofrece con la caja cerrada y pide el motivo`() {
         val refund = PendingRefund("r-3", "cancelacion", null, "p-3", "efectivo", "15.00", "pendiente", "")
         var confirmed: RefundMethod? = null
+        var note: String? = null
         composeTestRule.setContent {
             ScreenshotTheme {
                 CashierRefundsSection(
@@ -58,14 +61,22 @@ class CashierRefundsSectionUiTest {
                     canConfirm = true,
                     cashOpen = false,
                     colors = rememberOperationalColors(),
-                    onConfirm = { _, method -> confirmed = method },
+                    onConfirm = { _, method, reason ->
+                        confirmed = method
+                        note = reason
+                    },
                 )
             }
         }
 
         composeTestRule.onNodeWithText("Devuelto en efectivo").assertIsNotEnabled()
         composeTestRule.onNodeWithText("Otro").assertIsEnabled().performClick()
+        assertEquals(null, confirmed)
+        composeTestRule.onNodeWithText("Confirmar devolución").assertIsNotEnabled()
+        composeTestRule.onNode(hasSetTextAction()).performTextInput("Transferencia")
+        composeTestRule.onNodeWithText("Confirmar devolución").assertIsEnabled().performClick()
         assertEquals(RefundMethod.OTHER, confirmed)
+        assertEquals("Transferencia", note)
     }
 
     @Test
@@ -78,7 +89,7 @@ class CashierRefundsSectionUiTest {
                     canConfirm = true,
                     cashOpen = false,
                     colors = rememberOperationalColors(),
-                    onConfirm = { _, _ -> },
+                    onConfirm = { _, _, _ -> },
                 )
             }
         }

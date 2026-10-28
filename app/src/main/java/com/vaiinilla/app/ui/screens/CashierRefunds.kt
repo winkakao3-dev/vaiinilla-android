@@ -10,6 +10,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -52,7 +56,7 @@ internal fun CashierRefundsSection(
     canConfirm: Boolean,
     cashOpen: Boolean?,
     colors: OperationalColors,
-    onConfirm: (PendingRefund, RefundMethod) -> Unit,
+    onConfirm: (PendingRefund, RefundMethod, String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (state.refunds.isEmpty() && state.notice == null) return
@@ -82,13 +86,16 @@ private fun RefundRow(
     canConfirm: Boolean,
     cashOpen: Boolean?,
     colors: OperationalColors,
-    onConfirm: (PendingRefund, RefundMethod) -> Unit,
+    onConfirm: (PendingRefund, RefundMethod, String?) -> Unit,
 ) {
     // El servidor rechaza una devolución en efectivo con la caja cerrada; mejor no ofrecerla (CAJA-22).
     val cashBlocked = cashOpen == false
     val shape = RoundedCornerShape(18.dp)
     val suggested = suggestedRefundMethod(refund.originalMethod)
     val busy = state.confirming?.first == refund.id
+    // «Otro» no deja rastro de a dónde fue el dinero: se pide el motivo para que el dueño cuadre la caja (EQUIPO-11).
+    var askingReason by remember(refund.id) { mutableStateOf(false) }
+    var reason by remember(refund.id) { mutableStateOf("") }
     Surface(
         shape = shape,
         color = colors.cardBackground,
@@ -118,7 +125,7 @@ private fun RefundRow(
                         colors = colors,
                         primary = false,
                         modifier = Modifier.weight(1f),
-                    ) { onConfirm(refund, suggested) }
+                    ) { onConfirm(refund, suggested, null) }
                     if (suggested != RefundMethod.CASH) {
                         ActionPill(
                             label = "En efectivo",
@@ -127,7 +134,7 @@ private fun RefundRow(
                             colors = colors,
                             primary = false,
                             modifier = Modifier.weight(1f),
-                        ) { onConfirm(refund, RefundMethod.CASH) }
+                        ) { onConfirm(refund, RefundMethod.CASH, null) }
                     }
                     if (suggested != RefundMethod.OTHER) {
                         // No sale del cajón: se puede confirmar aunque la caja esté cerrada.
@@ -138,8 +145,25 @@ private fun RefundRow(
                             colors = colors,
                             primary = false,
                             modifier = Modifier.weight(1f),
-                        ) { onConfirm(refund, RefundMethod.OTHER) }
+                        ) { askingReason = true }
                     }
+                }
+                if (askingReason) {
+                    OperationalField(
+                        value = reason,
+                        onValueChange = { reason = it.take(REASON_MAX) },
+                        label = "Motivo",
+                        colors = colors,
+                        placeholder = "Ej. transferencia al cliente",
+                        enabled = state.confirming == null,
+                    )
+                    ActionPill(
+                        label = "Confirmar devolución",
+                        enabled = state.confirming == null && reason.isNotBlank(),
+                        loading = busy && state.confirming?.second == RefundMethod.OTHER,
+                        colors = colors,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { onConfirm(refund, RefundMethod.OTHER, reason.trim()) }
                 }
                 if (cashBlocked) {
                     Text(
@@ -152,5 +176,7 @@ private fun RefundRow(
         }
     }
 }
+
+private const val REASON_MAX = 80
 
 private val RefundCoral = Color(0xFFE5645A)
