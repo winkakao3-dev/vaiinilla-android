@@ -322,7 +322,13 @@ class ReservationsViewModel
                         refresh()
                     },
                     onFailure = { error ->
-                        _uiState.value = _uiState.value.copy(working = false, error = error.userMessage())
+                        val message =
+                            if ((error as? ApiClientException)?.code == "INSUFFICIENT_WALLET_BALANCE") {
+                                "No te alcanza el saldo para esta renta. Recarga o paga en caja."
+                            } else {
+                                error.userMessage()
+                            }
+                        _uiState.value = _uiState.value.copy(working = false, error = message)
                         refresh()
                     },
                 )

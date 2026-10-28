@@ -52,6 +52,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -311,6 +314,7 @@ fun ReservationsScreen(
                 working = state.working,
                 onPay = onPay,
                 colors = colors,
+                error = state.error,
                 // Sin cuenta no hay saldo ni tarjeta: el backend los rechaza para invitados.
                 cardAvailable = cardAvailable && !state.guestMode,
                 balanceAvailable = !state.guestMode,
@@ -877,6 +881,7 @@ internal fun ReservationPaymentContent(
     colors: VaiinillaColors,
     cardAvailable: Boolean = false,
     balanceAvailable: Boolean = true,
+    error: String? = null,
 ) {
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(reservation.id) {
@@ -936,6 +941,17 @@ internal fun ReservationPaymentContent(
                 enabled = !working && remaining != 0L,
                 onClick = { onPay(ReservationPaymentMethod.BALANCE) },
                 colors = colors,
+            )
+        }
+        // La hoja tapa el aviso de la pantalla: si el pago falla, el motivo va aquí, junto a las opciones.
+        error?.let { message ->
+            Text(
+                message,
+                color = colors.coral,
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.Bold,
+                lineHeight = 18.sp,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
         if (cardAvailable) {

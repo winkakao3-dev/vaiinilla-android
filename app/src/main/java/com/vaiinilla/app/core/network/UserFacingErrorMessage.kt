@@ -14,6 +14,7 @@ private val CODED_MESSAGES =
         "INVALID_PICKUP_TOKEN" to "Ese código de recogida no es válido. Pide al cliente que lo muestre de nuevo.",
         "UNAUTHENTICATED" to "Tu sesión caducó. Vuelve a iniciar sesión.",
         "ACCOUNT_REQUIRED" to "Para apartar necesitas una cuenta. Crea una o inicia sesión.",
+        "INSUFFICIENT_WALLET_BALANCE" to "No te alcanza el saldo. Recarga tu cartera o paga en caja.",
     )
 
 /**
