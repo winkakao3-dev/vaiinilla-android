@@ -1,5 +1,7 @@
 package com.vaiinilla.app.domain.guardianship
 
+import com.vaiinilla.app.domain.counter.AllergenMatch
+import com.vaiinilla.app.domain.counter.StudentPurchaseRules
 import com.vaiinilla.app.domain.model.NameInitials
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.school.SchoolAllergen
@@ -231,7 +233,32 @@ data class MyGuardianControls(
 ) {
     /** El bloqueo del tutor gana sobre el alérgeno: es lo que el backend responde primero. */
     fun restriction(product: Product): ChildRestriction? =
-        if (product.categoryId in blockedCategoryIds) ChildRestriction.Blocked else restriction(product.id)
+        when {
+            product.categoryId in blockedCategoryIds || product.id in blockedProductIds -> ChildRestriction.Blocked
+            else -> allergenRestriction(product, forGuardian = false)
+        }
+
+    /** Lo que el tutor no puede apartarle, con el mismo motivo de alérgeno que ve Caja. */
+    fun guardianRestriction(product: Product): ChildRestriction? = allergenRestriction(product, forGuardian = true)
+
+    private fun allergenRestriction(
+        product: Product,
+        forGuardian: Boolean,
+    ): ChildRestriction? =
+        when (
+            val match =
+                StudentPurchaseRules.allergenMatch(
+                    product,
+                    allergens.map(SchoolAllergen::code),
+                    allergenProductIds,
+                    unreviewedProductIds,
+                )
+        ) {
+            is AllergenMatch.Contains -> ChildRestriction(ChildRestriction.Reason.ALLERGEN, match.label)
+            AllergenMatch.Flagged -> if (forGuardian) ChildRestriction.ChildAllergen else ChildRestriction.Allergen
+            AllergenMatch.Unreviewed -> ChildRestriction.AllergensUnknown
+            null -> null
+        }
 
     fun restriction(productId: Int): ChildRestriction? =
         when (productId) {

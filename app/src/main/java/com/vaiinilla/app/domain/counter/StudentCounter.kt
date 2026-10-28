@@ -120,6 +120,22 @@ data class StudentPurchaseItem(
 )
 
 /** Lo que Caja le vende a un alumno sin teléfono. */
+sealed interface AllergenMatch {
+    /** La ficha nombra alguna de sus alergias. */
+    data class Contains(
+        val codes: List<String>,
+    ) : AllergenMatch {
+        val label: String
+            get() = "Contiene ${codes.joinToString(", ") { StudentAllergens.label(it) }.lowercase()}"
+    }
+
+    /** El servidor lo cruzó con sus alergias. */
+    data object Flagged : AllergenMatch
+
+    /** La escuela no ha revisado sus alérgenos. */
+    data object Unreviewed : AllergenMatch
+}
+
 object StudentPurchaseRules {
     const val MAX_PER_PRODUCT = 20
 
@@ -159,13 +175,41 @@ object StudentPurchaseRules {
         if (product.id in card.blockedProducts || product.categoryId in card.blockedCategories) {
             return "No permitido por su tutor"
         }
-        val warnings = allergenWarnings(product, card.allergens)
-        if (warnings.isNotEmpty()) {
-            return "Contiene ${warnings.joinToString(", ") { StudentAllergens.label(it) }.lowercase()}"
+        return when (
+            val match =
+                allergenMatch(
+                    product,
+                    card.allergens,
+                    card.allergenProducts,
+                    card.unreviewedProducts,
+                )
+        ) {
+            is AllergenMatch.Contains -> match.label
+            AllergenMatch.Flagged -> "Tiene un alérgeno del alumno"
+            AllergenMatch.Unreviewed -> "Alérgenos sin revisar"
+            null -> null
         }
-        if (product.id in card.allergenProducts) return "Tiene un alérgeno del alumno"
-        if (product.id in card.unreviewedProducts) return "Alérgenos sin revisar"
-        return null
+    }
+
+    /**
+     * El motivo de alérgeno de un producto para un alumno, el mismo en Caja, en su menú y en lo que su tutor
+     * le aparta (EQUIPO-27): primero lo que dice la ficha contra sus alergias, luego lo que cruzó el servidor
+     * y al final lo sin revisar. Antes Caja leía la ficha y las otras pantallas solo las listas del servidor,
+     * y el mismo producto salía «Contiene huevo» en una y «Sin información de alérgenos» en otra.
+     */
+    fun allergenMatch(
+        product: Product,
+        allergens: List<String>,
+        allergenProductIds: Set<Int>,
+        unreviewedProductIds: Set<Int>,
+    ): AllergenMatch? {
+        val warnings = allergenWarnings(product, allergens)
+        return when {
+            warnings.isNotEmpty() -> AllergenMatch.Contains(warnings)
+            product.id in allergenProductIds -> AllergenMatch.Flagged
+            product.id in unreviewedProductIds -> AllergenMatch.Unreviewed
+            else -> null
+        }
     }
 
     /** Lo que pide elegir opciones (tamaño, sabor) se agrega desde su ficha, no con el "+". */

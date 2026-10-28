@@ -10,6 +10,8 @@ import com.vaiinilla.app.domain.guardianship.RefundMethod
 import com.vaiinilla.app.domain.guardianship.ScheduledDayOrder
 import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import com.vaiinilla.app.domain.guardianship.StudentRequestStatus
+import com.vaiinilla.app.domain.model.PreparationStation
+import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.school.SchoolAllergen
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
@@ -145,6 +147,25 @@ class GuardianshipContractTest {
         assertEquals(ChildRestriction.AllergensUnknown, controls.restriction(4))
         assertNull(controls.guardianRestriction(1))
         assertEquals(ChildRestriction.ChildAllergen, controls.guardianRestriction(2))
+        // EQUIPO-27: sin revisar en el servidor, pero la ficha dice huevo: el mismo motivo que en Caja.
+        val dedos =
+            Product(
+                id = 4,
+                categoryId = 1,
+                preparationStation = PreparationStation.KITCHEN,
+                name = "Dedos de queso",
+                description = "",
+                ingredients = "",
+                allergens = "Lácteos, huevo",
+                estimatedTimeMinutes = 5,
+                counterPrice = "40.00",
+                digitalPrice = "40.00",
+                available = true,
+                imageUrl = "",
+                optionGroups = emptyList(),
+            )
+        assertEquals("Contiene huevo", controls.restriction(dedos)?.label)
+        assertEquals("Contiene huevo", controls.guardianRestriction(dedos)?.label)
         assertTrue(controls.fitsToday(BigDecimal("40.00")))
         assertFalse(controls.fitsToday(BigDecimal("40.50")))
     }

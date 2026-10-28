@@ -195,7 +195,7 @@ class WeekPlannerModel(
 
     /** Las alergias del hijo frenan también lo que su papá le aparta. */
     fun restriction(product: Product): ChildRestriction? =
-        controls?.guardianRestriction(product.id)
+        controls?.guardianRestriction(product)
             ?: product.blockReason
                 ?.takeIf { it == "alergeno" || it == "sin_revisar" }
                 ?.let { ChildRestriction.fromServer(it, forGuardian = true) }
