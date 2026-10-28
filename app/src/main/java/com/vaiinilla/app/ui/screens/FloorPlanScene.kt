@@ -15,6 +15,9 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.vaiinilla.app.ui.order.FLOOR_TABLE_COUNT
 import com.vaiinilla.app.ui.order.floorTableIndex
 import kotlinx.coroutines.delay
@@ -126,14 +129,18 @@ internal enum class PixelVainiPose { REST, BLINK, HAPPY, WAVE }
  */
 @Composable
 internal fun rememberPixelTick(moving: Boolean): Int {
-    val tick by produceState(0, moving) {
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val tick by produceState(0, moving, lifecycle) {
         if (!moving) {
             value = 0
             return@produceState
         }
-        while (true) {
-            delay(250)
-            value++
+        // Con la app en segundo plano nadie ve el sprite: se detiene hasta que vuelve (EQUIPO-21).
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                delay(250)
+                value++
+            }
         }
     }
     return tick

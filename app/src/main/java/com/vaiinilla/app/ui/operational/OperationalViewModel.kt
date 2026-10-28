@@ -1177,7 +1177,12 @@ class OperationalViewModel
             pollingJob =
                 viewModelScope.launch {
                     while (isActive) {
-                        delay(POLL_INTERVAL_MS)
+                        // El alumno sigue su pedido al ritmo de siempre; el personal baja a un minuto minimizado.
+                        if (_uiState.value.role == OperationalRole.CLIENT) {
+                            delay(POLL_INTERVAL_MS)
+                        } else {
+                            awaitNextStaffPoll(POLL_INTERVAL_MS)
+                        }
                         refresh()
                         refreshCashSession()
                     }

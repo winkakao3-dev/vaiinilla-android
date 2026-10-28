@@ -718,7 +718,7 @@ class WaiterViewModel
             pollingJob =
                 viewModelScope.launch {
                     while (isActive && visible) {
-                        delay(POLL_INTERVAL_MS)
+                        awaitNextStaffPoll(POLL_INTERVAL_MS)
                         if (!visible) break
                         loadBoard()
                         openSpaceId?.let { loadSpaceDetail(it, silent = true) }
