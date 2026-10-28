@@ -47,4 +47,11 @@ interface AdminRepository {
         id: Int,
         idempotencyKey: String,
     ): Result<Product>
+
+    /** Archivar saca el producto del menú sin borrarlo; desarchivar lo regresa. */
+    fun setProductArchived(
+        id: Int,
+        archived: Boolean,
+        idempotencyKey: String,
+    ): Result<Unit> = Result.failure(UnsupportedOperationException("Archivar no está disponible."))
 }

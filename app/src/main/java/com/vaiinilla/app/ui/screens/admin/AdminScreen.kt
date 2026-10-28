@@ -142,6 +142,7 @@ class AdminActions(
     val onSelectOrderFilter: (com.vaiinilla.app.ui.admin.AdminOrderFilter) -> Unit,
     val onRefreshOrders: () -> Unit,
     val onLoadMoreOrders: () -> Unit,
+    val onSetArchived: (com.vaiinilla.app.domain.model.Product, Boolean) -> Unit = { _, _ -> },
 )
 
 @Composable

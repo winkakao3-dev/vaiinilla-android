@@ -150,6 +150,7 @@ internal fun AdminMenuTab(
                 saving = state.saving,
                 header = header,
                 isSchool = isSchool,
+                archived = state.archivedProducts,
             )
     }
     when (val current = sheet) {
@@ -175,6 +176,10 @@ internal fun AdminMenuTab(
                 rentsSpaces = rentsSpaces,
                 cardFeeToCustomer = cardFeeToCustomer,
                 isSchool = isSchool,
+                onArchive = { product ->
+                    actions.onSetArchived(product, true)
+                    sheet = null
+                },
                 onRemoveImage = { product ->
                     actions.onRemoveImage(product)
                     sheet = null
@@ -193,8 +198,10 @@ private fun MenuList(
     saving: Boolean,
     header: AdminHeader,
     isSchool: Boolean = false,
+    archived: List<Product> = emptyList(),
     onOpen: (MenuSheet) -> Unit,
 ) {
+    var showArchived by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var availability by remember { mutableStateOf(AvailabilityFilter.ALL) }
     var categoryFilter by remember { mutableStateOf<Int?>(null) }
@@ -239,6 +246,9 @@ private fun MenuList(
                             AvailabilityFilter.HIDDEN
                         }
                 }
+            }
+            if (archived.isNotEmpty()) {
+                AdminGlassChip("Archivados · ${archived.size}", showArchived) { showArchived = !showArchived }
             }
             if (!readOnly) AdminGlassChip("+ Categoría", false) { onOpen(MenuSheet.EditCategory(null)) }
         }
@@ -312,6 +322,45 @@ private fun MenuList(
                 }
             }
             item(key = "chips", span = { GridItemSpan(maxLineSpan) }) { Box(Modifier.bleed(MenuSide)) { chips() } }
+            if (showArchived && archived.isNotEmpty()) {
+                item(key = "archivados", span = { GridItemSpan(maxLineSpan) }) {
+                    AdminCard(colors) {
+                        Text("Archivados", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                        Text(
+                            "No salen en el menú. Desarchiva uno para volver a venderlo.",
+                            fontSize = 13.sp,
+                            color = colors.textSecondary,
+                        )
+                        archived.forEach { product ->
+                            Row(
+                                Modifier.fillMaxWidth().padding(top = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    product.name,
+                                    fontSize = 14.sp,
+                                    color = colors.textPrimary,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                if (!readOnly) {
+                                    Text(
+                                        "Desarchivar",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.textPrimary,
+                                        modifier =
+                                            Modifier
+                                                .physicalPress(enabled = !saving, scale = PhysicalPressScale.Small) {
+                                                    actions.onSetArchived(product, false)
+                                                }.semantics { contentDescription = "Desarchivar ${product.name}" }
+                                                .padding(8.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             if (allCategories.isEmpty()) {
                 item(key = "sin-categorias", span = { GridItemSpan(maxLineSpan) }) {
                     AdminCard(colors) {
@@ -712,8 +761,10 @@ private fun ProductSheet(
     rentsSpaces: Boolean,
     cardFeeToCustomer: Boolean,
     isSchool: Boolean = false,
+    onArchive: (Product) -> Unit = {},
 ) {
     val context = LocalContext.current
+    var confirmArchive by remember { mutableStateOf(false) }
     val haptics = rememberVaiinillaHaptics()
     var categoryId by remember { mutableStateOf(product?.categoryId ?: categories.firstOrNull()?.id) }
     var station by remember { mutableStateOf(product?.preparationStation ?: PreparationStation.CASHIER) }
@@ -949,6 +1000,33 @@ private fun ProductSheet(
                 onCheckedChange = null,
                 enabled = !saving,
                 colors = adminSwitchColors(colors),
+            )
+        }
+
+        if (product != null) {
+            Text(
+                "Archivar",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = AdminCoral,
+                modifier =
+                    Modifier
+                        .physicalPress(enabled = !saving, scale = PhysicalPressScale.Small) { confirmArchive = true }
+                        .padding(vertical = 8.dp),
+            )
+        }
+        if (confirmArchive && product != null) {
+            AlertDialog(
+                onDismissRequest = { confirmArchive = false },
+                title = { Text("¿Archivar ${product.name}?") },
+                text = { Text("Sale del menú y nadie lo puede pedir. Lo encuentras en Archivados para regresarlo.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmArchive = false
+                        onArchive(product)
+                    }) { Text("Archivar") }
+                },
+                dismissButton = { TextButton(onClick = { confirmArchive = false }) { Text("Cancelar") } },
             )
         }
 

@@ -35,6 +35,8 @@ data class Product(
      * `sin_revisar`), o null si puede. Se muestra bloqueado, no se oculta (Kao, 27 oct).
      */
     val blockReason: String? = null,
+    /** Archivado por el admin: fuera del menú, pero se puede desarchivar (`archivado`). */
+    val archived: Boolean = false,
 )
 
 data class CatalogProductDraft(

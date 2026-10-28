@@ -91,6 +91,7 @@ data class ProductDto(
     // Solo en el catálogo de un alumno; un servidor sin el campo no bloquea nada.
     @SerialName("bloqueado") val blocked: Boolean = false,
     @SerialName("motivo_bloqueo") val blockReason: String? = null,
+    @SerialName("archivado") val archived: Boolean = false,
 )
 
 @Serializable

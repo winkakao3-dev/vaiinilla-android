@@ -2226,6 +2226,7 @@ fun AppNavHost(
                                 onSaveProduct = adminViewModel::saveProduct,
                                 onSetAvailable = adminViewModel::setAvailable,
                                 onRemoveImage = adminViewModel::removeImage,
+                                onSetArchived = adminViewModel::setArchived,
                                 onSelectOrderFilter = adminViewModel::selectOrderFilter,
                                 onRefreshOrders = adminViewModel::refreshOrders,
                                 onLoadMoreOrders = adminViewModel::loadMoreOrders,

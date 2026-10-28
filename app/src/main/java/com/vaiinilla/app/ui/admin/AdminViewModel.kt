@@ -74,6 +74,8 @@ data class AdminUiState(
     val operationalStatus: OperationalStatus? = null,
     val unpaid: AdminUnpaidAccounts? = null,
     val catalog: Catalog? = null,
+    /** Lo archivado: fuera del menú, a la vista para desarchivarlo. */
+    val archivedProducts: List<Product> = emptyList(),
     val catalogError: String? = null,
     val orderFilter: AdminOrderFilter = AdminOrderFilter.ACTIVE,
     val orders: List<OrderDetail> = emptyList(),
@@ -289,7 +291,20 @@ class AdminViewModel
                 val result = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }
                 _uiState.value =
                     result.fold(
-                        onSuccess = { _uiState.value.copy(catalog = it, catalogError = null) },
+                        onSuccess = { loaded ->
+                            val (archived, active) = loaded.products.partition(Product::archived)
+                            val activeIds = active.map(Product::id).toSet()
+                            val known =
+                                (_uiState.value.archivedProducts.filter { it.id !in activeIds } + archived)
+                                    .associateBy(Product::id)
+                                    .values
+                                    .toList()
+                            _uiState.value.copy(
+                                catalog = loaded.copy(products = active),
+                                archivedProducts = known,
+                                catalogError = null,
+                            )
+                        },
                         onFailure = {
                             _uiState.value.copy(catalogError = it.toUserFacingMessage("No se pudo cargar el menú."))
                         },
@@ -369,6 +384,24 @@ class AdminViewModel
         ) {
             mutate(success = if (available) "${product.name} disponible" else "${product.name} agotado") {
                 catalogRepository.setProductAvailability(product.id, available, UUID.randomUUID().toString()).map { }
+            }
+        }
+
+        fun setArchived(
+            product: Product,
+            archived: Boolean,
+        ) {
+            mutate(
+                success = if (archived) "${product.name} archivado" else "${product.name} volvió al menú",
+                onDone = {
+                    val others = _uiState.value.archivedProducts.filter { it.id != product.id }
+                    _uiState.value =
+                        _uiState.value.copy(
+                            archivedProducts = if (archived) others + product.copy(archived = true) else others,
+                        )
+                },
+            ) {
+                adminRepository.setProductArchived(product.id, archived, UUID.randomUUID().toString())
             }
         }
 

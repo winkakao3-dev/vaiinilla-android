@@ -131,5 +131,6 @@ private fun ProductDto.toDomain(): Product =
             },
         allergenCodes = allergenCodes,
         allergensReviewed = allergensReviewed,
+        archived = archived,
         blockReason = if (blocked) blockReason?.trim()?.ifEmpty { null } ?: "producto" else null,
     )

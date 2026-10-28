@@ -97,6 +97,19 @@ class RemoteAdminRepository(
             .mapCatching(catalogParser::parseProduct)
             .mapApiErrors()
 
+    override fun setProductArchived(
+        id: Int,
+        archived: Boolean,
+        idempotencyKey: String,
+    ): Result<Unit> =
+        apiClient
+            .post(
+                "catalogo/productos/$id/${if (archived) "archivar" else "desarchivar"}",
+                "{}",
+                mapOf("Idempotency-Key" to idempotencyKey),
+            ).map { }
+            .mapApiErrors()
+
     private fun <T> Result<T>.mapApiErrors(): Result<T> =
         fold(
             onSuccess = { Result.success(it) },
