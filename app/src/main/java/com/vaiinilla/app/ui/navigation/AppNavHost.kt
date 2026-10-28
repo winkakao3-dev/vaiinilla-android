@@ -490,6 +490,7 @@ fun AppNavHost(
             operationalViewModel.clearRole()
         }
         orderFlowViewModel.enterGuestVenue(venue)
+        orderFlowViewModel.clearMenuFilters()
         navController.navigate(Routes.CATALOG) {
             launchSingleTop = true
         }
@@ -1070,6 +1071,9 @@ fun AppNavHost(
                 LaunchedEffect(authorizedAccessState.session?.uid) {
                     authorizedAccessViewModel.refreshModes(force = true)
                 }
+                // Quien pasa por Modos vuelve al menú sin la categoría ni la búsqueda de antes: juntas dejaban
+                // la lista vacía («Antojitos» con «cafe», EQUIPO-31).
+                LaunchedEffect(Unit) { orderFlowViewModel.clearMenuFilters() }
                 val goBack: () -> Unit = { navController.popBackStack() }
                 AuthorizedModeScreen(
                     state = authorizedAccessState,

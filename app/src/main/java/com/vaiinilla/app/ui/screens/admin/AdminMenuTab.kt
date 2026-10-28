@@ -45,6 +45,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -206,6 +207,10 @@ private fun MenuList(
     var availability by remember { mutableStateOf(AvailabilityFilter.ALL) }
     var categoryFilter by remember { mutableStateOf<Int?>(null) }
     val allCategories = catalog.categories.sortedBy { it.order }
+    // Una categoría que ya no está (borrada o de otro negocio) no deja el menú vacío.
+    LaunchedEffect(allCategories) {
+        if (categoryFilter != null && allCategories.none { it.id == categoryFilter }) categoryFilter = null
+    }
     val categories = allCategories.filter { categoryFilter == null || it.id == categoryFilter }
     val known = allCategories.map { it.id }.toSet()
     val needle = query.normalizeForSearch()

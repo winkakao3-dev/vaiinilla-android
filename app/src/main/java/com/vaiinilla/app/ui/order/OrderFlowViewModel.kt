@@ -556,6 +556,10 @@ class OrderFlowViewModel
             _uiState.value = _uiState.value.copy(searchQuery = query)
         }
 
+        fun clearMenuFilters() {
+            _uiState.value = _uiState.value.copy(selectedCategoryId = null, searchQuery = "")
+        }
+
         fun selectCategory(categoryId: Int?) {
             _uiState.value = _uiState.value.copy(selectedCategoryId = categoryId)
         }
