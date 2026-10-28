@@ -996,14 +996,15 @@ private fun ProductCard(
                         ),
                     ).padding(start = 14.dp, end = 14.dp, top = 34.dp, bottom = 12.dp),
         ) {
-            Text(
+            // Con la letra del sistema al máximo, «Quesabirrias» se partía a media palabra (EQUIPO-30).
+            WholeWordTitle(
                 text = product.name,
                 color = Color.White,
-                fontWeight = FontWeight.Black,
                 fontSize = 17.sp,
                 lineHeight = 20.sp,
+                letterSpacing = 0.sp,
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+                minFontSize = 8.sp,
             )
             Text(
                 text = moneyLabel(product.digitalPrice),

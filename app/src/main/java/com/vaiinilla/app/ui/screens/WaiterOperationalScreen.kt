@@ -120,6 +120,7 @@ import com.vaiinilla.app.ui.components.ToastPill
 import com.vaiinilla.app.ui.components.TurnProgressBar
 import com.vaiinilla.app.ui.components.VaiinillaAssistantButton
 import com.vaiinilla.app.ui.components.VaiinillaMark
+import com.vaiinilla.app.ui.components.WholeWordTitle
 import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -1010,13 +1011,15 @@ private fun WaiterTile(
         } else {
             // Un nombre ("Básquetbol") no cabe a 30 sp: baja de tamaño hasta caber completo.
             Column {
-                Text(
-                    kind.uppercase(),
+                WholeWordTitle(
+                    text = kind.uppercase(),
                     color = captionColor,
                     fontWeight = FontWeight.Bold,
                     fontSize = 10.5.sp,
+                    lineHeight = 13.sp,
                     letterSpacing = 0.8.sp,
                     maxLines = 1,
+                    minFontSize = 6.sp,
                 )
                 BasicText(
                     shortName,
@@ -1035,14 +1038,17 @@ private fun WaiterTile(
             }
         }
         Column {
-            Text(
-                caption,
+            // Con la letra del sistema al máximo, «Reservada» salía «Reserva / da» (EQUIPO-30): baja de tamaño
+            // hasta que la palabra más larga quepa completa.
+            WholeWordTitle(
+                text = caption,
                 color = captionColor,
                 fontWeight = if (collectDue) FontWeight.Bold else FontWeight.SemiBold,
                 fontSize = 11.5.sp,
                 lineHeight = 14.sp,
+                letterSpacing = 0.sp,
                 maxLines = 4,
-                overflow = TextOverflow.Ellipsis,
+                minFontSize = 6.sp,
             )
             // Avance del turno: se ve de un vistazo cuánto le queda a cada cancha.
             val progress = spaceTileProgress(table.availability, tick)?.takeIf { !collectDue }

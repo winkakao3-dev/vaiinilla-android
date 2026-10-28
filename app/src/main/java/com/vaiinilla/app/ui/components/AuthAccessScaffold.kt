@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
@@ -231,8 +232,16 @@ fun AuthHeroSheetScaffold(
     )
 
     val heroCollapseOffsetDp = with(density) { heroOffsetPx.toDp() }
+    // Con el teclado abierto o la letra del sistema muy grande, la hoja sube hasta arriba: si no, entre la
+    // marca y el teclado no quedaba lugar y el campo de contraseña no se alcanzaba (EQUIPO-30).
+    val imeOpen = WindowInsets.ime.getBottom(density) > 0
+    val compactSheet = imeOpen || density.fontScale >= LARGE_FONT_SCALE
     val currentSheetTop =
-        (HeroHeight + statusTop - SheetOverlap + heroCollapseOffsetDp).coerceAtLeast(statusTop + 48.dp)
+        if (compactSheet) {
+            statusTop + 48.dp
+        } else {
+            (HeroHeight + statusTop - SheetOverlap + heroCollapseOffsetDp).coerceAtLeast(statusTop + 48.dp)
+        }
 
     Box(
         modifier =
@@ -884,3 +893,5 @@ private fun AuthLoadingOverlay() {
         )
     }
 }
+
+private const val LARGE_FONT_SCALE = 1.3f

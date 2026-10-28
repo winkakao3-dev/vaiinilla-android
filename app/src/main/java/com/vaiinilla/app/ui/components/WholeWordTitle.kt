@@ -38,7 +38,7 @@ fun WholeWordTitle(
         val maxWidth = constraints.maxWidth
         val scale =
             remember(text, maxWidth, density, base, fontSize, letterSpacing, fontWeight) {
-                val words = text.split(' ').filter { it.isNotEmpty() }
+                val words = text.split(WHITESPACE).filter { it.isNotEmpty() }
                 var factor = 1f
                 while (fontSize.value * factor > minFontSize.value) {
                     val style =
@@ -67,3 +67,5 @@ fun WholeWordTitle(
         )
     }
 }
+
+private val WHITESPACE = Regex("\\s+")
