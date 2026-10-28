@@ -2,6 +2,7 @@ package com.vaiinilla.app.domain.counter
 
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.domain.time.BusinessTime
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -16,7 +17,7 @@ object StudentCounterMessages {
 
     fun chargeFailure(
         error: Throwable,
-        zone: ZoneId = ZoneId.systemDefault(),
+        zone: ZoneId = BusinessTime.zone,
     ): String {
         val api = generateSequence(error) { it.cause }.filterIsInstance<ApiClientException>().firstOrNull()
         when (api?.code) {

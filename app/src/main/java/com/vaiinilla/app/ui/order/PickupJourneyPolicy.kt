@@ -4,6 +4,7 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.RentalStep
 import com.vaiinilla.app.ui.components.needsPickupQr
 import com.vaiinilla.app.ui.components.rentalCourtName
@@ -55,7 +56,7 @@ internal fun pickupTitle(
 internal fun pickupHint(
     order: OrderDetail,
     now: Instant = Instant.now(),
-    zone: ZoneId = ZoneId.systemDefault(),
+    zone: ZoneId = BusinessTime.zone,
 ): String {
     val moment = courtMoment(order, now)
     val reservation = order.reservation

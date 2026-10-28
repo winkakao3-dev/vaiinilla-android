@@ -80,6 +80,7 @@ import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
 import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.TableSpace
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.RollingText
 import com.vaiinilla.app.ui.components.TurnProgressBar
 import com.vaiinilla.app.ui.components.animateSelectionColor
@@ -94,7 +95,6 @@ import kotlinx.coroutines.delay
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -210,7 +210,7 @@ private fun endsAtClock(iso: String?): String? =
         runCatching {
             Instant
                 .parse(it)
-                .atZone(ZoneId.systemDefault())
+                .atZone(BusinessTime.zone)
                 .format(DateTimeFormatter.ofPattern("h:mm a", Locale("es", "MX")))
         }.getOrNull()
     }

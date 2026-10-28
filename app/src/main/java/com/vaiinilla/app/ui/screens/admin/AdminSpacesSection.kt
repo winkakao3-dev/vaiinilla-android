@@ -37,6 +37,7 @@ import com.vaiinilla.app.domain.admin.SpaceType
 import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.admin.AdminSpacesViewModel
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.moneyLabel
@@ -45,7 +46,6 @@ import com.vaiinilla.app.ui.screens.ChipButton
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
 import com.vaiinilla.app.ui.screens.prepareProductImage
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 private sealed interface SpacesSheet {
@@ -699,7 +699,7 @@ private fun ScheduleCard(
 private val ReservationTimeFormat = DateTimeFormatter.ofPattern("HH:mm")
 
 private fun reservationTime(reservation: Reservation): String {
-    val zone = ZoneId.systemDefault()
+    val zone = BusinessTime.zone
     return "${ReservationTimeFormat.format(
         reservation.start.atZone(zone),
     )}–${ReservationTimeFormat.format(reservation.end.atZone(zone))}"

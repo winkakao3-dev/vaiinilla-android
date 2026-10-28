@@ -109,6 +109,7 @@ import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.domain.repository.TableState
 import com.vaiinilla.app.domain.repository.sortWaiterTables
 import com.vaiinilla.app.domain.repository.tableState
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.NumberTicker
 import com.vaiinilla.app.ui.components.OperationalAssistantHost
@@ -1690,8 +1691,8 @@ private val RESERVATION_HOUR =
     java.time.format.DateTimeFormatter
         .ofPattern("HH:mm")
 
-/** "Reservada 19:00" para la siguiente reserva de la cancha, con la hora local del teléfono. */
+/** "Reservada 19:00" para la siguiente reserva de la cancha, con la hora del negocio. */
 private fun nextReservationCaption(startIso: String?): String? =
     startIso
         ?.let { runCatching { java.time.Instant.parse(it) }.getOrNull() }
-        ?.let { "Reservada ${it.atZone(java.time.ZoneId.systemDefault()).format(RESERVATION_HOUR)}" }
+        ?.let { "Reservada ${BusinessTime.format(it, RESERVATION_HOUR)}" }

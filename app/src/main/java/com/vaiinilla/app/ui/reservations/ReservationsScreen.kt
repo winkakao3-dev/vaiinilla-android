@@ -65,6 +65,7 @@ import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
 import com.vaiinilla.app.ui.components.ProductImage
@@ -117,7 +118,7 @@ fun ReservationsScreen(
 ) {
     val colors = LocalVaiinillaColors.current
     val day = state.day
-    val zone = remember(day?.timeZone) { runCatching { ZoneId.of(day?.timeZone) }.getOrDefault(ZoneId.systemDefault()) }
+    val zone = remember(day?.timeZone) { BusinessTime.zoneOr(day?.timeZone) }
     var confirmCancel by remember { mutableStateOf<Reservation?>(null) }
     val listState = rememberLazyListState()
     // El aviso va arriba y el botón de apartar abajo: sin esto el error quedaba fuera de pantalla (D08).

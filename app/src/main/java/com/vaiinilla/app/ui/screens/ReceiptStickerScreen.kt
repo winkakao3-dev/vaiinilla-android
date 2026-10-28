@@ -62,6 +62,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.paymentMethodLabel
 import com.vaiinilla.app.ui.components.sticker.StickerOrderData
 import com.vaiinilla.app.ui.components.sticker.StickerSize
@@ -393,10 +394,10 @@ internal fun receiptProductName(names: List<String>): String =
         else -> "${names.first()} y ${names.size - 1} más"
     }
 
-/** La hora del pedido en la zona del teléfono; `createdAt` viene en UTC y antes se mostraba tal cual. */
+/** La hora del pedido en la zona del negocio; `createdAt` viene en UTC y antes se mostraba tal cual. */
 internal fun receiptLocalTime(
     createdAt: String,
-    zone: ZoneId = ZoneId.systemDefault(),
+    zone: ZoneId = BusinessTime.zone,
 ): String =
     runCatching {
         Instant
