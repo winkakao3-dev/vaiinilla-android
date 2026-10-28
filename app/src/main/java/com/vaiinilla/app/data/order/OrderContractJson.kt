@@ -13,6 +13,8 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -190,6 +192,22 @@ class OrderContractJson
                 amountReceived = envelope.data.amountReceived,
                 change = envelope.data.change,
             )
+        }
+
+        /**
+         * El fondo que propone el servidor (`fondo_sugerido`): dentro de la sesión, en `meta` o junto a `data`
+         * cuando no hay caja abierta. Null si no llega o no es un monto.
+         */
+        fun parseSuggestedFloat(raw: String): String? {
+            val root = json.parseToJsonElement(raw) as? JsonObject ?: return null
+            val places = listOf(root["data"], root["meta"], root)
+            return places
+                .asSequence()
+                .mapNotNull { (it as? JsonObject)?.get("fondo_sugerido") as? JsonPrimitive }
+                .mapNotNull { it.content.trim().toBigDecimalOrNull() }
+                .firstOrNull()
+                ?.setScale(2, java.math.RoundingMode.HALF_UP)
+                ?.toPlainString()
         }
 
         fun parseCashSession(raw: String): CashSessionDto? {

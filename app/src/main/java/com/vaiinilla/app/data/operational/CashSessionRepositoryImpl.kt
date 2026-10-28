@@ -25,21 +25,27 @@ class RemoteCashSessionRepository(
                 Unit
             }.mapApiErrors()
 
+    @Volatile
+    override var suggestedFloat: String? = null
+        private set
+
+    private fun readActive(): Result<String> =
+        apiClient.get("sesiones-caja/activa").onSuccess { body ->
+            suggestedFloat = runCatching { contractJson.parseSuggestedFloat(body) }.getOrNull()
+        }
+
     override fun hasActiveSession(): Result<Boolean> =
-        apiClient
-            .get("sesiones-caja/activa")
+        readActive()
             .mapCatching { contractJson.parseCashSession(it) != null }
             .mapApiErrors()
 
     override fun activeSessionId(): Result<String?> =
-        apiClient
-            .get("sesiones-caja/activa")
+        readActive()
             .mapCatching { contractJson.parseCashSession(it)?.id }
             .mapApiErrors()
 
     override fun activeSession(): Result<CashSessionInfo?> =
-        apiClient
-            .get("sesiones-caja/activa")
+        readActive()
             .mapCatching { body ->
                 contractJson.parseCashSession(body)?.let { CashSessionInfo(it.id, it.initialAmount, it.openedAt) }
             }.mapApiErrors()

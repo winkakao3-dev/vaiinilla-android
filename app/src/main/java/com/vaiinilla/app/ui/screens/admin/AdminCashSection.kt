@@ -96,7 +96,9 @@ internal fun AdminCashSection(
             saving = state.saving,
             error = error,
             onDismiss = { opening = false },
-        ) { amount -> actions.onOpenCash(amount) { opening = false } }
+            onConfirm = { amount -> actions.onOpenCash(amount) { opening = false } },
+            initial = state.suggestedCashFloat,
+        )
     }
     if (closing) {
         AmountSheet(
@@ -122,9 +124,10 @@ private fun AmountSheet(
     saving: Boolean,
     error: String?,
     onDismiss: () -> Unit,
+    initial: String? = null,
     onConfirm: (String) -> Unit,
 ) {
-    var amount by remember { mutableStateOf("") }
+    var amount by remember(initial) { mutableStateOf(initial.orEmpty()) }
     AdminSheet(title = title, colors = colors, busy = saving, onDismiss = onDismiss) {
         OperationalField(
             value = amount,

@@ -19,6 +19,8 @@ data class OperationalUiState(
     /** Alta, foto o pausa de un producto en curso; aparte de `acting` para no apagar los botones de los pedidos. */
     val catalogBusy: Boolean = false,
     val cashSessionOpen: Boolean? = null,
+    /** El fondo que propone el servidor para abrir caja; null si no llegó. */
+    val suggestedCashFloat: String? = null,
     /** La caja nunca se pudo leer (sin red al entrar): la pantalla ofrece reintentar en vez de callar. */
     val cashSessionCheckFailed: Boolean = false,
     val heartbeatOnline: Boolean? = null,

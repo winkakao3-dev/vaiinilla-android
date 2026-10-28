@@ -64,6 +64,8 @@ data class AdminUiState(
     /** Sesión de caja abierta; null si está cerrada. [cashLoaded] dice si ya se consultó. */
     val cashSessionId: String? = null,
     val cashOpeningAmount: String? = null,
+    /** El fondo que propone el servidor para abrir caja; null si no llegó. */
+    val suggestedCashFloat: String? = null,
     val cashOpenedAt: String? = null,
     val cashLoaded: Boolean = false,
     val summary: AdminSummary? = null,
@@ -215,6 +217,7 @@ class AdminViewModel
                         _uiState.value.copy(
                             cashSessionId = it?.id,
                             cashOpeningAmount = it?.initialAmount,
+                            suggestedCashFloat = cashSessionRepository.suggestedFloat,
                             cashOpenedAt = it?.openedAt,
                             cashLoaded = true,
                         )

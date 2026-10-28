@@ -1358,6 +1358,7 @@ fun CashierOperationalScreen(
         if (openCashSheet && state.cashSessionOpen != true) {
             CashOpenSheet(
                 opening = state.acting,
+                suggestedAmount = state.suggestedCashFloat,
                 errorMessage = state.errorMessage,
                 colors = colors,
                 onDismiss = { if (!state.acting) openCashSheet = false },

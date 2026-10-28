@@ -1088,7 +1088,12 @@ class OperationalViewModel
                 if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
                 result
                     .onSuccess { open ->
-                        _uiState.value = _uiState.value.copy(cashSessionOpen = open, cashSessionCheckFailed = false)
+                        _uiState.value =
+                            _uiState.value.copy(
+                                cashSessionOpen = open,
+                                cashSessionCheckFailed = false,
+                                suggestedCashFloat = cashSessionRepository.suggestedFloat,
+                            )
                     }.onFailure {
                         // Con la caja ya conocida se conserva lo último; solo si nunca se supo, la pantalla pide reintentar.
                         _uiState.value =

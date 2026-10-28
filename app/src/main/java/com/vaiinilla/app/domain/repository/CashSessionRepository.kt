@@ -8,6 +8,9 @@ interface CashSessionRepository {
 
     fun hasActiveSession(): Result<Boolean>
 
+    /** El fondo que propuso el servidor en la última consulta de la caja (`fondo_sugerido`), si llegó. */
+    val suggestedFloat: String? get() = null
+
     /** Id de la sesión de caja abierta, o null si no hay. */
     fun activeSessionId(): Result<String?>
 

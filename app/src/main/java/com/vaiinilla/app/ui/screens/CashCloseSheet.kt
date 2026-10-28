@@ -229,6 +229,7 @@ fun CashOpenSheet(
     colors: OperationalColors,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
+    suggestedAmount: String? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -237,7 +238,7 @@ fun CashOpenSheet(
         containerColor = colors.background,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
     ) {
-        CashOpenContent(opening, errorMessage, colors, onConfirm)
+        CashOpenContent(opening, errorMessage, colors, onConfirm, suggestedAmount)
     }
 }
 
@@ -247,8 +248,10 @@ fun CashOpenContent(
     errorMessage: String?,
     colors: OperationalColors,
     onConfirm: (String) -> Unit,
+    suggestedAmount: String? = null,
 ) {
-    var amount by remember { mutableStateOf("") }
+    // El fondo del servidor ya escrito: si cuadra con el cajón se confirma en un toque (Kao, 25 oct).
+    var amount by remember(suggestedAmount) { mutableStateOf(suggestedAmount.orEmpty()) }
     val normalized = normalizeCountedCash(amount)
     Column(
         modifier =
