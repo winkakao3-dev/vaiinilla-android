@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.admin.AdminOrderFilter
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.components.ProductImage
@@ -52,7 +53,6 @@ import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.screens.ActionPill
 import com.vaiinilla.app.ui.screens.OperationalColors
 import java.time.Instant
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -370,7 +370,7 @@ private fun OrderSheet(
             summary.cancelReason?.let { Text("Motivo: $it", fontSize = 13.sp, color = AdminCoral) }
             order.arrivedAt?.let { arrived ->
                 Text(
-                    "Ya llegó a las ${ArrivalFormat.format(arrived.atZone(ZoneId.systemDefault()))}",
+                    "Ya llegó a las ${ArrivalFormat.format(arrived.atZone(BusinessTime.zone))}",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.textPrimary,
@@ -427,4 +427,4 @@ private val ArrivalFormat = DateTimeFormatter.ofPattern("HH:mm")
 private val TimeFormat = DateTimeFormatter.ofPattern("d MMM, HH:mm", Locale.forLanguageTag("es-MX"))
 
 private fun timeLabel(iso: String): String? =
-    runCatching { TimeFormat.format(Instant.parse(iso).atZone(ZoneId.systemDefault())) }.getOrNull()
+    runCatching { TimeFormat.format(Instant.parse(iso).atZone(BusinessTime.zone)) }.getOrNull()
