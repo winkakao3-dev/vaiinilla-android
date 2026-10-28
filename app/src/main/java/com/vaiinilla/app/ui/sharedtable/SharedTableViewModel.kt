@@ -25,6 +25,8 @@ data class SharedTableUiState(
     val aliasInput: String = "",
     val busy: Boolean = false,
     val error: String? = null,
+    /** El pedido cuyo «Esto lo pago yo» falló: el error se pinta junto a él (C05). */
+    val errorFolio: Int? = null,
 ) {
     val canJoin: Boolean
         get() = aliasInput.isNotBlank() && !busy
@@ -106,7 +108,7 @@ class SharedTableViewModel
         fun claim(
             folio: Int,
             payIt: Boolean,
-        ) = perform { repository.claim(folio, payIt) }
+        ) = perform(folio = folio) { repository.claim(folio, payIt) }
 
         fun leave() {
             if (_uiState.value.busy) return
@@ -128,9 +130,12 @@ class SharedTableViewModel
             }
         }
 
-        private fun perform(call: () -> Result<SharedTable>) {
+        private fun perform(
+            folio: Int? = null,
+            call: () -> Result<SharedTable>,
+        ) {
             mutationVersion++
-            _uiState.value = _uiState.value.copy(busy = true, error = null)
+            _uiState.value = _uiState.value.copy(busy = true, error = null, errorFolio = null)
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { call() }
                 mutationVersion++
@@ -141,9 +146,12 @@ class SharedTableViewModel
                             _uiState.value.copy(
                                 busy = false,
                                 error = it.toUserFacingMessage("No se pudo actualizar la mesa."),
+                                errorFolio = folio,
                             )
                         },
                     )
+                // Si el servidor dice que ya está pagado, la mesa que se ve está vieja: se vuelve a leer.
+                if (result.isFailure && folio != null) refresh()
             }
         }
 

@@ -56,4 +56,13 @@ class SpaceCopyTest {
         )
         assertEquals("Comer aquí", SpaceCopy.staffDestination(OrderDestination.IN_SPACE, null))
     }
+
+    @Test
+    fun `en la barra el carrito y el aviso de listo no dicen mesa ni llevar`() {
+        assertEquals("Pagas en caja y te lo entregamos en la barra", SpaceCopy.payAtCashierHint("barra"))
+        assertEquals("Pagas en caja y te lo llevamos a tu mesa", SpaceCopy.payAtCashierHint("mesa"))
+        assertEquals("Pagas en caja y te lo llevamos a tu cancha", SpaceCopy.payAtCashierHint("cancha"))
+        assertEquals("Tu pedido está listo. Te lo entregamos en la barra.", SpaceCopy.readyInSpace("barra"))
+        assertEquals("Tu pedido está listo. Ya va a tu mesa.", SpaceCopy.readyInSpace(null))
+    }
 }

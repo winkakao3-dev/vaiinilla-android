@@ -192,6 +192,9 @@ class OrderFlowViewModel
                             OrderDestination.TAKE_AWAY
                         },
                     selectedSpaceId = venue.space?.id ?: 0,
+                    // La categoría y la búsqueda del negocio anterior dejarían el menú nuevo vacío.
+                    selectedCategoryId = if (switchingEstablishment) null else previous.selectedCategoryId,
+                    searchQuery = if (switchingEstablishment) "" else previous.searchQuery,
                     // El estado operativo es del negocio: el de antes diría si el nuevo es escuela (F19).
                     operationalStatus = if (switchingEstablishment) null else previous.operationalStatus,
                 )

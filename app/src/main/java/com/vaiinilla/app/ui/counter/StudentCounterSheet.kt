@@ -559,6 +559,19 @@ internal fun StudentCardPane(
                     bottom = 20.dp,
                 ),
         ) {
+            card.guardianNote?.let { note ->
+                item(key = "guardian-note") {
+                    Text(
+                        "Nota del tutor: $note",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textPrimary,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+                }
+            }
             item(key = "head") { SpendableHeader(card, colors) { showsCredential = true } }
             if (card.allergens.isNotEmpty()) {
                 item(key = "allergy") { StudentAllergyBanner(card.allergens, colors, Modifier.padding(top = 16.dp)) }
@@ -861,7 +874,7 @@ private fun SellRow(
                     Text(price, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
                 } else {
                     Text(
-                        "$price · tiene ${warnings.joinToString(", ") { StudentAllergens.label(it) }.lowercase()}",
+                        "$price · Contiene ${warnings.joinToString(", ") { StudentAllergens.label(it) }.lowercase()}",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = CounterCoral,
@@ -869,7 +882,20 @@ private fun SellRow(
                 }
             }
             Spacer(Modifier.width(8.dp))
-            if (quantity == 0) {
+            // Lo que tiene un alérgeno del alumno se ve, pero no se agrega (Kao, 27 oct).
+            if (warnings.isNotEmpty() && quantity == 0) {
+                Text(
+                    "No disponible",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textSecondary,
+                    modifier =
+                        Modifier.semantics {
+                            contentDescription =
+                                "${product.name}: no disponible para este alumno"
+                        },
+                )
+            } else if (quantity == 0) {
                 StepButton(Icons.Outlined.Add, "Agregar ${product.name}", colors) {
                     haptics.selection()
                     onAdd()

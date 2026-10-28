@@ -54,6 +54,20 @@ class StudentCounterJsonTest {
     }
 
     @Test
+    fun `la ficha trae la nota del tutor y nada si viene null o vacia`() {
+        fun card(note: String) =
+            json
+                .parseCards(
+                    """{"data":[{"usuario_id":"u","nombre":"Leo","saldo":"10.00","nota_tutor":$note}],"error":null}""",
+                ).single()
+        assertEquals("sin picante", card("\" sin picante \"").guardianNote)
+        assertNull(card("null").guardianNote)
+        assertNull(card("\"  \"").guardianNote)
+        val older = json.parseCards("""{"data":[{"usuario_id":"u","nombre":"Leo","saldo":"10.00"}],"error":null}""")
+        assertNull(older.single().guardianNote)
+    }
+
+    @Test
     fun `la compra lleva opcion_ids y el PIN solo si se pide`() {
         val items = listOf(StudentPurchaseItem(4, 2, listOf(9)), StudentPurchaseItem(5, 1))
         assertEquals(

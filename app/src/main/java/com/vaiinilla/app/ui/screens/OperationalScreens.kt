@@ -419,6 +419,10 @@ fun CashierOperationalScreen(
     val queuedCashierOrders =
         actionableCashierOrders.filterNot { it.summary.id == recentOrder?.summary?.id }
     val actionableIds = actionableCashierOrders.map { it.summary.id }.toSet()
+    // Un pedido de mostrador que el cajero eligió cobrar ya llega aquí seleccionado: pasa al frente (G03).
+    LaunchedEffect(state.selectedOrderId, actionableIds) {
+        state.selectedOrderId?.takeIf { it in actionableIds }?.let { selectedCashierOrderId = it }
+    }
     LaunchedEffect(actionableIds) {
         cashDrafts.keys.filterNot { it in actionableIds }.forEach(cashDrafts::remove)
         if (rejectingOrderId !in actionableIds) rejectingOrderId = null
@@ -506,7 +510,9 @@ fun CashierOperationalScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    // Con un nombre de negocio largo, el texto se corta y las iniciales siguen visibles (G09).
                     Row(
+                        modifier = Modifier.weight(1f, fill = false).padding(end = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {

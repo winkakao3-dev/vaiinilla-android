@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderSummary
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.animateSelectionColor
 import kotlinx.coroutines.delay
 import java.time.Instant
@@ -30,12 +31,12 @@ internal fun kitchenAge(elapsedMs: Long): KitchenAge =
 
 /**
  * Desde cuándo cuenta el tiempo en cocina. Un pedido apartado para otro día (padres e hijos) se creó días antes:
- * cuenta desde el inicio de su franja si es posterior a la creación (STAFF-20). La franja es hora local del negocio;
- * el teléfono de cocina está en ese mismo lugar.
+ * cuenta desde el inicio de su franja si es posterior a la creación (STAFF-20). La franja es hora local del negocio,
+ * no la del teléfono.
  */
 internal fun kitchenAgeStart(
     summary: OrderSummary,
-    zone: ZoneId = ZoneId.systemDefault(),
+    zone: ZoneId = BusinessTime.zone,
 ): String {
     val created = runCatching { Instant.parse(summary.createdAt) }.getOrNull() ?: return summary.createdAt
     val slotStart =

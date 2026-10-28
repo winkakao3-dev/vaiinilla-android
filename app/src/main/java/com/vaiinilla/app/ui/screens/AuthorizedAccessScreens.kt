@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.SettingsGroup
@@ -58,7 +59,6 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import java.time.Instant
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -386,6 +386,6 @@ private fun formatInvitationExpiry(instant: Instant): String {
     val formatter =
         DateTimeFormatter
             .ofPattern("d MMM yyyy · HH:mm", Locale.forLanguageTag("es-MX"))
-            .withZone(ZoneId.systemDefault())
+            .withZone(BusinessTime.zone)
     return formatter.format(instant)
 }

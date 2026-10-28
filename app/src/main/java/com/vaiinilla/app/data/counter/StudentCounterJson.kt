@@ -112,6 +112,7 @@ class StudentCounterJson {
         @SerialName("alergenos") val allergens: List<String> = emptyList(),
         @SerialName("pedidos_hoy") val todayOrders: List<TodayOrderDto> = emptyList(),
         @SerialName("pide_pin") val requiresPin: Boolean = false,
+        @SerialName("nota_tutor") val guardianNote: String? = null,
     ) {
         fun toDomain(): StudentCard =
             StudentCard(
@@ -136,6 +137,7 @@ class StudentCounterJson {
                         )
                     },
                 requiresPin = requiresPin,
+                guardianNote = guardianNote?.trim()?.takeIf { it.isNotEmpty() },
             )
     }
 

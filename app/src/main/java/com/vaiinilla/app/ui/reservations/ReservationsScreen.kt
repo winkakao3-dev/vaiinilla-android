@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -64,6 +65,7 @@ import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
 import com.vaiinilla.app.ui.components.ProductImage
@@ -116,11 +118,17 @@ fun ReservationsScreen(
 ) {
     val colors = LocalVaiinillaColors.current
     val day = state.day
-    val zone = remember(day?.timeZone) { runCatching { ZoneId.of(day?.timeZone) }.getOrDefault(ZoneId.systemDefault()) }
+    val zone = remember(day?.timeZone) { BusinessTime.zoneOr(day?.timeZone) }
     var confirmCancel by remember { mutableStateOf<Reservation?>(null) }
+    val listState = rememberLazyListState()
+    // El aviso va arriba y el botón de apartar abajo: sin esto el error quedaba fuera de pantalla (D08).
+    LaunchedEffect(state.error) {
+        if (state.error != null) listState.animateScrollToItem(1)
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(colors.paper)) {
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize().statusBarsPadding(),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 40.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),

@@ -77,9 +77,14 @@ data class BoardOrder(
     val updatedAt: String,
     /** El backend dispensa el QR para este pedido (`entrega_sin_qr`): se entrega con solo confirmar. */
     val deliveryWithoutQr: Boolean = false,
-    /** Sigue sin pagarse (`pago_pendiente`): el servidor no deja entregarlo hasta cobrarlo (ORDER_PAYMENT_PENDING). */
+    /** Sigue sin pagarse (`pago_pendiente`). */
     val paymentPending: Boolean = false,
+    /** Va a la cuenta de la mesa (`pago_diferido`): el servidor lo deja entregar aunque siga sin pagarse. */
+    val payAtEnd: Boolean = false,
 ) {
+    /** Hay que cobrarlo antes de entregarlo; si no, el servidor responde ORDER_PAYMENT_PENDING. */
+    val mustCollectBeforeDelivery: Boolean get() = paymentPending && !payAtEnd
+
     /** Si entregarlo pide el QR de recogida: lo pide el negocio y el pedido no va a una cuenta abierta. */
     fun needsQrToDeliver(deliveryRequiresQr: Boolean): Boolean = deliveryRequiresQr && !deliveryWithoutQr
 }

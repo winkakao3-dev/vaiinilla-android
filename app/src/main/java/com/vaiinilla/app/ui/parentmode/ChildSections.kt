@@ -62,6 +62,7 @@ import com.vaiinilla.app.domain.guardianship.StudentRequest
 import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import com.vaiinilla.app.domain.guardianship.StudentRequestStatus
 import com.vaiinilla.app.domain.guardianship.compactMoney
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.SlidingSegments
 import com.vaiinilla.app.ui.components.minTouchTarget
@@ -77,7 +78,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.math.BigDecimal
 import java.time.OffsetDateTime
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -498,7 +498,7 @@ internal fun requestStatusLine(request: StudentRequest): String =
                             OffsetDateTime
                                 .parse(
                                     it,
-                                ).atZoneSameInstant(ZoneId.systemDefault())
+                                ).atZoneSameInstant(BusinessTime.zone)
                         }.getOrNull()
                     }?.let {
                         " el " +

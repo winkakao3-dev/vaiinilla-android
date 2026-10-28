@@ -63,6 +63,8 @@ data class AdminUiState(
     val live: AdminLiveCounts? = null,
     /** Sesión de caja abierta; null si está cerrada. [cashLoaded] dice si ya se consultó. */
     val cashSessionId: String? = null,
+    val cashOpeningAmount: String? = null,
+    val cashOpenedAt: String? = null,
     val cashLoaded: Boolean = false,
     val summary: AdminSummary? = null,
     val summaryLoading: Boolean = false,
@@ -208,8 +210,14 @@ class AdminViewModel
 
         fun refreshCash() {
             viewModelScope.launch {
-                withContext(Dispatchers.IO) { cashSessionRepository.activeSessionId() }.onSuccess {
-                    _uiState.value = _uiState.value.copy(cashSessionId = it, cashLoaded = true)
+                withContext(Dispatchers.IO) { cashSessionRepository.activeSession() }.onSuccess {
+                    _uiState.value =
+                        _uiState.value.copy(
+                            cashSessionId = it?.id,
+                            cashOpeningAmount = it?.initialAmount,
+                            cashOpenedAt = it?.openedAt,
+                            cashLoaded = true,
+                        )
                 }
             }
         }

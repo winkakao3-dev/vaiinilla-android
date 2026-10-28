@@ -121,4 +121,14 @@ class UserFacingErrorMessageTest {
             error.toUserFacingMessage("Fallback"),
         )
     }
+
+    @Test
+    fun `account required tells the guest to create an account`() {
+        val error = ApiClientException("ACCOUNT_REQUIRED", "Account required", 403)
+
+        assertEquals(
+            "Para apartar necesitas una cuenta. Crea una o inicia sesión.",
+            error.toUserFacingMessage("Fallback"),
+        )
+    }
 }

@@ -5,6 +5,7 @@ import com.vaiinilla.app.domain.model.OrderReservation
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.domain.model.StripePaymentStatus
+import com.vaiinilla.app.domain.time.BusinessTime
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -75,7 +76,7 @@ fun rentalStepDescription(
     reservation: OrderReservation,
     paymentMethod: PaymentMethod,
     paymentStatus: StripePaymentStatus?,
-    zone: ZoneId = ZoneId.systemDefault(),
+    zone: ZoneId = BusinessTime.zone,
     today: LocalDate = LocalDate.now(zone),
 ): String =
     when (step) {
@@ -102,7 +103,7 @@ fun rentalStepDescription(
 /** "Hoy · 18:00–19:00", "Mañana · …" o "vie 3 oct · …". */
 fun rentalScheduleLabel(
     reservation: OrderReservation,
-    zone: ZoneId = ZoneId.systemDefault(),
+    zone: ZoneId = BusinessTime.zone,
     today: LocalDate = LocalDate.now(zone),
 ): String {
     val start = reservation.start.atZone(zone)

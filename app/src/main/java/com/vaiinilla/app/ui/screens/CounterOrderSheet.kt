@@ -142,6 +142,8 @@ internal fun CounterOrderSheet(
     onSubmit: (List<CartLine>, String) -> Unit,
     /** Qué hace el botón: el mesero lo manda a Caja; en Caja queda en "Por cobrar". */
     submitAction: String = "Enviar a Caja",
+    /** Solo en Caja con la caja abierta: crea el pedido y abre su cobro. El otro botón lo deja por cobrar (G03). */
+    onSubmitAndCollect: ((List<CartLine>, String) -> Unit)? = null,
 ) {
     var nombre by remember { mutableStateOf("") }
     var buscar by remember { mutableStateOf("") }
@@ -325,17 +327,34 @@ internal fun CounterOrderSheet(
                 state.counterOrderError?.takeIf { catalogo != null }?.let { mensaje ->
                     Text(mensaje, color = CounterError, fontSize = 13.sp)
                 }
-                ActionPill(
-                    label =
-                        if (lineas.isEmpty()) {
-                            "Toca un producto para agregarlo"
-                        } else {
-                            counterOrderBarLabel(lineas.values.toList(), submitAction)
-                        },
-                    enabled = puedeEnviar,
-                    loading = state.counterOrderSending,
-                    colors = colors,
-                ) { onSubmit(lineas.values.toList(), nombre) }
+                if (onSubmitAndCollect != null && lineas.isNotEmpty()) {
+                    // Unos pagan y se van; otros ordenan y se sientan: el cajero elige.
+                    ActionPill(
+                        label = counterOrderBarLabel(lineas.values.toList(), "Cobrar ya"),
+                        enabled = puedeEnviar,
+                        loading = state.counterOrderSending,
+                        colors = colors,
+                    ) { onSubmitAndCollect(lineas.values.toList(), nombre) }
+                    ActionPill(
+                        label = submitAction,
+                        enabled = puedeEnviar,
+                        loading = false,
+                        colors = colors,
+                        primary = false,
+                    ) { onSubmit(lineas.values.toList(), nombre) }
+                } else {
+                    ActionPill(
+                        label =
+                            if (lineas.isEmpty()) {
+                                "Toca un producto para agregarlo"
+                            } else {
+                                counterOrderBarLabel(lineas.values.toList(), submitAction)
+                            },
+                        enabled = puedeEnviar,
+                        loading = state.counterOrderSending,
+                        colors = colors,
+                    ) { onSubmit(lineas.values.toList(), nombre) }
+                }
             }
         }
     }

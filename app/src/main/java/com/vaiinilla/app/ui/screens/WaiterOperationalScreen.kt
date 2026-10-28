@@ -109,6 +109,7 @@ import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.domain.repository.TableState
 import com.vaiinilla.app.domain.repository.sortWaiterTables
 import com.vaiinilla.app.domain.repository.tableState
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.NumberTicker
 import com.vaiinilla.app.ui.components.OperationalAssistantHost
@@ -607,6 +608,7 @@ fun WaiterOperationalScreen(
                     }
                 },
             onDismissCollection = onDismissCollection,
+            remainingParts = state.remainingParts[open.space.id],
         )
     }
 
@@ -1153,6 +1155,8 @@ private fun WaiterTableSheet(
     onCollectAccount: (AccountPaymentMethod, String?, String, List<String>?, String?) -> Unit,
     onDismissCollection: () -> Unit,
     onAbono: AbonoHandler? = null,
+    /** Personas que faltan tras un abono en partes; la hoja abre en Partes con ese número (I06). */
+    remainingParts: Int? = null,
     rentable: Boolean = false,
     onStartRental: (Int, Instant?) -> Unit = { _, _ -> },
     rentalDurations: List<Int> = DefaultRentalDurations,
@@ -1241,6 +1245,8 @@ private fun WaiterTableSheet(
                             remaining = account.remaining,
                             paidIn = account.paidIn,
                             onAbono = onAbono,
+                            initialPeople = remainingParts,
+                            initialSplit = if (remainingParts != null) SplitMode.PARTS else SplitMode.ORDERS,
                         )
                     }
                 } else {
@@ -1462,7 +1468,7 @@ private fun WaiterTableSheet(
  * confirma, porque un toque por error lo marcaba entregado sin forma de deshacerlo.
  */
 @Composable
-private fun WaiterSheetOrderRow(
+internal fun WaiterSheetOrderRow(
     order: BoardOrder,
     readOnly: Boolean,
     canDeliver: Boolean,
@@ -1500,7 +1506,7 @@ private fun WaiterSheetOrderRow(
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
-            if (order.state == OrderState.READY && order.paymentPending) {
+            if (order.state == OrderState.READY && order.mustCollectBeforeDelivery) {
                 // El servidor no entrega un pedido sin pagar: se avisa en lugar de ofrecer un botón que daría 409.
                 Box(
                     modifier =
@@ -1685,8 +1691,8 @@ private val RESERVATION_HOUR =
     java.time.format.DateTimeFormatter
         .ofPattern("HH:mm")
 
-/** "Reservada 19:00" para la siguiente reserva de la cancha, con la hora local del teléfono. */
+/** "Reservada 19:00" para la siguiente reserva de la cancha, con la hora del negocio. */
 private fun nextReservationCaption(startIso: String?): String? =
     startIso
         ?.let { runCatching { java.time.Instant.parse(it) }.getOrNull() }
-        ?.let { "Reservada ${it.atZone(java.time.ZoneId.systemDefault()).format(RESERVATION_HOUR)}" }
+        ?.let { "Reservada ${BusinessTime.format(it, RESERVATION_HOUR)}" }

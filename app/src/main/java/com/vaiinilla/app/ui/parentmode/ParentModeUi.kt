@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.domain.guardianship.GuardianLinkCode
 import com.vaiinilla.app.domain.guardianship.PrivacyNotice
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.SkeletonBlock
 import com.vaiinilla.app.ui.components.animateSelectionColor
@@ -68,9 +69,7 @@ import com.vaiinilla.app.ui.components.minTouchTarget
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.screens.OperationalColors
-import java.time.LocalDate
 import java.time.OffsetDateTime
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 
@@ -436,13 +435,13 @@ internal fun expiryText(
                 OffsetDateTime
                     .parse(
                         it,
-                    ).atZoneSameInstant(ZoneId.systemDefault())
+                    ).atZoneSameInstant(BusinessTime.zone)
             }.getOrNull()
         }
             ?: return "Sirve una sola vez."
     val time = expires.format(DateTimeFormatter.ofPattern("HH:mm"))
     if (!sayDay) return "Sirve una vez, hasta las $time."
-    val day = if (expires.toLocalDate() == LocalDate.now()) "hoy" else "mañana"
+    val day = if (expires.toLocalDate() == BusinessTime.today()) "hoy" else "mañana"
     return "Sirve una vez, hasta $day a las $time."
 }
 

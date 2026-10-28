@@ -17,8 +17,8 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 private val ARRIVAL_HOUR = DateTimeFormatter.ofPattern("HH:mm")
@@ -68,9 +68,8 @@ fun ArrivalNotice(
             )
         } else {
             Text(
-                "Avisaste que llegaste a las ${arrivedAt.atZone(
-                    ZoneId.systemDefault(),
-                ).format(ARRIVAL_HOUR)}. La cocina y la caja ya lo saben.",
+                "Avisaste que llegaste a las ${BusinessTime.format(arrivedAt, ARRIVAL_HOUR)}. " +
+                    "La cocina y la caja ya lo saben.",
                 color = textColor,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,

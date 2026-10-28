@@ -38,7 +38,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -162,9 +164,16 @@ fun SharedTableCard(
             if (table == null) {
                 JoinTable(state, SharedSpaceWords.of(spaceType), onAliasChange, onJoin)
             } else {
-                TableContent(table, state.busy, onClaim, onLeave)
+                TableContent(
+                    table = table,
+                    busy = state.busy,
+                    onClaim = onClaim,
+                    onLeave = onLeave,
+                    claimError = state.error.takeIf { state.errorFolio != null },
+                    claimErrorFolio = state.errorFolio,
+                )
             }
-            state.error?.let {
+            state.error?.takeIf { table == null || state.errorFolio == null }?.let {
                 Text(
                     it,
                     color = LocalVaiinillaColors.current.coral,
@@ -230,6 +239,8 @@ private fun TableContent(
     busy: Boolean,
     onClaim: (Int, Boolean) -> Unit,
     onLeave: () -> Unit,
+    claimError: String? = null,
+    claimErrorFolio: Int? = null,
 ) {
     val noun = SpaceCopy.kindLabel(table.spaceType).lowercase()
     Row(
@@ -281,7 +292,9 @@ private fun TableContent(
                     fontWeight = FontWeight.Black,
                     letterSpacing = 1.4.sp,
                 )
-                group.orders.forEach { order -> TableOrderRow(order, busy, onClaim) }
+                group.orders.forEach { order ->
+                    TableOrderRow(order, busy, onClaim, claimError.takeIf { order.folio == claimErrorFolio })
+                }
             }
         }
     }
@@ -340,6 +353,7 @@ private fun TableOrderRow(
     order: SharedTableOrder,
     busy: Boolean,
     onClaim: (Int, Boolean) -> Unit,
+    error: String? = null,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
@@ -373,6 +387,14 @@ private fun TableOrderRow(
                     null -> Unit
                 }
             }
+        }
+        error?.let {
+            Text(
+                it,
+                color = LocalVaiinillaColors.current.coral,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(top = 6.dp).semantics { liveRegion = LiveRegionMode.Polite },
+            )
         }
         Box(
             Modifier

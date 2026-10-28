@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
@@ -79,6 +80,7 @@ import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
 import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.TableSpace
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.RollingText
 import com.vaiinilla.app.ui.components.TurnProgressBar
 import com.vaiinilla.app.ui.components.animateSelectionColor
@@ -93,7 +95,6 @@ import kotlinx.coroutines.delay
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -209,7 +210,7 @@ private fun endsAtClock(iso: String?): String? =
         runCatching {
             Instant
                 .parse(it)
-                .atZone(ZoneId.systemDefault())
+                .atZone(BusinessTime.zone)
                 .format(DateTimeFormatter.ofPattern("h:mm a", Locale("es", "MX")))
         }.getOrNull()
     }
@@ -825,14 +826,16 @@ internal fun ChipButton(
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // Con 4 duraciones «+1 h 30» no cabía y se cortaba en «+1 h»: la letra se achica antes (D07).
             Text(
                 label,
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
                 color = ink,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
-                modifier = Modifier.padding(horizontal = 14.dp),
+                softWrap = false,
+                autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = 14.sp, stepSize = 0.5.sp),
+                modifier = Modifier.padding(horizontal = 6.dp),
             )
             if (detail != null) {
                 Text(detail, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = detailInk, maxLines = 1)
@@ -958,12 +961,14 @@ internal fun CollectAccountContent(
     onAbono: AbonoHandler? = null,
     /** El modo con que abre la hoja (capturas y pruebas). */
     initialSplit: SplitMode = SplitMode.ORDERS,
+    /** Personas que faltan tras un abono en partes; null empieza en 2. */
+    initialPeople: Int? = null,
 ) {
     var selected by remember(payable.map { it.id }) { mutableStateOf(payable.map { it.id }.toSet()) }
     val paidInAmount = paidIn.moneyOrZero()
     val remainingAmount = remaining?.moneyOrZero() ?: total.moneyOrZero()
     val splitLocked = paidInAmount.signum() > 0
-    var split by remember {
+    var split by remember(initialSplit) {
         mutableStateOf(
             if (splitLocked &&
                 initialSplit == SplitMode.ORDERS
@@ -976,7 +981,7 @@ internal fun CollectAccountContent(
     }
     if (splitLocked && split == SplitMode.ORDERS) split = SplitMode.AMOUNT
     var abonoText by remember { mutableStateOf("") }
-    var people by remember { mutableIntStateOf(2) }
+    var people by remember(initialPeople) { mutableIntStateOf(initialPeople ?: 2) }
     val byOrders = onAbono == null || split == SplitMode.ORDERS
     val splitting = byOrders && payable.size >= 2
     val allSelected = selected.size == payable.size

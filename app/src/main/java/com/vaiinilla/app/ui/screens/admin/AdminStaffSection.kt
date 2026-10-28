@@ -30,6 +30,7 @@ import com.vaiinilla.app.domain.admin.InvitationState
 import com.vaiinilla.app.domain.admin.StaffInvitation
 import com.vaiinilla.app.domain.admin.StaffMembership
 import com.vaiinilla.app.domain.admin.StaffRole
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.admin.AdminStaffViewModel
 import com.vaiinilla.app.ui.screens.ActionPill
 import com.vaiinilla.app.ui.screens.ChipButton
@@ -356,6 +357,6 @@ internal fun adminShortDate(iso: String): String? =
             .format(
                 java.time.Instant
                     .parse(iso)
-                    .atZone(java.time.ZoneId.systemDefault()),
+                    .atZone(BusinessTime.zone),
             )
     }.getOrNull()

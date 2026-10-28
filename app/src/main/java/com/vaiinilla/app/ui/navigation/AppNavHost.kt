@@ -175,6 +175,9 @@ fun AppNavHost(
     onInvitationConsumed: () -> Unit = {},
     onOrderConsumed: () -> Unit = {},
 ) {
+    // Vive lo que vive esta composición: si la actividad se recrea (p. ej. al cambiar el tamaño de letra), lo que
+    // espera aquí se cancela y no navega con un NavController que ya no está en pantalla (L01).
+    val launchNavScope = rememberCoroutineScope()
     val orderFlowViewModel: OrderFlowViewModel = viewModel()
     val operationalViewModel: OperationalViewModel = viewModel()
     val adminViewModel: AdminViewModel = viewModel()
@@ -325,6 +328,7 @@ fun AppNavHost(
                 folio = event.folio,
                 newState = event.newState,
                 inSpace = event.inSpace,
+                spaceType = event.spaceType,
             )
             // Pagar, cancelar o devolver mueve el saldo: no se espera a que el dato envejezca.
             walletViewModel.invalidate()
@@ -695,7 +699,10 @@ fun AppNavHost(
         orderFlowViewModel.claimGuestOrders()
         studentAuthViewModel.refreshGuestVenue()
         authorizedAccessViewModel.refreshCurrentSession()
-        authorizedAccessViewModel.refreshModes(force = true) { modesLoaded ->
+        val modesRefreshed = CompletableDeferred<Boolean>()
+        authorizedAccessViewModel.refreshModes(force = true) { modesRefreshed.complete(it) }
+        launchNavScope.launch {
+            val modesLoaded = modesRefreshed.await()
             val destination =
                 resolveLaunchDestination(
                     pendingEstablishmentSlug = pendingEstablishmentSlug,
@@ -934,21 +941,24 @@ fun AppNavHost(
                             ),
                         )
                     } else {
-                        authorizedAccessViewModel.refreshModes(force = true) { modesLoaded ->
-                            navigateLaunchDestination(
-                                resolveLaunchDestination(
-                                    pendingEstablishmentSlug = pendingEstablishmentSlug,
-                                    session = authorizedAccessViewModel.state.value.session,
-                                    hasStaffModes =
-                                        hasStaffLaunchModes(
-                                            authorizedAccessViewModel.state.value.modes
-                                                .map { it.role },
-                                        ),
-                                    hasSavedVenue = studentAuthViewModel.state.value.guestVenue != null,
-                                    modesLoaded = modesLoaded,
-                                ),
-                            )
-                        }
+                        // El callback del ViewModel sobrevive a la actividad; se espera aquí para que, si la
+                        // actividad se recrea, este efecto se cancele y navegue el del NavController nuevo (L01).
+                        val modesRefreshed = CompletableDeferred<Boolean>()
+                        authorizedAccessViewModel.refreshModes(force = true) { modesRefreshed.complete(it) }
+                        val modesLoaded = modesRefreshed.await()
+                        navigateLaunchDestination(
+                            resolveLaunchDestination(
+                                pendingEstablishmentSlug = pendingEstablishmentSlug,
+                                session = authorizedAccessViewModel.state.value.session,
+                                hasStaffModes =
+                                    hasStaffLaunchModes(
+                                        authorizedAccessViewModel.state.value.modes
+                                            .map { it.role },
+                                    ),
+                                hasSavedVenue = studentAuthViewModel.state.value.guestVenue != null,
+                                modesLoaded = modesLoaded,
+                            ),
+                        )
                     }
                 }
 
@@ -957,7 +967,13 @@ fun AppNavHost(
 
             composable(Routes.DISCOVERY) {
                 // Tus escuelas: las de sus accesos, para volver sin código.
-                LaunchedEffect(studentAuthState.session?.uid) { discoveryViewModel.loadMySchools() }
+                // Tras cambiar de cuenta o de modo el estado se limpió y no se pasa por SPLASH: se vuelve a buscar.
+                LaunchedEffect(studentAuthState.session?.uid, discoveryState.sessionEpoch) {
+                    discoveryViewModel.loadMySchools()
+                    if (discoveryState.sessionEpoch > 0 && discoveryState.establishments.isEmpty()) {
+                        discoveryViewModel.search("")
+                    }
+                }
                 DiscoveryScreen(
                     tableCodeRequest = tableCodeRequest,
                     state = discoveryState,
@@ -1806,6 +1822,7 @@ fun AppNavHost(
                         },
                         onCancelWaiter = operationalViewModel::cancelWaiterCall,
                         onViewReceipt = { navController.navigate(Routes.receiptStickerRoute()) },
+                        guest = studentAuthState.session == null,
                         onReturnToMenu = {
                             // Abierto desde Pedidos: atrás regresa a la lista. La selección se limpia allá,
                             // cuando esta pantalla ya salió, para no quedarse sin pedido a media animación.
@@ -2091,7 +2108,21 @@ fun AppNavHost(
                                     CashierContext(cashOpen = operationalState.cashSessionOpen),
                                 )
                             },
-                            submitAction = "Crear pedido",
+                            submitAction =
+                                if (operationalState.cashSessionOpen == true) "Dejar por cobrar" else "Crear pedido",
+                            onSubmitAndCollect =
+                                if (operationalState.cashSessionOpen == true) {
+                                    { lines, name ->
+                                        waiterViewModel.submitCounterOrder(
+                                            lines,
+                                            name,
+                                            CashierContext(cashOpen = true),
+                                            onCreated = operationalViewModel::refreshOrder,
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
                         )
                     }
                 }

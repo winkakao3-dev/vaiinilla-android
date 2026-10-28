@@ -76,13 +76,15 @@ class PendingRefundsViewModel
         fun confirm(
             refund: PendingRefund,
             method: RefundMethod,
+            note: String? = null,
         ) {
             if (_uiState.value.confirming != null) return
             val target = refund.id to method
             val key = keys.getOrPut(target) { UUID.randomUUID().toString() }
             _uiState.value = _uiState.value.copy(confirming = target, notice = null)
             work.launch {
-                val result = withContext(io) { repository.confirm(refund.id, method, null, key) }
+                val result =
+                    withContext(io) { repository.confirm(refund.id, method, note?.takeIf { it.isNotBlank() }, key) }
                 result
                     .onSuccess { done ->
                         keys.remove(target)

@@ -23,6 +23,7 @@ class PendingRefundsViewModelTest {
         var failWith: Throwable? = null,
     ) : PendingRefundRepository {
         val confirmations = mutableListOf<Triple<String, RefundMethod, String>>()
+        val notes = mutableListOf<String?>()
 
         override fun pending(spaceId: Int?): Result<List<PendingRefund>> = Result.success(list)
 
@@ -33,6 +34,7 @@ class PendingRefundsViewModelTest {
             idempotencyKey: String,
         ): Result<PendingRefund> {
             confirmations += Triple(refundId, method, idempotencyKey)
+            notes += note
             failWith?.let { return Result.failure(it) }
             val done = list.first { it.id == refundId }.copy(state = "devuelta")
             list = list.filterNot { it.id == refundId }
@@ -61,6 +63,19 @@ class PendingRefundsViewModelTest {
                     .map { it.id },
             )
             assertEquals("Devolución de $50 confirmada.", vm.uiState.value.notice)
+        }
+
+    @Test
+    fun `otro manda el motivo al servidor`() =
+        runTest {
+            val dispatcher = UnconfinedTestDispatcher(testScheduler)
+            val repo = FakeRepository(listOf(refund("a")))
+            val vm = PendingRefundsViewModel(repo, dispatcher, TestScope(dispatcher))
+            vm.refresh()
+
+            vm.confirm(refund("a"), RefundMethod.OTHER, "Transferencia")
+
+            assertEquals(listOf<String?>("Transferencia"), repo.notes)
         }
 
     @Test

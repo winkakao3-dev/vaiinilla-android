@@ -21,6 +21,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -69,6 +70,26 @@ class GuestDiscoveryLaunchTest {
                 viewModel.state.value.mySchools
                     .isEmpty(),
             )
+        }
+
+    @Test
+    fun alCambiarDeSesionSubeLaEpocaParaVolverABuscar() =
+        runTest {
+            val app = RuntimeEnvironment.getApplication()
+            val viewModel =
+                GuestDiscoveryViewModel(
+                    discoveryRepository = EmptyDiscovery,
+                    guestSessionStore = GuestSessionStore(app),
+                    deviceLocationProvider = NoLocation,
+                    schoolJoinCodes = SchoolJoinCodeStore(app),
+                    accessRepository = NoAccess,
+                    authRepository = NoSession,
+                )
+
+            viewModel.clearForSessionTermination()
+            viewModel.clearForSessionTermination()
+
+            assertEquals(2, viewModel.state.value.sessionEpoch)
         }
 
     private object EmptyDiscovery : DiscoveryRepository {
