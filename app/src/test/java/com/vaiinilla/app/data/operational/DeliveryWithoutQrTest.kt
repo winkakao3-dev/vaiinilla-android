@@ -45,6 +45,32 @@ class DeliveryWithoutQrTest {
     }
 
     @Test
+    fun `an order on the table tab is delivered without collecting first`() {
+        val raw =
+            """
+            {"id":"x","folio":7,"estado":"listo","version":2,"items_resumen":"1× Café americano",
+            "actualizado_en":"2026-10-27T15:28:13.527Z","entrega_sin_qr":true,
+            "pago_pendiente":true,"pago_diferido":true}
+            """.trimIndent()
+        val order = json.decodeFromString<BoardOrderDto>(raw).toDomain()
+        assertTrue(order.paymentPending)
+        assertTrue(order.payAtEnd)
+        assertFalse(order.mustCollectBeforeDelivery)
+    }
+
+    @Test
+    fun `an unpaid order outside a tab still has to be collected`() {
+        val raw =
+            """
+            {"id":"x","folio":8,"estado":"listo","version":2,"items_resumen":"1× Galleta",
+            "actualizado_en":"2026-10-27T15:28:13.527Z","pago_pendiente":true}
+            """.trimIndent()
+        val order = json.decodeFromString<BoardOrderDto>(raw).toDomain()
+        assertFalse(order.payAtEnd)
+        assertTrue(order.mustCollectBeforeDelivery)
+    }
+
+    @Test
     fun `the order detail reads entrega_sin_qr`() {
         val dto = json.decodeFromString<OrderDetailDto>(ORDER)
         assertTrue(dto.deliveryWithoutQr)

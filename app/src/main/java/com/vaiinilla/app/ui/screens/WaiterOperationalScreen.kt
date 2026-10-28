@@ -1467,7 +1467,7 @@ private fun WaiterTableSheet(
  * confirma, porque un toque por error lo marcaba entregado sin forma de deshacerlo.
  */
 @Composable
-private fun WaiterSheetOrderRow(
+internal fun WaiterSheetOrderRow(
     order: BoardOrder,
     readOnly: Boolean,
     canDeliver: Boolean,
@@ -1505,7 +1505,7 @@ private fun WaiterSheetOrderRow(
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
-            if (order.state == OrderState.READY && order.paymentPending) {
+            if (order.state == OrderState.READY && order.mustCollectBeforeDelivery) {
                 // El servidor no entrega un pedido sin pagar: se avisa en lugar de ofrecer un botón que daría 409.
                 Box(
                     modifier =
