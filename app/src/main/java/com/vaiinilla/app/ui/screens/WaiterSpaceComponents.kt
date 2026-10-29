@@ -560,19 +560,21 @@ internal fun WaiterSpaceSection(
     if (session != null) {
         SectionCard(colors, Modifier.arrive(2)) {
             if (rentable) {
-                // Renovar = rentar el siguiente horario pegado al turno y cobrarlo.
+                // Renovar = rentar el siguiente horario pegado al turno y cobrarlo. Si el turno ya terminó
+                // (cancha libre con la sesión aún abierta), se renta desde ahora: pegarlo al fin daba
+                // RESERVATION_IN_PAST (D07).
+                val turnEnd = session.endsAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
+                val renewFrom = turnEnd?.takeIf { it.isAfter(Instant.now()) }
                 RentalDurationPicker(
-                    title = "Renovar",
-                    verb = "Renovar",
+                    title = if (renewFrom != null) "Renovar" else "Rentar ahora",
+                    verb = if (renewFrom != null) "Renovar" else "Rentar",
                     pricePerHour = pricePerHour ?: availability.pricePerHour,
                     durations = rentalDurations,
                     enabled = enabled,
                     colors = colors,
-                    renewal = true,
+                    renewal = renewFrom != null,
                     primary = !hasPending,
-                    onConfirm = { minutes ->
-                        onRent(minutes, session.endsAt?.let { runCatching { Instant.parse(it) }.getOrNull() })
-                    },
+                    onConfirm = { minutes -> onRent(minutes, renewFrom) },
                 )
             } else if (isCourt || session.endsAt != null) {
                 Text(
