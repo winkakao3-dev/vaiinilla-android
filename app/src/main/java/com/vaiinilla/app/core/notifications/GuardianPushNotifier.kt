@@ -101,6 +101,8 @@ object GuardianPushNotifier {
                 .setContentText(text.body)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(text.body))
                 .setAutoCancel(true)
+                // Con su propio grupo Android no lo junta en el resumen automático, que abre la app sin el hijo (F20).
+                .setGroup(tag)
                 .setContentIntent(launch)
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
