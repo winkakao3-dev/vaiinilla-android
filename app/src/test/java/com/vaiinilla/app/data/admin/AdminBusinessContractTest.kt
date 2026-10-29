@@ -72,7 +72,20 @@ class AdminBusinessContractTest {
         assertEquals("cafeteria", body["tipo"]!!.jsonPrimitive.content)
         assertEquals("true", body["entrega_requiere_qr"]!!.jsonPrimitive.content)
         assertEquals(0, body["franjas_pedido"]!!.jsonArray.size)
-        assertEquals(6, body.size)
+        assertEquals("true", body["cocina_prepara_sin_cobrar"]!!.jsonPrimitive.content)
+        assertEquals(7, body.size)
+    }
+
+    @Test
+    fun `cocina prepara sin cobrar viaja en la configuracion y un servidor anterior la deja en si`() {
+        val apagada =
+            json.parseStoreConfig("""{"data":{"tipo":"cafeteria","cocina_prepara_sin_cobrar":false}}""")
+        assertFalse(apagada.kitchenPreparesUnpaid)
+        assertEquals(
+            "false",
+            obj(json.encodeFlow(apagada.flow()))["cocina_prepara_sin_cobrar"]!!.jsonPrimitive.content,
+        )
+        assertTrue(json.parseStoreConfig("""{"data":{"tipo":"cafeteria"}}""").kitchenPreparesUnpaid)
     }
 
     @Test

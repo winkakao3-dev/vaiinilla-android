@@ -317,6 +317,14 @@ private fun FlowCard(
             enabled = enabled,
         ) { flow = flow.copy(deliveryRequiresQr = it) }
         AdminHint("En una mesa con cuenta abierta nunca se pide QR.", colors)
+        AdminChoice(
+            question = "¿Cocina prepara antes de cobrar?",
+            options = listOf(true to "Sí, en cuanto llega", false to "No, solo lo cobrado"),
+            selected = flow.kitchenPreparesUnpaid,
+            colors = colors,
+            enabled = enabled,
+        ) { flow = flow.copy(kitchenPreparesUnpaid = it) }
+        AdminHint("Con «Solo lo cobrado», Caja cobra el pedido antes de que Cocina lo empiece.", colors)
         OperationalField(
             value = grace,
             onValueChange = { grace = it.filter(Char::isDigit).take(2) },

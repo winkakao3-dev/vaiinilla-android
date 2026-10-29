@@ -142,6 +142,8 @@ data class StoreConfig(
     val logoUrl: String?,
     /** Escuela: prende Mis hijos, Caja › Alumnos y Negocio › Escuela. */
     val isSchool: Boolean = false,
+    /** Si es false, Cocina no puede empezar un pedido que sigue por cobrar (`cocina_prepara_sin_cobrar`). */
+    val kitchenPreparesUnpaid: Boolean = true,
 ) {
     val type: BusinessType? get() = BusinessType.fromWire(typeWire)
 
@@ -153,6 +155,7 @@ data class StoreConfig(
             allowsBalance = allowsBalance,
             releaseGraceMinutes = releaseGraceMinutes,
             orderWindows = orderWindows,
+            kitchenPreparesUnpaid = kitchenPreparesUnpaid,
         )
 }
 
@@ -164,6 +167,7 @@ data class StoreFlow(
     val allowsBalance: Boolean,
     val releaseGraceMinutes: Int,
     val orderWindows: List<OrderWindow>,
+    val kitchenPreparesUnpaid: Boolean = true,
 ) {
     fun applying(template: StoreTemplate): StoreFlow =
         copy(

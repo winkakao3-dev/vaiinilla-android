@@ -81,6 +81,7 @@ class AdminBusinessJson {
             put("permite_pago_al_final", flow.allowsPayAtEnd)
             put("permite_saldo", flow.allowsBalance)
             put("gracia_liberacion_min", flow.releaseGraceMinutes)
+            put("cocina_prepara_sin_cobrar", flow.kitchenPreparesUnpaid)
             put(
                 "franjas_pedido",
                 buildJsonArray {
@@ -333,6 +334,7 @@ private data class StoreConfigDto(
     @SerialName("imagen_url") val imagenUrl: String? = null,
     @SerialName("logo_url") val logoUrl: String? = null,
     @SerialName("modo_escuela") val modoEscuela: Boolean = false,
+    @SerialName("cocina_prepara_sin_cobrar") val cocinaPreparaSinCobrar: Boolean = true,
 ) {
     fun toDomain() =
         StoreConfig(
@@ -348,6 +350,7 @@ private data class StoreConfigDto(
             imageUrl = imagenUrl,
             logoUrl = logoUrl,
             isSchool = modoEscuela,
+            kitchenPreparesUnpaid = cocinaPreparaSinCobrar,
         )
 }
 
