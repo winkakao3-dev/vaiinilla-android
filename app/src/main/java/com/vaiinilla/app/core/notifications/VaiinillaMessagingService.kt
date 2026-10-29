@@ -41,7 +41,10 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
             "recarga_acreditada" ->
                 notifyGuardian(data, "recarga") { name -> GuardianPushNotifier.reloadCreditedText(name, data["saldo"]) }
             "staff_alert" -> notifyStaffAlert(data)
-            "mesero_en_camino" -> notifyCallerOnTheWay(data)
+            "mesero_en_camino" -> {
+                notifyCallerOnTheWay(data)
+                TableCallPushes.notifyChanged()
+            }
         }
     }
 

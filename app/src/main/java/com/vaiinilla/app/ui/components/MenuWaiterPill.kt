@@ -65,6 +65,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.notifications.TableCallPushes
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.domain.repository.TableCall
@@ -116,7 +117,7 @@ internal fun MenuWaiterLayer(
     LaunchedEffect(state) {
         while (true) {
             state.refresh()
-            delay(MENU_CALL_POLL_MS)
+            TableCallPushes.awaitNextPoll(MENU_CALL_POLL_MS)
         }
     }
     LaunchedEffect(state.cooldown) {

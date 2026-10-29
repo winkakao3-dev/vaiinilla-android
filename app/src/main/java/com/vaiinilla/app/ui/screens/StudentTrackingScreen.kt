@@ -104,6 +104,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.core.notifications.TableCallPushes
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -1361,7 +1362,7 @@ internal fun CallWaiterButton(
                     if (cause is CallsUnavailableException) view = CallWaiterView.UNAVAILABLE
                 },
             )
-            delay(CALL_POLL_MS)
+            TableCallPushes.awaitNextPoll(CALL_POLL_MS)
         }
     }
 
