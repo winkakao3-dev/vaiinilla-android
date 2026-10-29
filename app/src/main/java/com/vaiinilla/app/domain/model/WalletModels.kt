@@ -16,6 +16,10 @@ data class WalletMovement(
     val balanceAfter: String,
     val orderId: String?,
     val createdAt: String,
+    /** Del pedido que lo originó: folio, lugar («Mesa 2», «Caja», «Apartado») y productos; nulos si no hay. */
+    val orderFolio: Int? = null,
+    val place: String? = null,
+    val productsSummary: String? = null,
 )
 
 data class WalletData(

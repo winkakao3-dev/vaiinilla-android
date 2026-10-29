@@ -68,6 +68,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -346,8 +347,8 @@ fun WalletScreen(
                 items(movements.take(visibleMovements), key = { it.id }) { movement ->
                     Box(Modifier.padding(horizontal = 20.dp)) {
                         WalletMovementRow(
-                            type = movement.type,
-                            description = movement.description,
+                            title = movementTitle(movement.type, movement.description, movement.orderFolio),
+                            detail = movementDetail(movement.place, movement.productsSummary),
                             amount = movement.amount,
                             balanceAfter = movement.balanceAfter,
                         )
@@ -652,8 +653,8 @@ internal fun WalletQrDialog(
 
 @Composable
 private fun WalletMovementRow(
-    type: String,
-    description: String,
+    title: String,
+    detail: String?,
     amount: String,
     balanceAfter: String,
 ) {
@@ -688,11 +689,22 @@ private fun WalletMovementRow(
                         .padding(horizontal = 13.dp),
             ) {
                 Text(
-                    text = movementLabel(type, description),
+                    text = title,
                     color = colors.ink,
                     fontWeight = FontWeight.Black,
                     fontSize = 14.sp,
                 )
+                detail?.let {
+                    Text(
+                        text = it,
+                        color = colors.ink,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
                 Text(
                     text = "Saldo después: ${moneyLabel(balanceAfter)}",
                     color = colors.muted,
@@ -716,6 +728,19 @@ private fun WalletMovementRow(
         )
     }
 }
+
+/** «Compra #12»: el tipo del movimiento con el folio de su pedido, si viene de uno. */
+internal fun movementTitle(
+    type: String,
+    description: String,
+    orderFolio: Int?,
+): String = movementLabel(type, description) + (orderFolio?.let { " #$it" } ?: "")
+
+/** «Mesa 2 · 2× Molletes, 1× Café americano y 2 más»; null si el movimiento no viene de un pedido. */
+internal fun movementDetail(
+    place: String?,
+    productsSummary: String?,
+): String? = listOfNotNull(place, productsSummary).joinToString(" · ").ifBlank { null }
 
 internal fun movementLabel(
     type: String,

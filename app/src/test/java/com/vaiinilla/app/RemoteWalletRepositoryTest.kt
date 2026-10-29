@@ -18,6 +18,10 @@ class RemoteWalletRepositoryTest {
         assertEquals("Compra con saldo", wallet.movements.single().description)
         assertEquals("90.00", wallet.movements.single().balanceAfter)
         assertEquals("wallets/me", client.lastPath)
+        val compra = wallet.movements.single()
+        assertEquals(12, compra.orderFolio)
+        assertEquals("Mesa 2", compra.place)
+        assertEquals("2× Molletes y 1 más", compra.productsSummary)
     }
 
     @Test

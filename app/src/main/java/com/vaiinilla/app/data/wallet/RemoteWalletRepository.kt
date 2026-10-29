@@ -144,6 +144,9 @@ private data class WalletMovementDto(
     @SerialName("saldo_posterior") val balanceAfter: String,
     @SerialName("pedido_id") val orderId: String? = null,
     @SerialName("creado_en") val createdAt: String,
+    @SerialName("pedido_folio") val orderFolio: Int? = null,
+    val lugar: String? = null,
+    @SerialName("resumen_productos") val productsSummary: String? = null,
 ) {
     fun toDomain() =
         WalletMovement(
@@ -154,6 +157,9 @@ private data class WalletMovementDto(
             balanceAfter = balanceAfter,
             orderId = orderId,
             createdAt = createdAt,
+            orderFolio = orderFolio,
+            place = lugar?.takeIf { it.isNotBlank() },
+            productsSummary = productsSummary?.takeIf { it.isNotBlank() },
         )
 }
 
