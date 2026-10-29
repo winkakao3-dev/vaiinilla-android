@@ -12,6 +12,10 @@ import com.vaiinilla.app.domain.repository.CallsUnavailableException
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.ui.sharedtable.SHARED_TABLE_ALIAS_MAX
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * La mesa desde la que se puede llamar al mesero en el menú: la del QR o el código con el que entró, o la mesa
@@ -106,8 +110,8 @@ class MenuWaiterCallState(
     suspend fun refresh() {
         onCurrent(spaceId).fold(
             onSuccess = { current ->
-                // Se cerró sin que la cancelara aquí (la atendieron o venció): el servidor sigue contando 60 s.
-                if (current == null && call != null && cooldown == 0) cooldown = CALL_COOLDOWN_SECONDS
+                // Se cerró sin que la cancelara aquí, casi siempre porque la atendieron: el servidor pide 15 s.
+                if (current == null && call != null && cooldown == 0) cooldown = ATTENDED_COOLDOWN_SECONDS
                 call = current
                 phase =
                     when {
@@ -165,7 +169,7 @@ class MenuWaiterCallState(
                 // saber qué pasó ni cómo reintentar.
                 when {
                     cause.errorCode() == RATE_LIMITED -> {
-                        cooldown = cause.retryAfterSeconds() ?: CALL_COOLDOWN_SECONDS
+                        cooldown = callRetrySeconds(cause) ?: ATTENDED_COOLDOWN_SECONDS
                         phase = MenuWaiterPhase.IDLE
                         error = cause.toUserFacingMessage()
                     }
@@ -186,8 +190,8 @@ class MenuWaiterCallState(
                 call = null
                 phase = MenuWaiterPhase.IDLE
                 showsCall = false
-                // El servidor cuenta 60 s desde la llamada anterior, aunque se haya cancelado.
-                cooldown = CALL_COOLDOWN_SECONDS
+                // Tras cancelar se puede volver a llamar de inmediato.
+                cooldown = 0
             },
             onFailure = { cause -> error = cause.toUserFacingMessage() },
         )
@@ -204,7 +208,9 @@ class MenuWaiterCallState(
     }
 
     companion object {
-        const val CALL_COOLDOWN_SECONDS = 60
+        /** La espera después de una llamada atendida; tras cancelar no hay. */
+        const val ATTENDED_COOLDOWN_SECONDS = 15
+        const val MAX_COOLDOWN_SECONDS = 60
         const val NOT_AT_TABLE = "NO_ACTIVE_ORDER_IN_SPACE"
         const val RATE_LIMITED = "RATE_LIMITED"
         const val NOT_AT_TABLE_MESSAGE = "Para llamar al mesero, únete a la mesa en Pedidos."
@@ -220,9 +226,16 @@ private fun Throwable.errorCode(): String? =
         }
     }
 
-private fun Throwable.retryAfterSeconds(): Int? =
-    generateSequence(this) { it.cause }
-        .filterIsInstance<ApiClientException>()
-        .firstNotNullOfOrNull { it.retryAfterSeconds }
-        ?.toInt()
-        ?.coerceIn(1, MenuWaiterCallState.CALL_COOLDOWN_SECONDS)
+/**
+ * Lo que falta para volver a llamar según el `429` del servidor: `Retry-After` o `details[0].segundos_restantes`.
+ * `null` si el error no trae segundos.
+ */
+internal fun callRetrySeconds(error: Throwable): Int? {
+    val api = generateSequence(error) { it.cause }.filterIsInstance<ApiClientException>().firstOrNull() ?: return null
+    val fromDetails =
+        ((api.details as? JsonArray)?.firstOrNull() as? JsonObject)
+            ?.get("segundos_restantes")
+            ?.jsonPrimitive
+            ?.intOrNull
+    return (api.retryAfterSeconds?.toInt() ?: fromDetails)?.coerceIn(1, MenuWaiterCallState.MAX_COOLDOWN_SECONDS)
+}

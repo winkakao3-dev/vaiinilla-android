@@ -9,6 +9,7 @@ import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.TableCallTaker
 import com.vaiinilla.app.domain.repository.TableSpace
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -119,7 +120,7 @@ class MenuWaiterCallTest {
         }
 
     @Test
-    fun `los 60 s entre llamadas corren con lo que diga el servidor`() =
+    fun `la espera entre llamadas corre con lo que diga el servidor`() =
         runTest {
             val limited =
                 OrderRepositoryException(
@@ -141,7 +142,22 @@ class MenuWaiterCallTest {
         }
 
     @Test
-    fun `cancelar cierra la llamada y arranca la espera`() =
+    fun `sin Retry-After la espera sale de details segundos_restantes`() {
+        val details = Json.parseToJsonElement("""[{"segundos_restantes":12}]""")
+        val limited =
+            OrderRepositoryException(
+                "RATE_LIMITED",
+                "Espera un momento.",
+                ApiClientException("RATE_LIMITED", "Espera un momento.", 429, details = details),
+            )
+        assertEquals(12, callRetrySeconds(limited))
+        assertEquals(9, callRetrySeconds(ApiClientException("RATE_LIMITED", "x", 429, retryAfterSeconds = 9)))
+        assertNull(callRetrySeconds(ApiClientException("RATE_LIMITED", "x", 429)))
+        assertNull(callRetrySeconds(IllegalStateException("sin red")))
+    }
+
+    @Test
+    fun `cancelar cierra la llamada y deja volver a llamar de inmediato`() =
         runTest {
             val cancelled = mutableListOf<String>()
             val state =
@@ -158,7 +174,7 @@ class MenuWaiterCallTest {
             assertEquals(listOf("call-1"), cancelled)
             assertNull(state.call)
             assertEquals(MenuWaiterPhase.IDLE, state.phase)
-            assertEquals(MenuWaiterCallState.CALL_COOLDOWN_SECONDS, state.cooldown)
+            assertEquals(0, state.cooldown)
         }
 
     @Test
@@ -174,7 +190,7 @@ class MenuWaiterCallTest {
             current = null
             state.refresh()
             assertEquals(MenuWaiterPhase.IDLE, state.phase)
-            assertEquals(MenuWaiterCallState.CALL_COOLDOWN_SECONDS, state.cooldown)
+            assertEquals(15, state.cooldown)
         }
 
     @Test

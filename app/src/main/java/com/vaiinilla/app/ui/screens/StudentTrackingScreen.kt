@@ -163,7 +163,9 @@ import com.vaiinilla.app.ui.components.scheduledDeliveryLabel
 import com.vaiinilla.app.ui.components.trackingStepDescription
 import com.vaiinilla.app.ui.components.trackingStepTitle
 import com.vaiinilla.app.ui.operational.OperationalUiState
+import com.vaiinilla.app.ui.order.MenuWaiterCallState
 import com.vaiinilla.app.ui.order.OrderFlowUiState
+import com.vaiinilla.app.ui.order.callRetrySeconds
 import com.vaiinilla.app.ui.order.canCancelMenuCall
 import com.vaiinilla.app.ui.order.cancellationMoneyNote
 import com.vaiinilla.app.ui.order.orderCancellationNotice
@@ -1345,7 +1347,8 @@ internal fun CallWaiterButton(
         while (true) {
             onCurrent(spaceId).fold(
                 onSuccess = { current ->
-                    if (current == null && call != null) cooldown = CALL_COOLDOWN_SECONDS
+                    // Se cerró sin cancelarla aquí, casi siempre porque la atendieron: el servidor pide 15 s.
+                    if (current == null && call != null) cooldown = MenuWaiterCallState.ATTENDED_COOLDOWN_SECONDS
                     call = current
                     view =
                         when {
@@ -1380,8 +1383,17 @@ internal fun CallWaiterButton(
                     view = CallWaiterView.OPEN
                     haptics.impact()
                 },
-                // Si falla, los motivos se quedan con el error a la vista para reintentar.
-                onFailure = { cause -> error = cause.toUserFacingMessage() },
+                // Si falla, los motivos se quedan con el error a la vista para reintentar; si el servidor pide
+                // esperar, el botón cuenta los segundos que dijo.
+                onFailure = { cause ->
+                    val wait = callRetrySeconds(cause)
+                    if (wait != null) {
+                        cooldown = wait
+                        view = CallWaiterView.IDLE
+                    } else {
+                        error = cause.toUserFacingMessage()
+                    }
+                },
             )
             busy = false
         }
@@ -1397,8 +1409,8 @@ internal fun CallWaiterButton(
                 onSuccess = {
                     call = null
                     view = CallWaiterView.IDLE
-                    // El servidor cuenta 60 s desde la llamada anterior, aunque se haya cancelado.
-                    cooldown = CALL_COOLDOWN_SECONDS
+                    // Tras cancelar se puede volver a llamar de inmediato.
+                    cooldown = 0
                 },
                 onFailure = { cause -> error = cause.toUserFacingMessage() },
             )
@@ -1581,7 +1593,6 @@ private fun CallLiveRow(
 }
 
 private const val CALL_POLL_MS = 5_000L
-private const val CALL_COOLDOWN_SECONDS = 60
 
 @Composable
 private fun InlinePickupQr(order: OrderDetail) {
