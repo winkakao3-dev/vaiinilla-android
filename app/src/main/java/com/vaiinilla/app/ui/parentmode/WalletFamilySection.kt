@@ -43,6 +43,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,6 +52,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -78,6 +80,7 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
 
 private const val CHILD_NOTICE_RETRY_MS = 1_500L
 private const val UNATTENDED_NOTICE_TTL_MS = 20_000L
@@ -160,17 +163,38 @@ fun ParentModeWalletHost(
         ChildDeepLinkStore.consumeChild()
     }
 
+    val entry = schoolEntryFor(children.children.isNotEmpty(), hasTutors, children.hasLoaded && controlsLoaded)
+
+    @Composable
+    fun Section(layout: WalletFamilyLayout) =
+        WalletFamilySection(
+            children = children,
+            onOpen = { openChildId = it.userId },
+            onAdd = { sheet = ParentSheetKind.ADD },
+            onConsent = { sheet = ParentSheetKind.CONSENT },
+            entry = entry,
+            onRole = { optionsRole = it },
+            onLinkCode = { sheet = ParentSheetKind.LINK_CODE },
+            layout = layout,
+        )
+    val familyUi =
+        WalletFamilyUi(
+            entry = entry,
+            childCount = children.children.size,
+            childrenBalance =
+                children.children
+                    .filterNot { it.isAwaitingSchool }
+                    .mapNotNull { it.balance }
+                    .takeIf { it.isNotEmpty() }
+                    ?.fold(BigDecimal.ZERO, BigDecimal::add),
+            onLinkCode = { sheet = ParentSheetKind.LINK_CODE },
+            onStudentHelp = { optionsRole = SchoolRole.STUDENT },
+            top = { Section(WalletFamilyLayout.TOP) },
+            ending = { Section(WalletFamilyLayout.ENDING) },
+        )
     Box(modifier = Modifier.fillMaxSize()) {
-        content {
-            WalletFamilySection(
-                children = children,
-                onOpen = { openChildId = it.userId },
-                onAdd = { sheet = ParentSheetKind.ADD },
-                onConsent = { sheet = ParentSheetKind.CONSENT },
-                entry = schoolEntryFor(children.children.isNotEmpty(), hasTutors, children.hasLoaded && controlsLoaded),
-                onRole = { optionsRole = it },
-                onLinkCode = { sheet = ParentSheetKind.LINK_CODE },
-            )
+        CompositionLocalProvider(LocalWalletFamilyUi provides familyUi) {
+            content { Section(WalletFamilyLayout.ALL) }
         }
         FullScreenPage(visible = optionsRole != null && openChildId == null, reduced = reduced) {
             BackHandler { optionsRole = null }
@@ -249,6 +273,30 @@ private fun BoxScope.FullScreenPage(
 /** Lo que sale al final de la cartera de una escuela, según quién es. */
 internal enum class WalletSchoolEntry { LOADING, PARENT, STUDENT, UNKNOWN }
 
+/**
+ * Qué parte de [WalletFamilySection] se dibuja. La cartera nueva pone Mis hijos bajo la fila de datos ([TOP]), las
+ * acciones del alumno en sus pills y el selector de rol después de los movimientos ([ENDING]); sola, la sección
+ * lo pinta todo ([ALL]).
+ */
+internal enum class WalletFamilyLayout { ALL, TOP, ENDING }
+
+/**
+ * Lo que el Modo Padre le da a la cartera para armar su pantalla: las dos mitades de la sección, lo que necesitan
+ * las pills del alumno y las cifras del tutor. Llega por [LocalWalletFamilyUi]; sin escuela no hay nada.
+ */
+internal class WalletFamilyUi(
+    val entry: WalletSchoolEntry,
+    val childCount: Int,
+    /** Lo que suman los hijos ya aprobados por la escuela; `null` si ninguno tiene saldo que ver. */
+    val childrenBalance: BigDecimal?,
+    val onLinkCode: () -> Unit,
+    val onStudentHelp: () -> Unit,
+    val top: @Composable () -> Unit,
+    val ending: @Composable () -> Unit,
+)
+
+internal val LocalWalletFamilyUi = staticCompositionLocalOf<WalletFamilyUi?> { null }
+
 /** Con hijos es tutor; con tutores, alumno; si no se sabe, que elija (cuando ya cargó la lista de hijos). */
 internal fun schoolEntryFor(
     hasChildren: Boolean,
@@ -275,6 +323,7 @@ internal fun WalletFamilySection(
     entry: WalletSchoolEntry,
     onRole: (SchoolRole) -> Unit,
     onLinkCode: () -> Unit,
+    layout: WalletFamilyLayout = WalletFamilyLayout.ALL,
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -287,7 +336,19 @@ internal fun WalletFamilySection(
                 expandVertically(spring(dampingRatio = 0.86f, stiffness = 380f))
         }
     val leave = if (reduced) fadeOut(snap()) else fadeOut() + shrinkVertically()
-    Column(modifier = Modifier.fillMaxWidth().padding(top = 26.dp)) {
+    if (layout == WalletFamilyLayout.ENDING) {
+        AnimatedVisibility(visible = entry == WalletSchoolEntry.UNKNOWN, enter = appear, exit = leave) {
+            Column(modifier = Modifier.fillMaxWidth().padding(top = 28.dp)) { RoleChooser(onRole) }
+        }
+        return
+    }
+    val top = layout == WalletFamilyLayout.TOP
+    val hasTopContent =
+        children.childrenNeedingConsent.isNotEmpty() ||
+            children.children.isNotEmpty() ||
+            children.error != null ||
+            entry == WalletSchoolEntry.PARENT
+    Column(modifier = Modifier.fillMaxWidth().padding(top = if (top && !hasTopContent) 0.dp else 26.dp)) {
         AnimatedVisibility(visible = children.childrenNeedingConsent.isNotEmpty(), enter = appear, exit = leave) {
             Column {
                 PendingConsentCard(
@@ -343,14 +404,24 @@ internal fun WalletFamilySection(
                     ) {
                         onRole(SchoolRole.PARENT)
                     }
+                // Con la cartera nueva "Otro tutor" y "Cómo funciona" son pills del alumno.
                 WalletSchoolEntry.STUDENT ->
-                    Column {
-                        QuietRow(Icons.Outlined.Tag, "Que otro tutor me agregue", "wallet-school-link-code", onLinkCode)
-                        QuietRow(Icons.AutoMirrored.Outlined.HelpOutline, "Cómo funciona", "wallet-school-help") {
-                            onRole(SchoolRole.STUDENT)
+                    if (top) {
+                        Spacer(Modifier.fillMaxWidth())
+                    } else {
+                        Column {
+                            QuietRow(
+                                Icons.Outlined.Tag,
+                                "Que otro tutor me agregue",
+                                "wallet-school-link-code",
+                                onLinkCode,
+                            )
+                            QuietRow(Icons.AutoMirrored.Outlined.HelpOutline, "Cómo funciona", "wallet-school-help") {
+                                onRole(SchoolRole.STUDENT)
+                            }
                         }
                     }
-                WalletSchoolEntry.UNKNOWN -> RoleChooser(onRole)
+                WalletSchoolEntry.UNKNOWN -> if (top) Spacer(Modifier.fillMaxWidth()) else RoleChooser(onRole)
             }
         }
     }
@@ -589,8 +660,11 @@ private fun AwaitingRow(child: Dependent) {
                 ).semantics(mergeDescendants = true) {
                 },
     ) {
-        Row(modifier = Modifier.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            InitialsAvatar(child.initials, colors.paper2, colors.ink, colors.line, Modifier.alpha(0.6f))
+        Row(
+            modifier = Modifier.alpha(0.75f).padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            InitialsAvatar(child.initials, colors.paper2, colors.ink, colors.line)
             Column(modifier = Modifier.weight(1f).padding(horizontal = 13.dp)) {
                 Text(
                     child.name,

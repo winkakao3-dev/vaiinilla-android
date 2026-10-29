@@ -11,8 +11,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -30,10 +30,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.FamilyRestroom
+import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.ShoppingCart
+import androidx.compose.material.icons.outlined.Tag
+import androidx.compose.material.icons.rounded.Storefront
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -43,6 +49,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -54,42 +61,64 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.vaiinilla.app.core.qr.QrCodeEncoder
+import com.vaiinilla.app.domain.guardianship.MyGuardianControls
+import com.vaiinilla.app.domain.guardianship.compactMoney
+import com.vaiinilla.app.domain.model.WalletMovement
+import com.vaiinilla.app.domain.time.BusinessTime
+import com.vaiinilla.app.ui.components.CremeDivider
+import com.vaiinilla.app.ui.components.CremeHero
+import com.vaiinilla.app.ui.components.CremePill
+import com.vaiinilla.app.ui.components.CremePillRow
+import com.vaiinilla.app.ui.components.CremeStat
+import com.vaiinilla.app.ui.components.CremeStatRow
+import com.vaiinilla.app.ui.components.CremeVenueChip
 import com.vaiinilla.app.ui.components.GlassCircleButton
+import com.vaiinilla.app.ui.components.HeroGlassPill
+import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.SkeletonBlock
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
+import com.vaiinilla.app.ui.components.cremeMoment
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
+import com.vaiinilla.app.ui.parentmode.LocalWalletFamilyUi
+import com.vaiinilla.app.ui.parentmode.WalletSchoolEntry
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import com.vaiinilla.app.ui.theme.SeaGlassButton
-import com.vaiinilla.app.ui.theme.SeaGlassTone
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import com.vaiinilla.app.ui.wallet.WalletRemoteUiState
 import kotlinx.coroutines.delay
+import java.math.BigDecimal
+import java.time.Instant
+import java.time.OffsetDateTime
 
 /**
  * Wallet surface backed by the current contract. The API exposes only the
  * visible balance; internal commission buckets stay server-side.
+ *
+ * Estilo CREME: la portada del lugar, el saldo, las pills (la primera es la acción principal) y la fila de datos.
+ * El QR de recarga conserva su animación; solo cambia quién lo abre.
  */
 @Composable
 fun WalletScreen(
     remoteState: WalletRemoteUiState = WalletRemoteUiState(),
     userId: String? = null,
-    /** El saldo es por negocio: el encabezado dice de cuál. */
+    /** El saldo es por negocio: el chip de la portada dice de cuál. */
     venueName: String? = null,
     /** Falso cuando el negocio apagó el saldo: se sigue viendo lo que hay, pero ya no se recarga. */
     canRecharge: Boolean = true,
@@ -101,15 +130,22 @@ fun WalletScreen(
     caretakerLine: String? = null,
     /** Debajo de quién lo cuida: su límite por día, lo que le queda hoy y lo que no puede pedir (F11). */
     caretakerDetail: String? = null,
+    /** Sus controles, para la fila de datos del alumno con tutor. */
+    guardianControls: MyGuardianControls? = null,
     /** Mis hijos y lo de tutores y alumnos, solo en una escuela (Modo Padre). */
     familySection: (@Composable () -> Unit)? = null,
+    /** La portada del lugar, la misma del menú. */
+    venuePhotoUrl: String? = null,
+    profileInitials: String = "?",
+    onOpenAccount: () -> Unit = {},
+    onChangeVenue: (() -> Unit)? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = LocalHapticFeedback.current
     val reduceMotion = reducedMotion()
     val qrValue = userId?.trim()?.takeIf { it.isNotEmpty() }?.let(QrPayloadParser::encodeUser)
     val matrix = remember(qrValue) { qrValue?.let { runCatching { QrCodeEncoder.encode(it) }.getOrNull() } }
-    // El QR personal está abierto sobre la casita: el frasco se vuelve el código.
+    // El QR personal está abierto sobre la cartera: la cartera baja y el frasco se vuelve el código.
     var codeOpen by rememberSaveable { mutableStateOf(false) }
     var visibleMovements by rememberSaveable { mutableIntStateOf(MOVEMENTS_PAGE) }
     // El saldo de antes de una recarga, mientras el QR se deshace de vuelta en el frasco.
@@ -134,7 +170,7 @@ fun WalletScreen(
         val previous = lastBalance
         if (balance != null) lastBalance = balance
         if (codeOpen && before != null && after != null && after > before) {
-            // Caja registró la recarga: el código regresa al frasco y luego caen las monedas.
+            // Caja registró la recarga: el código regresa al frasco y el saldo nuevo llega al cerrar.
             heldBalance = previous
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             codeOpen = false
@@ -148,102 +184,152 @@ fun WalletScreen(
         label = "wallet_sheet_away",
     )
 
-    // Vainiverso: la casita de Vaini con su frasco de tesoros arriba; la cartera en vidrio encima.
     val palette = scenePaletteForTheme()
     val listState = rememberLazyListState()
-    val density = LocalDensity.current
-    val glassColors =
-        colors.copy(
-            paper = Color.Transparent,
-            solidPaper = colors.onInk,
-            paper2 = palette.glassCard,
-            line = palette.glassLine,
-            ink = palette.ink,
-            muted = palette.muted,
-        )
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val windowPx = constraints.maxHeight * WALLET_SCENE_WINDOW
-        val windowDp = with(density) { windowPx.toDp() }
-        val sheetTop = {
-            if (listState.firstVisibleItemIndex == 0) windowPx - listState.firstVisibleItemScrollOffset else 0f
+    val family = LocalWalletFamilyUi.current
+    val inSchool = family != null || familySection != null
+    val isParent = family?.entry == WalletSchoolEntry.PARENT
+    val isStudent = caretakerLine != null && family != null
+    val movements = remoteState.data?.movements
+    val ledger = remember(movements) { WalletLedgerStats.from(movements.orEmpty()) }
+    val statItems =
+        when {
+            isStudent && guardianControls != null -> studentStats(guardianControls)
+            isParent && family != null ->
+                listOf(
+                    CremeStat("Gastado este mes", ledger.spentThisMonth),
+                    CremeStat("Hijos", family.childCount.toString()),
+                    CremeStat("Saldo de tus hijos", family.childrenBalance?.let(::compactMoney)),
+                )
+            else ->
+                listOf(
+                    CremeStat("Gastado este mes", ledger.spentThisMonth),
+                    CremeStat("Recargas", ledger.reloads),
+                    CremeStat("Último movimiento", ledger.lastMovement),
+                )
         }
-        CompositionLocalProvider(LocalScene provides palette) {
-            WalletJarBackdrop(sheetTop = sheetTop, balance = shownBalance)
-        }
-        CompositionLocalProvider(LocalVaiinillaColors provides glassColors) {
-            LazyColumn(
-                state = listState,
-                // La hoja baja mientras la cámara vuela al frasco, y regresa al cerrar el código.
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            translationY = size.height * 0.7f * sheetAway
-                            alpha = 1f - sheetAway
-                        },
-                userScrollEnabled = !codeOpen,
-                contentPadding =
-                    PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
-                        top = 0.dp,
-                        bottom = VaiinillaBottomNavClearance + 48.dp,
-                    ),
-            ) {
-                item(key = "home-window") { Spacer(Modifier.height(windowDp + 20.dp)) }
-                item {
-                    WalletBalanceHero(
-                        remoteState = remoteState,
-                        shownBalance = shownBalance,
-                        venueName = venueName,
-                        canRecharge = canRecharge,
-                        onRetry = onRetry,
-                        onRecharge = {
+    val pills =
+        buildList {
+            if (canRecharge) {
+                add(
+                    CremePill(
+                        title = "Recargar en caja",
+                        icon = Icons.Outlined.QrCode2,
+                        testTag = "wallet-recharge",
+                        enabled = matrix != null,
+                        onClick = {
                             if (matrix != null && !codeOpen) {
                                 haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 codeOpen = true
                             }
                         },
+                    ),
+                )
+            }
+            if (isStudent && family != null) {
+                add(CremePill("Otro tutor", Icons.Outlined.Tag, family.onLinkCode, "wallet-school-link-code"))
+                add(
+                    CremePill(
+                        "Cómo funciona",
+                        Icons.AutoMirrored.Outlined.HelpOutline,
+                        family.onStudentHelp,
+                        "wallet-school-help",
+                    ),
+                )
+            } else {
+                add(CremePill("Cuenta", Icons.Outlined.AccountCircle, onOpenAccount, "wallet-account"))
+            }
+        }
+    val heroGone by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
+
+    Box(modifier = Modifier.fillMaxSize().background(colors.paper)) {
+        LazyColumn(
+            state = listState,
+            // La cartera baja mientras la cámara vuela al frasco, y regresa al cerrar el código.
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        translationY = size.height * 0.7f * sheetAway
+                        alpha = 1f - sheetAway
+                    },
+            userScrollEnabled = !codeOpen,
+            contentPadding = PaddingValues(bottom = VaiinillaBottomNavClearance + 48.dp),
+        ) {
+            item(key = "hero") {
+                WalletHero(
+                    remoteState = remoteState,
+                    shownBalance = shownBalance,
+                    venueName = venueName,
+                    venuePhotoUrl = venuePhotoUrl,
+                    height = if (inSchool) 320.dp else 400.dp,
+                    chip =
+                        when {
+                            caretakerLine != null -> caretakerLine to Icons.Outlined.Group
+                            isParent -> "Tu saldo · el de tus hijos va aparte" to Icons.Outlined.FamilyRestroom
+                            !venueName.isNullOrBlank() -> "Vale para comer en $venueName" to null
+                            else -> null
+                        },
+                    profileInitials = profileInitials,
+                    onOpenAccount = onOpenAccount,
+                    onChangeVenue = onChangeVenue,
+                    onRetry = onRetry,
+                )
+            }
+            item(key = "pills") {
+                Column(modifier = Modifier.padding(top = 18.dp)) {
+                    if (remoteState.data == null && (remoteState.loading || remoteState.error == null)) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            SkeletonBlock(modifier = Modifier.size(width = 190.dp, height = 54.dp), corner = 27.dp)
+                            SkeletonBlock(modifier = Modifier.size(width = 150.dp, height = 54.dp), corner = 27.dp)
+                        }
+                    } else {
+                        CremePillRow(pills)
+                    }
+                    if (remoteState.data != null && !canRecharge) {
+                        Text(
+                            text = "Este lugar ya no recibe recargas de saldo.",
+                            color = colors.muted,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp,
+                            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp),
+                        )
+                    }
+                    if (caretakerLine != null && caretakerDetail != null) {
+                        Text(
+                            text = caretakerDetail.replace('\n', ' '),
+                            color = colors.muted,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp,
+                            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp),
+                        )
+                    }
+                    CremeDivider(Modifier.padding(top = 20.dp))
+                    CremeStatRow(statItems, Modifier.padding(top = 18.dp))
+                }
+            }
+            if (family != null) {
+                item(key = "family") { Box(Modifier.padding(horizontal = 20.dp)) { family.top() } }
+            } else if (familySection != null) {
+                item(key = "family") { Box(Modifier.padding(horizontal = 20.dp)) { familySection() } }
+            }
+
+            if (movements != null) {
+                item(key = "movements-title") {
+                    Text(
+                        text = "Movimientos recientes",
+                        color = colors.ink,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 19.sp,
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 28.dp, bottom = 4.dp),
                     )
                 }
-                if (caretakerLine != null) {
-                    item(key = "caretaker") {
-                        Column(modifier = Modifier.padding(top = 12.dp).semantics(mergeDescendants = true) {}) {
-                            Text(
-                                text = caretakerLine,
-                                color = LocalVaiinillaColors.current.muted,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp,
-                            )
-                            if (caretakerDetail != null) {
-                                Text(
-                                    text = caretakerDetail,
-                                    color = LocalVaiinillaColors.current.muted,
-                                    fontSize = 14.sp,
-                                    modifier = Modifier.padding(top = 3.dp),
-                                )
-                            }
-                        }
-                    }
-                }
-                if (familySection != null) {
-                    item(key = "family") { familySection() }
-                }
-
-                val movements = remoteState.data?.movements
-                if (movements != null) {
-                    item {
-                        Spacer(Modifier.height(30.dp))
-                        Text(
-                            text = "Movimientos recientes",
-                            color = colors.ink,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 19.sp,
-                        )
-                        Spacer(Modifier.height(4.dp))
-                    }
-                    if (movements.isEmpty()) {
-                        item {
+                if (movements.isEmpty()) {
+                    item(key = "movements-empty") {
+                        Column(Modifier.padding(horizontal = 20.dp)) {
                             Text(
                                 text = "Aquí verás tus recargas y lo que pagues con saldo.",
                                 color = colors.muted,
@@ -256,7 +342,9 @@ fun WalletScreen(
                             }
                         }
                     }
-                    items(movements.take(visibleMovements), key = { it.id }) { movement ->
+                }
+                items(movements.take(visibleMovements), key = { it.id }) { movement ->
+                    Box(Modifier.padding(horizontal = 20.dp)) {
                         WalletMovementRow(
                             type = movement.type,
                             description = movement.description,
@@ -264,27 +352,29 @@ fun WalletScreen(
                             balanceAfter = movement.balanceAfter,
                         )
                     }
-                    if (movements.size > visibleMovements) {
-                        item(key = "more-movements") {
-                            TextButton(
-                                onClick = { visibleMovements += MOVEMENTS_PAGE },
-                                contentPadding = PaddingValues(0.dp),
-                            ) {
-                                Text("Ver más movimientos", color = colors.ink, fontWeight = FontWeight.Black)
-                            }
+                }
+                if (movements.size > visibleMovements) {
+                    item(key = "more-movements") {
+                        TextButton(
+                            onClick = { visibleMovements += MOVEMENTS_PAGE },
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            contentPadding = PaddingValues(0.dp),
+                        ) {
+                            Text("Ver más movimientos", color = colors.ink, fontWeight = FontWeight.Black)
                         }
                     }
                 }
-
-                item { Spacer(Modifier.height(4.dp)) }
+            }
+            if (family != null) {
+                item(key = "school-ending") { Box(Modifier.padding(horizontal = 20.dp)) { family.ending() } }
             }
         }
         Box(
             Modifier
                 .fillMaxWidth()
                 .windowInsetsTopHeight(WindowInsets.statusBars)
-                .graphicsLayer { alpha = if (sheetTop() < size.height) 1f else 0f }
-                .background(palette.stage.copy(alpha = 0.92f)),
+                .graphicsLayer { alpha = if (heroGone) 1f else 0f }
+                .background(colors.paper.copy(alpha = 0.92f)),
         )
         if (matrix != null) {
             CompositionLocalProvider(LocalScene provides palette) {
@@ -305,25 +395,92 @@ private const val MOVEMENTS_PAGE = 12
 
 private fun String.walletAmount(): Double? = trim().replace(",", "").toDoubleOrNull()
 
-private const val WALLET_SCENE_WINDOW = 0.4f
+/** La fila de datos del alumno con tutor: su límite, lo que le queda hoy y cuánto tiene con candado. */
+private fun studentStats(controls: MyGuardianControls): List<CremeStat> {
+    val restricted = (controls.blockedProductIds + controls.allergenProductIds + controls.unreviewedProductIds).size
+    return listOf(
+        CremeStat("Límite al día", controls.dailyLimit?.let(::compactMoney)),
+        CremeStat("Te quedan hoy", controls.availableToday?.let(::compactMoney), highlighted = true),
+        CremeStat("Con candado", if (restricted == 1) "1 producto" else "$restricted productos"),
+    )
+}
+
+/**
+ * Las tres cifras de la fila de datos de Cartera, sacadas de los movimientos que ya baja la app. Sin movimientos,
+ * ninguna: la fila muestra «—».
+ */
+internal class WalletLedgerStats(
+    val spentThisMonth: String?,
+    val reloads: String?,
+    val lastMovement: String?,
+) {
+    companion object {
+        fun from(
+            movements: List<WalletMovement>,
+            empty: Boolean = movements.isEmpty(),
+            now: Instant = Instant.now(),
+        ): WalletLedgerStats {
+            if (empty) return WalletLedgerStats(null, null, null)
+            val zone = BusinessTime.zone
+            val today = BusinessTime.at(now, zone).toLocalDate()
+            var spent = BigDecimal.ZERO
+            for (movement in movements) {
+                if (!movement.amount.startsWith("-")) continue
+                val date = movement.createdAt.toInstantOrNull()?.let { BusinessTime.at(it, zone).toLocalDate() }
+                val value =
+                    movement.amount
+                        .replace(",", "")
+                        .trim()
+                        .toBigDecimalOrNull()
+                if (date != null && value != null && date.year == today.year && date.month == today.month) {
+                    spent += value.negate()
+                }
+            }
+            val reloads = movements.count { !it.amount.startsWith("-") }
+            val last = cremeMoment(movements.first().createdAt, now)
+            return WalletLedgerStats(compactMoney(spent), reloads.toString(), last)
+        }
+
+        private fun String.toInstantOrNull(): Instant? =
+            runCatching { OffsetDateTime.parse(this).toInstant() }.getOrNull()
+    }
+}
 
 @Composable
-private fun WalletBalanceHero(
+private fun WalletHero(
     remoteState: WalletRemoteUiState,
     shownBalance: String?,
     venueName: String?,
-    canRecharge: Boolean,
+    venuePhotoUrl: String?,
+    height: Dp,
+    chip: Pair<String, ImageVector?>?,
+    profileInitials: String,
+    onOpenAccount: () -> Unit,
+    onChangeVenue: (() -> Unit)?,
     onRetry: () -> Unit,
-    onRecharge: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
     // Antes de la primera respuesta todavía no hay error: se espera con el esqueleto, no con "No pudimos cargar".
     val waiting = remoteState.data == null && remoteState.error == null
-
-    Column(modifier = Modifier.fillMaxWidth()) {
+    CremeHero(
+        height = height,
+        photoUrl = venuePhotoUrl,
+        contentDescription = venueName?.let { "Foto de $it" }.orEmpty(),
+        leading = {
+            if (onChangeVenue != null && !venueName.isNullOrBlank()) {
+                HeroGlassPill(
+                    label = venueName,
+                    icon = Icons.Rounded.Storefront,
+                    onClick = onChangeVenue,
+                    modifier = Modifier.semantics { contentDescription = "$venueName. Cambiar lugar" },
+                )
+            }
+        },
+        trailing = { ProfileInitialsButton(profileInitials, onClick = onOpenAccount) },
+    ) {
         if (remoteState.data != null || remoteState.loading || waiting) {
             Text(
-                text = venueName?.takeIf { it.isNotBlank() }?.let { "Saldo en $it" } ?: "Saldo Vaiinilla",
+                text = "Saldo Vaiinilla",
                 color = colors.muted,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 14.sp,
@@ -335,11 +492,11 @@ private fun WalletBalanceHero(
                     targetState = shownBalance ?: remoteState.data.wallet.visibleBalance,
                     transitionSpec = {
                         if (targetState > initialState) {
-                            (slideInVertically { height -> height } + fadeIn()) togetherWith
-                                (slideOutVertically { height -> -height } + fadeOut())
+                            (slideInVertically { h -> h } + fadeIn()) togetherWith
+                                (slideOutVertically { h -> -h } + fadeOut())
                         } else {
-                            (slideInVertically { height -> -height } + fadeIn()) togetherWith
-                                (slideOutVertically { height -> height } + fadeOut())
+                            (slideInVertically { h -> -h } + fadeIn()) togetherWith
+                                (slideOutVertically { h -> h } + fadeOut())
                         }.using(SizeTransform(clip = false))
                     },
                     label = "wallet_balance_ticker",
@@ -348,9 +505,10 @@ private fun WalletBalanceHero(
                         text = moneyLabel(balance),
                         color = colors.ink,
                         fontWeight = FontWeight.Black,
-                        fontSize = 52.sp,
-                        lineHeight = 58.sp,
+                        fontSize = 60.sp,
+                        lineHeight = 66.sp,
                         letterSpacing = (-1.6).sp,
+                        maxLines = 1,
                     )
                 }
                 if (remoteState.error != null) {
@@ -362,42 +520,19 @@ private fun WalletBalanceHero(
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }
-                if (canRecharge) {
-                    SeaGlassButton(
-                        tone = SeaGlassTone.lima,
-                        onClick = onRecharge,
-                        modifier = Modifier.fillMaxWidth().padding(top = 18.dp).height(54.dp),
-                    ) {
-                        Icon(Icons.Outlined.QrCode2, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Text(
-                            "Recargar en caja",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Black,
-                            modifier = Modifier.padding(start = 8.dp),
-                        )
-                    }
-                } else {
-                    Text(
-                        text = "Este lugar ya no recibe recargas de saldo.",
-                        color = colors.muted,
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp,
-                        modifier = Modifier.padding(top = 12.dp),
+                chip?.let { (label, icon) ->
+                    CremeVenueChip(
+                        label = label,
+                        icon = icon,
+                        initialOf = venueName.orEmpty().ifBlank { label },
+                        modifier = Modifier.padding(top = 8.dp),
                     )
                 }
             }
 
             remoteState.loading || waiting -> {
                 Spacer(Modifier.height(8.dp))
-                SkeletonBlock(
-                    modifier = Modifier.size(width = 170.dp, height = 50.dp),
-                    corner = 14.dp,
-                )
-                Spacer(Modifier.height(18.dp))
-                SkeletonBlock(
-                    modifier = Modifier.fillMaxWidth().height(54.dp),
-                    corner = 27.dp,
-                )
+                SkeletonBlock(modifier = Modifier.size(width = 190.dp, height = 58.dp), corner = 14.dp)
             }
 
             else -> {

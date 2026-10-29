@@ -1356,7 +1356,16 @@ fun AppNavHost(
                         onCodeOpenChange = { walletCodeOpen = it },
                         caretakerLine = guardianControlsViewModel.controls?.caretakerLine,
                         caretakerDetail = guardianControlsViewModel.controls?.walletDetail,
+                        guardianControls = guardianControlsViewModel.controls,
                         familySection = familySection,
+                        venuePhotoUrl = orderState.guestVenue?.establishment?.photoUrl,
+                        profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
+                        onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
+                        onChangeVenue = {
+                            navController.navigate(Routes.DISCOVERY) {
+                                launchSingleTop = true
+                            }
+                        },
                     )
                 }
             }
