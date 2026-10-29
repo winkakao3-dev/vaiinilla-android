@@ -55,6 +55,9 @@ data class OperationalStatusDto(
     @SerialName("modo_escuela") val isSchool: Boolean = false,
     /** Un servidor anterior no lo envía: el papá puede agregar hijos como antes. */
     @SerialName("tutor_habilitado") val isParentUnlocked: Boolean = true,
+    /** Solo para la administración: latido en los últimos 2 min. Otro rol o un servidor anterior no lo envía. */
+    @SerialName("caja_conectada") val cashierConnected: Boolean? = null,
+    @SerialName("cocina_conectada") val kitchenConnected: Boolean? = null,
 )
 
 @Serializable

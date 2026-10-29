@@ -31,7 +31,18 @@ data class OperationalStatus(
     val isSchool: Boolean = false,
     /** El cliente ya dio el código de la escuela: puede agregar o vincular hijos. */
     val isParentUnlocked: Boolean = true,
+    /**
+     * Para la administración: Caja o Cocina latieron en los últimos 2 min. `cashierOnline` y `kitchenOnline`
+     * miran 15 s y deciden la operación degradada; con el teléfono bloqueado salían «Sin conexión» enseguida.
+     */
+    val cashierConnected: Boolean? = null,
+    val kitchenConnected: Boolean? = null,
 ) {
+    /** Lo que el resumen del admin dice de Caja: la ventana de 2 min si el servidor la manda. */
+    val cashierPresent: Boolean get() = cashierConnected ?: cashierOnline
+
+    val kitchenPresent: Boolean get() = kitchenConnected ?: kitchenOnline
+
     /** "12:00 a 15:00 y 18:00 a 20:00". */
     val orderHoursText: String
         get() = orderWindows.joinToString(" y ") { "${it.from} a ${it.to}" }

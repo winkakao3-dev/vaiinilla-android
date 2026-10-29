@@ -343,15 +343,15 @@ private fun LiveGrid(
                 add(
                     Triple(
                         "Cocina",
-                        if (it.kitchenOnline) "En línea" else "Sin conexión",
-                        if (it.kitchenOnline) colors.accentLime else AdminCoral,
+                        if (it.kitchenPresent) "En línea" else "Sin conexión",
+                        if (it.kitchenPresent) colors.accentLime else AdminCoral,
                     ),
                 )
                 add(
                     Triple(
                         "Cajero",
-                        if (it.cashierOnline) "En línea" else "Sin conexión",
-                        if (it.cashierOnline) colors.accentLime else colors.textMuted,
+                        if (it.cashierPresent) "En línea" else "Sin conexión",
+                        if (it.cashierPresent) colors.accentLime else colors.textMuted,
                     ),
                 )
             }
