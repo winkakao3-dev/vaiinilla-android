@@ -100,6 +100,8 @@ class GuardianshipJson {
             blockedProductIds = obj.ints("productos_bloqueados").toSet(),
             blockedCategoryIds = obj.ints("categorias_bloqueadas").toSet(),
             allergens = obj.strings("alergenos").mapNotNull(SchoolAllergen::fromCode).toSet(),
+            spentToday = obj.money("gastado_hoy"),
+            availableToday = obj.money("disponible_hoy"),
         )
 
     /** Los nulos viajan: `limite_diario: null` quita el límite. Las listas se reemplazan completas. */

@@ -10,6 +10,7 @@ import com.vaiinilla.app.domain.guardianship.RefundMethod
 import com.vaiinilla.app.domain.guardianship.ScheduledDayOrder
 import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import com.vaiinilla.app.domain.guardianship.StudentRequestStatus
+import com.vaiinilla.app.domain.guardianship.dailyRemainingLabel
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.school.SchoolAllergen
@@ -68,6 +69,24 @@ class GuardianshipContractTest {
         assertEquals(BigDecimal("60.00"), controls.dailyLimit)
         assertEquals(setOf(SchoolAllergen.HUEVO), controls.allergens)
         assertEquals(setOf(2), controls.blockedCategoryIds)
+        // Un servidor anterior no manda lo de hoy: «Hoy le quedan» se queda en «—».
+        assertNull(controls.availableToday)
+        assertNull(dailyRemainingLabel(controls))
+    }
+
+    @Test
+    fun childControlsBringWhatIsLeftToday() {
+        val raw =
+            envelope(
+                """{"usuario_id":"u2","nombre":"Ana López","tiene_cuenta":false,"estado":"aprobada","saldo":"40.00",
+                "controles":{"limite_diario":"60.00","gastado_hoy":"45.50","disponible_hoy":"14.50"}}""",
+            )
+        val controls = json.parseDependent(raw).controls!!
+        assertEquals(BigDecimal("45.50"), controls.spentToday)
+        assertEquals(BigDecimal("14.50"), controls.availableToday)
+        assertEquals("$14.50", dailyRemainingLabel(controls))
+        assertEquals("Sin límite", dailyRemainingLabel(DependentControls(dailyLimit = null)))
+        assertNull(dailyRemainingLabel(null))
     }
 
     @Test

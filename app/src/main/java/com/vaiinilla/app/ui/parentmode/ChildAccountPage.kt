@@ -70,6 +70,7 @@ import com.vaiinilla.app.domain.guardianship.ScheduledOrderRules
 import com.vaiinilla.app.domain.guardianship.SchoolCalendar
 import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import com.vaiinilla.app.domain.guardianship.compactMoney
+import com.vaiinilla.app.domain.guardianship.dailyRemainingLabel
 import com.vaiinilla.app.ui.components.CremeDivider
 import com.vaiinilla.app.ui.components.CremePill
 import com.vaiinilla.app.ui.components.CremePillRow
@@ -184,8 +185,7 @@ internal fun ChildAccountContent(
                     onControls = { sheet = ChildSheet.CONTROLS },
                     stats =
                         listOf(
-                            // El servidor todavía no manda lo que le queda hoy: la columna queda en «—».
-                            CremeStat("Hoy le quedan", null, highlighted = true),
+                            CremeStat("Hoy le quedan", dailyRemainingLabel(child.controls), highlighted = true),
                             CremeStat(
                                 "Apartado",
                                 state.scheduled.size.let {

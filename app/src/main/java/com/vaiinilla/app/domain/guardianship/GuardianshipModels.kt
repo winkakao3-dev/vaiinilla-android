@@ -25,7 +25,23 @@ data class DependentControls(
     val blockedProductIds: Set<Int> = emptySet(),
     val blockedCategoryIds: Set<Int> = emptySet(),
     val allergens: Set<SchoolAllergen> = emptySet(),
+    /** Lo que gastó hoy (`gastado_hoy`); solo lo manda el servidor y nulo sin límite diario. */
+    val spentToday: BigDecimal? = null,
+    /** Lo que le queda hoy del límite, nunca negativo (`disponible_hoy`); nulo sin límite diario. */
+    val availableToday: BigDecimal? = null,
 )
+
+/**
+ * «Hoy le quedan» en la ficha del hijo: lo que le queda del límite diario, «Sin límite» si no tiene, o `null`
+ * («—») si el servidor aún no lo manda.
+ */
+fun dailyRemainingLabel(controls: DependentControls?): String? =
+    when {
+        controls == null -> null
+        controls.availableToday != null -> compactMoney(controls.availableToday)
+        controls.dailyLimit == null -> "Sin límite"
+        else -> null
+    }
 
 /** Uno de los tutores de un hijo, como lo ve otro de sus tutores. [id] es la tutela. */
 data class ChildGuardian(
