@@ -74,7 +74,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
@@ -105,6 +104,7 @@ import com.vaiinilla.app.ui.components.CourtsCarousel
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialSearchField
 import com.vaiinilla.app.ui.components.EmptyState
+import com.vaiinilla.app.ui.components.HeroGlassPill
 import com.vaiinilla.app.ui.components.MenuCartShortcut
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductCardSkeleton
@@ -114,7 +114,9 @@ import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavSideMargin
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavTop
+import com.vaiinilla.app.ui.components.VenueLogo
 import com.vaiinilla.app.ui.components.WholeWordTitle
+import com.vaiinilla.app.ui.components.cremeHeroBrush
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
@@ -678,15 +680,7 @@ private fun MenuHero(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            0f to Color.Black.copy(alpha = 0.35f),
-                            0.22f to Color.Black.copy(alpha = 0f),
-                            0.5f to pageColor.copy(alpha = 0f),
-                            0.82f to pageColor.copy(alpha = 0.88f),
-                            1f to pageColor,
-                        ),
-                    ),
+                    .background(cremeHeroBrush(pageColor)),
         )
         Row(
             modifier =
@@ -754,70 +748,6 @@ private fun HeroLogoFallback(
     val colors = LocalVaiinillaColors.current
     Box(modifier = modifier.background(colors.paper2), contentAlignment = Alignment.Center) {
         VenueLogo(logoUrl, name, size = 120.dp, modifier = Modifier.padding(bottom = 90.dp))
-    }
-}
-
-@Composable
-private fun VenueLogo(
-    logoUrl: String?,
-    name: String,
-    size: Dp,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalVaiinillaColors.current
-    val shape = RoundedCornerShape(size * 0.28f)
-    val initials = remember(name) { venueInitials(name) }
-    val fallback: @Composable (Modifier) -> Unit = { m ->
-        Box(m.background(colors.ink), contentAlignment = Alignment.Center) {
-            Text(initials, color = colors.onInk, fontWeight = FontWeight.Black, fontSize = (size.value * 0.36f).sp)
-        }
-    }
-    val boxModifier = modifier.size(size).clip(shape)
-    if (logoUrl != null) {
-        ProductImage(
-            imageUrl = logoUrl,
-            contentDescription = "Logo de $name",
-            modifier = boxModifier,
-            placeholder = fallback,
-        )
-    } else {
-        fallback(boxModifier)
-    }
-}
-
-private fun venueInitials(name: String): String =
-    name
-        .split(' ')
-        .filter { word -> word.firstOrNull()?.isLetterOrDigit() == true }
-        .take(2)
-        .joinToString("") { it.first().uppercase() }
-        .ifEmpty { "V" }
-
-/** Botón de vidrio oscuro sobre la foto: se lee igual sobre cualquier imagen. */
-@Composable
-private fun HeroGlassPill(
-    label: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-) {
-    val haptics = rememberVaiinillaHaptics()
-    Row(
-        modifier =
-            Modifier
-                .height(44.dp)
-                .physicalPress(onClick = {
-                    haptics.click()
-                    onClick()
-                })
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.42f))
-                .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
-                .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-        Text(label, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
     }
 }
 
