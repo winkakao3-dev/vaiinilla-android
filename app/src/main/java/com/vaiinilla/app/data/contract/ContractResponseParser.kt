@@ -98,6 +98,13 @@ class ContractResponseParser
         fun encodeAvailability(available: Boolean): String = json.encodeToString(ProductAvailabilityWriteDto(available))
     }
 
+/** El servidor a veces manda el arreglo de Postgres como texto: "{}" o "{huevo,lactosa}". */
+internal fun cleanAllergenText(raw: String?): String {
+    val text = raw.orEmpty().trim()
+    if (!(text.startsWith("{") && text.endsWith("}"))) return text
+    return text.removeSurrounding("{", "}").split(',').map { it.trim().trim('"') }.filter { it.isNotEmpty() }.joinToString(", ")
+}
+
 private fun ProductDto.toDomain(): Product =
     Product(
         id = id,
@@ -106,7 +113,7 @@ private fun ProductDto.toDomain(): Product =
         name = name,
         description = description.orEmpty(),
         ingredients = ingredients.orEmpty(),
-        allergens = allergens.orEmpty(),
+        allergens = cleanAllergenText(allergens),
         estimatedTimeMinutes = estimatedTimeMinutes,
         counterPrice = counterPrice,
         digitalPrice = digitalPrice,
