@@ -1541,6 +1541,9 @@ fun AppNavHost(
                         },
                         preparingCheckout = guestAuthRequired && studentAuthState.loading,
                         onCheckoutOpened = orderFlowViewModel::refreshOperationalStatusForCheckout,
+                        venueName = orderState.guestVenue?.establishment?.name,
+                        venuePhotoUrl = orderState.guestVenue?.establishment?.photoUrl,
+                        onWallet = { navController.navigateStudent(Routes.WALLET) },
                     )
                 }
             }

@@ -5,7 +5,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -19,25 +18,22 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
@@ -53,10 +49,13 @@ import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Receipt
+import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.ShoppingBag
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Remove
@@ -72,15 +71,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
@@ -97,6 +99,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.CartLine
@@ -113,15 +116,22 @@ import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.ui.components.CheckoutDestinationPicker
 import com.vaiinilla.app.ui.components.CheckoutSpaceOption
 import com.vaiinilla.app.ui.components.CheckoutSpacePicker
-import com.vaiinilla.app.ui.components.EditorialAccentButton
+import com.vaiinilla.app.ui.components.CremeDivider
+import com.vaiinilla.app.ui.components.CremeHero
+import com.vaiinilla.app.ui.components.CremePill
+import com.vaiinilla.app.ui.components.CremePillRow
+import com.vaiinilla.app.ui.components.CremeStat
+import com.vaiinilla.app.ui.components.CremeStatRow
+import com.vaiinilla.app.ui.components.CremeVenueChip
 import com.vaiinilla.app.ui.components.GlassCircleButton
-import com.vaiinilla.app.ui.components.NumberTicker
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.SHEET_HANDLE_DESCRIPTION
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
+import com.vaiinilla.app.ui.components.WholeWordTitle
 import com.vaiinilla.app.ui.components.animateSelectionColor
+import com.vaiinilla.app.ui.components.cremeMoment
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
@@ -146,8 +156,8 @@ import com.vaiinilla.app.ui.theme.SeaGlassButton
 import com.vaiinilla.app.ui.theme.SeaGlassTone
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
+import kotlinx.coroutines.launch
 import java.math.BigDecimal
-import java.math.RoundingMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -177,6 +187,11 @@ fun CartScreen(
     preparingCheckout: Boolean = false,
     /** Al tocar Pagar se vuelve a pedir el estado operativo: de él sale "Pagar al final". */
     onCheckoutOpened: () -> Unit = {},
+    /** El lugar de la portada y del chip; con productos, la portada es la foto del primero. */
+    venueName: String? = null,
+    venuePhotoUrl: String? = null,
+    /** La pill «Cartera» del carrito vacío. */
+    onWallet: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -219,8 +234,6 @@ fun CartScreen(
             "${state.cartLines.size} productos"
         }
 
-    // Vainiverso: el mostrador con Vaini y la bandeja arriba; la lista en una hoja de vidrio que sube.
-    val palette = scenePaletteForTheme()
     val listState = rememberLazyListState()
     // El rechazo del servidor llega con la hoja de pago ya cerrada y va al final de la lista: se baja a
     // verlo, si no parece que tocar Pedir no hizo nada (M05).
@@ -229,34 +242,12 @@ fun CartScreen(
         val last = listState.layoutInfo.totalItemsCount - 1
         if (last >= 0) listState.animateScrollToItem(last)
     }
-    val glassColors =
-        colors.copy(
-            paper = Color.Transparent,
-            solidPaper = colors.onInk,
-            paper2 = palette.glassCard,
-            line = palette.glassLine,
-            ink = palette.ink,
-            muted = palette.muted,
-        )
-    // Con varios productos el mostrador se asoma menos, para que el cobro se vea sin hacer scroll.
-    val sceneWindow by animateFloatAsState(
-        targetValue = cartSceneWindow(state.cartLines.size),
-        animationSpec = spring(dampingRatio = 0.9f, stiffness = 300f),
-        label = "cart-scene-window",
-    )
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val windowPx = constraints.maxHeight * sceneWindow
-        val windowDp = with(density) { windowPx.toDp() }
-        val sheetTop = {
-            if (listState.firstVisibleItemIndex == 0) windowPx - listState.firstVisibleItemScrollOffset else 0f
-        }
-        CompositionLocalProvider(LocalScene provides palette) {
-            CartCounterBackdrop(
-                sheetTop = sheetTop,
-                lines = state.cartLines,
-                totalLabel = if (state.cartLines.isEmpty()) null else moneyLabel(state.checkoutTotal),
-            )
-        }
+    val heroGone by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
+    val notesFocus = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
+    val hasLines = state.cartLines.isNotEmpty()
+    val readyInMinutes = state.cartLines.maxOfOrNull { it.product.estimatedTimeMinutes }?.takeIf { it > 0 }
+    Box(modifier = Modifier.fillMaxSize().background(colors.paper)) {
         PullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = onRefresh,
@@ -265,79 +256,78 @@ fun CartScreen(
                     .fillMaxSize()
                     .imePadding(),
         ) {
-            CompositionLocalProvider(LocalVaiinillaColors provides glassColors) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding =
-                        PaddingValues(
-                            start = 20.dp,
-                            end = 20.dp,
-                            top = 0.dp,
-                            // Con productos la barra de pestañas se va y el botón de pagar toma su lugar.
-                            bottom =
-                                if (state.cartLines.isEmpty()) {
-                                    VaiinillaBottomNavClearance + 48.dp
-                                } else {
-                                    navBarBottom + 120.dp
-                                },
-                        ),
-                    verticalArrangement = Arrangement.spacedBy(0.dp),
-                ) {
-                    item(key = "counter-window") { Spacer(Modifier.height(windowDp)) }
-                    // Con productos, el pizarrón del mostrador ya dice "Tu bandeja": el título sobra y quita espacio al cobro.
-                    if (state.cartLines.isEmpty()) {
-                        item {
-                            Spacer(Modifier.height(22.dp))
-                            Text(
-                                "REVISA Y CONFIRMA",
-                                color = colors.muted,
-                                fontSize = 11.sp,
-                                lineHeight = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 2.2.sp,
-                            )
-                            Text(
-                                "Tu pedido",
-                                color = colors.ink,
-                                fontSize = 38.sp,
-                                lineHeight = 42.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = (-1.8).sp,
-                                modifier = Modifier.padding(top = 4.dp, bottom = 24.dp),
-                            )
-                        }
-                    } else {
-                        item { Spacer(Modifier.height(18.dp)) }
-                    }
-
-                    if (state.cartLines.isEmpty()) {
-                        item { EmptyCart(onMenu, recentOrders, onSelectOrder) }
-                    } else {
-                        item {
-                            CartSectionHead("Pedido", productCountLabel)
-                            CartItemsPanel(
-                                lines = state.cartLines,
-                                // El pedido ya salió con estas líneas: no se editan hasta que responda (COMPRA-04).
-                                editable = !state.creatingOrder,
-                                unavailableKeys = state.unavailableCartKeys,
-                                onQuantityChange = { lineKey, delta ->
-                                    haptics.click()
-                                    onQuantityChange(lineKey, delta)
-                                },
-                            )
-                        }
-
-                        if (!canChooseInSpace) {
-                            item {
-                                Spacer(Modifier.height(18.dp))
-                                PickupLine(
-                                    readyInMinutes = state.cartLines.maxOfOrNull { it.product.estimatedTimeMinutes },
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding =
+                    PaddingValues(
+                        // Con productos la barra de pestañas se va y el botón de pagar toma su lugar.
+                        bottom = if (hasLines) navBarBottom + 120.dp else VaiinillaBottomNavClearance + 48.dp,
+                    ),
+            ) {
+                item(key = "hero") {
+                    CartHero(
+                        photoUrl =
+                            state.cartLines
+                                .firstOrNull()
+                                ?.product
+                                ?.imageUrl ?: venuePhotoUrl,
+                        height = if (hasLines) 380.dp else 400.dp,
+                        venueName = venueName,
+                        profileInitials = profileInitials,
+                        onBack = {
+                            haptics.click()
+                            onMenu()
+                        },
+                        onOpenAccount = onOpenAccount,
+                    )
+                }
+                item(key = "pills") {
+                    CremePillRow(
+                        pills =
+                            if (hasLines) {
+                                listOf(
+                                    CremePill("Agregar más", Icons.Rounded.Add, onMenu, "cart-add-more"),
+                                    CremePill(
+                                        "Nota para cocina",
+                                        Icons.Outlined.Edit,
+                                        { scope.launch { notesFocus.requestFocus() } },
+                                        "cart-note",
+                                    ),
+                                    CremePill(
+                                        "Vaciar",
+                                        Icons.Outlined.DeleteOutline,
+                                        {
+                                            if (!state.creatingOrder) {
+                                                state.cartLines.forEach { line ->
+                                                    onQuantityChange(line.key, -line.quantity)
+                                                }
+                                            }
+                                        },
+                                        "cart-clear",
+                                    ),
                                 )
+                            } else {
+                                listOf(
+                                    CremePill("Ver menú", Icons.Outlined.Restaurant, onMenu, "cart-menu"),
+                                    CremePill("Cartera", Icons.Outlined.AccountBalanceWallet, onWallet, "cart-wallet"),
+                                )
+                            },
+                        modifier = Modifier.padding(top = 18.dp),
+                    )
+                }
+                if (!hasLines) {
+                    item(key = "empty") { EmptyCart(recentOrders, onSelectOrder) }
+                } else {
+                    if (!canChooseInSpace) {
+                        item(key = "pickup") {
+                            Box(Modifier.padding(horizontal = 20.dp).padding(top = 18.dp)) {
+                                PickupLine(readyInMinutes = readyInMinutes)
                             }
-                        } else {
-                            item {
-                                Spacer(Modifier.height(22.dp))
+                        }
+                    } else {
+                        item(key = "destination") {
+                            Column(Modifier.padding(horizontal = 20.dp).padding(top = 18.dp)) {
                                 CartSectionHead(title = "Entrega", meta = "Elige cómo recibirlo")
                                 CheckoutDestinationPicker(
                                     selected = state.checkoutDestination,
@@ -351,9 +341,10 @@ fun CartScreen(
                                 )
                             }
                         }
-                        if (state.checkoutDestination == OrderDestination.IN_SPACE && checkoutSpaces.isNotEmpty()) {
-                            item {
-                                Spacer(Modifier.height(14.dp))
+                    }
+                    if (state.checkoutDestination == OrderDestination.IN_SPACE && checkoutSpaces.isNotEmpty()) {
+                        item(key = "space") {
+                            Box(Modifier.padding(horizontal = 20.dp).padding(top = 14.dp)) {
                                 CheckoutSpacePicker(
                                     selectedSpaceId = state.checkoutSpace?.id ?: checkoutSpaces.first().id,
                                     spaces = checkoutSpaces,
@@ -365,40 +356,90 @@ fun CartScreen(
                                 )
                             }
                         }
-                        if (state.guestEntryRequired) {
-                            item {
-                                Spacer(Modifier.height(16.dp))
+                    }
+                    item(key = "stats") {
+                        Column(Modifier.padding(top = 16.dp)) {
+                            CremeDivider()
+                            CremeStatRow(
+                                listOf(
+                                    CremeStat("Productos", state.cartLines.size.toString()),
+                                    CremeStat("Listo en", readyInMinutes?.let { "~$it min" }),
+                                    CremeStat(
+                                        "Entrega",
+                                        if (state.checkoutDestination == OrderDestination.IN_SPACE) {
+                                            state.selectedSpaceName
+                                        } else {
+                                            "En barra"
+                                        },
+                                    ),
+                                    CremeStat("Total", moneyLabel(state.checkoutTotal), highlighted = true),
+                                ),
+                                Modifier.padding(top = 16.dp),
+                            )
+                        }
+                    }
+                    item(key = "limit") {
+                        // El alumno con límite diario ve cuánto le queda hoy antes de pagar.
+                        dailyLimitLine(
+                            LocalChildControls.current,
+                            state.checkoutTotal.toBigDecimalOrNull() ?: BigDecimal.ZERO,
+                        )?.let {
+                            Text(
+                                it,
+                                color = colors.muted,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                                modifier = Modifier.padding(horizontal = 20.dp).padding(top = 12.dp),
+                            )
+                        }
+                    }
+                    item(key = "lines") {
+                        Box(Modifier.padding(horizontal = 20.dp).padding(top = 22.dp)) {
+                            CartItemsPanel(
+                                lines = state.cartLines,
+                                // El pedido ya salió con estas líneas: no se editan hasta que responda (COMPRA-04).
+                                editable = !state.creatingOrder,
+                                unavailableKeys = state.unavailableCartKeys,
+                                onQuantityChange = { lineKey, delta ->
+                                    haptics.click()
+                                    onQuantityChange(lineKey, delta)
+                                },
+                            )
+                        }
+                    }
+                    if (state.guestEntryRequired) {
+                        item(key = "guest") {
+                            Box(Modifier.padding(horizontal = 20.dp).padding(top = 16.dp)) {
                                 GuestNameField(
                                     value = state.guestName,
                                     onValueChange = onGuestNameChange,
                                 )
                             }
                         }
-                        item {
-                            Spacer(Modifier.height(16.dp))
+                    }
+                    item(key = "notes") {
+                        Box(Modifier.padding(horizontal = 20.dp).padding(top = 16.dp)) {
                             CartNotesField(
                                 value = state.kitchenNotes,
                                 onValueChange = onNotesChange,
+                                focusRequester = notesFocus,
                             )
                         }
-                        item {
-                            Spacer(Modifier.height(16.dp))
-                            OrderSummaryCard(state = state)
+                    }
+                    val blockerMessage =
+                        when {
+                            state.hasUnresolvedStripePayment ->
+                                "Tienes un pago Stripe pendiente. " +
+                                    "Resuélvelo antes de crear otro pedido para evitar cobros duplicados."
+                            state.requiresOperationalReady &&
+                                !guestAuthRequired &&
+                                state.operationalStatus != null ->
+                                state.operationalBlockerMessage
+                            else -> null
                         }
-                        val blockerMessage =
-                            when {
-                                state.hasUnresolvedStripePayment ->
-                                    "Tienes un pago Stripe pendiente. " +
-                                        "Resuélvelo antes de crear otro pedido para evitar cobros duplicados."
-                                state.requiresOperationalReady &&
-                                    !guestAuthRequired &&
-                                    state.operationalStatus != null ->
-                                    state.operationalBlockerMessage
-                                else -> null
-                            }
-                        if (blockerMessage != null && blockerMessage != state.createOrderError) {
-                            item {
-                                Spacer(Modifier.height(12.dp))
+                    if (blockerMessage != null && blockerMessage != state.createOrderError) {
+                        item(key = "blocker") {
+                            Box(Modifier.padding(horizontal = 20.dp).padding(top = 12.dp)) {
                                 WarningBanner(
                                     message = blockerMessage,
                                     actionLabel =
@@ -413,15 +454,17 @@ fun CartScreen(
                                 )
                             }
                         }
-                        state.cartNotice?.let { notice ->
-                            item {
-                                Spacer(Modifier.height(12.dp))
+                    }
+                    state.cartNotice?.let { notice ->
+                        item(key = "notice") {
+                            Box(Modifier.padding(horizontal = 20.dp).padding(top = 12.dp)) {
                                 WarningBanner(message = notice)
                             }
                         }
-                        state.createOrderError?.let { error ->
-                            item {
-                                Spacer(Modifier.height(12.dp))
+                    }
+                    state.createOrderError?.let { error ->
+                        item(key = "error") {
+                            Box(Modifier.padding(horizontal = 20.dp).padding(top = 12.dp)) {
                                 ErrorBanner(message = error)
                             }
                         }
@@ -497,28 +540,14 @@ fun CartScreen(
                 )
             }
         }
-        // La barra de estado queda sobre vidrio cuando la hoja llega arriba; el regreso y la cuenta flotan encima.
+        // Al bajar, la foto se va y la barra de estado queda sobre el papel.
         Box(
             Modifier
                 .fillMaxWidth()
                 .windowInsetsTopHeight(WindowInsets.statusBars)
-                .graphicsLayer { alpha = if (sheetTop() < size.height) 1f else 0f }
-                .background(palette.stage.copy(alpha = 0.92f)),
+                .graphicsLayer { alpha = if (heroGone) 1f else 0f }
+                .background(colors.paper.copy(alpha = 0.92f)),
         )
-        Box(
-            Modifier
-                .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-        ) {
-            CartTopBar(
-                onBack = {
-                    haptics.click()
-                    onMenu()
-                },
-                profileInitials = profileInitials,
-                onOpenAccount = onOpenAccount,
-            )
-        }
     }
 }
 
@@ -584,7 +613,8 @@ private fun PaymentMethodOverlay(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.paper,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+        scrimColor = Color.Black.copy(alpha = 0.38f),
+        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
         dragHandle = {
             Box(
                 modifier =
@@ -750,31 +780,37 @@ private fun PaymentMethodCardOption(
     onClick: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
-    val borderColor = animateSelectionColor(if (selected) colors.ink else colors.line, "payment-card-border")
-    val borderWidth by animateDpAsState(if (selected) 1.5.dp else 1.dp, label = "payment-card-border-width")
-    val radioFill = animateSelectionColor(if (selected) colors.ink else Color.Transparent, "payment-card-radio")
+    val borderColor = animateSelectionColor(if (selected) colors.accent else colors.line, "payment-card-border")
+    val borderWidth by animateDpAsState(if (selected) 2.dp else 1.dp, label = "payment-card-border-width")
     Surface(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .border(borderWidth, borderColor, RoundedCornerShape(20.dp))
+                .border(borderWidth, borderColor, RoundedCornerShape(18.dp))
                 .physicalPress(enabled = enabled, onClick = onClick)
                 .semantics {
                     role = Role.RadioButton
                     this.selected = selected
                 },
         color = colors.paper2,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(18.dp),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier.heightIn(min = 64.dp).padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (enabled) colors.ink else colors.muted,
+                tint =
+                    if (!enabled) {
+                        colors.muted
+                    } else if (selected) {
+                        colors.accent
+                    } else {
+                        colors.ink
+                    },
                 modifier = Modifier.size(24.dp),
             )
             Column(modifier = Modifier.weight(1f)) {
@@ -782,7 +818,7 @@ private fun PaymentMethodCardOption(
                     text = title,
                     color = if (enabled) colors.ink else colors.muted,
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Black,
                     maxLines = 1,
                     softWrap = false,
                 )
@@ -794,27 +830,17 @@ private fun PaymentMethodCardOption(
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
-            Box(
-                modifier =
-                    Modifier
-                        .size(22.dp)
-                        .clip(CircleShape)
-                        .background(radioFill)
-                        .border(1.5.dp, if (selected) Color.Transparent else colors.line, CircleShape),
-                contentAlignment = Alignment.Center,
+            AnimatedVisibility(
+                visible = selected,
+                enter = scaleIn(spring(dampingRatio = 0.55f, stiffness = 600f)) + fadeIn(),
+                exit = scaleOut() + fadeOut(),
             ) {
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = selected,
-                    enter = scaleIn(spring(dampingRatio = 0.55f, stiffness = 600f)) + fadeIn(),
-                    exit = scaleOut() + fadeOut(),
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Check,
-                        contentDescription = null,
-                        tint = colors.onInk,
-                        modifier = Modifier.size(14.dp),
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Rounded.Check,
+                    contentDescription = null,
+                    tint = colors.accent,
+                    modifier = Modifier.size(22.dp),
+                )
             }
         }
     }
@@ -906,27 +932,49 @@ private fun CartTakeAwayCashPreview() {
 }
 
 @Composable
-private fun CartTopBar(
-    onBack: () -> Unit,
+private fun CartHero(
+    photoUrl: String?,
+    height: Dp,
+    venueName: String?,
     profileInitials: String,
+    onBack: () -> Unit,
     onOpenAccount: () -> Unit,
 ) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .height(58.dp)
-                .padding(bottom = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
+    val colors = LocalVaiinillaColors.current
+    CremeHero(
+        height = height,
+        photoUrl = photoUrl,
+        leading = {
+            GlassCircleButton(
+                icon = Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
+                contentDescription = "Volver",
+                onClick = onBack,
+                size = 44.dp,
+                iconSize = 22.dp,
+            )
+        },
+        trailing = { ProfileInitialsButton(profileInitials, onClick = onOpenAccount) },
     ) {
-        GlassCircleButton(
-            icon = Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
-            contentDescription = "Volver",
-            onClick = onBack,
-            iconSize = 22.dp,
+        Text(
+            "REVISA Y CONFIRMA",
+            color = colors.muted,
+            fontSize = 11.sp,
+            lineHeight = 15.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 2.2.sp,
         )
-        ProfileInitialsButton(profileInitials, onClick = onOpenAccount)
+        WholeWordTitle(
+            text = "Tu pedido",
+            color = colors.ink,
+            fontSize = 38.sp,
+            lineHeight = 42.sp,
+            letterSpacing = (-1.8).sp,
+            maxLines = 2,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+        if (!venueName.isNullOrBlank()) {
+            CremeVenueChip(label = venueName, modifier = Modifier.padding(top = 10.dp))
+        }
     }
 }
 
@@ -1275,6 +1323,7 @@ private fun GuestNameField(
 private fun CartNotesField(
     value: String,
     onValueChange: (String) -> Unit,
+    focusRequester: FocusRequester? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     val limited = if (value.length <= NOTES_MAX) value else value.take(NOTES_MAX)
@@ -1286,7 +1335,8 @@ private fun CartNotesField(
                 .fillMaxWidth()
                 .height(72.dp)
                 .clip(RoundedCornerShape(22.dp))
-                .border(1.dp, colors.line, RoundedCornerShape(22.dp)),
+                .border(1.dp, colors.line, RoundedCornerShape(22.dp))
+                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
         textStyle =
             TextStyle(
                 color = colors.ink,
@@ -1422,58 +1472,6 @@ private fun CheckoutDockButton(
 }
 
 @Composable
-private fun OrderSummaryCard(state: OrderFlowUiState) {
-    val colors = LocalVaiinillaColors.current
-    // Entrega siempre cuesta $0, así que subtotal y total eran el mismo número dos veces: queda el total.
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = colors.paper2,
-        shape = RoundedCornerShape(24.dp),
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    "Total",
-                    color = colors.ink,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    lineHeight = 26.sp,
-                )
-                NumberTicker(
-                    value = state.checkoutTotal.toBigDecimalOrNull() ?: BigDecimal.ZERO,
-                    label = "cart-total-ticker",
-                ) { total ->
-                    Text(
-                        moneyLabel(total.setScale(2, RoundingMode.HALF_UP).toPlainString()),
-                        color = colors.ink,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 26.sp,
-                        lineHeight = 30.sp,
-                    )
-                }
-            }
-            // El alumno con límite diario ve cuánto le queda hoy antes de pagar.
-            dailyLimitLine(
-                LocalChildControls.current,
-                state.checkoutTotal.toBigDecimalOrNull() ?: BigDecimal.ZERO,
-            )?.let {
-                Text(
-                    it,
-                    color = colors.muted,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun WarningBanner(
     message: String,
     actionLabel: String? = null,
@@ -1548,67 +1546,40 @@ private fun ErrorBanner(message: String) {
 
 @Composable
 private fun EmptyCart(
-    onMenu: () -> Unit,
     recentOrders: List<OrderDetail>,
     onSelectOrder: (String) -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            "¿Qué se te antoja?",
-            color = colors.ink,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Black,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            "Pide algo del menú y aparece aquí.",
-            color = colors.muted,
-            fontSize = 16.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 6.dp),
-        )
-        EditorialAccentButton(
-            text = "Ver menú",
-            onClick = onMenu,
-            modifier = Modifier.padding(top = 20.dp).widthIn(max = 270.dp),
-        )
-
-        if (recentOrders.isNotEmpty()) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp).padding(top = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             Text(
-                "PEDIDOS ANTERIORES",
-                color = colors.muted,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 2.2.sp,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 28.dp, bottom = 10.dp),
+                "¿Qué se te antoja?",
+                color = colors.ink,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Black,
             )
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = colors.paper2,
-                shape = RoundedCornerShape(20.dp),
-            ) {
-                Column {
-                    recentOrders.forEachIndexed { index, order ->
-                        RecentOrderRow(
-                            order = order,
-                            onClick = { onSelectOrder(order.summary.id) },
-                        )
-                        if (index != recentOrders.lastIndex) {
-                            Box(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(1.dp)
-                                    .background(colors.line),
-                            )
-                        }
-                    }
+            Text(
+                "Pide algo del menú y aparece aquí.",
+                color = colors.muted,
+                fontSize = 15.sp,
+            )
+        }
+        if (recentOrders.isNotEmpty()) {
+            CremeDivider(Modifier.padding(top = 24.dp))
+            Column(modifier = Modifier.padding(horizontal = 20.dp).padding(top = 20.dp)) {
+                Text(
+                    "PEDIDOS ANTERIORES",
+                    color = colors.muted,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.2.sp,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+                recentOrders.forEach { order ->
+                    RecentOrderRow(order = order, onClick = { onSelectOrder(order.summary.id) })
                 }
             }
         }
@@ -1623,46 +1594,64 @@ private fun RecentOrderRow(
     val colors = LocalVaiinillaColors.current
     val summary = order.summary
     val itemsLabel =
-        order.items.joinToString(" · ") { item -> "${item.quantity}× ${item.productName}" }
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .physicalPress(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
+        order.items.joinToString(", ") { item -> "${item.quantity}× ${item.productName}" }
+    val detail =
+        listOfNotNull(itemsLabel.ifBlank { null }, cremeMoment(summary.createdAt)?.replaceFirstChar { it.lowercase() })
+            .joinToString(" · ")
+    Column(modifier = Modifier.fillMaxWidth().physicalPress(onClick = onClick)) {
+        Row(
+            modifier = Modifier.padding(vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(15.dp)).background(colors.paper2),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Outlined.ShoppingCart,
+                    contentDescription = null,
+                    tint = colors.ink,
+                    modifier = Modifier.size(21.dp),
+                )
+            }
+            Column(modifier = Modifier.weight(1f).padding(horizontal = 13.dp)) {
+                Text(
+                    "#${summary.folio} · ${summary.state.label}",
+                    color = colors.ink,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    detail,
+                    color = colors.muted,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 3.dp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             Text(
-                itemsLabel,
+                moneyLabel(summary.total),
                 color = colors.ink,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Black,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
-            Text(
-                "#${summary.folio} · ${summary.state.label}",
-                color = colors.muted,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(top = 3.dp),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                contentDescription = null,
+                tint = colors.muted,
+                modifier = Modifier.padding(start = 4.dp).size(20.dp),
             )
         }
-        Text(
-            moneyLabel(summary.total),
-            color = colors.ink,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Black,
-            maxLines = 1,
-            modifier = Modifier.padding(start = 12.dp),
-        )
-        Icon(
-            imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-            contentDescription = null,
-            tint = colors.muted,
-            modifier = Modifier.padding(start = 4.dp).size(20.dp),
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 57.dp)
+                .height(1.dp)
+                .background(colors.line),
         )
     }
 }
