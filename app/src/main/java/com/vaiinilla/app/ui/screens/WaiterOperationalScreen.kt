@@ -1489,8 +1489,9 @@ internal fun WaiterSheetOrderRow(
         color = colors.cardBackground,
         modifier = Modifier.fillMaxWidth().border(1.dp, colors.cardBorder, RoundedCornerShape(18.dp)),
     ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(14.dp).animateContentSize()) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(14.dp).animateContentSize(),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -1525,21 +1526,9 @@ internal fun WaiterSheetOrderRow(
                         fontWeight = FontWeight.Bold,
                     )
                 }
-            } else if (order.state == OrderState.READY && canDeliver) {
-                if (confirming) {
-                    TextButton(onClick = { confirming = false }, enabled = !readOnly) {
-                        Text("Cancelar", color = colors.textSecondary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
-                }
+            } else if (order.state == OrderState.READY && canDeliver && !confirming) {
                 Button(
-                    onClick = {
-                        if (confirming) {
-                            confirming = false
-                            onDeliver(order)
-                        } else {
-                            confirming = true
-                        }
-                    },
+                    onClick = { confirming = true },
                     enabled = !readOnly,
                     colors =
                         ButtonDefaults.buttonColors(
@@ -1550,7 +1539,7 @@ internal fun WaiterSheetOrderRow(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 ) {
                     Text(
-                        if (confirming) "¿Ya lo entregaste?" else "Entregar",
+                        "Entregar",
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
                     )
@@ -1572,6 +1561,35 @@ internal fun WaiterSheetOrderRow(
                     )
                 }
             }
+        }
+        // La confirmación va en su propio renglón: junto al pedido lo apretaba a una palabra por línea (I03).
+        if (confirming && order.state == OrderState.READY && canDeliver) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = { confirming = false }, enabled = !readOnly) {
+                    Text("Cancelar", color = colors.textSecondary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+                Button(
+                    onClick = {
+                        confirming = false
+                        onDeliver(order)
+                    },
+                    enabled = !readOnly,
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = colors.accentLime,
+                            contentColor = colors.accentInk,
+                        ),
+                    shape = RoundedCornerShape(14.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                ) {
+                    Text("¿Ya lo entregaste?", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            }
+        }
         }
     }
 }
