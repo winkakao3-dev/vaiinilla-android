@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.components.GlassCircleButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.SkeletonBlock
+import com.vaiinilla.app.ui.components.WholeWordTitle
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -92,12 +93,21 @@ internal fun SchoolOptionsPage(
                     .padding(top = 58.dp, bottom = 48.dp),
         ) {
             Text(
-                if (role == SchoolRole.PARENT) "Tutores" else "Alumnos",
+                "CARTERA · ESCUELA",
+                color = colors.muted,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.2.sp,
+            )
+            WholeWordTitle(
+                text = if (role == SchoolRole.PARENT) "Tutores" else "Alumnos",
                 color = colors.ink,
-                fontWeight = FontWeight.Black,
-                fontSize = 30.sp,
-                letterSpacing = (-0.6).sp,
-                modifier = Modifier.padding(bottom = 18.dp),
+                fontSize = 34.sp,
+                lineHeight = 38.sp,
+                letterSpacing = (-1.6).sp,
+                maxLines = 1,
+                modifier = Modifier.padding(top = 4.dp, bottom = 18.dp),
             )
 
             if (role == SchoolRole.PARENT) {

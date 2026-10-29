@@ -69,6 +69,7 @@ import com.vaiinilla.app.ui.components.minTouchTarget
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.screens.OperationalColors
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
@@ -328,7 +329,9 @@ internal fun ParentErrorCard(
     }
 }
 
-internal val ErrorCoral = Color(0xFFE5645A)
+/** El coral del tema para errores y lo destructivo: así sale bien en los tres temas. */
+internal val ErrorCoral: Color
+    @Composable get() = LocalVaiinillaColors.current.coral
 
 /** Un chip que se prende: lo elegido va en tinta, el lima queda para la acción principal. */
 @Composable

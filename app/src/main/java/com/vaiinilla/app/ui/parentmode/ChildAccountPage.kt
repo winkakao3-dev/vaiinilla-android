@@ -7,25 +7,22 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -42,7 +39,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,9 +49,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -72,19 +70,20 @@ import com.vaiinilla.app.domain.guardianship.ScheduledOrderRules
 import com.vaiinilla.app.domain.guardianship.SchoolCalendar
 import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import com.vaiinilla.app.domain.guardianship.compactMoney
+import com.vaiinilla.app.ui.components.CremeDivider
+import com.vaiinilla.app.ui.components.CremePill
+import com.vaiinilla.app.ui.components.CremePillRow
+import com.vaiinilla.app.ui.components.CremeStat
+import com.vaiinilla.app.ui.components.CremeStatRow
 import com.vaiinilla.app.ui.components.GlassCircleButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ToastPill
+import com.vaiinilla.app.ui.components.cremeBleed
 import com.vaiinilla.app.ui.components.minTouchTarget
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
-import com.vaiinilla.app.ui.screens.LocalScene
-import com.vaiinilla.app.ui.screens.WalletJarBackdrop
 import com.vaiinilla.app.ui.screens.movementLabel
-import com.vaiinilla.app.ui.screens.scenePaletteForTheme
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import com.vaiinilla.app.ui.theme.SeaGlassButton
-import com.vaiinilla.app.ui.theme.SeaGlassTone
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -154,184 +153,189 @@ internal fun ChildAccountContent(
         if (state.accessLost) onUnlinked(state.child.userId)
     }
     val child = state.child
-    val balanceText = state.balance.toPlainString()
 
-    val palette = scenePaletteForTheme()
-    val listState = rememberLazyListState()
-    val density = LocalDensity.current
-    val glassColors =
-        colors.copy(
-            paper = Color.Transparent,
-            solidPaper = colors.onInk,
-            paper2 = palette.glassCard,
-            line = palette.glassLine,
-            ink = palette.ink,
-            muted = palette.muted,
-        )
-    BoxWithConstraints(modifier = Modifier.fillMaxSize().testTag("child-account")) {
-        val windowPx = constraints.maxHeight * 0.36f
-        val windowDp = with(density) { windowPx.toDp() }
-        val sheetTop = {
-            if (listState.firstVisibleItemIndex ==
-                0
-            ) {
-                windowPx - listState.firstVisibleItemScrollOffset
-            } else {
-                0f
+    // Sin foto ni dibujo: aquí se maneja dinero y datos de menores. Papel liso con un halo suave arriba.
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(colors.paper)
+                .drawBehind {
+                    drawRect(
+                        Brush.radialGradient(
+                            colors = listOf(colors.paper2, Color.Transparent),
+                            center = Offset(size.width / 2f, 0f),
+                            radius = size.width,
+                        ),
+                        size = Size(size.width, 300.dp.toPx()),
+                    )
+                }.testTag("child-account"),
+    ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().testTag("child-account-list"),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 40.dp),
+        ) {
+            item(key = "window") { Spacer(Modifier.statusBarsPadding().height(72.dp)) }
+            item(key = "header") { ChildHeader(state) }
+            item(key = "actions") {
+                ChildActions(
+                    onReload = { sheet = ChildSheet.RELOAD },
+                    onWeek = { sheet = ChildSheet.WEEK },
+                    onControls = { sheet = ChildSheet.CONTROLS },
+                    stats =
+                        listOf(
+                            // El servidor todavía no manda lo que le queda hoy: la columna queda en «—».
+                            CremeStat("Hoy le quedan", null, highlighted = true),
+                            CremeStat(
+                                "Apartado",
+                                state.scheduled.size.let {
+                                    if (it ==
+                                        1
+                                    ) {
+                                        "1 día"
+                                    } else {
+                                        "$it días"
+                                    }
+                                },
+                            ),
+                            CremeStat("Tutores", child.guardians.size.toString()),
+                            CremeStat("PIN en Caja", if (child.hasPin) "Sí" else "No"),
+                        ),
+                )
             }
-        }
-        CompositionLocalProvider(
-            LocalScene provides palette,
-        ) { WalletJarBackdrop(sheetTop = sheetTop, balance = balanceText) }
-        CompositionLocalProvider(LocalVaiinillaColors provides glassColors) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize().testTag("child-account-list"),
-                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 40.dp),
-            ) {
-                item(key = "window") { Spacer(Modifier.height(windowDp + 20.dp)) }
-                item(key = "header") { ChildHeader(state) }
-                item(key = "actions") {
-                    ChildActions(
-                        onReload = { sheet = ChildSheet.RELOAD },
-                        onWeek = { sheet = ChildSheet.WEEK },
-                        onControls = { sheet = ChildSheet.CONTROLS },
+            state.loadError?.let { message ->
+                item(key = "error") {
+                    Column(modifier = Modifier.padding(top = 20.dp)) {
+                        Text(
+                            "Sin conexión con su cuenta",
+                            color = colors.ink,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 16.sp,
+                        )
+                        Text(message, color = colors.muted, fontSize = 14.sp)
+                        Text(
+                            "Reintentar",
+                            color = colors.ink,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 15.sp,
+                            modifier =
+                                Modifier
+                                    .padding(
+                                        top = 6.dp,
+                                    ).physicalPress(scale = PhysicalPressScale.Small) {
+                                        scope.launch { state.load() }
+                                    }.minTouchTarget(),
+                        )
+                    }
+                }
+            }
+            if (state.ordersFailed) {
+                item(key = "orders-error") {
+                    Column(modifier = Modifier.padding(top = 20.dp)) {
+                        Text(
+                            "No pudimos traer lo apartado",
+                            color = colors.ink,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 16.sp,
+                        )
+                        Text(
+                            "Antes de apartar otra vez, vuelve a intentarlo para no repetir un día.",
+                            color = colors.muted,
+                            fontSize = 14.sp,
+                        )
+                        Text(
+                            "Reintentar",
+                            color = colors.ink,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 15.sp,
+                            modifier =
+                                Modifier
+                                    .padding(top = 6.dp)
+                                    .physicalPress(scale = PhysicalPressScale.Small) {
+                                        scope.launch { state.refreshScheduled() }
+                                    }.minTouchTarget(),
+                        )
+                    }
+                }
+            }
+            if (state.scheduled.isNotEmpty()) {
+                item(key = "scheduled-title") { SectionHeading("Apartado") }
+                items(state.scheduled, key = { "s-${it.id}" }) { order ->
+                    ScheduledRow(
+                        order,
+                        canceling = state.cancelingOrderId == order.id,
+                        cancelable =
+                            ScheduledOrderRules.canCancel(
+                                order.statusWire,
+                                order.deliveryDate,
+                                state.schedule?.cancelCutoff,
+                                now = state.schedule?.let { LocalDateTime.now() },
+                            ),
+                    ) { orderToCancel = order }
+                }
+            }
+            if (child.guardians.isNotEmpty()) {
+                item(key = "guardians") {
+                    ChildGuardiansSection(
+                        child = child,
+                        busyGuardianId = state.changingGuardianId,
+                        onInvite = { sheet = ChildSheet.GUARDIAN_CODE },
+                        onRemove = { guardian ->
+                            scope.launch { state.removeGuardian(guardian)?.let(onChildChanged) }
+                        },
+                        onMakePrincipal = { guardian ->
+                            scope.launch { state.makePrincipal(guardian)?.let(onChildChanged) }
+                        },
                     )
                 }
-                state.loadError?.let { message ->
-                    item(key = "error") {
-                        Column(modifier = Modifier.padding(top = 20.dp)) {
-                            Text(
-                                "Sin conexión con su cuenta",
-                                color = glassColors.ink,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 16.sp,
-                            )
-                            Text(message, color = glassColors.muted, fontSize = 14.sp)
-                            Text(
-                                "Reintentar",
-                                color = glassColors.ink,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 15.sp,
-                                modifier =
-                                    Modifier
-                                        .padding(
-                                            top = 6.dp,
-                                        ).physicalPress(scale = PhysicalPressScale.Small) {
-                                            scope.launch { state.load() }
-                                        }.minTouchTarget(),
-                            )
-                        }
-                    }
-                }
-                if (state.ordersFailed) {
-                    item(key = "orders-error") {
-                        Column(modifier = Modifier.padding(top = 20.dp)) {
-                            Text(
-                                "No pudimos traer lo apartado",
-                                color = glassColors.ink,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 16.sp,
-                            )
-                            Text(
-                                "Antes de apartar otra vez, vuelve a intentarlo para no repetir un día.",
-                                color = glassColors.muted,
-                                fontSize = 14.sp,
-                            )
-                            Text(
-                                "Reintentar",
-                                color = glassColors.ink,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 15.sp,
-                                modifier =
-                                    Modifier
-                                        .padding(top = 6.dp)
-                                        .physicalPress(scale = PhysicalPressScale.Small) {
-                                            scope.launch { state.refreshScheduled() }
-                                        }.minTouchTarget(),
-                            )
-                        }
-                    }
-                }
-                if (state.scheduled.isNotEmpty()) {
-                    item(key = "scheduled-title") { SectionHeading("Apartado") }
-                    items(state.scheduled, key = { "s-${it.id}" }) { order ->
-                        ScheduledRow(
-                            order,
-                            canceling = state.cancelingOrderId == order.id,
-                            cancelable =
-                                ScheduledOrderRules.canCancel(
-                                    order.statusWire,
-                                    order.deliveryDate,
-                                    state.schedule?.cancelCutoff,
-                                    now = state.schedule?.let { LocalDateTime.now() },
-                                ),
-                        ) { orderToCancel = order }
-                    }
-                }
-                if (child.guardians.isNotEmpty()) {
-                    item(key = "guardians") {
-                        ChildGuardiansSection(
-                            child = child,
-                            busyGuardianId = state.changingGuardianId,
-                            onInvite = { sheet = ChildSheet.GUARDIAN_CODE },
-                            onRemove = { guardian ->
-                                scope.launch { state.removeGuardian(guardian)?.let(onChildChanged) }
-                            },
-                            onMakePrincipal = { guardian ->
-                                scope.launch { state.makePrincipal(guardian)?.let(onChildChanged) }
-                            },
+            }
+            val movements = state.wallet?.movements
+            if (movements != null) {
+                item(key = "movements-title") { SectionHeading("Movimientos") }
+                if (movements.isEmpty()) {
+                    item(key = "movements-empty") {
+                        Text(
+                            "Aquí verás sus recargas y lo que compre con saldo.",
+                            color = colors.muted,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(top = 6.dp),
                         )
                     }
                 }
-                val movements = state.wallet?.movements
-                if (movements != null) {
-                    item(key = "movements-title") { SectionHeading("Movimientos") }
-                    if (movements.isEmpty()) {
-                        item(key = "movements-empty") {
-                            Text(
-                                "Aquí verás sus recargas y lo que compre con saldo.",
-                                color = glassColors.muted,
-                                fontSize = 14.sp,
-                                modifier = Modifier.padding(top = 6.dp),
-                            )
-                        }
-                    }
-                    items(movements.take(15), key = { "m-${it.id}" }) { MovementRow(it) }
-                } else if (state.isLoading) {
-                    item(key = "movements-loading") { Spacer(Modifier.height(16.dp)) }
+                items(movements.take(15), key = { "m-${it.id}" }) { MovementRow(it) }
+            } else if (state.isLoading) {
+                item(key = "movements-loading") { Spacer(Modifier.height(16.dp)) }
+            }
+            if (!child.hasOwnAccount) {
+                item(key = "own-account") {
+                    QuietRow(
+                        icon = Icons.Outlined.PhoneIphone,
+                        title = "Pasar a su propia cuenta",
+                        detail = "Cuando tenga teléfono, entra con su Google y sigue con todo lo suyo.",
+                        ink = colors.ink,
+                        muted = colors.muted,
+                        modifier = Modifier.padding(top = 30.dp).testTag("child-own-account"),
+                    ) { sheet = ChildSheet.OWN_ACCOUNT }
                 }
-                if (!child.hasOwnAccount) {
-                    item(key = "own-account") {
-                        QuietRow(
-                            icon = Icons.Outlined.PhoneIphone,
-                            title = "Pasar a su propia cuenta",
-                            detail = "Cuando tenga teléfono, entra con su Google y sigue con todo lo suyo.",
-                            ink = glassColors.ink,
-                            muted = glassColors.muted,
-                            modifier = Modifier.padding(top = 30.dp).testTag("child-own-account"),
-                        ) { sheet = ChildSheet.OWN_ACCOUNT }
-                    }
+            }
+            if (child.isPrincipal) {
+                item(key = "counter") {
+                    ChildCounterSecuritySection(
+                        child = child,
+                        isBlocking = state.isBlockingCredential,
+                        onPin = { sheet = ChildSheet.PIN },
+                        onBlockCredential = { scope.launch { state.blockCredential()?.let(onChildChanged) } },
+                        modifier = Modifier.padding(top = if (child.hasOwnAccount) 30.dp else 14.dp),
+                    )
                 }
-                if (child.isPrincipal) {
-                    item(key = "counter") {
-                        ChildCounterSecuritySection(
-                            child = child,
-                            isBlocking = state.isBlockingCredential,
-                            onPin = { sheet = ChildSheet.PIN },
-                            onBlockCredential = { scope.launch { state.blockCredential()?.let(onChildChanged) } },
-                            modifier = Modifier.padding(top = if (child.hasOwnAccount) 30.dp else 14.dp),
-                        )
-                    }
-                    item(key = "requests") {
-                        StudentRequestsSection(
-                            balance = state.balance,
-                            requests = state.requests,
-                            modifier = Modifier.padding(top = 14.dp),
-                        ) { kind ->
-                            sheet =
-                                if (kind == StudentRequestKind.REFUND) ChildSheet.REFUND else ChildSheet.DATA_REMOVAL
-                        }
+                item(key = "requests") {
+                    StudentRequestsSection(
+                        balance = state.balance,
+                        requests = state.requests,
+                        modifier = Modifier.padding(top = 14.dp),
+                    ) { kind ->
+                        sheet =
+                            if (kind == StudentRequestKind.REFUND) ChildSheet.REFUND else ChildSheet.DATA_REMOVAL
                     }
                 }
             }
@@ -432,15 +436,20 @@ private fun ChildHeader(state: ChildAccountState) {
     val reduced = reducedMotion()
     val child = state.child
     Column {
-        Text(child.name, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 24.sp)
-        child.schoolLine?.let {
-            Text(
-                it,
-                color = colors.muted,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
-                modifier = Modifier.padding(top = 2.dp),
-            )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            InitialsAvatar(child.initials, colors.paper2, colors.ink, colors.line, Modifier.size(52.dp))
+            Column(modifier = Modifier.padding(start = 14.dp)) {
+                Text(child.name, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 24.sp)
+                child.schoolLine?.let {
+                    Text(
+                        it,
+                        color = colors.muted,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+            }
         }
         AnimatedContent(
             targetState = compactMoney(state.balance),
@@ -463,7 +472,7 @@ private fun ChildHeader(state: ChildAccountState) {
                 letterSpacing = (-1.6).sp,
                 modifier =
                     Modifier
-                        .padding(top = 14.dp)
+                        .padding(top = 18.dp)
                         .semantics { contentDescription = "Saldo de ${child.firstName}: $text" },
             )
         }
@@ -497,60 +506,19 @@ private fun ChildActions(
     onReload: () -> Unit,
     onWeek: () -> Unit,
     onControls: () -> Unit,
+    stats: List<CremeStat>,
 ) {
-    Column(modifier = Modifier.padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SeaGlassButton(
-            tone = SeaGlassTone.lima,
-            onClick = onReload,
-            modifier = Modifier.fillMaxWidth().height(54.dp).testTag("child-reload"),
-        ) {
-            Icon(Icons.Outlined.CreditCard, contentDescription = null, modifier = Modifier.size(20.dp))
-            Text(
-                "Recargar con tarjeta",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Black,
-                modifier = Modifier.padding(start = 8.dp),
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SecondaryAction(
-                "Apartar comida",
-                Icons.Outlined.CalendarMonth,
-                Modifier.weight(1f).testTag("child-week"),
-                onWeek,
-            )
-            SecondaryAction("Controles", Icons.Outlined.Tune, Modifier.weight(1f).testTag("child-controls"), onControls)
-        }
-    }
-}
-
-@Composable
-private fun SecondaryAction(
-    title: String,
-    icon: ImageVector,
-    modifier: Modifier,
-    onClick: () -> Unit,
-) {
-    val colors = LocalVaiinillaColors.current
-    Row(
-        modifier =
-            modifier
-                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
-                .height(48.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(colors.paper2)
-                .border(1.dp, colors.line, RoundedCornerShape(24.dp)),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(17.dp))
-        Text(
-            title,
-            color = colors.ink,
-            fontWeight = FontWeight.Black,
-            fontSize = 14.sp,
-            modifier = Modifier.padding(start = 6.dp),
+    Column(modifier = Modifier.padding(top = 20.dp)) {
+        CremePillRow(
+            listOf(
+                CremePill("Recargar con tarjeta", Icons.Outlined.CreditCard, onReload, "child-reload"),
+                CremePill("Apartar comida", Icons.Outlined.CalendarMonth, onWeek, "child-week"),
+                CremePill("Controles", Icons.Outlined.Tune, onControls, "child-controls"),
+            ),
+            modifier = Modifier.cremeBleed(20.dp),
         )
+        CremeDivider(Modifier.padding(top = 20.dp).cremeBleed(20.dp))
+        CremeStatRow(stats, Modifier.padding(top = 18.dp).cremeBleed(20.dp))
     }
 }
 
