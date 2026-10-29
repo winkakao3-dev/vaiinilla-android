@@ -186,6 +186,15 @@ data class OrderDetailDto(
     @SerialName("entrega_sin_qr") val deliveryWithoutQr: Boolean = false,
     /** Solo viene en pedidos de mostrador; un servidor anterior no lo envía. */
     @SerialName("nombre_cliente_snapshot") val customerName: String? = null,
+    /** Con qué se cobró de verdad, `"mixto"` si hubo partes con métodos distintos; un servidor anterior no lo envía. */
+    @SerialName("metodo_pago_cobrado") val chargedMethod: String? = null,
+    @SerialName("pagos_por_metodo") val paymentsByMethod: List<PaymentPartDto> = emptyList(),
+)
+
+@Serializable
+data class PaymentPartDto(
+    @SerialName("metodo") val method: String,
+    @SerialName("monto") val amount: String,
 )
 
 /** La reserva de un pedido de renta de cancha; `null` en cualquier otro pedido. */

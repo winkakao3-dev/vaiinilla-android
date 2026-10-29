@@ -146,6 +146,20 @@ data class OrderSummary(
     /** Día (AAAA-MM-DD) y franja (HH:MM-HH:MM) de un pedido apartado para otro día; `null` si es para ahora. */
     val deliveryDate: String? = null,
     val deliverySlot: String? = null,
+    /**
+     * Con qué se cobró de verdad (`metodo_pago_cobrado`): `efectivo`, `terminal`, `saldo`, `stripe` o `mixto`.
+     * `paymentMethod` es con qué se pidió; en una cuenta de mesa siempre dice efectivo. `null` sin pagos o en un
+     * servidor anterior.
+     */
+    val chargedMethod: String? = null,
+    /** Lo cobrado con cada método (`pagos_por_metodo`). */
+    val paymentsByMethod: List<PaymentPart> = emptyList(),
+)
+
+/** Una parte del cobro: `metodo` como lo manda el servidor y su monto. */
+data class PaymentPart(
+    val method: String,
+    val amount: String,
 )
 
 /**

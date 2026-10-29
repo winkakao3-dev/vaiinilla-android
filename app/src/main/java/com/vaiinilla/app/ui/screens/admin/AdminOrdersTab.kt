@@ -47,6 +47,7 @@ import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.admin.AdminOrderFilter
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.components.ProductImage
+import com.vaiinilla.app.ui.components.chargedPaymentLabel
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -361,7 +362,8 @@ private fun OrderSheet(
             AdminValueRow("Estado", summary.state.label, colors)
             AdminValueRow(
                 "Pago",
-                summary.paymentMethod.label + if (summary.paymentPending) " · pendiente" else "",
+                (chargedPaymentLabel(summary) ?: summary.paymentMethod.label) +
+                    if (summary.paymentPending) " · pendiente" else "",
                 colors,
             )
             whereLabel(order)?.let { AdminValueRow("Destino", it, colors) }

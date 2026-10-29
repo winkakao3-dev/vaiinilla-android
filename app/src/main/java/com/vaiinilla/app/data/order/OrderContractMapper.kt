@@ -15,6 +15,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.OrderUser
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.PaymentPart
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.domain.model.StripePaymentSession
@@ -68,6 +69,8 @@ fun OrderDetailDto.toDomain(): OrderDetail =
                 deliveryWithoutQr = deliveryWithoutQr,
                 amountPaid = amountPaid,
                 balanceDue = balanceDue,
+                chargedMethod = chargedMethod?.takeIf { it.isNotBlank() },
+                paymentsByMethod = paymentsByMethod.map { PaymentPart(method = it.method, amount = it.amount) },
             ),
         user =
             user?.let {

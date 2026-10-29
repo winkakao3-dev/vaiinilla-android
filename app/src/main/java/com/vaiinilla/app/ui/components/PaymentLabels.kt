@@ -13,12 +13,35 @@ fun paymentMethodLabel(method: PaymentMethod): String =
         PaymentMethod.STRIPE -> "Tarjeta"
     }
 
+/** Un método como lo manda el servidor en los pagos (`efectivo`, `terminal`, `saldo`, `stripe`, `mixto`). */
+fun paymentWireLabel(method: String): String =
+    when (method) {
+        "efectivo" -> "Efectivo"
+        "terminal" -> "Terminal"
+        "saldo" -> "Saldo"
+        "stripe" -> "Tarjeta"
+        "mixto" -> "Mixto"
+        else -> method.replaceFirstChar { it.uppercase() }
+    }
+
+/**
+ * Con qué se cobró de verdad: «Terminal», o «Mixto · Efectivo $66.67 + Terminal $33.33» si hubo partes con
+ * métodos distintos. `null` si el servidor no lo manda o aún no hay pagos.
+ */
+fun chargedPaymentLabel(summary: OrderSummary): String? {
+    val method = summary.chargedMethod ?: return null
+    if (method != "mixto") return paymentWireLabel(method)
+    val parts =
+        summary.paymentsByMethod.joinToString(" + ") { "${paymentWireLabel(it.method)} ${moneyLabel(it.amount)}" }
+    return if (parts.isEmpty()) "Mixto" else "Mixto · $parts"
+}
+
 /** Cómo se paga un pedido: un pedido a la cuenta se paga al final, con toda la cuenta del espacio. */
 fun orderPaymentLabel(summary: OrderSummary): String =
     when {
         summary.payAtEnd && summary.paymentPending -> "Pagar al final"
         summary.payAtEnd -> "Cuenta pagada"
-        else -> paymentMethodLabel(summary.paymentMethod)
+        else -> chargedPaymentLabel(summary) ?: paymentMethodLabel(summary.paymentMethod)
     }
 
 /** El estado del pedido dicho al cliente: un pedido a la cuenta está "recibido", no "cobrado". */
