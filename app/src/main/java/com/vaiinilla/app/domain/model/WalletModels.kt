@@ -27,6 +27,12 @@ data class WalletClient(
     val userId: String,
     val name: String,
     val contextualId: String?,
+    /** "a***@ejemplo.com": para distinguir a dos personas que se llaman igual. */
+    val maskedEmail: String? = null,
+    /** Último pedido de la persona en este negocio (ISO-8601), o null si nunca ha pedido aquí. */
+    val lastOrderAt: String? = null,
+    /** Saldo visible en este negocio antes de recargar. */
+    val balance: String? = null,
 )
 
 data class WalletReloadReceipt(

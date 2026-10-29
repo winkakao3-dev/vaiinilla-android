@@ -15,6 +15,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.math.BigDecimal
+import java.time.LocalDate
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -66,5 +67,29 @@ class WalletReloadContentTest {
         assertNull(walletReloadAmount(""))
         assertNull(walletReloadAmount("1.234"))
         assertEquals("Recargar $50 a Ana López", walletReloadLabel(BigDecimal("50"), ana))
+    }
+
+    @Test
+    fun `bajo el nombre van el correo enmascarado, el ultimo pedido y el saldo`() {
+        val hoy = LocalDate.of(2026, 10, 29)
+        val conDatos =
+            ana.copy(maskedEmail = "a***@ejemplo.com", lastOrderAt = "2026-10-28T19:04:11.000Z", balance = "321.95")
+
+        assertEquals("A-102 · a***@ejemplo.com · Pidió ayer", walletClientDetail(conDatos, hoy))
+        assertEquals("Tiene $321.95", walletClientBalance(conDatos))
+        assertEquals("A-102", walletClientDetail(ana, hoy))
+        assertNull(walletClientBalance(ana))
+        assertNull(walletClientDetail(ana.copy(contextualId = null), hoy))
+    }
+
+    @Test
+    fun `el ultimo pedido se cuenta con el dia del negocio`() {
+        val hoy = LocalDate.of(2026, 10, 29)
+        // 03:30 UTC del 29 son las 21:30 del 28 en Chihuahua.
+        assertEquals("Pidió ayer", walletClientLastOrder("2026-10-29T03:30:00Z", hoy))
+        assertEquals("Pidió hoy", walletClientLastOrder("2026-10-29T18:00:00+00:00", hoy))
+        assertEquals("Pidió el 2 oct", walletClientLastOrder("2026-10-02T18:00:00.000Z", hoy))
+        assertNull(walletClientLastOrder(null, hoy))
+        assertNull(walletClientLastOrder("ayer", hoy))
     }
 }

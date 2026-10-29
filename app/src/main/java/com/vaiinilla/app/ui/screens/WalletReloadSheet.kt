@@ -50,6 +50,7 @@ import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.WalletClient
 import com.vaiinilla.app.domain.model.WalletReloadReceipt
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.RollingText
 import com.vaiinilla.app.ui.components.minTouchTarget
@@ -58,6 +59,11 @@ import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.operational.PendingReloadUi
 import java.math.BigDecimal
+import java.time.Instant
+import java.time.LocalDate
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /** Billetes con los que suele recargar la gente. */
 private val ReloadQuickAmounts = listOf(50, 100, 200, 500)
@@ -72,6 +78,39 @@ internal fun walletReloadLabel(
     } else {
         "Recargar ${moneyLabel(Money.format(amount))} a ${client.name}"
     }
+
+private val LastOrderDay = DateTimeFormatter.ofPattern("d MMM", Locale.forLanguageTag("es-MX"))
+
+/** "Pidió hoy", "Pidió ayer" o "Pidió el 28 oct", con el día del negocio; null si nunca ha pedido aquí. */
+internal fun walletClientLastOrder(
+    lastOrderAt: String?,
+    today: LocalDate = BusinessTime.today(),
+): String? {
+    val instant =
+        lastOrderAt?.let {
+            runCatching { Instant.parse(it) }.getOrNull()
+                ?: runCatching { OffsetDateTime.parse(it).toInstant() }.getOrNull()
+        } ?: return null
+    return when (val day = BusinessTime.at(instant).toLocalDate()) {
+        today -> "Pidió hoy"
+        today.minusDays(1) -> "Pidió ayer"
+        else -> "Pidió el ${LastOrderDay.format(day).trimEnd('.')}"
+    }
+}
+
+/** Bajo el nombre: identificador, correo enmascarado y último pedido, para no recargarle al homónimo. */
+internal fun walletClientDetail(
+    client: WalletClient,
+    today: LocalDate = BusinessTime.today(),
+): String? =
+    listOfNotNull(client.contextualId, client.maskedEmail, walletClientLastOrder(client.lastOrderAt, today))
+        .filter { it.isNotBlank() }
+        .joinToString(" · ")
+        .ifBlank { null }
+
+/** "Tiene $321.95": el saldo antes de recargar. */
+internal fun walletClientBalance(client: WalletClient): String? =
+    client.balance?.toBigDecimalOrNull()?.let { "Tiene ${moneyLabel(Money.format(it))}" }
 
 /** Lo escrito como monto, o null si no es un monto positivo. */
 internal fun walletReloadAmount(text: String): BigDecimal? =
@@ -322,8 +361,11 @@ private fun FindClientStep(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(client.name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.textPrimary)
-                    client.contextualId?.let {
-                        Text(it, fontSize = 12.sp, color = colors.textSecondary, maxLines = 1)
+                    walletClientDetail(client)?.let {
+                        Text(it, fontSize = 12.sp, color = colors.textSecondary, maxLines = 2)
+                    }
+                    walletClientBalance(client)?.let {
+                        Text(it, fontSize = 12.sp, color = colors.textPrimary, fontWeight = FontWeight.SemiBold)
                     }
                 }
                 Icon(
@@ -357,7 +399,10 @@ private fun AmountStep(
         Column(modifier = Modifier.weight(1f)) {
             Text("Recargar a", fontSize = 13.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
             Text(client.name, fontSize = 24.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
-            client.contextualId?.let { Text(it, fontSize = 12.sp, color = colors.textSecondary) }
+            walletClientDetail(client)?.let { Text(it, fontSize = 12.sp, color = colors.textSecondary) }
+            walletClientBalance(client)?.let {
+                Text(it, fontSize = 14.sp, color = colors.textPrimary, fontWeight = FontWeight.SemiBold)
+            }
         }
         Text(
             "Cambiar",

@@ -28,7 +28,28 @@ class RemoteWalletRepositoryTest {
         assertTrue(result.isSuccess)
         assertEquals("wallets/clientes", client.lastPath)
         assertEquals(mapOf("q" to "Ana"), client.lastQuery)
-        assertEquals("A01234", result.getOrThrow().single().contextualId)
+        assertEquals("A01234", result.getOrThrow().first().contextualId)
+    }
+
+    @Test
+    fun `busqueda de clientes trae correo enmascarado, ultimo pedido y saldo, y tolera que falten`() {
+        val (ana, homonima) = RemoteWalletRepository(FakeWalletClient()).searchClients("Ana").getOrThrow()
+
+        assertEquals("a***@ejemplo.com", ana.maskedEmail)
+        assertEquals("2026-10-28T19:04:11.000Z", ana.lastOrderAt)
+        assertEquals("321.95", ana.balance)
+        assertEquals(null, homonima.maskedEmail)
+        assertEquals(null, homonima.lastOrderAt)
+        assertEquals(null, homonima.balance)
+    }
+
+    @Test
+    fun `cliente escaneado toma el saldo de su wallet`() {
+        val client = FakeWalletClient()
+        val ana = RemoteWalletRepository(client).lookupClient("u1").getOrThrow()
+
+        assertEquals("wallets/u1", client.lastPath)
+        assertEquals("125.00", ana.balance)
     }
 
     @Test
@@ -57,16 +78,16 @@ class RemoteWalletRepositoryTest {
             lastPath = path
             lastQuery = query
             return when (path) {
-                "wallets/me" ->
+                "wallets/me", "wallets/u1" ->
                     Result.success(
                         """
-                        {"data":{"cliente":{"usuario_id":"u1","nombre":"Ana Pérez","identificador_cliente":"A01234"},"wallet":{"id":"w1","usuario_id":"u1","establecimiento_id":"e1","saldo":"125.00","actualizado_en":"2026-08-12T12:00:00Z"},"movimientos":[{"id":"m1","tipo":"compra","descripcion":"Compra con saldo","monto":"-35.00","saldo_posterior":"90.00","pedido_id":"p1","creado_en":"2026-08-12T12:00:00Z"}]},"meta":{"page":null,"total_pages":null,"total_items":null,"cursor":null},"error":null}
+                        {"data":{"cliente":{"usuario_id":"u1","nombre":"Ana Pérez","identificador_cliente":"A01234"},"wallet":{"id":"w1","usuario_id":"u1","establecimiento_id":"e1","saldo":"125.00","actualizado_en":"2026-08-12T12:00:00Z"},"movimientos":[{"id":"m1","tipo":"compra","descripcion":"Compra con saldo","monto":"-35.00","saldo_posterior":"90.00","pedido_id":"p1","creado_en":"2026-08-12T12:00:00Z","pedido_folio":12,"lugar":"Mesa 2","resumen_productos":"2× Molletes y 1 más"}]},"meta":{"page":null,"total_pages":null,"total_items":null,"cursor":null},"error":null}
                         """.trimIndent(),
                     )
                 "wallets/clientes" ->
                     Result.success(
                         """
-                        {"data":[{"usuario_id":"u1","nombre":"Ana Pérez","identificador_cliente":"A01234"}],"meta":{"page":null,"total_pages":null,"total_items":null,"cursor":null},"error":null}
+                        {"data":[{"usuario_id":"u1","nombre":"Ana Pérez","identificador_cliente":"A01234","correo_enmascarado":"a***@ejemplo.com","ultimo_pedido_en":"2026-10-28T19:04:11.000Z","saldo":"321.95"},{"usuario_id":"u2","nombre":"Ana Pérez"}],"meta":{"page":null,"total_pages":null,"total_items":null,"cursor":null},"error":null}
                         """.trimIndent(),
                     )
                 else -> error("ruta no usada: $path")
