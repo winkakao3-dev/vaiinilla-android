@@ -585,7 +585,17 @@ private fun RentNowCard(
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
-            Text("Ocupada", color = colors.muted, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+            // Fuera de horario la cancha no está ocupada: la etiqueta solo sale cuando de verdad lo está.
+            if (busyUntil != null) {
+                Text(
+                    "Ocupada",
+                    color = colors.muted,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    modifier = Modifier.padding(start = 12.dp),
+                )
+            }
         }
     } else {
         val container by animateColorAsState(

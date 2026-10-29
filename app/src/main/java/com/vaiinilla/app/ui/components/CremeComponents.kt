@@ -267,6 +267,42 @@ fun CremeStatRow(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
+    // Con la letra grande del sistema tres columnas parten las palabras («Recarga s»): se apilan (L01).
+    if (androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.4f) {
+        Column(
+            modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items.forEach { item ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        item.label,
+                        color = colors.muted,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        item.value ?: "—",
+                        color =
+                            when {
+                                item.value == null -> colors.muted
+                                item.highlighted -> colors.accent2
+                                else -> colors.ink
+                            },
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Black,
+                        style = TextStyle(fontFeatureSettings = "tnum"),
+                    )
+                }
+            }
+        }
+        return
+    }
     Row(
         modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),

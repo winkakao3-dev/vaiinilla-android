@@ -506,8 +506,15 @@ internal fun PersonRow(
 
 /** Los botones de una fila, alineados con el texto (a la derecha del avatar). */
 @Composable
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 internal fun RowActions(content: @Composable RowScope.() -> Unit) {
-    Row(Modifier.padding(start = 56.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), content = content)
+    // Con la letra grande los botones bajan de renglón en vez de partir la palabra («Rechaza r», L01).
+    androidx.compose.foundation.layout.FlowRow(
+        Modifier.padding(start = 56.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        content = content,
+    )
 }
 
 @Composable

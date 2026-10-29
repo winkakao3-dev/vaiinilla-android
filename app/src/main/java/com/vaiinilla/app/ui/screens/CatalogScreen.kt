@@ -664,7 +664,12 @@ private fun MenuHero(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(if (photoUrl != null || logoUrl != null) HeroHeight else HeroHeightNameOnly),
+                // El título va pegado abajo: con la letra grande del sistema crece hacia arriba y tapaba
+                // «Cambiar lugar» (L01), así que la portada crece con la escala de la letra.
+                .height(
+                    (if (photoUrl != null || logoUrl != null) HeroHeight else HeroHeightNameOnly) +
+                        (160 * (androidx.compose.ui.platform.LocalDensity.current.fontScale - 1f).coerceAtLeast(0f)).dp,
+                ),
     ) {
         if (photoUrl != null) {
             ProductImage(
