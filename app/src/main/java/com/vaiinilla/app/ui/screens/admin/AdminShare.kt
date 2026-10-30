@@ -20,6 +20,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
+import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.core.qr.QrCodeEncoder
 import java.io.File
 
@@ -122,13 +123,21 @@ internal class NfcLinkWriter(
         tag: Tag,
         url: String,
     ): String? {
-        val message = NdefMessage(arrayOf(NdefRecord.createUri(url)))
+        val link = NdefRecord.createUri(url)
+        // Android abre una etiqueta con enlace como cualquier enlace (en Chrome si el dominio no publica
+        // assetlinks.json); el registro de app la manda directo a la app de cliente. El enlace va primero: el
+        // iPhone lee ese.
+        val withApp = NdefMessage(arrayOf(link, NdefRecord.createApplicationRecord(BuildConfig.CLIENT_APP_ID)))
+        val linkOnly = NdefMessage(arrayOf(link))
+        var message = withApp
         return runCatching {
             val ndef = Ndef.get(tag)
             if (ndef != null) {
                 ndef.connect()
                 try {
                     if (!ndef.isWritable) return "La etiqueta está bloqueada y no se puede grabar."
+                    // En una etiqueta chica cabe solo el enlace: abre la web, pero la mesa sigue sirviendo.
+                    if (ndef.maxSize < message.byteArrayLength) message = linkOnly
                     if (ndef.maxSize < message.byteArrayLength) return "El enlace no cabe en esta etiqueta."
                     ndef.writeNdefMessage(message)
                 } finally {

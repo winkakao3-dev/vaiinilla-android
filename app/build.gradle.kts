@@ -194,6 +194,8 @@ android {
             manifestPlaceholders["appLinkHost"] = "sand-user.vaiinilla.app"
             manifestPlaceholders["appLinkHostAlt"] = "sand-user.vaiinilla.app"
             buildConfigField("String", "APP_LINK_HOSTS", "\"sand-user.vaiinilla.app\"")
+            // La etiqueta NFC se graba para la app de cliente aunque la grabe otra app del entorno.
+            buildConfigField("String", "CLIENT_APP_ID", "\"com.vaiinilla.app.dev\"")
         }
         create("prod") {
             dimension = "environment"
@@ -207,6 +209,7 @@ android {
             manifestPlaceholders["appLinkHost"] = "vaiinilla.app"
             manifestPlaceholders["appLinkHostAlt"] = "www.vaiinilla.app"
             buildConfigField("String", "APP_LINK_HOSTS", "\"vaiinilla.app,www.vaiinilla.app\"")
+            buildConfigField("String", "CLIENT_APP_ID", "\"vaiinilla.innovapro.app\"")
         }
         create("alumno") {
             dimension = "role"
