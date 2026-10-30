@@ -43,6 +43,20 @@ class LaunchDestinationTest {
     }
 
     @Test
+    fun `table link takes a staff session to discovery instead of the modes`() {
+        assertEquals(
+            LaunchDestination.Discovery,
+            resolveLaunchDestination(
+                pendingEstablishmentSlug = null,
+                session = session,
+                hasStaffModes = true,
+                hasSavedVenue = false,
+                pendingSpaceToken = "qr-mesa-4",
+            ),
+        )
+    }
+
+    @Test
     fun `staff session goes to modes`() {
         assertEquals(
             LaunchDestination.StaffModes,

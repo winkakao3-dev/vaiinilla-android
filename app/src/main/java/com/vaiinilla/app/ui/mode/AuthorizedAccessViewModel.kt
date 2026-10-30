@@ -287,6 +287,21 @@ class AuthorizedAccessViewModel
                 }
         }
 
+        /** Un QR o NFC de mesa pidió entrar como cliente: se deja el modo de personal sin aviso de error. */
+        fun leaveStaffModeForLink(onLeft: () -> Unit) {
+            if (_state.value.activeContext == null) return onLeft()
+            if (_state.value.modes.any { it.role == OperationalRole.CLIENT }) {
+                returnToClient(onLeft)
+                return
+            }
+            viewModelScope.launch(Dispatchers.IO) {
+                refreshCoordinator.clearSession()
+                sessionStore.clear()
+            }
+            _state.value = _state.value.copy(loading = false, activeContext = null, errorMessage = null)
+            onLeft()
+        }
+
         fun syncAuthorizedAccessOrReturnToClient(onForcedToClient: () -> Unit = {}) {
             refreshModes(force = true) {
                 enforceActiveModeStillAuthorized(onForcedToClient = onForcedToClient)

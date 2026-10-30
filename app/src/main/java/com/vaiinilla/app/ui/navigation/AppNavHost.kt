@@ -2,6 +2,7 @@ package com.vaiinilla.app.ui.navigation
 
 import android.Manifest
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.EnterTransition
@@ -526,27 +527,50 @@ fun AppNavHost(
         openWallet = { navController.navigateStudent(Routes.WALLET) },
     )
 
+    // Cambiar a cliente desmontaría la pantalla de un cobro o cierre que el servidor ya está moviendo.
+    fun linkBlockedByStaffAction(): Boolean {
+        if (authorizedAccessState.activeContext == null || !operationalState.acting) return false
+        Toast
+            .makeText(appContext, "Termina lo que estás cobrando y vuelve a abrir el enlace.", Toast.LENGTH_LONG)
+            .show()
+        return true
+    }
+
+    // Escanear una mesa o una tienda es querer pedir ahí: con un modo de personal activo se sale a cliente.
+    fun leaveStaffModeForLink(onLeft: () -> Unit) {
+        authorizedAccessViewModel.leaveStaffModeForLink {
+            operationalViewModel.clearRole()
+            onLeft()
+        }
+    }
+
     LaunchedEffect(pendingEstablishmentSlug) {
         val slug = pendingEstablishmentSlug?.trim().orEmpty()
         if (slug.isEmpty()) return@LaunchedEffect
+        if (linkBlockedByStaffAction()) return@LaunchedEffect onDeepLinkConsumed()
         startEntrance(slug)
-        discoveryViewModel.openSlug(
-            slug = slug,
-            onEntered = { venue ->
-                enterVenueAndOpenCatalog(venue)
-            },
-            onFinished = onDeepLinkConsumed,
-        )
+        leaveStaffModeForLink {
+            discoveryViewModel.openSlug(
+                slug = slug,
+                onEntered = { venue ->
+                    enterVenueAndOpenCatalog(venue)
+                },
+                onFinished = onDeepLinkConsumed,
+            )
+        }
     }
     LaunchedEffect(pendingSpaceToken) {
         val token = pendingSpaceToken?.trim().orEmpty()
         if (token.isEmpty()) return@LaunchedEffect
+        if (linkBlockedByStaffAction()) return@LaunchedEffect onSpaceLinkConsumed()
         startEntrance(token)
-        discoveryViewModel.updateSpaceToken(token)
-        discoveryViewModel.resolveSpaceToken(
-            onEntered = ::enterVenueAndOpenCatalog,
-            onFinished = onSpaceLinkConsumed,
-        )
+        leaveStaffModeForLink {
+            discoveryViewModel.updateSpaceToken(token)
+            discoveryViewModel.resolveSpaceToken(
+                onEntered = ::enterVenueAndOpenCatalog,
+                onFinished = onSpaceLinkConsumed,
+            )
+        }
     }
     var qrScannerOpen by remember { mutableStateOf(false) }
     // Cada aumento abre la hoja del código de mesa en Descubrir (alternativa al QR sin cámara).
@@ -707,6 +731,7 @@ fun AppNavHost(
             val destination =
                 resolveLaunchDestination(
                     pendingEstablishmentSlug = pendingEstablishmentSlug,
+                    pendingSpaceToken = pendingSpaceToken,
                     session = authorizedAccessViewModel.state.value.session,
                     hasStaffModes =
                         hasStaffLaunchModes(
@@ -937,6 +962,7 @@ fun AppNavHost(
                         navigateLaunchDestination(
                             resolveLaunchDestination(
                                 pendingEstablishmentSlug = pendingEstablishmentSlug,
+                                pendingSpaceToken = pendingSpaceToken,
                                 session = null,
                                 hasStaffModes = false,
                                 hasSavedVenue = savedVenue != null,
@@ -951,6 +977,7 @@ fun AppNavHost(
                         navigateLaunchDestination(
                             resolveLaunchDestination(
                                 pendingEstablishmentSlug = pendingEstablishmentSlug,
+                                pendingSpaceToken = pendingSpaceToken,
                                 session = authorizedAccessViewModel.state.value.session,
                                 hasStaffModes =
                                     hasStaffLaunchModes(

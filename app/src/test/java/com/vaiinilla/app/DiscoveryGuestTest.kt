@@ -126,6 +126,12 @@ class GuestSessionAndDeepLinkTest {
                 Uri.parse("https://www.vaiinilla.app/demo-a/m/qr-espacio-a-mesa-4"),
             ),
         )
+        assertEquals(
+            "qr-espacio-a-mesa-4",
+            MainActivity.spaceTokenFrom(
+                Uri.parse("https://sand-user.vaiinilla.app/demo-a/m/qr-espacio-a-mesa-4"),
+            ),
+        )
         assertNull(
             MainActivity.spaceTokenFrom(
                 Uri.parse("https://evil.example/demo-a/m/qr-espacio-a-mesa-4"),

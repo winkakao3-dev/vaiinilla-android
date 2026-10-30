@@ -190,6 +190,10 @@ android {
             buildConfigField("String", "WEB_URL", "\"$devWebUrl\"")
             buildConfigField("String", "FIREBASE_PROJECT_ID", "\"$devFirebaseProjectId\"")
             buildConfigField("boolean", "IS_PRODUCTION", "false")
+            // Los QR y las etiquetas NFC de dev apuntan a sand-user; un token de dev no existe en producción.
+            manifestPlaceholders["appLinkHost"] = "sand-user.vaiinilla.app"
+            manifestPlaceholders["appLinkHostAlt"] = "sand-user.vaiinilla.app"
+            buildConfigField("String", "APP_LINK_HOSTS", "\"sand-user.vaiinilla.app\"")
         }
         create("prod") {
             dimension = "environment"
@@ -200,6 +204,9 @@ android {
             buildConfigField("String", "WEB_URL", "\"$prodWebUrl\"")
             buildConfigField("String", "FIREBASE_PROJECT_ID", "\"$prodFirebaseProjectId\"")
             buildConfigField("boolean", "IS_PRODUCTION", "true")
+            manifestPlaceholders["appLinkHost"] = "vaiinilla.app"
+            manifestPlaceholders["appLinkHostAlt"] = "www.vaiinilla.app"
+            buildConfigField("String", "APP_LINK_HOSTS", "\"vaiinilla.app,www.vaiinilla.app\"")
         }
         create("alumno") {
             dimension = "role"

@@ -225,15 +225,17 @@ class MainActivity : ComponentActivity() {
             return authority in APP_HOSTS
         }
 
-        private val APP_HOSTS = setOf("vaiinilla.app", "www.vaiinilla.app")
+        private val APP_HOSTS = setOf("vaiinilla.app", "www.vaiinilla.app", "sand-user.vaiinilla.app")
+
+        // Con la app abierta solo se toman las etiquetas de su entorno: la Prod no abre un token de dev.
+        private val NFC_HOSTS = BuildConfig.APP_LINK_HOSTS.split(',').map(String::trim).filter(String::isNotEmpty)
         private val ESTABLISHMENT_SLUG = Regex("[A-Za-z0-9][A-Za-z0-9_-]*")
         private val ORDER_ID = Regex("[A-Za-z0-9_-]+")
         private val NFC_TAG_FILTERS =
             arrayOf(
                 IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED).apply {
                     addDataScheme("https")
-                    addDataAuthority("vaiinilla.app", null)
-                    addDataAuthority("www.vaiinilla.app", null)
+                    NFC_HOSTS.forEach { addDataAuthority(it, null) }
                 },
             )
         private val RESERVED_PATH_ROOTS = setOf("e", "u", "invitaciones")
