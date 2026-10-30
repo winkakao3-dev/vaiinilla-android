@@ -15,6 +15,8 @@ import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.Ndef
 import android.nfc.tech.NdefFormatable
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
@@ -76,6 +78,8 @@ internal fun shareQr(
 
 private const val QR_PIXELS = 720
 
+private const val READER_RELEASE_DELAY_MS = 2_000L
+
 /**
  * Graba un enlace en una etiqueta NFC, como "Grabar en NFC" de la web. Mientras espera la etiqueta usa reader
  * mode (apaga la emulación de tarjeta solo ese rato) y lo suelta al terminar o al salir de la pantalla.
@@ -84,6 +88,9 @@ internal class NfcLinkWriter(
     private val activity: Activity?,
 ) {
     private val adapter: NfcAdapter? = activity?.let { NfcAdapter.getDefaultAdapter(it) }
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    @Volatile private var waiting = false
 
     val available: Boolean get() = adapter != null
 
@@ -96,17 +103,19 @@ internal class NfcLinkWriter(
         val activity = activity ?: return onResult(false, "No se pudo usar NFC.")
         val adapter = adapter ?: return onResult(false, "Este teléfono no tiene NFC.")
         if (!adapter.isEnabled) return onResult(false, "Prende el NFC en los ajustes del teléfono.")
+        mainHandler.removeCallbacksAndMessages(null)
+        waiting = true
+        // Sin FLAG_READER_SKIP_NDEF_CHECK: con él la etiqueta llega sin Ndef ni NdefFormatable y no se puede grabar.
         val flags =
             NfcAdapter.FLAG_READER_NFC_A or NfcAdapter.FLAG_READER_NFC_B or NfcAdapter.FLAG_READER_NFC_F or
-                NfcAdapter.FLAG_READER_NFC_V or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
+                NfcAdapter.FLAG_READER_NFC_V
         adapter.enableReaderMode(
             activity,
             { tag ->
-                val outcome = write(tag, url)
-                activity.runOnUiThread {
-                    stop()
-                    onResult(outcome == null, outcome ?: "Etiqueta grabada.")
-                }
+                if (!waiting) return@enableReaderMode
+                waiting = false
+                val (success, message) = write(tag, url)
+                activity.runOnUiThread { onResult(success, message) }
             },
             flags,
             null,
@@ -114,50 +123,57 @@ internal class NfcLinkWriter(
     }
 
     fun stop() {
+        waiting = false
         val activity = activity ?: return
-        runCatching { adapter?.disableReaderMode(activity) }
+        // Si reader mode se suelta con la etiqueta aún junto al teléfono, Android la vuelve a leer y abre su enlace.
+        mainHandler.removeCallbacksAndMessages(null)
+        mainHandler.postDelayed({ runCatching { adapter?.disableReaderMode(activity) } }, READER_RELEASE_DELAY_MS)
     }
 
-    /** null si se grabó; si no, qué pasó. */
     private fun write(
         tag: Tag,
         url: String,
-    ): String? {
+    ): Pair<Boolean, String> {
         val link = NdefRecord.createUri(url)
         // Android abre una etiqueta con enlace como cualquier enlace (en Chrome si el dominio no publica
         // assetlinks.json); el registro de app la manda directo a la app de cliente. El enlace va primero: el
         // iPhone lee ese.
         val withApp = NdefMessage(arrayOf(link, NdefRecord.createApplicationRecord(BuildConfig.CLIENT_APP_ID)))
         val linkOnly = NdefMessage(arrayOf(link))
-        var message = withApp
+        val failed = "No se pudo grabar. Deja la etiqueta quieta junto al teléfono e intenta de nuevo."
         return runCatching {
             val ndef = Ndef.get(tag)
             if (ndef != null) {
                 ndef.connect()
                 try {
-                    if (!ndef.isWritable) return "La etiqueta está bloqueada y no se puede grabar."
-                    // En una etiqueta chica cabe solo el enlace: abre la web, pero la mesa sigue sirviendo.
-                    if (ndef.maxSize < message.byteArrayLength) message = linkOnly
-                    if (ndef.maxSize < message.byteArrayLength) return "El enlace no cabe en esta etiqueta."
-                    ndef.writeNdefMessage(message)
+                    if (!ndef.isWritable) return false to "La etiqueta está bloqueada y no se puede grabar."
+                    when {
+                        ndef.maxSize >= withApp.byteArrayLength -> {
+                            ndef.writeNdefMessage(withApp)
+                            true to "Etiqueta grabada."
+                        }
+                        ndef.maxSize >= linkOnly.byteArrayLength -> {
+                            ndef.writeNdefMessage(linkOnly)
+                            true to "Etiqueta grabada, pero es chica: en Android abrirá la web y no la app."
+                        }
+                        else -> false to "El enlace no cabe en esta etiqueta."
+                    }
                 } finally {
                     runCatching { ndef.close() }
                 }
-                null
             } else {
-                val formatable = NdefFormatable.get(tag) ?: return "Esta etiqueta no se puede grabar."
+                val formatable = NdefFormatable.get(tag) ?: return false to "Esta etiqueta no se puede grabar."
                 formatable.connect()
                 try {
-                    formatable.format(message)
+                    formatable.format(withApp)
                 } finally {
                     runCatching { formatable.close() }
                 }
-                null
+                true to "Etiqueta grabada."
             }
-        }.getOrElse { "No se pudo grabar. Deja la etiqueta quieta junto al teléfono e intenta de nuevo." }
+        }.getOrElse { false to failed }
     }
 }
-
 @Composable
 internal fun rememberNfcLinkWriter(): NfcLinkWriter {
     val context = LocalContext.current
