@@ -24,7 +24,6 @@ import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.InvitationAcceptanceScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
-import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
 import com.vaiinilla.app.ui.screens.StudentAuthLandingScreen
 import com.vaiinilla.app.ui.screens.StudentForgotPasswordScreen
 import com.vaiinilla.app.ui.screens.StudentLoginScreen
@@ -445,41 +444,6 @@ class CompleteUiScreenshotTest {
                 onBack = {},
                 onCreditBalance = {},
             )
-        }
-    }
-
-    @Test
-    fun `51_sticker_core`() {
-        capture("51_sticker_core.png") {
-            ReceiptStickerScreen(ScreenshotFixtures.sampleOrder(), onBack = {}, initialStyleIndex = 1)
-        }
-    }
-
-    @Test
-    fun `52_sticker_limited`() {
-        capture("52_sticker_limited.png") {
-            ReceiptStickerScreen(ScreenshotFixtures.sampleOrder(), onBack = {}, initialStyleIndex = 2)
-        }
-    }
-
-    @Test
-    fun `53_sticker_breakfast`() {
-        capture("53_sticker_breakfast.png") {
-            ReceiptStickerScreen(ScreenshotFixtures.sampleOrder(), onBack = {}, initialStyleIndex = 3)
-        }
-    }
-
-    @Test
-    fun `54_sticker_qr_live`() {
-        capture("54_sticker_qr_live.png") {
-            ReceiptStickerScreen(ScreenshotFixtures.sampleOrder(), onBack = {}, initialStyleIndex = 4)
-        }
-    }
-
-    @Test
-    fun `55_sticker_thermal`() {
-        capture("55_sticker_thermal.png") {
-            ReceiptStickerScreen(ScreenshotFixtures.sampleOrder(), onBack = {}, initialStyleIndex = 5)
         }
     }
 }

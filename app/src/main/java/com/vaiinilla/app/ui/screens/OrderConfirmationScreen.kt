@@ -59,8 +59,6 @@ fun OrderConfirmationScreen(
     onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
-    /** Pedido entregado: abre el recibo con el método de pago, que se comparte como sticker. */
-    onViewReceipt: (() -> Unit)? = null,
     /** Sin sesión el pedido solo vive en este teléfono: se le avisa al invitado (A06). */
     guest: Boolean = false,
 ) {
@@ -105,7 +103,6 @@ fun OrderConfirmationScreen(
             onCurrentWaiterCall = onCurrentWaiterCall,
             onCallWaiter = onCallWaiter,
             onCancelWaiter = onCancelWaiter,
-            onViewReceipt = onViewReceipt,
             guestNotice = GUEST_ORDER_NOTICE.takeIf { guest },
             // Las rentas de cancha no se cobran en la caja del mostrador: no imprimen ticket.
             printsTicket = activeCelebration != null && order.reservation == null,

@@ -24,7 +24,6 @@ import com.vaiinilla.app.ui.screens.DiscoveryScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.PickupJourneyScreen
-import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
 import com.vaiinilla.app.ui.screens.StudentTrackingScreen
 import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
@@ -76,7 +75,6 @@ internal object BreakUiCases {
             "pedidos" to all,
             "pedido" to single,
             "recogida" to single,
-            "ticket" to single,
             "cartera-tutor" to all,
             "cartera-alumno" to all,
             "caja" to all,
@@ -254,10 +252,6 @@ internal object BreakUiCases {
             "recogida" -> {
                 val order = BreakUiFixtures.order(data, OrderState.READY)
                 ({ PickupJourneyScreen(order = order, qrPayload = null, onBack = {}, onViewTracking = {}) })
-            }
-            "ticket" -> {
-                val order = BreakUiFixtures.order(data, OrderState.DELIVERED)
-                ({ ReceiptStickerScreen(order = order, onBack = {}) })
             }
             "cartera-tutor" -> {
                 val children = ChildrenState(ParentFixtures.services(FakeGuardianship(BreakUiFixtures.children(data))))

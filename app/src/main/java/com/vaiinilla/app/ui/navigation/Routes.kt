@@ -30,10 +30,6 @@ object Routes {
     const val WALLET_ACCOUNT = "wallet/account"
     const val RECEIVED_NOTICES = "account/notices"
     const val SUPPORT = "support"
-    const val RECEIPT_STICKER = "receipt-sticker?style={style}"
-
-    fun receiptStickerRoute(styleIndex: Int = 0): String = "receipt-sticker?style=$styleIndex"
-
     fun authLandingRoute(returnRoute: String = CART): String = "auth/landing?returnRoute=${Uri.encode(returnRoute)}"
 
     fun authRegisterRoute(returnRoute: String = CART): String = "auth/register?returnRoute=${Uri.encode(returnRoute)}"

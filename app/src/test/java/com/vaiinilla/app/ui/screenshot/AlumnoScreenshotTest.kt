@@ -24,7 +24,6 @@ import com.vaiinilla.app.ui.screens.AssistantChatScreen
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
-import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
 import com.vaiinilla.app.ui.screens.StudentAuthLandingScreen
 import com.vaiinilla.app.ui.screens.StudentTrackingScreen
 import com.vaiinilla.app.ui.screens.WaitingArcadeCard
@@ -429,21 +428,6 @@ class AlumnoScreenshotTest {
         }
         composeTestRule.waitForIdle()
         composeTestRule.onRoot().captureRoboImage("19_catalog_dark.png")
-    }
-
-    @Test
-    fun `20_sticker_receipt`() {
-        val order = ScreenshotFixtures.sampleOrder()
-        composeTestRule.setContent {
-            ScreenshotTheme {
-                ReceiptStickerScreen(
-                    order = order,
-                    onBack = {},
-                )
-            }
-        }
-        composeTestRule.waitForIdle()
-        composeTestRule.onRoot().captureRoboImage("20_sticker_receipt.png")
     }
 
     @Test
