@@ -21,7 +21,9 @@ import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.CreatedOrder
+import com.vaiinilla.app.domain.model.DeliveryAddress
 import com.vaiinilla.app.domain.model.GuestVenueContext
+import com.vaiinilla.app.domain.model.HomePayment
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -34,6 +36,7 @@ import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
+import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import com.vaiinilla.app.domain.repository.ReservationRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
@@ -79,6 +82,7 @@ class OrderFlowViewModel
         private val guestOrders: GuestOrderGateway,
         private val guestSession: GuestReservationSession,
         private val guestCheckoutPolicy: GuestCheckoutPolicy,
+        private val orderRepository: OrderRepository,
     ) : ViewModel() {
         private val _uiState =
             mutableStateOf(
@@ -781,7 +785,94 @@ class OrderFlowViewModel
             _uiState.value = _uiState.value.copy(kitchenNotes = notes, createOrderError = null)
         }
 
+        // region A domicilio y encargos (CASA-05 a 08)
+
+        fun editDeliveryAddress(edit: (DeliveryAddress) -> DeliveryAddress) {
+            val current = _uiState.value.homeCheckout
+            var address = edit(current.address)
+            if (address == current.address) return
+            // Otra dirección es otra zona: la cotización anterior ya no vale.
+            val moved = address.address != current.address.address
+            if (moved) address = address.copy(latitude = null, longitude = null)
+            pendingIdempotencyKey = null
+            _uiState.value =
+                _uiState.value.copy(
+                    homeCheckout = current.copy(address = address, quote = if (moved) null else current.quote),
+                    deliveryQuoteError = if (moved) null else _uiState.value.deliveryQuoteError,
+                    createOrderError = null,
+                )
+        }
+
+        fun selectDeliveryDate(date: String) {
+            val current = _uiState.value.homeCheckout
+            if (current.deliveryDate == date) return
+            pendingIdempotencyKey = null
+            _uiState.value = _uiState.value.copy(homeCheckout = current.copy(deliveryDate = date), createOrderError = null)
+        }
+
+        fun selectHomePayment(payment: HomePayment) {
+            val state = _uiState.value
+            if (state.homeCheckout.payment == payment || payment !in state.homePayments) return
+            pendingIdempotencyKey = null
+            _uiState.value = state.copy(homeCheckout = state.homeCheckout.copy(payment = payment), createOrderError = null)
+        }
+
+        fun startDeliveryQuote() {
+            _uiState.value = _uiState.value.copy(quotingDelivery = true, deliveryQuoteError = null)
+        }
+
+        fun failDeliveryQuote(message: String) {
+            _uiState.value = _uiState.value.copy(quotingDelivery = false, deliveryQuoteError = message)
+        }
+
+        /**
+         * Le pregunta al negocio si llega al punto que encontró la pantalla y cuánto cuesta. Mientras se cotizaba el
+         * cliente pudo cambiar la dirección: esa respuesta ya no es de la suya y se descarta.
+         */
+        fun quoteHomeDelivery(
+            latitude: Double,
+            longitude: Double,
+            written: String,
+            street: String?,
+        ) {
+            launchTracked {
+                val result = withContext(Dispatchers.IO) { orderRepository.quoteHomeDelivery(latitude, longitude) }
+                val state = _uiState.value
+                if (state.homeCheckout.address.address.trim() != written.trim()) {
+                    _uiState.value = state.copy(quotingDelivery = false)
+                    return@launchTracked
+                }
+                result.fold(
+                    onSuccess = { quote ->
+                        val address =
+                            state.homeCheckout.address.copy(
+                                address = street?.take(160) ?: state.homeCheckout.address.address,
+                                latitude = latitude,
+                                longitude = longitude,
+                            )
+                        pendingIdempotencyKey = null
+                        _uiState.value =
+                            state.copy(
+                                homeCheckout = state.homeCheckout.copy(address = address, quote = quote),
+                                quotingDelivery = false,
+                                deliveryQuoteError = null,
+                            )
+                    },
+                    onFailure = {
+                        _uiState.value =
+                            state.copy(
+                                quotingDelivery = false,
+                                deliveryQuoteError = "No pudimos calcular el envío. Intenta de nuevo.",
+                            )
+                    },
+                )
+            }
+        }
+
+        // endregion
+
         fun updateCheckoutDestination(destination: OrderDestination) {
+            if (destination == OrderDestination.HOME_DELIVERY && !_uiState.value.canDeliverHome) return
             if (
                 destination == OrderDestination.IN_SPACE &&
                 _uiState.value.guestVenue?.space == null
@@ -930,14 +1021,25 @@ class OrderFlowViewModel
                     return@launchTracked
                 }
 
+                current.checkoutScheduleProblem?.let { problem ->
+                    _uiState.value = current.copy(creatingOrder = false, createOrderError = problem)
+                    return@launchTracked
+                }
+                val home = current.isHomeDelivery
                 val request =
                     buildCreateOrderRequest(
                         lines = current.cartLines,
                         kitchenNotes = current.kitchenNotes,
-                        paymentMethod = current.checkoutPayment,
+                        paymentMethod = if (home) current.homePaymentMethod else current.checkoutPayment,
                         destination = current.checkoutDestination,
                         spaceId = current.checkoutSpaceId,
-                        payAtEnd = current.checkoutPayAtEnd,
+                        payAtEnd = current.checkoutPayAtEnd && !home,
+                    ).copy(
+                        // Lo de domicilio y encargos solo viaja cuando se usa.
+                        deliveryDate = current.homeCheckout.deliveryDate.takeIf { current.asksForDeliveryDate },
+                        delivery = current.homeCheckout.address.takeIf { home },
+                        paysOnArrival = home && current.homeCheckout.payment == HomePayment.ON_ARRIVAL,
+                        withDeposit = home && current.homeCheckout.payment == HomePayment.DEPOSIT,
                     )
                 // La nota general más el resumen de las notas por línea pueden pasar el máximo del servidor, que
                 // respondería con un 400 sin explicación (COMPRA-18).

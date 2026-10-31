@@ -115,6 +115,7 @@ import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.CounterOrderSheet
 import com.vaiinilla.app.ui.screens.DiscoveryScreen
 import com.vaiinilla.app.ui.screens.FloorTable
+import com.vaiinilla.app.ui.screens.HomeCheckoutActions
 import com.vaiinilla.app.ui.screens.InvitationAcceptanceScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.LocalScene
@@ -1626,6 +1627,16 @@ fun AppNavHost(
                         venueName = orderState.guestVenue?.establishment?.name,
                         venuePhotoUrl = orderState.guestVenue?.establishment?.photoUrl,
                         onWallet = { navController.navigateStudent(Routes.WALLET) },
+                        home =
+                            HomeCheckoutActions(
+                                onDestinationChange = orderFlowViewModel::updateCheckoutDestination,
+                                onEditAddress = orderFlowViewModel::editDeliveryAddress,
+                                onQuoteStart = orderFlowViewModel::startDeliveryQuote,
+                                onQuoteFailed = orderFlowViewModel::failDeliveryQuote,
+                                onQuote = orderFlowViewModel::quoteHomeDelivery,
+                                onSelectDate = orderFlowViewModel::selectDeliveryDate,
+                                onSelectPayment = orderFlowViewModel::selectHomePayment,
+                            ),
                     )
                 }
             }

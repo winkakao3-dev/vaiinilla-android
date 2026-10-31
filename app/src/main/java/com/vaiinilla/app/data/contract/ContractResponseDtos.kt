@@ -58,6 +58,22 @@ data class OperationalStatusDto(
     /** Solo para la administración: latido en los últimos 2 min. Otro rol o un servidor anterior no lo envía. */
     @SerialName("caja_conectada") val cashierConnected: Boolean? = null,
     @SerialName("cocina_conectada") val kitchenConnected: Boolean? = null,
+    // Repostería (CASA-05 a 08); un servidor anterior no los envía y la app se comporta como siempre.
+    @SerialName("reparto") val delivery: DeliveryOfferDto? = null,
+    @SerialName("permite_contra_entrega") val payOnArrival: Boolean? = null,
+    @SerialName("anticipo_porcentaje") val depositPercent: Int? = null,
+    @SerialName("datos_transferencia") val transferDetails: String? = null,
+    @SerialName("encargos_requieren_aceptar") val requiresAcceptance: Boolean? = null,
+    @SerialName("dias_adelanto_pedido") val daysAhead: Int? = null,
+    @SerialName("hora_corte_pedido") val cutoff: String? = null,
+)
+
+@Serializable
+data class DeliveryOfferDto(
+    val activo: Boolean = false,
+    @SerialName("radio_km") val radioKm: kotlinx.serialization.json.JsonPrimitive? = null,
+    val costo: kotlinx.serialization.json.JsonPrimitive? = null,
+    val minimo: kotlinx.serialization.json.JsonPrimitive? = null,
 )
 
 @Serializable

@@ -3,9 +3,11 @@ package com.vaiinilla.app.data.contract
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.Category
+import com.vaiinilla.app.domain.model.HomeDeliveryOffer
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.OrderWindow
+import com.vaiinilla.app.domain.model.PreorderOffer
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.ProductOption
@@ -62,8 +64,33 @@ class ContractResponseParser
                 isParentUnlocked = envelope.data.isParentUnlocked,
                 cashierConnected = envelope.data.cashierConnected,
                 kitchenConnected = envelope.data.kitchenConnected,
+                homeDelivery =
+                    envelope.data.delivery
+                        ?.takeIf { it.activo }
+                        ?.let { delivery ->
+                            val fee = delivery.costo?.textOrNull() ?: return@let null
+                            HomeDeliveryOffer(
+                                fee = fee,
+                                minimum = delivery.minimo?.textOrNull(),
+                                radiusKm = delivery.radioKm?.textOrNull().orEmpty(),
+                                payOnArrival = envelope.data.payOnArrival ?: false,
+                                transferDetails = envelope.data.transferDetails?.trim()?.ifEmpty { null },
+                            )
+                        },
+                preorders =
+                    envelope.data.requiresAcceptance?.let { requires ->
+                        PreorderOffer(
+                            daysAhead = envelope.data.daysAhead ?: 0,
+                            cutoff = envelope.data.cutoff?.take(5),
+                            requiresAcceptance = requires,
+                            depositPercent = envelope.data.depositPercent,
+                        )
+                    },
             )
         }
+
+        private fun kotlinx.serialization.json.JsonPrimitive.textOrNull(): String? =
+            if (this is kotlinx.serialization.json.JsonNull) null else content.trim().ifEmpty { null }
 
         /** Logo y foto del negocio: a Caja le llegan solas y a la administración dentro de su configuración. */
         fun parseStoreImages(raw: String): StoreImages {

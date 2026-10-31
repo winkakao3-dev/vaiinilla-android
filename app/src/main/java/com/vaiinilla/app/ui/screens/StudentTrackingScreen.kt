@@ -476,6 +476,9 @@ fun StudentTrackingScreen(
                                 if (animatedSelected.summary.state == OrderState.CANCELED) {
                                     item { CancelReasonCard(animatedSelected) }
                                 }
+                                if (animatedSelected.homeDelivery != null) {
+                                    item { HomeDeliveryOrderCard(animatedSelected) }
+                                }
                                 if (
                                     animatedSelected.summary.state == OrderState.READY &&
                                     animatedSelected.needsPickupQr(

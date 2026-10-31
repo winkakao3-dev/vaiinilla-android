@@ -136,16 +136,21 @@ import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.OrderFlowUiState
+import com.vaiinilla.app.ui.order.asksForDeliveryDate
 import com.vaiinilla.app.ui.order.canCreateOrder
+import com.vaiinilla.app.ui.order.canDeliverHome
 import com.vaiinilla.app.ui.order.canPayAtEnd
 import com.vaiinilla.app.ui.order.canPayWithBalance
 import com.vaiinilla.app.ui.order.canPayWithCard
 import com.vaiinilla.app.ui.order.cartTotalFor
+import com.vaiinilla.app.ui.order.checkoutScheduleProblem
 import com.vaiinilla.app.ui.order.checkoutSpace
 import com.vaiinilla.app.ui.order.checkoutSpaces
 import com.vaiinilla.app.ui.order.checkoutTotal
 import com.vaiinilla.app.ui.order.hasUnresolvedStripePayment
+import com.vaiinilla.app.ui.order.homeDeliveryFee
 import com.vaiinilla.app.ui.order.isBalancePaymentAffordable
+import com.vaiinilla.app.ui.order.isHomeDelivery
 import com.vaiinilla.app.ui.order.operationalBlockerMessage
 import com.vaiinilla.app.ui.order.requiresOperationalReady
 import com.vaiinilla.app.ui.order.selectedSpaceName
@@ -192,6 +197,8 @@ fun CartScreen(
     venuePhotoUrl: String? = null,
     /** La pill «Cartera» del carrito vacío. */
     onWallet: () -> Unit = {},
+    /** A domicilio y encargos (CASA-05 a 08); sin `reparto` en el estado de la tienda no se ve nada de esto. */
+    home: HomeCheckoutActions = HomeCheckoutActions(),
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -320,7 +327,14 @@ fun CartScreen(
                 if (!hasLines) {
                     item(key = "empty") { EmptyCart(recentOrders, onSelectOrder) }
                 } else {
-                    if (!canChooseInSpace) {
+                    if (state.canDeliverHome && !canChooseInSpace) {
+                        item(key = "home-destination") {
+                            Column(Modifier.padding(horizontal = 20.dp).padding(top = 18.dp)) {
+                                CartSectionHead(title = "Entrega", meta = "Elige cómo recibirlo")
+                                HomeDestinationPicker(state.checkoutDestination, home.onDestinationChange)
+                            }
+                        }
+                    } else if (!canChooseInSpace) {
                         item(key = "pickup") {
                             Box(Modifier.padding(horizontal = 20.dp).padding(top = 18.dp)) {
                                 PickupLine(readyInMinutes = readyInMinutes)
@@ -358,21 +372,38 @@ fun CartScreen(
                             }
                         }
                     }
+                    if (state.isHomeDelivery) {
+                        item(key = "home") {
+                            Box(Modifier.padding(horizontal = 20.dp).padding(top = 16.dp)) {
+                                HomeDeliverySection(state, home)
+                            }
+                        }
+                    }
+                    if (state.asksForDeliveryDate) {
+                        item(key = "date") {
+                            Box(Modifier.padding(horizontal = 20.dp).padding(top = 16.dp)) {
+                                DeliveryDatePicker(state, home.onSelectDate)
+                            }
+                        }
+                    }
                     item(key = "stats") {
                         Column(Modifier.padding(top = 16.dp)) {
                             CremeDivider()
                             CremeStatRow(
-                                listOf(
+                                listOfNotNull(
                                     CremeStat("Productos", state.cartLines.size.toString()),
                                     CremeStat("Listo en", readyInMinutes?.let { "~$it min" }),
                                     CremeStat(
                                         "Entrega",
-                                        if (state.checkoutDestination == OrderDestination.IN_SPACE) {
-                                            state.selectedSpaceName
-                                        } else {
-                                            "En barra"
+                                        when {
+                                            state.isHomeDelivery -> "A domicilio"
+                                            state.checkoutDestination == OrderDestination.IN_SPACE -> state.selectedSpaceName
+                                            else -> "En barra"
                                         },
                                     ),
+                                    state.homeDeliveryFee?.let { fee ->
+                                        CremeStat("Envío", if (Money.parse(fee).signum() == 0) "Gratis" else moneyLabel(fee))
+                                    },
                                     CremeStat("Total", moneyLabel(state.checkoutTotal), highlighted = true),
                                 ),
                                 Modifier.padding(top = 16.dp),
@@ -456,6 +487,13 @@ fun CartScreen(
                             }
                         }
                     }
+                    state.checkoutScheduleProblem?.takeIf { it != state.createOrderError }?.let { problem ->
+                        item(key = "schedule") {
+                            Box(Modifier.padding(horizontal = 20.dp).padding(top = 12.dp)) {
+                                WarningBanner(message = problem)
+                            }
+                        }
+                    }
                     state.cartNotice?.let { notice ->
                         item(key = "notice") {
                             Box(Modifier.padding(horizontal = 20.dp).padding(top = 12.dp)) {
@@ -505,8 +543,13 @@ fun CartScreen(
                             loading = state.creatingOrder || preparingCheckout,
                             onClick = {
                                 haptics.impact()
-                                paymentDialogOpen = true
-                                onCheckoutOpened()
+                                // A domicilio la forma de pago ya se eligió en el carrito.
+                                if (state.isHomeDelivery) {
+                                    onConfirm()
+                                } else {
+                                    paymentDialogOpen = true
+                                    onCheckoutOpened()
+                                }
                             },
                         )
                     }
@@ -980,9 +1023,9 @@ private fun CartHero(
 }
 
 @Composable
-private fun CartSectionHead(
+internal fun CartSectionHead(
     title: String,
-    meta: String,
+    meta: String?,
 ) {
     val colors = LocalVaiinillaColors.current
     Row(
@@ -1001,15 +1044,17 @@ private fun CartSectionHead(
             fontWeight = FontWeight.Bold,
             letterSpacing = (-0.4).sp,
         )
-        Text(
-            meta,
-            color = colors.muted,
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.End,
-            modifier = Modifier.padding(start = 16.dp),
-        )
+        if (meta != null) {
+            Text(
+                meta,
+                color = colors.muted,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.End,
+                modifier = Modifier.padding(start = 16.dp),
+            )
+        }
     }
 }
 

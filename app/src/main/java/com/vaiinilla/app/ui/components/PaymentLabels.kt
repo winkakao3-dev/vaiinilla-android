@@ -53,4 +53,10 @@ fun orderStateLabel(summary: OrderSummary): String =
  * pedido (`entrega_sin_qr`); para llevar, siempre; en un espacio solo si el establecimiento pide el QR.
  */
 fun OrderDetail.needsPickupQr(deliveryRequiresQr: Boolean): Boolean =
-    !summary.deliveryWithoutQr && (summary.destination != OrderDestination.IN_SPACE || deliveryRequiresQr)
+    !summary.deliveryWithoutQr &&
+        when (summary.destination) {
+            OrderDestination.TAKE_AWAY -> true
+            OrderDestination.IN_SPACE -> deliveryRequiresQr
+            // A domicilio nunca: el cliente dicta su código de 4 dígitos (CASA-08).
+            OrderDestination.HOME_DELIVERY -> false
+        }

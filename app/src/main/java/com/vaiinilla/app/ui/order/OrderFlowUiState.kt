@@ -5,16 +5,22 @@ import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.ContractRules
 import com.vaiinilla.app.domain.model.GuestVenueContext
+import com.vaiinilla.app.domain.model.HomeCheckoutDraft
+import com.vaiinilla.app.domain.model.HomeCheckoutRules
+import com.vaiinilla.app.domain.model.HomeDeliveryOffer
+import com.vaiinilla.app.domain.model.HomePayment
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.PreorderOffer
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.PublicSpace
 import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.assistant.AssistantChatMessage
 
 data class OrderFlowUiState(
@@ -63,6 +69,10 @@ data class OrderFlowUiState(
     val guestEntryRequired: Boolean = false,
     val guestName: String = "",
     val assistantChatMessages: List<AssistantChatMessage> = emptyList(),
+    /** A domicilio y encargos (CASA-05 a 08): dirección, cotización, día y forma de pago. */
+    val homeCheckout: HomeCheckoutDraft = HomeCheckoutDraft(),
+    val quotingDelivery: Boolean = false,
+    val deliveryQuoteError: String? = null,
 )
 
 /** A one-shot visual confirmation for the order currently being created. */
@@ -157,9 +167,63 @@ val OrderFlowUiState.cartPreviewTotal: String
 fun OrderFlowUiState.cartTotalFor(method: PaymentMethod): String =
     if (method == PaymentMethod.STRIPE) Money.cartPreview(cartLines) else Money.counterPreview(cartLines)
 
-/** El total del método de pago que está elegido ahora. */
+/** El total del método de pago que está elegido ahora, más el envío si va a domicilio. */
 val OrderFlowUiState.checkoutTotal: String
-    get() = cartTotalFor(checkoutPayment)
+    get() {
+        val cart = cartTotalFor(if (isHomeDelivery) homePaymentMethod else checkoutPayment)
+        val fee = homeDeliveryFee ?: return cart
+        return Money.format(Money.parse(cart) + Money.parse(fee))
+    }
+
+val OrderFlowUiState.homeDeliveryOffer: HomeDeliveryOffer?
+    get() = operationalStatus?.homeDelivery
+
+val OrderFlowUiState.preorderOffer: PreorderOffer?
+    get() = operationalStatus?.preorders
+
+val OrderFlowUiState.canDeliverHome: Boolean
+    get() = homeDeliveryOffer != null
+
+val OrderFlowUiState.isHomeDelivery: Boolean
+    get() = checkoutDestination == OrderDestination.HOME_DELIVERY && canDeliverHome
+
+val OrderFlowUiState.cartPreparationDays: Int
+    get() = HomeCheckoutRules.preparationDays(cartLines.map { it.product })
+
+/** En una mesa se come ahora: el día solo se elige para llevar o a domicilio. */
+val OrderFlowUiState.asksForDeliveryDate: Boolean
+    get() =
+        checkoutDestination != OrderDestination.IN_SPACE &&
+            HomeCheckoutRules.asksForDate(preorderOffer, cartPreparationDays)
+
+val OrderFlowUiState.deliveryDates: List<String>
+    get() {
+        val offer = preorderOffer ?: return emptyList()
+        if (!asksForDeliveryDate) return emptyList()
+        return HomeCheckoutRules.dates(offer, cartPreparationDays, java.time.ZonedDateTime.now(BusinessTime.zone))
+    }
+
+val OrderFlowUiState.homePayments: List<HomePayment>
+    get() = homeDeliveryOffer?.let { HomeCheckoutRules.payments(it, preorderOffer, canPayWithCard) }.orEmpty()
+
+val OrderFlowUiState.homeDeliveryFee: String?
+    get() = homeDeliveryOffer?.takeIf { isHomeDelivery }?.let { HomeCheckoutRules.fee(homeCheckout, it) }
+
+/** A domicilio la forma de pago se elige en el carrito, no en la hoja de pago. */
+val OrderFlowUiState.homePaymentMethod: PaymentMethod
+    get() = if (homeCheckout.payment == HomePayment.ON_ARRIVAL) PaymentMethod.CASH else PaymentMethod.STRIPE
+
+/** Lo que falta para poder pedir a domicilio o para otro día; null si nada. */
+val OrderFlowUiState.checkoutScheduleProblem: String?
+    get() {
+        val offer = homeDeliveryOffer
+        if (isHomeDelivery && offer != null) {
+            if (homePayments.isEmpty()) return "Este negocio aún no tiene cómo cobrar a domicilio."
+            return HomeCheckoutRules.problem(homeCheckout, offer, cartTotalFor(homePaymentMethod), asksForDeliveryDate)
+        }
+        if (asksForDeliveryDate && homeCheckout.deliveryDate == null) return "Elige para qué día lo quieres."
+        return null
+    }
 
 val OrderFlowUiState.selectedProductPreviewPrice: String
     get() = selectedProduct?.let { Money.productUnitPreview(it, selectedOptionIds) } ?: "0.00"
@@ -192,7 +256,7 @@ val OrderFlowUiState.requiresOperationalReady: Boolean
             checkoutPayment == PaymentMethod.STRIPE
 
 val OrderFlowUiState.canCreateOrder: Boolean
-    get() = canSubmitCart && (!requiresOperationalReady || isOperationallyReady)
+    get() = canSubmitCart && (!requiresOperationalReady || isOperationallyReady) && checkoutScheduleProblem == null
 
 /** Espacios a los que se puede mandar el pedido: el del QR y, si hay, la cancha rentada. */
 val OrderFlowUiState.checkoutSpaces: List<PublicSpace>

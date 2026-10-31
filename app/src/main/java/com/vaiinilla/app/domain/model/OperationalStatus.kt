@@ -37,6 +37,10 @@ data class OperationalStatus(
      */
     val cashierConnected: Boolean? = null,
     val kitchenConnected: Boolean? = null,
+    /** `null`: el negocio no lleva a domicilio o el servidor no lo conoce. */
+    val homeDelivery: HomeDeliveryOffer? = null,
+    /** `null`: no toma encargos para otro día. */
+    val preorders: PreorderOffer? = null,
 ) {
     /** Lo que el resumen del admin dice de Caja: la ventana de 2 min si el servidor la manda. */
     val cashierPresent: Boolean get() = cashierConnected ?: cashierOnline
@@ -60,3 +64,23 @@ data class OperationalStatus(
     val isDriveThru: Boolean
         get() = businessType == "drive_thru"
 }
+
+/** Lo que el cliente ve de la entrega a domicilio del negocio (CASA-05). */
+data class HomeDeliveryOffer(
+    val fee: String,
+    val minimum: String?,
+    val radiusKm: String,
+    val payOnArrival: Boolean,
+    /** Banco, CLABE y titular, para pagar por transferencia al recibir. */
+    val transferDetails: String?,
+)
+
+/** Encargos para otro día (CASA-06). */
+data class PreorderOffer(
+    /** Hasta cuántos días adelante se puede pedir. */
+    val daysAhead: Int,
+    /** "18:00": después de esa hora el día siguiente ya no cuenta como día de margen. */
+    val cutoff: String?,
+    val requiresAcceptance: Boolean,
+    val depositPercent: Int?,
+)
