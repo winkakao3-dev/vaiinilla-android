@@ -125,7 +125,14 @@ internal fun AdminStoreSection(
                 ) { if (it != config.visibleInDirectory) viewModel.setVisibleInDirectory(it) }
                 config.storeUrl?.let { url ->
                     AdminHint("El QR de tu tienda abre tu menú directo.", colors)
-                    AdminQrBlock(url = url, name = "tienda", colors = colors, onNotice = notify)
+                    // Con un mensaje listo, el QR se pega tal cual en WhatsApp o en el estado (CASA-10).
+                    AdminQrBlock(
+                        url = url,
+                        name = "tienda",
+                        colors = colors,
+                        onNotice = notify,
+                        shareMessage = "Haz tu pedido aquí: $url",
+                    )
                 }
             }
         }

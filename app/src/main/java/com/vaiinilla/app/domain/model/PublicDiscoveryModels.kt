@@ -10,6 +10,8 @@ data class PublicEstablishment(
     /** Foto del lugar (fachada o salón); `null` si el negocio no subió una. */
     val photoUrl: String? = null,
     val logoUrl: String? = null,
+    /** El enlace de WhatsApp que el negocio puso en sus redes, para quien pregunta antes de pedir (CASA-11). */
+    val whatsappUrl: String? = null,
 )
 
 /** Ubicación aproximada del dispositivo para ordenar el descubrimiento por cercanía. */

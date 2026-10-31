@@ -181,6 +181,7 @@ internal fun AdminQrBlock(
     colors: OperationalColors,
     onNotice: (String, Boolean) -> Unit,
     code: String? = null,
+    shareMessage: String = url,
 ) {
     val context = LocalContext.current
     var writingNfc by remember { mutableStateOf(false) }
@@ -196,7 +197,7 @@ internal fun AdminQrBlock(
     }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         ChipButton(label = "Compartir QR", enabled = true, colors = colors) {
-            if (!shareQr(context, url, name)) onNotice("No se pudo preparar el QR.", true)
+            if (!shareQr(context, url, name, shareMessage)) onNotice("No se pudo preparar el QR.", true)
         }
         ChipButton(label = "Copiar enlace", enabled = true, colors = colors) {
             copyLink(context, name, url)

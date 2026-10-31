@@ -46,6 +46,16 @@ internal fun suggestedRefundMethod(originalMethod: String): RefundMethod {
     return if (methods.any { it == "terminal" || it == "stripe" }) RefundMethod.TERMINAL else RefundMethod.CASH
 }
 
+/** `entrega_efectivo` o `entrega_transferencia`: se cobró en la puerta de un pedido a domicilio. */
+internal fun collectedAtDoor(originalMethod: String): Boolean = originalMethod.startsWith("entrega_")
+
+internal fun originalMethodLabel(originalMethod: String): String =
+    when (originalMethod) {
+        "entrega_efectivo" -> "se cobró en la puerta en efectivo"
+        "entrega_transferencia" -> "se cobró en la puerta por transferencia"
+        else -> "se pagó con ${originalMethod.replace("+", " y ")}"
+    }
+
 /**
  * Devoluciones pendientes (G08, H03): dinero que el negocio debe regresar a mano. Caja confirma cuándo y cómo
  * lo devolvió; en efectivo sale del cajón. Sin pendientes no ocupa lugar.
@@ -88,8 +98,9 @@ private fun RefundRow(
     colors: OperationalColors,
     onConfirm: (PendingRefund, RefundMethod, String?) -> Unit,
 ) {
-    // El servidor rechaza una devolución en efectivo con la caja cerrada; mejor no ofrecerla (CAJA-22).
-    val cashBlocked = cashOpen == false
+    // El servidor rechaza una devolución en efectivo con la caja cerrada; mejor no ofrecerla (CAJA-22). Lo cobrado en
+    // la puerta de un pedido a domicilio lo tiene quien entregó, no el cajón: devolverlo no pide la caja (CASA-09).
+    val cashBlocked = cashOpen == false && !collectedAtDoor(refund.originalMethod)
     val shape = RoundedCornerShape(18.dp)
     val suggested = suggestedRefundMethod(refund.originalMethod)
     val busy = state.confirming?.first == refund.id
@@ -110,7 +121,7 @@ private fun RefundRow(
                     color = colors.textPrimary,
                 )
                 Text(
-                    "${refundOriginLabel(refund.origin)} · se pagó con ${refund.originalMethod.replace("+", " y ")}",
+                    "${refundOriginLabel(refund.origin)} · ${originalMethodLabel(refund.originalMethod)}",
                     fontSize = 12.5.sp,
                     color = colors.textSecondary,
                     modifier = Modifier.padding(top = 2.dp),

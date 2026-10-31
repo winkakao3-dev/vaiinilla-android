@@ -16,6 +16,7 @@ data class PublicEstablishmentDto(
     @SerialName("videos_local") val localVideos: List<PublicVideoDto>? = null,
     @SerialName("imagen_url") val photoUrl: String? = null,
     @SerialName("logo_url") val logoUrl: String? = null,
+    @SerialName("whatsapp_url") val whatsappUrl: String? = null,
 )
 
 @Serializable
@@ -47,6 +48,7 @@ fun PublicEstablishmentDto.toDomain() =
         localVideos = localVideos.orEmpty().mapNotNull { it.toDomainOrNull() },
         photoUrl = photoUrl.httpsOrNull(),
         logoUrl = logoUrl.httpsOrNull(),
+        whatsappUrl = whatsappUrl.httpsOrNull(),
     )
 
 // Las imágenes se descargan sin sesión: solo https.

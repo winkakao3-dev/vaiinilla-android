@@ -50,6 +50,8 @@ internal fun shareQr(
     context: Context,
     url: String,
     name: String,
+    /** Lo que acompaña a la imagen en WhatsApp o el correo; sin él, solo el enlace. */
+    message: String = url,
 ): Boolean =
     runCatching {
         val matrix = QrCodeEncoder.encode(url)
@@ -71,7 +73,7 @@ internal fun shareQr(
             Intent(Intent.ACTION_SEND)
                 .setType("image/png")
                 .putExtra(Intent.EXTRA_STREAM, uri)
-                .putExtra(Intent.EXTRA_TEXT, url)
+                .putExtra(Intent.EXTRA_TEXT, message)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         context.startActivity(Intent.createChooser(send, "QR de $name").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }.isSuccess

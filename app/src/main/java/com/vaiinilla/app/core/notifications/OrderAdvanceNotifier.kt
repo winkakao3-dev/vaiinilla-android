@@ -85,6 +85,9 @@ object OrderAdvanceNotifier {
                 "por_cobrar" -> "Pedido #$folio por cobrar" to "Entro un pedido en efectivo."
                 "nueva_comanda" -> "Nueva comanda #$folio" to "Cocina: pedido cobrado listo para preparar."
                 "listo_mesero" -> "Pedido #$folio listo" to "Entregar al espacio del alumno."
+                // Repostería (CASA-09): llegan a Administración, que acepta y lleva los pedidos.
+                "por_aceptar" -> "Encargo #$folio por aceptar" to "Acéptalo o recházalo en Pedidos."
+                "pedido_domicilio" -> "Pedido #$folio a domicilio" to "Entró un pedido para entregar."
                 else -> "Pedido #$folio" to "El pedido cambio de estado."
             }
         if (!canPost(context)) return Shown(title, text, posted = false)

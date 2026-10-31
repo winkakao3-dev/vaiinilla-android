@@ -44,6 +44,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.rounded.Close
@@ -79,6 +80,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -697,7 +699,19 @@ private fun MenuHero(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (venue != null) {
-                HeroGlassPill(label = "Cambiar lugar", icon = Icons.Rounded.Storefront, onClick = onChangeVenue)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    HeroGlassPill(label = "Cambiar lugar", icon = Icons.Rounded.Storefront, onClick = onChangeVenue)
+                    // Para quien pregunta antes de pedir: el WhatsApp que el negocio puso en sus redes (CASA-11).
+                    establishment?.whatsappUrl?.let { whatsapp ->
+                        val uri = LocalUriHandler.current
+                        HeroGlassPill(
+                            label = "WhatsApp",
+                            icon = Icons.AutoMirrored.Rounded.Chat,
+                            onClick = { runCatching { uri.openUri(whatsapp) } },
+                            modifier = Modifier.semantics { contentDescription = "Escríbele por WhatsApp a $name" },
+                        )
+                    }
+                }
             } else {
                 Spacer(Modifier.size(1.dp))
             }
