@@ -262,7 +262,6 @@ internal fun PickupJourneyScreen(
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
     printsTicket: Boolean = false,
-    onViewReceipt: (() -> Unit)? = null,
     guestNotice: String? = null,
 ) {
     val palette = scenePaletteForTheme()
@@ -279,7 +278,6 @@ internal fun PickupJourneyScreen(
             onCallWaiter = onCallWaiter,
             onCancelWaiter = onCancelWaiter,
             printsTicket = printsTicket,
-            onViewReceipt = onViewReceipt,
             guestNotice = guestNotice,
         )
     }
@@ -298,7 +296,6 @@ private fun PickupJourney(
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
     printsTicket: Boolean = false,
-    onViewReceipt: (() -> Unit)? = null,
     guestNotice: String? = null,
 ) {
     val palette = LocalScene.current
@@ -633,7 +630,6 @@ private fun PickupJourney(
             onCurrentWaiterCall = onCurrentWaiterCall,
             onCallWaiter = onCallWaiter,
             onCancelWaiter = onCancelWaiter,
-            onViewReceipt = onViewReceipt?.takeIf { order.summary.state == OrderState.DELIVERED },
             // Recién pedido, el aviso va en la tarjeta de celebración, que es lo que el invitado sí lee (EQUIPO-01).
             guestNotice = guestNotice.takeIf { celebration == null },
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -933,7 +929,6 @@ private fun StatusSheet(
     onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
-    onViewReceipt: (() -> Unit)? = null,
     guestNotice: String? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -1073,16 +1068,8 @@ private fun StatusSheet(
                 )
             }
             Spacer(Modifier.height(14.dp))
-            if (hasCode || onViewTracking != null || onViewReceipt != null) {
+            if (hasCode || onViewTracking != null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (onViewReceipt != null) {
-                        PillButton(
-                            "Ver recibo",
-                            primary = !hasCode,
-                            onClick = onViewReceipt,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
                     if (hasCode) {
                         PillButton(
                             "Mostrar código",
@@ -1094,7 +1081,7 @@ private fun StatusSheet(
                     if (onViewTracking != null) {
                         PillButton(
                             "Seguir pedido",
-                            primary = !hasCode && onViewReceipt == null,
+                            primary = !hasCode,
                             onClick = onViewTracking,
                             modifier = Modifier.weight(1f),
                         )

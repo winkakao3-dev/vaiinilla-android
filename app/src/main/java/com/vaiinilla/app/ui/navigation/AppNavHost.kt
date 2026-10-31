@@ -116,7 +116,6 @@ import com.vaiinilla.app.ui.screens.LocalVenueArt
 import com.vaiinilla.app.ui.screens.MenuFeedScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.OrdersAccessGate
-import com.vaiinilla.app.ui.screens.ReceiptStickerScreen
 import com.vaiinilla.app.ui.screens.SharedTableCard
 import com.vaiinilla.app.ui.screens.StoreEntrance
 import com.vaiinilla.app.ui.screens.StoreEntranceOutcome
@@ -1872,7 +1871,6 @@ fun AppNavHost(
                             operationalViewModel.callWaiter(id, reason, orderId)
                         },
                         onCancelWaiter = operationalViewModel::cancelWaiterCall,
-                        onViewReceipt = { navController.navigate(Routes.receiptStickerRoute()) },
                         guest = studentAuthState.session == null,
                         onReturnToMenu = {
                             // Abierto desde Pedidos: atrás regresa a la lista. La selección se limpia allá,
@@ -1900,31 +1898,6 @@ fun AppNavHost(
                                 navController.navigateStudent(Routes.STUDENT_TRACKING)
                             }
                         },
-                    )
-                }
-            }
-
-            composable(
-                route = Routes.RECEIPT_STICKER,
-                arguments =
-                    listOf(
-                        navArgument("style") {
-                            type = NavType.IntType
-                            defaultValue = 0
-                        },
-                    ),
-            ) { entry ->
-                val styleIndex = entry.arguments?.getInt("style") ?: 0
-                val receiptOrder =
-                    orderState.createdOrder ?: operationalState.selectedOrder ?: orderState.stripeObservedOrder
-                if (receiptOrder == null) {
-                    // El pedido se descartó con el recibo abierto: sin pedido no hay recibo que dibujar.
-                    LaunchedEffect(Unit) { navController.popBackStack() }
-                } else {
-                    ReceiptStickerScreen(
-                        order = receiptOrder,
-                        onBack = { navController.popBackStack() },
-                        initialStyleIndex = styleIndex,
                     )
                 }
             }
