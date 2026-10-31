@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -28,6 +29,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.model.HomeOrderAction
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
@@ -126,6 +129,10 @@ private fun AdminOrdersHistory(
     onOpenTables: (() -> Unit)?,
 ) {
     var open by remember { mutableStateOf<OrderDetail?>(null) }
+    // Repostería (CASA-09): la agenda por día y «Me deben», junto a los filtros.
+    var showsAgenda by rememberSaveable { mutableStateOf(false) }
+    val agendaOn = showsAgenda && state.takesHomeOrders
+    LaunchedEffect(agendaOn) { if (agendaOn) actions.onRefreshAgenda() }
     val listState = rememberLazyListState()
     val heroGone by rememberHeroGone(listState)
     val photos =
@@ -138,8 +145,12 @@ private fun AdminOrdersHistory(
     val chips: @Composable () -> Unit = {
         AdminChipRow {
             if (onOpenTables != null) AdminGlassChip("Mesas", false, onOpenTables)
+            if (state.takesHomeOrders) AdminGlassChip("Agenda", agendaOn) { showsAgenda = true }
             AdminOrderFilter.entries.forEach { filter ->
-                AdminGlassChip(filter.label, filter == state.orderFilter) { actions.onSelectOrderFilter(filter) }
+                AdminGlassChip(filter.label, !agendaOn && filter == state.orderFilter) {
+                    showsAgenda = false
+                    actions.onSelectOrderFilter(filter)
+                }
             }
         }
     }
@@ -152,7 +163,7 @@ private fun AdminOrdersHistory(
             item(key = "hero") {
                 val live = state.live
                 AdminHero(
-                    title = "Pedidos",
+                    title = if (agendaOn) "Agenda" else "Pedidos",
                     subtitle =
                         live?.activeOrders?.let {
                             val count = if (live.moreActiveOrders) "$it+" else "$it"
@@ -168,61 +179,10 @@ private fun AdminOrdersHistory(
                 )
             }
             item(key = "chips") { chips() }
-            val error = state.ordersError
-            if (error != null && state.orders.isEmpty()) {
-                item(key = "error") {
-                    Box(Modifier.padding(horizontal = 16.dp)) { AdminLoadError(error, colors, actions.onRefreshOrders) }
-                }
-            } else if (!state.ordersLoading && state.orders.isEmpty()) {
-                item(key = "vacio") {
-                    Box(Modifier.padding(horizontal = 20.dp)) {
-                        AdminCard(colors) {
-                            Text(
-                                "Sin pedidos aquí",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                color = colors.textPrimary,
-                            )
-                            Text(
-                                "Cuando haya pedidos con este filtro, salen en esta lista.",
-                                fontSize = 13.sp,
-                                color = colors.textSecondary,
-                            )
-                        }
-                    }
-                }
-            }
-            items(state.orders, key = { it.summary.id }) { order ->
-                OrderCard(
-                    order = order,
-                    photo = order.items.firstOrNull()?.let { photos[it.productId] },
-                    colors = colors,
-                    modifier = Modifier.animateItem().padding(horizontal = 20.dp, vertical = 6.dp),
-                ) { open = order }
-            }
-            if (state.ordersLoading) {
-                item(key = "cargando") {
-                    Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(
-                            color = colors.textPrimary,
-                            strokeWidth = 2.5.dp,
-                            modifier = Modifier.size(24.dp),
-                        )
-                    }
-                }
-            } else if (state.ordersCursor != null) {
-                item(key = "mas") {
-                    Box(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
-                        ActionPill(
-                            label = "Ver más pedidos",
-                            enabled = true,
-                            loading = false,
-                            colors = colors,
-                            primary = false,
-                            onClick = actions.onLoadMoreOrders,
-                        )
-                    }
-                }
+            if (agendaOn) {
+                agendaItems(state, colors, actions.onRefreshAgenda) { open = it }
+            } else {
+                historyItems(state, colors, actions, photos) { open = it }
             }
         }
         AdminCompactBar(
@@ -234,7 +194,80 @@ private fun AdminOrdersHistory(
             below = chips,
         )
     }
-    open?.let { order -> OrderSheet(order, colors) { open = null } }
+    open?.let { order ->
+        OrderSheet(
+            order = order,
+            colors = colors,
+            busy = state.saving,
+            onHomeAction = { action -> actions.onHomeAction(order, action) { updated -> open = updated } },
+        ) { open = null }
+    }
+}
+
+/** El historial con el filtro elegido, en la misma lista que el encabezado. */
+private fun LazyListScope.historyItems(
+    state: AdminUiState,
+    colors: OperationalColors,
+    actions: AdminActions,
+    photos: Map<Int, String?>,
+    onOpen: (OrderDetail) -> Unit,
+) {
+    val error = state.ordersError
+    if (error != null && state.orders.isEmpty()) {
+        item(key = "error") {
+            Box(Modifier.padding(horizontal = 16.dp)) { AdminLoadError(error, colors, actions.onRefreshOrders) }
+        }
+    } else if (!state.ordersLoading && state.orders.isEmpty()) {
+        item(key = "vacio") {
+            Box(Modifier.padding(horizontal = 20.dp)) {
+                AdminCard(colors) {
+                    Text(
+                        "Sin pedidos aquí",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = colors.textPrimary,
+                    )
+                    Text(
+                        "Cuando haya pedidos con este filtro, salen en esta lista.",
+                        fontSize = 13.sp,
+                        color = colors.textSecondary,
+                    )
+                }
+            }
+        }
+    }
+    items(state.orders, key = { it.summary.id }) { order ->
+        OrderCard(
+            order = order,
+            photo = order.items.firstOrNull()?.let { photos[it.productId] },
+            colors = colors,
+            modifier = Modifier.animateItem().padding(horizontal = 20.dp, vertical = 6.dp),
+        ) { onOpen(order) }
+    }
+    if (state.ordersLoading) {
+        item(key = "cargando") {
+            Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(
+                    color = colors.textPrimary,
+                    strokeWidth = 2.5.dp,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        }
+    } else if (state.ordersCursor != null) {
+        item(key = "mas") {
+            Box(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                ActionPill(
+                    label = "Ver más pedidos",
+                    enabled = true,
+                    loading = false,
+                    colors = colors,
+                    primary = false,
+                    onClick = actions.onLoadMoreOrders,
+                )
+            }
+        }
+    }
 }
 
 /** Un pedido: la foto del primer platillo, el folio grande, su estado y qué lleva. */
@@ -331,7 +364,8 @@ private fun StateTag(
     val (background, content) =
         when {
             state.isTerminalWithoutDelivery -> AdminCoral.copy(alpha = 0.16f) to AdminCoral
-            state == OrderState.READY -> colors.textPrimary to colors.background
+            state == OrderState.READY || state == OrderState.AWAITING_ACCEPTANCE -> colors.textPrimary to colors.background
+            state == OrderState.ON_THE_WAY -> colors.accentLime.copy(alpha = 0.35f) to colors.textPrimary
             state == OrderState.PREPARING || state == OrderState.PAID ->
                 colors.accentLime.copy(alpha = 0.18f) to colors.textPrimary
             else -> colors.cardInner to colors.textSecondary
@@ -354,10 +388,14 @@ private fun StateTag(
 private fun OrderSheet(
     order: OrderDetail,
     colors: OperationalColors,
+    busy: Boolean = false,
+    onHomeAction: (HomeOrderAction) -> Unit = {},
     onDismiss: () -> Unit,
 ) {
     val summary = order.summary
-    AdminSheet(title = "Pedido #${summary.folio}", colors = colors, busy = false, onDismiss = onDismiss) {
+    AdminSheet(title = "Pedido #${summary.folio}", colors = colors, busy = busy, onDismiss = onDismiss) {
+        HomeOrderActionsCard(order, busy, colors, onHomeAction)
+        HomeDeliveryAdminCard(order, colors)
         AdminCard(colors) {
             AdminValueRow("Estado", summary.state.label, colors)
             AdminValueRow(
@@ -418,6 +456,7 @@ private fun whereLabel(order: OrderDetail): String? =
     when {
         order.summary.space != null -> order.summary.space.name
         order.summary.destination == OrderDestination.TAKE_AWAY -> OrderDestination.TAKE_AWAY.label
+        order.summary.destination == OrderDestination.HOME_DELIVERY -> OrderDestination.HOME_DELIVERY.label
         else -> null
     }
 

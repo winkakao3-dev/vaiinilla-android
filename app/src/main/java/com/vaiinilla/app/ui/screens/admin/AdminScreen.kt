@@ -143,6 +143,13 @@ class AdminActions(
     val onRefreshOrders: () -> Unit,
     val onLoadMoreOrders: () -> Unit,
     val onSetArchived: (com.vaiinilla.app.domain.model.Product, Boolean) -> Unit = { _, _ -> },
+    /** Repostería (CASA-09): la agenda y las acciones de un pedido a domicilio o encargo. */
+    val onRefreshAgenda: () -> Unit = {},
+    val onHomeAction: (
+        com.vaiinilla.app.domain.model.OrderDetail,
+        com.vaiinilla.app.domain.model.HomeOrderAction,
+        (com.vaiinilla.app.domain.model.OrderDetail) -> Unit,
+    ) -> Unit = { _, _, _ -> },
 )
 
 @Composable

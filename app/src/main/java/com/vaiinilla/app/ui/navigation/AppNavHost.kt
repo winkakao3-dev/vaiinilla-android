@@ -2315,6 +2315,8 @@ fun AppNavHost(
                                 onSelectOrderFilter = adminViewModel::selectOrderFilter,
                                 onRefreshOrders = adminViewModel::refreshOrders,
                                 onLoadMoreOrders = adminViewModel::loadMoreOrders,
+                                onRefreshAgenda = adminViewModel::refreshAgenda,
+                                onHomeAction = adminViewModel::homeAction,
                             ),
                         sections =
                             AdminSectionsHost(

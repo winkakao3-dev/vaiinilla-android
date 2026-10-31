@@ -14,7 +14,10 @@ import com.vaiinilla.app.domain.admin.AdminProductRules
 import com.vaiinilla.app.domain.admin.AdminSummary
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccount
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccounts
+import com.vaiinilla.app.domain.model.AgendaDay
 import com.vaiinilla.app.domain.model.Catalog
+import com.vaiinilla.app.domain.model.HomeOrderAction
+import com.vaiinilla.app.domain.model.HomeOrderBoard
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
@@ -25,7 +28,9 @@ import com.vaiinilla.app.domain.repository.AdminStoreRepository
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.CatalogRepositoryException
+import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
+import com.vaiinilla.app.domain.time.BusinessTime
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -54,6 +59,11 @@ enum class AdminOrderFilter(
     DELIVERED("Entregados", setOf(OrderState.DELIVERED)),
     INCIDENTS("Incidencias", setOf(OrderState.CANCELED, OrderState.NOT_PICKED_UP, OrderState.EXPIRED)),
     ALL("Todos", emptySet()),
+    ;
+
+    /** Con domicilio o encargos, «Activos» suma lo que espera aceptarse y lo que va en camino (CASA-09). */
+    fun states(homeOrders: Boolean): Set<OrderState> =
+        if (this == ACTIVE && homeOrders) states + OrderState.AWAITING_ACCEPTANCE + OrderState.ON_THE_WAY else states
 }
 
 data class AdminUiState(
@@ -82,11 +92,20 @@ data class AdminUiState(
     val ordersCursor: String? = null,
     val ordersLoading: Boolean = false,
     val ordersError: String? = null,
+    /** Repostería (CASA-09): de hoy a 15 días, y lo entregado que falta cobrar de los últimos 30. */
+    val agenda: List<AgendaDay> = emptyList(),
+    val owed: List<OrderDetail> = emptyList(),
+    val agendaLoading: Boolean = false,
+    val agendaError: String? = null,
     /** Algo del menú se está guardando: los botones de guardar se deshabilitan. */
     val saving: Boolean = false,
     val notice: String? = null,
     val noticeIsError: Boolean = false,
-)
+) {
+    /** El negocio entrega a domicilio o toma encargos: Pedidos suma la agenda, «Me deben» y los estados nuevos. */
+    val takesHomeOrders: Boolean
+        get() = operationalStatus?.homeDelivery != null || operationalStatus?.preorders != null
+}
 
 @HiltViewModel
 class AdminViewModel
@@ -97,6 +116,7 @@ class AdminViewModel
         private val storeRepository: AdminStoreRepository,
         private val spacesRepository: AdminSpacesRepository,
         private val cashSessionRepository: CashSessionRepository,
+        private val orderRepository: OrderRepository,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(AdminUiState())
         val uiState: State<AdminUiState> = _uiState
@@ -434,7 +454,8 @@ class AdminViewModel
             _uiState.value = _uiState.value.copy(ordersLoading = true, ordersError = null)
             ordersJob =
                 viewModelScope.launch {
-                    val result = withContext(Dispatchers.IO) { adminRepository.orders(filter.states, cursor) }
+                    val states = filter.states(_uiState.value.takesHomeOrders)
+                    val result = withContext(Dispatchers.IO) { adminRepository.orders(states, cursor) }
                     if (_uiState.value.orderFilter != filter) return@launch
                     _uiState.value =
                         result.fold(
@@ -454,6 +475,70 @@ class AdminViewModel
                         )
                 }
         }
+
+        /** Lo que viene de hoy a 15 días y, para «Me deben», lo entregado en los últimos 30. */
+        fun refreshAgenda() {
+            if (_uiState.value.agendaLoading) return
+            val today = java.time.LocalDate.now(BusinessTime.zone)
+            _uiState.value = _uiState.value.copy(agendaLoading = true, agendaError = null)
+            viewModelScope.launch {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        orderRepository.agenda(today.minusDays(30).toString(), today.plusDays(15).toString())
+                    }
+                _uiState.value =
+                    result.fold(
+                        onSuccess = { days ->
+                            _uiState.value.copy(
+                                agenda = days.filter { it.date >= today.toString() },
+                                owed = HomeOrderBoard.owed(days.flatMap { it.orders }),
+                                agendaLoading = false,
+                            )
+                        },
+                        onFailure = {
+                            _uiState.value.copy(
+                                agendaLoading = false,
+                                agendaError = it.toUserFacingMessage("No se pudo cargar la agenda."),
+                            )
+                        },
+                    )
+            }
+        }
+
+        /** Aceptar, rechazar, mandar, entregar o cobrar; [onDone] recibe el pedido como quedó. */
+        fun homeAction(
+            order: OrderDetail,
+            action: HomeOrderAction,
+            onDone: (OrderDetail) -> Unit,
+        ) {
+            if (_uiState.value.saving) return
+            _uiState.value = _uiState.value.copy(saving = true)
+            viewModelScope.launch {
+                val result = withContext(Dispatchers.IO) { orderRepository.homeOrderAction(order.summary.id, action) }
+                _uiState.value = _uiState.value.copy(saving = false)
+                result.fold(
+                    onSuccess = { updated ->
+                        _uiState.value =
+                            _uiState.value.copy(
+                                orders = _uiState.value.orders.map { if (it.summary.id == updated.summary.id) updated else it },
+                            )
+                        showNotice(doneMessage(action), isError = false)
+                        onDone(updated)
+                        refreshAgenda()
+                    },
+                    onFailure = { showNotice(it.toUserFacingMessage("No se pudo guardar."), isError = true) },
+                )
+            }
+        }
+
+        private fun doneMessage(action: HomeOrderAction): String =
+            when (action) {
+                HomeOrderAction.Accept -> "Encargo aceptado"
+                is HomeOrderAction.Reject -> "Encargo rechazado; se le devuelve lo que pagó"
+                HomeOrderAction.SendOut -> "En camino; al cliente le llegó su código"
+                is HomeOrderAction.Deliver -> "Entregado"
+                is HomeOrderAction.Collect -> "Cobrado"
+            }
 
         // endregion
 
