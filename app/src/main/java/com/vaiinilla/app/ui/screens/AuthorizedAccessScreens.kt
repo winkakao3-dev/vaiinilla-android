@@ -35,7 +35,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -212,6 +215,10 @@ fun AuthorizedModeScreen(
     onSignOut: () -> Unit = {},
     onRetry: () -> Unit = {},
 ) {
+    var confirmingSignOut by remember { mutableStateOf(false) }
+    if (confirmingSignOut) {
+        SignOutConfirmDialog(onConfirm = onSignOut, onDismiss = { confirmingSignOut = false })
+    }
     val colors = LocalVaiinillaColors.current
     val activeContext = state.activeContext
     val staffModes = state.modes.filter { it.role != OperationalRole.CLIENT }
@@ -304,7 +311,7 @@ fun AuthorizedModeScreen(
                     SettingsRow(
                         title = "Cerrar sesión",
                         trailing = SettingsTrailing.None,
-                        onClick = onSignOut,
+                        onClick = { confirmingSignOut = true },
                         showDivider = false,
                     )
                 }

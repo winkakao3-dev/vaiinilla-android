@@ -23,10 +23,10 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 
 /**
- * Las comandas de Cocina: primero lo que falta preparar y al final lo listo, así al marcar una lista sube la
- * siguiente. Cada grupo va del más antiguo al más nuevo (el que llegó primero se prepara primero) y un pedido
- * que llega no desplaza al que se está atendiendo. Lo rechazado o entregado ya no es de Cocina y sale de la fila,
- * y un pedido con tarjeta o saldo que aún no se paga tampoco entra: Caja no puede cobrarlo.
+ * Las comandas de Cocina: solo lo que falta preparar, del más antiguo al más nuevo (el que llegó primero se
+ * prepara primero), así al marcar una lista sube la siguiente y un pedido que llega no desplaza al que se está
+ * atendiendo. Lo listo, rechazado o entregado ya no es de Cocina y sale de la fila, y un pedido con tarjeta o
+ * saldo que aún no se paga tampoco entra: Caja no puede cobrarlo.
  */
 internal fun kitchenQueue(orders: List<OrderDetail>): List<OrderDetail> {
     val oldestFirst = orders.sortedBy { it.summary.createdAt }
@@ -37,7 +37,8 @@ internal fun kitchenQueue(orders: List<OrderDetail>): List<OrderDetail> {
                 state == OrderState.PREPARING ||
                 (state == OrderState.PENDING_PAYMENT && it.summary.paymentMethod == PaymentMethod.CASH)
         }
-    return pending + oldestFirst.filter { it.summary.state == OrderState.READY }
+    // Lo listo sale de la fila (W08, Consejera; QAIOS-11 en iOS).
+    return pending
 }
 
 /**

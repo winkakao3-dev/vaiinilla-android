@@ -68,9 +68,10 @@ class ArrivalTest {
     }
 
     @Test
-    fun `cocina y caja ven YA LLEGO solo si el cliente avisó`() {
+    fun `cocina y caja ven YA LLEGO con la hora del negocio solo si el cliente avisó`() {
         assertEquals("", arrivalSuffix(order()))
-        assertEquals(" · YA LLEGÓ", arrivalSuffix(order(arrivedAt = "2026-10-01T01:30:35.102Z")))
+        // 01:30 UTC del 1 oct son las 19:30 del 30 sep en Chihuahua: la hora que ve el negocio (W25).
+        assertEquals(" · YA LLEGÓ 19:30", arrivalSuffix(order(arrivedAt = "2026-10-01T01:30:35.102Z")))
     }
 
     @Test

@@ -83,7 +83,7 @@ class KitchenTicketUiTest {
     }
 
     @Test
-    fun `la fila pone lo pendiente antes que lo listo y quita lo que ya no es de Cocina`() {
+    fun `la fila deja solo lo pendiente y quita lo listo y lo que ya no es de Cocina`() {
         val queue =
             kitchenQueue(
                 listOf(
@@ -94,7 +94,8 @@ class KitchenTicketUiTest {
                     order("cobrado", 5, OrderState.PAID),
                 ),
             )
-        assertEquals(listOf("preparando", "cobrado", "listo"), queue.map { it.summary.id })
+        // Lo listo sale de la fila (W08, Consejera): ya no es trabajo de Cocina.
+        assertEquals(listOf("preparando", "cobrado"), queue.map { it.summary.id })
     }
 
     private fun setKitchen(orders: List<OrderDetail>) {

@@ -128,6 +128,7 @@ import com.vaiinilla.app.domain.model.cashAmountDue
 import com.vaiinilla.app.domain.model.needsCashCollection
 import com.vaiinilla.app.domain.repository.StoreImageKind
 import com.vaiinilla.app.domain.repository.TableSpace
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_ADD_PRODUCT
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_CASHIER_ORDER_CARD
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_KITCHEN_CARD
@@ -171,6 +172,7 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
 import com.vaiinilla.app.ui.theme.MutedInk
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
 import java.math.BigDecimal
 
@@ -763,7 +765,9 @@ fun CashierOperationalScreen(
                                     )
                                 }
                         val cashReceivedInput = cashDraft.received
-                        val cashTipChoice = cashDraft.tip
+                        // Una renta de cancha no lleva propina (W21, Consejera; QAIOS-13 en iOS).
+                        val isRental = recentOrder.reservation != null
+                        val cashTipChoice = if (isRental) TipChoice.None else cashDraft.tip
                         // El progreso es del cobro: otra acción en curso solo deshabilita el botón.
                         var collecting by remember(recentOrder.summary.id) { mutableStateOf(false) }
                         LaunchedEffect(state.acting, state.errorMessage) {
@@ -899,26 +903,25 @@ fun CashierOperationalScreen(
                                         val required = orderTotal + tipAmount
                                         val receivedAmount = MoneyInput.parse(cashReceivedInput)
                                         val changeDue = receivedAmount?.minus(required)
-                                        TicketTipRow(
-                                            choice = cashTipChoice,
-                                            tipAmount = tipAmount,
-                                            problem = tipProblem,
-                                            enabled = !state.acting,
-                                            onChange = { next ->
-                                                // El efectivo sugerido sigue a la propina; lo que el cajero ya tecleó no se pisa.
-                                                val suggestion = Money.format(required)
-                                                cashDrafts[draftOrderId] =
-                                                    cashDraft.copy(
-                                                        received =
-                                                            if (cashReceivedInput == suggestion) {
-                                                                Money.format(orderTotal + next.amountFor(orderTotal))
-                                                            } else {
-                                                                cashReceivedInput
-                                                            },
-                                                        tip = next,
-                                                    )
-                                            },
-                                        )
+                                        if (!isRental) {
+                                            TicketTipRow(
+                                                choice = cashTipChoice,
+                                                tipAmount = tipAmount,
+                                                problem = tipProblem,
+                                                enabled = !state.acting,
+                                                onChange = { next ->
+                                                    // El efectivo sugerido sigue a la propina; lo tecleado no se pisa.
+                                                    val suggestion = Money.format(required)
+                                                    val withTip = Money.format(orderTotal + next.amountFor(orderTotal))
+                                                    val keep = cashReceivedInput != suggestion
+                                                    cashDrafts[draftOrderId] =
+                                                        cashDraft.copy(
+                                                            received = if (keep) cashReceivedInput else withTip,
+                                                            tip = next,
+                                                        )
+                                                },
+                                            )
+                                        }
                                         // Pedido pagado en efectivo: hay que cobrarlo antes de que exista
                                         // cualquier posibilidad de avanzarlo a cocina/entrega.
                                         BasicTextField(
@@ -1577,8 +1580,16 @@ private val TicketMuted = Color(0xFF6B6656)
 private val TicketLine = Color(0xFFD8CDB4)
 private val StampGreen = Color(0xFF5A7A1E)
 
-/** " · YA LLEGÓ" cuando el cliente (drive-thru) avisó que llegó por su pedido; si no, vacío. */
-internal fun arrivalSuffix(order: OrderDetail): String = if (order.arrivedAt != null) " · YA LLEGÓ" else ""
+/**
+ * " · YA LLEGÓ 14:32" cuando el cliente (drive-thru) avisó que llegó por su pedido, con la hora del negocio para
+ * saber cuánto lleva esperando (W25; QAIOS-26 en iOS); si no, vacío.
+ */
+internal fun arrivalSuffix(order: OrderDetail): String =
+    order.arrivedAt
+        ?.let { " · YA LLEGÓ ${BusinessTime.format(it, ArrivalHour)}" }
+        .orEmpty()
+
+private val ArrivalHour: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
 /** Nombre del cliente de un pedido de mostrador para la fila de Caja o de Cocina; vacío en pedidos de la app. */
 private fun customerPrefix(order: OrderDetail): String = staffCustomerName(order)?.let { "$it · " }.orEmpty()
@@ -2275,7 +2286,8 @@ fun KitchenOperationalScreen(
                                             modifier = Modifier.padding(top = 8.dp),
                                         )
                                     }
-                                    if (activeOrder.summary.payAtEnd) {
+                                    // Ya pagada la cuenta deja de decirlo (W49; QAIOS-25 en iOS).
+                                    if (activeOrder.summary.payAtEnd && activeOrder.summary.paymentPending) {
                                         Text(
                                             "A LA CUENTA · SE PAGA AL FINAL",
                                             fontSize = 10.sp,

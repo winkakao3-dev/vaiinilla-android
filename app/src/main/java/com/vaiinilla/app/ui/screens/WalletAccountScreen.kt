@@ -92,6 +92,10 @@ fun WalletAccountScreen(
     val currentMode = LocalVaiinillaThemeMode.current
     val onThemeModeChange = LocalVaiinillaThemeModeChanger.current
     var qrOpen by remember { mutableStateOf(false) }
+    var confirmingSignOut by remember { mutableStateOf(false) }
+    if (confirmingSignOut) {
+        SignOutConfirmDialog(onConfirm = onSignOut, onDismiss = { confirmingSignOut = false })
+    }
     val uriHandler = LocalUriHandler.current
 
     val qrValue = userId?.trim()?.takeIf { it.isNotEmpty() }?.let(QrPayloadParser::encodeUser)
@@ -207,7 +211,7 @@ fun WalletAccountScreen(
                         SettingsRow(
                             title = "Cerrar sesión",
                             trailing = SettingsTrailing.None,
-                            onClick = onSignOut,
+                            onClick = { confirmingSignOut = true },
                             showDivider = false,
                         )
                     }
@@ -477,3 +481,17 @@ private fun WalletAccountScreenDarkPreview() {
         )
     }
 }
+
+/** Salir pide confirmación, como en iOS (W04; QAIOS-17): un toque de más no debe cerrar la sesión. */
+@Composable
+internal fun SignOutConfirmDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) = com.vaiinilla.app.ui.parentmode.ParentConfirmDialog(
+    title = "¿Cerrar sesión?",
+    message = "Vas a salir de tu cuenta en este teléfono. Para volver tendrás que entrar de nuevo.",
+    confirmLabel = "Cerrar sesión",
+    destructive = true,
+    onConfirm = onConfirm,
+    onDismiss = onDismiss,
+)
