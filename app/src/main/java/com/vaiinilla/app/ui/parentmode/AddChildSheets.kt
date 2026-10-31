@@ -156,7 +156,15 @@ internal fun AddChildSheet(
                             },
                         )
                     onAdded(dependent)
-                    delay(if (reduced) 300 else if (alreadyCared) 2000 else 1000)
+                    delay(
+                        if (reduced) {
+                            300
+                        } else if (alreadyCared) {
+                            2000
+                        } else {
+                            1000
+                        },
+                    )
                     onDismiss()
                 }.onFailure {
                     state = MorphState.Idle("Agregar")

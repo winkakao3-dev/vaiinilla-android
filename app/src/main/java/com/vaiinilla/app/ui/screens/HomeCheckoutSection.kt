@@ -52,7 +52,6 @@ import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.OrderFlowUiState
-import com.vaiinilla.app.ui.order.asksForDeliveryDate
 import com.vaiinilla.app.ui.order.cartTotalFor
 import com.vaiinilla.app.ui.order.deliveryDates
 import com.vaiinilla.app.ui.order.homeDeliveryOffer
@@ -84,7 +83,12 @@ internal fun HomeDestinationPicker(
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        listOf(OrderDestination.TAKE_AWAY to "Pasas por él", OrderDestination.HOME_DELIVERY to "A domicilio").forEach { (destination, label) ->
+        val options =
+            listOf(
+                OrderDestination.TAKE_AWAY to "Pasas por él",
+                OrderDestination.HOME_DELIVERY to "A domicilio",
+            )
+        options.forEach { (destination, label) ->
             SelectPill(label, selected == destination, colors, Modifier.weight(1f)) {
                 haptics.selection()
                 onSelect(destination)
@@ -103,7 +107,14 @@ internal fun DeliveryDatePicker(
     val haptics = rememberVaiinillaHaptics()
     val dates = state.deliveryDates
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        CartSectionHead(title = "¿Para cuándo?", meta = state.preorderOffer?.takeIf { it.requiresAcceptance }?.let { "El negocio te confirma" })
+        CartSectionHead(
+            title = "¿Para cuándo?",
+            meta =
+                state.preorderOffer
+                    ?.takeIf {
+                        it.requiresAcceptance
+                    }?.let { "El negocio te confirma" },
+        )
         if (dates.isEmpty()) {
             Text("Por ahora no hay días disponibles para este pedido.", color = colors.muted, fontSize = 14.sp)
         } else {
@@ -113,7 +124,11 @@ internal fun DeliveryDatePicker(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 dates.forEach { date ->
-                    SelectPill(HomeCheckoutRules.dayLabel(date, today), state.homeCheckout.deliveryDate == date, colors) {
+                    SelectPill(
+                        HomeCheckoutRules.dayLabel(date, today),
+                        state.homeCheckout.deliveryDate == date,
+                        colors,
+                    ) {
                         haptics.selection()
                         onSelect(date)
                     }
@@ -189,10 +204,19 @@ internal fun HomeDeliverySection(
     }
     val permission =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted) useCurrentLocation() else actions.onQuoteFailed("Sin permiso de ubicación. Escribe tu dirección.")
+            if (granted) {
+                useCurrentLocation()
+            } else {
+                actions.onQuoteFailed(
+                    "Sin permiso de ubicación. Escribe tu dirección.",
+                )
+            }
         }
 
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.animateContentSize(spring(stiffness = 400f))) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.animateContentSize(spring(stiffness = 400f)),
+    ) {
         CartSectionHead(
             title = "¿A dónde te lo llevan?",
             meta = offer.radiusKm.takeIf { it.isNotBlank() }?.let { "Hasta $it km" },
@@ -212,7 +236,9 @@ internal fun HomeDeliverySection(
         )
         HomeField(
             value = address.phone,
-            onValueChange = { value -> actions.onEditAddress { it.copy(phone = value.filter(Char::isDigit).take(10)) } },
+            onValueChange = { value ->
+                actions.onEditAddress { it.copy(phone = value.filter(Char::isDigit).take(10)) }
+            },
             placeholder = "Teléfono para avisarte",
             colors = colors,
             keyboardType = KeyboardType.Phone,
@@ -228,7 +254,13 @@ internal fun HomeDeliverySection(
                 haptics.click()
                 quote { HomeAddressLocator.locate(context, address.address) }
             }
-            SelectPill("Usar mi ubicación", selected = false, colors = colors, modifier = Modifier.weight(1f), enabled = !state.quotingDelivery) {
+            SelectPill(
+                "Usar mi ubicación",
+                selected = false,
+                colors = colors,
+                modifier = Modifier.weight(1f),
+                enabled = !state.quotingDelivery,
+            ) {
                 haptics.click()
                 if (HomeAddressLocator.hasLocationPermission(context)) {
                     useCurrentLocation()
@@ -290,7 +322,12 @@ internal fun HomeDeliverySection(
                                 .background(colors.paper2)
                                 .padding(14.dp),
                     ) {
-                        Text("Para pagar por transferencia", color = colors.muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Para pagar por transferencia",
+                            color = colors.muted,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
                         Text(details, color = colors.ink, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
                     }
                 }
@@ -346,7 +383,14 @@ private fun SelectPill(
     ) {
         Text(
             label,
-            color = if (selected) colors.onInk else if (enabled) colors.ink else colors.muted,
+            color =
+                if (selected) {
+                    colors.onInk
+                } else if (enabled) {
+                    colors.ink
+                } else {
+                    colors.muted
+                },
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
         )
@@ -414,7 +458,8 @@ internal fun HomeDeliveryOrderCard(order: com.vaiinilla.app.domain.model.OrderDe
         )
         Text(
             when (state) {
-                com.vaiinilla.app.domain.model.OrderState.AWAITING_ACCEPTANCE -> "El negocio revisa tu pedido y te confirma."
+                com.vaiinilla.app.domain.model.OrderState.AWAITING_ACCEPTANCE ->
+                    "El negocio revisa tu pedido y te confirma."
                 com.vaiinilla.app.domain.model.OrderState.ON_THE_WAY ->
                     home.code?.let { "Va en camino. Al recibirlo, dicta el código $it." } ?: "Tu pedido va en camino."
                 com.vaiinilla.app.domain.model.OrderState.READY -> "Está listo. Pronto sale para tu casa."
@@ -452,7 +497,15 @@ internal fun HomeDeliveryOrderCard(order: com.vaiinilla.app.domain.model.OrderDe
         }
         val lines =
             listOfNotNull(
-                home.fee?.let { fee -> if (Money.parse(fee).signum() == 0) "Envío gratis" else "Envío ${moneyLabel(fee)}" },
+                home.fee?.let { fee ->
+                    if (Money.parse(fee).signum() ==
+                        0
+                    ) {
+                        "Envío gratis"
+                    } else {
+                        "Envío ${moneyLabel(fee)}"
+                    }
+                },
                 home.deposit?.takeIf { Money.parse(it).signum() > 0 }?.let { "Anticipo pagado ${moneyLabel(it)}" },
                 home.dueOnArrival?.takeIf { home.hasAmountDue }?.let { "Pagas al recibir ${moneyLabel(it)}" },
             )

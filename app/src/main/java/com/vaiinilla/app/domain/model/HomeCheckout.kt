@@ -105,7 +105,8 @@ object HomeCheckoutRules {
         delivery: HomeDeliveryOffer,
     ): String = draft.quote?.fee ?: delivery.fee
 
-    private fun compact(amount: BigDecimal): String = "$" + amount.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString().removeSuffix(".00")
+    private fun compact(amount: BigDecimal): String =
+        "$" + amount.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString().removeSuffix(".00")
 
     private val DAY = DateTimeFormatter.ofPattern("EEE d MMM", Locale.forLanguageTag("es-MX"))
 }

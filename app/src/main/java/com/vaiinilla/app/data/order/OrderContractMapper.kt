@@ -53,7 +53,14 @@ fun DeliveryAddress.toDto(): DeliveryDto =
     )
 
 /** Un monto o un número que el servidor manda como texto o como número; `null` si viene vacío. */
-internal fun JsonPrimitive.flexibleText(): String? = if (this is JsonNull) null else content.trim().takeIf { it.isNotEmpty() }
+internal fun JsonPrimitive.flexibleText(): String? =
+    if (this is JsonNull) {
+        null
+    } else {
+        content.trim().takeIf {
+            it.isNotEmpty()
+        }
+    }
 
 fun HomeDeliveryQuoteDto.toDomain(): HomeDeliveryQuote =
     HomeDeliveryQuote(

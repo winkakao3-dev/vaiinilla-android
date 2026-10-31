@@ -807,14 +807,16 @@ class OrderFlowViewModel
             val current = _uiState.value.homeCheckout
             if (current.deliveryDate == date) return
             pendingIdempotencyKey = null
-            _uiState.value = _uiState.value.copy(homeCheckout = current.copy(deliveryDate = date), createOrderError = null)
+            _uiState.value =
+                _uiState.value.copy(homeCheckout = current.copy(deliveryDate = date), createOrderError = null)
         }
 
         fun selectHomePayment(payment: HomePayment) {
             val state = _uiState.value
             if (state.homeCheckout.payment == payment || payment !in state.homePayments) return
             pendingIdempotencyKey = null
-            _uiState.value = state.copy(homeCheckout = state.homeCheckout.copy(payment = payment), createOrderError = null)
+            _uiState.value =
+                state.copy(homeCheckout = state.homeCheckout.copy(payment = payment), createOrderError = null)
         }
 
         fun startDeliveryQuote() {
@@ -838,7 +840,9 @@ class OrderFlowViewModel
             launchTracked {
                 val result = withContext(Dispatchers.IO) { orderRepository.quoteHomeDelivery(latitude, longitude) }
                 val state = _uiState.value
-                if (state.homeCheckout.address.address.trim() != written.trim()) {
+                if (state.homeCheckout.address.address
+                        .trim() != written.trim()
+                ) {
                     _uiState.value = state.copy(quotingDelivery = false)
                     return@launchTracked
                 }

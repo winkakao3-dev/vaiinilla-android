@@ -76,7 +76,10 @@ internal fun AdminStoreSection(
             val point = runCatching { find() }.getOrNull()
             locatingStore = false
             if (point == null) {
-                notify("No encontramos ese lugar. Pega el enlace de Compartir de Google Maps o escribe la dirección completa.", true)
+                notify(
+                    "No encontramos ese lugar. Pega el enlace de Compartir de Google Maps o escribe la dirección completa.",
+                    true,
+                )
             } else {
                 viewModel.saveStoreLocation(point.latitude, point.longitude)
             }

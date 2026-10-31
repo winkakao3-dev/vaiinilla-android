@@ -176,6 +176,7 @@ internal class NfcLinkWriter(
         }.getOrElse { false to failed }
     }
 }
+
 @Composable
 internal fun rememberNfcLinkWriter(): NfcLinkWriter {
     val context = LocalContext.current

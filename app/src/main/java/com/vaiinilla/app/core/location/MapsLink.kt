@@ -23,7 +23,8 @@ object MapsLink {
     )
 
     /** El primer enlace de mapas del texto (el de Compartir trae el nombre del lugar antes). */
-    fun find(text: String): String? = URL_IN_TEXT.findAll(text).map { it.value.trimEnd('.', ',', ')') }.firstOrNull(::isMaps)
+    fun find(text: String): String? =
+        URL_IN_TEXT.findAll(text).map { it.value.trimEnd('.', ',', ')') }.firstOrNull(::isMaps)
 
     fun isMaps(url: String): Boolean {
         val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return false
@@ -59,17 +60,28 @@ object MapsLink {
     fun placeName(url: String): String? {
         val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return null
         for (name in listOf("q", "query", "address", "destination", "daddr")) {
-            uri.getQueryParameter(name)?.let(::readable)?.takeIf { it.isNotEmpty() }?.let { return it }
+            uri
+                .getQueryParameter(name)
+                ?.let(::readable)
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { return it }
         }
         val parts = uri.pathSegments
         val index = parts.indexOf("place")
-        if (index >= 0 && index + 1 < parts.size) readable(parts[index + 1]).takeIf { it.isNotEmpty() }?.let { return it }
+        if (index >= 0 &&
+            index + 1 < parts.size
+        ) {
+            readable(parts[index + 1]).takeIf { it.isNotEmpty() }?.let { return it }
+        }
         return uri.getQueryParameter("continue")?.takeIf { it != url }?.let(::placeName)
     }
 
     private fun readable(text: String): String = decode(text).replace('+', ' ').trim()
 
-    private fun decode(text: String): String = runCatching { URLDecoder.decode(text.replace("+", "%2B"), "UTF-8") }.getOrDefault(text)
+    private fun decode(text: String): String =
+        runCatching {
+            URLDecoder.decode(text.replace("+", "%2B"), "UTF-8")
+        }.getOrDefault(text)
 
     private fun point(
         pattern: Regex,

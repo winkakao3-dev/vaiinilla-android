@@ -364,7 +364,9 @@ private fun StateTag(
     val (background, content) =
         when {
             state.isTerminalWithoutDelivery -> AdminCoral.copy(alpha = 0.16f) to AdminCoral
-            state == OrderState.READY || state == OrderState.AWAITING_ACCEPTANCE -> colors.textPrimary to colors.background
+            state == OrderState.READY || state == OrderState.AWAITING_ACCEPTANCE ->
+                colors.textPrimary to
+                    colors.background
             state == OrderState.ON_THE_WAY -> colors.accentLime.copy(alpha = 0.35f) to colors.textPrimary
             state == OrderState.PREPARING || state == OrderState.PAID ->
                 colors.accentLime.copy(alpha = 0.18f) to colors.textPrimary

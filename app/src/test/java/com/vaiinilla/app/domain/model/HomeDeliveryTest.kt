@@ -50,7 +50,14 @@ class HomeDeliveryTest {
         val json =
             body(
                 request(destination = OrderDestination.HOME_DELIVERY).copy(
-                    delivery = DeliveryAddress("Calle 5 #123, Centro", reference = " ", phone = "614 123 4567", 28.63, -106.08),
+                    delivery =
+                        DeliveryAddress(
+                            "Calle 5 #123, Centro",
+                            reference = " ",
+                            phone = "614 123 4567",
+                            28.63,
+                            -106.08,
+                        ),
                     deliveryDate = "2026-11-07",
                     paysOnArrival = true,
                 ),
@@ -95,18 +102,25 @@ class HomeDeliveryTest {
         val base =
             """"recibiendo_pedidos":true,"sesion_caja_abierta":true,"caja_en_linea":true,"cocina_en_linea":true,""" +
                 """"tiempo_estimado_min":5,"consultado_en":"2026-10-30T12:00:00Z""""
+
         fun status(extra: String) = parser.parseOperationalStatus("""{"data":{$base$extra},"meta":{},"error":null}""")
         val old = status("")
         assertNull(old.homeDelivery)
         assertNull(old.preorders)
-        assertNull(status(""","reparto":{"activo":false,"radio_km":"5.0","costo":"40.00","minimo":null}""").homeDelivery)
+        assertNull(
+            status(""","reparto":{"activo":false,"radio_km":"5.0","costo":"40.00","minimo":null}""").homeDelivery,
+        )
         val on =
             status(
-                ""","reparto":{"activo":true,"radio_km":"5.0","costo":40,"minimo":"200.00"},"permite_contra_entrega":true,""" +
-                    """"anticipo_porcentaje":50,"datos_transferencia":"  ","encargos_requieren_aceptar":true,""" +
+                ""","reparto":{"activo":true,"radio_km":"5.0","costo":40,"minimo":"200.00"},""" +
+                    """"permite_contra_entrega":true,"anticipo_porcentaje":50,"datos_transferencia":"  ",""" +
+                    """"encargos_requieren_aceptar":true,""" +
                     """"dias_adelanto_pedido":7,"hora_corte_pedido":"18:00:00"""",
             )
-        assertEquals(HomeDeliveryOffer("40", "200.00", "5.0", payOnArrival = true, transferDetails = null), on.homeDelivery)
+        assertEquals(
+            HomeDeliveryOffer("40", "200.00", "5.0", payOnArrival = true, transferDetails = null),
+            on.homeDelivery,
+        )
         assertEquals(PreorderOffer(7, "18:00", requiresAcceptance = true, depositPercent = 50), on.preorders)
     }
 
@@ -128,9 +142,15 @@ class HomeDeliveryTest {
         var draft = HomeCheckoutDraft()
         assertNotNull(HomeCheckoutRules.problem(draft, offer, "250.00", needsDate = false))
         draft = draft.copy(address = DeliveryAddress("Calle 5 #123, Centro", phone = "6141234567"))
-        assertEquals("Revisa la dirección para calcular el envío.", HomeCheckoutRules.problem(draft, offer, "250.00", false))
+        assertEquals(
+            "Revisa la dirección para calcular el envío.",
+            HomeCheckoutRules.problem(draft, offer, "250.00", false),
+        )
         draft = draft.copy(quote = HomeDeliveryQuote(reaches = false, distanceKm = "9", fee = null, minimum = null))
-        assertEquals("Esta dirección queda fuera de la zona de entrega.", HomeCheckoutRules.problem(draft, offer, "250.00", false))
+        assertEquals(
+            "Esta dirección queda fuera de la zona de entrega.",
+            HomeCheckoutRules.problem(draft, offer, "250.00", false),
+        )
         draft = draft.copy(quote = HomeDeliveryQuote(reaches = true, distanceKm = "3", fee = "50.00", minimum = null))
         assertNotNull("Bajo el mínimo", HomeCheckoutRules.problem(draft, offer, "150.00", false))
         assertNotNull("Falta el día", HomeCheckoutRules.problem(draft, offer, "250.00", true))
@@ -158,7 +178,11 @@ class HomeDeliveryTest {
     fun `el tablero ofrece el siguiente paso de cada pedido`() {
         assertEquals(HomeOrderStep.DECIDE, HomeOrderBoard.step(home("por_aceptar")))
         assertEquals(HomeOrderStep.SEND_OUT, HomeOrderBoard.step(home("listo")))
-        assertEquals("Sin Cocina, sale en cuanto se acepta", HomeOrderStep.SEND_OUT, HomeOrderBoard.step(home("cobrado")))
+        assertEquals(
+            "Sin Cocina, sale en cuanto se acepta",
+            HomeOrderStep.SEND_OUT,
+            HomeOrderBoard.step(home("cobrado")),
+        )
         assertEquals(HomeOrderStep.SEND_OUT, HomeOrderBoard.step(home("preparando")))
         assertNull("Para llevar se recoge, no sale", HomeOrderBoard.step(home("listo", destination = "para_llevar")))
         assertEquals(HomeOrderStep.DELIVER, HomeOrderBoard.step(home("en_camino")))

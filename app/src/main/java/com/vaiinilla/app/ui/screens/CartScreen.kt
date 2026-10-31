@@ -397,12 +397,22 @@ fun CartScreen(
                                         "Entrega",
                                         when {
                                             state.isHomeDelivery -> "A domicilio"
-                                            state.checkoutDestination == OrderDestination.IN_SPACE -> state.selectedSpaceName
+                                            state.checkoutDestination == OrderDestination.IN_SPACE ->
+                                                state.selectedSpaceName
                                             else -> "En barra"
                                         },
                                     ),
                                     state.homeDeliveryFee?.let { fee ->
-                                        CremeStat("Envío", if (Money.parse(fee).signum() == 0) "Gratis" else moneyLabel(fee))
+                                        CremeStat(
+                                            "Envío",
+                                            if (Money.parse(fee).signum() ==
+                                                0
+                                            ) {
+                                                "Gratis"
+                                            } else {
+                                                moneyLabel(fee)
+                                            },
+                                        )
                                     },
                                     CremeStat("Total", moneyLabel(state.checkoutTotal), highlighted = true),
                                 ),

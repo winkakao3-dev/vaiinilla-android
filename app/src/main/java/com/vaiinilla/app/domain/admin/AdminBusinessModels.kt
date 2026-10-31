@@ -595,7 +595,11 @@ object HomeBusinessRules {
     }
 
     fun problem(preorders: PreorderSettings): String? {
-        if (preorders.daysAhead !in 0..MAX_DAYS_AHEAD) return "Se puede pedir con hasta $MAX_DAYS_AHEAD días de anticipación."
+        if (preorders.daysAhead !in
+            0..MAX_DAYS_AHEAD
+        ) {
+            return "Se puede pedir con hasta $MAX_DAYS_AHEAD días de anticipación."
+        }
         val cutoff = preorders.cutoff.trim()
         if (cutoff.isNotEmpty() && StoreRules.time(cutoff) == null) return "Escribe la hora de corte como 18:00."
         val deposit = preorders.depositPercent

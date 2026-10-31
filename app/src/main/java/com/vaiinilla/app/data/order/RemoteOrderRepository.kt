@@ -198,7 +198,13 @@ class RemoteOrderRepository(
             .post(
                 path = "pedidos/reparto/cotizar",
                 body = contractJson.encodeHomeDeliveryQuote(latitude, longitude),
-                headers = mapOf("Idempotency-Key" to java.util.UUID.randomUUID().toString()),
+                headers =
+                    mapOf(
+                        "Idempotency-Key" to
+                            java.util.UUID
+                                .randomUUID()
+                                .toString(),
+                    ),
             ).mapCatching { contractJson.parseHomeDeliveryQuote(it) }
             .mapApiErrors()
 
@@ -210,7 +216,13 @@ class RemoteOrderRepository(
             .post(
                 path = "pedidos/$orderId/${action.path}",
                 body = contractJson.encodeHomeOrderAction(action),
-                headers = mapOf("Idempotency-Key" to java.util.UUID.randomUUID().toString()),
+                headers =
+                    mapOf(
+                        "Idempotency-Key" to
+                            java.util.UUID
+                                .randomUUID()
+                                .toString(),
+                    ),
             ).mapCatching { contractJson.parseOrderDetail(it) }
             .mapCatching { pickupTokenStore.attach(it) }
             .mapApiErrors()

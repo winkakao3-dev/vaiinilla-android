@@ -40,8 +40,16 @@ class MapsLinkTest {
     @Test
     fun `lee las coordenadas de la consulta`() {
         assertEquals(28.6353, MapsLink.coordinate("https://maps.google.com/?q=28.6353,-106.0889")!!.latitude, 0.00001)
-        assertEquals(-106.0889, MapsLink.coordinate("https://maps.apple.com/?ll=28.6353,-106.0889&q=Pin")!!.longitude, 0.00001)
-        assertEquals(28.6353, MapsLink.coordinate("https://www.google.com/maps/search/28.6353,+-106.0889")!!.latitude, 0.00001)
+        assertEquals(
+            -106.0889,
+            MapsLink.coordinate("https://maps.apple.com/?ll=28.6353,-106.0889&q=Pin")!!.longitude,
+            0.00001,
+        )
+        assertEquals(
+            28.6353,
+            MapsLink.coordinate("https://www.google.com/maps/search/28.6353,+-106.0889")!!.latitude,
+            0.00001,
+        )
     }
 
     @Test
@@ -56,7 +64,10 @@ class MapsLinkTest {
         val query = "https://maps.google.com/?q=Calle+Ocampo+123,+Centro,+Chihuahua"
         assertNull(MapsLink.coordinate(query))
         assertEquals("Calle Ocampo 123, Centro, Chihuahua", MapsLink.placeName(query))
-        assertEquals("Pastelería Lupita", MapsLink.placeName("https://www.google.com/maps/place/Pasteler%C3%ADa+Lupita"))
+        assertEquals(
+            "Pastelería Lupita",
+            MapsLink.placeName("https://www.google.com/maps/place/Pasteler%C3%ADa+Lupita"),
+        )
     }
 
     @Test

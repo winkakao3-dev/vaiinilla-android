@@ -520,7 +520,16 @@ class AdminViewModel
                     onSuccess = { updated ->
                         _uiState.value =
                             _uiState.value.copy(
-                                orders = _uiState.value.orders.map { if (it.summary.id == updated.summary.id) updated else it },
+                                orders =
+                                    _uiState.value.orders.map {
+                                        if (it.summary.id ==
+                                            updated.summary.id
+                                        ) {
+                                            updated
+                                        } else {
+                                            it
+                                        }
+                                    },
                             )
                         showNotice(doneMessage(action), isError = false)
                         onDone(updated)

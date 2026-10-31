@@ -105,11 +105,24 @@ class AdminBusinessJson {
     fun encodeHomeDelivery(delivery: HomeDeliverySettings): String =
         buildJsonObject {
             put("reparto_activo", delivery.enabled)
-            put("reparto_radio_km", HomeBusinessRules.amount(delivery.radiusKm)?.stripTrailingZeros()?.toPlainString().orNull())
+            put(
+                "reparto_radio_km",
+                HomeBusinessRules
+                    .amount(delivery.radiusKm)
+                    ?.stripTrailingZeros()
+                    ?.toPlainString()
+                    .orNull(),
+            )
             put("reparto_costo", HomeBusinessRules.money(delivery.fee).orNull())
             put("reparto_minimo", HomeBusinessRules.money(delivery.minimum).orNull())
             put("permite_contra_entrega", delivery.payOnDelivery)
-            put("datos_transferencia", delivery.transferDetails.trim().ifEmpty { null }.orNull())
+            put(
+                "datos_transferencia",
+                delivery.transferDetails
+                    .trim()
+                    .ifEmpty { null }
+                    .orNull(),
+            )
         }.toString()
 
     fun encodePreorders(preorders: PreorderSettings): String =
@@ -422,7 +435,14 @@ private data class StoreConfigDto(
                 },
             location =
                 tieneUbicacion?.let { has ->
-                    if (has && latitud != null && longitud != null) StoreLocation.At(latitud, longitud) else StoreLocation.Missing
+                    if (has &&
+                        latitud != null &&
+                        longitud != null
+                    ) {
+                        StoreLocation.At(latitud, longitud)
+                    } else {
+                        StoreLocation.Missing
+                    }
                 },
         )
 }

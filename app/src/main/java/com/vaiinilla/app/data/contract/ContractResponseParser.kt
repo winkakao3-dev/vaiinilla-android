@@ -74,7 +74,10 @@ class ContractResponseParser
                                 minimum = delivery.minimo?.textOrNull(),
                                 radiusKm = delivery.radioKm?.textOrNull().orEmpty(),
                                 payOnArrival = envelope.data.payOnArrival ?: false,
-                                transferDetails = envelope.data.transferDetails?.trim()?.ifEmpty { null },
+                                transferDetails =
+                                    envelope.data.transferDetails
+                                        ?.trim()
+                                        ?.ifEmpty { null },
                             )
                         },
                 preorders =
@@ -131,7 +134,13 @@ class ContractResponseParser
 internal fun cleanAllergenText(raw: String?): String {
     val text = raw.orEmpty().trim()
     if (!(text.startsWith("{") && text.endsWith("}"))) return text
-    return text.removeSurrounding("{", "}").split(',').map { it.trim().trim('"') }.filter { it.isNotEmpty() }.joinToString(", ")
+    return text
+        .removeSurrounding("{", "}")
+        .split(',')
+        .map {
+            it.trim().trim('"')
+        }.filter { it.isNotEmpty() }
+        .joinToString(", ")
 }
 
 private fun ProductDto.toDomain(): Product =

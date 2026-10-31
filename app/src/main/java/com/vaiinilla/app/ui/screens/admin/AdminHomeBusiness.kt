@@ -73,12 +73,21 @@ internal fun ProductPreparationEditor(
                     targetState = days,
                     transitionSpec = {
                         val up = targetState > initialState
-                        (slideInVertically(spring(stiffness = 500f)) { if (up) it / 2 else -it / 2 } + fadeIn()) togetherWith
+                        (
+                            slideInVertically(
+                                spring(stiffness = 500f),
+                            ) { if (up) it / 2 else -it / 2 } + fadeIn()
+                        ) togetherWith
                             (slideOutVertically(spring(stiffness = 500f)) { if (up) -it / 2 else it / 2 } + fadeOut())
                     },
                     label = "dias-preparacion",
                 ) { value ->
-                    Text(preparationLabel(value), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                    Text(
+                        preparationLabel(value),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary,
+                    )
                 }
                 Text(
                     "El cliente solo puede pedirlo para una fecha con ese margen.",
@@ -256,7 +265,10 @@ internal fun AdminHomeDeliveryCard(
                 if (draft.payOnDelivery) {
                     OperationalField(
                         value = draft.transferDetails,
-                        onValueChange = { draft = draft.copy(transferDetails = it.take(HomeBusinessRules.MAX_TRANSFER_DETAILS)) },
+                        onValueChange = {
+                            draft =
+                                draft.copy(transferDetails = it.take(HomeBusinessRules.MAX_TRANSFER_DETAILS))
+                        },
                         label = "Datos para transferencia",
                         colors = colors,
                         placeholder = "Banco, CLABE y a nombre de quién",
@@ -409,5 +421,11 @@ private fun SaveRow(
 private fun decimalInput(raw: String): String {
     val clean = raw.filter { it.isDigit() || it == '.' }
     val dot = clean.indexOf('.')
-    return if (dot < 0) clean.take(6) else clean.substring(0, dot + 1) + clean.substring(dot + 1).replace(".", "").take(2)
+    return if (dot <
+        0
+    ) {
+        clean.take(6)
+    } else {
+        clean.substring(0, dot + 1) + clean.substring(dot + 1).replace(".", "").take(2)
+    }
 }

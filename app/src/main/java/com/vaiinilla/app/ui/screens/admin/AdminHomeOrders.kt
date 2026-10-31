@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,7 +57,9 @@ internal fun LazyListScope.agendaItems(
 ) {
     val error = state.agendaError
     if (error != null && state.agenda.isEmpty() && state.owed.isEmpty()) {
-        item(key = "agenda-error") { Box(Modifier.padding(horizontal = 16.dp)) { AdminLoadError(error, colors, onRetry) } }
+        item(
+            key = "agenda-error",
+        ) { Box(Modifier.padding(horizontal = 16.dp)) { AdminLoadError(error, colors, onRetry) } }
         return
     }
     if (state.owed.isNotEmpty()) {
@@ -93,7 +94,12 @@ internal fun LazyListScope.agendaItems(
         item(key = "agenda-vacia") {
             Box(Modifier.padding(horizontal = 20.dp)) {
                 AdminCard(colors) {
-                    Text("Sin entregas pendientes", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.textPrimary)
+                    Text(
+                        "Sin entregas pendientes",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = colors.textPrimary,
+                    )
                     AdminHint("Cuando alguien te pida para un día, sale aquí en ese día.", colors)
                 }
             }
@@ -115,7 +121,11 @@ internal fun LazyListScope.agendaItems(
     if (state.agendaLoading) {
         item(key = "agenda-cargando") {
             Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = colors.textPrimary, strokeWidth = 2.5.dp, modifier = Modifier.size(24.dp))
+                CircularProgressIndicator(
+                    color = colors.textPrimary,
+                    strokeWidth = 2.5.dp,
+                    modifier = Modifier.size(24.dp),
+                )
             }
         }
     }
@@ -181,7 +191,10 @@ internal fun HomeDeliveryAdminCard(
         home.deposit?.takeIf { (it.toBigDecimalOrNull()?.signum() ?: 0) > 0 }?.let {
             AdminValueRow("Anticipo pagado", moneyLabel(it), colors)
         }
-        home.dueOnArrival?.takeIf { home.hasAmountDue }?.let { AdminValueRow("Por cobrar al entregar", moneyLabel(it), colors, strong = true) }
+        home.dueOnArrival
+            ?.takeIf {
+                home.hasAmountDue
+            }?.let { AdminValueRow("Por cobrar al entregar", moneyLabel(it), colors, strong = true) }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ActionPill(
                 label = "Abrir en Mapas",
@@ -224,6 +237,7 @@ internal fun HomeOrderActionsCard(
     var rejecting by remember(order.summary.id) { mutableStateOf(false) }
     var reason by remember(order.summary.id) { mutableStateOf("") }
     var code by remember(order.summary.id) { mutableStateOf("") }
+
     fun run(action: HomeOrderAction) {
         haptics.impact()
         onAction(action)
@@ -248,7 +262,14 @@ internal fun HomeOrderActionsCard(
                                 enabled = !busy,
                             )
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                ActionPill("Cancelar", !busy, false, colors, primary = false, modifier = Modifier.weight(1f)) {
+                                ActionPill(
+                                    "Cancelar",
+                                    !busy,
+                                    false,
+                                    colors,
+                                    primary = false,
+                                    modifier = Modifier.weight(1f),
+                                ) {
                                     rejecting = false
                                 }
                                 ActionPill(
@@ -261,7 +282,14 @@ internal fun HomeOrderActionsCard(
                             }
                         } else {
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                ActionPill("Rechazar", !busy, false, colors, primary = false, modifier = Modifier.weight(1f)) {
+                                ActionPill(
+                                    "Rechazar",
+                                    !busy,
+                                    false,
+                                    colors,
+                                    primary = false,
+                                    modifier = Modifier.weight(1f),
+                                ) {
                                     rejecting = true
                                 }
                                 ActionPill("Aceptar encargo", !busy, busy, colors, modifier = Modifier.weight(1.4f)) {

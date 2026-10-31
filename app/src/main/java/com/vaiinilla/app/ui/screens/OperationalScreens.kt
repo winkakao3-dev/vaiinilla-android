@@ -172,9 +172,9 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
 import com.vaiinilla.app.ui.theme.MutedInk
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
-import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
 import java.math.BigDecimal
+import java.time.format.DateTimeFormatter
 
 /**
  * Adaptive operational color tokens supporting Light, Dark, and pure-pitch AMOLED.

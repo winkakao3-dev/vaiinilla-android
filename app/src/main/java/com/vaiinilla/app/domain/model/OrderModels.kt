@@ -249,7 +249,12 @@ data class PaymentPart(
 val OrderSummary.needsCashCollection: Boolean
     get() {
         // A domicilio se cobra en la puerta (`cobrar-entrega`), no en Caja.
-        if (paymentMethod != PaymentMethod.CASH || payAtEnd || destination == OrderDestination.HOME_DELIVERY) return false
+        if (paymentMethod != PaymentMethod.CASH ||
+            payAtEnd ||
+            destination == OrderDestination.HOME_DELIVERY
+        ) {
+            return false
+        }
         if (state != OrderState.PENDING_PAYMENT && state != OrderState.PREPARING && state != OrderState.READY) {
             return false
         }

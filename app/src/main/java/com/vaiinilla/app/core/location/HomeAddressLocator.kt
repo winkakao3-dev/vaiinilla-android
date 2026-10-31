@@ -81,7 +81,13 @@ object HomeAddressLocator {
     ): MapsLink.Point? {
         if (address.isEmpty() || !Geocoder.isPresent()) return null
         @Suppress("DEPRECATION")
-        val found = runCatching { Geocoder(context, SPANISH_MX).getFromLocationName(address, 1) }.getOrNull()?.firstOrNull()
+        val found =
+            runCatching {
+                Geocoder(
+                    context,
+                    SPANISH_MX,
+                ).getFromLocationName(address, 1)
+            }.getOrNull()?.firstOrNull()
         return found?.let { MapsLink.Point(it.latitude, it.longitude) }
     }
 
