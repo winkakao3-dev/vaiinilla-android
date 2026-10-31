@@ -11,6 +11,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -20,7 +21,10 @@ import androidx.navigation.compose.rememberNavController
 import com.vaiinilla.app.core.notifications.ChildDeepLinkStore
 import com.vaiinilla.app.core.notifications.OrderAdvanceNotifier
 import com.vaiinilla.app.core.notifications.OrderNotificationTarget
+import com.vaiinilla.app.core.notifications.ReceivedNoticeLog
 import com.vaiinilla.app.ui.navigation.AppNavHost
+import com.vaiinilla.app.ui.navigation.Routes
+import com.vaiinilla.app.ui.notices.LocalOpenReceivedNotices
 import com.vaiinilla.app.ui.theme.ThemePreferences
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -89,21 +93,28 @@ class MainActivity : ComponentActivity() {
                     ThemePreferences.save(context, mode)
                 },
             ) {
-                AppNavHost(
-                    navController = rememberNavController(),
-                    pendingEstablishmentSlug = pendingEstablishmentSlug,
-                    pendingSpaceToken = pendingSpaceToken,
-                    pendingInvitationToken = pendingInvitationToken,
-                    onDeepLinkConsumed = { pendingEstablishmentSlug = null },
-                    onSpaceLinkConsumed = { pendingSpaceToken = null },
-                    onInvitationConsumed = { pendingInvitationToken = null },
-                    pendingOrderId = pendingOrderId,
-                    pendingOrderTarget = pendingOrderTarget,
-                    onOrderConsumed = {
-                        pendingOrderId = null
-                        pendingOrderTarget = null
-                    },
-                )
+                val navController = rememberNavController()
+                val openNotices =
+                    remember(navController) {
+                        { navController.navigate(Routes.RECEIVED_NOTICES) { launchSingleTop = true } }
+                    }
+                CompositionLocalProvider(LocalOpenReceivedNotices provides openNotices) {
+                    AppNavHost(
+                        navController = navController,
+                        pendingEstablishmentSlug = pendingEstablishmentSlug,
+                        pendingSpaceToken = pendingSpaceToken,
+                        pendingInvitationToken = pendingInvitationToken,
+                        onDeepLinkConsumed = { pendingEstablishmentSlug = null },
+                        onSpaceLinkConsumed = { pendingSpaceToken = null },
+                        onInvitationConsumed = { pendingInvitationToken = null },
+                        pendingOrderId = pendingOrderId,
+                        pendingOrderTarget = pendingOrderTarget,
+                        onOrderConsumed = {
+                            pendingOrderId = null
+                            pendingOrderTarget = null
+                        },
+                    )
+                }
             }
         }
     }
@@ -145,6 +156,8 @@ class MainActivity : ComponentActivity() {
         }
         // Aviso de un hijo: lo atiende la navegación (ChildNoticeEffect) y después Cartera.
         ChildDeepLinkStore.capture(source)
+        source?.getStringExtra(OrderAdvanceNotifier.EXTRA_NOTICE_ID)?.let { ReceivedNoticeLog.markOpened(this, it) }
+        source?.removeExtra(OrderAdvanceNotifier.EXTRA_NOTICE_ID)
         source?.removeExtra(OrderAdvanceNotifier.EXTRA_ORDER_ID)
         source?.removeExtra(OrderAdvanceNotifier.EXTRA_NOTIFICATION_TARGET)
         // Do not retain invitation tokens in the Activity intent after capture.

@@ -74,13 +74,15 @@ object GuardianPushNotifier {
         tag: String,
         text: Text,
         link: ChildDeepLink?,
-    ) {
-        if (!OrderAdvanceNotifier.canPost(context)) return
+        noticeId: String? = null,
+    ): Boolean {
+        if (!OrderAdvanceNotifier.canPost(context)) return false
         OrderAdvanceNotifier.ensureChannel(context)
         val intent =
             Intent(context, MainActivity::class.java)
                 .setAction("${context.packageName}.open.guardian")
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        noticeId?.let { intent.putExtra(OrderAdvanceNotifier.EXTRA_NOTICE_ID, it) }
         link?.let {
             intent.putExtra(ChildDeepLink.EXTRA_DEPENDENT_ID, it.dependentUserId)
             it.establishmentId?.let { id -> intent.putExtra(ChildDeepLink.EXTRA_ESTABLISHMENT_ID, id) }
@@ -108,5 +110,6 @@ object GuardianPushNotifier {
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .build()
         NotificationManagerCompat.from(context).notify(tag.hashCode(), notification)
+        return true
     }
 }

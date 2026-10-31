@@ -44,8 +44,12 @@ import com.stripe.android.paymentsheet.PaymentSheet
 import com.stripe.android.paymentsheet.PaymentSheetResult
 import com.vaiinilla.app.R
 import com.vaiinilla.app.core.notifications.ChildDeepLinkStore
+import com.vaiinilla.app.core.notifications.NoticeMembership
+import com.vaiinilla.app.core.notifications.NoticePhoneContext
 import com.vaiinilla.app.core.notifications.OrderAdvanceNotifier
 import com.vaiinilla.app.core.notifications.OrderNotificationTarget
+import com.vaiinilla.app.core.notifications.ReceivedNotice
+import com.vaiinilla.app.core.notifications.ReceivedNoticeLog
 import com.vaiinilla.app.data.auth.student.GoogleSignInHelper
 import com.vaiinilla.app.data.auth.student.GoogleSignInUnavailableException
 import com.vaiinilla.app.domain.counter.CounterScope
@@ -80,6 +84,7 @@ import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerAlternative
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
+import com.vaiinilla.app.ui.notices.ReceivedNoticesScreen
 import com.vaiinilla.app.ui.operational.CashierContext
 import com.vaiinilla.app.ui.operational.CourtsViewModel
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
@@ -221,6 +226,25 @@ fun AppNavHost(
     LaunchedEffect(authorizedAccessState.activeContext?.membershipId) {
         waiterViewModel.bindContext(authorizedAccessState.activeContext?.membershipId)
     }
+    // «Avisos recibidos» explica cada aviso con la cuenta, el modo abierto y los modos que tenía el teléfono.
+    val noticeContext = LocalContext.current
+    LaunchedEffect(studentAuthState.session?.email, authorizedAccessState.modes, authorizedAccessState.activeContext) {
+        val session = studentAuthState.session ?: return@LaunchedEffect
+        ReceivedNoticeLog.updatePhone(
+            noticeContext,
+            NoticePhoneContext(
+                account = session.email,
+                openMode =
+                    authorizedAccessState.activeContext
+                        ?.let { "${it.role.label} en ${it.establishmentName}" }
+                        ?: "Cliente",
+                memberships =
+                    authorizedAccessState.modes.map {
+                        NoticeMembership(it.membershipId, it.role, it.establishmentId, it.establishmentName)
+                    },
+            ),
+        )
+    }
     LaunchedEffect(operationalState.cashSessionOpen) {
         studentCounterViewModel.setCashOpen(operationalState.cashSessionOpen != false)
     }
@@ -323,13 +347,32 @@ fun AppNavHost(
     val appContext = LocalContext.current
     LaunchedEffect(Unit) {
         operationalViewModel.orderAdvanceEvents.collect { event ->
-            OrderAdvanceNotifier.notify(
+            // El mismo avance puede llegar después por push: este id es de la app y no se junta con el del servidor.
+            val noticeId = "app:${event.orderId}:${event.newState.wireValue}"
+            val shown =
+                OrderAdvanceNotifier.notify(
+                    context = appContext,
+                    orderId = event.orderId,
+                    folio = event.folio,
+                    newState = event.newState,
+                    inSpace = event.inSpace,
+                    spaceType = event.spaceType,
+                    noticeId = noticeId,
+                )
+            ReceivedNoticeLog.record(
                 context = appContext,
-                orderId = event.orderId,
-                folio = event.folio,
-                newState = event.newState,
-                inSpace = event.inSpace,
-                spaceType = event.spaceType,
+                id = noticeId,
+                title = shown.title,
+                body = shown.body,
+                payload =
+                    mapOf(
+                        "type" to "order_state",
+                        "orderId" to event.orderId,
+                        "folio" to event.folio.toString(),
+                        "state" to event.newState.wireValue,
+                    ),
+                isRemote = false,
+                arrival = if (shown.posted) ReceivedNotice.Arrival.SHOWN else ReceivedNotice.Arrival.NOT_SHOWN,
             )
             // Pagar, cancelar o devolver mueve el saldo: no se espera a que el dato envejezca.
             walletViewModel.invalidate()
@@ -795,6 +838,7 @@ fun AppNavHost(
         guardianControlsViewModel.clear()
         sharedTableViewModel.clearForSessionTermination()
         ChildDeepLinkStore.reset()
+        ReceivedNoticeLog.clear(appContext)
         operationalViewModel.clearRole()
         authorizedAccessViewModel.resetAfterSignOut()
         accountDeletionViewModel.cancel()
@@ -1431,6 +1475,14 @@ fun AppNavHost(
                 )
             }
 
+            composable(Routes.RECEIVED_NOTICES) {
+                ReceivedNoticesScreen(
+                    viewModel = viewModel(),
+                    modes = authorizedAccessState.modes,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
             composable(Routes.WALLET_ACCOUNT) {
                 LaunchedEffect(Unit) { walletViewModel.refresh() }
                 val hasStaffModes = authorizedAccessState.modes.any { it.role != OperationalRole.CLIENT }
@@ -1454,6 +1506,9 @@ fun AppNavHost(
                         }
                     },
                     onSignOut = { signOutAndFinish() },
+                    onOpenNotices = {
+                        navController.navigate(Routes.RECEIVED_NOTICES) { launchSingleTop = true }
+                    },
                     accountDeletionState = accountDeletionState,
                     onRequestAccountDeletion = accountDeletionViewModel::requestConfirmation,
                     onConfirmAccountDeletion = accountDeletionViewModel::confirm,

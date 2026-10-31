@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.CircularProgressIndicator
@@ -73,6 +74,7 @@ fun WalletAccountScreen(
     onOpenStaffModes: () -> Unit = {},
     onChangeVenue: () -> Unit = {},
     onSignOut: () -> Unit = {},
+    onOpenNotices: (() -> Unit)? = null,
     onSignIn: () -> Unit = {},
     onOpenSupport: () -> Unit = {},
     accountDeletionState: AccountDeletionUiState = AccountDeletionUiState(),
@@ -183,8 +185,21 @@ fun WalletAccountScreen(
                         title = "Ayuda y soporte",
                         icon = Icons.AutoMirrored.Outlined.HelpOutline,
                         onClick = onOpenSupport,
-                        showDivider = false,
+                        showDivider = signedIn && onOpenNotices != null,
                     )
+                    // Al fondo y discreto, como en iOS: sirve para entender de dónde vino un aviso.
+                    if (signedIn && onOpenNotices != null) {
+                        SettingsRow(
+                            title = "Avisos recibidos",
+                            subtitle = "De dónde vino cada notificación",
+                            icon = Icons.Outlined.NotificationsNone,
+                            onClick = {
+                                haptics.click()
+                                onOpenNotices()
+                            },
+                            showDivider = false,
+                        )
+                    }
                 }
                 if (signedIn) {
                     // Separado de lo demás: salir no es un ajuste más.

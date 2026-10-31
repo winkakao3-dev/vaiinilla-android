@@ -28,6 +28,7 @@ object Routes {
     const val WALLET_METHODS = "wallet/methods"
     const val WALLET_ADD_CARD = "wallet/add-card"
     const val WALLET_ACCOUNT = "wallet/account"
+    const val RECEIVED_NOTICES = "account/notices"
     const val SUPPORT = "support"
     const val RECEIPT_STICKER = "receipt-sticker?style={style}"
 

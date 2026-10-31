@@ -28,11 +28,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.notices.LocalOpenReceivedNotices
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
 /**
- * El avatar del personal abre un menú corto: el tema, cambiar de modo y, en Caja con la caja abierta,
- * cerrarla. Así el encabezado queda en el lugar a la izquierda, Vaini (la ayuda) y el avatar.
+ * El avatar del personal abre un menú corto: el tema, cambiar de modo, los avisos recibidos y, en Caja con la caja
+ * abierta, cerrarla. Así el encabezado queda en el lugar a la izquierda, Vaini (la ayuda) y el avatar.
  */
 @Composable
 internal fun StaffAvatarMenu(
@@ -93,6 +94,16 @@ internal fun StaffAvatarMenu(
                     onChangeMode()
                 },
             )
+            // Para saber de dónde vino un aviso (EQUIPO-37): a qué negocio y pedido va y por qué llegó aquí.
+            LocalOpenReceivedNotices.current?.let { openNotices ->
+                DropdownMenuItem(
+                    text = { Text("Avisos recibidos", color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
+                    onClick = {
+                        expanded = false
+                        openNotices()
+                    },
+                )
+            }
             if (onCloseCash != null) {
                 DropdownMenuItem(
                     text = { Text("Cerrar caja", color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },

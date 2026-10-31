@@ -24,6 +24,17 @@ import com.vaiinilla.app.domain.model.SpaceCopy
 object OrderAdvanceNotifier {
     const val EXTRA_ORDER_ID = "order_id"
     const val EXTRA_NOTIFICATION_TARGET = "notification_target"
+
+    /** El id del aviso en [ReceivedNoticeLog], para anotar que se tocó. */
+    const val EXTRA_NOTICE_ID = "aviso_id"
+
+    /** Lo que se mostró (o se habría mostrado) en el teléfono. */
+    data class Shown(
+        val title: String,
+        val body: String,
+        val posted: Boolean,
+    )
+
     private const val CHANNEL_ID = "order_tracking"
     private const val STAFF_MODES_REQUEST_CODE = 710_300
     private const val PLAIN_LAUNCH_REQUEST_CODE = 710_301
@@ -67,10 +78,8 @@ object OrderAdvanceNotifier {
         orderId: String,
         folio: Int,
         alert: String,
-    ) {
-        if (!canPost(context)) return
-        ensureStaffChannel(context)
-        val launchIntent = orderLaunchIntent(context, orderId, OrderNotificationTarget.STAFF)
+        noticeId: String? = null,
+    ): Shown {
         val (title, text) =
             when (alert) {
                 "por_cobrar" -> "Pedido #$folio por cobrar" to "Entro un pedido en efectivo."
@@ -78,6 +87,9 @@ object OrderAdvanceNotifier {
                 "listo_mesero" -> "Pedido #$folio listo" to "Entregar al espacio del alumno."
                 else -> "Pedido #$folio" to "El pedido cambio de estado."
             }
+        if (!canPost(context)) return Shown(title, text, posted = false)
+        ensureStaffChannel(context)
+        val launchIntent = orderLaunchIntent(context, orderId, OrderNotificationTarget.STAFF, noticeId)
         val notification =
             NotificationCompat
                 .Builder(context, STAFF_CHANNEL_ID)
@@ -90,6 +102,7 @@ object OrderAdvanceNotifier {
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .build()
         NotificationManagerCompat.from(context).notify(staffNotificationId(orderId, alert), notification)
+        return Shown(title, text, posted = true)
     }
 
     internal fun staffNotificationId(
@@ -115,21 +128,25 @@ object OrderAdvanceNotifier {
         callId: String,
         spaceName: String,
         reason: String?,
-    ) {
-        if (!canPost(context)) return
+        noticeId: String? = null,
+    ): Shown {
+        val title = if (spaceName.isBlank()) "Una mesa te llama" else "$spaceName te llama"
+        val text = tableCallText(reason)
+        if (!canPost(context)) return Shown(title, text, posted = false)
         ensureStaffChannel(context)
         val notification =
             NotificationCompat
                 .Builder(context, STAFF_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_order_notification)
-                .setContentTitle(if (spaceName.isBlank()) "Una mesa te llama" else "$spaceName te llama")
-                .setContentText(tableCallText(reason))
+                .setContentTitle(title)
+                .setContentText(text)
                 .setAutoCancel(true)
-                .setContentIntent(staffModesLaunchIntent(context))
+                .setContentIntent(staffModesLaunchIntent(context, noticeId))
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .build()
         NotificationManagerCompat.from(context).notify("staff-call:$callId".hashCode(), notification)
+        return Shown(title, text, posted = true)
     }
 
     /** Aviso al personal: el turno de una cancha está por terminar o ya terminó. Va al tablero del personal. */
@@ -138,21 +155,25 @@ object OrderAdvanceNotifier {
         context: Context,
         spaceName: String,
         minutesLeft: Int,
-    ) {
-        if (!canPost(context)) return
+        noticeId: String? = null,
+    ): Shown {
+        val title = turnEndingTitle(spaceName)
+        val text = turnEndingText(minutesLeft)
+        if (!canPost(context)) return Shown(title, text, posted = false)
         ensureStaffChannel(context)
         val notification =
             NotificationCompat
                 .Builder(context, STAFF_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_order_notification)
-                .setContentTitle(turnEndingTitle(spaceName))
-                .setContentText(turnEndingText(minutesLeft))
+                .setContentTitle(title)
+                .setContentText(text)
                 .setAutoCancel(true)
-                .setContentIntent(staffModesLaunchIntent(context))
+                .setContentIntent(staffModesLaunchIntent(context, noticeId))
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .build()
         NotificationManagerCompat.from(context).notify("staff-turn:$spaceName".hashCode(), notification)
+        return Shown(title, text, posted = true)
     }
 
     internal fun turnEndingTitle(spaceName: String): String =
@@ -178,22 +199,26 @@ object OrderAdvanceNotifier {
         context: Context,
         callId: String,
         waiterName: String?,
-    ) {
-        if (!canPost(context)) return
-        ensureChannel(context)
+        noticeId: String? = null,
+    ): Shown {
         val who = waiterName?.trim().orEmpty()
+        val title = "Tu mesero va en camino"
+        val text = if (who.isEmpty()) "Va a tu mesa." else "$who va a tu mesa."
+        if (!canPost(context)) return Shown(title, text, posted = false)
+        ensureChannel(context)
         val notification =
             NotificationCompat
                 .Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_order_notification)
-                .setContentTitle("Tu mesero va en camino")
-                .setContentText(if (who.isEmpty()) "Va a tu mesa." else "$who va a tu mesa.")
+                .setContentTitle(title)
+                .setContentText(text)
                 .setAutoCancel(true)
-                .setContentIntent(plainLaunchIntent(context))
+                .setContentIntent(plainLaunchIntent(context, noticeId))
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .build()
         NotificationManagerCompat.from(context).notify("call-on-the-way:$callId".hashCode(), notification)
+        return Shown(title, text, posted = true)
     }
 
     fun canPost(context: Context): Boolean =
@@ -209,16 +234,19 @@ object OrderAdvanceNotifier {
         newState: OrderState,
         inSpace: Boolean = false,
         spaceType: String? = null,
-    ) {
-        if (!canPost(context)) return
+        noticeId: String? = null,
+    ): Shown {
+        val title = "Pedido #$folio"
+        val text = messageFor(newState, inSpace, spaceType)
+        if (!canPost(context)) return Shown(title, text, posted = false)
         ensureChannel(context)
-        val launchIntent = orderLaunchIntent(context, orderId, OrderNotificationTarget.CLIENT)
+        val launchIntent = orderLaunchIntent(context, orderId, OrderNotificationTarget.CLIENT, noticeId)
         val notification =
             NotificationCompat
                 .Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_order_notification)
-                .setContentTitle("Pedido #$folio")
-                .setContentText(messageFor(newState, inSpace, spaceType))
+                .setContentTitle(title)
+                .setContentText(text)
                 .setAutoCancel(true)
                 .setContentIntent(launchIntent)
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
@@ -228,6 +256,7 @@ object OrderAdvanceNotifier {
                 .build()
         // Un id por avance: el mismo avance se reemplaza en silencio, pero el siguiente estado sí suena.
         NotificationManagerCompat.from(context).notify("$orderId:${newState.wireValue}".hashCode(), notification)
+        return Shown(title, text, posted = true)
     }
 
     internal fun notificationRequestCode(
@@ -239,6 +268,7 @@ object OrderAdvanceNotifier {
         context: Context,
         orderId: String,
         target: OrderNotificationTarget,
+        noticeId: String?,
     ): PendingIntent {
         val requestCode = notificationRequestCode(orderId, target)
         return PendingIntent.getActivity(
@@ -248,32 +278,47 @@ object OrderAdvanceNotifier {
                 .setAction("${context.packageName}.order.${target.wireValue}.$requestCode")
                 .putExtra(EXTRA_ORDER_ID, orderId)
                 .putExtra(EXTRA_NOTIFICATION_TARGET, target.wireValue)
+                .withNoticeId(noticeId)
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }
 
-    /** Sin pedido asociado: la app resuelve el objetivo STAFF abriendo la consola de modos. */
-    private fun staffModesLaunchIntent(context: Context): PendingIntent =
+    /**
+     * Sin pedido asociado: la app resuelve el objetivo STAFF abriendo la consola de modos. Con aviso, un código por
+     * aviso: con uno fijo, tocar el viejo anotaría el más nuevo.
+     */
+    private fun staffModesLaunchIntent(
+        context: Context,
+        noticeId: String?,
+    ): PendingIntent =
         PendingIntent.getActivity(
             context,
-            STAFF_MODES_REQUEST_CODE,
+            noticeId?.hashCode() ?: STAFF_MODES_REQUEST_CODE,
             Intent(context, MainActivity::class.java)
                 .setAction("${context.packageName}.staff.modes")
                 .putExtra(EXTRA_NOTIFICATION_TARGET, OrderNotificationTarget.STAFF.wireValue)
+                .withNoticeId(noticeId)
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-    private fun plainLaunchIntent(context: Context): PendingIntent =
+    private fun plainLaunchIntent(
+        context: Context,
+        noticeId: String?,
+    ): PendingIntent =
         PendingIntent.getActivity(
             context,
-            PLAIN_LAUNCH_REQUEST_CODE,
+            noticeId?.hashCode() ?: PLAIN_LAUNCH_REQUEST_CODE,
             Intent(context, MainActivity::class.java)
                 .setAction("${context.packageName}.open")
+                .withNoticeId(noticeId)
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+
+    private fun Intent.withNoticeId(noticeId: String?): Intent =
+        if (noticeId == null) this else putExtra(EXTRA_NOTICE_ID, noticeId)
 
     internal fun messageFor(
         state: OrderState,
