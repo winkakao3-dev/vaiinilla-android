@@ -170,7 +170,7 @@ class ChildAccountState(
 
     /** Quita a otro tutor; devuelve al hijo como quedó para que la lista de hijos también se entere. */
     suspend fun removeGuardian(guardian: ChildGuardian): Dependent? =
-        changeGuardian(guardian, "${guardian.firstName} ya no cuida a ${child.firstName}.") {
+        changeGuardian(guardian, "${guardian.name} ya no cuida a ${child.firstName}.") {
             services.guardianship.removeGuardian(child.userId, guardian.id, newKey())
         }
 

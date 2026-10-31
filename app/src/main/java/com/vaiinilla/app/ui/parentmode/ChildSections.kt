@@ -139,7 +139,7 @@ internal fun ChildGuardiansSection(
     }
     removing?.let { guardian ->
         ParentConfirmDialog(
-            title = "¿Quitar a ${guardian.firstName}?",
+            title = "¿Quitar a ${guardian.name}?",
             message = "Deja de ver a ${child.firstName}, de recargarle y de apartarle comida.",
             confirmLabel = "Quitar",
             destructive = true,

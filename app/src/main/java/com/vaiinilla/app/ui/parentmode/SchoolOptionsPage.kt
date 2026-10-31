@@ -218,6 +218,7 @@ private fun SchoolOptionsSheets(
                 onAdded = children::upsert,
                 onDismiss = onDismiss,
                 onParentUnlocked = children::markParentUnlocked,
+                knownChildIds = children.children.mapTo(mutableSetOf()) { it.userId },
             )
         OptionsSheet.UNLOCK ->
             ParentUnlockSheet(

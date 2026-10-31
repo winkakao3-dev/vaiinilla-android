@@ -83,6 +83,8 @@ internal fun AddChildSheet(
     onAdded: (Dependent) -> Unit,
     onDismiss: () -> Unit,
     onParentUnlocked: () -> Unit = {},
+    /** Los hijos que ya cuidas: el código de uno de ellos no agrega a nadie y hay que decirlo (QAIOS-31). */
+    knownChildIds: Set<String> = emptySet(),
 ) {
     val colors = rememberOperationalColors()
     val haptics = rememberVaiinillaHaptics()
@@ -144,17 +146,17 @@ internal fun AddChildSheet(
             result
                 .onSuccess { dependent ->
                     haptics.success()
+                    val alreadyCared = dependent.userId in knownChildIds
                     state =
                         MorphState.Done(
-                            if (dependent.isAwaitingSchool) {
-                                "Le avisamos a la escuela"
-                            } else {
-                                "${dependent.firstName} " +
-                                    "ya está contigo"
+                            when {
+                                alreadyCared -> "Ya cuidas a ${dependent.firstName}"
+                                dependent.isAwaitingSchool -> "Le avisamos a la escuela"
+                                else -> "${dependent.firstName} ya está contigo"
                             },
                         )
                     onAdded(dependent)
-                    delay(if (reduced) 300 else 1000)
+                    delay(if (reduced) 300 else if (alreadyCared) 2000 else 1000)
                     onDismiss()
                 }.onFailure {
                     state = MorphState.Idle("Agregar")

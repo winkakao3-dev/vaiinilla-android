@@ -230,10 +230,12 @@ fun ParentModeWalletHost(
 
     when (sheet) {
         ParentSheetKind.ADD ->
-            AddChildSheet(children.services.guardianship, onAdded = children::upsert, onDismiss = {
-                sheet =
-                    null
-            })
+            AddChildSheet(
+                children.services.guardianship,
+                onAdded = children::upsert,
+                onDismiss = { sheet = null },
+                knownChildIds = children.children.mapTo(mutableSetOf()) { it.userId },
+            )
         ParentSheetKind.CONSENT -> PrivacyConsentSheet(children = children, onDismiss = { sheet = null })
         ParentSheetKind.LINK_CODE -> LinkCodeSheet(children.services.guardianship, onDismiss = { sheet = null })
         null -> Unit
