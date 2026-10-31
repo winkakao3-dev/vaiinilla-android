@@ -158,6 +158,8 @@ fun AdminScreen(
     cardFeeToCustomer: Boolean = false,
     /** Escuela solo si el negocio dijo que lo es (Flujo de mi tienda › Escuela). */
     isSchool: Boolean = false,
+    /** Repostería: los productos llevan días de preparación y tope por día (CASA-04). */
+    takesPreorders: Boolean = false,
     /** La foto y el logo del negocio (Flujo de mi tienda) para las cabeceras. */
     photoUrl: String? = null,
     logoUrl: String? = null,
@@ -226,6 +228,7 @@ fun AdminScreen(
                             rentsSpaces = rentsSpaces,
                             cardFeeToCustomer = cardFeeToCustomer,
                             isSchool = isSchool,
+                            takesPreorders = takesPreorders,
                         )
                     AdminTab.TAKE_ORDER ->
                         sections.orderTaker?.invoke(header)

@@ -81,6 +81,7 @@ import com.vaiinilla.app.domain.admin.AdminCategoryInput
 import com.vaiinilla.app.domain.admin.AdminOptionGroupInput
 import com.vaiinilla.app.domain.admin.AdminOptionInput
 import com.vaiinilla.app.domain.admin.AdminProductInput
+import com.vaiinilla.app.domain.admin.ProductPreparationInput
 import com.vaiinilla.app.domain.admin.AdminProductRules
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.Category
@@ -129,6 +130,7 @@ internal fun AdminMenuTab(
     cardFeeToCustomer: Boolean = false,
     /** En una escuela, cada producto necesita sus alérgenos revisados para venderse a alumnos con alergias. */
     isSchool: Boolean = false,
+    takesPreorders: Boolean = false,
     header: AdminHeader,
 ) {
     var sheet by remember { mutableStateOf<MenuSheet?>(null) }
@@ -177,6 +179,7 @@ internal fun AdminMenuTab(
                 rentsSpaces = rentsSpaces,
                 cardFeeToCustomer = cardFeeToCustomer,
                 isSchool = isSchool,
+                takesPreorders = takesPreorders,
                 onArchive = { product ->
                     actions.onSetArchived(product, true)
                     sheet = null
@@ -767,8 +770,13 @@ private fun ProductSheet(
     cardFeeToCustomer: Boolean,
     isSchool: Boolean = false,
     onArchive: (Product) -> Unit = {},
+    takesPreorders: Boolean = false,
 ) {
     val context = LocalContext.current
+    // Un servidor que no conoce los días de preparación no los manda: sale solo en repostería o si ya los trae.
+    val showsPreparation = takesPreorders || product?.preparationDays != null
+    var preparationDays by remember { mutableStateOf(product?.preparationDays ?: 0) }
+    var maximumPerDay by remember { mutableStateOf(product?.maximumPerDay?.toString().orEmpty()) }
     var confirmArchive by remember { mutableStateOf(false) }
     val haptics = rememberVaiinillaHaptics()
     var categoryId by remember { mutableStateOf(product?.categoryId ?: categories.firstOrNull()?.id) }
@@ -902,6 +910,16 @@ private fun ProductSheet(
                 enabled = !saving,
                 keyboardType = KeyboardType.Number,
                 modifier = Modifier.weight(1f),
+            )
+        }
+        if (showsPreparation) {
+            ProductPreparationEditor(
+                days = preparationDays,
+                onDaysChange = { preparationDays = it },
+                maximumPerDay = maximumPerDay,
+                onMaximumChange = { maximumPerDay = it },
+                enabled = !saving,
+                colors = colors,
             )
         }
         Text(
@@ -1068,6 +1086,9 @@ private fun ProductSheet(
                         optionGroups = groups.map { it.toInput() },
                         allergenCodes = allergenCodes.takeIf { isSchool && allergensTouched },
                         markUnreviewed = isSchool && markUnreviewed,
+                        preparation =
+                            ProductPreparationInput(preparationDays, maximumPerDay.toIntOrNull())
+                                .takeIf { showsPreparation },
                     ),
                     image,
                 )

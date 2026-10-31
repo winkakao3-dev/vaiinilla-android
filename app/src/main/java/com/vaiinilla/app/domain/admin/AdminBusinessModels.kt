@@ -97,10 +97,15 @@ enum class BusinessType(
     DRIVE_THRU("drive_thru", "Drive-thru"),
     CANTEEN("comedor", "Comedor de empresa"),
     EVENT("evento", "Cine, estadio o evento"),
+    HOME_BAKERY("reposteria", "Repostería o cocina en casa"),
     ;
 
     companion object {
         fun fromWire(value: String): BusinessType? = entries.firstOrNull { it.wire == value }
+
+        /** Los tipos que el servidor acepta; sin la lista, los de siempre (uno anterior no conoce `reposteria`). */
+        fun offered(available: List<String>?): List<BusinessType> =
+            if (available == null) entries.filter { it != HOME_BAKERY } else entries.filter { it.wire in available }
     }
 }
 
@@ -120,6 +125,17 @@ enum class StoreTemplate(
     DRIVE_THRU("Drive-thru", BusinessType.DRIVE_THRU, true, false),
     CANTEEN("Comedor de empresa", BusinessType.CANTEEN, true, false),
     EVENT("Cine, estadio o evento", BusinessType.EVENT, true, false),
+
+    /** Entrega a domicilio o en su puerta: dicta un código, sin QR (CASA-01). */
+    HOME_BAKERY("Repostería o cocina en casa", BusinessType.HOME_BAKERY, false, false),
+    ;
+
+    companion object {
+        fun offered(available: List<String>?): List<StoreTemplate> {
+            val types = BusinessType.offered(available)
+            return entries.filter { it.type in types }
+        }
+    }
 }
 
 data class StoreVideo(
@@ -144,6 +160,14 @@ data class StoreConfig(
     val isSchool: Boolean = false,
     /** Si es false, Cocina no puede empezar un pedido que sigue por cobrar (`cocina_prepara_sin_cobrar`). */
     val kitchenPreparesUnpaid: Boolean = true,
+    /** `tipos_disponibles`; null si el servidor no la manda. */
+    val availableTypes: List<String>? = null,
+    /** null si el servidor todavía no conoce la entrega a domicilio. */
+    val homeDelivery: HomeDeliverySettings? = null,
+    /** null si el servidor todavía no conoce los encargos que se aceptan. */
+    val preorders: PreorderSettings? = null,
+    /** null si el servidor todavía no deja poner la ubicación desde la app. */
+    val location: StoreLocation? = null,
 ) {
     val type: BusinessType? get() = BusinessType.fromWire(typeWire)
 
@@ -506,5 +530,102 @@ data class AdminLiveCounts(
     val activeOrders: Int?,
     val moreActiveOrders: Boolean,
 )
+
+// endregion
+
+// region Repostería y negocios desde casa
+
+/** Dónde está el negocio: de ahí se miden los kilómetros de la entrega a domicilio. */
+sealed interface StoreLocation {
+    data object Missing : StoreLocation
+
+    data class At(
+        val latitude: Double,
+        val longitude: Double,
+    ) : StoreLocation
+}
+
+/** Entrega a domicilio del negocio. Montos y radio como texto con punto decimal, como los manda el servidor. */
+data class HomeDeliverySettings(
+    val enabled: Boolean,
+    val radiusKm: String,
+    val fee: String,
+    /** Vacío: sin pedido mínimo. */
+    val minimum: String,
+    val payOnDelivery: Boolean,
+    /** Banco, CLABE y a nombre de quién; vacío si no acepta transferencia. */
+    val transferDetails: String,
+)
+
+/** Pedidos para otro día: cuántos días antes, hasta qué hora, si se aceptan uno por uno y el anticipo. */
+data class PreorderSettings(
+    val daysAhead: Int,
+    /** "HH:MM"; vacío: se pide todo el día. */
+    val cutoff: String,
+    val requiresAcceptance: Boolean,
+    /** null: se cobra completo al pedir o al recibir. */
+    val depositPercent: Int?,
+)
+
+object HomeBusinessRules {
+    val MAX_RADIUS_KM = java.math.BigDecimal(50)
+    const val MAX_DAYS_AHEAD = 14
+    val DEPOSIT_RANGE = 10..90
+    const val MAX_TRANSFER_DETAILS = 200
+    const val MAX_PREPARATION_DAYS = 14
+    const val MAX_PER_DAY = 999
+
+    fun problem(delivery: HomeDeliverySettings): String? {
+        if (!delivery.enabled) return null
+        // Sin radio se llega a cualquier dirección (el servidor lo acepta desde el PR #158).
+        if (delivery.radiusKm.isNotBlank()) {
+            val radius = amount(delivery.radiusKm)
+            if (radius == null || radius < java.math.BigDecimal("0.5") || radius > MAX_RADIUS_KM) {
+                return "La zona de entrega va de 0.5 a $MAX_RADIUS_KM km, o déjala vacía."
+            }
+        }
+        if (amount(delivery.fee) == null) return "Escribe el costo del envío, aunque sea 0."
+        if (delivery.minimum.isNotBlank() && amount(delivery.minimum) == null) {
+            return "Escribe el pedido mínimo como 200 o déjalo vacío."
+        }
+        if (delivery.transferDetails.length > MAX_TRANSFER_DETAILS) {
+            return "Los datos de transferencia caben en $MAX_TRANSFER_DETAILS letras."
+        }
+        return null
+    }
+
+    fun problem(preorders: PreorderSettings): String? {
+        if (preorders.daysAhead !in 0..MAX_DAYS_AHEAD) return "Se puede pedir con hasta $MAX_DAYS_AHEAD días de anticipación."
+        val cutoff = preorders.cutoff.trim()
+        if (cutoff.isNotEmpty() && StoreRules.time(cutoff) == null) return "Escribe la hora de corte como 18:00."
+        val deposit = preorders.depositPercent
+        if (deposit != null && deposit !in DEPOSIT_RANGE) {
+            return "El anticipo va de ${DEPOSIT_RANGE.first} a ${DEPOSIT_RANGE.last} %."
+        }
+        return null
+    }
+
+    fun preparationProblem(
+        days: Int,
+        maximumPerDay: Int?,
+    ): String? =
+        when {
+            days !in 0..MAX_PREPARATION_DAYS -> "Los días de preparación van de 0 a $MAX_PREPARATION_DAYS."
+            maximumPerDay != null && maximumPerDay !in 1..MAX_PER_DAY ->
+                "El máximo por día va de 1 a $MAX_PER_DAY, o déjalo vacío."
+            else -> null
+        }
+
+    /** "1,250.5" → "1250.50": la coma es de miles (decisión del 25 oct). null si no es un monto. */
+    fun money(raw: String): String? = amount(raw)?.setScale(2, java.math.RoundingMode.HALF_UP)?.toPlainString()
+
+    fun amount(raw: String): java.math.BigDecimal? =
+        raw
+            .replace(",", "")
+            .trim()
+            .takeIf { it.isNotEmpty() }
+            ?.toBigDecimalOrNull()
+            ?.takeIf { it.signum() >= 0 }
+}
 
 // endregion

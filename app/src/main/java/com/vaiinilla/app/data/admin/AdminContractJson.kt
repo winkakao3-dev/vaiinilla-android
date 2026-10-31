@@ -16,6 +16,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 
 /** Contratos de la administración: el resumen, las cuentas sin pagar y la escritura del menú. */
 class AdminContractJson {
@@ -123,6 +125,8 @@ class AdminContractJson {
                 // Sin la clave, el backend deja los alérgenos como estaban.
                 alergenosCodigos = input.allergenCodes?.sorted()?.takeUnless { input.markUnreviewed },
                 alergenosRevisados = false.takeIf { input.markUnreviewed },
+                diasPreparacion = input.preparation?.days,
+                maximoPorDia = input.preparation?.let { it.maximumPerDay?.let(::JsonPrimitive) ?: JsonNull },
             ),
         )
 
@@ -244,6 +248,9 @@ private data class ProductWriteDto(
     @SerialName("grupos_opcion") val grupos: List<GroupWriteDto>,
     @SerialName("alergenos_codigos") val alergenosCodigos: List<String>? = null,
     @SerialName("alergenos_revisados") val alergenosRevisados: Boolean? = null,
+    @SerialName("dias_preparacion") val diasPreparacion: Int? = null,
+    // JsonNull borra el tope; sin la clave queda como estaba.
+    @SerialName("maximo_por_dia") val maximoPorDia: JsonElement? = null,
 )
 
 @Serializable

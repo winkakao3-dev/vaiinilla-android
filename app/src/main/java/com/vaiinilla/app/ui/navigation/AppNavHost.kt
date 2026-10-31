@@ -52,6 +52,7 @@ import com.vaiinilla.app.core.notifications.ReceivedNotice
 import com.vaiinilla.app.core.notifications.ReceivedNoticeLog
 import com.vaiinilla.app.data.auth.student.GoogleSignInHelper
 import com.vaiinilla.app.data.auth.student.GoogleSignInUnavailableException
+import com.vaiinilla.app.domain.admin.BusinessType
 import com.vaiinilla.app.domain.counter.CounterScope
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.GuestVenueContext
@@ -2377,6 +2378,7 @@ fun AppNavHost(
                                 stripe.payoutsEnabled &&
                                 stripe.passFeeToCustomer,
                         isSchool = storeState.config?.isSchool == true,
+                        takesPreorders = storeState.config?.type == BusinessType.HOME_BAKERY,
                         photoUrl = storeState.images.photoUrl,
                         logoUrl = storeState.images.logoUrl,
                         onChangeMode = returnToModes(navController, operationalViewModel),

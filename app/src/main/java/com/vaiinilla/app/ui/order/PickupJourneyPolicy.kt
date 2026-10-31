@@ -29,7 +29,8 @@ internal fun pickupStep(state: OrderState): PickupStep? =
     when (state) {
         OrderState.PENDING_PAYMENT, OrderState.PAID -> PickupStep.ORDERED
         OrderState.PREPARING -> PickupStep.MAKING
-        OrderState.READY, OrderState.DELIVERED -> PickupStep.READY
+        OrderState.AWAITING_ACCEPTANCE -> PickupStep.ORDERED
+        OrderState.READY, OrderState.ON_THE_WAY, OrderState.DELIVERED -> PickupStep.READY
         OrderState.CANCELED, OrderState.NOT_PICKED_UP, OrderState.EXPIRED -> null
     }
 

@@ -95,6 +95,8 @@ data class ProductDto(
     @SerialName("bloqueado") val blocked: Boolean = false,
     @SerialName("motivo_bloqueo") val blockReason: String? = null,
     @SerialName("archivado") val archived: Boolean = false,
+    @SerialName("dias_preparacion") val preparationDays: Int? = null,
+    @SerialName("maximo_por_dia") val maximumPerDay: Int? = null,
 )
 
 @Serializable

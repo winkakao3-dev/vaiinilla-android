@@ -1,8 +1,11 @@
 package com.vaiinilla.app.data.order
 
+import com.vaiinilla.app.domain.model.AgendaDay
 import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.CreatedOrder
+import com.vaiinilla.app.domain.model.HomeDeliveryQuote
+import com.vaiinilla.app.domain.model.HomeOrderAction
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
@@ -15,6 +18,8 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -129,13 +134,47 @@ class OrderContractJson
                 if (order.summary.paymentMethod == PaymentMethod.STRIPE) {
                     runCatching {
                         requireNotNull(envelope.data.payment) { "Stripe order missing pago" }
-                            .toStripeSession(expectedTotalCents = orderTotalToCents(envelope.data.total))
+                            .toStripeSession(expectedTotalCents = orderTotalToCents(chargedAmount(envelope.data)))
                     }.getOrNull()
                 } else {
                     null
                 }
             return CreatedOrder(order = order, stripeSession = session)
         }
+
+        /** Con `con_anticipo` Stripe cobra solo el anticipo; sin él, el total (CASA-07). */
+        private fun chargedAmount(order: OrderDetailDto): String =
+            order.deposit
+                ?.flexibleText()
+                ?.takeIf { (it.toBigDecimalOrNull()?.signum() ?: 0) > 0 }
+                ?: order.total
+
+        fun parseHomeDeliveryQuote(raw: String): HomeDeliveryQuote =
+            json.decodeFromString<HomeDeliveryQuoteEnvelopeDto>(raw).data.toDomain()
+
+        fun parseAgenda(raw: String): List<AgendaDay> =
+            json.decodeFromString<AgendaEnvelopeDto>(raw).data.map { day ->
+                AgendaDay(date = day.fecha, orders = day.pedidos.toDomainTolerant())
+            }
+
+        fun encodeHomeDeliveryQuote(
+            latitude: Double,
+            longitude: Double,
+        ): String =
+            buildJsonObject {
+                put("lat", latitude)
+                put("lng", longitude)
+            }.toString()
+
+        fun encodeHomeOrderAction(action: HomeOrderAction): String =
+            buildJsonObject {
+                when (action) {
+                    is HomeOrderAction.Reject -> put("motivo", action.reason.trim())
+                    is HomeOrderAction.Deliver -> action.code?.let { put("codigo", it) }
+                    is HomeOrderAction.Collect -> put("metodo", action.method)
+                    HomeOrderAction.Accept, HomeOrderAction.SendOut -> Unit
+                }
+            }.toString()
 
         fun parseOrderDetail(raw: String): OrderDetail {
             val envelope = json.decodeFromString<OrderDetailEnvelopeDto>(raw)

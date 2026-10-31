@@ -3,8 +3,11 @@ package com.vaiinilla.app.data.order
 import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.domain.model.CreateOrderItem
 import com.vaiinilla.app.domain.model.CreateOrderRequest
+import com.vaiinilla.app.domain.model.DeliveryAddress
+import com.vaiinilla.app.domain.model.HomeDeliveryQuote
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderHomeDelivery
 import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderItemOption
 import com.vaiinilla.app.domain.model.OrderItemRejection
@@ -20,6 +23,8 @@ import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.model.StripePaymentStatus
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 import java.time.Instant
 
 fun CreateOrderRequest.toDto(): CreateOrderRequestDto =
@@ -31,6 +36,31 @@ fun CreateOrderRequest.toDto(): CreateOrderRequestDto =
         items = items.map { it.toDto() },
         payAtEnd = payAtEnd.takeIf { it },
         customerName = customerName?.trim()?.takeIf { it.isNotEmpty() },
+        delivery = delivery?.toDto(),
+        deliveryDate = deliveryDate?.takeIf { it.isNotBlank() },
+        deliverySlot = deliverySlot?.takeIf { it.isNotBlank() },
+        paysOnArrival = paysOnArrival.takeIf { it },
+        withDeposit = withDeposit.takeIf { it },
+    )
+
+fun DeliveryAddress.toDto(): DeliveryDto =
+    DeliveryDto(
+        address = address.trim(),
+        reference = reference.trim().takeIf { it.isNotEmpty() },
+        phone = phone.filter(Char::isDigit),
+        latitude = latitude?.let(::JsonPrimitive),
+        longitude = longitude?.let(::JsonPrimitive),
+    )
+
+/** Un monto o un número que el servidor manda como texto o como número; `null` si viene vacío. */
+internal fun JsonPrimitive.flexibleText(): String? = if (this is JsonNull) null else content.trim().takeIf { it.isNotEmpty() }
+
+fun HomeDeliveryQuoteDto.toDomain(): HomeDeliveryQuote =
+    HomeDeliveryQuote(
+        reaches = llega,
+        distanceKm = distanceKm?.flexibleText(),
+        fee = costo?.flexibleText(),
+        minimum = minimo?.flexibleText(),
     )
 
 private fun CreateOrderItem.toDto(): CreateOrderItemDto =
@@ -106,6 +136,23 @@ fun OrderDetailDto.toDomain(): OrderDetail =
         reservation = reservation?.toDomain(),
         arrivedAt = arrivedAt?.let { runCatching { Instant.parse(it) }.getOrNull() },
         customerName = customerName?.trim()?.takeIf { it.isNotEmpty() },
+        homeDelivery =
+            delivery?.let { entrega ->
+                OrderHomeDelivery(
+                    address =
+                        DeliveryAddress(
+                            address = entrega.address,
+                            reference = entrega.reference.orEmpty(),
+                            phone = entrega.phone.orEmpty(),
+                            latitude = entrega.latitude?.flexibleText()?.toDoubleOrNull(),
+                            longitude = entrega.longitude?.flexibleText()?.toDoubleOrNull(),
+                        ),
+                    fee = deliveryFee?.flexibleText(),
+                    deposit = deposit?.flexibleText(),
+                    dueOnArrival = dueOnArrival?.flexibleText(),
+                    code = deliveryCode?.flexibleText(),
+                )
+            },
     )
 
 private fun OrderReservationDto.toDomain(): OrderReservation? =

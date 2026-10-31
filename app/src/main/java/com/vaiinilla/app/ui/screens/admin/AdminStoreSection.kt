@@ -1,5 +1,8 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -15,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import com.vaiinilla.app.core.location.HomeAddressLocator
+import com.vaiinilla.app.core.location.MapsLink
 import com.vaiinilla.app.domain.admin.BusinessType
 import com.vaiinilla.app.domain.admin.StoreFlow
 import com.vaiinilla.app.domain.admin.StoreRules
@@ -43,6 +49,7 @@ import com.vaiinilla.app.ui.screens.ChipButton
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
 import com.vaiinilla.app.ui.screens.StoreImagesCard
+import kotlinx.coroutines.launch
 
 /** Flujo de mi tienda: cómo cobra, entrega y se presenta el negocio. */
 @Composable
@@ -57,6 +64,32 @@ internal fun AdminStoreSection(
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshStripe() }
     val enabled = !readOnly && !state.saving
     val notify: (String, Boolean) -> Unit = viewModel::notify
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var locatingStore by remember { mutableStateOf(false) }
+
+    // La ubicación del negocio sale de un enlace de Maps, una dirección o el teléfono (CASA-02).
+    fun locateStore(find: suspend () -> MapsLink.Point?) {
+        if (locatingStore) return
+        locatingStore = true
+        scope.launch {
+            val point = runCatching { find() }.getOrNull()
+            locatingStore = false
+            if (point == null) {
+                notify("No encontramos ese lugar. Pega el enlace de Compartir de Google Maps o escribe la dirección completa.", true)
+            } else {
+                viewModel.saveStoreLocation(point.latitude, point.longitude)
+            }
+        }
+    }
+    val locationPermission =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) {
+                locateStore { HomeAddressLocator.currentLocation(context) }
+            } else {
+                notify("Sin permiso de ubicación. Pega el enlace de Google Maps de tu negocio.", true)
+            }
+        }
 
     AdminSectionPage(
         title = "Flujo de mi tienda",
@@ -125,7 +158,35 @@ internal fun AdminStoreSection(
             )
         }
         item { VideosCard(config.videos, colors, enabled, viewModel::saveVideos) }
-        item { FlowCard(config.flow(), colors, enabled, readOnly, viewModel) }
+        item { FlowCard(config.flow(), config.availableTypes, colors, enabled, readOnly, viewModel) }
+        val worksFromHome = config.type == BusinessType.HOME_BAKERY
+        config.homeDelivery?.takeIf { it.enabled || worksFromHome }?.let { delivery ->
+            item {
+                AdminHomeDeliveryCard(
+                    saved = delivery,
+                    location = config.location,
+                    worksFromHome = worksFromHome,
+                    locating = locatingStore,
+                    enabled = enabled,
+                    readOnly = readOnly,
+                    colors = colors,
+                    onLocate = { text -> locateStore { HomeAddressLocator.locate(context, text) } },
+                    onUseCurrentLocation = {
+                        if (HomeAddressLocator.hasLocationPermission(context)) {
+                            locateStore { HomeAddressLocator.currentLocation(context) }
+                        } else {
+                            locationPermission.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+                        }
+                    },
+                    onSave = viewModel::saveHomeDelivery,
+                )
+            }
+        }
+        config.preorders
+            ?.takeIf { worksFromHome || it.requiresAcceptance || it.depositPercent != null }
+            ?.let { preorders ->
+                item { AdminPreordersCard(preorders, enabled, readOnly, colors, viewModel::savePreorders) }
+            }
     }
 }
 
@@ -265,12 +326,15 @@ private fun VideosCard(
 @Composable
 private fun FlowCard(
     saved: StoreFlow,
+    availableTypes: List<String>?,
     colors: OperationalColors,
     enabled: Boolean,
     readOnly: Boolean,
     viewModel: AdminStoreViewModel,
 ) {
     var flow by remember { mutableStateOf(saved) }
+    // La plantilla tocada se ve marcada; se apaga si después se cambia el tipo de negocio a mano (CASA-01).
+    var template by remember { mutableStateOf<StoreTemplate?>(null) }
     var grace by remember { mutableStateOf(saved.releaseGraceMinutes.toString()) }
     LaunchedEffect(saved) {
         flow = saved
@@ -281,20 +345,29 @@ private fun FlowCard(
         AdminSectionTitle("Cómo funciona tu tienda", colors)
         Text("Empieza con una plantilla", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            StoreTemplate.entries.forEach { template ->
-                ChipButton(label = template.label, enabled = enabled, colors = colors) {
-                    flow = flow.applying(template)
+            StoreTemplate.offered(availableTypes).forEach { option ->
+                ChipButton(
+                    label = option.label,
+                    enabled = enabled,
+                    colors = colors,
+                    selected = template == option && flow.typeWire == option.type.wire,
+                ) {
+                    template = option
+                    flow = flow.applying(option)
                     grace = "5"
                 }
             }
         }
         AdminChoice(
             question = "Tipo de negocio",
-            options = BusinessType.entries.map { it.wire to it.label },
+            options = BusinessType.offered(availableTypes).map { it.wire to it.label },
             selected = flow.typeWire,
             colors = colors,
             enabled = enabled,
-        ) { flow = flow.copy(typeWire = it) }
+        ) {
+            flow = flow.copy(typeWire = it)
+            template = null
+        }
         AdminChoice(
             question = "¿Cuándo pagan?",
             options = listOf(false to "Al pedir", true to "Al final, con cuenta abierta"),

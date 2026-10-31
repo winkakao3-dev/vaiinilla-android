@@ -100,6 +100,13 @@ data class AdminProductInput(
     val allergenCodes: Set<String>? = null,
     /** Volverlo a "sin revisar": manda `alergenos_revisados: false` y no toca los códigos. */
     val markUnreviewed: Boolean = false,
+    /** Repostería: días de preparación y tope por día; null no los toca (CASA-04). */
+    val preparation: ProductPreparationInput? = null,
+)
+
+data class ProductPreparationInput(
+    val days: Int,
+    val maximumPerDay: Int?,
 )
 
 /** Un grupo de variantes o extras; [id] nulo si es nuevo. */

@@ -22,6 +22,54 @@ data class CreateOrderRequestDto(
     // El backend lee `nombre_cliente` al crear; con `nombre_cliente_snapshot` el nombre se perdía.
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     @SerialName("nombre_cliente") val customerName: String? = null,
+    // Lo de domicilio y encargos solo viaja cuando se usa: un servidor anterior rechaza las claves.
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("entrega") val delivery: DeliveryDto? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("fecha_entrega") val deliveryDate: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("franja_entrega") val deliverySlot: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("al_recibir") val paysOnArrival: Boolean? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("con_anticipo") val withDeposit: Boolean? = null,
+)
+
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+data class DeliveryDto(
+    @SerialName("direccion") val address: String,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("referencia") val reference: String? = null,
+    @SerialName("telefono") val phone: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("lat") val latitude: JsonPrimitive? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("lng") val longitude: JsonPrimitive? = null,
+)
+
+@Serializable
+data class HomeDeliveryQuoteDto(
+    val llega: Boolean,
+    @SerialName("distancia_km") val distanceKm: JsonPrimitive? = null,
+    val costo: JsonPrimitive? = null,
+    val minimo: JsonPrimitive? = null,
+)
+
+@Serializable
+data class HomeDeliveryQuoteEnvelopeDto(
+    val data: HomeDeliveryQuoteDto,
+)
+
+@Serializable
+data class AgendaDayDto(
+    val fecha: String,
+    val pedidos: List<OrderDetailDto> = emptyList(),
+)
+
+@Serializable
+data class AgendaEnvelopeDto(
+    val data: List<AgendaDayDto>,
 )
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -189,6 +237,12 @@ data class OrderDetailDto(
     /** Con qué se cobró de verdad, `"mixto"` si hubo partes con métodos distintos; un servidor anterior no lo envía. */
     @SerialName("metodo_pago_cobrado") val chargedMethod: String? = null,
     @SerialName("pagos_por_metodo") val paymentsByMethod: List<PaymentPartDto> = emptyList(),
+    /** Solo a domicilio; un servidor anterior no los envía (CASA-05 a 09). */
+    @SerialName("entrega") val delivery: DeliveryDto? = null,
+    @SerialName("costo_envio") val deliveryFee: JsonPrimitive? = null,
+    @SerialName("anticipo") val deposit: JsonPrimitive? = null,
+    @SerialName("por_cobrar_al_entregar") val dueOnArrival: JsonPrimitive? = null,
+    @SerialName("codigo_entrega") val deliveryCode: JsonPrimitive? = null,
 )
 
 @Serializable

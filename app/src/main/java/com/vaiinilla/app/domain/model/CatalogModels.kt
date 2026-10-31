@@ -37,6 +37,10 @@ data class Product(
     val blockReason: String? = null,
     /** Archivado por el admin: fuera del menú, pero se puede desarchivar (`archivado`). */
     val archived: Boolean = false,
+    /** Días que necesita el encargo (0: el mismo día). null: el servidor no conoce el campo (CASA-04). */
+    val preparationDays: Int? = null,
+    /** Cuántos se pueden entregar por día; null: sin límite. */
+    val maximumPerDay: Int? = null,
 )
 
 data class CatalogProductDraft(

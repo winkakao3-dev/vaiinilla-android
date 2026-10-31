@@ -4,9 +4,11 @@ import com.vaiinilla.app.domain.admin.AdminLiveCounts
 import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
 import com.vaiinilla.app.domain.admin.CashbackRule
+import com.vaiinilla.app.domain.admin.HomeDeliverySettings
 import com.vaiinilla.app.domain.admin.InvitationState
 import com.vaiinilla.app.domain.admin.InvitationsPage
 import com.vaiinilla.app.domain.admin.ManagedSpace
+import com.vaiinilla.app.domain.admin.PreorderSettings
 import com.vaiinilla.app.domain.admin.ReservationSchedule
 import com.vaiinilla.app.domain.admin.SpaceBatchResult
 import com.vaiinilla.app.domain.admin.SpacePatch
@@ -70,6 +72,20 @@ interface AdminStoreRepository {
     /** Prende o apaga el modo escuela; solo cambia lo que muestran las apps. */
     fun setSchoolMode(isSchool: Boolean): Result<StoreConfig> =
         Result.failure(UnsupportedOperationException("Modo escuela no soportado"))
+
+    /** Entrega a domicilio (CASA-02). */
+    fun saveHomeDelivery(delivery: HomeDeliverySettings): Result<StoreConfig> =
+        Result.failure(UnsupportedOperationException("Entregas a domicilio no soportadas"))
+
+    /** Encargos para otro día (CASA-03). */
+    fun savePreorders(preorders: PreorderSettings): Result<StoreConfig> =
+        Result.failure(UnsupportedOperationException("Encargos no soportados"))
+
+    /** Dónde está el negocio; de ahí se mide la zona de entrega. */
+    fun saveStoreLocation(
+        latitude: Double,
+        longitude: Double,
+    ): Result<StoreConfig> = Result.failure(UnsupportedOperationException("Ubicación no soportada"))
 
     /** `null` si el negocio aún no conecta su cuenta de Stripe. */
     fun stripe(): Result<StripeSetup?>

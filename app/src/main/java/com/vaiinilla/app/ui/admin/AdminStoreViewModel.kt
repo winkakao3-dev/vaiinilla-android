@@ -10,6 +10,9 @@ import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
 import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.admin.CashbackRules
+import com.vaiinilla.app.domain.admin.HomeBusinessRules
+import com.vaiinilla.app.domain.admin.HomeDeliverySettings
+import com.vaiinilla.app.domain.admin.PreorderSettings
 import com.vaiinilla.app.domain.admin.StoreConfig
 import com.vaiinilla.app.domain.admin.StoreFlow
 import com.vaiinilla.app.domain.admin.StoreRules
@@ -131,6 +134,23 @@ class AdminStoreViewModel
             ) {
                 repository.setSchoolMode(isSchool)
             }
+
+        fun saveHomeDelivery(delivery: HomeDeliverySettings) {
+            HomeBusinessRules.problem(delivery)?.let { return showNotice(it, isError = true) }
+            saveConfig(if (delivery.enabled) "Entregas a domicilio guardadas" else "Entregas a domicilio apagadas") {
+                repository.saveHomeDelivery(delivery)
+            }
+        }
+
+        fun savePreorders(preorders: PreorderSettings) {
+            HomeBusinessRules.problem(preorders)?.let { return showNotice(it, isError = true) }
+            saveConfig("Encargos guardados") { repository.savePreorders(preorders) }
+        }
+
+        fun saveStoreLocation(
+            latitude: Double,
+            longitude: Double,
+        ) = saveConfig("Ubicación guardada") { repository.saveStoreLocation(latitude, longitude) }
 
         private fun saveConfig(
             success: String,

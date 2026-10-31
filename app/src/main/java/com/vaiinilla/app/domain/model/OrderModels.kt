@@ -40,7 +40,84 @@ data class CreateOrderRequest(
     val origin: OrderOrigin = OrderOrigin.APP,
     /** Nombre del cliente de mostrador; opcional. Vacío o blanco no se envía. */
     val customerName: String? = null,
+    /** A domicilio: a dónde se lleva (CASA-05). */
+    val delivery: DeliveryAddress? = null,
+    /** Encargo para otro día: `AAAA-MM-DD` y la franja "10:00-12:00". */
+    val deliveryDate: String? = null,
+    val deliverySlot: String? = null,
+    /** A domicilio y en efectivo: se paga en la puerta. */
+    val paysOnArrival: Boolean = false,
+    /** Con tarjeta: se cobra el anticipo y el resto en la puerta. */
+    val withDeposit: Boolean = false,
 )
+
+/** A dónde se lleva un pedido, como lo escribe el cliente. */
+data class DeliveryAddress(
+    val address: String,
+    val reference: String = "",
+    val phone: String,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+) {
+    /** Lo mínimo para que el negocio llegue y avise: calle y número, y un teléfono de 10 dígitos. */
+    val problem: String?
+        get() =
+            when {
+                address.trim().length < 8 -> "Escribe la calle, el número y la colonia."
+                phone.count(Char::isDigit) != 10 -> "Escribe un teléfono de 10 dígitos para que te avisen."
+                else -> null
+            }
+}
+
+/** Lo de un pedido a domicilio que el cliente y el negocio necesitan ver. */
+data class OrderHomeDelivery(
+    val address: DeliveryAddress,
+    val fee: String? = null,
+    val deposit: String? = null,
+    /** Lo que se cobra en la puerta; "0.00" si ya está pagado. */
+    val dueOnArrival: String? = null,
+    /** Los 4 dígitos que el cliente dicta al recibir: solo le llegan a él y desde `en_camino`. */
+    val code: String? = null,
+) {
+    val hasAmountDue: Boolean
+        get() = (dueOnArrival?.toBigDecimalOrNull()?.signum() ?: 0) > 0
+}
+
+/** Lo que responde el negocio al preguntar si llega a una ubicación. */
+data class HomeDeliveryQuote(
+    val reaches: Boolean,
+    val distanceKm: String?,
+    val fee: String?,
+    val minimum: String?,
+)
+
+/** Un día de la agenda del negocio con sus pedidos a domicilio y encargos. */
+data class AgendaDay(
+    val date: String,
+    val orders: List<OrderDetail>,
+)
+
+/** Lo que el negocio hace con un pedido a domicilio o un encargo (CASA-09). */
+sealed class HomeOrderAction(
+    val path: String,
+) {
+    data object Accept : HomeOrderAction("aceptar")
+
+    data class Reject(
+        val reason: String,
+    ) : HomeOrderAction("rechazar")
+
+    data object SendOut : HomeOrderAction("en-camino")
+
+    data class Deliver(
+        val code: String?,
+    ) : HomeOrderAction("entregar-domicilio")
+
+    /** `metodo`: "efectivo" o "transferencia". */
+    data class Collect(
+        val method: String,
+    ) : HomeOrderAction("cobrar-entrega")
+}
 
 enum class OrderOrigin(
     val wireValue: String,
@@ -81,6 +158,8 @@ data class OrderDetail(
     val customerName: String? = null,
     /** Qué hizo el servidor con el dinero; solo viene en la respuesta de cancelar o rechazar (CAJA-06). */
     val refund: RefundOutcome? = null,
+    /** Solo a domicilio; `null` con un servidor anterior. */
+    val homeDelivery: OrderHomeDelivery? = null,
 )
 
 /** Cómo quedó el dinero de un pedido o artículo pagado que se canceló: lo que Caja debe hacer o ya no. */
@@ -169,7 +248,8 @@ data class PaymentPart(
  */
 val OrderSummary.needsCashCollection: Boolean
     get() {
-        if (paymentMethod != PaymentMethod.CASH || payAtEnd) return false
+        // A domicilio se cobra en la puerta (`cobrar-entrega`), no en Caja.
+        if (paymentMethod != PaymentMethod.CASH || payAtEnd || destination == OrderDestination.HOME_DELIVERY) return false
         if (state != OrderState.PENDING_PAYMENT && state != OrderState.PREPARING && state != OrderState.READY) {
             return false
         }
@@ -326,6 +406,7 @@ enum class OrderDestination(
 ) {
     TAKE_AWAY("para_llevar", "Para llevar"),
     IN_SPACE("en_espacio", "En espacio"),
+    HOME_DELIVERY("a_domicilio", "A domicilio"),
     ;
 
     companion object {
@@ -348,10 +429,21 @@ enum class OrderState(
     CANCELED("cancelado", "Cancelado"),
     NOT_PICKED_UP("no_recogido", "No recogido"),
     EXPIRED("expirado", "Expirado"),
+
+    /** Encargo que el negocio aún no acepta. */
+    AWAITING_ACCEPTANCE("por_aceptar", "Por aceptar"),
+
+    /** Pedido a domicilio que ya salió. */
+    ON_THE_WAY("en_camino", "En camino"),
     ;
 
     val trackingIndex: Int
-        get() = trackingFlow.indexOf(this)
+        get() =
+            when (this) {
+                AWAITING_ACCEPTANCE -> 0
+                ON_THE_WAY -> trackingFlow.indexOf(READY)
+                else -> trackingFlow.indexOf(this)
+            }
 
     val isTerminalWithoutDelivery: Boolean
         get() = this == CANCELED || this == NOT_PICKED_UP || this == EXPIRED

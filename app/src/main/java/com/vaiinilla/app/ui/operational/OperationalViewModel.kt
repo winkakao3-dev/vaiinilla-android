@@ -1077,6 +1077,10 @@ class OperationalViewModel
                 OrderState.CANCELED -> "Este pedido fue cancelado."
                 OrderState.NOT_PICKED_UP -> "El pedido terminó como no recogido."
                 OrderState.EXPIRED -> "Este pedido expiró."
+                OrderState.AWAITING_ACCEPTANCE -> "El negocio está revisando tu encargo. Te avisamos al aceptarlo."
+                OrderState.ON_THE_WAY ->
+                    order.homeDelivery?.code?.let { "Va en camino. Dicta el código $it al recibirlo." }
+                        ?: "Tu pedido va en camino."
             }
 
         /** Relee si la caja está abierta; otro dispositivo o el administrador pudo abrirla o cerrarla. */

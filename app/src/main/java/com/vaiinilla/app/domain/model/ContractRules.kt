@@ -129,6 +129,10 @@ object ContractRules {
                 require(request.spaceId != null) {
                     "en_espacio requiere un espacio resuelto por QR."
                 }
+            OrderDestination.HOME_DELIVERY ->
+                require(request.spaceId == null && request.delivery?.problem == null) {
+                    request.delivery?.problem ?: "a_domicilio requiere la dirección de entrega."
+                }
         }
         validateOrderItems(request)
     }

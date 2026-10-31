@@ -1,8 +1,11 @@
 package com.vaiinilla.app.domain.repository
 
+import com.vaiinilla.app.domain.model.AgendaDay
 import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.CreatedOrder
+import com.vaiinilla.app.domain.model.HomeDeliveryQuote
+import com.vaiinilla.app.domain.model.HomeOrderAction
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
@@ -71,6 +74,24 @@ interface OrderRepository {
         reason: String,
         idempotencyKey: String,
     ): Result<OrderDetail> = Result.failure(UnsupportedOperationException("Quitar artículos no está disponible."))
+
+    /** ¿El negocio llega a esta ubicación, y con qué costo? (CASA-05) */
+    fun quoteHomeDelivery(
+        latitude: Double,
+        longitude: Double,
+    ): Result<HomeDeliveryQuote> = Result.failure(UnsupportedOperationException("Cotizar el envío no está disponible."))
+
+    /** Aceptar, rechazar, mandar, entregar o cobrar un pedido a domicilio o un encargo (CASA-09). */
+    fun homeOrderAction(
+        orderId: String,
+        action: HomeOrderAction,
+    ): Result<OrderDetail> = Result.failure(UnsupportedOperationException("Esta acción no está disponible."))
+
+    /** Pedidos a domicilio y encargos por día, de `from` a `to` (`AAAA-MM-DD`). */
+    fun agenda(
+        from: String,
+        to: String,
+    ): Result<List<AgendaDay>> = Result.failure(UnsupportedOperationException("La agenda no está disponible."))
 }
 
 class OrderRepositoryException(

@@ -3,9 +3,12 @@ package com.vaiinilla.app.data.order
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.security.PickupTokenStore
+import com.vaiinilla.app.domain.model.AgendaDay
 import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.CreatedOrder
+import com.vaiinilla.app.domain.model.HomeDeliveryQuote
+import com.vaiinilla.app.domain.model.HomeOrderAction
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
@@ -185,6 +188,40 @@ class RemoteOrderRepository(
                 headers = mapOf("Idempotency-Key" to idempotencyKey),
             ).mapCatching { contractJson.parseRejectedItem(it) }
             .mapCatching { pickupTokenStore.attach(it) }
+            .mapApiErrors()
+
+    override fun quoteHomeDelivery(
+        latitude: Double,
+        longitude: Double,
+    ): Result<HomeDeliveryQuote> =
+        apiClient
+            .post(
+                path = "pedidos/reparto/cotizar",
+                body = contractJson.encodeHomeDeliveryQuote(latitude, longitude),
+                headers = mapOf("Idempotency-Key" to java.util.UUID.randomUUID().toString()),
+            ).mapCatching { contractJson.parseHomeDeliveryQuote(it) }
+            .mapApiErrors()
+
+    override fun homeOrderAction(
+        orderId: String,
+        action: HomeOrderAction,
+    ): Result<OrderDetail> =
+        apiClient
+            .post(
+                path = "pedidos/$orderId/${action.path}",
+                body = contractJson.encodeHomeOrderAction(action),
+                headers = mapOf("Idempotency-Key" to java.util.UUID.randomUUID().toString()),
+            ).mapCatching { contractJson.parseOrderDetail(it) }
+            .mapCatching { pickupTokenStore.attach(it) }
+            .mapApiErrors()
+
+    override fun agenda(
+        from: String,
+        to: String,
+    ): Result<List<AgendaDay>> =
+        apiClient
+            .get("establecimiento/agenda", mapOf("desde" to from, "hasta" to to))
+            .mapCatching { contractJson.parseAgenda(it) }
             .mapApiErrors()
 
     private fun <T> Result<T>.mapApiErrors(): Result<T> =

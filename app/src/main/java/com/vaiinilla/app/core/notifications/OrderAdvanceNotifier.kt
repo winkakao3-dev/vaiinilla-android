@@ -335,5 +335,7 @@ object OrderAdvanceNotifier {
             OrderState.CANCELED -> "Tu pedido fue cancelado."
             OrderState.NOT_PICKED_UP -> "Tu pedido no fue recogido."
             OrderState.EXPIRED -> "Tu pedido expiró."
+            OrderState.AWAITING_ACCEPTANCE -> "El negocio está revisando tu encargo."
+            OrderState.ON_THE_WAY -> "Tu pedido va en camino."
         }
 }

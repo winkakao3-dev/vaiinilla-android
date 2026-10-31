@@ -38,6 +38,8 @@ fun OrderStatusBadge(state: OrderState) {
             OrderState.CANCELED -> colors.paper2 to colors.muted
             OrderState.NOT_PICKED_UP -> colors.paper2 to colors.muted
             OrderState.EXPIRED -> colors.paper2 to colors.muted
+            OrderState.AWAITING_ACCEPTANCE -> colors.yolk to colors.ink
+            OrderState.ON_THE_WAY -> colors.accent to colors.accentInk
         }
     Surface(
         color = background,

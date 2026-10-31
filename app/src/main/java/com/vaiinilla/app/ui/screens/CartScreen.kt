@@ -226,6 +226,7 @@ fun CartScreen(
         when (state.checkoutDestination) {
             OrderDestination.TAKE_AWAY -> "Para llevar"
             OrderDestination.IN_SPACE -> SpaceCopy.destinationTitle(state.checkoutSpace?.type)
+            OrderDestination.HOME_DELIVERY -> "A domicilio"
         }
     val productCountLabel =
         if (state.cartLines.size == 1) {

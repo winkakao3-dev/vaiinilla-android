@@ -3,8 +3,11 @@ package com.vaiinilla.app.data.admin
 import com.vaiinilla.app.domain.admin.AdminMetric
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
 import com.vaiinilla.app.domain.admin.CashbackRule
+import com.vaiinilla.app.domain.admin.HomeBusinessRules
+import com.vaiinilla.app.domain.admin.HomeDeliverySettings
 import com.vaiinilla.app.domain.admin.InvitationsPage
 import com.vaiinilla.app.domain.admin.ManagedSpace
+import com.vaiinilla.app.domain.admin.PreorderSettings
 import com.vaiinilla.app.domain.admin.ReservationSchedule
 import com.vaiinilla.app.domain.admin.SpaceBatchResult
 import com.vaiinilla.app.domain.admin.SpacePatch
@@ -12,6 +15,8 @@ import com.vaiinilla.app.domain.admin.StaffInvitation
 import com.vaiinilla.app.domain.admin.StaffMembership
 import com.vaiinilla.app.domain.admin.StoreConfig
 import com.vaiinilla.app.domain.admin.StoreFlow
+import com.vaiinilla.app.domain.admin.StoreLocation
+import com.vaiinilla.app.domain.admin.StoreRules
 import com.vaiinilla.app.domain.admin.StoreVideo
 import com.vaiinilla.app.domain.admin.StripeSetup
 import com.vaiinilla.app.domain.model.OrderWindow
@@ -95,6 +100,34 @@ class AdminBusinessJson {
                     }
                 },
             )
+        }.toString()
+
+    fun encodeHomeDelivery(delivery: HomeDeliverySettings): String =
+        buildJsonObject {
+            put("reparto_activo", delivery.enabled)
+            put("reparto_radio_km", HomeBusinessRules.amount(delivery.radiusKm)?.stripTrailingZeros()?.toPlainString().orNull())
+            put("reparto_costo", HomeBusinessRules.money(delivery.fee).orNull())
+            put("reparto_minimo", HomeBusinessRules.money(delivery.minimum).orNull())
+            put("permite_contra_entrega", delivery.payOnDelivery)
+            put("datos_transferencia", delivery.transferDetails.trim().ifEmpty { null }.orNull())
+        }.toString()
+
+    fun encodePreorders(preorders: PreorderSettings): String =
+        buildJsonObject {
+            put("dias_adelanto_pedido", preorders.daysAhead)
+            put("hora_corte_pedido", StoreRules.time(preorders.cutoff)?.let(StoreRules::hhmm).orNull())
+            put("encargos_requieren_aceptar", preorders.requiresAcceptance)
+            put("anticipo_porcentaje", preorders.depositPercent?.let(::JsonPrimitive) ?: JsonNull)
+        }.toString()
+
+    /** Seis decimales son unos 10 cm: más precisión no le sirve a nadie. */
+    fun encodeStoreLocation(
+        latitude: Double,
+        longitude: Double,
+    ): String =
+        buildJsonObject {
+            put("latitud", Math.round(latitude * 1_000_000) / 1_000_000.0)
+            put("longitud", Math.round(longitude * 1_000_000) / 1_000_000.0)
         }.toString()
 
     fun encodeVideos(videos: List<StoreVideo>): String =
@@ -335,6 +368,21 @@ private data class StoreConfigDto(
     @SerialName("logo_url") val logoUrl: String? = null,
     @SerialName("modo_escuela") val modoEscuela: Boolean = false,
     @SerialName("cocina_prepara_sin_cobrar") val cocinaPreparaSinCobrar: Boolean = true,
+    @SerialName("tipos_disponibles") val tiposDisponibles: List<String>? = null,
+    // Repostería (CASA-02, CASA-03); un servidor anterior no los envía y la app se comporta como siempre.
+    @SerialName("reparto_activo") val repartoActivo: Boolean? = null,
+    @SerialName("reparto_radio_km") val repartoRadioKm: JsonPrimitive? = null,
+    @SerialName("reparto_costo") val repartoCosto: JsonPrimitive? = null,
+    @SerialName("reparto_minimo") val repartoMinimo: JsonPrimitive? = null,
+    @SerialName("permite_contra_entrega") val permiteContraEntrega: Boolean? = null,
+    @SerialName("datos_transferencia") val datosTransferencia: String? = null,
+    @SerialName("encargos_requieren_aceptar") val encargosRequierenAceptar: Boolean? = null,
+    @SerialName("anticipo_porcentaje") val anticipoPorcentaje: Int? = null,
+    @SerialName("dias_adelanto_pedido") val diasAdelantoPedido: Int? = null,
+    @SerialName("hora_corte_pedido") val horaCortePedido: String? = null,
+    @SerialName("tiene_ubicacion") val tieneUbicacion: Boolean? = null,
+    val latitud: Double? = null,
+    val longitud: Double? = null,
 ) {
     fun toDomain() =
         StoreConfig(
@@ -351,8 +399,35 @@ private data class StoreConfigDto(
             logoUrl = logoUrl,
             isSchool = modoEscuela,
             kitchenPreparesUnpaid = cocinaPreparaSinCobrar,
+            availableTypes = tiposDisponibles,
+            homeDelivery =
+                repartoActivo?.let { enabled ->
+                    HomeDeliverySettings(
+                        enabled = enabled,
+                        radiusKm = repartoRadioKm.textOrEmpty(),
+                        fee = repartoCosto.textOrEmpty(),
+                        minimum = repartoMinimo.textOrEmpty(),
+                        payOnDelivery = permiteContraEntrega ?: false,
+                        transferDetails = datosTransferencia.orEmpty(),
+                    )
+                },
+            preorders =
+                encargosRequierenAceptar?.let { requires ->
+                    PreorderSettings(
+                        daysAhead = diasAdelantoPedido ?: 0,
+                        cutoff = horaCortePedido?.take(5).orEmpty(),
+                        requiresAcceptance = requires,
+                        depositPercent = anticipoPorcentaje,
+                    )
+                },
+            location =
+                tieneUbicacion?.let { has ->
+                    if (has && latitud != null && longitud != null) StoreLocation.At(latitud, longitud) else StoreLocation.Missing
+                },
         )
 }
+
+private fun JsonPrimitive?.textOrEmpty(): String = if (this == null || this is JsonNull) "" else content.trim()
 
 @Serializable
 private data class WindowDto(
