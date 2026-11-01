@@ -17,7 +17,26 @@ data class NoticeExplanation(
     val roles: List<OperationalRole>,
     val orderId: String?,
     val establishmentId: String?,
+    /** El `alert` de los avisos al personal; vacío en los demás. */
+    val alert: String = "",
 ) {
+    /**
+     * El aviso al personal pide algo que el pedido todavía no tiene: un «por cobrar» sigue por cobrar, una comanda
+     * sigue sin estar lista, etc. Sin el pedido leído no se sabe, así que no cuenta como pendiente.
+     */
+    fun isPending(lookup: NoticeLookup?): Boolean {
+        if (roles.isEmpty() || lookup !is NoticeLookup.Found) return false
+        val state = lookup.order.stateWire ?: return false
+        return when (alert) {
+            "por_cobrar" -> state == OrderState.PENDING_PAYMENT.wireValue
+            "nueva_comanda" -> state == OrderState.PAID.wireValue || state == OrderState.PREPARING.wireValue
+            "listo_mesero" -> state == OrderState.READY.wireValue
+            "por_aceptar" -> state == OrderState.AWAITING_ACCEPTANCE.wireValue
+            "pedido_domicilio" -> state !in FINISHED
+            else -> false
+        }
+    }
+
     /** Por qué este teléfono recibió el aviso, comparando sus modos con los modos a los que va. */
     fun reason(
         memberships: List<NoticeMembership>,
@@ -38,6 +57,14 @@ data class NoticeExplanation(
     }
 
     companion object {
+        private val FINISHED =
+            setOf(
+                OrderState.DELIVERED,
+                OrderState.CANCELED,
+                OrderState.NOT_PICKED_UP,
+                OrderState.EXPIRED,
+            ).map { it.wireValue }.toSet()
+
         fun explain(
             payload: Map<String, String>,
             isRemote: Boolean,
@@ -54,7 +81,16 @@ data class NoticeExplanation(
                 trigger: String,
                 audience: String,
                 roles: List<OperationalRole>,
-            ) = NoticeExplanation(kind, what, trigger, audience, roles, orderId, establishmentId)
+            ) = NoticeExplanation(
+                kind,
+                what,
+                trigger,
+                audience,
+                roles,
+                orderId,
+                establishmentId,
+                alert = if (type == "staff_alert") alert else "",
+            )
 
             return when {
                 type == "staff_alert" && alert == "por_cobrar" ->

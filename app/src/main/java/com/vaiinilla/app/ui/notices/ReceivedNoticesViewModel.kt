@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 
 @HiltViewModel
@@ -31,6 +33,9 @@ class ReceivedNoticesViewModel
         /** Los avisos cuyo pedido se está buscando ahora. */
         val searching: StateFlow<Set<String>> = _searching.asStateFlow()
 
+        /** Una búsqueda a la vez: cada una pide un token por modo y con varios avisos en pantalla serían ráfagas. */
+        private val oneAtATime = Mutex()
+
         /** Busca el pedido del aviso con los modos que la cuenta tiene ahora y guarda lo que encontró. */
         fun lookUp(
             notice: ReceivedNotice,
@@ -42,12 +47,27 @@ class ReceivedNoticesViewModel
             _searching.update { it + notice.id }
             viewModelScope.launch {
                 try {
-                    val result = lookup.lookUp(orderId, explanation.roles, explanation.establishmentId, modes)
+                    val result =
+                        oneAtATime.withLock {
+                            lookup.lookUp(orderId, explanation.roles, explanation.establishmentId, modes)
+                        }
                     ReceivedNoticeLog.saveLookup(appContext, notice.id, result)
                 } finally {
                     _searching.update { it - notice.id }
                 }
             }
+        }
+
+        /**
+         * Al aparecer en la lista, busca el pedido si nunca se buscó (AVISOS-02), para que la fila diga negocio,
+         * folio y total sin tocarla. Lo que ya no se pudo leer se vuelve a intentar solo a mano.
+         */
+        fun resolveIfNeeded(
+            notice: ReceivedNotice,
+            modes: List<AuthorizedMode>,
+        ) {
+            if (notice.lookup != null || modes.isEmpty()) return
+            lookUp(notice, modes)
         }
 
         fun clear() = ReceivedNoticeLog.clear(appContext)

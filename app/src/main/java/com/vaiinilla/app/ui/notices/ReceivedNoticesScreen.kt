@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,7 +48,7 @@ import com.vaiinilla.app.core.notifications.NoticeExplanation
 import com.vaiinilla.app.core.notifications.NoticeLookup
 import com.vaiinilla.app.core.notifications.ReceivedNotice
 import com.vaiinilla.app.domain.mode.AuthorizedMode
-import com.vaiinilla.app.domain.time.BusinessTime
+import com.vaiinilla.app.ui.components.ChoiceChip
 import com.vaiinilla.app.ui.components.EditorialSecondaryButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.WalletScreenShell
@@ -56,14 +58,9 @@ import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaColors
-import java.time.Instant
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /** Abre «Avisos recibidos» desde el menú del avatar del personal o desde Cuenta; `null` si no hay navegación. */
 val LocalOpenReceivedNotices = compositionLocalOf<(() -> Unit)?> { null }
-
-private val TIME = DateTimeFormatter.ofPattern("d MMM · HH:mm", Locale.forLanguageTag("es-MX"))
 
 /**
  * Historial de los avisos que llegaron a este teléfono, con lo que explica cada uno: qué es, quién lo provocó, a
@@ -83,6 +80,7 @@ fun ReceivedNoticesScreen(
         onBack = onBack,
         onLookUp = { viewModel.lookUp(it, modes) },
         onClear = viewModel::clear,
+        onResolve = { viewModel.resolveIfNeeded(it, modes) },
     )
 }
 
@@ -94,11 +92,17 @@ internal fun ReceivedNoticesContent(
     onBack: () -> Unit,
     onLookUp: (ReceivedNotice) -> Unit,
     onClear: () -> Unit,
+    onResolve: (ReceivedNotice) -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
     var openId by rememberSaveable { mutableStateOf<String?>(null) }
     var confirmClear by remember { mutableStateOf(false) }
+    var business by rememberSaveable { mutableStateOf<String?>(null) }
+    val chips = remember(notices) { NoticePanel.chips(notices) }
+    // Si el negocio elegido ya no tiene avisos (se borró el historial), se ven todos.
+    val activeBusiness = business?.takeIf { chosen -> chips.any { it.first == chosen } }
+    val shown = remember(notices, activeBusiness) { NoticePanel.ordered(NoticePanel.filter(notices, activeBusiness)) }
 
     WalletScreenShell(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -127,9 +131,24 @@ internal fun ReceivedNoticesContent(
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp).arrive(index = 0),
                         )
                     }
-                    itemsIndexed(notices, key = { _, notice -> notice.id }) { index, notice ->
+                    if (chips.size > 1) {
+                        item {
+                            BusinessChips(
+                                chips = chips,
+                                total = notices.size,
+                                selected = activeBusiness,
+                                onSelect = {
+                                    haptics.click()
+                                    business = it
+                                },
+                            )
+                        }
+                    }
+                    itemsIndexed(shown, key = { _, notice -> notice.id }) { index, notice ->
+                        LaunchedEffect(notice.id) { onResolve(notice) }
                         NoticeRow(
                             notice = notice,
+                            searching = notice.id in searching,
                             colors = colors,
                             modifier = Modifier.arrive(index = (index + 1).coerceAtMost(8), key = notice.id),
                             onClick = {
@@ -205,13 +224,35 @@ private fun EmptyNotices(colors: VaiinillaColors) {
 }
 
 @Composable
+private fun BusinessChips(
+    chips: List<Pair<String, Int>>,
+    total: Int,
+    selected: String?,
+    onSelect: (String?) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).arrive(index = 1),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        ChoiceChip(label = "Todos · $total", selected = selected == null, onClick = { onSelect(null) })
+        chips.forEach { (name, count) ->
+            ChoiceChip(label = "$name · $count", selected = selected == name, onClick = { onSelect(name) })
+        }
+    }
+}
+
+@Composable
 private fun NoticeRow(
     notice: ReceivedNotice,
+    searching: Boolean,
     colors: VaiinillaColors,
     modifier: Modifier,
     onClick: () -> Unit,
 ) {
     val explanation = remember(notice.id) { NoticeExplanation.explain(notice.payload, notice.isRemote) }
+    val pending = explanation.isPending(notice.lookup)
+    val order = (notice.lookup as? NoticeLookup.Found)?.order
+    val business = NoticePanel.business(notice)
     Column(
         modifier =
             modifier
@@ -230,7 +271,17 @@ private fun NoticeRow(
                 letterSpacing = 0.8.sp,
                 modifier = Modifier.weight(1f),
             )
-            Text(time(notice.receivedAtMillis), color = colors.muted, fontSize = 12.sp)
+            Text(NoticePanel.date(notice.receivedAtMillis), color = colors.muted, fontSize = 12.sp)
+        }
+        if (pending) {
+            Text(
+                "PENDIENTE · ${order?.status.orEmpty()}",
+                color = colors.coral,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp,
+                modifier = Modifier.padding(top = 2.dp),
+            )
         }
         Text(
             notice.title,
@@ -242,6 +293,25 @@ private fun NoticeRow(
         if (notice.body.isNotBlank()) {
             Text(notice.body, color = colors.ink2, fontSize = 14.sp, lineHeight = 18.sp)
         }
+        val pushTotal = notice.payload["total"]?.let { "$" + it.removeSuffix(".00") }
+        val pushFolio = notice.payload["folio"]?.let { "#$it" }
+        val orderLine =
+            when {
+                order != null -> "${order.establishmentName} · #${order.folio} · ${order.total}"
+                business != null -> listOfNotNull(business, pushFolio, pushTotal).joinToString(" · ")
+                searching -> "Buscando el pedido…"
+                else -> null
+            }
+        orderLine?.let {
+            Text(
+                it,
+                color = colors.ink,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
+        NoticePanel.customer(notice)?.let { Text("Lo pidió $it", color = colors.ink2, fontSize = 13.sp) }
         Text(
             notice.arrivals.joinToString(" · ") { it.label },
             color = colors.muted,
@@ -280,8 +350,9 @@ private fun NoticeDetail(
                 modifier = Modifier.padding(top = 4.dp),
             )
             if (notice.body.isNotBlank()) Text(notice.body, color = colors.ink2, fontSize = 15.sp)
+            val source = if (notice.isRemote) "del servidor" else "de esta app"
             Text(
-                "${time(notice.receivedAtMillis)} · ${if (notice.isRemote) "del servidor" else "de esta app"}",
+                "${NoticePanel.date(notice.receivedAtMillis)} · $source",
                 color = colors.muted,
                 fontSize = 13.sp,
                 modifier = Modifier.padding(top = 4.dp),
@@ -411,5 +482,3 @@ private fun Section(
         )
     }
 }
-
-private fun time(millis: Long): String = BusinessTime.format(Instant.ofEpochMilli(millis), TIME)

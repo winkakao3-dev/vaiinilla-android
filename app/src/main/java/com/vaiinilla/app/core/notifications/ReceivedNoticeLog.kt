@@ -79,6 +79,8 @@ data class NoticeOrderSummary(
     val space: String?,
     val items: List<String>,
     val createdAt: String,
+    /** El estado tal como lo manda el servidor; `null` en lo guardado antes de AVISOS-02. */
+    val stateWire: String? = null,
 )
 
 @Serializable

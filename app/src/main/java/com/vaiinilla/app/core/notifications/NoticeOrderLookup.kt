@@ -38,7 +38,8 @@ class NoticeOrderLookup
             val session =
                 authRepository.peekSession()
                     ?: return unavailable("No hay sesión para buscar el pedido. Vuelve a entrar.")
-            val candidates = candidates(roles, establishmentId, modes).take(MAX_ATTEMPTS)
+            // Sin tope: una cuenta puede tener Caja en 8 negocios y el push no dice cuál (AVISOS-02).
+            val candidates = candidates(roles, establishmentId, modes)
             if (candidates.isEmpty()) return unavailable("Esta cuenta no tiene ningún modo con el que leer ese pedido.")
             var lastFailure: Throwable? = null
             for (mode in candidates) {
@@ -62,8 +63,6 @@ class NoticeOrderLookup
         }
 
         companion object {
-            private const val MAX_ATTEMPTS = 5
-
             /** El mismo orden que iOS: el rol del aviso, luego Administración y, si va a una persona, Cliente. */
             fun candidates(
                 roles: List<OperationalRole>,
@@ -86,6 +85,7 @@ class NoticeOrderLookup
                     readAs = "${mode.role.label} en ${mode.establishmentName}",
                     folio = order.summary.folio,
                     status = order.summary.state.label,
+                    stateWire = order.summary.state.wireValue,
                     customerName = order.user?.name ?: order.customerName,
                     total = "$" + order.summary.total.removeSuffix(".00"),
                     paymentMethod = order.summary.paymentMethod.label,
