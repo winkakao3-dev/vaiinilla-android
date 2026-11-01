@@ -35,7 +35,22 @@ internal fun pickupStep(state: OrderState): PickupStep? =
     }
 
 private fun OrderDetail.cashPending(): Boolean =
-    summary.state == OrderState.PENDING_PAYMENT && summary.paymentMethod == PaymentMethod.CASH
+    summary.state == OrderState.PENDING_PAYMENT && summary.paymentMethod == PaymentMethod.CASH && !isHomeDelivery()
+
+internal fun OrderDetail.isHomeDelivery(): Boolean = summary.destination == OrderDestination.HOME_DELIVERY
+
+/** A domicilio no hay barra ni Caja: el negocio acepta, lo manda y el cliente dicta el código al recibirlo. */
+private fun homeDeliveryHint(order: OrderDetail): String? =
+    when (order.summary.state) {
+        OrderState.AWAITING_ACCEPTANCE -> "El negocio revisa tu pedido y te confirma."
+        OrderState.PENDING_PAYMENT, OrderState.PAID, OrderState.PREPARING -> "El negocio aceptó tu pedido."
+        OrderState.READY -> "Está listo. Pronto sale para tu casa."
+        OrderState.ON_THE_WAY ->
+            order.homeDelivery?.code?.let { "Va en camino. Al recibirlo, dicta el código $it." }
+                ?: "Tu pedido va en camino."
+        OrderState.DELIVERED -> "Pedido entregado."
+        else -> null
+    }
 
 private fun OrderDetail.spaceName(): String = summary.space?.name?.takeIf { it.isNotBlank() } ?: "tu espacio"
 
@@ -46,7 +61,7 @@ internal fun pickupTitle(
     courtMoment(order, now)?.let { return it.title }
     return when (order.summary.state) {
         OrderState.PENDING_PAYMENT -> if (order.cashPending()) "Por pagar" else "Pedido recibido"
-        OrderState.PAID -> "Pedido recibido"
+        OrderState.PAID -> if (order.isHomeDelivery()) "Aceptado" else "Pedido recibido"
         OrderState.PREPARING -> "Preparando"
         OrderState.READY -> "¡Listo!"
         else -> order.summary.state.label
@@ -80,6 +95,7 @@ internal fun pickupHint(
             CourtMoment.DONE -> "Gracias por jugar."
         }
     }
+    if (order.isHomeDelivery()) homeDeliveryHint(order)?.let { return it }
     val state = order.summary.state
     val toSpace = order.summary.destination == OrderDestination.IN_SPACE
     return when {

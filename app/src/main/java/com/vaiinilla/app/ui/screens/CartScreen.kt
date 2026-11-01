@@ -254,7 +254,12 @@ fun CartScreen(
     val notesFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     val hasLines = state.cartLines.isNotEmpty()
-    val readyInMinutes = state.cartLines.maxOfOrNull { it.product.estimatedTimeMinutes }?.takeIf { it > 0 }
+    // Un encargo con días de preparación no está «listo en ~5 min»: ese tiempo es del mostrador (EQUIPO-50).
+    val readyInMinutes =
+        state.cartLines
+            .takeIf { lines -> lines.none { (it.product.preparationDays ?: 0) > 0 } }
+            ?.maxOfOrNull { it.product.estimatedTimeMinutes }
+            ?.takeIf { it > 0 }
     Box(modifier = Modifier.fillMaxSize().background(colors.paper)) {
         PullToRefreshBox(
             isRefreshing = isRefreshing,
@@ -399,7 +404,7 @@ fun CartScreen(
                                             state.isHomeDelivery -> "A domicilio"
                                             state.checkoutDestination == OrderDestination.IN_SPACE ->
                                                 state.selectedSpaceName
-                                            else -> "En barra"
+                                            else -> "Para llevar"
                                         },
                                     ),
                                     state.homeDeliveryFee?.let { fee ->

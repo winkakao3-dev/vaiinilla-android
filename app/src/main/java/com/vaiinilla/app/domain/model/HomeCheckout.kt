@@ -131,6 +131,14 @@ object HomeOrderBoard {
             else -> null
         }
 
+    /** «Cobrado» en un pedido que se paga al recibir confundía: el servidor lo marca así al aceptarlo (EQUIPO-50). */
+    fun stateLabel(order: OrderDetail): String =
+        if (order.summary.state == OrderState.PAID && order.homeDelivery?.hasAmountDue == true) {
+            "Aceptado · por cobrar"
+        } else {
+            order.summary.state.label
+        }
+
     /** Entregados que falta cobrar, sin repetir el mismo pedido. */
     fun owed(orders: List<OrderDetail>): List<OrderDetail> =
         orders.filter { step(it) == HomeOrderStep.COLLECT }.distinctBy { it.summary.id }

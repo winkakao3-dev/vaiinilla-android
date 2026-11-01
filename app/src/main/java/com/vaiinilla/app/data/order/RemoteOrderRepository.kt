@@ -212,20 +212,31 @@ class RemoteOrderRepository(
         orderId: String,
         action: HomeOrderAction,
     ): Result<OrderDetail> =
-        apiClient
-            .post(
-                path = "pedidos/$orderId/${action.path}",
-                body = contractJson.encodeHomeOrderAction(action),
-                headers =
-                    mapOf(
-                        "Idempotency-Key" to
-                            java.util.UUID
-                                .randomUUID()
-                                .toString(),
-                    ),
-            ).mapCatching { contractJson.parseOrderDetail(it) }
-            .mapCatching { pickupTokenStore.attach(it) }
-            .mapApiErrors()
+        if (action is HomeOrderAction.Cancel) {
+            cancelOrder(
+                orderId,
+                action.expectedVersion,
+                action.reason,
+                java.util.UUID
+                    .randomUUID()
+                    .toString(),
+            )
+        } else {
+            apiClient
+                .post(
+                    path = "pedidos/$orderId/${action.path}",
+                    body = contractJson.encodeHomeOrderAction(action),
+                    headers =
+                        mapOf(
+                            "Idempotency-Key" to
+                                java.util.UUID
+                                    .randomUUID()
+                                    .toString(),
+                        ),
+                ).mapCatching { contractJson.parseOrderDetail(it) }
+                .mapCatching { pickupTokenStore.attach(it) }
+                .mapApiErrors()
+        }
 
     override fun agenda(
         from: String,

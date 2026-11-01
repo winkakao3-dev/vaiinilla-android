@@ -1016,7 +1016,11 @@ private fun ProductSheet(
         ) {
             Column(Modifier.weight(1f)) {
                 Text("Disponible", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                Text("Apagado, sale como agotado y no se puede pedir.", fontSize = 12.sp, color = colors.textSecondary)
+                Text(
+                    if (available) "Prendido: se puede pedir." else "Apagado: sale como agotado y no se puede pedir.",
+                    fontSize = 12.sp,
+                    color = colors.textSecondary,
+                )
             }
             Switch(
                 checked = available,

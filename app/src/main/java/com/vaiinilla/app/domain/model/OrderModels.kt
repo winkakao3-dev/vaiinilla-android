@@ -117,6 +117,12 @@ sealed class HomeOrderAction(
     data class Collect(
         val method: String,
     ) : HomeOrderAction("cobrar-entrega")
+
+    /** El negocio cancela un pedido aceptado que aún no se entrega; va por `cancelaciones`, no por la ruta de domicilio. */
+    data class Cancel(
+        val reason: String,
+        val expectedVersion: Int,
+    ) : HomeOrderAction("cancelaciones")
 }
 
 enum class OrderOrigin(

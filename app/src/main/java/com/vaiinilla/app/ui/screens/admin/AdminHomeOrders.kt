@@ -152,7 +152,7 @@ private fun AgendaRow(
                 maxLines = 1,
             )
             Text(
-                listOfNotNull(order.summary.state.label, order.summary.deliverySlot).joinToString(" · "),
+                listOfNotNull(HomeOrderBoard.stateLabel(order), order.summary.deliverySlot).joinToString(" · "),
                 fontSize = 12.sp,
                 color = colors.textSecondary,
             )
@@ -297,44 +297,91 @@ internal fun HomeOrderActionsCard(
                                 }
                             }
                         }
-                    HomeOrderStep.SEND_OUT -> {
-                        ActionPill("Salió a entregar", !busy, busy, colors) { run(HomeOrderAction.SendOut) }
-                        AdminHint("Al cliente le llega su código para recibirlo.", colors)
-                    }
-                    HomeOrderStep.DELIVER -> {
-                        OperationalField(
-                            value = code,
-                            onValueChange = { code = it.filter(Char::isDigit).take(4) },
-                            label = "Código del cliente",
-                            colors = colors,
-                            placeholder = "0000",
-                            supporting = "Pídele al cliente los 4 dígitos que le llegaron.",
-                            enabled = !busy,
-                            keyboardType = KeyboardType.NumberPassword,
-                        )
-                        ActionPill("Entregado", !busy && code.length == 4, busy, colors) {
-                            run(HomeOrderAction.Deliver(code))
+                    HomeOrderStep.SEND_OUT, HomeOrderStep.DELIVER ->
+                        if (isRejecting) {
+                            AdminSectionTitle("¿Cancelar el pedido?", colors)
+                            AdminHint("Al cliente le llega el motivo. Lo que ya pagó se le devuelve.", colors)
+                            OperationalField(
+                                value = reason,
+                                onValueChange = { reason = it.take(200) },
+                                label = "Motivo",
+                                colors = colors,
+                                enabled = !busy,
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                ActionPill(
+                                    "Volver",
+                                    !busy,
+                                    false,
+                                    colors,
+                                    primary = false,
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    rejecting = false
+                                }
+                                ActionPill(
+                                    "Cancelar pedido",
+                                    !busy && reason.isNotBlank(),
+                                    busy,
+                                    colors,
+                                    modifier = Modifier.weight(1.4f),
+                                ) { run(HomeOrderAction.Cancel(reason, order.summary.version)) }
+                            }
+                        } else {
+                            if (current == HomeOrderStep.SEND_OUT) {
+                                ActionPill("Salió a entregar", !busy, busy, colors) { run(HomeOrderAction.SendOut) }
+                                AdminHint("Al cliente le llega su código para recibirlo.", colors)
+                            } else {
+                                OperationalField(
+                                    value = code,
+                                    onValueChange = { code = it.filter(Char::isDigit).take(4) },
+                                    label = "Código del cliente",
+                                    colors = colors,
+                                    placeholder = "0000",
+                                    supporting = "Pídele al cliente los 4 dígitos que le llegaron.",
+                                    enabled = !busy,
+                                    // NumberPassword abría el gestor de contraseñas de Google encima del campo.
+                                    keyboardType = KeyboardType.Number,
+                                )
+                                ActionPill("Entregado", !busy && code.length == 4, busy, colors) {
+                                    run(HomeOrderAction.Deliver(code))
+                                }
+                                if (order.homeDelivery?.hasAmountDue == true) {
+                                    AdminHint("¿Te pagó antes de entregar? Anótalo aquí.", colors)
+                                    CollectButtons(busy, colors) { run(HomeOrderAction.Collect(it)) }
+                                }
+                            }
+                            ActionPill("Cancelar pedido", !busy, false, colors, primary = false) {
+                                rejecting = true
+                            }
                         }
-                    }
                     HomeOrderStep.COLLECT -> {
                         AdminHint("Anota cómo te pagó al recibir.", colors)
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            ActionPill("Cobré en efectivo", !busy, busy, colors, modifier = Modifier.weight(1f)) {
-                                run(HomeOrderAction.Collect("efectivo"))
-                            }
-                            ActionPill(
-                                "Me pagó por transferencia",
-                                !busy,
-                                false,
-                                colors,
-                                primary = false,
-                                modifier = Modifier.weight(1f),
-                            ) { run(HomeOrderAction.Collect("transferencia")) }
-                        }
+                        CollectButtons(busy, colors) { run(HomeOrderAction.Collect(it)) }
                     }
                 }
             }
         }
+    }
+}
+
+/** Cómo pagó el cliente en la puerta: `"efectivo"` o `"transferencia"`. */
+@Composable
+private fun CollectButtons(
+    busy: Boolean,
+    colors: OperationalColors,
+    onCollect: (String) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        ActionPill("Cobré en efectivo", !busy, busy, colors, modifier = Modifier.weight(1f)) { onCollect("efectivo") }
+        ActionPill(
+            "Me pagó por transferencia",
+            !busy,
+            false,
+            colors,
+            primary = false,
+            modifier = Modifier.weight(1f),
+        ) { onCollect("transferencia") }
     }
 }
 

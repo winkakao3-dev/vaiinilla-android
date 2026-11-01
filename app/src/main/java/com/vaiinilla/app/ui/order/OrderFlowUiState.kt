@@ -94,6 +94,12 @@ internal fun celebrationMessage(
     when {
         kind == PurchaseCelebrationKind.PAYMENT_CONFIRMED -> "Tu pago fue autorizado y tu pedido ya está en marcha."
         order.summary.payAtEnd -> "Va a tu cuenta: la pagas al final."
+        order.summary.destination == OrderDestination.HOME_DELIVERY ->
+            if (order.homeDelivery?.hasAmountDue == true) {
+                "Lo pagas al recibirlo. Te avisamos cuando el negocio lo acepte."
+            } else {
+                "Te avisamos cuando el negocio lo acepte."
+            }
         else -> "Paga en Caja para continuar con tu pedido."
     }
 

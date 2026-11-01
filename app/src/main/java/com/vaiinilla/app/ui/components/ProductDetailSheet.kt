@@ -406,6 +406,7 @@ fun ProductDetailSheet(
                                     ProductFactsLine(
                                         previewPrice = previewPrice,
                                         estimatedMinutes = product.estimatedTimeMinutes,
+                                        preparationDays = product.preparationDays ?: 0,
                                         categoryName = categoryName,
                                         modifier = Modifier.padding(top = 6.dp),
                                     )
@@ -538,6 +539,7 @@ private fun ProductHero(
 private fun ProductFactsLine(
     previewPrice: String,
     estimatedMinutes: Int,
+    preparationDays: Int = 0,
     categoryName: String,
     modifier: Modifier = Modifier,
 ) {
@@ -566,7 +568,11 @@ private fun ProductFactsLine(
         }
         val rest =
             listOfNotNull(
-                estimatedMinutes.takeIf { it > 0 }?.let { "listo en ~${estimatedTimeLabel(it)}" },
+                if (preparationDays > 0) {
+                    if (preparationDays == 1) "necesita 1 día" else "necesita $preparationDays días"
+                } else {
+                    estimatedMinutes.takeIf { it > 0 }?.let { "listo en ~${estimatedTimeLabel(it)}" }
+                },
                 categoryName.takeIf { it.isNotBlank() },
             ).joinToString(" · ")
         if (rest.isNotEmpty()) {

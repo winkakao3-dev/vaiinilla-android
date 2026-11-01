@@ -1145,6 +1145,7 @@ private fun OrderSummaryCard(order: OrderDetail) {
                 order.reservation != null -> rentalScheduleLabel(order.reservation)
                 order.summary.destination == OrderDestination.IN_SPACE ->
                     "A ${order.summary.space?.name ?: "tu espacio"}"
+                order.summary.destination == OrderDestination.HOME_DELIVERY -> "A domicilio"
                 else -> "Para llevar · recoge en barra"
             } + " · " + moneyLabel(order.summary.total),
             color = c.muted,

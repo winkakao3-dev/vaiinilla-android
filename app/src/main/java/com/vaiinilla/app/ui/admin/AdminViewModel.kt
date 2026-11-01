@@ -547,6 +547,7 @@ class AdminViewModel
                 HomeOrderAction.SendOut -> "En camino; al cliente le llegó su código"
                 is HomeOrderAction.Deliver -> "Entregado"
                 is HomeOrderAction.Collect -> "Cobrado"
+                is HomeOrderAction.Cancel -> "Pedido cancelado; al cliente le llega el motivo"
             }
 
         // endregion

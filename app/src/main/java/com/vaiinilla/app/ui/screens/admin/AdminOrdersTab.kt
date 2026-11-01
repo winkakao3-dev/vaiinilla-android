@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.HomeOrderAction
+import com.vaiinilla.app.domain.model.HomeOrderBoard
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
@@ -133,6 +134,8 @@ private fun AdminOrdersHistory(
     var showsAgenda by rememberSaveable { mutableStateOf(false) }
     val agendaOn = showsAgenda && state.takesHomeOrders
     LaunchedEffect(agendaOn) { if (agendaOn) actions.onRefreshAgenda() }
+    // Prender las entregas en Mi tienda cambia el estado operativo: sin releerlo, la Agenda no salía (EQUIPO-50).
+    LaunchedEffect(Unit) { actions.onRefreshHome() }
     val listState = rememberLazyListState()
     val heroGone by rememberHeroGone(listState)
     val photos =
@@ -199,6 +202,7 @@ private fun AdminOrdersHistory(
             order = order,
             colors = colors,
             busy = state.saving,
+            error = state.notice?.takeIf { state.noticeIsError },
             onHomeAction = { action -> actions.onHomeAction(order, action) { updated -> open = updated } },
         ) { open = null }
     }
@@ -391,15 +395,18 @@ private fun OrderSheet(
     order: OrderDetail,
     colors: OperationalColors,
     busy: Boolean = false,
+    error: String? = null,
     onHomeAction: (HomeOrderAction) -> Unit = {},
     onDismiss: () -> Unit,
 ) {
     val summary = order.summary
     AdminSheet(title = "Pedido #${summary.folio}", colors = colors, busy = busy, onDismiss = onDismiss) {
+        // El aviso de error del panel queda detrás de la hoja: sin esto, «Aceptar encargo» fallaba en silencio.
+        AdminSheetError(error)
         HomeOrderActionsCard(order, busy, colors, onHomeAction)
         HomeDeliveryAdminCard(order, colors)
         AdminCard(colors) {
-            AdminValueRow("Estado", summary.state.label, colors)
+            AdminValueRow("Estado", HomeOrderBoard.stateLabel(order), colors)
             AdminValueRow(
                 "Pago",
                 (chargedPaymentLabel(summary) ?: summary.paymentMethod.label) +

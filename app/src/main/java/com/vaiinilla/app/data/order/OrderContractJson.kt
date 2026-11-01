@@ -172,6 +172,7 @@ class OrderContractJson
                     is HomeOrderAction.Reject -> put("motivo", action.reason.trim())
                     is HomeOrderAction.Deliver -> action.code?.let { put("codigo", it) }
                     is HomeOrderAction.Collect -> put("metodo", action.method)
+                    is HomeOrderAction.Cancel -> error("Cancel se codifica con encodeCancelOrder")
                     HomeOrderAction.Accept, HomeOrderAction.SendOut -> Unit
                 }
             }.toString()

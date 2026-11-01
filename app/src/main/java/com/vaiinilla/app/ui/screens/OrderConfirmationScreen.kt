@@ -93,7 +93,12 @@ fun OrderConfirmationScreen(
         }
         PickupJourneyScreen(
             order = order,
-            qrPayload = confirmationTicketQrPayload(order),
+            // A domicilio no se recoge en barra: el código de entrega va en el texto del estado.
+            qrPayload =
+                confirmationTicketQrPayload(order).takeIf {
+                    order.summary.destination !=
+                        OrderDestination.HOME_DELIVERY
+                },
             onBack = onReturnToMenu,
             onViewTracking = onViewTracking,
             celebration = activeCelebration?.kind,
@@ -105,7 +110,11 @@ fun OrderConfirmationScreen(
             onCancelWaiter = onCancelWaiter,
             guestNotice = GUEST_ORDER_NOTICE.takeIf { guest },
             // Las rentas de cancha no se cobran en la caja del mostrador: no imprimen ticket.
-            printsTicket = activeCelebration != null && order.reservation == null,
+            // A domicilio tampoco: se paga al recibir o ya se pagó en línea.
+            printsTicket =
+                activeCelebration != null &&
+                    order.reservation == null &&
+                    order.summary.destination != OrderDestination.HOME_DELIVERY,
         )
     }
 }
