@@ -78,6 +78,9 @@ data class AdminUiState(
     val suggestedCashFloat: String? = null,
     val cashOpenedAt: String? = null,
     val cashLoaded: Boolean = false,
+    val cashCheckFailed: Boolean = false,
+    /** Arqueo: lo que debería haber al cerrar; null si el servidor no lo manda. */
+    val cashExpected: String? = null,
     val summary: AdminSummary? = null,
     val summaryLoading: Boolean = false,
     val summaryError: String? = null,
@@ -237,16 +240,21 @@ class AdminViewModel
 
         fun refreshCash() {
             viewModelScope.launch {
-                withContext(Dispatchers.IO) { cashSessionRepository.activeSession() }.onSuccess {
-                    _uiState.value =
-                        _uiState.value.copy(
-                            cashSessionId = it?.id,
-                            cashOpeningAmount = it?.initialAmount,
-                            suggestedCashFloat = cashSessionRepository.suggestedFloat,
-                            cashOpenedAt = it?.openedAt,
-                            cashLoaded = true,
-                        )
-                }
+                withContext(Dispatchers.IO) { cashSessionRepository.activeSession() }
+                    .onSuccess {
+                        _uiState.value =
+                            _uiState.value.copy(
+                                cashSessionId = it?.id,
+                                cashOpeningAmount = it?.initialAmount,
+                                suggestedCashFloat = cashSessionRepository.suggestedFloat,
+                                cashExpected = cashSessionRepository.expectedCash,
+                                cashOpenedAt = it?.openedAt,
+                                cashLoaded = true,
+                                cashCheckFailed = false,
+                            )
+                    }.onFailure {
+                        if (!_uiState.value.cashLoaded) _uiState.value = _uiState.value.copy(cashCheckFailed = true)
+                    }
             }
         }
 

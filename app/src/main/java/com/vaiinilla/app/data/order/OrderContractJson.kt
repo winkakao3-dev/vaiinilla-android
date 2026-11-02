@@ -238,12 +238,18 @@ class OrderContractJson
          * El fondo que propone el servidor (`fondo_sugerido`): dentro de la sesión, en `meta` o junto a `data`
          * cuando no hay caja abierta. Null si no llega o no es un monto.
          */
-        fun parseSuggestedFloat(raw: String): String? {
+        fun parseSuggestedFloat(raw: String): String? = parseCashAmount(raw, "fondo_sugerido")
+
+        /** Un monto de la caja que puede llegar dentro de la sesión, en `meta` o junto a `data`. */
+        fun parseCashAmount(
+            raw: String,
+            key: String,
+        ): String? {
             val root = json.parseToJsonElement(raw) as? JsonObject ?: return null
             val places = listOf(root["data"], root["meta"], root)
             return places
                 .asSequence()
-                .mapNotNull { (it as? JsonObject)?.get("fondo_sugerido") as? JsonPrimitive }
+                .mapNotNull { (it as? JsonObject)?.get(key) as? JsonPrimitive }
                 .mapNotNull { it.content.trim().toBigDecimalOrNull() }
                 .firstOrNull()
                 ?.setScale(2, java.math.RoundingMode.HALF_UP)

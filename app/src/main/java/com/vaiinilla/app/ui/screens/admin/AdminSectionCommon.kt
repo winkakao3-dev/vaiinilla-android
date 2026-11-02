@@ -56,13 +56,20 @@ internal fun AdminSectionPage(
     notice: String?,
     noticeIsError: Boolean,
     onBack: () -> Unit,
+    trailing: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {},
     content: LazyListScope.() -> Unit,
 ) {
     BackHandler(onBack = onBack)
     Box(Modifier.fillMaxSize().background(colors.background)) {
         Column(Modifier.fillMaxSize()) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 AdminRoundButton(Icons.AutoMirrored.Outlined.ArrowBack, "Regresar", colors, onBack)
+                androidx.compose.foundation.layout
+                    .Spacer(Modifier.weight(1f))
+                trailing()
             }
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),

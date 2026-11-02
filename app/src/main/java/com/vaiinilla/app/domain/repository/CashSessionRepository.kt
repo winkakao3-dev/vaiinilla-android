@@ -11,6 +11,9 @@ interface CashSessionRepository {
     /** El fondo que propuso el servidor en la última consulta de la caja (`fondo_sugerido`), si llegó. */
     val suggestedFloat: String? get() = null
 
+    /** El efectivo que debería haber en la caja abierta (`efectivo_esperado`), si el servidor lo manda. */
+    val expectedCash: String? get() = null
+
     /** Id de la sesión de caja abierta, o null si no hay. */
     fun activeSessionId(): Result<String?>
 

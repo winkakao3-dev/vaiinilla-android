@@ -2328,6 +2328,7 @@ fun AppNavHost(
                                     AdminCashActions(
                                         onOpenCash = adminViewModel::openCash,
                                         onCloseCash = adminViewModel::closeCash,
+                                        onRefresh = adminViewModel::refreshCash,
                                     ),
                                 // Pedidos → Mesas: el tablero del mesero para pedir en la mesa donde se esté. Sondea
                                 // solo mientras se ve.
