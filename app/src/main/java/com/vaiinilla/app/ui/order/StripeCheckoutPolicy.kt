@@ -4,6 +4,8 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.model.StripePaymentStatus
+import com.vaiinilla.app.domain.model.awaitsAcceptanceBeforePaying
+import com.vaiinilla.app.domain.model.awaitsPaymentAfterAcceptance
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 
 data class StripeRuntimeConfiguration(
@@ -21,6 +23,8 @@ fun StripePaymentSession.toRuntimeConfiguration(): StripeRuntimeConfiguration =
 
 fun stripePhaseFromBackend(order: OrderDetail?): StripePaymentPhase =
     when {
+        order?.awaitsAcceptanceBeforePaying() == true -> StripePaymentPhase.AWAITING_ACCEPTANCE
+        order?.awaitsPaymentAfterAcceptance() == true -> StripePaymentPhase.AWAITING_PAYMENT
         order?.isStripePaymentConfirmedByBackend() == true -> StripePaymentPhase.CONFIRMED
         order?.payment?.status == StripePaymentStatus.FAILED -> StripePaymentPhase.FAILED
         order?.payment?.status == StripePaymentStatus.CANCELED -> StripePaymentPhase.CANCELED
@@ -53,5 +57,8 @@ internal fun canRetryStripePayment(
     phase: StripePaymentPhase,
 ): Boolean =
     paymentStatus in setOf(StripePaymentStatus.FAILED, StripePaymentStatus.CANCELED) ||
+        phase == StripePaymentPhase.AWAITING_PAYMENT ||
+        // La pantalla pudo ver la aceptación antes que esta fase; si aún no, el servidor responde 409.
+        phase == StripePaymentPhase.AWAITING_ACCEPTANCE ||
         phase == StripePaymentPhase.CANCELED ||
         phase == StripePaymentPhase.TIMED_OUT

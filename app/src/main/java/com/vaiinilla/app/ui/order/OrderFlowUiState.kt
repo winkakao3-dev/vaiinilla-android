@@ -345,6 +345,12 @@ enum class StripePaymentPhase {
     CANCELED,
     REFUNDING,
     REFUNDED,
+
+    /** Encargo con tarjeta que el negocio revisa: todavía no hay nada que pagar. */
+    AWAITING_ACCEPTANCE,
+
+    /** El negocio aceptó el encargo y le toca pagar al cliente. */
+    AWAITING_PAYMENT,
 }
 
 internal fun isEstablishmentSwitch(

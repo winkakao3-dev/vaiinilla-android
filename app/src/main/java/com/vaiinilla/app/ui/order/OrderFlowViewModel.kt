@@ -36,6 +36,7 @@ import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.model.StripePaymentStatus
+import com.vaiinilla.app.domain.model.awaitsAcceptanceBeforePaying
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.repository.OrderRepository
@@ -1110,8 +1111,18 @@ class OrderFlowViewModel
                                 stripePendingOrderId = stripePendingOrderId,
                                 stripePaymentSession = stripeSession,
                                 stripePresentationKey = stripeSession?.let { UUID.randomUUID().toString() },
-                                stripePaymentPhase = stripePhaseFor(stripeSession, stripeSessionUnusable),
-                                stripePaymentMessage = stripeMessageFor(stripeSession, stripeSessionUnusable),
+                                stripePaymentPhase =
+                                    stripePhaseFor(
+                                        created.order,
+                                        stripeSession,
+                                        stripeSessionUnusable,
+                                    ),
+                                stripePaymentMessage =
+                                    stripeMessageFor(
+                                        created.order,
+                                        stripeSession,
+                                        stripeSessionUnusable,
+                                    ),
                                 purchaseCelebration = purchaseCelebration,
                                 createOrderError = null,
                                 cartNotice = null,
@@ -1223,8 +1234,8 @@ class OrderFlowViewModel
                     stripePendingOrderId = stripePendingOrderId,
                     stripePaymentSession = stripeSession,
                     stripePresentationKey = stripeSession?.let { UUID.randomUUID().toString() },
-                    stripePaymentPhase = stripePhaseFor(stripeSession, stripeSessionUnusable),
-                    stripePaymentMessage = stripeMessageFor(stripeSession, stripeSessionUnusable),
+                    stripePaymentPhase = stripePhaseFor(created.order, stripeSession, stripeSessionUnusable),
+                    stripePaymentMessage = stripeMessageFor(created.order, stripeSession, stripeSessionUnusable),
                     purchaseCelebration = null,
                     createOrderError = null,
                 )
@@ -1715,6 +1726,8 @@ class OrderFlowViewModel
                     "Seguimos confirmando tu pago. Actualiza el estado o consulta Mis pedidos."
                 StripePaymentPhase.REFUNDING -> "El reembolso está en proceso."
                 StripePaymentPhase.REFUNDED -> "El pago fue reembolsado."
+                StripePaymentPhase.AWAITING_ACCEPTANCE -> AWAITING_ACCEPTANCE_MESSAGE
+                StripePaymentPhase.AWAITING_PAYMENT -> AWAITING_PAYMENT_MESSAGE
                 else ->
                     lastError?.let {
                         "Seguimos confirmando tu pago. La conexión se reintentará automáticamente."
@@ -1815,23 +1828,35 @@ internal fun firstGuestVenueFailure(
 private const val STRIPE_SESSION_UNUSABLE_MESSAGE =
     "Tu pedido ya se creó, pero no pudimos abrir el pago. Toca Reintentar pago; no se hizo ningún cargo."
 
-/** Sin sesión de pago utilizable el pedido ya existe: se muestra para reintentar el pago, no como listo (PAGO-11). */
+private const val AWAITING_ACCEPTANCE_MESSAGE =
+    "No te cobramos nada todavía. Cuando el negocio acepte tu pedido te avisamos para que pagues."
+
+private const val AWAITING_PAYMENT_MESSAGE = "El negocio aceptó tu pedido. Págalo para confirmarlo."
+
+/**
+ * Sin sesión de pago utilizable el pedido ya existe: se muestra para reintentar el pago, no como listo (PAGO-11).
+ * Un encargo que el negocio debe aceptar llega sin sesión a propósito: se paga cuando lo acepten (EQUIPO-53).
+ */
 private fun stripePhaseFor(
+    order: OrderDetail,
     session: StripePaymentSession?,
     unusable: Boolean,
 ): StripePaymentPhase =
     when {
         session != null -> StripePaymentPhase.READY
+        order.awaitsAcceptanceBeforePaying() -> StripePaymentPhase.AWAITING_ACCEPTANCE
         unusable -> StripePaymentPhase.CANCELED
         else -> StripePaymentPhase.IDLE
     }
 
 private fun stripeMessageFor(
+    order: OrderDetail,
     session: StripePaymentSession?,
     unusable: Boolean,
 ): String? =
     when {
         session != null -> "Elige cómo pagar de forma segura."
+        order.awaitsAcceptanceBeforePaying() -> AWAITING_ACCEPTANCE_MESSAGE
         unusable -> STRIPE_SESSION_UNUSABLE_MESSAGE
         else -> null
     }

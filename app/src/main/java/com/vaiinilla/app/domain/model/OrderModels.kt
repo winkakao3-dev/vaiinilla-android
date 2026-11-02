@@ -187,6 +187,22 @@ data class OrderReservation(
     val state: ReservationState,
 )
 
+/** Encargo con tarjeta que el negocio aún no acepta: no se cobra nada hasta que lo acepte (EQUIPO-53). */
+fun OrderDetail.awaitsAcceptanceBeforePaying(): Boolean =
+    summary.paymentMethod == PaymentMethod.STRIPE &&
+        summary.state == OrderState.AWAITING_ACCEPTANCE &&
+        payment == null
+
+/** Encargo con tarjeta que el negocio ya aceptó y el cliente todavía no paga: aún no tiene intento de pago. */
+fun OrderDetail.awaitsPaymentAfterAcceptance(): Boolean =
+    summary.paymentMethod == PaymentMethod.STRIPE &&
+        summary.state == OrderState.PENDING_PAYMENT &&
+        payment == null
+
+/** Lo que se paga con tarjeta al aceptarse: el anticipo si lo hay, si no el total. */
+val OrderDetail.amountDueOnAcceptance: String
+    get() = homeDelivery?.deposit ?: summary.total
+
 fun OrderDetail.isStripePaymentConfirmedByBackend(): Boolean =
     summary.paymentMethod == PaymentMethod.STRIPE &&
         payment?.status == StripePaymentStatus.CONFIRMED &&

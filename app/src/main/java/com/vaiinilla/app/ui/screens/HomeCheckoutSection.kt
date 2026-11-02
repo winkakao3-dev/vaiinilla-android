@@ -137,7 +137,7 @@ internal fun DeliveryDatePicker(
         }
         if (state.preorderOffer?.requiresAcceptance == true) {
             Text(
-                "El negocio revisa tu pedido y te confirma. Si no puede, te devuelve lo que pagaste.",
+                "El negocio revisa tu pedido y te confirma. Con tarjeta no te cobramos nada hasta que lo acepte.",
                 color = colors.muted,
                 fontSize = 13.sp,
                 lineHeight = 18.sp,

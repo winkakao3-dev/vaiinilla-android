@@ -90,7 +90,14 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
                     null
                 }
             } ?: return null
-        return OrderAdvanceNotifier.notify(applicationContext, orderId, folio, state, noticeId = noticeId)
+        return OrderAdvanceNotifier.notify(
+            applicationContext,
+            orderId,
+            folio,
+            state,
+            noticeId = noticeId,
+            acceptedAwaitingPayment = data["pagarTrasAceptar"] == "true",
+        )
     }
 
     private fun childName(data: Map<String, String>): String? =

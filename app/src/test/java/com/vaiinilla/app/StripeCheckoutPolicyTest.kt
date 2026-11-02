@@ -9,6 +9,7 @@ import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.ui.order.PurchaseCelebrationKind
 import com.vaiinilla.app.ui.order.StripePaymentPhase
 import com.vaiinilla.app.ui.order.canCreateOrder
+import com.vaiinilla.app.ui.order.canRetryStripePayment
 import com.vaiinilla.app.ui.order.canSubmitCart
 import com.vaiinilla.app.ui.order.purchaseCelebrationFor
 import com.vaiinilla.app.ui.order.stripePhaseFromBackend
@@ -121,6 +122,24 @@ class StripeCheckoutPolicyTest {
         assertEquals(PurchaseCelebrationKind.PAYMENT_CONFIRMED, purchaseCelebrationFor(balance)?.kind)
         assertEquals(PurchaseCelebrationKind.PAYMENT_CONFIRMED, purchaseCelebrationFor(stripeConfirmed)?.kind)
         assertEquals(null, purchaseCelebrationFor(stripePending))
+    }
+
+    @Test
+    fun `encargo con tarjeta sin intento de pago espera al negocio y luego pide pagar`() {
+        val porAceptar = stripeOrder(OrderState.AWAITING_ACCEPTANCE, StripePaymentStatus.PENDING).copy(payment = null)
+        val aceptado = stripeOrder(OrderState.PENDING_PAYMENT, StripePaymentStatus.PENDING).copy(payment = null)
+
+        assertEquals(StripePaymentPhase.AWAITING_ACCEPTANCE, stripePhaseFromBackend(porAceptar))
+        assertEquals(StripePaymentPhase.AWAITING_PAYMENT, stripePhaseFromBackend(aceptado))
+        assertTrue(canRetryStripePayment(null, StripePaymentPhase.AWAITING_PAYMENT))
+    }
+
+    @Test
+    fun `encargo ya cobrado antes del cambio sigue el pago de siempre`() {
+        val pagadoPorAceptar = stripeOrder(OrderState.AWAITING_ACCEPTANCE, StripePaymentStatus.CONFIRMED)
+
+        assertEquals(StripePaymentPhase.PENDING, stripePhaseFromBackend(pagadoPorAceptar))
+        assertFalse(canRetryStripePayment(StripePaymentStatus.PENDING, StripePaymentPhase.PENDING))
     }
 
     private fun stripeOrder(

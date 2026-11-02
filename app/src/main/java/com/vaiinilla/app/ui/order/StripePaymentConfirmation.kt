@@ -88,7 +88,9 @@ internal fun StripePaymentPhase.isTerminalStripeConfirmationPhase(): Boolean =
         this == StripePaymentPhase.FAILED ||
         this == StripePaymentPhase.CANCELED ||
         this == StripePaymentPhase.REFUNDING ||
-        this == StripePaymentPhase.REFUNDED
+        this == StripePaymentPhase.REFUNDED ||
+        this == StripePaymentPhase.AWAITING_ACCEPTANCE ||
+        this == StripePaymentPhase.AWAITING_PAYMENT
 
 internal fun StripePaymentStatus?.confirmationMessage(): String =
     when (this) {

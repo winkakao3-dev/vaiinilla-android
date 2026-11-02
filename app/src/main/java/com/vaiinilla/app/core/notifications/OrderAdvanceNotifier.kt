@@ -36,6 +36,7 @@ object OrderAdvanceNotifier {
     )
 
     private const val CHANNEL_ID = "order_tracking"
+    private const val ACCEPTED_AWAITING_PAYMENT_TEXT = "El negocio aceptó tu pedido. Págalo para confirmarlo."
     private const val STAFF_MODES_REQUEST_CODE = 710_300
     private const val PLAIN_LAUNCH_REQUEST_CODE = 710_301
 
@@ -238,9 +239,19 @@ object OrderAdvanceNotifier {
         inSpace: Boolean = false,
         spaceType: String? = null,
         noticeId: String? = null,
+        acceptedAwaitingPayment: Boolean = false,
     ): Shown {
         val title = "Pedido #$folio"
-        val text = messageFor(newState, inSpace, spaceType)
+        val text =
+            if (acceptedAwaitingPayment) {
+                ACCEPTED_AWAITING_PAYMENT_TEXT
+            } else {
+                messageFor(
+                    newState,
+                    inSpace,
+                    spaceType,
+                )
+            }
         if (!canPost(context)) return Shown(title, text, posted = false)
         ensureChannel(context)
         val launchIntent = orderLaunchIntent(context, orderId, OrderNotificationTarget.CLIENT, noticeId)

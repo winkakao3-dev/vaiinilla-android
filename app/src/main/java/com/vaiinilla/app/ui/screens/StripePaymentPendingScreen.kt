@@ -29,8 +29,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -55,6 +57,9 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.StripePaymentStatus
+import com.vaiinilla.app.domain.model.amountDueOnAcceptance
+import com.vaiinilla.app.domain.model.awaitsAcceptanceBeforePaying
+import com.vaiinilla.app.domain.model.awaitsPaymentAfterAcceptance
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -72,6 +77,13 @@ private val StripeLine = Color(0x42F3EFE4)
 private val StripeLime = Color(0xFFB7D464)
 private val StripeLimeInk = Color(0xFF172008)
 private val StripeCoral = Color(0xFFFF8F77)
+private val STRIPE_SHEET_PHASES =
+    setOf(
+        StripePaymentPhase.READY,
+        StripePaymentPhase.PRESENTING,
+        StripePaymentPhase.PROCESSING_CONFIRMATION,
+        StripePaymentPhase.PENDING,
+    )
 private const val ORDER_CLOSED_BODY = "Este pedido ya no sigue. Si se hizo algún cargo, se te reembolsa."
 
 @Composable
@@ -93,9 +105,21 @@ fun StripePaymentPendingScreen(
     val reduceMotion = reducedMotion()
     // Si el servidor ya cerró el pedido (cancelado por el staff, expirado), la fase local del pago no manda (PAGO-05).
     val orderClosed = order.summary.state.isTerminalWithoutDelivery
-    val shownPhase = if (orderClosed) StripePaymentPhase.CANCELED else phase
+    // El pedido se refresca solo; la fase del pago no. Si el negocio ya aceptó mientras la pantalla seguía
+    // abierta, se ve la de pagar sin esperar a que el pago se reabra (EQUIPO-53).
+    val businessPhase =
+        when {
+            order.awaitsAcceptanceBeforePaying() -> StripePaymentPhase.AWAITING_ACCEPTANCE
+            order.awaitsPaymentAfterAcceptance() && phase !in STRIPE_SHEET_PHASES -> StripePaymentPhase.AWAITING_PAYMENT
+            else -> null
+        }
+    val shownPhase = if (orderClosed) StripePaymentPhase.CANCELED else businessPhase ?: phase
+    val awaitingAcceptance = !orderClosed && shownPhase == StripePaymentPhase.AWAITING_ACCEPTANCE
+    val awaitingPayment = !orderClosed && shownPhase == StripePaymentPhase.AWAITING_PAYMENT
+    val amountDue = order.amountDueOnAcceptance
     val waiting =
         !orderClosed &&
+            businessPhase == null &&
             phase in
             setOf(
                 StripePaymentPhase.READY,
@@ -103,7 +127,7 @@ fun StripePaymentPendingScreen(
                 StripePaymentPhase.PENDING,
                 StripePaymentPhase.PROCESSING_CONFIRMATION,
             )
-    val timedOut = !orderClosed && phase == StripePaymentPhase.TIMED_OUT
+    val timedOut = !orderClosed && businessPhase == null && phase == StripePaymentPhase.TIMED_OUT
     val stripeStuck = waiting || timedOut
     LaunchedEffect(stripeStuck, abandonVisibleAfterMs) {
         abandonElapsedMs = 0L
@@ -138,6 +162,8 @@ fun StripePaymentPendingScreen(
                         OrderState.NOT_PICKED_UP -> "Pedido no recogido"
                         else -> "Pedido cancelado"
                     }
+            awaitingAcceptance -> "El negocio revisa tu pedido"
+            awaitingPayment -> "Aceptaron tu pedido"
             phase == StripePaymentPhase.REFUNDING -> "Reembolso en proceso"
             phase == StripePaymentPhase.REFUNDED -> "Pago reembolsado"
             confirmed -> "Pago confirmado"
@@ -157,11 +183,18 @@ fun StripePaymentPendingScreen(
                 closedNotice
                     ?.let { listOfNotNull(it.reason, it.note).joinToString(" ") }
                     ?.takeIf { it.isNotEmpty() } ?: ORDER_CLOSED_BODY
+            } else if (businessPhase != null && businessPhase != phase) {
+                null
             } else {
                 message
             }
         )
             ?: when {
+                awaitingAcceptance ->
+                    "No te cobramos nada todavía. Cuando lo acepte te avisamos para que pagues ${moneyLabel(
+                        amountDue,
+                    )}."
+                awaitingPayment -> "Paga ${moneyLabel(amountDue)} para confirmarlo."
                 phase == StripePaymentPhase.READY -> "Estamos preparando el pago seguro."
                 phase == StripePaymentPhase.PRESENTING -> "Termina el pago en la ventana de Stripe."
                 waiting -> "Estamos verificando el pago con Vaiinilla."
@@ -244,6 +277,8 @@ fun StripePaymentPendingScreen(
                             StripePaymentPhase.FAILED -> Icons.Outlined.ErrorOutline
                             StripePaymentPhase.CANCELED -> Icons.Outlined.Cancel
                             StripePaymentPhase.TIMED_OUT -> Icons.Outlined.Refresh
+                            StripePaymentPhase.AWAITING_ACCEPTANCE -> Icons.Outlined.Schedule
+                            StripePaymentPhase.AWAITING_PAYMENT -> Icons.Outlined.CreditCard
                             else -> Icons.Outlined.Sync
                         }
                     val displayedTint =
@@ -283,6 +318,8 @@ fun StripePaymentPendingScreen(
                                     StripePaymentPhase.CONFIRMED -> "Pago confirmado"
                                     StripePaymentPhase.FAILED -> "Pago no completado"
                                     StripePaymentPhase.CANCELED -> "Pago cancelado"
+                                    StripePaymentPhase.AWAITING_ACCEPTANCE -> "El negocio revisa tu pedido"
+                                    StripePaymentPhase.AWAITING_PAYMENT -> "Pedido aceptado, falta pagar"
                                     else -> "Estado del pago"
                                 },
                             tint = displayedTint,
@@ -330,7 +367,12 @@ fun StripePaymentPendingScreen(
                     ) {
                         Column {
                             Text(
-                                if (waiting || timedOut || failed || canceled) "Total a pagar" else "Total del pedido",
+                                when {
+                                    awaitingAcceptance -> "Pagarás al aceptarlo"
+                                    awaitingPayment -> "A pagar ahora"
+                                    waiting || timedOut || failed || canceled -> "Total a pagar"
+                                    else -> "Total del pedido"
+                                },
                                 color = StripeMuted,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
@@ -343,7 +385,7 @@ fun StripePaymentPendingScreen(
                             )
                         }
                         Text(
-                            moneyLabel(order.summary.total),
+                            moneyLabel(if (awaitingAcceptance || awaitingPayment) amountDue else order.summary.total),
                             color = StripeInk,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Black,
@@ -354,6 +396,19 @@ fun StripePaymentPendingScreen(
 
             Column(modifier = Modifier.fillMaxWidth()) {
                 when {
+                    awaitingPayment -> {
+                        StripeActionButton(
+                            label = if (retrying) "Preparando pago…" else "Pagar ${moneyLabel(amountDue)}",
+                            onClick = onRetry,
+                            enabled = !retrying,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        StripeSecondaryAction(
+                            label = "Ver mis pedidos",
+                            onClick = onViewOrders,
+                            enabled = !retrying,
+                        )
+                    }
                     timedOut -> {
                         StripeActionButton(
                             label = "Actualizar estado",
