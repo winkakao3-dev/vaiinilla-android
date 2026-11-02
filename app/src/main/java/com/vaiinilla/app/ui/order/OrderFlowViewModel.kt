@@ -13,6 +13,7 @@ import com.vaiinilla.app.data.guest.GuestCheckoutPolicy
 import com.vaiinilla.app.data.guest.GuestOrderGateway
 import com.vaiinilla.app.data.guest.GuestReservationSession
 import com.vaiinilla.app.data.guest.GuestSessionStore
+import com.vaiinilla.app.data.guest.LastOrderedPlaceStore
 import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.discovery.DiscoveryFailures
@@ -24,6 +25,7 @@ import com.vaiinilla.app.domain.model.CreatedOrder
 import com.vaiinilla.app.domain.model.DeliveryAddress
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.HomePayment
+import com.vaiinilla.app.domain.model.LastOrderedPlace
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -83,6 +85,7 @@ class OrderFlowViewModel
         private val guestSession: GuestReservationSession,
         private val guestCheckoutPolicy: GuestCheckoutPolicy,
         private val orderRepository: OrderRepository,
+        private val lastOrderedPlaces: LastOrderedPlaceStore,
     ) : ViewModel() {
         private val _uiState =
             mutableStateOf(
@@ -553,6 +556,7 @@ class OrderFlowViewModel
             guestVenueLoadJob = null
             activeCartStorageKey = null
             guestSessionStore.clearAll()
+            lastOrderedPlaces.clear()
             _uiState.value = OrderFlowUiState()
         }
 
@@ -1114,6 +1118,7 @@ class OrderFlowViewModel
                                 unavailableCartKeys = emptySet(),
                             )
                         activeCartStorageKey?.let { guestSessionStore.clearCart(it) }
+                        rememberOrderedPlace(current.guestVenue, created.order)
                     },
                     onFailure = { error ->
                         val code = (error as? OrderRepositoryException)?.code
@@ -1132,6 +1137,14 @@ class OrderFlowViewModel
                     },
                 )
             }
+        }
+
+        private fun rememberOrderedPlace(
+            venue: GuestVenueContext?,
+            order: OrderDetail,
+        ) {
+            val place = venue?.let { LastOrderedPlace.from(it.establishment, order) } ?: return
+            lastOrderedPlaces.record(place)
         }
 
         /** Primera compra sin cuenta: da de alta al invitado con el nombre escrito y sigue con el pedido. */

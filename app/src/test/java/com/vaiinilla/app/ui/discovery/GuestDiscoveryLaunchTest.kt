@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.discovery
 
 import com.vaiinilla.app.data.guest.GuestSessionStore
+import com.vaiinilla.app.data.guest.LastOrderedPlaceStore
 import com.vaiinilla.app.data.guest.SchoolJoinCodeStore
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthSession
@@ -61,6 +62,7 @@ class GuestDiscoveryLaunchTest {
                     schoolJoinCodes = SchoolJoinCodeStore(app),
                     accessRepository = NoAccess,
                     authRepository = NoSession,
+                    lastOrderedPlaces = LastOrderedPlaceStore(app),
                 )
 
             viewModel.loadMySchools()
@@ -84,6 +86,7 @@ class GuestDiscoveryLaunchTest {
                     schoolJoinCodes = SchoolJoinCodeStore(app),
                     accessRepository = NoAccess,
                     authRepository = NoSession,
+                    lastOrderedPlaces = LastOrderedPlaceStore(app),
                 )
 
             viewModel.clearForSessionTermination()

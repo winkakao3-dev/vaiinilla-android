@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.data.guest.GuestSessionStore
+import com.vaiinilla.app.data.guest.LastOrderedPlaceStore
 import com.vaiinilla.app.data.guest.SchoolJoinCodeStore
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.discovery.DiscoveryFailures
@@ -15,6 +16,7 @@ import com.vaiinilla.app.domain.mode.MySchool
 import com.vaiinilla.app.domain.mode.MySchools
 import com.vaiinilla.app.domain.model.GeoCoordinates
 import com.vaiinilla.app.domain.model.GuestVenueContext
+import com.vaiinilla.app.domain.model.LastOrderedPlace
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
@@ -51,6 +53,8 @@ data class DiscoveryUiState(
     val openingSchoolId: String? = null,
     /** Sube cada vez que se limpia por cambio de sesión: «Dónde pedir» vuelve a buscar al verlo. */
     val sessionEpoch: Int = 0,
+    /** «Pediste aquí»: el último lugar donde se pidió desde este teléfono. */
+    val lastPlace: LastOrderedPlace? = null,
 )
 
 @HiltViewModel
@@ -63,6 +67,7 @@ class GuestDiscoveryViewModel
         private val schoolJoinCodes: SchoolJoinCodeStore,
         private val accessRepository: AuthorizedAccessRepository,
         private val authRepository: StudentAuthRepository,
+        private val lastOrderedPlaces: LastOrderedPlaceStore,
     ) : ViewModel() {
         private val _state = mutableStateOf(DiscoveryUiState())
         val state: State<DiscoveryUiState> = _state
@@ -83,6 +88,7 @@ class GuestDiscoveryViewModel
             _state.value =
                 _state.value.copy(
                     selected = guestSessionStore.readVenue(),
+                    lastPlace = lastOrderedPlaces.load(),
                 )
             search("")
         }
@@ -92,6 +98,11 @@ class GuestDiscoveryViewModel
             if (_state.value.selected != selected) {
                 _state.value = _state.value.copy(selected = selected)
             }
+        }
+
+        fun loadLastPlace() {
+            val place = lastOrderedPlaces.load()
+            if (_state.value.lastPlace != place) _state.value = _state.value.copy(lastPlace = place)
         }
 
         fun updateQuery(query: String) {
