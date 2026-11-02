@@ -45,6 +45,7 @@ class AdminCashSectionUiTest {
 
         composeTestRule.onNodeWithText("Fondo inicial").assertIsDisplayed()
         composeTestRule.onNodeWithText("$500").assertIsDisplayed()
-        composeTestRule.onNodeWithText(receiptLocalTime(openedAt)).assertIsDisplayed()
+        // La hora va dentro de la etiqueta en mayúsculas «SESIÓN DE CAJA · DESDE 09:05».
+        composeTestRule.onNodeWithText("DESDE ${receiptLocalTime(openedAt)}", substring = true).assertIsDisplayed()
     }
 }
