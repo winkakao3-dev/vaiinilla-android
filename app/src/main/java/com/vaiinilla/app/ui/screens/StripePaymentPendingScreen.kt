@@ -60,6 +60,7 @@ import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.domain.model.amountDueOnAcceptance
 import com.vaiinilla.app.domain.model.awaitsAcceptanceBeforePaying
 import com.vaiinilla.app.domain.model.awaitsPaymentAfterAcceptance
+import com.vaiinilla.app.domain.model.deadlineLabel
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -191,10 +192,16 @@ fun StripePaymentPendingScreen(
         )
             ?: when {
                 awaitingAcceptance ->
-                    "No te cobramos nada todavía. Cuando lo acepte te avisamos para que pagues ${moneyLabel(
-                        amountDue,
-                    )}."
-                awaitingPayment -> "Paga ${moneyLabel(amountDue)} para confirmarlo."
+                    listOfNotNull(
+                        "No te cobramos nada todavía.",
+                        order.answerBy?.let { "El negocio te contesta antes de ${deadlineLabel(it)}." },
+                        "Cuando lo acepte te avisamos para que pagues ${moneyLabel(amountDue)}.",
+                    ).joinToString(" ")
+                awaitingPayment ->
+                    (
+                        order.payBy?.let { "Tienes hasta ${deadlineLabel(it)} para pagar ${moneyLabel(amountDue)}." }
+                            ?: "Paga ${moneyLabel(amountDue)} para confirmarlo."
+                    ) + " Empiezan a preparar tu pedido cuando lo pagues."
                 phase == StripePaymentPhase.READY -> "Estamos preparando el pago seguro."
                 phase == StripePaymentPhase.PRESENTING -> "Termina el pago en la ventana de Stripe."
                 waiting -> "Estamos verificando el pago con Vaiinilla."

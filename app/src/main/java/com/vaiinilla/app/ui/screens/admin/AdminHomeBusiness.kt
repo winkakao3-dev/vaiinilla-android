@@ -38,11 +38,22 @@ import com.vaiinilla.app.domain.admin.HomeBusinessRules
 import com.vaiinilla.app.domain.admin.HomeDeliverySettings
 import com.vaiinilla.app.domain.admin.PreorderSettings
 import com.vaiinilla.app.domain.admin.StoreLocation
+import com.vaiinilla.app.domain.model.answerTimeLabel
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.screens.ActionPill
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
+
+// 0 es «sin plazo»: AdminChoice no admite null como opción.
+private val ANSWER_TIME_OPTIONS =
+    listOf(
+        30 to "30 min",
+        60 to "1 hora",
+        180 to "3 horas",
+        1440 to "1 día",
+        0 to "Sin plazo",
+    )
 
 /** "Se prepara el mismo día", "Necesita 1 día" o "Necesita 3 días". */
 internal fun preparationLabel(days: Int): String =
@@ -355,6 +366,23 @@ internal fun AdminPreordersCard(
             colors = colors,
             enabled = enabled,
         ) { draft = draft.copy(requiresAcceptance = it) }
+        if (draft.requiresAcceptance) {
+            AdminChoice(
+                question = "¿En cuánto contestas un encargo?",
+                options = ANSWER_TIME_OPTIONS,
+                selected = draft.answerMinutes ?: 0,
+                colors = colors,
+                enabled = enabled,
+            ) { draft = draft.copy(answerMinutes = it.takeIf { minutes -> minutes > 0 }) }
+            AdminHint(
+                draft.answerMinutes?.let {
+                    "Tu cliente ve que contestas en ${answerTimeLabel(
+                        it,
+                    )}. Si no contestas a tiempo y aún no pagó, se cancela solo."
+                } ?: "Tu cliente no ve un plazo: el encargo espera hasta que contestes.",
+                colors,
+            )
+        }
         AdminChoice(
             question = "¿Pides anticipo?",
             options = listOf(0 to "No", 30 to "30 %", 50 to "50 %"),

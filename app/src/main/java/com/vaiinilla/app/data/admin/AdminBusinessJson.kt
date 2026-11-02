@@ -131,6 +131,10 @@ class AdminBusinessJson {
             put("hora_corte_pedido", StoreRules.time(preorders.cutoff)?.let(StoreRules::hhmm).orNull())
             put("encargos_requieren_aceptar", preorders.requiresAcceptance)
             put("anticipo_porcentaje", preorders.depositPercent?.let(::JsonPrimitive) ?: JsonNull)
+            put(
+                "encargos_minutos_aceptar",
+                preorders.answerMinutes?.takeIf { preorders.requiresAcceptance }?.let(::JsonPrimitive) ?: JsonNull,
+            )
         }.toString()
 
     /** Seis decimales son unos 10 cm: más precisión no le sirve a nadie. */
@@ -391,6 +395,7 @@ private data class StoreConfigDto(
     @SerialName("datos_transferencia") val datosTransferencia: String? = null,
     @SerialName("encargos_requieren_aceptar") val encargosRequierenAceptar: Boolean? = null,
     @SerialName("anticipo_porcentaje") val anticipoPorcentaje: Int? = null,
+    @SerialName("encargos_minutos_aceptar") val encargosMinutosAceptar: Int? = null,
     @SerialName("dias_adelanto_pedido") val diasAdelantoPedido: Int? = null,
     @SerialName("hora_corte_pedido") val horaCortePedido: String? = null,
     @SerialName("tiene_ubicacion") val tieneUbicacion: Boolean? = null,
@@ -431,6 +436,7 @@ private data class StoreConfigDto(
                         cutoff = horaCortePedido?.take(5).orEmpty(),
                         requiresAcceptance = requires,
                         depositPercent = anticipoPorcentaje,
+                        answerMinutes = encargosMinutosAceptar,
                     )
                 },
             location =

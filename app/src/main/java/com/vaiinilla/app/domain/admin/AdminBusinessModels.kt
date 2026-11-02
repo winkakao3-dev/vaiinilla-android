@@ -565,12 +565,15 @@ data class PreorderSettings(
     val requiresAcceptance: Boolean,
     /** null: se cobra completo al pedir o al recibir. */
     val depositPercent: Int?,
+    /** En cuántos minutos contesta un encargo; null: sin plazo. */
+    val answerMinutes: Int? = null,
 )
 
 object HomeBusinessRules {
     val MAX_RADIUS_KM = java.math.BigDecimal(50)
     const val MAX_DAYS_AHEAD = 14
     val DEPOSIT_RANGE = 10..90
+    val ANSWER_MINUTES_RANGE = 15..2880
     const val MAX_TRANSFER_DETAILS = 200
     const val MAX_PREPARATION_DAYS = 14
     const val MAX_PER_DAY = 999
@@ -605,6 +608,12 @@ object HomeBusinessRules {
         val deposit = preorders.depositPercent
         if (deposit != null && deposit !in DEPOSIT_RANGE) {
             return "El anticipo va de ${DEPOSIT_RANGE.first} a ${DEPOSIT_RANGE.last} %."
+        }
+        val answer = preorders.answerMinutes
+        if (answer != null &&
+            answer !in ANSWER_MINUTES_RANGE
+        ) {
+            return "El tiempo para contestar va de 15 minutos a 2 días."
         }
         return null
     }

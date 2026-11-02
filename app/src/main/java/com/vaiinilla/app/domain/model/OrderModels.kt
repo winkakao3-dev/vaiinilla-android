@@ -1,7 +1,12 @@
 package com.vaiinilla.app.domain.model
 
+import com.vaiinilla.app.domain.time.BusinessTime
 import java.math.BigDecimal
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /** Largo máximo de la nota de una línea; la nota general de cocina usa el mismo límite en el carrito. */
 const val CART_LINE_NOTE_MAX = 90
@@ -166,6 +171,10 @@ data class OrderDetail(
     val refund: RefundOutcome? = null,
     /** Solo a domicilio; `null` con un servidor anterior. */
     val homeDelivery: OrderHomeDelivery? = null,
+    /** Encargo por aceptar: hasta cuándo contesta el negocio; `null` si no puso plazo. */
+    val answerBy: Instant? = null,
+    /** Encargo aceptado con tarjeta: hasta cuándo paga el cliente antes de que se cancele. */
+    val payBy: Instant? = null,
 )
 
 /** Cómo quedó el dinero de un pedido o artículo pagado que se canceló: lo que Caja debe hacer o ya no. */
@@ -186,6 +195,25 @@ data class OrderReservation(
     val durationMinutes: Int,
     val state: ReservationState,
 )
+
+/** "hoy a las 15:30", "mañana a las 9:00" o "el 5 nov a las 9:00", con la hora del negocio. */
+fun deadlineLabel(
+    at: Instant,
+    zone: ZoneId = BusinessTime.zone,
+    today: LocalDate = LocalDate.now(zone),
+): String {
+    val local = at.atZone(zone)
+    val hour = DateTimeFormatter.ofPattern("H:mm").format(local)
+    val day =
+        when (local.toLocalDate()) {
+            today -> "hoy"
+            today.plusDays(1) -> "mañana"
+            else ->
+                "el " +
+                    DateTimeFormatter.ofPattern("d MMM", Locale.forLanguageTag("es-MX")).format(local).trimEnd('.')
+        }
+    return "$day a las $hour"
+}
 
 /** Encargo con tarjeta que el negocio aún no acepta: no se cobra nada hasta que lo acepte (EQUIPO-53). */
 fun OrderDetail.awaitsAcceptanceBeforePaying(): Boolean =

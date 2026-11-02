@@ -243,6 +243,9 @@ data class OrderDetailDto(
     @SerialName("anticipo") val deposit: JsonPrimitive? = null,
     @SerialName("por_cobrar_al_entregar") val dueOnArrival: JsonPrimitive? = null,
     @SerialName("codigo_entrega") val deliveryCode: JsonPrimitive? = null,
+    /** Plazos de un encargo (EQUIPO-53); un servidor anterior no los envía. */
+    @SerialName("aceptar_antes_de") val answerBy: String? = null,
+    @SerialName("pagar_antes_de") val payBy: String? = null,
 )
 
 @Serializable

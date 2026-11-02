@@ -114,14 +114,17 @@ class HomeDeliveryTest {
             status(
                 ""","reparto":{"activo":true,"radio_km":"5.0","costo":40,"minimo":"200.00"},""" +
                     """"permite_contra_entrega":true,"anticipo_porcentaje":50,"datos_transferencia":"  ",""" +
-                    """"encargos_requieren_aceptar":true,""" +
+                    """"encargos_requieren_aceptar":true,"encargos_minutos_aceptar":120,""" +
                     """"dias_adelanto_pedido":7,"hora_corte_pedido":"18:00:00"""",
             )
         assertEquals(
             HomeDeliveryOffer("40", "200.00", "5.0", payOnArrival = true, transferDetails = null),
             on.homeDelivery,
         )
-        assertEquals(PreorderOffer(7, "18:00", requiresAcceptance = true, depositPercent = 50), on.preorders)
+        assertEquals(
+            PreorderOffer(7, "18:00", requiresAcceptance = true, depositPercent = 50, answerMinutes = 120),
+            on.preorders,
+        )
     }
 
     @Test
@@ -229,6 +232,36 @@ class HomeDeliveryTest {
          "entrega":{"direccion":"Calle 5 #123","telefono":"6141234567"},"por_cobrar_al_entregar":"$due","items":[]}
         """.trimIndent(),
     )
+
+    @Test
+    fun `el encargo trae sus plazos y se leen con la hora del negocio`() {
+        val dto =
+            Json { ignoreUnknownKeys = true }.decodeFromString<OrderDetailDto>(
+                """
+                {"id":"p9","folio":4,"fecha_operativa":"2026-11-02","estado":"por_cobrar","metodo_pago":"stripe",
+                 "destino":"para_llevar","subtotal":"500.00","ahorro_combinado":"0.00","cashback_otorgado":"0.00",
+                 "total":"500.00","version":2,"creado_en":"2026-11-02T18:00:00Z","actualizado_en":"2026-11-02T18:00:00Z",
+                 "aceptar_antes_de":null,"pagar_antes_de":"2026-11-03T22:30:00.123456+00:00","items":[]}
+                """.trimIndent(),
+            )
+        val detail = dto.toDomain()
+        assertNull(detail.answerBy)
+        assertEquals(java.time.Instant.parse("2026-11-03T22:30:00.123456Z"), detail.payBy)
+        val today = LocalDate.of(2026, 11, 2)
+        assertEquals("mañana a las 16:30", deadlineLabel(detail.payBy!!, zone, today))
+        assertEquals("hoy a las 16:30", deadlineLabel(detail.payBy!!, zone, today.plusDays(1)))
+        assertEquals("el 3 nov a las 16:30", deadlineLabel(detail.payBy!!, zone, today.minusDays(3)))
+    }
+
+    @Test
+    fun `el plazo para contestar se dice en palabras`() {
+        assertEquals("30 minutos", answerTimeLabel(30))
+        assertEquals("1 hora", answerTimeLabel(60))
+        assertEquals("3 horas", answerTimeLabel(180))
+        assertEquals("1 día", answerTimeLabel(1440))
+        assertEquals("2 días", answerTimeLabel(2880))
+        assertEquals("1 h 30 min", answerTimeLabel(90))
+    }
 
     private fun order(raw: String) = Json { ignoreUnknownKeys = true }.decodeFromString<OrderDetailDto>(raw).toDomain()
 }

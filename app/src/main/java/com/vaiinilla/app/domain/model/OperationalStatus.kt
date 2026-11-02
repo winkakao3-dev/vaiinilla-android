@@ -83,4 +83,15 @@ data class PreorderOffer(
     val cutoff: String?,
     val requiresAcceptance: Boolean,
     val depositPercent: Int?,
+    /** En cuánto contesta el negocio un encargo; null si no puso plazo. */
+    val answerMinutes: Int? = null,
 )
+
+/** "30 minutos", "1 hora", "3 horas" o "1 día": el plazo que el negocio se pone para contestar. */
+fun answerTimeLabel(minutes: Int): String =
+    when {
+        minutes < 60 -> "$minutes minutos"
+        minutes % 1440 == 0 -> (minutes / 1440).let { if (it == 1) "1 día" else "$it días" }
+        minutes % 60 == 0 -> (minutes / 60).let { if (it == 1) "1 hora" else "$it horas" }
+        else -> "${minutes / 60} h ${minutes % 60} min"
+    }

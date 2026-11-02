@@ -87,6 +87,7 @@ class ContractResponseParser
                             cutoff = envelope.data.cutoff?.take(5),
                             requiresAcceptance = requires,
                             depositPercent = envelope.data.depositPercent,
+                            answerMinutes = envelope.data.answerMinutes,
                         )
                     },
             )

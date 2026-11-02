@@ -46,6 +46,7 @@ import com.vaiinilla.app.domain.model.HomePayment
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.answerTimeLabel
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.moneyLabel
@@ -113,7 +114,10 @@ internal fun DeliveryDatePicker(
                 state.preorderOffer
                     ?.takeIf {
                         it.requiresAcceptance
-                    }?.let { "El negocio te confirma" },
+                    }?.let { offer ->
+                        offer.answerMinutes?.let { "Te contesta en ${answerTimeLabel(it)}" }
+                            ?: "El negocio te confirma"
+                    },
         )
         if (dates.isEmpty()) {
             Text("Por ahora no hay días disponibles para este pedido.", color = colors.muted, fontSize = 14.sp)
@@ -137,7 +141,8 @@ internal fun DeliveryDatePicker(
         }
         if (state.preorderOffer?.requiresAcceptance == true) {
             Text(
-                "El negocio revisa tu pedido y te confirma. Con tarjeta no te cobramos nada hasta que lo acepte.",
+                "El negocio revisa tu pedido y te confirma. Con tarjeta no te cobramos nada hasta que lo acepte; " +
+                    "después tienes 24 horas para pagar y empiezan a prepararlo cuando pagues.",
                 color = colors.muted,
                 fontSize = 13.sp,
                 lineHeight = 18.sp,

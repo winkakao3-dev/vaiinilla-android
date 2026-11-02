@@ -64,6 +64,7 @@ data class OperationalStatusDto(
     @SerialName("anticipo_porcentaje") val depositPercent: Int? = null,
     @SerialName("datos_transferencia") val transferDetails: String? = null,
     @SerialName("encargos_requieren_aceptar") val requiresAcceptance: Boolean? = null,
+    @SerialName("encargos_minutos_aceptar") val answerMinutes: Int? = null,
     @SerialName("dias_adelanto_pedido") val daysAhead: Int? = null,
     @SerialName("hora_corte_pedido") val cutoff: String? = null,
 )

@@ -160,7 +160,18 @@ fun OrderDetailDto.toDomain(): OrderDetail =
                     code = deliveryCode?.flexibleText(),
                 )
             },
+        answerBy = answerBy?.let(::serverInstant),
+        payBy = payBy?.let(::serverInstant),
     )
+
+// El servidor lee estas fechas de to_jsonb: llegan con desfase ("…+00:00"), no con Z.
+private fun serverInstant(raw: String): Instant? =
+    runCatching {
+        java.time.OffsetDateTime
+            .parse(raw)
+            .toInstant()
+    }.getOrNull()
+        ?: runCatching { Instant.parse(raw) }.getOrNull()
 
 private fun OrderReservationDto.toDomain(): OrderReservation? =
     runCatching {
