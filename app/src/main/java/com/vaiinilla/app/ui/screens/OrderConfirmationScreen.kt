@@ -17,6 +17,7 @@ import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.TableCall
+import com.vaiinilla.app.ui.order.JourneyVenue
 import com.vaiinilla.app.ui.order.PurchaseCelebration
 import com.vaiinilla.app.ui.order.STRIPE_ABANDON_VISIBLE_AFTER_MS
 import com.vaiinilla.app.ui.order.StripePaymentPhase
@@ -61,6 +62,8 @@ fun OrderConfirmationScreen(
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
     /** Sin sesión el pedido solo vive en este teléfono: se le avisa al invitado (A06). */
     guest: Boolean = false,
+    venue: JourneyVenue = JourneyVenue(),
+    onAnnounceArrival: ((String) -> Unit)? = null,
 ) {
     Box(
         modifier =
@@ -109,6 +112,8 @@ fun OrderConfirmationScreen(
             onCallWaiter = onCallWaiter,
             onCancelWaiter = onCancelWaiter,
             guestNotice = GUEST_ORDER_NOTICE.takeIf { guest },
+            venue = venue,
+            onAnnounceArrival = onAnnounceArrival?.let { announce -> { announce(order.summary.id) } },
             // Las rentas de cancha no se cobran en la caja del mostrador: no imprimen ticket.
             // A domicilio tampoco: se paga al recibir o ya se pagó en línea.
             printsTicket =

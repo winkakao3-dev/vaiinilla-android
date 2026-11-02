@@ -92,6 +92,7 @@ import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.operational.PendingRefundsViewModel
 import com.vaiinilla.app.ui.operational.WaiterViewModel
+import com.vaiinilla.app.ui.order.JourneyVenue
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.canPayWithBalance
 import com.vaiinilla.app.ui.order.canPayWithCard
@@ -1938,6 +1939,13 @@ fun AppNavHost(
                         },
                         onCancelWaiter = operationalViewModel::cancelWaiterCall,
                         guest = studentAuthState.session == null,
+                        venue =
+                            JourneyVenue(
+                                driveThru = orderState.operationalStatus?.isDriveThru == true,
+                                school = orderState.operationalStatus?.isSchool == true,
+                                whatsappUrl = orderState.guestVenue?.establishment?.whatsappUrl,
+                            ),
+                        onAnnounceArrival = operationalViewModel::announceArrival,
                         onReturnToMenu = {
                             // Abierto desde Pedidos: atrás regresa a la lista. La selección se limpia allá,
                             // cuando esta pantalla ya salió, para no quedarse sin pedido a media animación.

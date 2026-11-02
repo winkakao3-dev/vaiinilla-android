@@ -29,6 +29,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -81,6 +82,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -91,6 +93,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -99,6 +102,8 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextMeasurer
@@ -119,16 +124,28 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.openTableCallSpaceId
+import com.vaiinilla.app.ui.components.ArrivalNotice
+import com.vaiinilla.app.ui.components.canAnnounceArrival
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.orderStateLabel
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rentalCourtName
 import com.vaiinilla.app.ui.components.rentalScheduleLabel
+import com.vaiinilla.app.ui.order.FactTone
+import com.vaiinilla.app.ui.order.JourneyFact
+import com.vaiinilla.app.ui.order.JourneyVenue
+import com.vaiinilla.app.ui.order.OrderJourney
 import com.vaiinilla.app.ui.order.PickupPlace
 import com.vaiinilla.app.ui.order.PickupStep
 import com.vaiinilla.app.ui.order.PurchaseCelebrationKind
 import com.vaiinilla.app.ui.order.celebrationMessage
 import com.vaiinilla.app.ui.order.courtLights
+import com.vaiinilla.app.ui.order.journeyFacts
+import com.vaiinilla.app.ui.order.journeyHint
+import com.vaiinilla.app.ui.order.journeyNote
+import com.vaiinilla.app.ui.order.journeyStepIndex
+import com.vaiinilla.app.ui.order.journeySteps
+import com.vaiinilla.app.ui.order.orderJourney
 import com.vaiinilla.app.ui.order.pickupCodeHint
 import com.vaiinilla.app.ui.order.pickupCodeUseful
 import com.vaiinilla.app.ui.order.pickupHint
@@ -137,6 +154,7 @@ import com.vaiinilla.app.ui.order.pickupStep
 import com.vaiinilla.app.ui.order.pickupTitle
 import com.vaiinilla.app.ui.order.shouldAutoRevealPickupCode
 import com.vaiinilla.app.ui.order.trayItemKind
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.SeaGlassButton
 import com.vaiinilla.app.ui.theme.SeaGlassTone
 import kotlinx.coroutines.delay
@@ -263,6 +281,8 @@ internal fun PickupJourneyScreen(
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
     printsTicket: Boolean = false,
     guestNotice: String? = null,
+    venue: JourneyVenue = JourneyVenue(),
+    onAnnounceArrival: (() -> Unit)? = null,
 ) {
     val palette = scenePaletteForTheme()
     CompositionLocalProvider(LocalScene provides palette) {
@@ -279,6 +299,8 @@ internal fun PickupJourneyScreen(
             onCancelWaiter = onCancelWaiter,
             printsTicket = printsTicket,
             guestNotice = guestNotice,
+            venue = venue,
+            onAnnounceArrival = onAnnounceArrival,
         )
     }
 }
@@ -297,6 +319,8 @@ private fun PickupJourney(
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
     printsTicket: Boolean = false,
     guestNotice: String? = null,
+    venue: JourneyVenue = JourneyVenue(),
+    onAnnounceArrival: (() -> Unit)? = null,
 ) {
     val palette = LocalScene.current
     val reduceMotion = reducedMotion()
@@ -620,7 +644,9 @@ private fun PickupJourney(
 
         StatusSheet(
             order = order,
-            step = step,
+            journey = orderJourney(order, venue),
+            venue = venue,
+            onAnnounceArrival = onAnnounceArrival,
             now = now,
             hasCode = hasCode,
             hidden = maxOf(eased(p, 0f, 0.2f), intro.value),
@@ -919,7 +945,9 @@ internal fun GlassPanel(
 @Composable
 private fun StatusSheet(
     order: OrderDetail,
-    step: PickupStep?,
+    journey: OrderJourney,
+    venue: JourneyVenue,
+    onAnnounceArrival: (() -> Unit)?,
     now: Instant,
     hasCode: Boolean,
     hidden: Float,
@@ -945,9 +973,11 @@ private fun StatusSheet(
             entrance.animateTo(1f, spring(dampingRatio = 0.86f, stiffness = 180f))
         }
     }
-    val progress = remember { Animatable((step?.ordinal ?: -1).toFloat() + 1f) }
-    LaunchedEffect(step) {
-        val target = (step?.ordinal ?: -1).toFloat() + 1f
+    val steps = journeySteps(order, journey)
+    val stepIndex = journeyStepIndex(order, journey)
+    val progress = remember { Animatable(stepIndex + 1f) }
+    LaunchedEffect(stepIndex) {
+        val target = stepIndex + 1f
         if (reduceMotion) {
             progress.snapTo(
                 target,
@@ -1005,17 +1035,17 @@ private fun StatusSheet(
                 )
             }
             AnimatedContent(
-                targetState = pickupHint(order, now),
+                targetState = journeyHint(order, journey, now) ?: pickupHint(order, now),
                 transitionSpec = { fadeIn(spring(stiffness = 180f)) togetherWith fadeOut(spring(stiffness = 300f)) },
                 label = "pickup_hint",
             ) { hint ->
-                Text(hint, color = c.muted, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(hint, color = c.muted, fontSize = 14.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
-            if (step != null) {
+            if (steps.isNotEmpty()) {
                 Spacer(Modifier.height(14.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                    PickupStep.entries.forEach { item ->
-                        val fill = (progress.value - item.ordinal).coerceIn(0f, 1f)
+                    steps.forEachIndexed { index, label ->
+                        val fill = (progress.value - index).coerceIn(0f, 1f)
                         Column(Modifier.weight(1f)) {
                             Canvas(
                                 Modifier
@@ -1036,17 +1066,29 @@ private fun StatusSheet(
                             }
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                item.label,
+                                label,
                                 color = lerp(c.muted, c.ink, fill),
                                 fontSize = 11.sp,
-                                fontWeight = if (item == step) FontWeight.Black else FontWeight.SemiBold,
+                                fontWeight = if (index == stepIndex) FontWeight.Black else FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
                 }
             }
             Spacer(Modifier.height(14.dp))
-            OrderSummaryCard(order)
+            OrderSummaryCard(order, journey)
+            JourneyFactsCard(journeyFacts(order, journey))
+            journeyNote(order, journey)?.let { JourneyNote(it) }
+            if (onAnnounceArrival != null && order.canAnnounceArrival(venue.driveThru)) {
+                ArrivalNotice(
+                    order = order,
+                    enabled = true,
+                    onAnnounce = onAnnounceArrival,
+                    onDark = c.ink.luminance() > 0.5f,
+                )
+            }
             guestNotice?.let {
                 Text(
                     it,
@@ -1088,12 +1130,124 @@ private fun StatusSheet(
                     }
                 }
             }
+            venue.whatsappUrl?.let { whatsapp ->
+                val uri = LocalUriHandler.current
+                Text(
+                    "Escribirle al negocio por WhatsApp",
+                    color = c.ink,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    textDecoration = TextDecoration.Underline,
+                    textAlign = TextAlign.Center,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(role = Role.Button) { runCatching { uri.openUri(whatsapp) } }
+                            .padding(vertical = 8.dp),
+                )
+            }
         }
     }
 }
 
+/** Dónde, cuándo y cuánto del pedido, con lo que falta pagar resaltado. */
 @Composable
-private fun OrderSummaryCard(order: OrderDetail) {
+private fun JourneyFactsCard(facts: List<JourneyFact>) {
+    if (facts.isEmpty()) return
+    val c = LocalScene.current
+    val colors = LocalVaiinillaColors.current
+    val shape = RoundedCornerShape(18.dp)
+    Column(
+        modifier =
+            Modifier
+                .padding(top = 10.dp)
+                .fillMaxWidth()
+                .clip(shape)
+                .background(c.glassCard)
+                .border(1.dp, c.glassEdge, shape)
+                .animateContentSize(spring(dampingRatio = 0.9f, stiffness = 380f))
+                .padding(horizontal = 14.dp, vertical = 4.dp),
+    ) {
+        facts.forEachIndexed { index, fact ->
+            if (index > 0) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(c.glassLine),
+                )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            ) {
+                Text(fact.label, color = c.muted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.width(12.dp).weight(1f))
+                // Lima y yema sobre el vidrio claro no se leen: lo que se gana o falta va en su pastilla.
+                val (pill, ink) =
+                    when (fact.tone) {
+                        FactTone.PLAIN -> Color.Transparent to c.ink
+                        FactTone.GOOD -> colors.accent to colors.accentInk
+                        FactTone.DUE -> colors.yolk to DueInk
+                    }
+                Text(
+                    fact.value,
+                    color = ink,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.End,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(pill)
+                            .padding(horizontal = if (fact.tone == FactTone.PLAIN) 0.dp else 8.dp, vertical = 2.dp),
+                )
+            }
+        }
+    }
+}
+
+private val DueInk = Color(0xFF1D1E1C)
+
+@Composable
+private fun JourneyNote(text: String) {
+    val c = LocalScene.current
+    val shape = RoundedCornerShape(16.dp)
+    Text(
+        text,
+        color = c.muted,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier =
+            Modifier
+                .padding(top = 10.dp)
+                .fillMaxWidth()
+                .drawWithContent {
+                    drawContent()
+                    drawRoundRect(
+                        color = c.glassLine,
+                        cornerRadius = CornerRadius(16.dp.toPx()),
+                        style =
+                            Stroke(
+                                width = 1.5.dp.toPx(),
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx())),
+                            ),
+                    )
+                }.clip(shape)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+    )
+}
+
+@Composable
+private fun OrderSummaryCard(
+    order: OrderDetail,
+    journey: OrderJourney,
+) {
     val c = LocalScene.current
     val shape = RoundedCornerShape(18.dp)
     val scroll = rememberScrollState()
@@ -1146,8 +1300,11 @@ private fun OrderSummaryCard(order: OrderDetail) {
                 order.summary.destination == OrderDestination.IN_SPACE ->
                     "A ${order.summary.space?.name ?: "tu espacio"}"
                 order.summary.destination == OrderDestination.HOME_DELIVERY -> "A domicilio"
+                journey == OrderJourney.DRIVE_THRU -> "Drive-thru · te lo dan en la ventanilla"
+                journey == OrderJourney.SCHOOL -> "Apartado · se recoge en el comedor"
+                journey == OrderJourney.PREORDER_PICKUP -> "Encargo · lo recoges en el local"
                 else -> "Para llevar · recoge en barra"
-            } + " · " + moneyLabel(order.summary.total),
+            },
             color = c.muted,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
