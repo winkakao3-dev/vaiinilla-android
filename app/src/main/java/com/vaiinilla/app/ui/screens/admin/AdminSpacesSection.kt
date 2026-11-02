@@ -3,20 +3,39 @@ package com.vaiinilla.app.ui.screens.admin
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.QrCode2
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -25,9 +44,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.admin.ManagedSpace
@@ -41,6 +67,7 @@ import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.admin.AdminSpacesViewModel
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.screens.ActionPill
 import com.vaiinilla.app.ui.screens.ChipButton
 import com.vaiinilla.app.ui.screens.OperationalColors
@@ -57,10 +84,6 @@ private sealed interface SpacesSheet {
         val spaceId: Int,
     ) : SpacesSheet
 
-    data class Qr(
-        val spaceId: Int,
-    ) : SpacesSheet
-
     data class Delete(
         val space: ManagedSpace,
     ) : SpacesSheet
@@ -74,7 +97,19 @@ private sealed interface SpacesSheet {
     ) : SpacesSheet
 }
 
-/** Mesas y espacios: alta, QR y código de cada uno, fichas de cancha y reservas del día. */
+/** La página abierta dentro de Mesas y espacios: un espacio con su QR (marco 49) o las reservas (marco 50). */
+private sealed interface SpacesPage {
+    data class Space(
+        val id: Int,
+    ) : SpacesPage
+
+    data object Reservations : SpacesPage
+}
+
+/**
+ * Mesas y espacios como el lienzo de Doop (marcos 45 a 50): los espacios agrupados por tipo, cada uno abre su página
+ * con el QR, y las canchas suman sus reservas del día y el horario.
+ */
 @Composable
 internal fun AdminSpacesSection(
     viewModel: AdminSpacesViewModel,
@@ -84,78 +119,73 @@ internal fun AdminSpacesSection(
 ) {
     val state by viewModel.uiState
     var sheet by remember { mutableStateOf<SpacesSheet?>(null) }
+    var page by remember { mutableStateOf<SpacesPage?>(null) }
     val close = { sheet = null }
     val enabled = !readOnly && !state.saving
+    val reduced = reducedMotion()
 
-    AdminSectionPage(
-        title = "Mesas y espacios",
-        colors = colors,
-        notice = state.notice,
-        noticeIsError = state.noticeIsError,
-        onBack = onBack,
-    ) {
-        if (!readOnly) {
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ActionPill(
-                        label = "Nuevo espacio",
-                        enabled = enabled,
-                        loading = false,
-                        colors = colors,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        sheet = SpacesSheet.Create
+    AnimatedContent(
+        targetState = page,
+        transitionSpec = {
+            if (reduced) {
+                fadeIn(snap()) togetherWith fadeOut(snap())
+            } else {
+                val forward = targetState != null
+                (
+                    slideInHorizontally(
+                        spring(stiffness = 500f),
+                    ) { if (forward) it / 4 else -it / 4 } + fadeIn(spring())
+                ) togetherWith
+                    (
+                        slideOutHorizontally(spring(stiffness = 500f)) { if (forward) -it / 4 else it / 4 } +
+                            fadeOut(spring())
+                    )
+            }
+        },
+        label = "spaces-page",
+    ) { current ->
+        when (current) {
+            is SpacesPage.Space -> {
+                val space = state.spaces?.firstOrNull { it.id == current.id }
+                if (space == null) {
+                    LaunchedEffect(Unit) { page = null }
+                } else {
+                    SpaceDetailPage(space, colors, readOnly, viewModel, onBack = { page = null }) {
+                        sheet = SpacesSheet.Edit(space.id)
                     }
-                    ActionPill(
-                        label = "Crear varios",
-                        enabled = enabled,
-                        loading = false,
-                        colors = colors,
-                        primary = false,
-                        modifier = Modifier.weight(1f),
-                    ) { sheet = SpacesSheet.Batch }
                 }
             }
-        }
-        val spaces = state.spaces
-        when {
-            spaces == null && state.error != null ->
-                item {
-                    AdminLoadError(
-                        state.error.orEmpty(),
-                        colors,
-                        viewModel::refresh,
-                    )
-                }
-            spaces == null -> item { AdminHint("Cargando espacios…", colors) }
-            spaces.isEmpty() -> item { AdminHint("Aún no hay mesas ni espacios. Crea uno para tener su QR.", colors) }
-            else ->
-                items(
-                    spaces.sortedWith(compareBy(naturalOrder<String>()) { naturalKey(it.name) }),
-                    key = { "s${it.id}" },
-                ) { space ->
-                    SpaceCard(
-                        space = space,
-                        colors = colors,
-                        busy = state.busySpaceId == space.id,
-                        readOnly = readOnly,
-                        onQr = { sheet = SpacesSheet.Qr(space.id) },
-                        onEdit = { sheet = SpacesSheet.Edit(space.id) },
-                    )
-                }
-        }
-        if (state.hasCourts) {
-            item {
-                ReservationsCard(state.reservations, colors, enabled, onCharge = {
-                    sheet =
-                        SpacesSheet.Charge(
-                            it,
+            SpacesPage.Reservations ->
+                AdminSectionPage(
+                    title = "Reservas",
+                    colors = colors,
+                    notice = state.notice,
+                    noticeIsError = state.noticeIsError,
+                    onBack = { page = null },
+                ) {
+                    item { AdminH2("Hoy · ${TodayFormat.format(java.time.LocalDate.now(BusinessTime.zone))}", colors) }
+                    item {
+                        ReservationsCard(
+                            state.reservations,
+                            colors,
+                            enabled,
+                            onCharge = { sheet = SpacesSheet.Charge(it) },
+                            onRelease = { sheet = SpacesSheet.Release(it) },
                         )
-                }, onRelease = {
-                    sheet = SpacesSheet.Release(it)
-                })
-            }
-            item { ScheduleCard(state.schedule, colors, enabled, viewModel::saveSchedule) }
+                    }
+                    item { AdminH2("Horario de reservas", colors) }
+                    item { ScheduleCard(state.schedule, colors, enabled, viewModel::saveSchedule) }
+                }
+            null ->
+                SpacesList(
+                    state,
+                    colors,
+                    readOnly,
+                    enabled,
+                    viewModel,
+                    onBack,
+                    onOpen = { page = it },
+                ) { sheet = it }
         }
     }
 
@@ -182,23 +212,6 @@ internal fun AdminSpacesSection(
                 }, onDismiss = close)
             }
         }
-        is SpacesSheet.Qr -> {
-            val space = state.spaces?.firstOrNull { it.id == current.spaceId }
-            if (space == null) {
-                close()
-            } else {
-                AdminSheet(title = space.name, colors = colors, busy = false, onDismiss = close) {
-                    AdminHint("El cliente escanea este QR o escribe el código para pedir desde ${space.name}.", colors)
-                    AdminQrBlock(
-                        url = space.qrUrl,
-                        name = space.name,
-                        colors = colors,
-                        onNotice = viewModel::notify,
-                        code = space.code,
-                    )
-                }
-            }
-        }
         is SpacesSheet.Delete ->
             AdminConfirmSheet(
                 title = "Eliminar ${current.space.name}",
@@ -211,6 +224,7 @@ internal fun AdminSpacesSection(
                 onDismiss = close,
             ) {
                 viewModel.delete(current.space)
+                page = null
                 close()
             }
         is SpacesSheet.Charge ->
@@ -236,57 +250,293 @@ internal fun AdminSpacesSection(
 }
 
 @Composable
-private fun SpaceCard(
-    space: ManagedSpace,
+private fun SpacesList(
+    state: com.vaiinilla.app.ui.admin.AdminSpacesUiState,
     colors: OperationalColors,
-    busy: Boolean,
     readOnly: Boolean,
-    onQr: () -> Unit,
-    onEdit: () -> Unit,
+    enabled: Boolean,
+    viewModel: AdminSpacesViewModel,
+    onBack: () -> Unit,
+    onOpen: (SpacesPage) -> Unit,
+    onSheet: (SpacesSheet) -> Unit,
 ) {
-    AdminCard(colors) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (space.isCourt && space.imageUrl != null) {
-                ProductImage(
-                    imageUrl = space.imageUrl,
-                    contentDescription = space.name,
-                    modifier = Modifier.size(52.dp).clip(RoundedCornerShape(12.dp)),
-                )
+    val spaces = state.spaces
+    AdminSectionPage(
+        title = "Mesas y espacios",
+        colors = colors,
+        notice = state.notice,
+        noticeIsError = state.noticeIsError,
+        onBack = onBack,
+        trailing = {
+            if (!readOnly && !spaces.isNullOrEmpty()) {
+                AdminPrimaryButton(
+                    title = "Espacio",
+                    colors = colors,
+                    modifier = Modifier.height(36.dp),
+                    icon = Icons.Outlined.Add,
+                    enabled = enabled,
+                ) { onSheet(SpacesSheet.Create) }
             }
-            Column(Modifier.weight(1f)) {
-                Text(space.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                Text(
-                    listOfNotNull(
-                        space.type?.label ?: space.typeWire,
-                        space.code?.let { "código $it" },
-                        space.hourlyPrice?.let { "${moneyLabel(it)}/hora" },
-                    ).joinToString(" · "),
-                    fontSize = 12.sp,
-                    color = colors.textSecondary,
-                )
-                if (!space.active) {
-                    Text(
-                        "Desactivado",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AdminCoral,
-                    )
+        },
+    ) {
+        item {
+            Text(
+                "Cada espacio tiene su QR. El cliente lo escanea y pide desde ahí.",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textMuted,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+        }
+        when {
+            spaces == null && state.error != null ->
+                item { AdminLoadError(state.error.orEmpty(), colors, viewModel::refresh) }
+            spaces == null -> item { AdminHint("Cargando espacios…", colors) }
+            spaces.isEmpty() -> item { SpacesEmpty(colors, readOnly, enabled, Modifier.adminRise(1), onSheet) }
+            else ->
+                spaceGroups(spaces).forEachIndexed { index, (title, members) ->
+                    item(key = "g-$title") {
+                        Column(Modifier.adminRise(index + 1).animateItem()) {
+                            AdminCapsLabel(
+                                "$title · ${members.size}",
+                                colors,
+                                Modifier.padding(top = 18.dp, bottom = 8.dp),
+                            )
+                            AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 2.dp)) {
+                                members.forEachIndexed { row, space ->
+                                    if (row > 0) AdminRowDivider(colors)
+                                    SpaceRow(
+                                        space,
+                                        colors,
+                                        state.busySpaceId == space.id,
+                                    ) { onOpen(SpacesPage.Space(space.id)) }
+                                }
+                            }
+                        }
+                    }
+                }
+        }
+        if (state.hasCourts && !spaces.isNullOrEmpty()) {
+            item(key = "reservas") {
+                Column {
+                    AdminCapsLabel("Reservas", colors, Modifier.padding(top = 18.dp, bottom = 8.dp))
+                    AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 2.dp)) {
+                        AdminRow(
+                            title = "Reservas de hoy",
+                            colors = colors,
+                            detail =
+                                if (state.reservations.isEmpty()) {
+                                    "Nadie ha reservado hoy · horario y anticipación"
+                                } else {
+                                    "${state.reservations.size} hoy · horario y anticipación"
+                                },
+                            onClick = { onOpen(SpacesPage.Reservations) },
+                            leading = { SpaceIcon(Icons.Outlined.CalendarMonth) },
+                        ) { Chevron(colors) }
+                    }
                 }
             }
-            if (busy) {
-                androidx.compose.material3.CircularProgressIndicator(
-                    color = colors.textPrimary,
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ChipButton(label = "QR y código", enabled = true, colors = colors, onClick = onQr)
-            if (!readOnly) ChipButton(label = "Editar", enabled = !busy, colors = colors, onClick = onEdit)
         }
     }
 }
+
+private fun spaceGroups(spaces: List<ManagedSpace>): List<Pair<String, List<ManagedSpace>>> {
+    val sorted = spaces.sortedBy { naturalKey(it.name) }
+    val order = SpaceType.entries.map { it.wire }.toMutableList()
+    sorted.forEach { if (it.typeWire !in order) order.add(it.typeWire) }
+    return order.mapNotNull { wire ->
+        val members = sorted.filter { it.typeWire == wire }
+        if (members.isEmpty()) return@mapNotNull null
+        plural(SpaceType.entries.firstOrNull { it.wire == wire }?.label ?: wire) to members
+    }
+}
+
+private fun plural(word: String): String {
+    val last = word.lowercase().lastOrNull() ?: return word
+    return if (last in "aeiou") word + "s" else word + "es"
+}
+
+@Composable
+private fun SpaceRow(
+    space: ManagedSpace,
+    colors: OperationalColors,
+    busy: Boolean,
+    onClick: () -> Unit,
+) {
+    val price = space.hourlyPrice
+    AdminRow(
+        title = space.name,
+        colors = colors,
+        detail =
+            when {
+                space.isCourt && price != null -> "Renta ${moneyLabel(price)} por hora"
+                else -> space.code?.let { "Código $it" } ?: (space.type?.label ?: space.typeWire)
+            },
+        dimmed = !space.active,
+        onClick = onClick,
+        leading = {
+            if (space.isCourt && space.imageUrl != null) {
+                AdminThumb(space.imageUrl, space.name, colors)
+            } else {
+                SpaceIcon(Icons.Outlined.QrCode2)
+            }
+        },
+    ) {
+        when {
+            busy ->
+                androidx.compose.material3.CircularProgressIndicator(
+                    color = colors.textPrimary,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(18.dp),
+                )
+            !space.active -> AdminBadge("Desactivado", colors, AdminBadgeTone.DANGER)
+            space.isCourt && price != null -> AdminBadge("Se renta", colors, AdminBadgeTone.OK)
+        }
+        Chevron(colors)
+    }
+}
+
+@Composable
+private fun Chevron(colors: OperationalColors) {
+    Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.textMuted)
+}
+
+/** El cuadro crema con el ícono del QR de cada espacio. */
+@Composable
+private fun SpaceIcon(icon: ImageVector) {
+    Box(
+        Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(Cream),
+        contentAlignment = Alignment.Center,
+    ) { Icon(icon, contentDescription = null, tint = CreamInk, modifier = Modifier.size(20.dp)) }
+}
+
+private val Cream = Color(0xFFF5F1E5)
+private val CreamInk = Color(0xFF1D1E1C)
+
+/** Marco 46: la cuadrícula punteada con el QR al centro y los dos caminos para empezar. */
+@Composable
+private fun SpacesEmpty(
+    colors: OperationalColors,
+    readOnly: Boolean,
+    enabled: Boolean,
+    modifier: Modifier,
+    onSheet: (SpacesSheet) -> Unit,
+) {
+    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.padding(top = 72.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            repeat(2) { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    repeat(3) { column ->
+                        val cell = Modifier.size(52.dp).clip(RoundedCornerShape(14.dp))
+                        if (row == 0 && column == 1) {
+                            Box(cell.background(Cream), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Outlined.QrCode2, contentDescription = null, tint = CreamInk)
+                            }
+                        } else {
+                            Box(cell.dashedBorder(colors.cardBorder))
+                        }
+                    }
+                }
+            }
+        }
+        Text(
+            "Aún no tienes espacios",
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = (-0.4).sp,
+            color = colors.textPrimary,
+            modifier = Modifier.padding(top = 28.dp),
+        )
+        Text(
+            "Crea tus mesas, la barra o una cancha. Cada una tiene su QR para que el cliente pida desde su lugar.",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.textMuted,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 8.dp, start = 12.dp, end = 12.dp),
+        )
+        if (!readOnly) {
+            AdminPrimaryButton(
+                title = "Nuevo espacio",
+                colors = colors,
+                modifier = Modifier.padding(top = 26.dp).fillMaxWidth(),
+                icon = Icons.Outlined.Add,
+                enabled = enabled,
+            ) { onSheet(SpacesSheet.Create) }
+            AdminSecondaryButton(
+                title = "Crear varios a la vez",
+                colors = colors,
+                modifier = Modifier.padding(top = 10.dp).fillMaxWidth(),
+                outlined = true,
+                enabled = enabled,
+            ) { onSheet(SpacesSheet.Batch) }
+        }
+    }
+}
+
+private fun Modifier.dashedBorder(color: Color): Modifier =
+    drawBehind {
+        drawRoundRect(
+            color = color,
+            cornerRadius = CornerRadius(14.dp.toPx()),
+            style =
+                Stroke(
+                    width = 1.dp.toPx(),
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx())),
+                ),
+        )
+    }
+
+/** Un espacio con su QR (marco 49): dónde ponerlo, su QR con compartir, copiar y NFC, y el lápiz para editarlo. */
+@Composable
+private fun SpaceDetailPage(
+    space: ManagedSpace,
+    colors: OperationalColors,
+    readOnly: Boolean,
+    viewModel: AdminSpacesViewModel,
+    onBack: () -> Unit,
+    onEdit: () -> Unit,
+) {
+    val state by viewModel.uiState
+    AdminSectionPage(
+        title = space.name,
+        colors = colors,
+        notice = state.notice,
+        noticeIsError = state.noticeIsError,
+        onBack = onBack,
+        trailing = {
+            if (!readOnly) AdminRoundButton(Icons.Outlined.EditNote, "Editar ${space.name}", colors, onEdit)
+        },
+    ) {
+        item {
+            Text(
+                when (space.type) {
+                    SpaceType.COURT -> "Ponlo en la cancha. Al escanearlo, el cliente pide y su pedido llega aquí."
+                    SpaceType.BAR -> "Ponlo en la barra. Al escanearlo, el cliente pide y su pedido llega a la barra."
+                    else -> "Ponlo en la mesa. Al escanearlo, el cliente pide y su pedido llega a esta mesa."
+                },
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textMuted,
+                modifier = Modifier.padding(horizontal = 2.dp, vertical = 6.dp),
+            )
+        }
+        if (!space.active) item { AdminHint("Está desactivado: su QR no recibe pedidos.", colors) }
+        item {
+            AdminPanel(colors, Modifier.adminRise(1).padding(top = 10.dp)) {
+                AdminQrBlock(
+                    url = space.qrUrl,
+                    name = space.name,
+                    colors = colors,
+                    onNotice = viewModel::notify,
+                    code = space.code,
+                )
+            }
+        }
+    }
+}
+
+private val TodayFormat = DateTimeFormatter.ofPattern("EEE d MMM", java.util.Locale.forLanguageTag("es-MX"))
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
