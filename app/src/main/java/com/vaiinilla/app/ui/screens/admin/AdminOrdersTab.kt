@@ -5,10 +5,10 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,17 +16,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ReceiptLong
-import androidx.compose.material.icons.outlined.TableRestaurant
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.ConfirmationNumber
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,7 +36,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -47,23 +50,35 @@ import com.vaiinilla.app.domain.model.HomeOrderBoard
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.repository.BoardTable
+import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.admin.AdminOrderFilter
 import com.vaiinilla.app.ui.admin.AdminUiState
-import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.chargedPaymentLabel
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
-import com.vaiinilla.app.ui.screens.ActionPill
+import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.OperationalColors
+import com.vaiinilla.app.ui.theme.Yolk
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+/** Las mesas del tablero del mesero, para las fichas de arriba de Pedidos (marco 34). */
+class AdminOrdersTables(
+    val tables: List<BoardTable>,
+    val onRefresh: () -> Unit,
+    val onOpenSpace: (Int) -> Unit,
+    val board: @Composable () -> Unit,
+)
+
+private enum class OrdersMode { ORDERS, AWAITING, AGENDA }
+
 /**
- * Pedidos: el historial con los filtros de la web, como tarjetas con la foto del primer platillo, y las mesas como
- * las ve el mesero a un toque (para abrir, cerrar o cobrar una mesa). Sin tablero queda solo el historial.
+ * Pedidos como el lienzo de Doop (marcos 34 a 36): las mesas en fichas arriba, los filtros y la lista. Tocar una mesa
+ * abre el tablero del mesero en esa mesa; aquí solo se consultan los pedidos, los mueven Caja, Cocina y Mesero.
  */
 @Composable
 internal fun AdminOrdersTab(
@@ -71,7 +86,8 @@ internal fun AdminOrdersTab(
     colors: OperationalColors,
     actions: AdminActions,
     header: AdminHeader,
-    tables: (@Composable () -> Unit)?,
+    tables: AdminOrdersTables?,
+    onTakeOrder: (() -> Unit)?,
 ) {
     val reduced = reducedMotion()
     var showsTables by rememberSaveable { mutableStateOf(false) }
@@ -81,63 +97,54 @@ internal fun AdminOrdersTab(
         label = "admin-orders",
     ) { tablesMode ->
         if (tablesMode && tables != null) {
-            TablesView(header, colors, onHistory = { showsTables = false }, tables = tables)
+            TablesView(colors, onBack = { showsTables = false }, board = tables.board)
         } else {
-            AdminOrdersHistory(state, colors, actions, header, onOpenTables = tables?.let { { showsTables = true } })
+            OrdersPage(state, colors, actions, header, tables, onTakeOrder) { spaceId ->
+                tables?.onOpenSpace?.invoke(spaceId)
+                showsTables = true
+            }
         }
     }
 }
 
 @Composable
 private fun TablesView(
-    header: AdminHeader,
     colors: OperationalColors,
-    onHistory: () -> Unit,
-    tables: @Composable () -> Unit,
+    onBack: () -> Unit,
+    board: @Composable () -> Unit,
 ) {
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().background(colors.background)) {
         Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .height(60.dp)
-                    .padding(horizontal = 20.dp),
+            modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            AdminVenueLogo(header.logoUrl, header.placeName, colors, size = 32.dp)
-            Text(
-                "MESAS",
-                color = colors.textPrimary,
-                fontWeight = FontWeight.Black,
-                fontSize = 20.sp,
-                modifier = Modifier.weight(1f),
-            )
-            AdminGlassChip("Ver pedidos", false, onHistory)
+            AdminRoundButton(Icons.AutoMirrored.Outlined.ArrowBack, "Volver a pedidos", colors, onBack)
+            Text("Mesas", color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 22.sp)
         }
-        Box(Modifier.weight(1f)) { tables() }
+        Box(Modifier.weight(1f)) { board() }
     }
 }
 
-/** El historial con los filtros de la web. Aquí solo se consultan: los mueven Caja, Cocina y Mesero. */
 @Composable
-private fun AdminOrdersHistory(
+private fun OrdersPage(
     state: AdminUiState,
     colors: OperationalColors,
     actions: AdminActions,
     header: AdminHeader,
-    onOpenTables: (() -> Unit)?,
+    tables: AdminOrdersTables?,
+    onTakeOrder: (() -> Unit)?,
+    onOpenTable: (Int) -> Unit,
 ) {
     var open by remember { mutableStateOf<OrderDetail?>(null) }
-    // Repostería (CASA-09): la agenda por día y «Me deben», junto a los filtros.
-    var showsAgenda by rememberSaveable { mutableStateOf(false) }
-    val agendaOn = showsAgenda && state.takesHomeOrders
+    var mode by rememberSaveable { mutableStateOf(OrdersMode.ORDERS) }
+    val agendaOn = mode == OrdersMode.AGENDA && state.takesHomeOrders
     LaunchedEffect(agendaOn) { if (agendaOn) actions.onRefreshAgenda() }
     // Prender las entregas en Mi tienda cambia el estado operativo: sin releerlo, la Agenda no salía (EQUIPO-50).
-    LaunchedEffect(Unit) { actions.onRefreshHome() }
-    val listState = rememberLazyListState()
-    val heroGone by rememberHeroGone(listState)
+    LaunchedEffect(Unit) {
+        actions.onRefreshHome()
+        tables?.onRefresh?.invoke()
+    }
     val photos =
         remember(state.catalog) {
             state.catalog
@@ -145,61 +152,116 @@ private fun AdminOrdersHistory(
                 .orEmpty()
                 .associate { it.id to it.imageUrl }
         }
-    val chips: @Composable () -> Unit = {
-        AdminChipRow {
-            if (onOpenTables != null) AdminGlassChip("Mesas", false, onOpenTables)
-            if (state.takesHomeOrders) AdminGlassChip("Agenda", agendaOn) { showsAgenda = true }
-            AdminOrderFilter.entries.forEach { filter ->
-                AdminGlassChip(filter.label, !agendaOn && filter == state.orderFilter) {
-                    showsAgenda = false
-                    actions.onSelectOrderFilter(filter)
+    val awaiting =
+        if (state.orderFilter == AdminOrderFilter.ACTIVE) {
+            state.orders.filter { it.summary.state == OrderState.AWAITING_ACCEPTANCE }
+        } else {
+            emptyList()
+        }
+    val unpaidBySpace =
+        remember(state.unpaid) {
+            state.unpaid
+                ?.accounts
+                .orEmpty()
+                .associateBy { it.spaceId }
+        }
+    AdminPage(
+        caption = if (agendaOn) "Administración · Lo que entregas" else "Administración · Hoy",
+        title = "Pedidos",
+        colors = colors,
+        trailing = { header.avatar() },
+    ) {
+        val boardTables = tables?.tables.orEmpty()
+        if (boardTables.isNotEmpty() && !agendaOn) {
+            item(key = "mesas") {
+                Column(Modifier.adminRise(1).padding(top = 14.dp)) {
+                    AdminCapsLabel("Mesas", colors, Modifier.padding(bottom = 8.dp))
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        boardTables.forEach { table ->
+                            TableTile(
+                                table,
+                                unpaidBySpace[table.space.id]?.total,
+                                colors,
+                            ) { onOpenTable(table.space.id) }
+                        }
+                    }
                 }
             }
         }
-    }
-    Box(Modifier.fillMaxSize()) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 24.dp),
-        ) {
-            item(key = "hero") {
-                val live = state.live
-                AdminHero(
-                    title = if (agendaOn) "Agenda" else "Pedidos",
-                    subtitle =
-                        live?.activeOrders?.let {
-                            val count = if (live.moreActiveOrders) "$it+" else "$it"
-                            if (it == 1 && !live.moreActiveOrders) "1 activo ahora" else "$count activos ahora"
-                        },
+        item(key = "chips") {
+            Row(
+                Modifier
+                    .adminRise(2)
+                    .padding(top = 14.dp)
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                val activeCount =
+                    if (state.orderFilter == AdminOrderFilter.ACTIVE &&
+                        !state.ordersLoading
+                    ) {
+                        state.orders.size
+                    } else {
+                        null
+                    }
+                AdminFilterChip(
+                    label = activeCount?.let { "Activos · $it" } ?: "Activos",
+                    selected = mode == OrdersMode.ORDERS && state.orderFilter == AdminOrderFilter.ACTIVE,
                     colors = colors,
-                    height = 210.dp,
-                    leading =
-                        onOpenTables?.let { open ->
-                            { AdminHeroPill("Mesas", icon = Icons.Outlined.TableRestaurant, onClick = open) }
-                        },
-                    trailing = header.avatar,
+                    onClick = {
+                        mode = OrdersMode.ORDERS
+                        actions.onSelectOrderFilter(AdminOrderFilter.ACTIVE)
+                    },
                 )
-            }
-            item(key = "chips") { chips() }
-            if (agendaOn) {
-                agendaItems(state, colors, actions.onRefreshAgenda) { open = it }
-            } else {
-                historyItems(state, colors, actions, photos) { open = it }
+                if (state.takesHomeOrders) {
+                    AwaitingChip(awaiting.size, mode == OrdersMode.AWAITING, colors) {
+                        mode = OrdersMode.AWAITING
+                        actions.onSelectOrderFilter(AdminOrderFilter.ACTIVE)
+                    }
+                }
+                AdminOrderFilter.entries.filter { it != AdminOrderFilter.ACTIVE }.forEach { filter ->
+                    AdminFilterChip(
+                        label = filter.label,
+                        selected = mode == OrdersMode.ORDERS && state.orderFilter == filter,
+                        colors = colors,
+                        onClick = {
+                            mode = OrdersMode.ORDERS
+                            actions.onSelectOrderFilter(filter)
+                        },
+                    )
+                }
+                if (state.takesHomeOrders) {
+                    AdminFilterChip(label = "Agenda", selected = agendaOn, colors = colors, onClick = {
+                        mode = OrdersMode.AGENDA
+                    })
+                }
             }
         }
-        AdminCompactBar(
-            visible = heroGone,
-            title = header.placeName,
-            logoUrl = header.logoUrl,
-            colors = colors,
-            trailing = { header.avatar() },
-            below = chips,
-        )
+        item(key = "separacion") { Box(Modifier.height(12.dp)) }
+        when {
+            agendaOn -> agendaItems(state, colors, actions.onRefreshAgenda) { open = it }
+            mode == OrdersMode.AWAITING ->
+                orderItems(state, awaiting, colors, actions, photos, OrdersMode.AWAITING, onTakeOrder) { open = it }
+            else ->
+                orderItems(
+                    state,
+                    state.orders,
+                    colors,
+                    actions,
+                    photos,
+                    OrdersMode.ORDERS,
+                    onTakeOrder,
+                ) { open = it }
+        }
     }
     open?.let { order ->
         OrderSheet(
             order = order,
+            photos = photos,
             colors = colors,
             busy = state.saving,
             error = state.notice?.takeIf { state.noticeIsError },
@@ -208,44 +270,128 @@ private fun AdminOrdersHistory(
     }
 }
 
-/** El historial con el filtro elegido, en la misma lista que el encabezado. */
-private fun LazyListScope.historyItems(
+/** «Por aceptar» con su cuenta en coral: los activos que esperan que el negocio diga sí o no. */
+@Composable
+private fun AwaitingChip(
+    count: Int,
+    selected: Boolean,
+    colors: OperationalColors,
+    onClick: () -> Unit,
+) {
+    val haptics = rememberVaiinillaHaptics()
+    val bg =
+        com.vaiinilla.app.ui.components.animateSelectionColor(
+            if (selected) colors.textPrimary else colors.cardBackground,
+            "por-aceptar",
+        )
+    Row(
+        Modifier
+            .physicalPress {
+                if (!selected) haptics.selection()
+                onClick()
+            }.height(36.dp)
+            .clip(CircleShape)
+            .background(bg)
+            .border(1.dp, if (selected) colors.textPrimary else colors.cardBorder, CircleShape)
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            "Por aceptar",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (selected) colors.background else colors.textSecondary,
+            maxLines = 1,
+        )
+        if (count > 0) {
+            Box(
+                Modifier.size(18.dp).clip(CircleShape).background(AdminCoral),
+                contentAlignment = Alignment.Center,
+            ) { Text("$count", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White) }
+        }
+    }
+}
+
+/** Una mesa del marco 34: su nombre y lo que pasa en ella, con el borde del color de lo urgente. */
+@Composable
+private fun TableTile(
+    table: BoardTable,
+    unpaidTotal: String?,
+    colors: OperationalColors,
+    onClick: () -> Unit,
+) {
+    val owes = unpaidTotal?.toBigDecimalOrNull()?.signum() == 1
+    val (label, tint, highlighted) =
+        when {
+            table.call != null -> Triple("Te llaman", colors.coralText, true)
+            table.orders.any { it.state == OrderState.READY } -> Triple("Listo para llevar", colors.accentInk, true)
+            owes -> Triple("${moneyLabel(unpaidTotal.orEmpty())} sin pagar", Yolk, true)
+            table.orders.isNotEmpty() -> Triple("Preparando", colors.accentInk, false)
+            table.availability?.state?.let { it != SpaceAvailabilityState.LIBRE } == true ->
+                Triple("Ocupada", colors.textSecondary, false)
+            else -> Triple("Libre", colors.textMuted, false)
+        }
+    val shape = RoundedCornerShape(16.dp)
+    Column(
+        Modifier
+            .physicalPress(onClick = onClick)
+            .semantics(mergeDescendants = true) { contentDescription = "${table.space.name}, $label" }
+            .width(78.dp)
+            .height(70.dp)
+            .clip(shape)
+            .background(colors.cardBackground)
+            .border(1.dp, if (highlighted) tint.copy(alpha = 0.7f) else colors.cardBorder, shape)
+            .padding(horizontal = 11.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Text(
+            table.space.name,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Black,
+            color = colors.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(label, fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = tint, maxLines = 2, lineHeight = 13.sp)
+    }
+}
+
+/** La lista del filtro elegido, en la misma columna que el encabezado. */
+private fun LazyListScope.orderItems(
     state: AdminUiState,
+    orders: List<OrderDetail>,
     colors: OperationalColors,
     actions: AdminActions,
     photos: Map<Int, String?>,
+    mode: OrdersMode,
+    onTakeOrder: (() -> Unit)?,
     onOpen: (OrderDetail) -> Unit,
 ) {
     val error = state.ordersError
-    if (error != null && state.orders.isEmpty()) {
-        item(key = "error") {
-            Box(Modifier.padding(horizontal = 16.dp)) { AdminLoadError(error, colors, actions.onRefreshOrders) }
-        }
-    } else if (!state.ordersLoading && state.orders.isEmpty()) {
+    if (error != null && orders.isEmpty()) {
+        item(key = "error") { AdminLoadError(error, colors, actions.onRefreshOrders) }
+    } else if (!state.ordersLoading && orders.isEmpty()) {
         item(key = "vacio") {
-            Box(Modifier.padding(horizontal = 20.dp)) {
-                AdminCard(colors) {
-                    Text(
-                        "Sin pedidos aquí",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = colors.textPrimary,
-                    )
-                    Text(
-                        "Cuando haya pedidos con este filtro, salen en esta lista.",
-                        fontSize = 13.sp,
-                        color = colors.textSecondary,
-                    )
-                }
-            }
+            val (title, message) = emptyCopy(mode, state.orderFilter)
+            val takeOrder =
+                onTakeOrder != null && mode == OrdersMode.ORDERS && state.orderFilter == AdminOrderFilter.ACTIVE
+            AdminEmptyState(
+                icon = Icons.Outlined.ConfirmationNumber,
+                title = title,
+                message = message,
+                colors = colors,
+                action = if (takeOrder) "Tomar un pedido" else null,
+                onAction = if (takeOrder) onTakeOrder else null,
+            )
         }
     }
-    items(state.orders, key = { it.summary.id }) { order ->
-        OrderCard(
+    items(orders, key = { it.summary.id }) { order ->
+        OrderRowCard(
             order = order,
             photo = order.items.firstOrNull()?.let { photos[it.productId] },
             colors = colors,
-            modifier = Modifier.animateItem().padding(horizontal = 20.dp, vertical = 6.dp),
+            modifier = Modifier.animateItem().padding(vertical = 4.dp),
         ) { onOpen(order) }
     }
     if (state.ordersLoading) {
@@ -258,25 +404,37 @@ private fun LazyListScope.historyItems(
                 )
             }
         }
-    } else if (state.ordersCursor != null) {
+    } else if (state.ordersCursor != null && mode == OrdersMode.ORDERS) {
         item(key = "mas") {
-            Box(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
-                ActionPill(
-                    label = "Ver más pedidos",
-                    enabled = true,
-                    loading = false,
-                    colors = colors,
-                    primary = false,
-                    onClick = actions.onLoadMoreOrders,
-                )
-            }
+            AdminSecondaryButton(
+                title = "Ver más pedidos",
+                colors = colors,
+                modifier = Modifier.padding(top = 8.dp),
+                onClick = actions.onLoadMoreOrders,
+            )
         }
     }
 }
 
-/** Un pedido: la foto del primer platillo, el folio grande, su estado y qué lleva. */
+private fun emptyCopy(
+    mode: OrdersMode,
+    filter: AdminOrderFilter,
+): Pair<String, String> =
+    when {
+        mode == OrdersMode.AWAITING ->
+            "Nada por aceptar" to
+                "Los encargos y pedidos a domicilio nuevos esperan aquí tu sí."
+        filter == AdminOrderFilter.ACTIVE -> "Sin pedidos activos" to "Cuando alguien pida, lo ves aquí al momento."
+        filter == AdminOrderFilter.DELIVERED -> "Nada entregado todavía" to "Lo que entregues hoy sale en esta lista."
+        filter == AdminOrderFilter.INCIDENTS ->
+            "Sin incidencias" to
+                "Aquí salen los cancelados y los que nadie recogió."
+        else -> "Sin pedidos" to "Cuando haya pedidos, salen en esta lista."
+    }
+
+/** Un pedido del marco 34: foto, folio con quién es, qué lleva, el total y su estado. */
 @Composable
-private fun OrderCard(
+private fun OrderRowCard(
     order: OrderDetail,
     photo: String?,
     colors: OperationalColors,
@@ -284,115 +442,92 @@ private fun OrderCard(
     onOpen: () -> Unit,
 ) {
     val summary = order.summary
-    val shape = RoundedCornerShape(26.dp)
+    val shape = RoundedCornerShape(20.dp)
+    val faded = summary.state == OrderState.DELIVERED || summary.state.isTerminalWithoutDelivery
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
+                .alpha(if (faded) 0.8f else 1f)
                 .physicalPress(onClick = onOpen)
-                .clip(shape)
+                .semantics(mergeDescendants = true) {
+                    contentDescription = "Pedido ${summary.folio}, ${whoLabel(order)}, ${summary.state.label}"
+                }.clip(shape)
                 .background(colors.cardBackground)
                 .border(
                     1.dp,
-                    if (summary.state ==
-                        OrderState.READY
-                    ) {
-                        colors.textPrimary.copy(alpha = 0.4f)
-                    } else {
-                        colors.cardBorder
-                    },
+                    if (summary.state == OrderState.AWAITING_ACCEPTANCE) Yolk.copy(alpha = 0.6f) else colors.cardBorder,
                     shape,
-                ).padding(12.dp),
+                ).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        val thumb = Modifier.size(76.dp).clip(RoundedCornerShape(18.dp))
-        if (photo != null) {
-            ProductImage(
-                imageUrl = photo,
-                contentDescription = "",
-                modifier = thumb,
-                placeholder = { m -> Box(m.background(colors.cardInner)) },
-                card = true,
-            )
-        } else {
-            Box(thumb.background(colors.cardInner), contentAlignment = Alignment.Center) {
-                Icon(Icons.Outlined.ReceiptLong, contentDescription = null, tint = colors.textMuted)
-            }
-        }
-        Column(Modifier.weight(1f)) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    "#${summary.folio}",
-                    fontWeight = FontWeight.Black,
-                    fontSize = 24.sp,
-                    letterSpacing = (-0.6).sp,
-                    color = colors.textPrimary,
-                )
-                StateTag(summary.state, colors)
-            }
+        AdminThumb(photo, order.items.firstOrNull()?.productName ?: "Pedido", colors, size = 46.dp)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                order.items.joinToString(" · ") { "${it.quantity} × ${it.productName}" },
-                fontSize = 13.5.sp,
-                color = colors.textSecondary,
+                "#${summary.folio} · ${whoLabel(order)}",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = colors.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 4.dp),
             )
             Text(
-                listOfNotNull(
-                    whereLabel(order),
-                    timeLabel(summary.createdAt),
-                    moneyLabel(summary.total),
-                ).joinToString(" · "),
+                orderSummaryLine(order),
                 fontSize = 12.5.sp,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.SemiBold,
                 color = colors.textMuted,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 2.dp),
             )
+        }
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                moneyLabel(summary.total),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = if (summary.state == OrderState.DELIVERED) colors.textSecondary else colors.textPrimary,
+            )
+            AdminBadge(statusLabel(order), colors, statusTone(summary.state))
         }
     }
 }
 
-@Composable
-private fun StateTag(
-    state: OrderState,
-    colors: OperationalColors,
-) {
-    val (background, content) =
+private fun orderSummaryLine(order: OrderDetail): String {
+    val summary = order.summary
+    val products = order.items.joinToString(", ") { "${it.quantity} × ${it.productName}" }
+    val how =
         when {
-            state.isTerminalWithoutDelivery -> AdminCoral.copy(alpha = 0.16f) to AdminCoral
-            state == OrderState.READY || state == OrderState.AWAITING_ACCEPTANCE ->
-                colors.textPrimary to
-                    colors.background
-            state == OrderState.ON_THE_WAY -> colors.accentLime.copy(alpha = 0.35f) to colors.textPrimary
-            state == OrderState.PREPARING || state == OrderState.PAID ->
-                colors.accentLime.copy(alpha = 0.18f) to colors.textPrimary
-            else -> colors.cardInner to colors.textSecondary
+            summary.destination == OrderDestination.HOME_DELIVERY -> "A domicilio"
+            summary.paymentPending -> "por cobrar"
+            else -> chargedPaymentLabel(summary) ?: summary.paymentMethod.label
         }
-    Text(
-        state.label,
-        fontSize = 12.sp,
-        fontWeight = FontWeight.Bold,
-        color = content,
-        maxLines = 1,
-        modifier =
-            Modifier
-                .clip(CircleShape)
-                .background(background)
-                .padding(horizontal = 10.dp, vertical = 4.dp),
-    )
+    return listOfNotNull(products.ifBlank { null }, how, timeLabel(summary.createdAt)).joinToString(" · ")
 }
+
+private fun statusLabel(order: OrderDetail): String {
+    val state = order.summary.state
+    return when {
+        state == OrderState.AWAITING_ACCEPTANCE -> "Por aceptar"
+        state == OrderState.PREPARING || state == OrderState.PAID -> "En cocina"
+        order.summary.paymentPending && !state.isTerminalWithoutDelivery && state != OrderState.DELIVERED ->
+            "Por cobrar"
+        else -> state.label
+    }
+}
+
+private fun statusTone(state: OrderState): AdminBadgeTone =
+    when {
+        state.isTerminalWithoutDelivery -> AdminBadgeTone.DANGER
+        state == OrderState.DELIVERED -> AdminBadgeTone.NEUTRAL
+        state == OrderState.READY || state == OrderState.ON_THE_WAY -> AdminBadgeTone.OK
+        else -> AdminBadgeTone.WARN
+    }
 
 @Composable
 private fun OrderSheet(
     order: OrderDetail,
+    photos: Map<Int, String?>,
     colors: OperationalColors,
     busy: Boolean = false,
     error: String? = null,
@@ -435,12 +570,12 @@ private fun OrderSheet(
                         if (item.notes.isNotBlank()) add("Nota: ${item.notes}")
                         item.rejection?.let { add("Quitado: ${it.reason}") }
                     }
-                AdminValueRow(
-                    label = "${item.quantity} × ${item.productName}",
-                    value = moneyLabel(item.subtotal),
+                AdminRow(
+                    title = "${item.quantity} × ${item.productName}",
                     colors = colors,
                     detail = details.joinToString("\n").ifBlank { null },
-                )
+                    leading = { AdminThumb(photos[item.productId], item.productName, colors) },
+                ) { AdminRowValue(moneyLabel(item.subtotal), colors) }
             }
             if (order.kitchenNotes.isNotBlank()) {
                 Text(

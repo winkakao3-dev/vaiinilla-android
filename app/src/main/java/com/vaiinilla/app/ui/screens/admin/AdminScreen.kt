@@ -114,7 +114,7 @@ class AdminSectionsHost(
     val spaces: AdminSpacesViewModel,
     val cash: AdminCashActions,
     /** El tablero del mesero para Pedidos → Mesas; null si no hay con qué cargarlo y queda solo el historial. */
-    val tablesBoard: (@Composable () -> Unit)? = null,
+    val tablesBoard: AdminOrdersTables? = null,
     /** Negocio › Escuela; null la esconde. */
     val school: com.vaiinilla.app.ui.admin.school.AdminSchoolViewModel? = null,
     /** La pestaña Pedir; null si no hay con qué tomar pedidos. */
@@ -258,6 +258,7 @@ fun AdminScreen(
                                 actions = actions,
                                 header = header,
                                 tables = sections.tablesBoard,
+                                onTakeOrder = sections.orderTaker?.let { { tab = AdminTab.TAKE_ORDER } },
                             )
                         AdminTab.BUSINESS ->
                             AdminBusinessTab(

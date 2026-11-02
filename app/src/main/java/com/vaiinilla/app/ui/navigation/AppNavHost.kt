@@ -143,6 +143,7 @@ import com.vaiinilla.app.ui.screens.WalletScreen
 import com.vaiinilla.app.ui.screens.WelcomeBootStage
 import com.vaiinilla.app.ui.screens.admin.AdminActions
 import com.vaiinilla.app.ui.screens.admin.AdminCashActions
+import com.vaiinilla.app.ui.screens.admin.AdminOrdersTables
 import com.vaiinilla.app.ui.screens.admin.AdminScreen
 import com.vaiinilla.app.ui.screens.admin.AdminSectionsHost
 import com.vaiinilla.app.ui.screens.admin.AdminTakeOrderTab
@@ -2330,39 +2331,44 @@ fun AppNavHost(
                                         onCloseCash = adminViewModel::closeCash,
                                         onRefresh = adminViewModel::refreshCash,
                                     ),
-                                // Pedidos → Mesas: el tablero del mesero para pedir en la mesa donde se esté. Sondea
-                                // solo mientras se ve.
-                                tablesBoard = {
-                                    DisposableEffect(Unit) {
-                                        waiterViewModel.onVisible()
-                                        onDispose { waiterViewModel.onHidden() }
-                                    }
-                                    WaiterOperationalScreen(
-                                        state = waiterState,
-                                        onBack = {},
+                                // Pedidos → Mesas: las fichas de arriba y el tablero del mesero para pedir en la mesa
+                                // donde se esté. El tablero sondea solo mientras se ve.
+                                tablesBoard =
+                                    AdminOrdersTables(
+                                        tables = waiterState.tables,
                                         onRefresh = waiterViewModel::refresh,
-                                        onGoing = waiterViewModel::markGoing,
-                                        onAttended = waiterViewModel::markAttended,
                                         onOpenSpace = waiterViewModel::openSpace,
-                                        onCloseSpace = waiterViewModel::closeSpace,
-                                        onOpenTurn = waiterViewModel::openTurn,
-                                        onStartRental = waiterViewModel::startRental,
-                                        onConfirmRental = waiterViewModel::confirmRental,
-                                        onCancelRental = waiterViewModel::cancelPendingRental,
-                                        onExtendTurn = waiterViewModel::extendTurn,
-                                        onReleaseSpace = waiterViewModel::releaseSpace,
-                                        onDismissCollection = waiterViewModel::dismissCollection,
-                                        onFilterAttending = waiterViewModel::setFilterAttending,
-                                        onOpenCounterOrder = waiterViewModel::openCounterOrder,
-                                        onOpenTableOrder = waiterViewModel::openTableOrder,
-                                        onCloseCounterOrder = waiterViewModel::closeCounterOrder,
-                                        onSubmitCounterOrder = waiterViewModel::submitCounterOrder,
-                                        restrictedMode = active?.restrictedMode,
-                                        placeName = active?.establishmentName.orEmpty(),
-                                        embedded = true,
-                                        canChargeAndDeliver = false,
-                                    )
-                                },
+                                    ) {
+                                        DisposableEffect(Unit) {
+                                            waiterViewModel.onVisible()
+                                            onDispose { waiterViewModel.onHidden() }
+                                        }
+                                        WaiterOperationalScreen(
+                                            state = waiterState,
+                                            onBack = {},
+                                            onRefresh = waiterViewModel::refresh,
+                                            onGoing = waiterViewModel::markGoing,
+                                            onAttended = waiterViewModel::markAttended,
+                                            onOpenSpace = waiterViewModel::openSpace,
+                                            onCloseSpace = waiterViewModel::closeSpace,
+                                            onOpenTurn = waiterViewModel::openTurn,
+                                            onStartRental = waiterViewModel::startRental,
+                                            onConfirmRental = waiterViewModel::confirmRental,
+                                            onCancelRental = waiterViewModel::cancelPendingRental,
+                                            onExtendTurn = waiterViewModel::extendTurn,
+                                            onReleaseSpace = waiterViewModel::releaseSpace,
+                                            onDismissCollection = waiterViewModel::dismissCollection,
+                                            onFilterAttending = waiterViewModel::setFilterAttending,
+                                            onOpenCounterOrder = waiterViewModel::openCounterOrder,
+                                            onOpenTableOrder = waiterViewModel::openTableOrder,
+                                            onCloseCounterOrder = waiterViewModel::closeCounterOrder,
+                                            onSubmitCounterOrder = waiterViewModel::submitCounterOrder,
+                                            restrictedMode = active?.restrictedMode,
+                                            placeName = active?.establishmentName.orEmpty(),
+                                            embedded = true,
+                                            canChargeAndDeliver = false,
+                                        )
+                                    },
                                 school = adminSchoolViewModel,
                                 // Pedir: el pedido de mostrador o de mesa del mesero, con el estilo del menú. Sondea
                                 // las mesas solo mientras se ve.
