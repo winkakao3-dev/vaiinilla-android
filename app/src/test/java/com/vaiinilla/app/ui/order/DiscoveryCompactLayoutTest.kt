@@ -6,11 +6,14 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
 import com.vaiinilla.app.domain.model.GuestVenueContext
+import com.vaiinilla.app.domain.model.LastOrderedPlace
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.ui.discovery.DiscoveryUiState
 import com.vaiinilla.app.ui.discovery.SEARCH_FAILED_MESSAGE
@@ -23,6 +26,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.time.Instant
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -60,38 +64,60 @@ class DiscoveryCompactLayoutTest {
         )
 
     @Test
-    fun `discovery lists every venue as a row and keeps QR and code reachable`() {
-        composeTestRule.setContent {
-            ScreenshotTheme {
-                DiscoveryScreen(
-                    state =
-                        DiscoveryUiState(
-                            establishments = listOf(active, america, south),
-                            selected = GuestVenueContext(establishment = active, space = null),
-                        ),
-                    onQueryChange = {},
-                    onSpaceTokenChange = {},
-                    onSelectEstablishment = {},
-                    onResolveSpace = {},
-                    onContinueSelected = {},
-                    profileInitials = "DR",
-                )
-            }
-        }
-        composeTestRule.waitForIdle()
+    fun `al abrir no se listan los lugares y el QR y el codigo van arriba`() {
+        setDiscovery(
+            DiscoveryUiState(
+                establishments = listOf(active, america, south),
+                selected = GuestVenueContext(establishment = active, space = null),
+            ),
+        )
 
         composeTestRule.onNodeWithText("Dónde pedir").assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("saulP1").assertCountEquals(1)
-        composeTestRule.onNodeWithText("Aquí estás · Acceso libre").assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("America").assertCountEquals(1)
-        composeTestRule.onAllNodesWithText("Cafetería Sur").assertCountEquals(1)
-        composeTestRule.onAllNodesWithText("Escanear QR").assertCountEquals(1)
-        composeTestRule.onAllNodesWithText("Usar código").assertCountEquals(1)
-        composeTestRule.onAllNodesWithText("Abiertas ahora").assertCountEquals(0)
+        composeTestRule.onNodeWithText("¿Ya estás en el lugar?").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("guest-scan-qr").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("guest-table-code").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("America").assertCountEquals(0)
+        composeTestRule.onAllNodesWithText("Cafetería Sur").assertCountEquals(0)
+        // El lugar activo es el camino de vuelta cuando no hay «Pediste aquí».
+        composeTestRule.onNodeWithTag("guest-active-place").performScrollTo().assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Acercar al NFC").assertCountEquals(0)
     }
 
     @Test
-    fun `quick access cards remain readable with larger text`() {
+    fun `pediste aqui ofrece pedir otra vez en el ultimo lugar`() {
+        var selected: PublicEstablishment? = null
+        setDiscovery(
+            DiscoveryUiState(
+                lastPlace =
+                    LastOrderedPlace(
+                        establishment = america,
+                        firstItemName = "Pastel Michi",
+                        otherItemsCount = 2,
+                        orderedAt = Instant.now(),
+                    ),
+            ),
+            onSelect = { selected = it },
+        )
+
+        composeTestRule.onNodeWithText("Pediste aquí").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Hoy · Pastel Michi y 2 más", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithTag("guest-last-place").performClick()
+        assertEquals(america, selected)
+        // Con un lugar conocido ya no es la primera visita.
+        composeTestRule.onAllNodesWithText("¿No ves un QR?", substring = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun `la primera vez explica que hacer sin QR y el codigo abre la hoja`() {
+        setDiscovery(DiscoveryUiState(establishments = emptyList()))
+
+        composeTestRule.onNodeWithText("¿No ves un QR?", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithTag("guest-table-code").performClick()
+        composeTestRule.onNodeWithText("Escribe los 4 dígitos que aparecen junto al QR de tu mesa.").assertIsDisplayed()
+    }
+
+    @Test
+    fun `las tarjetas de entrada se leen con texto grande`() {
         composeTestRule.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(
@@ -99,11 +125,7 @@ class DiscoveryCompactLayoutTest {
             ) {
                 ScreenshotTheme {
                     DiscoveryScreen(
-                        state =
-                            DiscoveryUiState(
-                                establishments = listOf(active, america),
-                                selected = GuestVenueContext(establishment = active, space = null),
-                            ),
+                        state = DiscoveryUiState(establishments = listOf(active, america)),
                         onQueryChange = {},
                         onSpaceTokenChange = {},
                         onSelectEstablishment = {},
@@ -116,80 +138,27 @@ class DiscoveryCompactLayoutTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onAllNodesWithText("¿Ya estás en tu mesa?").assertCountEquals(1)
-        composeTestRule.onAllNodesWithText("Escanear QR").assertCountEquals(1)
-        composeTestRule.onAllNodesWithText("Usar código").assertCountEquals(1)
+        composeTestRule.onNodeWithTag("guest-scan-qr").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("guest-table-code").assertIsDisplayed()
     }
 
     @Test
-    fun `sin negocios en la lista salen las tarjetas de QR, codigo y NFC sin el panel viejo`() {
-        setEmptyDiscovery(nfcAvailable = true)
+    fun `al buscar salen los lugares con su conteo`() {
+        setDiscovery(DiscoveryUiState(query = "caf", establishments = listOf(south)))
 
-        composeTestRule.onAllNodesWithText("Escanea el QR de tu mesa o de la tienda").assertCountEquals(0)
-        composeTestRule.onAllNodesWithText("Sin coincidencias").assertCountEquals(0)
-        composeTestRule.onAllNodesWithText("¿Ya estás en tu mesa?").assertCountEquals(1)
-        composeTestRule.onAllNodesWithText("Escanear QR").assertCountEquals(1)
-        composeTestRule.onNodeWithText("De tu mesa o tu escuela").assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("Los 4 dígitos de tu mesa").assertCountEquals(0)
-        composeTestRule.onNodeWithText("Acercar al NFC").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithText("Si tu mesa tiene etiqueta").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Acercar al NFC").performClick()
-        composeTestRule
-            .onNodeWithText("Acerca la parte de atrás de tu teléfono a la etiqueta: Vaiinilla abre tu mesa sola.")
-            .assertIsDisplayed()
-        composeTestRule.onNodeWithText("Usar código").performScrollTo().performClick()
-        composeTestRule.onNodeWithText("Escribe los 4 dígitos que aparecen junto al QR de tu mesa.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("1 lugar").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("establishment-cafeteria-sur").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("¿Ya estás en el lugar?").assertCountEquals(0)
     }
 
     @Test
-    fun `sin NFC en el telefono no sale la tarjeta Acercar al NFC`() {
-        setEmptyDiscovery(nfcAvailable = false)
-
-        composeTestRule.onNodeWithText("Usar código").assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("Acercar al NFC").assertCountEquals(0)
-    }
-
-    @Test
-    fun `una busqueda sin resultados avisa y deja limpiarla`() {
+    fun `una busqueda sin resultados lo dice y deja borrarla`() {
         var query = "zzz"
-        composeTestRule.setContent {
-            ScreenshotTheme {
-                DiscoveryScreen(
-                    state = DiscoveryUiState(establishments = emptyList(), query = query),
-                    onQueryChange = { query = it },
-                    onSpaceTokenChange = {},
-                    onSelectEstablishment = {},
-                    onResolveSpace = {},
-                    onContinueSelected = {},
-                    profileInitials = "DR",
-                    nfcAvailable = true,
-                )
-            }
-        }
-        composeTestRule.waitForIdle()
+        setDiscovery(DiscoveryUiState(establishments = emptyList(), query = query), onQuery = { query = it })
 
-        composeTestRule.onNodeWithText("Sin coincidencias").assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("Escanear QR").assertCountEquals(1)
-        composeTestRule.onNodeWithText("Limpiar búsqueda").performClick()
+        composeTestRule.onNodeWithText("No encontramos «zzz».").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Borrar búsqueda").performClick()
         assertEquals("", query)
-    }
-
-    private fun setEmptyDiscovery(nfcAvailable: Boolean) {
-        composeTestRule.setContent {
-            ScreenshotTheme {
-                DiscoveryScreen(
-                    state = DiscoveryUiState(establishments = emptyList()),
-                    onQueryChange = {},
-                    onSpaceTokenChange = {},
-                    onSelectEstablishment = {},
-                    onResolveSpace = {},
-                    onContinueSelected = {},
-                    profileInitials = "DR",
-                    nfcAvailable = nfcAvailable,
-                )
-            }
-        }
-        composeTestRule.waitForIdle()
     }
 
     @Test
@@ -214,9 +183,30 @@ class DiscoveryCompactLayoutTest {
             }
         }
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText(SEARCH_FAILED_MESSAGE).assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("Sin coincidencias").assertCountEquals(0)
+        composeTestRule.onAllNodesWithText(SEARCH_FAILED_MESSAGE).assertCountEquals(1)
+        composeTestRule.onAllNodesWithText("No encontramos «PADEL».").assertCountEquals(0)
         composeTestRule.onNodeWithText("Reintentar").performClick()
         assertEquals(1, retries)
+    }
+
+    private fun setDiscovery(
+        state: DiscoveryUiState,
+        onQuery: (String) -> Unit = {},
+        onSelect: (PublicEstablishment) -> Unit = {},
+    ) {
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                DiscoveryScreen(
+                    state = state,
+                    onQueryChange = onQuery,
+                    onSpaceTokenChange = {},
+                    onSelectEstablishment = onSelect,
+                    onResolveSpace = {},
+                    onContinueSelected = {},
+                    profileInitials = "DR",
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
     }
 }

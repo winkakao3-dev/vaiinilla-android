@@ -35,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
@@ -457,7 +458,10 @@ fun GlassCircleButton(
     }
 }
 
-/** Las iniciales de la cuenta en un círculo vainilla de 42. Mantener presionado cambia el tema, como en iOS. */
+/**
+ * Las iniciales de la cuenta en un círculo vainilla de 42. Mantener presionado cambia el tema, como en iOS.
+ * [flat]: sin vidrio, con relleno de tarjeta, borde fino y sombra (Dónde pedir).
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ProfileInitialsButton(
@@ -465,13 +469,27 @@ fun ProfileInitialsButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
+    flat: Boolean = false,
 ) {
+    val colors = LocalVaiinillaColors.current
+    val ink = if (flat) colors.ink else seaGlassInk(SeaGlassTone.vainilla)
     Box(
         modifier =
             modifier
-                .size(42.dp)
-                .seaGlass(SeaGlassTone.vainilla, CircleShape, seaGlassNight())
-                .clip(CircleShape)
+                .then(
+                    if (flat) {
+                        Modifier
+                            .size(44.dp)
+                            .shadow(
+                                8.dp,
+                                CircleShape,
+                                spotColor = Color.Black.copy(alpha = if (colors.isDark) 0.35f else 0.1f),
+                            ).background(colors.paper2, CircleShape)
+                            .border(1.dp, colors.line, CircleShape)
+                    } else {
+                        Modifier.size(42.dp).seaGlass(SeaGlassTone.vainilla, CircleShape, seaGlassNight())
+                    },
+                ).clip(CircleShape)
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
                 .semantics { contentDescription = "Cuenta" },
         contentAlignment = Alignment.Center,
@@ -481,11 +499,11 @@ fun ProfileInitialsButton(
             Icon(
                 Icons.Rounded.Person,
                 contentDescription = null,
-                tint = seaGlassInk(SeaGlassTone.vainilla),
+                tint = ink,
                 modifier = Modifier.size(22.dp),
             )
         } else {
-            Text(initials, color = seaGlassInk(SeaGlassTone.vainilla), fontSize = 13.sp, fontWeight = FontWeight.Black)
+            Text(initials, color = ink, fontSize = if (flat) 14.sp else 13.sp, fontWeight = FontWeight.Black)
         }
     }
 }

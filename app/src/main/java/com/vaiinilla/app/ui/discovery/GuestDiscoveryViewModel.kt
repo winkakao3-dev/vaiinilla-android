@@ -189,13 +189,6 @@ class GuestDiscoveryViewModel
                                     establishments = items,
                                     selected = refreshedSelected,
                                     nextCursor = cursor,
-                                    // Sin texto buscado, la pantalla ya explica la lista vacía.
-                                    errorMessage =
-                                        if (items.isEmpty() && query.isNotBlank()) {
-                                            "No encontramos cafeterías con ese nombre."
-                                        } else {
-                                            null
-                                        },
                                 )
                         },
                         onFailure = { error ->

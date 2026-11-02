@@ -1044,6 +1044,7 @@ fun AppNavHost(
                 // Tus escuelas: las de sus accesos, para volver sin código.
                 // Tras cambiar de cuenta o de modo el estado se limpió y no se pasa por SPLASH: se vuelve a buscar.
                 LaunchedEffect(studentAuthState.session?.uid, discoveryState.sessionEpoch) {
+                    discoveryViewModel.loadLastPlace()
                     discoveryViewModel.loadMySchools()
                     if (discoveryState.sessionEpoch > 0 && discoveryState.establishments.isEmpty()) {
                         discoveryViewModel.search("")
@@ -1082,9 +1083,6 @@ fun AppNavHost(
                         } else {
                             null
                         },
-                    onEnableNearby = discoveryViewModel::enableNearby,
-                    onNearbyPermissionDenied = discoveryViewModel::onNearbyPermissionDenied,
-                    onDisableNearby = discoveryViewModel::disableNearby,
                     onLoadMore = discoveryViewModel::loadMore,
                     onOpenSchool = { school ->
                         startEntrance(null)
