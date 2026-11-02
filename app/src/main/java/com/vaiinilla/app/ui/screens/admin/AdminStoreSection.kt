@@ -3,13 +3,46 @@ package com.vaiinilla.app.ui.screens.admin
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.HourglassTop
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Remove
+import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material.icons.outlined.Verified
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,14 +52,20 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -43,15 +82,24 @@ import com.vaiinilla.app.domain.admin.stripeStep
 import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.components.PhysicalPressScale
+import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.physicalPress
-import com.vaiinilla.app.ui.screens.ActionPill
+import com.vaiinilla.app.ui.components.reducedMotion
+import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.ChipButton
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
 import com.vaiinilla.app.ui.screens.StoreImagesCard
+import com.vaiinilla.app.ui.theme.Yolk
 import kotlinx.coroutines.launch
 
-/** Flujo de mi tienda: cómo cobra, entrega y se presenta el negocio. */
+/** Las páginas que abre la portada de Flujo de mi tienda (marcos 02a, 42, 43 y 44). */
+private enum class StorePage { PAYMENTS, FLOW, PRESENCE, DELIVERY }
+
+/**
+ * Flujo de mi tienda como el lienzo de Doop: arriba la foto y el logo, después cómo funciona la tienda y los pagos
+ * con tarjeta, que guardan al tocar; cada parte abre su página para el detalle y la entrega a domicilio va al final.
+ */
 @Composable
 internal fun AdminStoreSection(
     viewModel: AdminStoreViewModel,
@@ -62,6 +110,600 @@ internal fun AdminStoreSection(
     val state by viewModel.uiState
     // Al volver de Stripe (otra app) se vuelve a consultar el estado de la cuenta.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshStripe() }
+    var page by rememberSaveable { mutableStateOf<StorePage?>(null) }
+    val reduced = reducedMotion()
+    AnimatedContent(
+        targetState = page,
+        transitionSpec = {
+            if (reduced) {
+                fadeIn(snap()) togetherWith fadeOut(snap())
+            } else {
+                val forward = targetState != null
+                (
+                    slideInHorizontally(
+                        spring(stiffness = 500f),
+                    ) { if (forward) it / 4 else -it / 4 } + fadeIn(spring())
+                ) togetherWith
+                    (
+                        slideOutHorizontally(spring(stiffness = 500f)) { if (forward) -it / 4 else it / 4 } +
+                            fadeOut(spring())
+                    )
+            }
+        },
+        label = "store-page",
+    ) { current ->
+        when (current) {
+            null -> StoreCover(viewModel, colors, readOnly, onBack) { page = it }
+            StorePage.PAYMENTS -> StorePaymentsPage(viewModel, colors, readOnly) { page = null }
+            StorePage.FLOW -> StoreFlowPage(viewModel, colors, readOnly) { page = null }
+            StorePage.PRESENCE -> StorePresencePage(viewModel, colors, readOnly) { page = null }
+            StorePage.DELIVERY -> StoreDeliveryPage(viewModel, colors, readOnly) { page = null }
+        }
+    }
+    LaunchedEffect(state.config == null) { if (state.config == null && state.configError == null) viewModel.refresh() }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun StoreCover(
+    viewModel: AdminStoreViewModel,
+    colors: OperationalColors,
+    readOnly: Boolean,
+    onBack: () -> Unit,
+    onOpen: (StorePage) -> Unit,
+) {
+    val state by viewModel.uiState
+    val enabled = !readOnly && !state.saving
+    AdminSectionPage(
+        title = "Flujo de mi tienda",
+        colors = colors,
+        notice = state.notice,
+        noticeIsError = state.noticeIsError,
+        onBack = onBack,
+    ) {
+        val config = state.config
+        if (config == null) {
+            item {
+                val error = state.configError
+                if (error !=
+                    null
+                ) {
+                    AdminLoadError(error, colors, viewModel::refresh)
+                } else {
+                    AdminHint("Cargando tu tienda…", colors)
+                }
+            }
+            return@AdminSectionPage
+        }
+        item {
+            Text(
+                "Pagos, logo, entrega y cómo se pide",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textMuted,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+        }
+        item { StoreHero(state.images, colors, Modifier.adminRise(1)) { onOpen(StorePage.PRESENCE) } }
+        item {
+            val flow = config.flow()
+            AdminPanel(colors, Modifier.adminRise(2)) {
+                PanelTitle("Cómo funciona tu tienda", colors) { onOpen(StorePage.FLOW) }
+                StoreQuestion("Tipo de negocio", colors, Modifier.padding(top = 12.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    BusinessType.offered(config.availableTypes).forEach { type ->
+                        AdminFilterChip(
+                            label = type.label,
+                            selected = flow.typeWire == type.wire,
+                            colors = colors,
+                            onClick = { if (enabled) saveNow(viewModel, flow, flow.copy(typeWire = type.wire)) },
+                            height = 40.dp,
+                        )
+                    }
+                }
+                StoreQuestion("¿Cuándo pagan?", colors, Modifier.padding(top = 14.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    AdminFilterChip(
+                        label = "Al pedir",
+                        selected = !flow.allowsPayAtEnd,
+                        colors = colors,
+                        onClick = { if (enabled) saveNow(viewModel, flow, flow.copy(allowsPayAtEnd = false)) },
+                        height = 40.dp,
+                    )
+                    AdminFilterChip(
+                        label = "Al final, con cuenta abierta",
+                        selected = flow.allowsPayAtEnd,
+                        colors = colors,
+                        onClick = { if (enabled) saveNow(viewModel, flow, flow.copy(allowsPayAtEnd = true)) },
+                        height = 40.dp,
+                    )
+                }
+            }
+        }
+        item {
+            AdminPanel(colors, Modifier.adminRise(3)) {
+                PanelTitle("Pagos con tarjeta", colors) { onOpen(StorePage.PAYMENTS) }
+                StripeQuick(viewModel, colors, enabled)
+            }
+        }
+        if (showsDelivery(config)) {
+            item {
+                AdminPrimaryButton(
+                    title = "Seguir: entrega a domicilio",
+                    colors = colors,
+                    modifier = Modifier.adminRise(4).padding(top = 6.dp),
+                    icon = Icons.AutoMirrored.Outlined.ArrowForward,
+                ) { onOpen(StorePage.DELIVERY) }
+            }
+        }
+    }
+}
+
+/** Los chips de la portada guardan al tocarlos; lo demás del flujo se edita en su página. */
+private fun saveNow(
+    viewModel: AdminStoreViewModel,
+    saved: StoreFlow,
+    next: StoreFlow,
+) {
+    if (next == saved) return
+    val problem = StoreRules.problem(next)
+    if (problem != null) viewModel.notify(problem, true) else viewModel.saveFlow(next)
+}
+
+/** La entrega a domicilio y los encargos salen para la repostería y para quien ya reparte. */
+private fun showsDelivery(config: com.vaiinilla.app.domain.admin.StoreConfig): Boolean {
+    val bakery = config.type == BusinessType.HOME_BAKERY
+    if (config.homeDelivery?.let { it.enabled || bakery } == true) return true
+    return config.preorders?.let { bakery || it.requiresAcceptance || it.depositPercent != null } == true
+}
+
+/** La foto del lugar con el logo encima; abre la página de logo, videos y directorio. */
+@Composable
+private fun StoreHero(
+    images: com.vaiinilla.app.domain.repository.StoreImages,
+    colors: OperationalColors,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    val detail =
+        when {
+            images.logoUrl != null && images.photoUrl != null -> "Logo y foto listos"
+            images.logoUrl != null -> "Falta la foto del lugar"
+            images.photoUrl != null -> "Falta tu logo"
+            else -> "Sube tu logo y una foto"
+        }
+    val shape = RoundedCornerShape(24.dp)
+    Column(
+        modifier
+            .fillMaxWidth()
+            .physicalPress(onClick = onClick)
+            .semantics(mergeDescendants = true) { contentDescription = "Logo, foto, videos y directorio. $detail" }
+            .clip(shape)
+            .background(colors.cardBackground),
+    ) {
+        Box(Modifier.fillMaxWidth().height(96.dp)) {
+            val photo = images.photoUrl
+            if (photo != null) {
+                ProductImage(imageUrl = photo, contentDescription = "", modifier = Modifier.fillMaxSize())
+            } else {
+                Box(
+                    Modifier.fillMaxSize().background(colors.textPrimary.copy(alpha = 0.06f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Outlined.Image,
+                        contentDescription = null,
+                        tint = colors.textMuted,
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
+            }
+            Row(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(10.dp)
+                    .height(28.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .padding(horizontal = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                Icon(
+                    Icons.Outlined.PhotoCamera,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(12.dp),
+                )
+                Text("Foto", fontSize = 12.5.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 14.dp),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            val logo = images.logoUrl
+            val circle =
+                Modifier
+                    .offset(y = (-26).dp)
+                    .size(58.dp)
+                    .clip(CircleShape)
+                    .background(colors.background)
+                    .border(4.dp, colors.cardBackground, CircleShape)
+            if (logo != null) {
+                ProductImage(imageUrl = logo, contentDescription = "", modifier = circle)
+            } else {
+                Box(circle, contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Outlined.Storefront,
+                        contentDescription = null,
+                        tint = colors.textMuted,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+            Column(Modifier.weight(1f).offset(y = (-6).dp)) {
+                Text("Tu negocio", fontSize = 16.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
+                Text(detail, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = colors.textMuted)
+            }
+            Icon(
+                Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                contentDescription = null,
+                tint = colors.textMuted,
+                modifier = Modifier.offset(y = (-10).dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PanelTitle(
+    title: String,
+    colors: OperationalColors,
+    onClick: () -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .physicalPress(
+                scale = PhysicalPressScale.Small,
+                onClick = onClick,
+            ).semantics { heading() },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            title,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Black,
+            color = colors.textPrimary,
+            modifier = Modifier.weight(1f),
+        )
+        Text("Ver todo", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textMuted)
+        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.textMuted)
+    }
+}
+
+@Composable
+private fun StoreQuestion(
+    text: String,
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.ExtraBold,
+        color = colors.textPrimary,
+        modifier = modifier.padding(bottom = 8.dp),
+    )
+}
+
+/** Cómo está la cuenta de Stripe, en una franja de color: conectada (lima), pendiente (yema) o sin conectar. */
+@Composable
+private fun StripeStatusLine(
+    step: StripeStep,
+    colors: OperationalColors,
+) {
+    val (icon, text, tint) =
+        when (step) {
+            StripeStep.READY -> Triple(Icons.Outlined.Verified, "Cuenta de Stripe conectada", colors.accentInk)
+            StripeStep.FINISH -> Triple(Icons.Outlined.HourglassTop, "Stripe está revisando tus datos", Yolk)
+            StripeStep.CONNECT -> Triple(Icons.Outlined.CreditCard, "Sin conectar", colors.textMuted)
+        }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 44.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(tint.copy(alpha = 0.14f))
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+        Text(text, fontSize = 14.5.sp, fontWeight = FontWeight.ExtraBold, color = tint)
+    }
+}
+
+/** Los pagos con tarjeta de la portada: el estado y lo que falta, o quién paga la comisión. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun StripeQuick(
+    viewModel: AdminStoreViewModel,
+    colors: OperationalColors,
+    enabled: Boolean,
+) {
+    val state by viewModel.uiState
+    val context = LocalContext.current
+    if (!state.stripeLoaded) {
+        Box(Modifier.padding(top = 10.dp)) { AdminHint("Consultando tu cuenta de Stripe…", colors) }
+        return
+    }
+    val step = stripeStep(state.stripe)
+    Box(Modifier.padding(top = 12.dp)) { StripeStatusLine(step, colors) }
+    when (step) {
+        StripeStep.CONNECT ->
+            AdminPrimaryButton(
+                title = "Conectar con Stripe",
+                colors = colors,
+                modifier = Modifier.padding(top = 12.dp),
+                busy = state.saving,
+                enabled = enabled,
+            ) { viewModel.openStripe { openLink(context, it) } }
+        StripeStep.FINISH ->
+            AdminSecondaryButton(
+                title = "Completar en Stripe",
+                colors = colors,
+                modifier = Modifier.padding(top = 12.dp),
+                outlined = true,
+                enabled = enabled,
+            ) { viewModel.openStripe { openLink(context, it) } }
+        StripeStep.READY -> {
+            val setup = state.stripe ?: return
+            StoreQuestion("¿Quién paga la comisión de la tarjeta?", colors, Modifier.padding(top = 14.dp))
+            FeeChips(setup.passFeeToCustomer, colors, enabled) { viewModel.setFeePaidByCustomer(it) }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FeeChips(
+    customerPays: Boolean,
+    colors: OperationalColors,
+    enabled: Boolean,
+    onChange: (Boolean) -> Unit,
+) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        AdminFilterChip(
+            label = "El cliente",
+            selected = customerPays,
+            colors = colors,
+            onClick = { if (enabled && !customerPays) onChange(true) },
+            height = 40.dp,
+        )
+        AdminFilterChip(
+            label = "Yo",
+            selected = !customerPays,
+            colors = colors,
+            onClick = { if (enabled && customerPays) onChange(false) },
+            height = 40.dp,
+        )
+    }
+}
+
+/** Pagos con tarjeta (marco 42): el estado de Stripe, si se aceptan y quién paga la comisión. */
+@Composable
+private fun StorePaymentsPage(
+    viewModel: AdminStoreViewModel,
+    colors: OperationalColors,
+    readOnly: Boolean,
+    onBack: () -> Unit,
+) {
+    val state by viewModel.uiState
+    val context = LocalContext.current
+    val enabled = !readOnly && !state.saving
+    AdminSectionPage(
+        title = "Pagos con tarjeta",
+        colors = colors,
+        notice = state.notice,
+        noticeIsError = state.noticeIsError,
+        onBack = onBack,
+    ) {
+        if (!state.stripeLoaded) {
+            item { AdminHint("Consultando tu cuenta de Stripe…", colors) }
+            return@AdminSectionPage
+        }
+        val step = stripeStep(state.stripe)
+        item {
+            AdminPanel(colors, Modifier.adminRise(1)) {
+                StripeStatusLine(step, colors)
+                Box(Modifier.padding(top = 10.dp)) {
+                    AdminHint(
+                        when (step) {
+                            StripeStep.CONNECT ->
+                                "Conecta tu cuenta de Stripe para que tus clientes paguen con tarjeta desde la app."
+                            StripeStep.FINISH ->
+                                "Stripe aún necesita datos o está revisando tu cuenta. Termina la configuración para cobrar con tarjeta."
+                            StripeStep.READY -> "Lo que cobras con tarjeta llega a tu cuenta de Stripe."
+                        },
+                        colors,
+                    )
+                }
+                if (step != StripeStep.READY) {
+                    AdminPrimaryButton(
+                        title = if (step == StripeStep.CONNECT) "Conectar con Stripe" else "Completar en Stripe",
+                        colors = colors,
+                        modifier = Modifier.padding(top = 12.dp),
+                        busy = state.saving,
+                        enabled = enabled,
+                    ) { viewModel.openStripe { openLink(context, it) } }
+                }
+            }
+        }
+        val setup = state.stripe
+        if (step == StripeStep.READY && setup != null) {
+            item {
+                AdminPanel(
+                    colors,
+                    Modifier.adminRise(2),
+                    padding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
+                ) {
+                    AdminToggleRow(
+                        title = "Aceptar pagos con tarjeta",
+                        checked = setup.enabled,
+                        colors = colors,
+                        onChange = { viewModel.setCardPayments(it) },
+                        detail = "Tus clientes eligen tarjeta al pagar en la app.",
+                        enabled = enabled,
+                    )
+                }
+            }
+            item {
+                Column(Modifier.adminRise(3).padding(horizontal = 2.dp)) {
+                    StoreQuestion("¿Quién paga la comisión de la tarjeta?", colors, Modifier.padding(top = 8.dp))
+                    FeeChips(setup.passFeeToCustomer, colors, enabled) { viewModel.setFeePaidByCustomer(it) }
+                    Box(Modifier.padding(top = 8.dp)) {
+                        AdminHint(
+                            if (setup.passFeeToCustomer) {
+                                "Con tarjeta se suma la comisión al precio; con efectivo o saldo se cobra el precio normal."
+                            } else {
+                                "El mismo precio con efectivo, saldo o tarjeta. La comisión sale de lo que cobras."
+                            },
+                            colors,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Cómo funciona tu tienda (marco 43): plantilla, tipo, cobro, entrega, saldo, gracia y franjas. */
+@Composable
+private fun StoreFlowPage(
+    viewModel: AdminStoreViewModel,
+    colors: OperationalColors,
+    readOnly: Boolean,
+    onBack: () -> Unit,
+) {
+    val state by viewModel.uiState
+    AdminSectionPage(
+        title = "Cómo funciona tu tienda",
+        colors = colors,
+        notice = state.notice,
+        noticeIsError = state.noticeIsError,
+        onBack = onBack,
+    ) {
+        val config = state.config ?: return@AdminSectionPage
+        item {
+            Box(Modifier.adminRise(1)) {
+                FlowForm(
+                    config.flow(),
+                    config.availableTypes,
+                    colors,
+                    !readOnly && !state.saving,
+                    readOnly,
+                    state.saving,
+                    viewModel,
+                )
+            }
+        }
+    }
+}
+
+/** Tu local (marco 44): logo y foto, videos y cómo te encuentran. */
+@Composable
+private fun StorePresencePage(
+    viewModel: AdminStoreViewModel,
+    colors: OperationalColors,
+    readOnly: Boolean,
+    onBack: () -> Unit,
+) {
+    val state by viewModel.uiState
+    val enabled = !readOnly && !state.saving
+    val notify: (String, Boolean) -> Unit = viewModel::notify
+    AdminSectionPage(
+        title = "Tu local",
+        colors = colors,
+        notice = state.notice,
+        noticeIsError = state.noticeIsError,
+        onBack = onBack,
+    ) {
+        val config = state.config ?: return@AdminSectionPage
+        item { AdminH2("Logo y foto", colors) }
+        item {
+            StoreImagesCard(
+                images = state.images,
+                busy = state.imageBusy,
+                notice = null,
+                enabled = !readOnly,
+                colors = colors,
+                onUpload = viewModel::uploadImage,
+                onRemove = viewModel::removeImage,
+                onPrepareFailed = viewModel::imageProblem,
+            )
+        }
+        item { AdminH2("Videos del local", colors) }
+        item { VideosCard(config.videos, colors, enabled, viewModel::saveVideos) }
+        item { AdminH2("Cómo te encuentran", colors) }
+        item {
+            AdminPanel(colors, padding = PaddingValues(horizontal = 16.dp, vertical = 2.dp)) {
+                AdminToggleRow(
+                    title = "Aparecer en el directorio",
+                    checked = config.visibleInDirectory,
+                    colors = colors,
+                    onChange = { if (it != config.visibleInDirectory) viewModel.setVisibleInDirectory(it) },
+                    detail = "Te encuentran en «Dónde pedir»",
+                    enabled = enabled,
+                )
+                AdminRowDivider(colors)
+                AdminToggleRow(
+                    title = "Es una escuela",
+                    checked = config.isSchool,
+                    colors = colors,
+                    onChange = { if (it != config.isSchool) viewModel.setSchoolMode(it) },
+                    detail = "Activa alumnos, tutores y menú del día",
+                    enabled = enabled,
+                )
+            }
+        }
+        config.storeUrl?.let { url ->
+            item {
+                AdminPanel(colors, Modifier.padding(top = 10.dp)) {
+                    AdminHint("El QR de tu tienda abre tu menú directo.", colors)
+                    Box(Modifier.padding(top = 10.dp)) {
+                        // Con un mensaje listo, el QR se pega tal cual en WhatsApp o en el estado (CASA-10).
+                        AdminQrBlock(
+                            url = url,
+                            name = "tienda",
+                            colors = colors,
+                            onNotice = notify,
+                            shareMessage = "Haz tu pedido aquí: $url",
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Entrega a domicilio y encargos: la zona, el envío y cómo se aceptan. */
+@Composable
+private fun StoreDeliveryPage(
+    viewModel: AdminStoreViewModel,
+    colors: OperationalColors,
+    readOnly: Boolean,
+    onBack: () -> Unit,
+) {
+    val state by viewModel.uiState
     val enabled = !readOnly && !state.saving
     val notify: (String, Boolean) -> Unit = viewModel::notify
     val context = LocalContext.current
@@ -93,82 +735,14 @@ internal fun AdminStoreSection(
                 notify("Sin permiso de ubicación. Pega el enlace de Google Maps de tu negocio.", true)
             }
         }
-
     AdminSectionPage(
-        title = "Flujo de mi tienda",
+        title = "Entrega a domicilio",
         colors = colors,
         notice = state.notice,
         noticeIsError = state.noticeIsError,
         onBack = onBack,
     ) {
-        val config = state.config
-        if (config == null) {
-            item {
-                val error = state.configError
-                if (error !=
-                    null
-                ) {
-                    AdminLoadError(error, colors, viewModel::refresh)
-                } else {
-                    AdminHint("Cargando tu tienda…", colors)
-                }
-            }
-            return@AdminSectionPage
-        }
-        item { StripeCard(viewModel, colors, enabled) }
-        item {
-            AdminCard(colors) {
-                AdminSectionTitle("Directorio", colors)
-                AdminChoice(
-                    question = "¿Dónde te encuentran?",
-                    options = listOf(false to "Solo con QR o código", true to "También en la lista de Vaiinilla"),
-                    selected = config.visibleInDirectory,
-                    colors = colors,
-                    enabled = enabled,
-                ) { if (it != config.visibleInDirectory) viewModel.setVisibleInDirectory(it) }
-                config.storeUrl?.let { url ->
-                    AdminHint("El QR de tu tienda abre tu menú directo.", colors)
-                    // Con un mensaje listo, el QR se pega tal cual en WhatsApp o en el estado (CASA-10).
-                    AdminQrBlock(
-                        url = url,
-                        name = "tienda",
-                        colors = colors,
-                        onNotice = notify,
-                        shareMessage = "Haz tu pedido aquí: $url",
-                    )
-                }
-            }
-        }
-        item {
-            AdminCard(colors) {
-                AdminSectionTitle("Escuela", colors)
-                AdminChoice(
-                    question = "¿Es una escuela?",
-                    options = listOf(false to "No", true to "Sí, con tutores y alumnos"),
-                    selected = config.isSchool,
-                    colors = colors,
-                    enabled = enabled,
-                ) { if (it != config.isSchool) viewModel.setSchoolMode(it) }
-                AdminHint(
-                    "Los tutores recargan y apartan la comida de sus hijos, y Caja le cobra al alumno sin teléfono.",
-                    colors,
-                )
-            }
-        }
-        item {
-            StoreImagesCard(
-                images = state.images,
-                busy = state.imageBusy,
-                notice = null,
-                enabled = !readOnly,
-                colors = colors,
-                onUpload = viewModel::uploadImage,
-                onRemove = viewModel::removeImage,
-                onPrepareFailed = viewModel::imageProblem,
-            )
-        }
-        item { VideosCard(config.videos, colors, enabled, viewModel::saveVideos) }
-        item { FlowCard(config.flow(), config.availableTypes, colors, enabled, readOnly, viewModel) }
+        val config = state.config ?: return@AdminSectionPage
         val worksFromHome = config.type == BusinessType.HOME_BAKERY
         config.homeDelivery?.takeIf { it.enabled || worksFromHome }?.let { delivery ->
             item {
@@ -197,71 +771,6 @@ internal fun AdminStoreSection(
             ?.let { preorders ->
                 item { AdminPreordersCard(preorders, enabled, readOnly, colors, viewModel::savePreorders) }
             }
-    }
-}
-
-@Composable
-private fun StripeCard(
-    viewModel: AdminStoreViewModel,
-    colors: OperationalColors,
-    enabled: Boolean,
-) {
-    val state by viewModel.uiState
-    val context = LocalContext.current
-    AdminCard(colors) {
-        AdminSectionTitle("Pagos con tarjeta", colors)
-        if (!state.stripeLoaded) {
-            AdminHint("Consultando tu cuenta de Stripe…", colors)
-            return@AdminCard
-        }
-        val setup = state.stripe
-        when (stripeStep(setup)) {
-            StripeStep.CONNECT -> {
-                AdminHint("Conecta tu cuenta de Stripe para que tus clientes paguen con tarjeta desde la app.", colors)
-                ActionPill(
-                    label = "Conectar mi cuenta de Stripe",
-                    enabled = enabled,
-                    loading = state.saving,
-                    colors = colors,
-                ) {
-                    viewModel.openStripe { openLink(context, it) }
-                }
-            }
-            StripeStep.FINISH -> {
-                AdminHint(
-                    "Stripe aún necesita datos o está revisando tu cuenta. Termina la configuración para cobrar con tarjeta.",
-                    colors,
-                )
-                ActionPill(label = "Completar en Stripe", enabled = enabled, loading = state.saving, colors = colors) {
-                    viewModel.openStripe { openLink(context, it) }
-                }
-            }
-            StripeStep.READY -> {
-                val ready = setup ?: return@AdminCard
-                AdminChoice(
-                    question = "¿Aceptas pagos con tarjeta?",
-                    options = listOf(true to "Sí, acepto tarjeta", false to "No por ahora"),
-                    selected = ready.enabled,
-                    colors = colors,
-                    enabled = enabled,
-                ) { if (it != ready.enabled) viewModel.setCardPayments(it) }
-                AdminChoice(
-                    question = "¿Quién paga la comisión de la tarjeta?",
-                    options = listOf(false to "Yo, el negocio", true to "El cliente"),
-                    selected = ready.passFeeToCustomer,
-                    colors = colors,
-                    enabled = enabled,
-                ) { if (it != ready.passFeeToCustomer) viewModel.setFeePaidByCustomer(it) }
-                AdminHint(
-                    if (ready.passFeeToCustomer) {
-                        "Con tarjeta se suma la comisión al precio; con efectivo o saldo se cobra el precio normal."
-                    } else {
-                        "El mismo precio con efectivo, saldo o tarjeta."
-                    },
-                    colors,
-                )
-            }
-        }
     }
 }
 
@@ -334,160 +843,292 @@ private fun VideosCard(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun FlowCard(
+private fun FlowForm(
     saved: StoreFlow,
     availableTypes: List<String>?,
     colors: OperationalColors,
     enabled: Boolean,
     readOnly: Boolean,
+    saving: Boolean,
     viewModel: AdminStoreViewModel,
 ) {
     var flow by remember { mutableStateOf(saved) }
     // La plantilla tocada se ve marcada; se apaga si después se cambia el tipo de negocio a mano (CASA-01).
     var template by remember { mutableStateOf<StoreTemplate?>(null) }
-    var grace by remember { mutableStateOf(saved.releaseGraceMinutes.toString()) }
+    var editingWindow by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(saved) {
         flow = saved
-        grace = saved.releaseGraceMinutes.toString()
+        template = null
+        editingWindow = null
     }
     val windows = flow.orderWindows
-    AdminCard(colors) {
-        AdminSectionTitle("Cómo funciona tu tienda", colors)
-        Text("Empieza con una plantilla", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val chips = Arrangement.spacedBy(8.dp)
+    Column(Modifier.animateContentSize(spring(stiffness = 500f))) {
+        StoreQuestion("Plantilla", colors)
+        FlowRow(horizontalArrangement = chips, verticalArrangement = chips) {
             StoreTemplate.offered(availableTypes).forEach { option ->
-                ChipButton(
+                AdminFilterChip(
                     label = option.label,
-                    enabled = enabled,
-                    colors = colors,
                     selected = template == option && flow.typeWire == option.type.wire,
+                    colors = colors,
+                    onClick = {
+                        if (enabled) {
+                            template = option
+                            flow = flow.applying(option)
+                        }
+                    },
+                    height = 40.dp,
+                )
+            }
+        }
+        StoreQuestion("Tipo de negocio", colors, Modifier.padding(top = 18.dp))
+        FlowRow(horizontalArrangement = chips, verticalArrangement = chips) {
+            BusinessType.offered(availableTypes).forEach { type ->
+                AdminFilterChip(
+                    label = type.label,
+                    selected = flow.typeWire == type.wire,
+                    colors = colors,
+                    onClick = {
+                        if (enabled && flow.typeWire != type.wire) {
+                            flow = flow.copy(typeWire = type.wire)
+                            template = null
+                        }
+                    },
+                    height = 40.dp,
+                )
+            }
+        }
+        StoreQuestion("¿Cuándo pagan?", colors, Modifier.padding(top = 18.dp))
+        FlowRow(horizontalArrangement = chips, verticalArrangement = chips) {
+            AdminFilterChip(
+                label = "Al pedir",
+                selected = !flow.allowsPayAtEnd,
+                colors = colors,
+                onClick = { if (enabled) flow = flow.copy(allowsPayAtEnd = false) },
+                height = 40.dp,
+            )
+            AdminFilterChip(
+                label = "Al final, con cuenta abierta",
+                selected = flow.allowsPayAtEnd,
+                colors = colors,
+                onClick = { if (enabled) flow = flow.copy(allowsPayAtEnd = true) },
+                height = 40.dp,
+            )
+        }
+        StoreQuestion("¿Cómo se entrega lo de llevar?", colors, Modifier.padding(top = 18.dp))
+        FlowRow(horizontalArrangement = chips, verticalArrangement = chips) {
+            AdminFilterChip(
+                label = "Escaneando su QR",
+                selected = flow.deliveryRequiresQr,
+                colors = colors,
+                onClick = { if (enabled) flow = flow.copy(deliveryRequiresQr = true) },
+                height = 40.dp,
+            )
+            AdminFilterChip(
+                label = "Sin QR",
+                selected = !flow.deliveryRequiresQr,
+                colors = colors,
+                onClick = { if (enabled) flow = flow.copy(deliveryRequiresQr = false) },
+                height = 40.dp,
+            )
+        }
+        Box(Modifier.padding(top = 8.dp, start = 2.dp)) {
+            AdminHint("En una mesa con cuenta abierta nunca se pide QR.", colors)
+        }
+        AdminPanel(
+            colors,
+            Modifier.padding(top = 16.dp),
+            padding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
+        ) {
+            AdminToggleRow(
+                title = "Pagar con saldo",
+                checked = flow.allowsBalance,
+                colors = colors,
+                onChange = { flow = flow.copy(allowsBalance = it) },
+                detail = "El cliente usa su wallet al pagar",
+                enabled = enabled,
+            )
+            AdminRowDivider(colors)
+            AdminToggleRow(
+                title = "Cocina prepara antes de cobrar",
+                checked = flow.kitchenPreparesUnpaid,
+                colors = colors,
+                onChange = { flow = flow.copy(kitchenPreparesUnpaid = it) },
+                detail = "Los pedidos por cobrar entran a cocina",
+                enabled = enabled,
+            )
+        }
+        AdminPanel(
+            colors,
+            Modifier.padding(top = 10.dp),
+            padding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
+        ) {
+            AdminRow(
+                title = "Tiempo de gracia",
+                colors = colors,
+                detail = "Al terminar un turno, antes de liberar la mesa",
+            ) {
+                StepButton(Icons.Outlined.Remove, "Menos minutos", colors, enabled && flow.releaseGraceMinutes > 0) {
+                    flow = flow.copy(releaseGraceMinutes = (flow.releaseGraceMinutes - 5).coerceAtLeast(0))
+                }
+                Text(
+                    "${flow.releaseGraceMinutes} min",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black,
+                    color = colors.textPrimary,
+                    modifier = Modifier.widthIn(min = 52.dp),
+                    textAlign = TextAlign.Center,
+                )
+                StepButton(
+                    Icons.Outlined.Add,
+                    "Más minutos",
+                    colors,
+                    enabled && flow.releaseGraceMinutes < StoreRules.MAX_GRACE_MINUTES,
                 ) {
-                    template = option
-                    flow = flow.applying(option)
-                    grace = "5"
+                    flow =
+                        flow.copy(
+                            releaseGraceMinutes =
+                                (flow.releaseGraceMinutes + 5).coerceAtMost(
+                                    StoreRules.MAX_GRACE_MINUTES,
+                                ),
+                        )
                 }
             }
         }
-        AdminChoice(
-            question = "Tipo de negocio",
-            options = BusinessType.offered(availableTypes).map { it.wire to it.label },
-            selected = flow.typeWire,
-            colors = colors,
-            enabled = enabled,
-        ) {
-            flow = flow.copy(typeWire = it)
-            template = null
-        }
-        AdminChoice(
-            question = "¿Cuándo pagan?",
-            options = listOf(false to "Al pedir", true to "Al final, con cuenta abierta"),
-            selected = flow.allowsPayAtEnd,
-            colors = colors,
-            enabled = enabled,
-        ) { flow = flow.copy(allowsPayAtEnd = it) }
-        AdminChoice(
-            question = "¿Permitir pagos con saldo?",
-            options = listOf(true to "Sí", false to "No"),
-            selected = flow.allowsBalance,
-            colors = colors,
-            enabled = enabled,
-        ) { flow = flow.copy(allowsBalance = it) }
-        AdminChoice(
-            question = "¿Cómo se entrega?",
-            options = listOf(true to "Escanear QR para pedidos para llevar", false to "Entregar sin QR"),
-            selected = flow.deliveryRequiresQr,
-            colors = colors,
-            enabled = enabled,
-        ) { flow = flow.copy(deliveryRequiresQr = it) }
-        AdminHint("En una mesa con cuenta abierta nunca se pide QR.", colors)
-        AdminChoice(
-            question = "¿Cocina prepara antes de cobrar?",
-            options = listOf(true to "Sí, en cuanto llega", false to "No, solo lo cobrado"),
-            selected = flow.kitchenPreparesUnpaid,
-            colors = colors,
-            enabled = enabled,
-        ) { flow = flow.copy(kitchenPreparesUnpaid = it) }
-        AdminHint("Con «Solo lo cobrado», Caja cobra el pedido antes de que Cocina lo empiece.", colors)
-        OperationalField(
-            value = grace,
-            onValueChange = { grace = it.filter(Char::isDigit).take(2) },
-            label = "Gracia al terminar un turno (minutos)",
-            colors = colors,
-            supporting = "De 0 a ${StoreRules.MAX_GRACE_MINUTES}.",
-            enabled = enabled,
-            keyboardType = KeyboardType.Number,
-        )
-        Text("¿Cuándo se reciben pedidos?", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-        if (windows.isEmpty()) AdminHint("Siempre que la tienda esté abierta.", colors)
-        windows.forEachIndexed { index, window ->
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OperationalField(
-                    value = window.from,
-                    onValueChange = { value ->
-                        flow =
-                            flow.copy(orderWindows = windows.replace(index, window.copy(from = clock(value))))
-                    },
-                    label = "Desde",
+        StoreQuestion("¿Cuándo se reciben pedidos?", colors, Modifier.padding(top = 18.dp))
+        FlowRow(horizontalArrangement = chips, verticalArrangement = chips) {
+            windows.forEachIndexed { index, window ->
+                AdminFilterChip(
+                    label = "${window.from}–${window.to}",
+                    selected = editingWindow == index,
                     colors = colors,
-                    enabled = enabled,
-                    modifier = Modifier.weight(1f),
-                )
-                OperationalField(
-                    value = window.to,
-                    onValueChange = { value ->
-                        flow =
-                            flow.copy(orderWindows = windows.replace(index, window.copy(to = clock(value))))
-                    },
-                    label = "Hasta",
-                    colors = colors,
-                    enabled = enabled,
-                    modifier = Modifier.weight(1f),
-                )
-                Icon(
-                    Icons.Outlined.Delete,
-                    contentDescription = null,
-                    tint = colors.textSecondary,
-                    modifier =
-                        Modifier
-                            .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small) {
-                                flow = flow.copy(orderWindows = windows.filterIndexed { i, _ -> i != index })
-                            }.size(44.dp)
-                            .semantics { contentDescription = "Quitar franja" },
+                    onClick = { editingWindow = if (editingWindow == index) null else index },
+                    height = 40.dp,
                 )
             }
-        }
-        if (windows.size < StoreRules.MAX_WINDOWS) {
-            ChipButton(label = "Agregar franja", enabled = enabled, colors = colors) {
-                flow = flow.copy(orderWindows = windows + StoreRules.nextWindow(windows))
+            if (windows.size < StoreRules.MAX_WINDOWS) {
+                Row(
+                    Modifier
+                        .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small) {
+                            flow = flow.copy(orderWindows = windows + StoreRules.nextWindow(windows))
+                            editingWindow = windows.size
+                        }.height(40.dp)
+                        .border(1.dp, colors.cardBorder, CircleShape)
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    Icon(
+                        Icons.Outlined.Add,
+                        contentDescription = null,
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text("Franja", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
+                }
             }
         }
-        AdminHint("Si una franja termina antes de empezar, cruza la medianoche.", colors)
-        val ready = flow.copy(releaseGraceMinutes = grace.toIntOrNull() ?: -1)
-        val problem = StoreRules.problem(ready)
-        AdminSheetError(problem.takeIf { ready != saved })
-        if (!readOnly) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ActionPill(
-                    label = "Descartar",
-                    enabled = enabled && ready != saved,
-                    loading = false,
+        if (windows.isEmpty()) {
+            Box(Modifier.padding(top = 8.dp, start = 2.dp)) { AdminHint("Siempre que la tienda esté abierta.", colors) }
+        }
+        val index = editingWindow
+        if (index != null && index in windows.indices) {
+            val window = windows[index]
+            AdminPanel(colors, Modifier.padding(top = 10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AdminTextField(
+                        label = "Desde",
+                        value = window.from,
+                        onValueChange = {
+                            flow =
+                                flow.copy(orderWindows = windows.replace(index, window.copy(from = clock(it))))
+                        },
+                        colors = colors,
+                        modifier = Modifier.weight(1f),
+                        placeholder = "12:00",
+                        keyboardType = KeyboardType.Number,
+                        enabled = enabled,
+                    )
+                    AdminTextField(
+                        label = "Hasta",
+                        value = window.to,
+                        onValueChange = {
+                            flow =
+                                flow.copy(orderWindows = windows.replace(index, window.copy(to = clock(it))))
+                        },
+                        colors = colors,
+                        modifier = Modifier.weight(1f),
+                        placeholder = "15:00",
+                        keyboardType = KeyboardType.Number,
+                        enabled = enabled,
+                    )
+                }
+                Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.weight(1f)) { AdminHint("Si termina antes de empezar, cruza la medianoche.", colors) }
+                    Text(
+                        "Quitar",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = colors.coralText,
+                        modifier =
+                            Modifier
+                                .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small) {
+                                    flow = flow.copy(orderWindows = windows.filterIndexed { i, _ -> i != index })
+                                    editingWindow = null
+                                }.padding(8.dp),
+                    )
+                }
+            }
+        }
+        val problem = StoreRules.problem(flow)
+        if (flow != saved) {
+            Box(Modifier.padding(top = 12.dp)) { AdminSheetError(problem) }
+        }
+        if (!readOnly && flow != saved) {
+            Row(Modifier.padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                AdminSecondaryButton(
+                    title = "Descartar",
                     colors = colors,
-                    primary = false,
                     modifier = Modifier.weight(1f),
+                    outlined = true,
                 ) {
                     flow = saved
-                    grace = saved.releaseGraceMinutes.toString()
+                    template = null
+                    editingWindow = null
                 }
-                ActionPill(
-                    label = "Guardar flujo",
-                    enabled = enabled && ready != saved && problem == null,
-                    loading = false,
+                AdminPrimaryButton(
+                    title = "Guardar flujo",
                     colors = colors,
                     modifier = Modifier.weight(1f),
-                ) { viewModel.saveFlow(ready) }
+                    busy = saving,
+                    enabled = problem == null && enabled,
+                ) { viewModel.saveFlow(flow) }
             }
         }
     }
+}
+
+@Composable
+private fun StepButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    colors: OperationalColors,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val haptics = rememberVaiinillaHaptics()
+    Box(
+        Modifier
+            .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small) {
+                haptics.selection()
+                onClick()
+            }.alpha(if (enabled) 1f else 0.4f)
+            .size(34.dp)
+            .clip(CircleShape)
+            .background(colors.textPrimary.copy(alpha = 0.08f))
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) { Icon(icon, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(14.dp)) }
 }
 
 private fun List<OrderWindow>.replace(
