@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
@@ -8,30 +9,33 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.PriorityHigh
 import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -47,22 +51,23 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.layout
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.repository.TableSpace
-import com.vaiinilla.app.ui.components.EditorialSearchField
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.ToastPill
+import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -72,16 +77,15 @@ import com.vaiinilla.app.ui.screens.COUNTER_LINE_QUANTITY_MAX
 import com.vaiinilla.app.ui.screens.CUSTOMER_NAME_MAX
 import com.vaiinilla.app.ui.screens.OpcionesMostrador
 import com.vaiinilla.app.ui.screens.OperationalColors
-import com.vaiinilla.app.ui.screens.OperationalField
 import com.vaiinilla.app.ui.screens.alternarOpcionMostrador
 import com.vaiinilla.app.ui.screens.counterOrderMatches
 import com.vaiinilla.app.ui.screens.opcionesIniciales
 import com.vaiinilla.app.ui.screens.opcionesValidas
 
 /**
- * Pedir: el admin toma un pedido para el mostrador o para una mesa, con el mismo flujo del mesero (el mostrador se
- * cobra en efectivo en Caja; la mesa va a su cuenta si el negocio deja pagar al final). Arriba se elige para quién
- * es, en medio se arma con las fotos del menú y abajo queda la barra para mandarlo.
+ * Pedir, como el lienzo de Doop: el admin toma un pedido para el mostrador o para una mesa con el flujo del mesero (el
+ * mostrador se cobra en Caja; la mesa va a su cuenta si el negocio deja pagar al final). Un producto con opciones
+ * abre su hoja; la barra lima de abajo abre el resumen, donde va el nombre y se manda.
  */
 @Composable
 internal fun AdminTakeOrderTab(
@@ -95,15 +99,15 @@ internal fun AdminTakeOrderTab(
     var name by remember { mutableStateOf("") }
     var query by remember { mutableStateOf("") }
     var lines by remember { mutableStateOf<Map<Int, CartLine>>(emptyMap()) }
+    var choosing by remember { mutableStateOf<CartLine?>(null) }
+    var reviewing by remember { mutableStateOf(false) }
     var wasSending by remember { mutableStateOf(false) }
     val catalog = state.counterCatalog
     val products = catalog?.products.orEmpty().filter { it.available }
     val visible = counterOrderMatches(products, query)
     val spaces = remember(state.tables) { state.tables.map { it.space }.distinctBy { it.id } }
     val destination = state.counterOrderSpace
-    val invalid = lines.values.filter { !opcionesValidas(it) }.map { it.product.name }
-    val canSend = lines.isNotEmpty() && invalid.isEmpty() && !state.counterOrderSending
-    val gridState = rememberLazyGridState()
+    val toAccount = destination != null && state.allowsPayAtEnd
 
     LaunchedEffect(Unit) { if (!state.counterOrderOpen) onPickCounter() }
     // El envío salió bien cuando deja de enviar sin error: se limpia y queda listo para el siguiente, en mostrador.
@@ -111,183 +115,118 @@ internal fun AdminTakeOrderTab(
         if (wasSending && !state.counterOrderSending && state.counterOrderError == null) {
             lines = emptyMap()
             name = ""
+            reviewing = false
             onPickCounter()
         }
         wasSending = state.counterOrderSending
     }
 
-    fun add(product: Product) {
-        val current = lines[product.id]
-        lines =
-            lines +
-            (
-                product.id to
-                    (
-                        current?.copy(quantity = (current.quantity + 1).coerceAtMost(COUNTER_LINE_QUANTITY_MAX))
-                            ?: CartLine(product, 1, opcionesIniciales(product))
-                    )
-            )
+    fun step(
+        productId: Int,
+        delta: Int,
+    ) {
+        val current = lines[productId] ?: return
+        val quantity = (current.quantity + delta).coerceAtMost(COUNTER_LINE_QUANTITY_MAX)
+        lines = if (quantity <= 0) lines - productId else lines + (productId to current.copy(quantity = quantity))
     }
 
-    fun remove(productId: Int) {
-        val current = lines[productId] ?: return
-        lines =
-            if (current.quantity <=
-                1
-            ) {
-                lines - productId
-            } else {
-                lines + (productId to current.copy(quantity = current.quantity - 1))
-            }
+    fun add(product: Product) {
+        when {
+            lines.containsKey(product.id) -> step(product.id, 1)
+            product.optionGroups.isNotEmpty() -> choosing = CartLine(product, 1, opcionesIniciales(product))
+            else -> lines = lines + (product.id to CartLine(product, 1, opcionesIniciales(product)))
+        }
     }
 
     Box(Modifier.fillMaxSize()) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            state = gridState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = Side, end = Side, bottom = 110.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item(key = "hero", span = { GridItemSpan(maxLineSpan) }) {
-                Box(Modifier.bleed(Side)) {
-                    AdminHero(
-                        title = "Pedir",
-                        subtitle = "Nuevo pedido",
-                        colors = colors,
-                        height = 190.dp,
-                        trailing = header.avatar,
-                    )
-                }
-            }
-            item(key = "para-quien", span = { GridItemSpan(maxLineSpan) }) {
-                Column(Modifier.bleed(Side)) {
-                    Text(
-                        "¿PARA QUIÉN ES?",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.4.sp,
-                        color = colors.textSecondary,
-                        modifier = Modifier.padding(start = 22.dp, top = 14.dp),
-                    )
-                    AdminChipRow {
-                        AdminGlassChip("Mostrador", destination == null, onPickCounter)
-                        spaces.forEach { space ->
-                            AdminGlassChip(space.name, destination?.id == space.id) { onPickTable(space) }
-                        }
-                    }
-                }
-            }
-            item(key = "buscar", span = { GridItemSpan(maxLineSpan) }) {
-                EditorialSearchField(
-                    value = query,
-                    onValueChange = { query = it },
-                    placeholder = "Buscar en el menú…",
-                    seaGlass = true,
-                )
-            }
-            if (catalog == null) {
-                item(key = "cargando", span = { GridItemSpan(maxLineSpan) }) {
-                    Box(Modifier.fillMaxWidth().padding(28.dp), contentAlignment = Alignment.Center) {
-                        if (state.counterOrderError != null) {
-                            Text(state.counterOrderError, color = colors.textSecondary, fontSize = 13.sp)
-                        } else {
-                            CircularProgressIndicator(
-                                color = colors.textPrimary,
-                                strokeWidth = 2.5.dp,
-                                modifier = Modifier.size(26.dp),
-                            )
-                        }
-                    }
-                }
-            } else if (visible.isEmpty()) {
-                item(key = "nada", span = { GridItemSpan(maxLineSpan) }) {
-                    Text("Nada con “${query.trim()}” en el menú.", color = colors.textSecondary, fontSize = 13.sp)
-                }
-            }
-            items(visible, key = { "producto-${it.id}" }) { product ->
-                TakeOrderCard(
-                    product = product,
-                    quantity = lines[product.id]?.quantity ?: 0,
-                    colors = colors,
-                    modifier = Modifier.animateItem(),
-                    onAdd = { add(product) },
-                    onRemove = { remove(product.id) },
-                )
-            }
-            val withOptions = lines.values.filter { it.product.optionGroups.isNotEmpty() }
-            if (withOptions.isNotEmpty()) {
-                item(key = "opciones-titulo", span = { GridItemSpan(maxLineSpan) }) {
-                    Text(
-                        "Opciones",
-                        fontWeight = FontWeight.Black,
-                        fontSize = 20.sp,
-                        color = colors.textPrimary,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                }
-                items(
-                    withOptions,
-                    key = { "opciones-${it.product.id}" },
-                    span = { GridItemSpan(maxLineSpan) },
-                ) { line ->
-                    OpcionesMostrador(
-                        modifier = Modifier.animateItem(),
-                        linea = line,
-                        colors = colors,
-                        onOpcion = { group, optionId ->
-                            lines[line.product.id]?.let {
-                                lines =
-                                    lines +
-                                    (
-                                        line.product.id to
-                                            it.copy(
-                                                selectedOptionIds =
-                                                    alternarOpcionMostrador(it.selectedOptionIds, group, optionId),
-                                            )
-                                    )
-                            }
-                        },
-                    )
-                }
-            }
-            if (lines.isNotEmpty()) {
-                item(key = "nombre", span = { GridItemSpan(maxLineSpan) }) {
-                    OperationalField(
-                        value = name,
-                        onValueChange = { if (it.length <= CUSTOMER_NAME_MAX) name = it },
-                        label = "Nombre del cliente (opcional)",
-                        colors = colors,
-                        modifier = Modifier.padding(top = 6.dp),
-                    )
-                }
-            }
-            if (invalid.isNotEmpty()) {
-                item(key = "faltan", span = { GridItemSpan(maxLineSpan) }) {
-                    Text(
-                        "Elige las opciones obligatorias de ${invalid.joinToString()}.",
-                        color = AdminCoral,
-                        fontSize = 13.sp,
-                    )
-                }
-            }
-            state.counterOrderError?.takeIf { catalog != null }?.let { message ->
-                item(key = "error", span = { GridItemSpan(maxLineSpan) }) {
-                    Text(message, color = AdminCoral, fontSize = 13.sp)
-                }
-            }
-        }
-        SendBar(
-            visible = lines.isNotEmpty(),
-            destination = destination?.name ?: "Mostrador",
-            lines = lines.values.toList(),
-            toAccount = destination != null && state.allowsPayAtEnd,
-            enabled = canSend,
-            sending = state.counterOrderSending,
+        AdminHeroPage(
+            cover = header.photoUrl,
+            caption = "Administración · Nuevo pedido",
+            title = "Pedir",
             colors = colors,
-            modifier = Modifier.align(Alignment.BottomCenter),
-        ) { onSubmit(lines.values.toList(), name) }
+            compactTitle = "Pedir",
+            compactLogo = header.logoUrl,
+            trailing = { header.avatar() },
+        ) {
+            item(key = "para-quien") {
+                Column(Modifier.adminRise(1)) {
+                    AdminCapsLabel("¿Para quién es?", colors, Modifier.padding(top = 14.dp, bottom = 8.dp))
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        DestinationChip(
+                            "Mostrador",
+                            destination == null,
+                            colors,
+                            showsIcon = true,
+                            onClick = onPickCounter,
+                        )
+                        spaces.forEach { space ->
+                            DestinationChip(space.name, destination?.id == space.id, colors) { onPickTable(space) }
+                        }
+                    }
+                }
+            }
+            item(
+                key = "buscar",
+            ) { SearchField(query, colors, Modifier.padding(top = 12.dp).adminRise(2)) { query = it } }
+            when {
+                catalog == null ->
+                    item(key = "cargando") {
+                        Box(Modifier.fillMaxWidth().padding(28.dp), contentAlignment = Alignment.Center) {
+                            if (state.counterOrderError != null) {
+                                AdminHint(state.counterOrderError, colors)
+                            } else {
+                                CircularProgressIndicator(
+                                    color = colors.textPrimary,
+                                    strokeWidth = 2.5.dp,
+                                    modifier = Modifier.size(26.dp),
+                                )
+                            }
+                        }
+                    }
+                visible.isEmpty() ->
+                    item(key = "nada") {
+                        Box(Modifier.padding(start = 4.dp, top = 14.dp)) {
+                            AdminHint("Nada con «${query.trim()}» en el menú.", colors)
+                        }
+                    }
+                else ->
+                    visible.chunked(2).forEachIndexed { index, pair ->
+                        item(key = "fila-${pair.first().id}") {
+                            Row(
+                                Modifier.animateItem().adminRise(3).padding(top = if (index == 0) 14.dp else 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                pair.forEach { product ->
+                                    TakeOrderCard(
+                                        product = product,
+                                        quantity = lines[product.id]?.quantity ?: 0,
+                                        colors = colors,
+                                        modifier = Modifier.weight(1f),
+                                        onAdd = { add(product) },
+                                        onSubtract = { step(product.id, -1) },
+                                    )
+                                }
+                                if (pair.size == 1) Spacer(Modifier.weight(1f))
+                            }
+                        }
+                    }
+            }
+            state.counterOrderError?.takeIf { catalog != null && !reviewing }?.let { message ->
+                item(key = "error") {
+                    Text(
+                        message,
+                        color = colors.coralText,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
+            }
+            item(key = "espacio-barra") { Spacer(Modifier.height(if (lines.isEmpty()) 0.dp else 84.dp)) }
+        }
         ToastPill(
             message = state.toastMessage,
             containerColor = colors.textPrimary,
@@ -296,20 +235,132 @@ internal fun AdminTakeOrderTab(
             badgeContentColor = if (state.toastIsError) colors.background else colors.accentInk,
             icon = if (state.toastIsError) Icons.Rounded.PriorityHigh else Icons.Rounded.Check,
         )
+        Box(Modifier.align(Alignment.BottomCenter)) {
+            OrderBar(
+                visible = lines.isNotEmpty(),
+                destination = destination?.name ?: "Mostrador",
+                lines = lines.values.toList(),
+                toAccount = toAccount,
+                colors = colors,
+            ) { reviewing = true }
+        }
+    }
+    choosing?.let { line ->
+        OptionsSheet(
+            line = line,
+            destination = destination?.name ?: "Mostrador",
+            colors = colors,
+            onChange = { choosing = it },
+            onDismiss = { choosing = null },
+        ) {
+            lines = lines + (line.product.id to line)
+            choosing = null
+        }
+    }
+    if (reviewing && lines.isNotEmpty()) {
+        ReviewSheet(
+            lines = lines.values.toList(),
+            name = name,
+            destination = destination?.name ?: "Mostrador",
+            toAccount = toAccount,
+            sending = state.counterOrderSending,
+            error = state.counterOrderError,
+            colors = colors,
+            onName = { if (it.length <= CUSTOMER_NAME_MAX) name = it },
+            onStep = ::step,
+            onOption = { line, group, optionId ->
+                lines =
+                    lines +
+                    (
+                        line.product.id to
+                            line.copy(
+                                selectedOptionIds = alternarOpcionMostrador(line.selectedOptionIds, group, optionId),
+                            )
+                    )
+            },
+            onDismiss = { reviewing = false },
+        ) { onSubmit(lines.values.toList(), name) }
     }
 }
 
-private val Side = 20.dp
-
-private fun Modifier.bleed(margin: Dp): Modifier =
-    layout { measurable, constraints ->
-        val extra = (margin * 2).roundToPx()
-        val width = constraints.maxWidth + extra
-        val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
-        layout(constraints.maxWidth, placeable.height) { placeable.place(-extra / 2, 0) }
+@Composable
+private fun DestinationChip(
+    label: String,
+    selected: Boolean,
+    colors: OperationalColors,
+    showsIcon: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val haptics = rememberVaiinillaHaptics()
+    val shape = RoundedCornerShape(50)
+    Row(
+        Modifier
+            .height(42.dp)
+            .physicalPress(scale = PhysicalPressScale.Small) {
+                haptics.selection()
+                onClick()
+            }.semantics { this.selected = selected }
+            .clip(shape)
+            .background(
+                animateSelectionColor(if (selected) colors.textPrimary else colors.cardBackground, "destino-fondo"),
+            ).border(1.dp, if (selected) colors.textPrimary else colors.cardBorder, shape)
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        val tint = if (selected) colors.background else colors.textSecondary
+        if (showsIcon) {
+            Icon(
+                Icons.Outlined.Storefront,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(15.dp),
+            )
+        }
+        Text(label, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = tint, maxLines = 1)
     }
+}
 
-/** Un producto con su foto: un toque suma uno; con algo en el pedido sale la cantidad y un botón para quitar. */
+@Composable
+private fun SearchField(
+    query: String,
+    colors: OperationalColors,
+    modifier: Modifier,
+    onChange: (String) -> Unit,
+) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .height(46.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(colors.cardBackground)
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(Icons.Rounded.Search, contentDescription = null, tint = colors.textMuted, modifier = Modifier.size(18.dp))
+        Box(Modifier.weight(1f)) {
+            if (query.isEmpty()) {
+                Text(
+                    "Buscar producto",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textMuted,
+                )
+            }
+            BasicTextField(
+                value = query,
+                onValueChange = onChange,
+                singleLine = true,
+                textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = colors.textPrimary),
+                cursorBrush = SolidColor(colors.textPrimary),
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Buscar producto" },
+            )
+        }
+    }
+}
+
+/** Un producto con su foto: tocarlo suma; con algo en el pedido, la pastilla lima con menos, cantidad y más. */
 @Composable
 private fun TakeOrderCard(
     product: Product,
@@ -317,30 +368,34 @@ private fun TakeOrderCard(
     colors: OperationalColors,
     modifier: Modifier,
     onAdd: () -> Unit,
-    onRemove: () -> Unit,
+    onSubtract: () -> Unit,
 ) {
     val haptics = rememberVaiinillaHaptics()
     val reduced = reducedMotion()
+    val shape = RoundedCornerShape(26.dp)
     Box(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .aspectRatio(0.84f)
-                .physicalPress(enabled = quantity < COUNTER_LINE_QUANTITY_MAX, scale = PhysicalPressScale.ProductCard) {
-                    haptics.click()
-                    onAdd()
-                }.semantics { contentDescription = "Agregar ${product.name}" }
-                .clip(RoundedCornerShape(26.dp))
-                .background(colors.cardInner)
-                .then(
-                    if (quantity >
-                        0
-                    ) {
-                        Modifier.border(2.dp, colors.textPrimary, RoundedCornerShape(26.dp))
-                    } else {
-                        Modifier
-                    },
-                ),
+        modifier
+            .fillMaxWidth()
+            .aspectRatio(0.84f)
+            .physicalPress(enabled = quantity < COUNTER_LINE_QUANTITY_MAX, scale = PhysicalPressScale.ProductCard) {
+                haptics.selection()
+                onAdd()
+            }.semantics {
+                contentDescription =
+                    "Agregar ${product.name}" + if (quantity > 0) ", $quantity en el pedido" else ""
+            }.clip(shape)
+            .background(colors.cardInner)
+            .border(
+                if (quantity >
+                    0
+                ) {
+                    2.dp
+                } else {
+                    0.dp
+                },
+                if (quantity > 0) colors.accentLime else Color.Transparent,
+                shape,
+            ),
     ) {
         ProductImage(
             imageUrl = product.imageUrl,
@@ -363,12 +418,11 @@ private fun TakeOrderCard(
             card = true,
         )
         Column(
-            modifier =
-                Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .background(Scrim)
-                    .padding(start = 14.dp, end = 56.dp, top = 34.dp, bottom = 12.dp),
+            Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .background(Scrim)
+                .padding(start = 14.dp, end = 12.dp, top = 34.dp, bottom = 12.dp),
         ) {
             Text(
                 product.name,
@@ -387,133 +441,320 @@ private fun TakeOrderCard(
                 modifier = Modifier.padding(top = 3.dp),
             )
         }
-        AnimatedVisibility(
-            visible = quantity > 0,
-            enter = if (reduced) fadeIn() else scaleIn(spring(dampingRatio = 0.55f, stiffness = 600f)) + fadeIn(),
-            exit = if (reduced) fadeOut() else scaleOut(spring(stiffness = 700f)) + fadeOut(),
-            modifier = Modifier.align(Alignment.TopEnd).padding(10.dp),
-        ) {
-            Box(
-                Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(colors.textPrimary),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("$quantity", color = colors.background, fontWeight = FontWeight.Black, fontSize = 15.sp)
+        Box(Modifier.align(Alignment.TopEnd).padding(10.dp)) {
+            AnimatedContent(
+                targetState = quantity > 0,
+                transitionSpec = {
+                    if (reduced) {
+                        fadeIn() togetherWith fadeOut()
+                    } else {
+                        (scaleIn(spring(dampingRatio = 0.65f, stiffness = 520f), 0.6f) + fadeIn()) togetherWith
+                            (scaleOut(spring(stiffness = 700f), 0.6f) + fadeOut())
+                    }
+                },
+                label = "pastilla",
+            ) { inOrder ->
+                if (inOrder) {
+                    Row(
+                        Modifier
+                            .height(
+                                34.dp,
+                            ).clip(CircleShape)
+                            .background(colors.accentLime)
+                            .padding(horizontal = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Stepper(Icons.Rounded.Remove, "Quitar uno de ${product.name}", colors.accentInk, onSubtract)
+                        RollingCount(quantity, colors.accentInk)
+                        Stepper(Icons.Rounded.Add, "Agregar otro ${product.name}", colors.accentInk, onAdd)
+                    }
+                } else {
+                    Box(
+                        Modifier
+                            .size(34.dp)
+                            .shadow(6.dp, CircleShape)
+                            .clip(CircleShape)
+                            .background(Color.White),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Rounded.Add,
+                            contentDescription = null,
+                            tint = Color(0xFF1D1E1C),
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
             }
         }
-        AnimatedVisibility(
-            visible = quantity > 0,
-            enter = if (reduced) fadeIn() else scaleIn(spring(dampingRatio = 0.6f, stiffness = 600f)) + fadeIn(),
-            exit = if (reduced) fadeOut() else scaleOut(spring(stiffness = 700f)) + fadeOut(),
-            modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp),
+    }
+}
+
+@Composable
+private fun Stepper(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    tint: Color,
+    onClick: () -> Unit,
+) {
+    val haptics = rememberVaiinillaHaptics()
+    Box(
+        Modifier
+            .size(width = 32.dp, height = 34.dp)
+            .physicalPress(scale = PhysicalPressScale.Small) {
+                haptics.selection()
+                onClick()
+            }.semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
+    }
+}
+
+/** La cantidad cambia rodando: sube al sumar y baja al quitar. */
+@Composable
+private fun RollingCount(
+    value: Int,
+    color: Color,
+    fontSize: Int = 15,
+) {
+    val reduced = reducedMotion()
+    AnimatedContent(
+        targetState = value,
+        transitionSpec = {
+            val up = targetState > initialState
+            if (reduced) {
+                fadeIn() togetherWith fadeOut()
+            } else {
+                (
+                    slideInVertically(
+                        spring(dampingRatio = 0.8f, stiffness = 600f),
+                    ) { if (up) it else -it } + fadeIn()
+                ) togetherWith
+                    (slideOutVertically(spring(stiffness = 800f)) { if (up) -it else it } + fadeOut())
+            }
+        },
+        label = "cantidad",
+        modifier = Modifier.widthIn(min = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) { count -> Text("$count", fontSize = fontSize.sp, fontWeight = FontWeight.Black, color = color) }
+}
+
+/** La barra lima del lienzo: cuántos, para quién y cuánto; tocarla abre el resumen. */
+@Composable
+private fun OrderBar(
+    visible: Boolean,
+    destination: String,
+    lines: List<CartLine>,
+    toAccount: Boolean,
+    colors: OperationalColors,
+    onOpen: () -> Unit,
+) {
+    val reduced = reducedMotion()
+    val haptics = rememberVaiinillaHaptics()
+    AnimatedVisibility(
+        visible = visible,
+        enter =
+            if (reduced) {
+                fadeIn()
+            } else {
+                slideInVertically(spring(dampingRatio = 0.82f, stiffness = 420f)) { it } +
+                    fadeIn()
+            },
+        exit = if (reduced) fadeOut() else slideOutVertically(spring(stiffness = 600f)) { it } + fadeOut(),
+    ) {
+        val missing = lines.any { !opcionesValidas(it) }
+        Row(
+            Modifier
+                .padding(start = 14.dp, end = 14.dp, bottom = 12.dp)
+                .fillMaxWidth()
+                .height(58.dp)
+                .physicalPress(scale = PhysicalPressScale.Small) {
+                    haptics.click()
+                    onOpen()
+                }.shadow(16.dp, CircleShape)
+                .clip(CircleShape)
+                .background(colors.accentLime)
+                .padding(start = 12.dp, end = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Box(
-                Modifier
-                    .size(40.dp)
-                    .physicalPress(scale = PhysicalPressScale.Small) {
-                        haptics.selection()
-                        onRemove()
-                    }.semantics { contentDescription = "Quitar uno de ${product.name}" }
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.5f))
-                    .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape),
+                Modifier.size(30.dp).clip(CircleShape).background(colors.accentInk),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    Icons.Rounded.Remove,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp),
+                RollingCount(lines.sumOf { it.quantity }, colors.accentLime, fontSize = 14)
+            }
+            Text(
+                "$destination · ${moneyLabel(Money.counterPreview(lines))}",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Black,
+                color = colors.accentInk,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Box(
+                Modifier
+                    .height(44.dp)
+                    .clip(CircleShape)
+                    .background(colors.accentInk)
+                    .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    when {
+                        missing -> "Faltan opciones"
+                        toAccount -> "A la cuenta"
+                        else -> "Enviar a Caja"
+                    },
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black,
+                    color = colors.accentLime,
                 )
             }
         }
     }
 }
 
-/** La barra fija de abajo: para quién, cuánto lleva y el botón que lo manda. Sube con un resorte al agregar algo. */
+/** Las opciones de un producto antes de sumarlo; cerrar la hoja no lo agrega. */
 @Composable
-private fun SendBar(
-    visible: Boolean,
+private fun OptionsSheet(
+    line: CartLine,
     destination: String,
-    lines: List<CartLine>,
-    toAccount: Boolean,
-    enabled: Boolean,
-    sending: Boolean,
     colors: OperationalColors,
-    modifier: Modifier,
+    onChange: (CartLine) -> Unit,
+    onDismiss: () -> Unit,
+    onAdd: () -> Unit,
+) {
+    AdminSheet(title = line.product.name, colors = colors, busy = false, onDismiss = onDismiss) {
+        AdminHint("Para $destination · ${moneyLabel(line.product.counterPrice)}", colors)
+        OpcionesMostrador(
+            linea = line,
+            colors = colors,
+            onOpcion = { group, optionId ->
+                onChange(
+                    line.copy(selectedOptionIds = alternarOpcionMostrador(line.selectedOptionIds, group, optionId)),
+                )
+            },
+        )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                "Cantidad",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.textPrimary,
+                modifier = Modifier.weight(1f),
+            )
+            Stepper(Icons.Rounded.Remove, "Uno menos", colors.textPrimary) {
+                onChange(line.copy(quantity = (line.quantity - 1).coerceAtLeast(1)))
+            }
+            RollingCount(line.quantity, colors.textPrimary)
+            Stepper(Icons.Rounded.Add, "Uno más", colors.textPrimary) {
+                onChange(line.copy(quantity = (line.quantity + 1).coerceAtMost(COUNTER_LINE_QUANTITY_MAX)))
+            }
+        }
+        val ready = opcionesValidas(line)
+        AdminPrimaryButton(
+            if (ready) {
+                "Agregar ${line.quantity} · ${moneyLabel(
+                    Money.counterPreview(listOf(line)),
+                )}"
+            } else {
+                "Elige las opciones obligatorias"
+            },
+            colors,
+            enabled = ready,
+            onClick = onAdd,
+        )
+    }
+}
+
+/** El resumen antes de mandarlo: cada producto con su cantidad, el nombre del cliente y el botón de enviar. */
+@Composable
+private fun ReviewSheet(
+    lines: List<CartLine>,
+    name: String,
+    destination: String,
+    toAccount: Boolean,
+    sending: Boolean,
+    error: String?,
+    colors: OperationalColors,
+    onName: (String) -> Unit,
+    onStep: (Int, Int) -> Unit,
+    onOption: (CartLine, com.vaiinilla.app.domain.model.OptionGroup, Int) -> Unit,
+    onDismiss: () -> Unit,
     onSend: () -> Unit,
 ) {
-    val haptics = rememberVaiinillaHaptics()
-    val reduced = reducedMotion()
-    AnimatedVisibility(
-        visible = visible,
-        modifier = modifier,
-        enter =
-            if (reduced) {
-                fadeIn()
-            } else {
-                slideInVertically(spring(dampingRatio = 0.82f, stiffness = 420f)) { it } + fadeIn()
-            },
-        exit = if (reduced) fadeOut() else slideOutVertically(spring(stiffness = 600f)) { it } + fadeOut(),
-    ) {
-        val count = lines.sumOf { it.quantity }
-        Row(
-            modifier =
-                Modifier
-                    .padding(horizontal = 20.dp, vertical = 14.dp)
-                    .fillMaxWidth()
-                    .height(60.dp)
-                    .shadow(16.dp, CircleShape)
-                    .clip(CircleShape)
-                    .background(colors.textPrimary)
-                    .padding(start = 20.dp, end = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    val missing = lines.filter { !opcionesValidas(it) }
+    AdminSheet(title = "Pedido para $destination", colors = colors, busy = sending, onDismiss = onDismiss) {
+        AdminHint(
+            if (toAccount) "Se suma a la cuenta de $destination; se cobra al final." else "Caja lo cobra y lo manda a cocina.",
+            colors,
+        )
+        AdminPanel(
+            colors,
+            padding =
+                androidx.compose.foundation.layout
+                    .PaddingValues(horizontal = 14.dp, vertical = 2.dp),
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    "$destination · ${if (count == 1) "1 producto" else "$count productos"}",
-                    color = colors.background,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 15.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    moneyLabel(Money.counterPreview(lines)),
-                    color = colors.background.copy(alpha = 0.7f),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                )
-            }
-            Box(
-                Modifier
-                    .height(46.dp)
-                    .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small) {
-                        haptics.impact()
-                        onSend()
-                    }.clip(CircleShape)
-                    .background(if (enabled) colors.background else colors.background.copy(alpha = 0.4f))
-                    .padding(horizontal = 18.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (sending) {
-                    CircularProgressIndicator(
-                        color = colors.textPrimary,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(20.dp),
-                    )
-                } else {
-                    Text(
-                        if (toAccount) "A la cuenta" else "Enviar a Caja",
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 14.sp,
-                    )
+            lines.forEachIndexed { index, line ->
+                if (index > 0) AdminRowDivider(colors)
+                AdminRow(
+                    title = line.product.name,
+                    colors = colors,
+                    detail = moneyLabel(Money.counterPreview(listOf(line))),
+                    leading = { AdminThumb(line.product.imageUrl, line.product.name, colors) },
+                ) {
+                    Stepper(
+                        Icons.Rounded.Remove,
+                        "Quitar uno de ${line.product.name}",
+                        colors.textPrimary,
+                    ) { onStep(line.product.id, -1) }
+                    RollingCount(line.quantity, colors.textPrimary)
+                    Stepper(
+                        Icons.Rounded.Add,
+                        "Agregar otro ${line.product.name}",
+                        colors.textPrimary,
+                    ) { onStep(line.product.id, 1) }
                 }
             }
         }
+        missing.forEach { line ->
+            Text(
+                "Elige las opciones de ${line.product.name}",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.coralText,
+            )
+            OpcionesMostrador(linea = line, colors = colors, onOpcion = {
+                group,
+                optionId,
+                ->
+                onOption(line, group, optionId)
+            })
+        }
+        AdminTextField(
+            label = "Nombre del cliente (opcional)",
+            value = name,
+            onValueChange = onName,
+            colors = colors,
+            placeholder = "Para llamarlo cuando esté listo",
+            enabled = !sending,
+        )
+        error?.let { Text(it, color = colors.coralText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
+        AdminPrimaryButton(
+            title =
+                if (toAccount) {
+                    "A la cuenta · ${moneyLabel(Money.counterPreview(lines))}"
+                } else {
+                    "Enviar a Caja · ${moneyLabel(Money.counterPreview(lines))}"
+                },
+            colors = colors,
+            busy = sending,
+            enabled = missing.isEmpty() && !sending,
+            onClick = onSend,
+        )
     }
 }
 
