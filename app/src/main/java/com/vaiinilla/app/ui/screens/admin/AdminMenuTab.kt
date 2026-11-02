@@ -10,33 +10,35 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -45,11 +47,11 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
@@ -61,7 +63,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -73,10 +74,8 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.core.text.normalizeForSearch
 import com.vaiinilla.app.domain.admin.AdminCategoryInput
 import com.vaiinilla.app.domain.admin.AdminOptionGroupInput
 import com.vaiinilla.app.domain.admin.AdminOptionInput
@@ -91,7 +90,6 @@ import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.school.SchoolAllergen
 import com.vaiinilla.app.ui.admin.AdminImage
 import com.vaiinilla.app.ui.admin.AdminUiState
-import com.vaiinilla.app.ui.components.EditorialSearchField
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.SlidingSegments
@@ -106,6 +104,7 @@ import com.vaiinilla.app.ui.screens.ChipButton
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
 import com.vaiinilla.app.ui.screens.prepareProductImage
+import com.vaiinilla.app.ui.theme.Yolk
 
 private sealed interface MenuSheet {
     data class EditCategory(
@@ -153,6 +152,7 @@ internal fun AdminMenuTab(
                 saving = state.saving,
                 header = header,
                 isSchool = isSchool,
+                rentsSpaces = rentsSpaces,
                 archived = state.archivedProducts,
             )
     }
@@ -202,251 +202,323 @@ private fun MenuList(
     saving: Boolean,
     header: AdminHeader,
     isSchool: Boolean = false,
+    rentsSpaces: Boolean = false,
     archived: List<Product> = emptyList(),
     onOpen: (MenuSheet) -> Unit,
 ) {
-    var showArchived by remember { mutableStateOf(false) }
-    var query by remember { mutableStateOf("") }
-    var availability by remember { mutableStateOf(AvailabilityFilter.ALL) }
-    var categoryFilter by remember { mutableStateOf<Int?>(null) }
-    val allCategories = catalog.categories.sortedBy { it.order }
-    // Una categoría que ya no está (borrada o de otro negocio) no deja el menú vacío.
-    LaunchedEffect(allCategories) {
-        if (categoryFilter != null && allCategories.none { it.id == categoryFilter }) categoryFilter = null
-    }
-    val categories = allCategories.filter { categoryFilter == null || it.id == categoryFilter }
-    val known = allCategories.map { it.id }.toSet()
-    val needle = query.normalizeForSearch()
-    val visible =
-        catalog.products.filter { product ->
-            (
-                needle.isEmpty() ||
-                    product.name.normalizeForSearch().contains(needle) ||
-                    product.description.normalizeForSearch().contains(needle)
-            ) &&
-                availability.matches(product)
-        }
-    val orphans = if (categoryFilter == null) visible.filter { it.categoryId !in known } else emptyList()
-    val soldOut = catalog.products.count { !it.available }
-    val heroPhoto =
-        remember(catalog) { catalog.products.firstOrNull { productImageIsRemote(it.imageUrl) }?.imageUrl }
-    val gridState = rememberLazyGridState()
-    val heroGone by rememberHeroGone(gridState)
-    val chips: @Composable () -> Unit = {
-        AdminChipRow {
-            AdminGlassChip("Todo", categoryFilter == null && availability == AvailabilityFilter.ALL) {
-                categoryFilter = null
-                availability = AvailabilityFilter.ALL
+    val presentDialog = LocalAdminDialog.current
+    val haptics = rememberVaiinillaHaptics()
+    var chosenCategory by rememberSaveable { mutableStateOf<Int?>(null) }
+    var showingArchived by rememberSaveable { mutableStateOf(false) }
+    if (archived.isEmpty()) showingArchived = false
+    val categories = catalog.categories.sortedBy { it.order }
+    val archivedIds = archived.map { it.id }.toSet()
+    val active = catalog.products.filter { it.id !in archivedIds }
+    val selected = categories.firstOrNull { it.id == chosenCategory } ?: categories.firstOrNull()
+    val products = if (showingArchived) archived else active.filter { it.categoryId == selected?.id }
+    val unreviewed = if (isSchool) active.filter { !it.allergensReviewed } else emptyList()
+    val cover =
+        header.photoUrl ?: remember(catalog) { active.firstOrNull { productImageIsRemote(it.imageUrl) }?.imageUrl }
+    AdminHeroPage(
+        cover = cover,
+        caption = "Administración · ${if (active.size == 1) "1 producto" else "${active.size} productos"}",
+        title = "Menú",
+        colors = colors,
+        compactTitle = "Menú",
+        compactLogo = header.logoUrl,
+        padsContent = false,
+        trailing = { header.avatar() },
+        floating = {
+            if (!readOnly && categories.isNotEmpty()) {
+                NewProductPill(
+                    enabled = !saving,
+                    colors = colors,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
+                ) { onOpen(MenuSheet.EditProduct(null)) }
             }
-            allCategories.forEach { category ->
-                AdminGlassChip(category.name, category.id == categoryFilter) {
-                    categoryFilter = if (categoryFilter == category.id) null else category.id
+        },
+    ) {
+        if (categories.isEmpty()) {
+            item(key = "vacio") {
+                Box(Modifier.padding(horizontal = 16.dp).adminRise(1)) {
+                    EmptyMenu(colors, readOnly) { onOpen(MenuSheet.EditCategory(null)) }
                 }
             }
-            if (soldOut > 0 || availability == AvailabilityFilter.HIDDEN) {
-                AdminGlassChip("Agotados · $soldOut", availability == AvailabilityFilter.HIDDEN) {
-                    availability =
-                        if (availability ==
-                            AvailabilityFilter.HIDDEN
-                        ) {
-                            AvailabilityFilter.ALL
-                        } else {
-                            AvailabilityFilter.HIDDEN
-                        }
-                }
-            }
-            if (archived.isNotEmpty()) {
-                AdminGlassChip("Archivados · ${archived.size}", showArchived) { showArchived = !showArchived }
-            }
-            if (!readOnly) AdminGlassChip("+ Categoría", false) { onOpen(MenuSheet.EditCategory(null)) }
+            return@AdminHeroPage
         }
-    }
-    Box(Modifier.fillMaxSize()) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            state = gridState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = MenuSide, end = MenuSide, bottom = if (readOnly) 24.dp else 96.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item(key = "hero", span = { GridItemSpan(maxLineSpan) }) {
-                Box(Modifier.bleed(MenuSide)) {
-                    AdminHero(
-                        title = "Menú",
-                        subtitle =
-                            buildString {
-                                append(
-                                    if (catalog.products.size ==
-                                        1
-                                    ) {
-                                        "1 producto"
-                                    } else {
-                                        "${catalog.products.size} productos"
-                                    },
-                                )
-                                if (soldOut > 0) append(" · ${if (soldOut == 1) "1 agotado" else "$soldOut agotados"}")
-                            },
+        item(key = "chips") {
+            Row(
+                Modifier
+                    .adminRise(1)
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                categories.forEach { category ->
+                    val count = active.count { it.categoryId == category.id }
+                    AdminFilterChip(
+                        "${category.name} · $count",
+                        selected = !showingArchived && category.id == selected?.id,
                         colors = colors,
-                        height = 290.dp,
-                        photoUrl = heroPhoto,
-                        logoUrl = header.logoUrl,
-                        logoName = header.placeName,
-                        trailing = header.avatar,
+                        onClick = {
+                            chosenCategory = category.id
+                            showingArchived = false
+                        },
+                        height = 44.dp,
                     )
                 }
-            }
-            val unreviewed = if (isSchool) catalog.products.count { !it.allergensReviewed } else 0
-            if (unreviewed > 0) {
-                item(key = "alergenos-sin-revisar", span = { GridItemSpan(maxLineSpan) }) {
-                    AdminCard(colors) {
-                        Text(
-                            if (unreviewed == 1) {
-                                "1 producto sin alérgenos revisados"
-                            } else {
-                                "$unreviewed productos sin alérgenos revisados"
-                            },
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.textPrimary,
-                        )
-                        Text(
-                            "Un alumno con alergias no puede pedirlos hasta que marques qué tienen.",
-                            fontSize = 13.sp,
-                            color = colors.textSecondary,
+                if (archived.isNotEmpty()) {
+                    AdminFilterChip("Archivados · ${archived.size}", showingArchived, colors, onClick = {
+                        showingArchived =
+                            true
+                    }, height = 44.dp)
+                }
+                if (!readOnly) {
+                    Box(
+                        Modifier
+                            .size(44.dp)
+                            .physicalPress(enabled = !saving, scale = PhysicalPressScale.Small) {
+                                haptics.click()
+                                onOpen(MenuSheet.EditCategory(null))
+                            }.clip(CircleShape)
+                            .border(1.dp, colors.cardBorder, CircleShape)
+                            .semantics { contentDescription = "Nueva categoría" },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Rounded.Add,
+                            contentDescription = null,
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(18.dp),
                         )
                     }
                 }
             }
-            if (catalog.products.isNotEmpty()) {
-                item(key = "buscar", span = { GridItemSpan(maxLineSpan) }) {
-                    EditorialSearchField(
-                        value = query,
-                        onValueChange = { query = it },
-                        placeholder = "Buscar en tu menú…",
-                        seaGlass = true,
-                        modifier = Modifier.padding(top = 14.dp),
+        }
+        if (!readOnly && !showingArchived && selected != null) {
+            item(key = "editar-categoria") {
+                Box(Modifier.padding(horizontal = 16.dp)) {
+                    AdminH2(
+                        selected.name,
+                        colors,
+                        action = "Editar categoría",
+                    ) { onOpen(MenuSheet.EditCategory(selected)) }
+                }
+            }
+        }
+        if (unreviewed.isNotEmpty() && !showingArchived) {
+            item(key = "alergenos") {
+                Box(Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp).adminRise(1)) {
+                    AllergenWarning(unreviewed.size, colors) {
+                        if (!readOnly) onOpen(MenuSheet.EditProduct(unreviewed.first()))
+                    }
+                }
+            }
+        }
+        if (showingArchived) {
+            item(key = "archivados-nota") {
+                Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp)) {
+                    AdminHint(
+                        "Los archivados no se ven en el menú ni se pueden pedir. Tócalos para regresarlos al menú.",
+                        colors,
                     )
                 }
             }
-            item(key = "chips", span = { GridItemSpan(maxLineSpan) }) { Box(Modifier.bleed(MenuSide)) { chips() } }
-            if (showArchived && archived.isNotEmpty()) {
-                item(key = "archivados", span = { GridItemSpan(maxLineSpan) }) {
-                    AdminCard(colors) {
-                        Text("Archivados", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                        Text(
-                            "No salen en el menú. Desarchiva uno para volver a venderlo.",
-                            fontSize = 13.sp,
-                            color = colors.textSecondary,
-                        )
-                        archived.forEach { product ->
-                            Row(
-                                Modifier.fillMaxWidth().padding(top = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    product.name,
-                                    fontSize = 14.sp,
-                                    color = colors.textPrimary,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                if (!readOnly) {
-                                    Text(
-                                        "Desarchivar",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.textPrimary,
-                                        modifier =
-                                            Modifier
-                                                .physicalPress(enabled = !saving, scale = PhysicalPressScale.Small) {
-                                                    actions.onSetArchived(product, false)
-                                                }.semantics { contentDescription = "Desarchivar ${product.name}" }
-                                                .padding(8.dp),
+        }
+        products.chunked(2).forEachIndexed { index, pair ->
+            item(key = "fila-${if (showingArchived) "a" else selected?.id}-${pair.first().id}") {
+                Row(
+                    Modifier
+                        .animateItem()
+                        .adminRise(2)
+                        .padding(start = 16.dp, end = 16.dp, top = if (index == 0) 16.dp else 14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    pair.forEach { product ->
+                        Box(Modifier.weight(1f)) {
+                            if (showingArchived) {
+                                ArchivedProductCard(product, colors, enabled = !readOnly && !saving) {
+                                    presentDialog(
+                                        AdminDialogRequest(
+                                            title = "¿Regresar ${product.name} al menú?",
+                                            message = "Se vuelve a ver en el menú y se puede pedir otra vez.",
+                                            confirm = "Regresar al menú",
+                                            icon = Icons.AutoMirrored.Rounded.Undo,
+                                            destructive = false,
+                                        ) {
+                                            actions.onSetArchived(product, false)
+                                            true
+                                        },
                                     )
+                                }
+                            } else {
+                                AdminProductCard(product, colors, readOnly, saving, actions, isSchool) {
+                                    onOpen(MenuSheet.EditProduct(product))
                                 }
                             }
                         }
                     }
-                }
-            }
-            if (allCategories.isEmpty()) {
-                item(key = "sin-categorias", span = { GridItemSpan(maxLineSpan) }) {
-                    AdminCard(colors) {
-                        Text(
-                            "Todavía no hay categorías",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            color = colors.textPrimary,
-                        )
-                        Text(
-                            "Crea una categoría (Bebidas, Comida…) para empezar a agregar productos.",
-                            fontSize = 13.sp,
-                            color = colors.textSecondary,
-                        )
-                    }
-                }
-            }
-            categories.forEach { category ->
-                val products = visible.filter { it.categoryId == category.id }
-                if (products.isEmpty() &&
-                    (needle.isNotEmpty() || availability != AvailabilityFilter.ALL)
-                ) {
-                    return@forEach
-                }
-                item(key = "c${category.id}", span = { GridItemSpan(maxLineSpan) }) {
-                    CategoryHeader(category, products.size, colors, readOnly) {
-                        onOpen(MenuSheet.EditCategory(category))
-                    }
-                }
-                items(products, key = { "p${it.id}" }) { product ->
-                    Box(Modifier.animateItem()) {
-                        AdminProductCard(product, colors, readOnly, saving, actions, isSchool) {
-                            onOpen(MenuSheet.EditProduct(product))
-                        }
-                    }
-                }
-            }
-            if (orphans.isNotEmpty()) {
-                item(key = "sin-categoria", span = { GridItemSpan(maxLineSpan) }) {
-                    AdminSectionTitle("Sin categoría", colors, Modifier.padding(top = 8.dp))
-                }
-                items(orphans, key = { "p${it.id}" }) { product ->
-                    Box(Modifier.animateItem()) {
-                        AdminProductCard(product, colors, readOnly, saving, actions, isSchool) {
-                            onOpen(MenuSheet.EditProduct(product))
-                        }
-                    }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
         }
-        if (!readOnly) {
-            NewProductPill(
-                enabled = allCategories.isNotEmpty() && !saving,
-                colors = colors,
-                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 16.dp),
-            ) { onOpen(MenuSheet.EditProduct(null)) }
+        if (products.isEmpty() && !showingArchived) {
+            item(key = "categoria-vacia") {
+                Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp)) {
+                    AdminHint("Esta categoría todavía no tiene productos.", colors)
+                }
+            }
         }
-        AdminCompactBar(
-            visible = heroGone,
-            title = header.placeName,
-            logoUrl = header.logoUrl,
+        if (rentsSpaces) {
+            item(key = "rentas") {
+                Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp)) {
+                    AdminHint("Las rentas de cancha no son productos: se cobran desde Mesas y espacios.", colors)
+                }
+            }
+        }
+        if (!readOnly) item(key = "espacio-boton") { Spacer(Modifier.height(70.dp)) }
+    }
+}
+
+/** Marco 25: sin categorías, dos tarjetas giradas detrás del ícono y el botón para crear la primera. */
+@Composable
+private fun EmptyMenu(
+    colors: OperationalColors,
+    readOnly: Boolean,
+    onCreate: () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.padding(top = 40.dp).size(width = 150.dp, height = 110.dp), contentAlignment = Alignment.Center) {
+            listOf(-8f to (-18).dp, 8f to 18.dp).forEach { (angle, x) ->
+                Box(
+                    Modifier
+                        .offset(x = x, y = 8.dp)
+                        .size(width = 112.dp, height = 96.dp)
+                        .graphicsLayer { rotationZ = angle }
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(colors.cardBackground),
+                )
+            }
+            Box(
+                Modifier
+                    .size(84.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(colors.cardBackground)
+                    .background(colors.textPrimary.copy(alpha = if (colors.isDark) 0.08f else 0.06f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Outlined.Restaurant,
+                    contentDescription = null,
+                    tint = if (colors.isDark) colors.accentLime else colors.textPrimary,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+        }
+        AdminEmptyState(
+            icon = null,
+            title = "Todavía no hay categorías",
+            message = "Crea una categoría, como «Pasteles» o «Bebidas», y después agrega tus productos con foto y precio.",
             colors = colors,
-            trailing = { header.avatar() },
-            below = chips,
+            action = if (readOnly) null else "Crear categoría",
+            onAction = onCreate,
         )
     }
 }
 
-private val MenuSide = 20.dp
-
-/** Ocupa también el margen lateral de la cuadrícula, para que la foto y los chips lleguen de borde a borde. */
-private fun Modifier.bleed(margin: Dp): Modifier =
-    layout { measurable, constraints ->
-        val extra = (margin * 2).roundToPx()
-        val width = constraints.maxWidth + extra
-        val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
-        layout(constraints.maxWidth, placeable.height) { placeable.place(-extra / 2, 0) }
+/** Abre el primer producto sin revisar; al guardarlo, el aviso baja de número hasta irse. */
+@Composable
+private fun AllergenWarning(
+    count: Int,
+    colors: OperationalColors,
+    onOpen: () -> Unit,
+) {
+    val shape = RoundedCornerShape(22.dp)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .physicalPress(scale = PhysicalPressScale.Small, onClick = onOpen)
+            .clip(shape)
+            .background(Yolk.copy(alpha = if (colors.isDark) 0.08f else 0.25f))
+            .border(1.dp, Yolk.copy(alpha = 0.45f), shape)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(
+            Icons.Outlined.Info,
+            contentDescription = null,
+            tint = if (colors.isDark) Yolk else colors.textPrimary,
+            modifier = Modifier.size(20.dp),
+        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                if (count == 1) "1 producto sin revisar alérgenos" else "$count productos sin revisar alérgenos",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = colors.textPrimary,
+            )
+            Text(
+                "Revísalos para que los alumnos con alergias no los compren.",
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textMuted,
+            )
+        }
+        Icon(
+            Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            contentDescription = null,
+            tint = colors.textMuted,
+            modifier = Modifier.size(18.dp),
+        )
     }
+}
+
+@Composable
+private fun ArchivedProductCard(
+    product: Product,
+    colors: OperationalColors,
+    enabled: Boolean,
+    onRestore: () -> Unit,
+) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .aspectRatio(0.84f)
+            .physicalPress(enabled = enabled, scale = PhysicalPressScale.ProductCard, onClick = onRestore)
+            .semantics { contentDescription = "${product.name}, archivado. Regresarlo al menú" }
+            .clip(RoundedCornerShape(26.dp))
+            .background(colors.cardInner),
+    ) {
+        ProductImage(
+            imageUrl = product.imageUrl,
+            contentDescription = product.name,
+            modifier = Modifier.fillMaxSize(),
+            placeholder = { m -> Box(m.background(colors.cardInner)) },
+            card = true,
+        )
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)))
+        Column(
+            Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .background(CardScrim)
+                .padding(start = 14.dp, end = 14.dp, top = 34.dp, bottom = 12.dp),
+        ) {
+            Text(
+                product.name,
+                color = Color.White,
+                fontWeight = FontWeight.Black,
+                fontSize = 16.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text("Archivado", color = Color.White.copy(alpha = 0.88f), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        }
+    }
+}
 
 @Composable
 private fun NewProductPill(
@@ -472,40 +544,6 @@ private fun NewProductPill(
     ) {
         Icon(Icons.Rounded.Add, contentDescription = null, tint = colors.background, modifier = Modifier.size(20.dp))
         Text("Nuevo producto", color = colors.background, fontWeight = FontWeight.Black, fontSize = 15.sp)
-    }
-}
-
-@Composable
-private fun CategoryHeader(
-    category: Category,
-    count: Int,
-    colors: OperationalColors,
-    readOnly: Boolean,
-    onEdit: () -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(category.name, fontWeight = FontWeight.Black, fontSize = 20.sp, color = colors.textPrimary)
-            Text(if (count == 1) "1 producto" else "$count productos", fontSize = 12.sp, color = colors.textSecondary)
-        }
-        if (!readOnly) {
-            Row(
-                modifier = Modifier.physicalPress(scale = PhysicalPressScale.Small, onClick = onEdit).padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Icon(
-                    Icons.Outlined.Edit,
-                    contentDescription = null,
-                    tint = colors.textSecondary,
-                    modifier = Modifier.size(16.dp),
-                )
-                Text("Editar", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
-            }
-        }
     }
 }
 
@@ -1374,22 +1412,6 @@ private fun adminSwitchColors(colors: OperationalColors) =
         uncheckedTrackColor = colors.cardInner,
         uncheckedBorderColor = colors.cardBorder,
     )
-
-private enum class AvailabilityFilter(
-    val label: String,
-) {
-    ALL("Todos"),
-    AVAILABLE("Disponibles"),
-    HIDDEN("Agotados"),
-    ;
-
-    fun matches(product: Product): Boolean =
-        when (this) {
-            ALL -> true
-            AVAILABLE -> product.available
-            HIDDEN -> !product.available
-        }
-}
 
 private val RentalWords =
     Regex("\\b(renta|rentar|cancha|canchas|hora|horas|reserva|p[aá]del)\\b", RegexOption.IGNORE_CASE)

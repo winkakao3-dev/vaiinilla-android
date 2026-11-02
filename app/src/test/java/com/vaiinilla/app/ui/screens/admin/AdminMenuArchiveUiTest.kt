@@ -84,13 +84,18 @@ class AdminMenuArchiveUiTest {
     @Test
     fun `archivar pide confirmacion y lo archivado se puede desarchivar`() {
         composeTestRule.setContent {
-            AdminMenuTab(
-                state.copy(archivedProducts = listOf(product(3, "Té viejo", reviewed = true).copy(archived = true))),
-                rememberOperationalColors(),
-                readOnly = false,
-                actions = actions,
-                header = testHeader,
-            )
+            val colors = rememberOperationalColors()
+            AdminDialogHost(colors) {
+                AdminMenuTab(
+                    state.copy(
+                        archivedProducts = listOf(product(3, "Té viejo", reviewed = true).copy(archived = true)),
+                    ),
+                    colors,
+                    readOnly = false,
+                    actions = actions,
+                    header = testHeader,
+                )
+            }
         }
         composeTestRule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Agua"))
         composeTestRule.onAllNodesWithText("Agua").onFirst().performClick()
@@ -102,7 +107,10 @@ class AdminMenuArchiveUiTest {
 
         composeTestRule.onAllNodesWithText("Archivados · 1").onFirst().performClick()
         composeTestRule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Té viejo"))
-        composeTestRule.onNodeWithContentDescription("Desarchivar Té viejo").performClick()
+        composeTestRule.onNodeWithContentDescription("Té viejo, archivado. Regresarlo al menú").performClick()
+        composeTestRule.onNodeWithText("¿Regresar Té viejo al menú?").assertExists()
+        assertEquals(listOf("Agua:true"), calls)
+        composeTestRule.onNodeWithText("Regresar al menú").performClick()
         assertEquals(listOf("Agua:true", "Té viejo:false"), calls)
     }
 

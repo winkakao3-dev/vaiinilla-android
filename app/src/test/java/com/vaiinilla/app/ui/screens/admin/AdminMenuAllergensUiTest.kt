@@ -91,11 +91,8 @@ class AdminMenuAllergensUiTest {
                 header = testHeader,
             )
         }
-        composeTestRule.onNodeWithText("1 producto sin alérgenos revisados").assertExists()
-        composeTestRule
-            .onNodeWithText(
-                "Un alumno con alergias no puede pedirlos hasta que marques qué tienen.",
-            ).assertExists()
+        composeTestRule.onNodeWithText("1 producto sin revisar alérgenos").assertExists()
+        composeTestRule.onNodeWithText("Revísalos para que los alumnos con alergias no los compren.").assertExists()
         composeTestRule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Galleta"))
         composeTestRule.onNodeWithText("Alérgenos sin revisar", useUnmergedTree = true).assertExists()
     }
@@ -112,7 +109,7 @@ class AdminMenuAllergensUiTest {
                 header = testHeader,
             )
         }
-        composeTestRule.onNodeWithText("1 producto sin alérgenos revisados").assertDoesNotExist()
+        composeTestRule.onNodeWithText("1 producto sin revisar alérgenos").assertDoesNotExist()
         composeTestRule.onNodeWithText("Alérgenos sin revisar").assertDoesNotExist()
     }
 

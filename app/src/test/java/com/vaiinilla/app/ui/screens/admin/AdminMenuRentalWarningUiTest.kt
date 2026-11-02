@@ -1,7 +1,6 @@
 package com.vaiinilla.app.ui.screens.admin
 
 import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasScrollAction
@@ -16,7 +15,6 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
-import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import com.vaiinilla.app.domain.admin.AdminProductInput
 import com.vaiinilla.app.domain.model.Catalog
@@ -172,27 +170,6 @@ class AdminMenuRentalWarningUiTest {
             .performScrollTo()
             .performSemanticsAction(SemanticsActions.OnClick)
         assert(saved?.available == false)
-    }
-
-    @Test
-    fun `la busqueda encuentra por pedazo y sin acentos`() {
-        val products =
-            listOf(
-                rental.copy(id = 2, name = "Chocolate caliente"),
-                rental.copy(id = 3, name = "Café de olla"),
-            )
-        val menu = AdminUiState(catalog = state.catalog!!.copy(products = products))
-        composeTestRule.setContent {
-            AdminMenuTab(menu, rememberOperationalColors(), readOnly = false, actions = actions, header = testHeader)
-        }
-        composeTestRule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasSetTextAction())
-        val search = composeTestRule.onNode(hasSetTextAction())
-        search.performTextInput("cafe")
-        composeTestRule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Café de olla"))
-        composeTestRule.onAllNodesWithText("Chocolate caliente").assertCountEquals(0)
-        search.performTextReplacement("Chocolate")
-        composeTestRule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Chocolate caliente"))
-        composeTestRule.onAllNodesWithText("Café de olla").assertCountEquals(0)
     }
 }
 
