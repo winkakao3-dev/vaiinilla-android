@@ -35,16 +35,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ToastPill
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
-import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.screens.ActionPill
 import com.vaiinilla.app.ui.screens.ChipButton
 import com.vaiinilla.app.ui.screens.OperationalColors
@@ -62,31 +61,27 @@ internal fun AdminSectionPage(
     BackHandler(onBack = onBack)
     Box(Modifier.fillMaxSize().background(colors.background)) {
         Column(Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier =
-                        Modifier
-                            .physicalPress(scale = PhysicalPressScale.Small, onClick = onBack)
-                            .size(48.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = "Regresar",
-                        tint = colors.textPrimary,
-                    )
-                }
-                Text(title, fontWeight = FontWeight.Black, fontSize = 20.sp, color = colors.textPrimary)
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
+                AdminRoundButton(Icons.AutoMirrored.Outlined.ArrowBack, "Regresar", colors, onBack)
             }
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                content = content,
-            )
+            ) {
+                // El título grande de la sección, como el de la navegación de iOS.
+                item(key = "section-title") {
+                    Text(
+                        title,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 34.sp,
+                        letterSpacing = (-1).sp,
+                        color = colors.textPrimary,
+                        modifier = Modifier.padding(horizontal = 4.dp).semantics { heading() },
+                    )
+                }
+                content()
+            }
         }
         ToastPill(
             message = notice,

@@ -1,10 +1,14 @@
 package com.vaiinilla.app.ui.screens.admin
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
@@ -12,26 +16,32 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.QrCode2
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DateRangePicker
+import androidx.compose.material3.Icon
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,39 +49,57 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.domain.admin.AdminLiveCounts
+import com.vaiinilla.app.domain.admin.AdminCount
 import com.vaiinilla.app.domain.admin.AdminMetric
 import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminSummary
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccount
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccounts
+import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.ui.admin.AdminPeriodPreset
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
-import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
-import com.vaiinilla.app.ui.screens.ActionPill
+import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.OperationalColors
-import com.vaiinilla.app.ui.screens.OperationalField
+import com.vaiinilla.app.ui.theme.Yolk
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.coroutines.resume
+
+/** Un paso de "Para dejar lista tu tienda"; [section] es a dónde lleva tocarlo. */
+internal data class AdminSetupStep(
+    val title: String,
+    val detail: String?,
+    val done: Boolean,
+    val section: AdminSection? = null,
+)
 
 /**
- * Inicio: cómo va el negocio en el periodo elegido, como el panel de la web. Arriba el negocio con su foto y si
- * recibe pedidos; las ventas en grande; lo que pasa ahora a la vista (sin deslizar: en hora pico nadie desliza) y
- * el resto del resumen abajo. Al bajar queda una barra fija con los periodos.
+ * Inicio, como el lienzo de Doop (marcos 07 y 21 a 23): la foto del negocio con su nombre en grande, si recibe
+ * pedidos y la caja, lo que falta para dejar lista la tienda, las ventas del periodo y el resto del resumen.
  */
 @Composable
 internal fun AdminHomeTab(
@@ -80,75 +108,55 @@ internal fun AdminHomeTab(
     readOnly: Boolean,
     actions: AdminActions,
     header: AdminHeader,
+    setup: List<AdminSetupStep>,
     onOpenOrders: () -> Unit,
+    onOpenSection: (AdminSection) -> Unit,
 ) {
     var choosingPeriod by remember { mutableStateOf(false) }
-    var closing by remember { mutableStateOf<AdminUnpaidAccount?>(null) }
-    val listState = rememberLazyListState()
-    val heroGone by rememberHeroGone(listState)
+    val presentDialog = LocalAdminDialog.current
     val status = state.operationalStatus
     val receiving = status?.let { it.acceptingOrders && it.withinOrderWindow }
-    val periodChips: @Composable () -> Unit = {
-        AdminChipRow {
-            AdminPeriodPreset.entries.forEach { preset ->
-                AdminGlassChip(preset.label, state.customPeriod == null && preset == state.preset) {
-                    actions.onSelectPeriod(preset)
-                }
-            }
-            AdminGlassChip("Otro", state.customPeriod != null) { choosingPeriod = true }
-        }
-    }
-    Box(Modifier.fillMaxSize()) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 24.dp),
-        ) {
-            item(key = "hero") {
-                AdminHero(
-                    title = header.placeName,
-                    subtitle = homeSubtitle(state.live),
-                    colors = colors,
-                    height = 330.dp,
-                    photoUrl = header.photoUrl,
-                    logoUrl = header.logoUrl,
-                    showLogo = true,
-                    logoName = header.placeName,
-                    leading =
-                        receiving?.let { on ->
-                            {
-                                AdminHeroPill(
-                                    if (on) "Recibiendo pedidos" else "Sin recibir pedidos",
-                                    dot = if (on) colors.accentLime else AdminCoral,
-                                )
-                            }
-                        },
-                    trailing = header.avatar,
+    val summary = state.summary
+    AdminHeroPage(
+        cover = header.photoUrl,
+        caption = "Administración",
+        title = header.placeName,
+        colors = colors,
+        compactTitle = header.placeName,
+        compactLogo = header.logoUrl,
+        trailing = { header.avatar() },
+    ) {
+        item(key = "estado") { StatusLine(state, receiving, colors, Modifier.adminRise(1)) }
+        status?.outsideOrderHoursMessage?.let { message ->
+            item(key = "fuera-de-horario") {
+                Text(
+                    message,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textMuted,
+                    modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 10.dp),
                 )
             }
-            item(key = "periodo") {
-                Column {
-                    periodChips()
-                    state.customPeriod?.let { period ->
-                        Text(
-                            "Del ${period.from.format(PeriodFormat)} al ${period.to.format(PeriodFormat)}",
-                            fontSize = 12.sp,
-                            color = colors.textSecondary,
-                            modifier = Modifier.padding(horizontal = 22.dp),
-                        )
-                    }
-                }
+        }
+        item(key = "tienda-lista") {
+            AnimatedVisibility(
+                visible = setup.any { !it.done },
+                enter =
+                    fadeIn(spring(stiffness = 400f)) + expandVertically(spring(dampingRatio = 0.85f, stiffness = 400f)),
+                exit = fadeOut(spring(stiffness = 600f)) + shrinkVertically(spring(stiffness = 600f)),
+            ) {
+                SetupChecklist(setup, colors, Modifier.adminRise(2), onOpenSection)
             }
-            val summary = state.summary
-            when {
-                summary == null && state.summaryError != null ->
-                    item(key = "error") {
-                        Box(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                            AdminLoadError(state.summaryError, colors, actions.onRefreshHome)
-                        }
-                    }
-                summary == null ->
-                    item(key = "cargando") {
+        }
+        item(key = "ventas-titulo") {
+            SalesHeader(periodLabel(state), colors, Modifier.adminRise(3)) { choosingPeriod = true }
+        }
+        item(key = "ventas") {
+            Box(Modifier.adminRise(3)) {
+                when {
+                    summary == null && state.summaryError != null ->
+                        AdminLoadError(state.summaryError, colors, actions.onRefreshHome)
+                    summary == null ->
                         Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(
                                 color = colors.textPrimary,
@@ -156,135 +164,191 @@ internal fun AdminHomeTab(
                                 modifier = Modifier.size(28.dp),
                             )
                         }
-                    }
-                else -> item(key = "ventas") { SalesHeadline(summary, state, colors) }
-            }
-            item(key = "ahora-titulo") {
-                val live = state.live
-                AdminCremeSectionTitle(
-                    "Ahora mismo",
-                    colors,
-                    detail =
-                        live?.activeOrders?.let {
-                            val count = if (live.moreActiveOrders) "$it+" else "$it"
-                            if (it == 1 && !live.moreActiveOrders) "1 pedido activo" else "$count pedidos activos"
-                        },
-                    action = "Ver pedidos",
-                    onAction = onOpenOrders,
-                )
-            }
-            item(key = "ahora") { LiveGrid(state, receiving, colors) }
-            if (summary != null) {
-                val tiles = secondaryKpis(summary)
-                if (tiles.isNotEmpty()) {
-                    item(key = "kpis") {
-                        Column(
-                            Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            tiles.chunked(2).forEach { pair ->
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    pair.forEach { (label, value) ->
-                                        AdminStatTile(
-                                            label,
-                                            value,
-                                            colors,
-                                            modifier = Modifier.weight(1f),
-                                            muted = state.summaryLoading,
-                                        )
-                                    }
-                                    if (pair.size == 1) Box(Modifier.weight(1f))
-                                }
-                            }
-                        }
-                    }
-                }
-                if (summary.dailySales.size > 1) {
-                    item(key = "por-dia") {
-                        Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp)) {
-                            DailySalesCard(summary, colors)
-                        }
-                    }
-                }
-                if (summary.topProducts.isNotEmpty()) {
-                    item(key = "top-titulo") { AdminCremeSectionTitle("Lo más vendido", colors) }
-                    item(key = "top") { TopProducts(summary, state, colors) }
-                }
-                val usedMethods = summary.paymentMethods.filter { it.orders > 0 }
-                if (usedMethods.isNotEmpty()) {
-                    item(key = "pago-titulo") { AdminCremeSectionTitle("Por método de pago", colors) }
-                    item(key = "pago") { PaymentBars(usedMethods, colors) }
-                }
-                if (summary.ordersByStatus.isNotEmpty()) {
-                    item(key = "estados") {
-                        Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp)) {
-                            AdminCard(colors) {
-                                AdminSectionTitle("Pedidos por estado", colors)
-                                summary.ordersByStatus.forEach { AdminValueRow(it.label, "${it.count}", colors) }
-                            }
-                        }
-                    }
-                }
-            }
-            state.unpaid?.takeIf { it.accounts.isNotEmpty() }?.let { unpaid ->
-                item(key = "sin-pagar") {
-                    Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp)) {
-                        UnpaidCard(unpaid, colors, canClose = !readOnly) { closing = it }
-                    }
+                    else -> SalesCard(summary, state.summaryLoading, colors)
                 }
             }
         }
-        AdminCompactBar(
-            visible = heroGone,
-            title = header.placeName,
-            logoUrl = header.logoUrl,
-            colors = colors,
-            trailing = { header.avatar() },
-            below = periodChips,
-        )
+        if (summary != null) summaryBlocks(summary, state, colors)
+        state.unpaid?.takeIf { it.accounts.isNotEmpty() }?.let { unpaid ->
+            item(key = "sin-pagar") {
+                UnpaidBlock(
+                    unpaid,
+                    colors,
+                    canClose = !readOnly,
+                    modifier = Modifier.adminRise(6),
+                    onOpenOrders = onOpenOrders,
+                ) { account ->
+                    val amount = moneyLabel(account.total)
+                    presentDialog(
+                        AdminDialogRequest(
+                            title = "¿Cerrar la cuenta de ${account.spaceName} sin cobrar?",
+                            message =
+                                "Los $amount no entran a la caja ni a las ventas. " +
+                                    "${account.spaceName} queda libre para otro cliente.",
+                            confirm = "Cerrar sin cobrar",
+                        ) {
+                            suspendCancellableCoroutine { done ->
+                                actions.onCloseWithoutCharging(account, "") { ok -> if (done.isActive) done.resume(ok) }
+                            }
+                        },
+                    )
+                }
+            }
+        }
     }
     if (choosingPeriod) {
-        PeriodPicker(colors = colors, onDismiss = { choosingPeriod = false }) { period ->
+        PeriodSheet(state, colors, onDismiss = { choosingPeriod = false }) { choice, custom ->
             choosingPeriod = false
-            actions.onSelectCustomPeriod(period)
-        }
-    }
-    closing?.let { account ->
-        CloseWithoutChargingSheet(account, colors, state.saving, state.notice.takeIf { state.noticeIsError }, {
-            closing =
-                null
-        }) { note ->
-            actions.onCloseWithoutCharging(account, note) { closing = null }
+            when (choice) {
+                AdminPeriodChoice.TODAY -> actions.onSelectPeriod(AdminPeriodPreset.TODAY)
+                AdminPeriodChoice.WEEK -> actions.onSelectPeriod(AdminPeriodPreset.WEEK)
+                AdminPeriodChoice.YESTERDAY, AdminPeriodChoice.MONTH ->
+                    choice.period()?.let(actions.onSelectCustomPeriod)
+                AdminPeriodChoice.CUSTOM -> custom?.let(actions.onSelectCustomPeriod)
+            }
         }
     }
 }
 
-private fun homeSubtitle(live: AdminLiveCounts?): String =
-    when (live?.cashOpen) {
-        true -> "Administración · Caja abierta"
-        false -> "Administración · Caja cerrada"
-        null -> "Administración"
-    }
-
-/** Las ventas del periodo en grande; al cambiar de periodo la cifra entra con un resorte. */
 @Composable
-private fun SalesHeadline(
-    summary: AdminSummary,
+private fun StatusLine(
     state: AdminUiState,
+    receiving: Boolean?,
+    colors: OperationalColors,
+    modifier: Modifier,
+) {
+    val cashOpen = state.live?.cashOpen ?: state.operationalStatus?.cashSessionOpen
+    val cashLine =
+        when (cashOpen) {
+            null -> null
+            false -> "Caja cerrada"
+            true -> state.cashOpeningAmount?.let { "Caja abierta · fondo ${moneyLabel(it)}" } ?: "Caja abierta"
+        }
+    Row(
+        modifier.fillMaxWidth().padding(top = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        receiving?.let {
+            AdminBadge(
+                if (it) "Recibiendo pedidos" else "Sin recibir pedidos",
+                colors,
+                tone = if (it) AdminBadgeTone.OK else AdminBadgeTone.DANGER,
+                dot = true,
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        cashLine?.let {
+            Text(it, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = colors.textMuted, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun SetupChecklist(
+    setup: List<AdminSetupStep>,
+    colors: OperationalColors,
+    modifier: Modifier,
+    onOpenSection: (AdminSection) -> Unit,
+) {
+    Column(modifier) {
+        AdminH2("Para dejar lista tu tienda", colors)
+        AdminPanel(
+            colors,
+            padding =
+                androidx.compose.foundation.layout
+                    .PaddingValues(horizontal = 16.dp, vertical = 2.dp),
+        ) {
+            setup.forEachIndexed { index, step ->
+                if (index > 0) AdminRowDivider(colors)
+                AdminRow(
+                    title = step.title,
+                    colors = colors,
+                    modifier = Modifier.semantics { stateDescription = if (step.done) "Listo" else "Falta" },
+                    onClick = step.section?.takeIf { !step.done }?.let { section -> { onOpenSection(section) } },
+                    leading = {
+                        Box(
+                            Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (step.done) colors.accentLime else colors.textPrimary.copy(alpha = 0.08f),
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                if (step.done) Icons.Rounded.Check else Icons.Rounded.RadioButtonUnchecked,
+                                contentDescription = null,
+                                tint = if (step.done) colors.accentInk else colors.textMuted,
+                                modifier = Modifier.size(14.dp),
+                            )
+                        }
+                    },
+                ) {
+                    step.detail?.let { AdminRowValue(it, colors, muted = true) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SalesHeader(
+    label: String,
+    colors: OperationalColors,
+    modifier: Modifier,
+    onChoose: () -> Unit,
+) {
+    val haptics = rememberVaiinillaHaptics()
+    Row(modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        AdminCapsLabel("Ventas · $label", colors, Modifier.weight(1f))
+        Row(
+            Modifier
+                .heightIn(min = 44.dp)
+                .physicalPress(scale = PhysicalPressScale.Small) {
+                    haptics.selection()
+                    onChoose()
+                }.semantics { contentDescription = "Periodo: $label" },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                Modifier
+                    .height(30.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(colors.cardBackground)
+                    .border(1.dp, colors.cardBorder, RoundedCornerShape(50))
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
+                Icon(
+                    Icons.Rounded.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+        }
+    }
+}
+
+/** Las ventas en grande: los pesos en negro y los centavos chicos; al cambiar de periodo entra con un resorte. */
+@Composable
+private fun SalesCard(
+    summary: AdminSummary,
+    loading: Boolean,
     colors: OperationalColors,
 ) {
     val reduced = reducedMotion()
-    val period = if (state.customPeriod != null) "periodo elegido" else state.preset.label.lowercase()
-    Column(Modifier.padding(start = 22.dp, end = 22.dp, top = 10.dp)) {
-        Text(
-            "VENTAS · ${period.uppercase()}",
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.4.sp,
-            color = colors.textSecondary,
-        )
+    AdminPanel(
+        colors,
+        padding =
+            androidx.compose.foundation.layout
+                .PaddingValues(horizontal = 20.dp, vertical = 18.dp),
+    ) {
         AnimatedContent(
-            targetState = moneyLabel(summary.sales),
+            targetState = summary.sales,
             transitionSpec = {
                 if (reduced) {
                     fadeIn(snap()) togetherWith fadeOut(snap())
@@ -297,217 +361,488 @@ private fun SalesHeadline(
             },
             label = "admin-ventas",
         ) { value ->
+            val label = moneyLabel(value)
+            val cut = label.lastIndexOf('.').takeIf { it > 0 } ?: label.length
             Text(
-                value,
-                fontSize = 60.sp,
-                lineHeight = 66.sp,
-                letterSpacing = (-2).sp,
+                buildAnnotatedString {
+                    append(label.substring(0, cut))
+                    withStyle(SpanStyle(fontSize = 22.sp, color = colors.textMuted)) { append(label.substring(cut)) }
+                },
+                fontSize = 50.sp,
+                lineHeight = 54.sp,
+                letterSpacing = (-1.8).sp,
                 fontWeight = FontWeight.Black,
-                color = if (state.summaryLoading) colors.textMuted else colors.textPrimary,
+                color = if (loading) colors.textMuted else colors.textPrimary,
                 maxLines = 1,
             )
         }
         Text(
-            "${adminOrdersText(summary.orders)} · ticket promedio ${moneyLabel(summary.averageTicket)}",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = colors.textSecondary,
+            "${if (summary.orders == 1) "1 pedido cobrado" else "${summary.orders} pedidos cobrados"} · " +
+                "ticket promedio ${moneyLabel(summary.averageTicket)}",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.textMuted,
+            modifier = Modifier.padding(top = 4.dp),
         )
     }
 }
 
-/** Lo de ahorita, todo a la vista en mosaicos: si la cocina se cae, se ve sin buscarlo. */
-@Composable
-private fun LiveGrid(
-    state: AdminUiState,
-    receiving: Boolean?,
-    colors: OperationalColors,
-) {
-    val status = state.operationalStatus
-    val live = state.live
-    val tiles =
-        buildList {
-            receiving?.let {
-                add(
-                    Triple(
-                        "Pedidos",
-                        if (it) "Recibiendo" else "Sin recibir",
-                        if (it) colors.accentLime else AdminCoral,
-                    ),
-                )
-            }
-            (live?.cashOpen ?: status?.cashSessionOpen)?.let {
-                add(Triple("Caja", if (it) "Abierta" else "Cerrada", if (it) colors.accentLime else colors.textMuted))
-            }
-            status?.let {
-                add(
-                    Triple(
-                        "Cocina",
-                        if (it.kitchenPresent) "En línea" else "Sin conexión",
-                        if (it.kitchenPresent) colors.accentLime else AdminCoral,
-                    ),
-                )
-                add(
-                    Triple(
-                        "Cajero",
-                        if (it.cashierPresent) "En línea" else "Sin conexión",
-                        if (it.cashierPresent) colors.accentLime else colors.textMuted,
-                    ),
-                )
-            }
-            live?.pendingInvitations?.let {
-                add(
-                    Triple(
-                        "Invitaciones",
-                        if (it == 1) "1 pendiente" else "$it pendientes",
-                        if (it > 0) colors.textPrimary else colors.textMuted,
-                    ),
-                )
-            }
-        }
-    Column(
-        Modifier.padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        tiles.chunked(2).forEach { pair ->
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                pair.forEach { (label, value, dot) ->
-                    AdminStatTile(label, value, colors, modifier = Modifier.weight(1f), dot = dot)
-                }
-                if (pair.size == 1) Box(Modifier.weight(1f))
-            }
-        }
-        status?.outsideOrderHoursMessage?.let { Text(it, fontSize = 12.sp, color = colors.textSecondary) }
-    }
-}
-
-private fun secondaryKpis(summary: AdminSummary): List<Pair<String, String>> =
-    buildList {
-        add("Productos vendidos" to "${summary.productsSold}")
-        summary.tips?.let { add("Propinas" to moneyLabel(it)) }
-        add("Recargas de saldo" to moneyLabel(summary.walletReloads))
-        summary.canceledOrders?.let { add("Cancelados" to "$it") }
-        summary.commissions?.let { add("Comisiones" to moneyLabel(it)) }
-    }
-
-/** Lo más vendido con la foto del platillo, si el menú la tiene. */
-@Composable
-private fun TopProducts(
+private fun androidx.compose.foundation.lazy.LazyListScope.summaryBlocks(
     summary: AdminSummary,
     state: AdminUiState,
     colors: OperationalColors,
 ) {
-    val photos =
-        remember(state.catalog) {
-            state.catalog
-                ?.products
-                .orEmpty()
-                .associate { it.name.trim().lowercase() to it.imageUrl }
-        }
-    Column(Modifier.padding(horizontal = 22.dp)) {
-        summary.topProducts.forEachIndexed { index, item ->
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Text(
-                    "${index + 1}",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Black,
-                    color = colors.textSecondary,
-                    modifier = Modifier.width(22.dp),
-                )
-                val photo = photos[item.label.trim().lowercase()]
-                val thumb = Modifier.size(54.dp).clip(RoundedCornerShape(16.dp))
-                if (photo != null) {
-                    ProductImage(
-                        imageUrl = photo,
-                        contentDescription = item.label,
-                        modifier = thumb,
-                        placeholder = { m -> Box(m.background(colors.cardInner)) },
-                        card = true,
-                    )
-                } else {
-                    Box(thumb.background(colors.cardInner))
-                }
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        item.label,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        if (item.count == 1) "1 vendido" else "${item.count} vendidos",
-                        fontSize = 13.sp,
-                        color = colors.textSecondary,
-                    )
+    val top = summary.topProducts.take(5)
+    if (top.isNotEmpty()) {
+        item(key = "top") {
+            Column(Modifier.adminRise(4)) {
+                AdminH2("Lo más vendido", colors)
+                val photos =
+                    remember(state.catalog) {
+                        state.catalog
+                            ?.products
+                            .orEmpty()
+                            .associate { it.name.trim().lowercase() to it.imageUrl }
+                    }
+                AdminPanel(
+                    colors,
+                    padding =
+                        androidx.compose.foundation.layout
+                            .PaddingValues(horizontal = 16.dp, vertical = 2.dp),
+                ) {
+                    top.forEachIndexed { index, item ->
+                        if (index > 0) AdminRowDivider(colors)
+                        AdminRow(
+                            title = item.label,
+                            colors = colors,
+                            detail = if (item.count == 1) "1 vendido" else "${item.count} vendidos",
+                            leading = { AdminThumb(photos[item.label.trim().lowercase()], item.label, colors) },
+                        ) {
+                            item.amount?.let { AdminRowValue(moneyLabel(it), colors) }
+                        }
+                    }
                 }
             }
         }
     }
+    val methods = summary.paymentMethods.filter { it.orders > 0 }
+    if (methods.isNotEmpty()) {
+        item(key = "pago") { PaymentBars(methods, colors, Modifier.adminRise(5)) }
+    }
+    if (summary.ordersByStatus.isNotEmpty()) {
+        item(key = "estados") {
+            Column(Modifier.adminRise(5)) {
+                AdminH2("Pedidos por estado", colors)
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    summary.ordersByStatus.chunked(3).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            row.forEach {
+                                AdminCountTile(
+                                    "${it.count}",
+                                    it.label,
+                                    colors,
+                                    Modifier.weight(1f),
+                                    tint = statusTint(it, colors),
+                                )
+                            }
+                            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (summary.dailySales.size > 1) {
+        item(key = "por-dia") { DailySales(summary, colors, Modifier.adminRise(6)) }
+    }
 }
 
-/** Cuánto entró por cada forma de pago, con una barra por su parte del total. */
+private fun statusTint(
+    row: AdminCount,
+    colors: OperationalColors,
+): Color? =
+    when (OrderState.entries.firstOrNull { it.wireValue == row.key }) {
+        OrderState.AWAITING_ACCEPTANCE, OrderState.PENDING_PAYMENT -> if (colors.isDark) Yolk else null
+        OrderState.DELIVERED -> if (colors.isDark) colors.accentLime else colors.accentInk
+        OrderState.CANCELED -> colors.coralText
+        else -> null
+    }
+
 @Composable
 private fun PaymentBars(
     methods: List<AdminMetric>,
     colors: OperationalColors,
+    modifier: Modifier,
 ) {
     val amounts = methods.map { it.amount.toBigDecimalOrNull()?.toFloat() ?: 0f }
     val total = amounts.sum().takeIf { it > 0f } ?: 1f
-    val shape = RoundedCornerShape(24.dp)
-    Column(
-        Modifier
-            .padding(horizontal = 20.dp)
-            .fillMaxWidth()
-            .clip(shape)
-            .background(colors.cardBackground)
-            .border(1.dp, colors.cardBorder, shape)
-            .padding(horizontal = 18.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        methods.zip(amounts).forEachIndexed { index, (method, amount) ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(method.label, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                Text(
-                    moneyLabel(method.amount),
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textPrimary,
-                )
-            }
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(colors.cardInner),
-            ) {
-                Box(
-                    Modifier
-                        .fillMaxWidth((amount / total).coerceIn(0.02f, 1f))
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(if (index % 2 == 0) colors.textPrimary else colors.accentLime),
-                )
+    Column(modifier) {
+        AdminH2("Por método de pago", colors)
+        AdminPanel(colors) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                methods.zip(amounts).forEachIndexed { index, (method, amount) ->
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(Modifier.fillMaxWidth()) {
+                            Text(
+                                method.label,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.textPrimary,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                moneyLabel(method.amount),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Black,
+                                color = colors.textPrimary,
+                            )
+                        }
+                        AdminBar(
+                            fraction = (amount / total).coerceIn(0.02f, 1f),
+                            colors = colors,
+                            fill = if (index == 0) colors.accentLime else colors.textSecondary,
+                        )
+                    }
+                }
             }
         }
     }
 }
 
+/** Barras de ventas por día: la de hoy en lima; cada una crece desde abajo con un resorte, una tras otra. */
+@Composable
+private fun DailySales(
+    summary: AdminSummary,
+    colors: OperationalColors,
+    modifier: Modifier,
+) {
+    val days = summary.dailySales
+    val values = days.map { it.sales.toBigDecimalOrNull() ?: BigDecimal.ZERO }
+    val max = values.maxOrNull()?.takeIf { it > BigDecimal.ZERO } ?: BigDecimal.ONE
+    val total = values.fold(BigDecimal.ZERO, BigDecimal::add).setScale(2, RoundingMode.HALF_UP).toPlainString()
+    val everyLabel = days.size <= 7
+    Column(modifier) {
+        AdminH2("Ventas por día", colors)
+        AdminPanel(colors) {
+            Row(Modifier.fillMaxWidth()) {
+                Text(
+                    "Últimos ${days.size} días",
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textMuted,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(moneyLabel(total), fontSize = 14.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
+            }
+            Row(
+                Modifier.fillMaxWidth().height(128.dp).padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(if (everyLabel) 10.dp else 3.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                days.forEachIndexed { index, day ->
+                    val last = index == days.lastIndex
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clearAndSetSemantics { contentDescription = "${day.date}: ${moneyLabel(day.sales)}" },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
+                            DailyBar(
+                                fraction = (values[index].toFloat() / max.toFloat()).coerceIn(0.04f, 1f),
+                                highlighted = last,
+                                delayMs = index * 40L,
+                                colors = colors,
+                            )
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            if (everyLabel || last || index == 0) dayLabel(day.date, last, short = everyLabel) else " ",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (last) colors.textPrimary else colors.textMuted,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DailyBar(
+    fraction: Float,
+    highlighted: Boolean,
+    delayMs: Long,
+    colors: OperationalColors,
+) {
+    val reduced = reducedMotion()
+    val grow = remember { Animatable(if (reduced) 1f else 0f) }
+    LaunchedEffect(Unit) {
+        if (!reduced) {
+            delay(150 + delayMs)
+            grow.animateTo(1f, spring(dampingRatio = 0.7f, stiffness = 260f))
+        }
+    }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(fraction)
+            .graphicsLayer {
+                scaleY = grow.value.coerceAtLeast(0.001f)
+                transformOrigin = TransformOrigin(0.5f, 1f)
+            }.clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 4.dp, bottomEnd = 4.dp))
+            .background(
+                if (highlighted) {
+                    colors.accentLime
+                } else {
+                    colors.textPrimary.copy(
+                        alpha = if (colors.isDark) 0.09f else 0.12f,
+                    )
+                },
+            ),
+    )
+}
+
+private val WeekdayFormat = DateTimeFormatter.ofPattern("EEE", Locale.forLanguageTag("es-MX"))
+private val ShortDayFormat = DateTimeFormatter.ofPattern("d MMM", Locale.forLanguageTag("es-MX"))
+
+/** "Mié" para la semana y "27 oct" con más días; el último, si es hoy, dice "Hoy". */
+private fun dayLabel(
+    value: String,
+    last: Boolean,
+    short: Boolean,
+): String {
+    val date = runCatching { LocalDate.parse(value) }.getOrNull() ?: return value
+    if (last && date == LocalDate.now()) return "Hoy"
+    val text = date.format(if (short) WeekdayFormat else ShortDayFormat).replace(".", "")
+    return text.replaceFirstChar { it.uppercase() }
+}
+
+@Composable
+private fun UnpaidBlock(
+    unpaid: AdminUnpaidAccounts,
+    colors: OperationalColors,
+    canClose: Boolean,
+    modifier: Modifier,
+    onOpenOrders: () -> Unit,
+    onClose: (AdminUnpaidAccount) -> Unit,
+) {
+    Column(modifier) {
+        AdminH2("Cuentas sin pagar", colors)
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            unpaid.accounts.forEach { account ->
+                AdminPanel(colors) {
+                    AdminRow(
+                        title = account.spaceName,
+                        colors = colors,
+                        detail =
+                            listOfNotNull(
+                                adminOrdersText(account.orders),
+                                account.hours.takeIf { it > 0 }?.let { "hace $it h" },
+                                "espacio liberado".takeIf { account.abandoned },
+                            ).joinToString(" · "),
+                        leading = { AdminIconBox(Icons.Outlined.QrCode2, colors) },
+                    ) {
+                        AdminRowValue(moneyLabel(account.total), colors)
+                    }
+                    if (canClose && !account.abandoned) {
+                        Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            AdminSecondaryButton(
+                                "Cerrar sin cobrar",
+                                colors,
+                                Modifier.weight(1f),
+                                outlined = true,
+                            ) { onClose(account) }
+                            AdminPrimaryButton("Cobrar", colors, Modifier.weight(1f), onClick = onOpenOrders)
+                        }
+                    }
+                }
+            }
+        }
+        Text(
+            when (unpaid.abandoned) {
+                0 -> "Una cuenta sin pagar se queda abierta hasta que Caja la cobra o tú la cierras."
+                1 -> "1 cuenta quedó sin pagar en un espacio ya liberado. Por cobrar en total: ${moneyLabel(
+                    unpaid.total,
+                )}."
+                else ->
+                    "${unpaid.abandoned} cuentas quedaron sin pagar en espacios ya liberados. " +
+                        "Por cobrar en total: ${moneyLabel(unpaid.total)}."
+            },
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            lineHeight = 17.sp,
+            color = if (unpaid.abandoned > 0) colors.coralText else colors.textMuted,
+            modifier = Modifier.padding(start = 6.dp, end = 6.dp, top = 12.dp),
+        )
+    }
+}
+
+/** Los periodos de "Elige el periodo" del lienzo (marco 21). */
+private enum class AdminPeriodChoice {
+    TODAY,
+    YESTERDAY,
+    WEEK,
+    MONTH,
+    CUSTOM,
+    ;
+
+    fun period(today: LocalDate = LocalDate.now()): AdminPeriod? =
+        when (this) {
+            YESTERDAY -> today.minusDays(1).let { AdminPeriod(it, it) }
+            MONTH -> AdminPeriod(today.withDayOfMonth(1), today)
+            else -> null
+        }
+
+    val buttonTitle: String
+        get() =
+            when (this) {
+                TODAY -> "Ver ventas de hoy"
+                YESTERDAY -> "Ver ventas de ayer"
+                WEEK -> "Ver los últimos 7 días"
+                MONTH -> "Ver ventas del mes"
+                CUSTOM -> "Ver esas fechas"
+            }
+
+    companion object {
+        fun current(state: AdminUiState): AdminPeriodChoice {
+            val custom = state.customPeriod
+            return when {
+                custom == null && state.preset == AdminPeriodPreset.TODAY -> TODAY
+                custom == null && state.preset == AdminPeriodPreset.WEEK -> WEEK
+                custom == null -> MONTH
+                custom == YESTERDAY.period() -> YESTERDAY
+                custom == MONTH.period() -> MONTH
+                else -> CUSTOM
+            }
+        }
+    }
+}
+
+private fun shortDay(date: LocalDate): String = date.format(ShortDayFormat).replace(".", "")
+
+private fun periodLabel(state: AdminUiState): String {
+    val custom = state.customPeriod ?: return state.preset.label
+    return when (custom) {
+        AdminPeriodChoice.YESTERDAY.period() -> "Ayer"
+        AdminPeriodChoice.MONTH.period() -> "Este mes"
+        else -> "${shortDay(custom.from)} – ${shortDay(custom.to)}"
+    }
+}
+
+/** "Elige el periodo": la lista del lienzo; en la elegida, lo vendido. "Elegir fechas" abre el calendario. */
+@Composable
+private fun PeriodSheet(
+    state: AdminUiState,
+    colors: OperationalColors,
+    onDismiss: () -> Unit,
+    onApply: (AdminPeriodChoice, AdminPeriod?) -> Unit,
+) {
+    val current = remember { AdminPeriodChoice.current(state) }
+    var choice by remember { mutableStateOf(current) }
+    var custom by remember { mutableStateOf(state.customPeriod.takeIf { current == AdminPeriodChoice.CUSTOM }) }
+    var pickingDates by remember { mutableStateOf(false) }
+    val today = LocalDate.now()
+    val week = AdminPeriod.lastDays(7, today)
+    AdminSheet(title = "Elige el periodo", colors = colors, busy = false, onDismiss = onDismiss) {
+        Text(
+            "Las ventas, lo más vendido y los métodos de pago se calculan con este periodo.",
+            fontSize = 13.sp,
+            color = colors.textMuted,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        val sales: @Composable (AdminPeriodChoice) -> Unit = { option ->
+            if (option == current) {
+                state.summary?.sales?.let {
+                    Text(
+                        moneyLabel(it),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = colors.textPrimary,
+                    )
+                }
+            }
+        }
+        AdminRadioRow("Hoy", choice == AdminPeriodChoice.TODAY, colors, {
+            choice = AdminPeriodChoice.TODAY
+        }, detail = dayName(today)) {
+            sales(AdminPeriodChoice.TODAY)
+        }
+        AdminRadioRow(
+            "Ayer",
+            choice == AdminPeriodChoice.YESTERDAY,
+            colors,
+            { choice = AdminPeriodChoice.YESTERDAY },
+            detail = dayName(today.minusDays(1)),
+        ) { sales(AdminPeriodChoice.YESTERDAY) }
+        AdminRadioRow(
+            "Últimos 7 días",
+            choice == AdminPeriodChoice.WEEK,
+            colors,
+            { choice = AdminPeriodChoice.WEEK },
+            detail = "${shortDay(week.from)} – ${shortDay(week.to)}",
+        ) { sales(AdminPeriodChoice.WEEK) }
+        AdminRadioRow(
+            "Este mes",
+            choice == AdminPeriodChoice.MONTH,
+            colors,
+            { choice = AdminPeriodChoice.MONTH },
+            detail = today.format(MonthFormat).replaceFirstChar { it.uppercase() },
+        ) { sales(AdminPeriodChoice.MONTH) }
+        AdminRadioRow(
+            "Elegir fechas",
+            choice == AdminPeriodChoice.CUSTOM,
+            colors,
+            {
+                choice = AdminPeriodChoice.CUSTOM
+                pickingDates = true
+            },
+            detail = custom?.let { "${shortDay(it.from)} – ${shortDay(it.to)}" } ?: "Desde y hasta",
+        ) {
+            Icon(
+                Icons.Outlined.CalendarMonth,
+                contentDescription = null,
+                tint = colors.textMuted,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        AdminPrimaryButton(
+            choice.buttonTitle,
+            colors,
+            enabled = choice != AdminPeriodChoice.CUSTOM || custom != null,
+        ) { onApply(choice, custom) }
+    }
+    if (pickingDates) {
+        DateRangeDialog(colors, onDismiss = { pickingDates = false }) {
+            pickingDates = false
+            custom = it
+        }
+    }
+}
+
+private val MonthFormat = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.forLanguageTag("es-MX"))
+private val DayNameFormat = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", Locale.forLanguageTag("es-MX"))
+
+private fun dayName(date: LocalDate): String = date.format(DayNameFormat).replaceFirstChar { it.uppercase() }
+
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun PeriodPicker(
+private fun DateRangeDialog(
     colors: OperationalColors,
     onDismiss: () -> Unit,
     onPick: (AdminPeriod) -> Unit,
 ) {
-    val today = LocalDate.now()
-    val todayMillis = today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+    val todayMillis =
+        LocalDate
+            .now()
+            .atStartOfDay(ZoneOffset.UTC)
+            .toInstant()
+            .toEpochMilli()
     val pickerState =
         rememberDateRangePickerState(
             selectableDates =
@@ -529,135 +864,14 @@ private fun PeriodPicker(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar", color = colors.textSecondary) } },
     ) {
-        DateRangePicker(state = pickerState, title = {
-            Text("Elige el periodo", modifier = Modifier.padding(16.dp))
-        }, showModeToggle = false)
+        DateRangePicker(
+            state = pickerState,
+            title = { Text("Desde y hasta", modifier = Modifier.padding(16.dp)) },
+            showModeToggle = false,
+        )
     }
 }
 
 private fun utcDay(millis: Long): LocalDate = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
-
-private val PeriodFormat = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.forLanguageTag("es-MX"))
-
-@Composable
-private fun CloseWithoutChargingSheet(
-    account: AdminUnpaidAccount,
-    colors: OperationalColors,
-    saving: Boolean,
-    error: String?,
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
-) {
-    var note by remember { mutableStateOf("") }
-    AdminSheet(
-        title = "Cerrar ${account.spaceName} sin cobrar",
-        colors = colors,
-        busy = saving,
-        onDismiss = onDismiss,
-    ) {
-        Text("Úsalo solo si el cliente se fue sin pagar. No cobra nada.", fontSize = 15.sp, color = colors.textPrimary)
-        AdminValueRow("Cuenta", moneyLabel(account.total), colors, detail = adminOrdersText(account.orders))
-        OperationalField(
-            value = note,
-            onValueChange = { note = it.take(240) },
-            label = "Motivo (opcional)",
-            colors = colors,
-            placeholder = "Se fue sin pagar",
-            enabled = !saving,
-        )
-        AdminSheetError(error)
-        ActionPill(label = "Cerrar sin cobrar", enabled = true, loading = saving, colors = colors) { onConfirm(note) }
-    }
-}
-
-/** Barras de ventas por día: la más alta llena la altura. */
-@Composable
-private fun DailySalesCard(
-    summary: AdminSummary,
-    colors: OperationalColors,
-) {
-    val values = summary.dailySales.map { it.sales.toBigDecimalOrNull() ?: BigDecimal.ZERO }
-    val max = values.maxOrNull()?.takeIf { it > BigDecimal.ZERO } ?: BigDecimal.ONE
-    AdminCard(colors) {
-        AdminSectionTitle("Ventas por día", colors)
-        Row(
-            modifier = Modifier.fillMaxWidth().height(96.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.Bottom,
-        ) {
-            summary.dailySales.zip(values).forEach { (day, value) ->
-                val fraction = (value.toFloat() / max.toFloat()).coerceIn(0.03f, 1f)
-                Box(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .fillMaxHeight(fraction)
-                            .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                            .background(if (value > BigDecimal.ZERO) colors.textPrimary else colors.cardBorder)
-                            .semantics { contentDescription = "${day.date}: ${moneyLabel(day.sales)}" },
-                )
-            }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(summary.dailySales.first().date, fontSize = 11.sp, color = colors.textSecondary)
-            Text(summary.dailySales.last().date, fontSize = 11.sp, color = colors.textSecondary)
-        }
-    }
-}
-
-@Composable
-private fun UnpaidCard(
-    unpaid: AdminUnpaidAccounts,
-    colors: OperationalColors,
-    canClose: Boolean,
-    onClose: (AdminUnpaidAccount) -> Unit,
-) {
-    AdminCard(colors) {
-        AdminSectionTitle("Cuentas sin pagar", colors)
-        if (unpaid.abandoned > 0) {
-            Text(
-                if (unpaid.abandoned ==
-                    1
-                ) {
-                    "1 cuenta quedó sin pagar en un espacio ya liberado."
-                } else {
-                    "${unpaid.abandoned} cuentas quedaron sin pagar en espacios ya liberados."
-                },
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = AdminCoral,
-            )
-        }
-        unpaid.accounts.forEach { account ->
-            AdminValueRow(
-                label = account.spaceName,
-                value = moneyLabel(account.total),
-                colors = colors,
-                detail =
-                    buildString {
-                        append(adminOrdersText(account.orders))
-                        if (account.hours > 0) append(" · hace ${account.hours} h")
-                        if (account.abandoned) append(" · espacio liberado")
-                    },
-            )
-            if (canClose && !account.abandoned) {
-                Text(
-                    "Cerrar sin cobrar",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = AdminCoral,
-                    modifier =
-                        Modifier
-                            .physicalPress(
-                                scale = PhysicalPressScale.Small,
-                            ) { onClose(account) }
-                            .padding(vertical = 6.dp),
-                )
-            }
-        }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(colors.cardBorder))
-        AdminValueRow("Total", moneyLabel(unpaid.total), colors, strong = true)
-    }
-}
 
 internal fun adminOrdersText(count: Int): String = if (count == 1) "1 pedido" else "$count pedidos"

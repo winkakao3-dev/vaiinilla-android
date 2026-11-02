@@ -54,9 +54,10 @@ class AdminContractJson {
                     AdminCount(
                         OrderState.entries.firstOrNull { it.wireValue == metric.estado }?.label ?: metric.estado,
                         metric.pedidos,
+                        key = metric.estado,
                     )
                 },
-            topProducts = data.productos.map { AdminCount(it.nombre, it.cantidad) },
+            topProducts = data.productos.map { AdminCount(it.nombre, it.cantidad, amount = it.ventas) },
         )
     }
 
@@ -203,6 +204,7 @@ private data class StatusDto(
 private data class ProductMetricDto(
     val nombre: String,
     val cantidad: Int,
+    val ventas: String? = null,
 )
 
 @Serializable

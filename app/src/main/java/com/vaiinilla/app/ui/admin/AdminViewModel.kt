@@ -207,9 +207,9 @@ class AdminViewModel
         fun closeWithoutCharging(
             account: AdminUnpaidAccount,
             note: String,
-            onDone: () -> Unit,
+            onDone: (Boolean) -> Unit,
         ) {
-            if (_uiState.value.saving) return
+            if (_uiState.value.saving) return onDone(false)
             _uiState.value = _uiState.value.copy(saving = true)
             viewModelScope.launch {
                 val result =
@@ -220,10 +220,13 @@ class AdminViewModel
                 result.fold(
                     onSuccess = {
                         showNotice("Cuenta de ${account.spaceName} cerrada sin cobrar", isError = false)
-                        onDone()
+                        onDone(true)
                         refreshHome()
                     },
-                    onFailure = { showNotice(it.toUserFacingMessage("No se pudo cerrar la cuenta."), isError = true) },
+                    onFailure = {
+                        showNotice(it.toUserFacingMessage("No se pudo cerrar la cuenta."), isError = true)
+                        onDone(false)
+                    },
                 )
             }
         }

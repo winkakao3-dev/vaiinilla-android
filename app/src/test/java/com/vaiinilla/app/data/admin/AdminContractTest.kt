@@ -100,7 +100,7 @@ class AdminContractTest {
               "ventas_por_dia":[{"fecha":"2026-10-15","ventas":"500.00","pedidos":4}],
               "metodos_pago":[{"metodo":"stripe","ventas":"900.00","pedidos":7}],
               "pedidos_por_estado":[{"estado":"no_recogido","pedidos":1}],
-              "productos":[{"producto_id":4,"nombre":"Latte","cantidad":9}],
+              "productos":[{"producto_id":4,"nombre":"Latte","cantidad":9,"ventas":"405.00"}],
               "wallet":{}},
              "error":null,"meta":{}}
             """.trimIndent()
@@ -112,6 +112,8 @@ class AdminContractTest {
         assertEquals("Tarjeta en la app", summary.paymentMethods.single().label)
         assertEquals("No recogido", summary.ordersByStatus.single().label)
         assertEquals("Latte", summary.topProducts.single().label)
+        assertEquals("405.00", summary.topProducts.single().amount)
+        assertEquals("no_recogido", summary.ordersByStatus.single().key)
         assertEquals(1, summary.canceledOrders)
     }
 

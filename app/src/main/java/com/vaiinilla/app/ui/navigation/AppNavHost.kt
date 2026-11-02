@@ -2288,6 +2288,7 @@ fun AppNavHost(
                         // Para el menú: si el negocio renta canchas y si la tarjeta suma comisión.
                         adminStoreViewModel.onVisible(scope)
                         adminSpacesViewModel.onVisible(scope)
+                        adminStaffViewModel.onVisible(scope)
                     }
                 }
                 if (authorizedAdmin) {

@@ -53,6 +53,10 @@ data class AdminMetric(
 data class AdminCount(
     val label: String,
     val count: Int,
+    /** Lo vendido de ese producto; null si el servidor no lo manda. */
+    val amount: String? = null,
+    /** El estado como lo manda el servidor (`entregado`), para colorearlo. */
+    val key: String? = null,
 )
 
 /** Cuentas de mesas y canchas que siguen sin pagar. */

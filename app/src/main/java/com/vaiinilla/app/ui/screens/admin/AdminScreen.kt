@@ -11,22 +11,22 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PointOfSale
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.RestaurantMenu
@@ -49,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -134,7 +135,7 @@ class AdminActions(
     val onRefreshCatalog: () -> Unit,
     val onSelectPeriod: (com.vaiinilla.app.ui.admin.AdminPeriodPreset) -> Unit,
     val onSelectCustomPeriod: (com.vaiinilla.app.domain.admin.AdminPeriod) -> Unit,
-    val onCloseWithoutCharging: (com.vaiinilla.app.domain.admin.AdminUnpaidAccount, String, () -> Unit) -> Unit,
+    val onCloseWithoutCharging: (com.vaiinilla.app.domain.admin.AdminUnpaidAccount, String, (Boolean) -> Unit) -> Unit,
     val onSaveCategory: (Int?, com.vaiinilla.app.domain.admin.AdminCategoryInput, () -> Unit) -> Unit,
     val onSaveProduct: (Int?, com.vaiinilla.app.domain.admin.AdminProductInput, AdminImage?, () -> Unit) -> Unit,
     val onSetAvailable: (com.vaiinilla.app.domain.model.Product, Boolean) -> Unit,
@@ -177,103 +178,189 @@ fun AdminScreen(
     val reduced = reducedMotion()
     val readOnly = restrictedMode == RestrictedMode.READ_ONLY
 
-    val openSection = section
-    if (openSection != null) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(colors.background)
-                .statusBarsPadding()
-                .navigationBarsPadding(),
-        ) {
-            AdminSectionContent(openSection, state, sections, scope, colors, readOnly) { section = null }
+    AdminDialogHost(colors) {
+        val openSection = section
+        if (openSection != null) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(colors.background)
+                    .statusBarsPadding()
+                    .navigationBarsPadding(),
+            ) {
+                AdminSectionContent(openSection, state, sections, scope, colors, readOnly) { section = null }
+            }
+            return@AdminDialogHost
         }
-        return
-    }
 
-    val header =
-        AdminHeader(
-            placeName = placeName.ifBlank { "Vaiinilla" },
-            photoUrl = photoUrl,
-            logoUrl = logoUrl,
-            avatar = { AdminAvatar(colors = colors, onChangeMode = onChangeMode) },
-        )
-    Box(modifier = Modifier.fillMaxSize().background(colors.background)) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            if (restrictedMode != null) {
-                Box(Modifier.statusBarsPadding()) { RestrictedBanner(restrictedMode, colors) }
-            }
-            AnimatedContent(
-                targetState = tab,
-                transitionSpec = {
-                    if (reduced) {
-                        fadeIn(spring(stiffness = 10_000f)) togetherWith fadeOut(spring(stiffness = 10_000f))
-                    } else {
-                        fadeIn(spring(stiffness = 400f)) togetherWith fadeOut(spring(stiffness = 600f))
-                    }
-                },
-                modifier = Modifier.weight(1f),
-                label = "admin-tab",
-            ) { current ->
-                when (current) {
-                    AdminTab.HOME ->
-                        AdminHomeTab(
-                            state = state,
-                            colors = colors,
-                            readOnly = readOnly,
-                            actions = actions,
-                            header = header,
-                            onOpenOrders = { tab = AdminTab.ORDERS },
-                        )
-                    AdminTab.MENU ->
-                        AdminMenuTab(
-                            state = state,
-                            colors = colors,
-                            readOnly = readOnly,
-                            actions = actions,
-                            header = header,
-                            rentsSpaces = rentsSpaces,
-                            cardFeeToCustomer = cardFeeToCustomer,
-                            isSchool = isSchool,
-                            takesPreorders = takesPreorders,
-                        )
-                    AdminTab.TAKE_ORDER ->
-                        sections.orderTaker?.invoke(header)
-                            ?: Box(Modifier.fillMaxSize().statusBarsPadding().padding(24.dp)) {
-                                Text("No se pudo abrir la toma de pedidos.", color = colors.textSecondary)
-                            }
-                    AdminTab.ORDERS ->
-                        AdminOrdersTab(
-                            state = state,
-                            colors = colors,
-                            actions = actions,
-                            header = header,
-                            tables = sections.tablesBoard,
-                        )
-                    AdminTab.BUSINESS ->
-                        AdminBusinessTab(
-                            state = state,
-                            colors = colors,
-                            header = header,
-                            sections =
-                                AdminSection.entries.filter {
-                                    it != AdminSection.SCHOOL || (isSchool && sections.school != null)
-                                },
-                        ) { section = it }
+        val header =
+            AdminHeader(
+                placeName = placeName.ifBlank { "Vaiinilla" },
+                photoUrl = photoUrl,
+                logoUrl = logoUrl,
+                avatar = { AdminAvatar(colors = colors, onChangeMode = onChangeMode) },
+            )
+        Box(modifier = Modifier.fillMaxSize().background(colors.background)) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                if (restrictedMode != null) {
+                    Box(Modifier.statusBarsPadding()) { RestrictedBanner(restrictedMode, colors) }
                 }
+                AnimatedContent(
+                    targetState = tab,
+                    transitionSpec = {
+                        if (reduced) {
+                            fadeIn(spring(stiffness = 10_000f)) togetherWith fadeOut(spring(stiffness = 10_000f))
+                        } else {
+                            fadeIn(spring(stiffness = 400f)) togetherWith fadeOut(spring(stiffness = 600f))
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    label = "admin-tab",
+                ) { current ->
+                    when (current) {
+                        AdminTab.HOME ->
+                            AdminHomeTab(
+                                state = state,
+                                colors = colors,
+                                readOnly = readOnly,
+                                actions = actions,
+                                header = header,
+                                setup =
+                                    adminSetupSteps(
+                                        state,
+                                        sections.store.uiState.value,
+                                        sections.staff.uiState.value,
+                                    ),
+                                onOpenOrders = { tab = AdminTab.ORDERS },
+                                onOpenSection = { section = it },
+                            )
+                        AdminTab.MENU ->
+                            AdminMenuTab(
+                                state = state,
+                                colors = colors,
+                                readOnly = readOnly,
+                                actions = actions,
+                                header = header,
+                                rentsSpaces = rentsSpaces,
+                                cardFeeToCustomer = cardFeeToCustomer,
+                                isSchool = isSchool,
+                                takesPreorders = takesPreorders,
+                            )
+                        AdminTab.TAKE_ORDER ->
+                            sections.orderTaker?.invoke(header)
+                                ?: Box(Modifier.fillMaxSize().statusBarsPadding().padding(24.dp)) {
+                                    Text("No se pudo abrir la toma de pedidos.", color = colors.textSecondary)
+                                }
+                        AdminTab.ORDERS ->
+                            AdminOrdersTab(
+                                state = state,
+                                colors = colors,
+                                actions = actions,
+                                header = header,
+                                tables = sections.tablesBoard,
+                            )
+                        AdminTab.BUSINESS ->
+                            AdminBusinessTab(
+                                state = state,
+                                colors = colors,
+                                header = header,
+                                sections =
+                                    AdminSection.entries.filter {
+                                        it != AdminSection.SCHOOL || (isSchool && sections.school != null)
+                                    },
+                                host = sections,
+                                readOnly = readOnly,
+                            ) { section = it }
+                    }
+                }
+                AdminTabBar(selected = tab, colors = colors, onSelect = { tab = it })
             }
-            AdminTabBar(selected = tab, colors = colors, onSelect = { tab = it })
+            ToastPill(
+                message = state.notice,
+                containerColor = colors.textPrimary,
+                contentColor = colors.background,
+                badgeColor = if (state.noticeIsError) AdminCoral else colors.accentLime,
+                badgeContentColor = if (state.noticeIsError) colors.background else colors.accentInk,
+                icon = if (state.noticeIsError) Icons.Rounded.PriorityHigh else Icons.Rounded.Check,
+            )
         }
-        ToastPill(
-            message = state.notice,
-            containerColor = colors.textPrimary,
-            contentColor = colors.background,
-            badgeColor = if (state.noticeIsError) AdminCoral else colors.accentLime,
-            badgeContentColor = if (state.noticeIsError) colors.background else colors.accentInk,
-            icon = if (state.noticeIsError) Icons.Rounded.PriorityHigh else Icons.Rounded.Check,
-        )
     }
 }
+
+/** "Para dejar lista tu tienda": lo que falta para que la tienda reciba pedidos, como en iOS. */
+private fun adminSetupSteps(
+    state: AdminUiState,
+    store: com.vaiinilla.app.ui.admin.AdminStoreUiState,
+    staff: com.vaiinilla.app.ui.admin.AdminStaffUiState,
+): List<AdminSetupStep> =
+    buildList {
+        val config = store.config
+        if (config != null) {
+            add(
+                AdminSetupStep(
+                    "Logo y foto del negocio",
+                    null,
+                    done = config.logoUrl != null && config.imageUrl != null,
+                    section = AdminSection.STORE,
+                ),
+            )
+            config.homeDelivery?.let { delivery ->
+                add(
+                    AdminSetupStep(
+                        "Entrega a domicilio",
+                        delivery.radiusKm.takeIf { delivery.enabled && it.isNotBlank() }?.let { "$it km" },
+                        done = delivery.enabled,
+                        section = AdminSection.STORE,
+                    ),
+                )
+            }
+        }
+        if (store.stripeLoaded) {
+            add(
+                AdminSetupStep(
+                    "Pagos con tarjeta",
+                    "Stripe",
+                    done =
+                        com.vaiinilla.app.domain.admin
+                            .stripeStep(store.stripe) ==
+                            com.vaiinilla.app.domain.admin.StripeStep.READY,
+                    section = AdminSection.STORE,
+                ),
+            )
+        }
+        state.catalog?.let { catalog ->
+            val count = catalog.products.size
+            add(AdminSetupStep("Productos en el menú", "$count", done = count > 0))
+        }
+        if (!staff.loading || staff.memberships.isNotEmpty()) {
+            val kitchen = com.vaiinilla.app.domain.admin.StaffRole.KITCHEN
+            val invited =
+                staff.memberships.any { it.role == kitchen } ||
+                    staff.invitations.any {
+                        it.role == kitchen &&
+                            it.state in
+                            setOf(
+                                com.vaiinilla.app.domain.admin.InvitationState.PENDING,
+                                com.vaiinilla.app.domain.admin.InvitationState.ACCEPTED,
+                            )
+                    }
+            add(AdminSetupStep("Cocina invitada", null, done = invited, section = AdminSection.STAFF))
+        }
+        state.live?.cashOpen?.let { open ->
+            add(
+                AdminSetupStep(
+                    "Caja abierta",
+                    state.cashOpeningAmount?.takeIf { open }?.let {
+                        "Fondo ${com.vaiinilla.app.ui.components.moneyLabel(
+                            it,
+                        )}"
+                    },
+                    done = open,
+                    section = AdminSection.CASH,
+                ),
+            )
+        }
+    }
 
 /** La cuenta: tema y cambiar de modo. Va arriba a la derecha de cada cabecera. */
 @Composable
@@ -405,8 +492,8 @@ private fun AdminSectionContent(
 }
 
 /**
- * "Negocio": la foto y el nombre del negocio arriba (cambiarlos abre Flujo de mi tienda), las secciones del día a
- * día en mosaicos y el resto del panel web en una lista.
+ * «Negocio» como el marco 01 del lienzo: la foto del negocio con NEGOCIO en grande, las cuatro secciones del día a
+ * día en tarjetas y las largas (Flujo de mi tienda, Escuela) a todo lo ancho.
  */
 @Composable
 private fun AdminBusinessTab(
@@ -414,143 +501,100 @@ private fun AdminBusinessTab(
     colors: OperationalColors,
     header: AdminHeader,
     sections: List<AdminSection>,
+    host: AdminSectionsHost,
+    readOnly: Boolean,
     onOpen: (AdminSection) -> Unit,
 ) {
-    val listState = rememberLazyListState()
-    val heroGone by rememberHeroGone(listState)
-    val tiles = sections.filter { it in BusinessTiles }
-    val rows = sections.filter { it !in BusinessTiles }
-    Box(Modifier.fillMaxSize()) {
-        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            item(key = "hero") {
-                AdminHero(
-                    title = header.placeName,
-                    subtitle = "Administración",
-                    colors = colors,
-                    height = 300.dp,
-                    photoUrl = header.photoUrl,
-                    logoUrl = header.logoUrl,
-                    showLogo = true,
-                    logoName = header.placeName,
-                    leading = {
-                        AdminHeroPill("Cambiar foto", icon = Icons.Outlined.PhotoCamera) {
-                            onOpen(AdminSection.STORE)
+    val store by host.store.uiState
+    val spaces by host.spaces.uiState
+    val detail: (AdminSection) -> String = { businessDetail(it, state, store, spaces, readOnly) }
+    val tiles = BusinessTiles.filter { it in sections }
+    val wide = listOf(AdminSection.STORE, AdminSection.SCHOOL).filter { it in sections }
+    AdminHeroPage(
+        cover = header.photoUrl,
+        caption = "Administración · ${header.placeName}",
+        title = "Negocio",
+        colors = colors,
+        compactTitle = header.placeName,
+        compactLogo = header.logoUrl,
+        trailing = { header.avatar() },
+    ) {
+        item(key = "tiles") {
+            Column(Modifier.padding(top = 4.dp).adminRise(1), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                tiles.chunked(2).forEach { pair ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        pair.forEach { item ->
+                            BusinessTile(
+                                section = item,
+                                detail = detail(item),
+                                locked = readOnly && item != AdminSection.CASH,
+                                colors = colors,
+                                modifier = Modifier.weight(1f),
+                            ) { onOpen(item) }
                         }
-                    },
-                    trailing = header.avatar,
-                )
-            }
-            item(key = "tiles") {
-                Column(
-                    Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    tiles.chunked(2).forEach { pair ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            pair.forEach { item ->
-                                BusinessTile(
-                                    section = item,
-                                    detail = businessDetail(item, state),
-                                    colors = colors,
-                                    modifier = Modifier.weight(1f),
-                                ) { onOpen(item) }
-                            }
-                            if (pair.size == 1) Box(Modifier.weight(1f))
-                        }
-                    }
-                }
-            }
-            if (rows.isNotEmpty()) {
-                item(key = "rows") {
-                    val shape = RoundedCornerShape(24.dp)
-                    Column(
-                        Modifier
-                            .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 24.dp)
-                            .fillMaxWidth()
-                            .clip(shape)
-                            .background(colors.cardBackground)
-                            .border(1.dp, colors.cardBorder, shape),
-                    ) {
-                        rows.forEachIndexed { index, item ->
-                            if (index > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.cardBorder))
-                            Row(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .physicalPress { onOpen(item) }
-                                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                            ) {
-                                Icon(
-                                    item.icon,
-                                    contentDescription = null,
-                                    tint = colors.textSecondary,
-                                    modifier = Modifier.size(22.dp),
-                                )
-                                Column(Modifier.weight(1f)) {
-                                    Text(
-                                        item.label,
-                                        fontSize = 15.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.textPrimary,
-                                    )
-                                    Text(item.description, fontSize = 12.sp, color = colors.textSecondary)
-                                }
-                                Icon(
-                                    Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-                                    contentDescription = null,
-                                    tint = colors.textSecondary,
-                                )
-                            }
-                        }
+                        if (pair.size == 1) Box(Modifier.weight(1f))
                     }
                 }
             }
         }
-        AdminCompactBar(
-            visible = heroGone,
-            title = header.placeName,
-            logoUrl = header.logoUrl,
-            colors = colors,
-            trailing = { header.avatar() },
-        )
+        wide.forEach { item ->
+            item(key = "wide-${item.name}") {
+                BusinessWideRow(item, detail(item), readOnly, colors, Modifier.padding(top = 12.dp).adminRise(2)) {
+                    onOpen(item)
+                }
+            }
+        }
     }
 }
 
-private val BusinessTiles = setOf(AdminSection.CASH, AdminSection.SPACES, AdminSection.STAFF, AdminSection.CASHBACK)
+private val BusinessTiles = listOf(AdminSection.CASH, AdminSection.SPACES, AdminSection.STAFF, AdminSection.CASHBACK)
 
 private fun businessDetail(
     section: AdminSection,
     state: AdminUiState,
+    store: com.vaiinilla.app.ui.admin.AdminStoreUiState,
+    spaces: com.vaiinilla.app.ui.admin.AdminSpacesUiState,
+    readOnly: Boolean,
 ): String =
-    when (section) {
-        AdminSection.CASH ->
+    when {
+        section == AdminSection.CASH ->
             when (state.live?.cashOpen) {
                 true -> "Abierta"
                 false -> "Cerrada"
                 null -> "Abrir y cerrar"
             }
-        AdminSection.STAFF ->
-            state.live?.pendingInvitations?.let {
-                if (it ==
-                    1
-                ) {
-                    "1 invitación pendiente"
-                } else {
-                    "$it invitaciones pendientes"
-                }
+        readOnly -> "Solo lectura"
+        section == AdminSection.STORE -> "Pagos, logo, entrega y cómo se pide"
+        section == AdminSection.SPACES -> {
+            val count = spaces.spaces?.size ?: 0
+            if (count ==
+                0
+            ) {
+                "QR, canchas y reservas"
+            } else {
+                (if (count == 1) "1 espacio" else "$count espacios") +
+                    " · QR y reservas"
             }
-                ?: "Equipo y accesos"
-        AdminSection.SPACES -> "QR, canchas y reservas"
-        AdminSection.CASHBACK -> "Regla y cartera"
-        else -> section.description
+        }
+        section == AdminSection.STAFF -> {
+            val pending = state.live?.pendingInvitations ?: 0
+            when {
+                pending <= 0 -> "Equipo y accesos"
+                pending == 1 -> "1 invitación pendiente"
+                else -> "$pending invitaciones pendientes"
+            }
+        }
+        section == AdminSection.CASHBACK ->
+            store.cashback?.takeIf { it.active }?.let { "${it.percent.removeSuffix(".00")}% en cada compra" }
+                ?: "Regla y cartera"
+        else -> "Unirse, recargas y menú de cada día"
     }
 
 @Composable
 private fun BusinessTile(
     section: AdminSection,
     detail: String,
+    locked: Boolean,
     colors: OperationalColors,
     modifier: Modifier,
     onClick: () -> Unit,
@@ -559,38 +603,78 @@ private fun BusinessTile(
     Column(
         modifier =
             modifier
-                .height(128.dp)
+                .heightIn(min = 128.dp)
                 .physicalPress(onClick = onClick)
+                .semantics(mergeDescendants = true) {}
+                .graphicsLayer { alpha = if (locked) 0.6f else 1f }
                 .clip(shape)
                 .background(colors.cardBackground)
-                .border(1.dp, colors.cardBorder, shape)
                 .padding(16.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        Box(
-            Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(colors.textPrimary.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center,
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            AdminIconBox(section.icon, colors)
+            Spacer(Modifier.weight(1f))
+            if (locked) {
+                Icon(
+                    Icons.Outlined.Lock,
+                    contentDescription = "Solo lectura",
+                    tint = colors.textMuted,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(22.dp))
+        Text(section.label, fontSize = 17.sp, fontWeight = FontWeight.Black, color = colors.textPrimary, maxLines = 2)
+        AnimatedContent(
+            targetState = detail,
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            label = "tile-detail",
         ) {
-            Icon(section.icon, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(21.dp))
-        }
-        Column {
             Text(
-                section.label,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Black,
-                color = colors.textPrimary,
-                maxLines = 1,
+                it,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textMuted,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                detail,
-                fontSize = 12.5.sp,
-                fontWeight = FontWeight.Bold,
-                color = colors.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun BusinessWideRow(
+    section: AdminSection,
+    detail: String,
+    locked: Boolean,
+    colors: OperationalColors,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .physicalPress(onClick = onClick)
+            .semantics(mergeDescendants = true) {}
+            .graphicsLayer { alpha = if (locked) 0.6f else 1f }
+            .clip(RoundedCornerShape(26.dp))
+            .background(colors.cardBackground)
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AdminIconBox(section.icon, colors)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(section.label, fontSize = 17.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
+            Text(detail, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textMuted)
+        }
+        Icon(
+            if (locked) Icons.Outlined.Lock else Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+            contentDescription = null,
+            tint = colors.textMuted,
+            modifier = Modifier.size(if (locked) 14.dp else 22.dp),
+        )
     }
 }
 
@@ -600,26 +684,34 @@ private fun RestrictedBanner(
     mode: RestrictedMode,
     colors: OperationalColors,
 ) {
-    Column(
+    val shape = RoundedCornerShape(22.dp)
+    Row(
         modifier =
             Modifier
-                .padding(horizontal = 16.dp, vertical = 4.dp)
+                .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(AdminCoral.copy(alpha = 0.14f))
-                .padding(12.dp),
+                .clip(shape)
+                .background(AdminCoral.copy(alpha = 0.1f))
+                .border(1.dp, AdminCoral.copy(alpha = 0.4f), shape)
+                .semantics(mergeDescendants = true) {}
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            if (mode == RestrictedMode.READ_ONLY) "Solo consulta" else "Cierre operativo",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = colors.textPrimary,
-        )
-        Text(
-            "El negocio está suspendido: solo se permiten las acciones de cierre compatibles con la suspensión.",
-            fontSize = 12.sp,
-            color = colors.textSecondary,
-        )
+        Icon(Icons.Outlined.Lock, contentDescription = null, tint = colors.coralText, modifier = Modifier.size(20.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(
+                if (mode == RestrictedMode.READ_ONLY) "Solo consulta" else "Cierre operativo",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = colors.textPrimary,
+            )
+            Text(
+                "El negocio está suspendido: solo se permiten las acciones de cierre compatibles con la suspensión.",
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textSecondary,
+            )
+        }
     }
 }
 
