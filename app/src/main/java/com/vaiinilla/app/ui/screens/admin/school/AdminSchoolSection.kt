@@ -47,7 +47,6 @@ import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.profile.displayInitials
-import com.vaiinilla.app.ui.screens.ActionPill
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
 import com.vaiinilla.app.ui.screens.admin.AdminCard
@@ -55,6 +54,7 @@ import com.vaiinilla.app.ui.screens.admin.AdminChoice
 import com.vaiinilla.app.ui.screens.admin.AdminCoral
 import com.vaiinilla.app.ui.screens.admin.AdminHint
 import com.vaiinilla.app.ui.screens.admin.AdminLoadError
+import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
 import com.vaiinilla.app.ui.screens.admin.AdminSectionPage
 import com.vaiinilla.app.ui.screens.admin.AdminSectionTitle
 import com.vaiinilla.app.ui.screens.admin.AdminSheetError
@@ -155,11 +155,11 @@ internal fun AdminSchoolContent(
         item(key = "quien-cuida") { GuardianshipsCard(state, colors, enabled, actions) }
         item(key = "devoluciones") { StudentRequestsCard(state, colors, enabled, actions) }
         item(key = "codigo") { JoinCodeCard(settings, colors, enabled, actions) }
-        item(key = "padron") { RosterCard(state, colors, enabled, actions) }
         item(key = "reglas") {
             SchoolRulesCard(settings, colors, enabled) { draft, done -> actions.onSave(draft, false, done) }
         }
         item(key = "cada-dia") { MenuDaysCard(state, products, colors, !readOnly, actions) }
+        item(key = "padron") { RosterCard(state, colors, enabled, actions) }
     }
 }
 
@@ -329,15 +329,14 @@ private fun SchoolRulesCard(
             )
         }
         AdminSheetError(problem.takeIf { draft != null })
-        ActionPill(
-            label = "Guardar",
-            enabled = enabled && draft != null && draft != saved && problem == null,
-            loading = false,
+        AdminPrimaryButton(
+            title = "Guardar",
             colors = colors,
-            modifier = Modifier.padding(top = 4.dp),
+            modifier = Modifier.padding(top = 4.dp).fillMaxWidth(),
+            enabled = enabled && draft != null && draft != saved && problem == null,
         ) {
             haptics.impact()
-            val ready = draft ?: return@ActionPill
+            val ready = draft ?: return@AdminPrimaryButton
             onSave(ready) { draft = null }
         }
     }

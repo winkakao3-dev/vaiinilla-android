@@ -103,14 +103,15 @@ internal fun AdminCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val shape = RoundedCornerShape(22.dp)
+    // Como el panel del lienzo de Doop: sin borde en el tema oscuro, donde el fondo ya lo separa.
+    val shape = RoundedCornerShape(24.dp)
     Column(
         modifier =
             modifier
                 .fillMaxWidth()
                 .clip(shape)
                 .background(colors.cardBackground)
-                .border(1.dp, colors.cardBorder, shape)
+                .then(if (colors.isDark) Modifier else Modifier.border(1.dp, colors.cardBorder, shape))
                 .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
         content = content,
@@ -123,7 +124,7 @@ internal fun AdminSectionTitle(
     colors: OperationalColors,
     modifier: Modifier = Modifier,
 ) {
-    Text(text, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.textPrimary, modifier = modifier)
+    Text(text, fontWeight = FontWeight.Black, fontSize = 18.sp, color = colors.textPrimary, modifier = modifier)
 }
 
 /** Una fila "etiqueta ······ valor" de las listas del resumen y del detalle. */

@@ -52,11 +52,11 @@ import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
-import com.vaiinilla.app.ui.screens.ActionPill
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
 import com.vaiinilla.app.ui.screens.admin.AdminCard
 import com.vaiinilla.app.ui.screens.admin.AdminHint
+import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
 import com.vaiinilla.app.ui.screens.admin.AdminSectionTitle
 import java.time.LocalDate
 
@@ -323,17 +323,17 @@ private fun MenuEditor(
             }
         }
     }
-    ActionPill(
-        label =
+    AdminPrimaryButton(
+        title =
             when {
                 state.savingMenuDate == date -> "Guardando…"
                 current.isEmpty() -> "Vender todo el menú este día"
                 else -> "Guardar menú · ${current.size}"
             },
-        enabled = enabled && !state.saving && picked != null && picked != saved,
-        loading = state.savingMenuDate == date,
         colors = colors,
-        modifier = Modifier.padding(top = 4.dp),
+        modifier = Modifier.padding(top = 4.dp).fillMaxWidth(),
+        busy = state.savingMenuDate == date,
+        enabled = enabled && !state.saving && picked != null && picked != saved,
     ) {
         haptics.impact()
         actions.onSaveMenu(date, current) { picked = null }

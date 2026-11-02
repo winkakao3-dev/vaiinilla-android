@@ -22,12 +22,12 @@ import com.vaiinilla.app.domain.school.RosterStudent
 import com.vaiinilla.app.domain.school.SchoolRosterParser
 import com.vaiinilla.app.ui.admin.school.AdminSchoolUiState
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
-import com.vaiinilla.app.ui.screens.ActionPill
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
 import com.vaiinilla.app.ui.screens.admin.AdminCard
 import com.vaiinilla.app.ui.screens.admin.AdminCoral
 import com.vaiinilla.app.ui.screens.admin.AdminHint
+import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
 import com.vaiinilla.app.ui.screens.admin.AdminSectionTitle
 
 /** El padrón de la escuela: con él, los tutores solo dan de alta a alumnos que de verdad son de aquí. */
@@ -155,12 +155,11 @@ private fun RosterPaste(
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        ActionPill(
-            label = "Guardar padrón",
-            enabled = enabled && result.canSave,
-            loading = false,
+        AdminPrimaryButton(
+            title = "Guardar padrón",
             colors = colors,
             modifier = Modifier.weight(1f),
+            enabled = enabled && result.canSave,
         ) {
             haptics.impact()
             onSave(result.students)
