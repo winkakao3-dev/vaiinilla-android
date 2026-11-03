@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -55,21 +56,24 @@ class CremeWalletCartUiTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Saldo Vaiinilla").assertIsDisplayed()
+        // Como el dibujo de Doop (E02): título, el saldo de este lugar, Recargar y Mi código, y los últimos movimientos.
+        composeTestRule.onNodeWithText("Cartera").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Saldo en Usagi (Pruebas)").assertIsDisplayed()
         composeTestRule.onNodeWithText("\$140").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Vale para comer en Usagi (Pruebas)").assertIsDisplayed()
         composeTestRule.onNodeWithTag("wallet-recharge").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Cuenta").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Gastado este mes").assertIsDisplayed()
-        // «Recargas» es la cifra de la fila de datos y también el filtro de Movimientos (Doop E04).
-        composeTestRule.onAllNodesWithText("Recargas").assertCountEquals(2)
-        composeTestRule.onNodeWithText("Último movimiento").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Movimientos recientes").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Mi código").assertIsDisplayed()
+        composeTestRule.onNodeWithText("MOVIMIENTOS").assertIsDisplayed()
+        // Lo de la cartera vieja ya no sale: la foto del lugar, la pill Cuenta y la fila de datos.
+        composeTestRule.onAllNodesWithText("Saldo Vaiinilla").assertCountEquals(0)
+        composeTestRule.onAllNodesWithText("Último movimiento").assertCountEquals(0)
+        composeTestRule.onAllNodesWithText("MIS HIJOS").assertCountEquals(0)
+
+        // «Ver todos» abre Movimientos (E04) con sus filtros.
+        composeTestRule.onNodeWithText("Ver todos").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Movimientos").assertIsDisplayed()
         composeTestRule.onNodeWithText("Todo").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Compras").assertExists()
-        // Ni la pill Movimientos ni nada de la escuela en una tienda normal.
-        composeTestRule.onAllNodesWithText("Movimientos").assertCountEquals(0)
-        composeTestRule.onAllNodesWithText("Mis hijos").assertCountEquals(0)
+        composeTestRule.onNodeWithText("Cashback").assertExists()
     }
 
     @Test
@@ -85,8 +89,9 @@ class CremeWalletCartUiTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onAllNodesWithText("—").assertCountEquals(3)
         composeTestRule.onNodeWithText("Ver el menú").assertIsDisplayed()
+        // Sin movimientos no hay «Este mes gastaste…» ni «Ver todos».
+        composeTestRule.onAllNodesWithText("Ver todos").assertCountEquals(0)
     }
 
     @Test
@@ -119,20 +124,17 @@ class CremeWalletCartUiTest {
             }
         }
         composeTestRule.waitUntil(5_000) {
-            composeTestRule.onAllNodesWithText("Agregar otro hijo").fetchSemanticsNodes().isNotEmpty()
+            composeTestRule.onAllNodesWithText("+ Agregar").fetchSemanticsNodes().isNotEmpty()
         }
 
-        composeTestRule.onNodeWithText("Tu saldo · el de tus hijos va aparte").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Hijos").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Saldo de tus hijos").assertIsDisplayed()
-        // Mis hijos se ve sin hacer scroll y ya no es una pill.
-        composeTestRule.onAllNodesWithText("Mis hijos").assertCountEquals(1)
-        composeTestRule.onNodeWithText("Mis hijos").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Agregar otro hijo").assertIsDisplayed()
+        // Mis hijos se ve sin hacer scroll, con «+ Agregar» a la derecha (Doop E02).
+        composeTestRule.onAllNodesWithText("MIS HIJOS").assertCountEquals(1)
+        composeTestRule.onNodeWithText("MIS HIJOS").assertIsDisplayed()
+        composeTestRule.onNodeWithText("+ Agregar").assertIsDisplayed()
     }
 
     @Test
-    fun `Cartera del alumno con tutor trae Otro tutor, Como funciona y sus limites`() {
+    fun `Cartera del alumno con tutor trae lo que le queda hoy, el candado y Otro tutor`() {
         val controls =
             MyGuardianControls(
                 tutorNames = listOf("Rosa"),
@@ -173,14 +175,16 @@ class CremeWalletCartUiTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Te cuida Rosa").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("wallet-school-link-code").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("wallet-school-help").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Límite al día").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Te quedan hoy").assertIsDisplayed()
-        composeTestRule.onNodeWithText("2 productos").assertIsDisplayed()
-        composeTestRule.onNodeWithText("\$60").assertIsDisplayed()
-        composeTestRule.onNodeWithText("\$32").assertIsDisplayed()
+        // Como el dibujo de Doop (E14): el anillo de hoy, su saldo con quién lo cuida y lo que tiene candado.
+        composeTestRule.onNodeWithContentDescription("Hoy te quedan \$32 de \$60").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Tu saldo: \$140 · te cuida Rosa").assertIsDisplayed()
+        composeTestRule.onNodeWithText("CON CANDADO").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Por tu alergia").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Lo decidió Rosa").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("1 producto").assertCountEquals(2)
+        composeTestRule.onNodeWithText("Mostrar mi código en Caja").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("wallet-school-link-code").assertExists()
+        composeTestRule.onNodeWithTag("wallet-school-help").assertExists()
     }
 
     @Test

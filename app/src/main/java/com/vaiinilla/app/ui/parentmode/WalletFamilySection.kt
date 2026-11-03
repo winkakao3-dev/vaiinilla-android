@@ -32,7 +32,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
-import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.FamilyRestroom
 import androidx.compose.material.icons.outlined.Schedule
@@ -79,6 +78,7 @@ import com.vaiinilla.app.ui.components.minTouchTarget
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.screens.WalletSectionHeader
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -553,12 +553,12 @@ private fun ChildrenList(
 ) {
     val colors = LocalVaiinillaColors.current
     val scope = rememberCoroutineScope()
-    Text(
-        "Mis hijos",
-        color = colors.ink,
-        fontWeight = FontWeight.Black,
-        fontSize = 19.sp,
-        modifier = Modifier.padding(bottom = 4.dp),
+    // Como el dibujo (Doop E02): la etiqueta de la sección y «+ Agregar» a la derecha cuando ya hay hijos.
+    WalletSectionHeader(
+        title = "Mis hijos",
+        action = if (children.hasLoaded && children.children.isNotEmpty()) "+ Agregar" else null,
+        onAction = onAdd,
+        modifier = Modifier.padding(bottom = 0.dp),
     )
     val error = children.error
     when {
@@ -598,7 +598,6 @@ private fun ChildrenList(
                 }
             }
             awaiting.forEach { AwaitingRow(it) }
-            AddRow(isFirst = children.children.isEmpty(), onAdd = onAdd)
         }
     }
 }
@@ -723,41 +722,3 @@ private fun AwaitingRow(child: Dependent) {
     }
 }
 
-@Composable
-private fun AddRow(
-    isFirst: Boolean,
-    onAdd: () -> Unit,
-) {
-    val colors = LocalVaiinillaColors.current
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .testTag("children-add")
-                .physicalPress(scale = PhysicalPressScale.Small, onClick = onAdd)
-                .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(
-                        44.dp,
-                    ).clip(CircleShape)
-                    .background(colors.paper2)
-                    .border(1.dp, colors.line, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Outlined.Add, contentDescription = null, tint = colors.ink, modifier = Modifier.size(18.dp))
-        }
-        Column(modifier = Modifier.padding(start = 13.dp)) {
-            Text(
-                if (isFirst) "Agregar a mi hijo" else "Agregar otro hijo",
-                color = colors.ink,
-                fontWeight = FontWeight.Black,
-                fontSize = 15.sp,
-            )
-            Text("Recárgale, ponle límites y apártale la comida", color = colors.muted, fontSize = 12.sp)
-        }
-    }
-}

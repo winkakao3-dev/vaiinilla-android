@@ -48,7 +48,7 @@ class ParentModeUiTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Mis hijos").assertIsDisplayed()
+        composeTestRule.onNodeWithText("MIS HIJOS").assertIsDisplayed()
         composeTestRule.onNodeWithText("Falta tu permiso para los datos de Ana").assertIsDisplayed()
         // Su saldo ($40) ya bajó del aviso que puso el tutor ($50).
         composeTestRule.onNodeWithText("Saldo bajo").assertIsDisplayed()
@@ -56,7 +56,7 @@ class ParentModeUiTest {
         // El pendiente no tiene saldo: ni "$0" ni ficha que abrir.
         composeTestRule.onNodeWithText("Esperando a que la escuela te apruebe").assertIsDisplayed()
         composeTestRule.onNodeWithText("\$0").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Agregar otro hijo").assertIsDisplayed()
+        composeTestRule.onNodeWithText("+ Agregar").assertIsDisplayed()
         composeTestRule.onNodeWithText("Cómo funciona para tutores").assertIsDisplayed()
         composeTestRule.onNodeWithText("¿Eres tutor o alumno?").assertDoesNotExist()
 

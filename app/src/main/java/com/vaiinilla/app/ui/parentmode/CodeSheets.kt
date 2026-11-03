@@ -119,7 +119,7 @@ internal fun LinkCodeSheet(
             listOf(
                 "Tu tutor abre Vaiinilla y entra a esta escuela.",
                 "En Cartera toca \"Soy tutor\" › \"Agregar a mi hijo\" › \"Con código\". " +
-                    "Si ya tiene hijos, es \"Agregar otro hijo\" en Mis hijos.",
+                    "Si ya tiene hijos, es \"+ Agregar\" en Mis hijos.",
                 "Escribe estas seis letras y te ve en Mis hijos.",
             ),
         footnote = null,

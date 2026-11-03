@@ -11,8 +11,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,23 +24,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.HelpOutline
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.FamilyRestroom
-import androidx.compose.material.icons.outlined.Group
-import androidx.compose.material.icons.outlined.QrCode2
-import androidx.compose.material.icons.outlined.ShoppingCart
-import androidx.compose.material.icons.outlined.Tag
-import androidx.compose.material.icons.rounded.Storefront
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -53,7 +43,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -61,18 +50,22 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -82,26 +75,18 @@ import com.vaiinilla.app.domain.guardianship.MyGuardianControls
 import com.vaiinilla.app.domain.guardianship.compactMoney
 import com.vaiinilla.app.domain.model.WalletMovement
 import com.vaiinilla.app.domain.time.BusinessTime
-import com.vaiinilla.app.ui.components.ChoiceChip
-import com.vaiinilla.app.ui.components.CremeDivider
-import com.vaiinilla.app.ui.components.CremeHero
-import com.vaiinilla.app.ui.components.CremePill
-import com.vaiinilla.app.ui.components.CremePillRow
-import com.vaiinilla.app.ui.components.CremeStat
-import com.vaiinilla.app.ui.components.CremeStatRow
-import com.vaiinilla.app.ui.components.CremeVenueChip
 import com.vaiinilla.app.ui.components.GlassCircleButton
-import com.vaiinilla.app.ui.components.HeroGlassPill
+import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.SkeletonBlock
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.components.cremeMoment
 import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import com.vaiinilla.app.ui.parentmode.LocalWalletFamilyUi
-import com.vaiinilla.app.ui.parentmode.WalletSchoolEntry
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
@@ -112,35 +97,33 @@ import java.time.Instant
 import java.time.OffsetDateTime
 
 /**
- * Wallet surface backed by the current contract. The API exposes only the
- * visible balance; internal commission buckets stay server-side.
- *
- * Estilo CREME: la portada del lugar, el saldo, las pills (la primera es la acción principal) y la fila de datos.
- * El QR de recarga conserva su animación; solo cambia quién lo abre.
+ * La cartera como el dibujo de Doop (E02; el alumno con tutor, E14): el título, el saldo de este lugar con lo del mes,
+ * Recargar y Mi código, Mis hijos y los últimos movimientos. «Ver todos» abre Movimientos (E04) y «Recargar», la hoja
+ * de Caja (E03). El API solo expone el saldo visible; las bolsas internas de comisión se quedan en el servidor.
  */
 @Composable
 fun WalletScreen(
     remoteState: WalletRemoteUiState = WalletRemoteUiState(),
     userId: String? = null,
-    /** El saldo es por negocio: el chip de la portada dice de cuál. */
+    /** El saldo es por negocio: «Saldo en …» dice de cuál. */
     venueName: String? = null,
     /** Falso cuando el negocio apagó el saldo: se sigue viendo lo que hay, pero ya no se recarga. */
     canRecharge: Boolean = true,
     onRetry: () -> Unit = {},
     onMenu: () -> Unit,
-    /** Avisa cuando el QR personal abre o cierra, para quitar la barra de abajo mientras tanto. */
+    /** Avisa cuando algo tapa la cartera (el código, la recarga o Movimientos), para quitar la barra de abajo. */
     onCodeOpenChange: (Boolean) -> Unit = {},
     /** "Te cuida Ana": el alumno con tutor ve quién lo cuida (GET /tutelas/mis-controles). */
     caretakerLine: String? = null,
     /** Debajo de quién lo cuida: su límite por día, lo que le queda hoy y lo que no puede pedir (F11). */
     caretakerDetail: String? = null,
-    /** Sus controles, para la fila de datos del alumno con tutor. */
+    /** Sus controles: con ellos la cartera del alumno es el anillo de lo que le queda hoy (E14). */
     guardianControls: MyGuardianControls? = null,
     /** Mis hijos y lo de tutores y alumnos, solo en una escuela (Modo Padre). */
     familySection: (@Composable () -> Unit)? = null,
-    /** La portada del lugar, la misma del menú. */
-    venuePhotoUrl: String? = null,
     profileInitials: String = "?",
+    /** Sale bajo el código de la recarga, para que Caja vea que es la persona. */
+    profileName: String? = null,
     onOpenAccount: () -> Unit = {},
     onChangeVenue: (() -> Unit)? = null,
 ) {
@@ -149,20 +132,23 @@ fun WalletScreen(
     val reduceMotion = reducedMotion()
     val qrValue = userId?.trim()?.takeIf { it.isNotEmpty() }?.let(QrPayloadParser::encodeUser)
     val matrix = remember(qrValue) { qrValue?.let { runCatching { QrCodeEncoder.encode(it) }.getOrNull() } }
-    // El QR personal está abierto sobre la cartera: la cartera baja y el frasco se vuelve el código.
+    // «Mi código»: el QR personal sobre la cartera; la cartera baja y el frasco se vuelve el código.
     var codeOpen by rememberSaveable { mutableStateOf(false) }
-    var visibleMovements by rememberSaveable { mutableIntStateOf(MOVEMENTS_PAGE) }
+    var reloadOpen by rememberSaveable { mutableStateOf(false) }
+    var movementsOpen by rememberSaveable { mutableStateOf(false) }
     // El saldo de antes de una recarga, mientras el QR se deshace de vuelta en el frasco.
     var heldBalance by remember { mutableStateOf<String?>(null) }
     val balance = remoteState.data?.wallet?.visibleBalance
     val shownBalance = heldBalance ?: balance
+    val covered = codeOpen || reloadOpen || movementsOpen
     val latestOnCodeOpenChange by rememberUpdatedState(onCodeOpenChange)
-    LaunchedEffect(codeOpen) { latestOnCodeOpenChange(codeOpen) }
+    LaunchedEffect(covered) { latestOnCodeOpenChange(covered) }
     DisposableEffect(Unit) { onDispose { latestOnCodeOpenChange(false) } }
-    // Mientras el código está abierto se pregunta por la recarga; al llegar, el código se cierra solo.
+    // Mientras el código está a la vista se pregunta por la recarga; al llegar, se cierra solo.
+    val waitingReload = codeOpen || reloadOpen
     val latestOnRetry by rememberUpdatedState(onRetry)
-    LaunchedEffect(codeOpen) {
-        while (codeOpen) {
+    LaunchedEffect(waitingReload) {
+        while (waitingReload) {
             delay(CODE_POLL_MS)
             latestOnRetry()
         }
@@ -173,13 +159,16 @@ fun WalletScreen(
         val after = balance?.walletAmount()
         val previous = lastBalance
         if (balance != null) lastBalance = balance
-        if (codeOpen && before != null && after != null && after > before) {
-            // Caja registró la recarga: el código regresa al frasco y el saldo nuevo llega al cerrar.
-            heldBalance = previous
+        if (waitingReload && before != null && after != null && after > before) {
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-            codeOpen = false
-            delay(if (reduceMotion) 250 else 1700)
-            heldBalance = null
+            reloadOpen = false
+            if (codeOpen) {
+                // Caja registró la recarga: el código regresa al frasco y el saldo nuevo llega al cerrar.
+                heldBalance = previous
+                codeOpen = false
+                delay(if (reduceMotion) 250 else 1700)
+                heldBalance = null
+            }
         }
     }
     val sheetAway by animateFloatAsState(
@@ -191,67 +180,22 @@ fun WalletScreen(
     val palette = scenePaletteForTheme()
     val listState = rememberLazyListState()
     val family = LocalWalletFamilyUi.current
-    val inSchool = family != null || familySection != null
-    val isParent = family?.entry == WalletSchoolEntry.PARENT
     val isStudent = caretakerLine != null && family != null
     val movements = remoteState.data?.movements
     val ledger = remember(movements) { WalletLedgerStats.from(movements.orEmpty()) }
-    var movementFilter by rememberSaveable { mutableStateOf(MovementFilter.ALL) }
-    val filteredMovements = remember(movements, movementFilter) { movements.orEmpty().filter { movementFilter.matches(it.type) } }
-    val statItems =
-        when {
-            isStudent && guardianControls != null -> studentStats(guardianControls)
-            isParent && family != null ->
-                listOf(
-                    CremeStat("Gastado este mes", ledger.spentThisMonth),
-                    CremeStat("Hijos", family.childCount.toString()),
-                    CremeStat("Saldo de tus hijos", family.childrenBalance?.let(::compactMoney)),
-                )
-            else ->
-                listOf(
-                    CremeStat("Gastado este mes", ledger.spentThisMonth),
-                    CremeStat("Recargas", ledger.reloads),
-                    CremeStat("Último movimiento", ledger.lastMovement),
-                )
+    val scrolled by remember {
+        derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 }
+    }
+    val openCode = {
+        if (matrix != null && !codeOpen) {
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            codeOpen = true
         }
-    val pills =
-        buildList {
-            if (canRecharge) {
-                add(
-                    CremePill(
-                        title = "Recargar en caja",
-                        icon = Icons.Outlined.QrCode2,
-                        testTag = "wallet-recharge",
-                        enabled = matrix != null,
-                        onClick = {
-                            if (matrix != null && !codeOpen) {
-                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                codeOpen = true
-                            }
-                        },
-                    ),
-                )
-            }
-            if (isStudent && family != null) {
-                add(CremePill("Otro tutor", Icons.Outlined.Tag, family.onLinkCode, "wallet-school-link-code"))
-                add(
-                    CremePill(
-                        "Cómo funciona",
-                        Icons.AutoMirrored.Outlined.HelpOutline,
-                        family.onStudentHelp,
-                        "wallet-school-help",
-                    ),
-                )
-            } else {
-                add(CremePill("Cuenta", Icons.Outlined.AccountCircle, onOpenAccount, "wallet-account"))
-            }
-        }
-    val heroGone by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(colors.paper)) {
         LazyColumn(
             state = listState,
-            // La cartera baja mientras la cámara vuela al frasco, y regresa al cerrar el código.
             modifier =
                 Modifier
                     .fillMaxSize()
@@ -262,157 +206,62 @@ fun WalletScreen(
             userScrollEnabled = !codeOpen,
             contentPadding = PaddingValues(bottom = VaiinillaBottomNavClearance + 48.dp),
         ) {
-            item(key = "hero") {
-                WalletHero(
-                    remoteState = remoteState,
-                    shownBalance = shownBalance,
-                    venueName = venueName,
-                    venuePhotoUrl = venuePhotoUrl,
-                    height = if (inSchool) 320.dp else 400.dp,
-                    chip =
-                        when {
-                            caretakerLine != null -> caretakerLine to Icons.Outlined.Group
-                            isParent -> "Tu saldo · el de tus hijos va aparte" to Icons.Outlined.FamilyRestroom
-                            !venueName.isNullOrBlank() -> "Vale para comer en $venueName" to null
-                            else -> null
-                        },
-                    profileInitials = profileInitials,
-                    onOpenAccount = onOpenAccount,
-                    onChangeVenue = onChangeVenue,
-                    onRetry = onRetry,
-                )
+            item(key = "title") {
+                WalletTitleRow(profileInitials = profileInitials, onOpenAccount = onOpenAccount)
             }
-            item(key = "pills") {
-                Column(modifier = Modifier.padding(top = 18.dp)) {
-                    if (remoteState.data == null && (remoteState.loading || remoteState.error == null)) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 20.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            SkeletonBlock(modifier = Modifier.size(width = 190.dp, height = 54.dp), corner = 27.dp)
-                            SkeletonBlock(modifier = Modifier.size(width = 150.dp, height = 54.dp), corner = 27.dp)
-                        }
-                    } else {
-                        CremePillRow(pills)
-                    }
-                    if (remoteState.data != null && !canRecharge) {
-                        Text(
-                            text = "Este lugar ya no recibe recargas de saldo.",
-                            color = colors.muted,
-                            fontSize = 14.sp,
-                            lineHeight = 20.sp,
-                            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp),
+            if (isStudent && guardianControls != null && family != null) {
+                item(key = "allowance") {
+                    StudentAllowance(controls = guardianControls, balance = shownBalance)
+                }
+                item(key = "locked") { StudentLockedCard(guardianControls) }
+                item(key = "student-actions") {
+                    StudentActions(
+                        codeReady = matrix != null,
+                        onCode = openCode,
+                        onLinkCode = family.onLinkCode,
+                        onHelp = family.onStudentHelp,
+                    )
+                }
+            } else {
+                item(key = "balance") {
+                    Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp)) {
+                        WalletBalance(
+                            remoteState = remoteState,
+                            shownBalance = shownBalance,
+                            venueName = venueName,
+                            onChangeVenue = onChangeVenue,
+                            monthLine = walletMonthLine(ledger, strong = colors.ink2),
+                            onRetry = onRetry,
                         )
-                    }
-                    if (caretakerLine != null && caretakerDetail != null) {
-                        Text(
-                            text = caretakerDetail.replace('\n', ' '),
-                            color = colors.muted,
-                            fontSize = 14.sp,
-                            lineHeight = 20.sp,
-                            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp),
+                        WalletActions(
+                            loading = remoteState.data == null && (remoteState.loading || remoteState.error == null),
+                            canRecharge = canRecharge,
+                            codeReady = matrix != null,
+                            onReload = {
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                reloadOpen = true
+                            },
+                            onCode = openCode,
                         )
-                    }
-                    CremeDivider(Modifier.padding(top = 20.dp))
-                    CremeStatRow(statItems, Modifier.padding(top = 18.dp))
-                    if (!isStudent) {
-                        ledger.returnedThisMonth?.let { returned ->
-                            Text(
-                                text = "Este mes te regresaron $returned entre cashback y devoluciones.",
-                                color = colors.muted,
-                                fontSize = 14.sp,
-                                lineHeight = 20.sp,
-                                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp),
-                            )
+                        if (remoteState.data != null && !canRecharge) {
+                            WalletNote("Este lugar ya no recibe recargas de saldo.")
                         }
+                        caretakerLine?.let { WalletNote(listOfNotNull(it, caretakerDetail?.replace('\n', ' ')).joinToString(". ")) }
                     }
                 }
             }
             if (family != null) {
-                item(key = "family") { Box(Modifier.padding(horizontal = 20.dp)) { family.top() } }
+                item(key = "family") { Box(Modifier.padding(horizontal = 16.dp)) { family.top() } }
             } else if (familySection != null) {
-                item(key = "family") { Box(Modifier.padding(horizontal = 20.dp)) { familySection() } }
+                item(key = "family") { Box(Modifier.padding(horizontal = 16.dp)) { familySection() } }
             }
-
             if (movements != null) {
-                item(key = "movements-title") {
-                    Text(
-                        text = "Movimientos recientes",
-                        color = colors.ink,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 19.sp,
-                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 28.dp, bottom = 4.dp),
+                item(key = "movements") {
+                    WalletRecentMovements(
+                        movements = movements,
+                        onSeeAll = { movementsOpen = true },
+                        onMenu = onMenu,
                     )
-                }
-                if (movements.isEmpty()) {
-                    item(key = "movements-empty") {
-                        Column(Modifier.padding(horizontal = 20.dp)) {
-                            Text(
-                                text = "Aquí verás tus recargas y lo que pagues con saldo.",
-                                color = colors.muted,
-                                fontSize = 14.sp,
-                                lineHeight = 20.sp,
-                                modifier = Modifier.padding(top = 6.dp),
-                            )
-                            TextButton(onClick = onMenu, contentPadding = PaddingValues(0.dp)) {
-                                Text("Ver el menú", color = colors.ink, fontWeight = FontWeight.Black)
-                            }
-                        }
-                    }
-                }
-                if (movements.size > 1) {
-                    item(key = "movements-filters") {
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState())
-                                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            MovementFilter.entries.forEach { filter ->
-                                ChoiceChip(
-                                    label = filter.label,
-                                    selected = movementFilter == filter,
-                                    onClick = {
-                                        movementFilter = filter
-                                        visibleMovements = MOVEMENTS_PAGE
-                                    },
-                                )
-                            }
-                        }
-                    }
-                }
-                if (movements.isNotEmpty() && filteredMovements.isEmpty()) {
-                    item(key = "movements-filter-empty") {
-                        Text(
-                            text = "Todavía no hay movimientos de este tipo.",
-                            color = colors.muted,
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
-                        )
-                    }
-                }
-                items(filteredMovements.take(visibleMovements), key = { it.id }) { movement ->
-                    Box(Modifier.padding(horizontal = 20.dp)) {
-                        WalletMovementRow(
-                            title = movementTitle(movement.type, movement.description, movement.orderFolio),
-                            detail = movementDetail(movement.place, movement.productsSummary),
-                            amount = movement.amount,
-                            balanceAfter = movement.balanceAfter,
-                        )
-                    }
-                }
-                if (filteredMovements.size > visibleMovements) {
-                    item(key = "more-movements") {
-                        TextButton(
-                            onClick = { visibleMovements += MOVEMENTS_PAGE },
-                            modifier = Modifier.padding(horizontal = 20.dp),
-                            contentPadding = PaddingValues(0.dp),
-                        ) {
-                            Text("Ver más movimientos", color = colors.ink, fontWeight = FontWeight.Black)
-                        }
-                    }
                 }
             }
             if (family != null) {
@@ -423,8 +272,20 @@ fun WalletScreen(
             Modifier
                 .fillMaxWidth()
                 .windowInsetsTopHeight(WindowInsets.statusBars)
-                .graphicsLayer { alpha = if (heroGone) 1f else 0f }
-                .background(colors.paper.copy(alpha = 0.92f)),
+                .graphicsLayer { alpha = if (scrolled) 1f else 0f }
+                .background(colors.paper.copy(alpha = 0.94f)),
+        )
+        WalletMovementsPage(
+            visible = movementsOpen,
+            movements = movements.orEmpty(),
+            onBack = { movementsOpen = false },
+        )
+        WalletReloadCodeSheet(
+            visible = reloadOpen,
+            qrValue = qrValue,
+            holderName = profileName,
+            venueName = venueName,
+            onClose = { reloadOpen = false },
         )
         if (matrix != null) {
             CompositionLocalProvider(LocalScene provides palette) {
@@ -441,41 +302,250 @@ fun WalletScreen(
 }
 
 private const val CODE_POLL_MS = 4_000L
-private const val MOVEMENTS_PAGE = 12
 
 private fun String.walletAmount(): Double? = trim().replace(",", "").toDoubleOrNull()
 
-/** La fila de datos del alumno con tutor: su límite, lo que le queda hoy y cuánto tiene con candado. */
-private fun studentStats(controls: MyGuardianControls): List<CremeStat> {
-    val restricted = (controls.blockedProductIds + controls.allergenProductIds + controls.unreviewedProductIds).size
-    return listOf(
-        CremeStat("Límite al día", controls.dailyLimit?.let(::compactMoney)),
-        CremeStat("Te quedan hoy", controls.availableToday?.let(::compactMoney), highlighted = true),
-        CremeStat("Con candado", if (restricted == 1) "1 producto" else "$restricted productos"),
+@Composable
+private fun WalletTitleRow(
+    profileInitials: String,
+    onOpenAccount: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(start = 20.dp, end = 16.dp, top = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "Cartera",
+            color = colors.ink,
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = (-1.2).sp,
+        )
+        ProfileInitialsButton(profileInitials, onClick = onOpenAccount, flat = true)
+    }
+}
+
+@Composable
+private fun WalletBalance(
+    remoteState: WalletRemoteUiState,
+    shownBalance: String?,
+    venueName: String?,
+    onChangeVenue: (() -> Unit)?,
+    monthLine: AnnotatedString?,
+    onRetry: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    // Antes de la primera respuesta todavía no hay error: se espera con el esqueleto, no con "No pudimos cargar".
+    val waiting = remoteState.data == null && remoteState.error == null
+    if (remoteState.data != null || remoteState.loading || waiting) {
+        BalanceLabel(venueName = venueName, onChangeVenue = onChangeVenue)
+    }
+    when {
+        remoteState.data != null -> {
+            AnimatedContent(
+                targetState = shownBalance ?: remoteState.data.wallet.visibleBalance,
+                transitionSpec = {
+                    if (targetState > initialState) {
+                        (slideInVertically { h -> h } + fadeIn()) togetherWith
+                            (slideOutVertically { h -> -h } + fadeOut())
+                    } else {
+                        (slideInVertically { h -> -h } + fadeIn()) togetherWith
+                            (slideOutVertically { h -> h } + fadeOut())
+                    }.using(SizeTransform(clip = false))
+                },
+                label = "wallet_balance_ticker",
+            ) { balance ->
+                Text(
+                    text = moneyLabel(balance),
+                    color = colors.ink,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 60.sp,
+                    lineHeight = 64.sp,
+                    letterSpacing = (-2.8).sp,
+                    maxLines = 1,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+            if (remoteState.error != null) {
+                WalletNote("Sin conexión: puede que este saldo no sea el más reciente.", top = 4)
+            }
+            monthLine?.let {
+                Text(
+                    text = it,
+                    color = colors.muted,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        }
+
+        remoteState.loading || waiting -> {
+            Spacer(Modifier.height(8.dp))
+            SkeletonBlock(modifier = Modifier.size(width = 190.dp, height = 58.dp), corner = 14.dp)
+        }
+
+        else -> {
+            // El error del servidor habla de "contexto operativo"; aquí se dice qué pasó y qué hacer.
+            Text(
+                text = "No pudimos cargar tu saldo",
+                color = colors.ink,
+                fontWeight = FontWeight.Black,
+                fontSize = 20.sp,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            WalletNote("Revisa tu conexión o vuelve a entrar al lugar desde el menú.", top = 4)
+            TextButton(onClick = onRetry, contentPadding = PaddingValues(0.dp)) {
+                Text("Reintentar", color = colors.ink, fontWeight = FontWeight.Black)
+            }
+        }
+    }
+}
+
+/** «Saldo en Pastelería Vaini»; si se puede cambiar de lugar, tocarlo lleva a elegir otro. */
+@Composable
+private fun BalanceLabel(
+    venueName: String?,
+    onChangeVenue: (() -> Unit)?,
+) {
+    val colors = LocalVaiinillaColors.current
+    val label = venueName?.takeIf { it.isNotBlank() }?.let { "Saldo en $it" } ?: "Tu saldo"
+    val changeable = onChangeVenue != null && !venueName.isNullOrBlank()
+    Row(
+        modifier =
+            if (changeable && onChangeVenue != null) {
+                Modifier
+                    .physicalPress(scale = PhysicalPressScale.Small, onClick = onChangeVenue)
+                    .semantics { contentDescription = "$label. Cambiar lugar" }
+            } else {
+                Modifier
+            },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = colors.muted, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        if (changeable) {
+            Icon(
+                Icons.Outlined.ExpandMore,
+                contentDescription = null,
+                tint = colors.muted,
+                modifier = Modifier.padding(start = 2.dp).size(16.dp),
+            )
+        }
+    }
+}
+
+/** «Este mes gastaste $312 y te regresaron $40» (Doop E02); `null` sin movimientos. */
+internal fun walletMonthLine(
+    ledger: WalletLedgerStats,
+    strong: Color = Color.Unspecified,
+): AnnotatedString? {
+    if (ledger.spentThisMonth == null) return null
+    val bold = SpanStyle(color = strong, fontWeight = FontWeight.ExtraBold)
+    return buildAnnotatedString {
+        if (ledger.spentAnyThisMonth) {
+            append("Este mes gastaste ")
+            withStyle(bold) { append(ledger.spentThisMonth) }
+        } else {
+            append("Este mes no has gastado")
+        }
+        ledger.returnedThisMonth?.let { returned ->
+            append(" y te regresaron ")
+            withStyle(bold) { append(returned) }
+        }
+    }
+}
+
+@Composable
+private fun WalletActions(
+    loading: Boolean,
+    canRecharge: Boolean,
+    codeReady: Boolean,
+    onReload: () -> Unit,
+    onCode: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        if (loading) {
+            SkeletonBlock(modifier = Modifier.weight(1f).height(50.dp), corner = 25.dp)
+            SkeletonBlock(modifier = Modifier.weight(1f).height(50.dp), corner = 25.dp)
+            return@Row
+        }
+        if (canRecharge) {
+            WalletButton(
+                label = "Recargar",
+                primary = true,
+                enabled = codeReady,
+                onClick = onReload,
+                modifier = Modifier.weight(1f).testTag("wallet-recharge"),
+            )
+        }
+        WalletButton(
+            label = "Mi código",
+            primary = false,
+            enabled = codeReady,
+            onClick = onCode,
+            modifier = Modifier.weight(1f).testTag("wallet-code"),
+        )
+    }
+}
+
+/** Los botones redondos de la cartera: el claro es la acción principal (Doop E02 y E14). */
+@Composable
+internal fun WalletButton(
+    label: String,
+    primary: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    height: Int = 50,
+) {
+    val colors = LocalVaiinillaColors.current
+    Box(
+        modifier =
+            modifier
+                .height(height.dp)
+                .alpha(if (enabled) 1f else 0.5f)
+                .physicalPress(enabled = enabled, onClick = onClick)
+                .clip(CircleShape)
+                .background(if (primary) colors.ink else colors.paper2),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            color = if (primary) colors.onInk else colors.ink,
+            fontSize = 15.5.sp,
+            fontWeight = if (primary) FontWeight.Black else FontWeight.ExtraBold,
+        )
+    }
+}
+
+@Composable
+private fun WalletNote(
+    text: String,
+    top: Int = 12,
+) {
+    val colors = LocalVaiinillaColors.current
+    Text(
+        text = text,
+        color = colors.muted,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        modifier = Modifier.padding(top = top.dp),
     )
 }
 
-/** Los filtros de Movimientos (Doop E04). El cashback solo sale en «Todo»: no es compra, recarga ni devolución. */
-internal enum class MovementFilter(
-    val label: String,
-) {
-    ALL("Todo"),
-    PURCHASES("Compras"),
-    RELOADS("Recargas"),
-    REFUNDS("Devoluciones"),
-    ;
-
-    fun matches(type: String): Boolean =
-        when (this) {
-            ALL -> true
-            PURCHASES -> type == "compra"
-            RELOADS -> type.startsWith("recarga")
-            REFUNDS -> type == "cancelacion" || type == "devolucion_articulo"
-        }
-}
-
 /**
- * Las tres cifras de la fila de datos de Cartera, sacadas de los movimientos que ya baja la app. Sin movimientos, * ninguna: la fila muestra «—».
+ * Las cifras de la cartera, sacadas de los movimientos que ya baja la app: lo gastado y lo que regresó este mes (E02) y
+ * lo que entró (E04). Sin movimientos, ninguna.
  */
 internal class WalletLedgerStats(
     val spentThisMonth: String?,
@@ -483,6 +553,9 @@ internal class WalletLedgerStats(
     val lastMovement: String?,
     /** Cashback y devoluciones de este mes (Doop E02); `null` si no hubo. */
     val returnedThisMonth: String? = null,
+    /** Todo lo que entró este mes: recargas, cashback y devoluciones (Doop E04). */
+    val incomeThisMonth: String? = null,
+    val spentAnyThisMonth: Boolean = false,
 ) {
     companion object {
         fun from(
@@ -495,6 +568,7 @@ internal class WalletLedgerStats(
             val today = BusinessTime.at(now, zone).toLocalDate()
             var spent = BigDecimal.ZERO
             var returned = BigDecimal.ZERO
+            var income = BigDecimal.ZERO
             for (movement in movements) {
                 val date = movement.createdAt.toInstantOrNull()?.let { BusinessTime.at(it, zone).toLocalDate() }
                 val value =
@@ -503,136 +577,27 @@ internal class WalletLedgerStats(
                         .trim()
                         .toBigDecimalOrNull()
                 if (date == null || value == null || date.year != today.year || date.month != today.month) continue
-                when {
-                    movement.amount.startsWith("-") -> spent += value.negate()
-                    movement.type == "cashback" || MovementFilter.REFUNDS.matches(movement.type) -> returned += value
+                if (movement.amount.startsWith("-")) {
+                    spent += value.negate()
+                } else {
+                    income += value
+                    if (movement.type == "cashback" || MovementFilter.REFUNDS.matches(movement.type)) returned += value
                 }
             }
             val reloads = movements.count { !it.amount.startsWith("-") }
             val last = cremeMoment(movements.first().createdAt, now)
             return WalletLedgerStats(
-                compactMoney(spent),
-                reloads.toString(),
-                last,
-                returned.takeIf { it.signum() > 0 }?.let(::compactMoney),
+                spentThisMonth = compactMoney(spent),
+                reloads = reloads.toString(),
+                lastMovement = last,
+                returnedThisMonth = returned.takeIf { it.signum() > 0 }?.let(::compactMoney),
+                incomeThisMonth = compactMoney(income),
+                spentAnyThisMonth = spent.signum() > 0,
             )
         }
 
         private fun String.toInstantOrNull(): Instant? =
             runCatching { OffsetDateTime.parse(this).toInstant() }.getOrNull()
-    }
-}
-
-@Composable
-private fun WalletHero(
-    remoteState: WalletRemoteUiState,
-    shownBalance: String?,
-    venueName: String?,
-    venuePhotoUrl: String?,
-    height: Dp,
-    chip: Pair<String, ImageVector?>?,
-    profileInitials: String,
-    onOpenAccount: () -> Unit,
-    onChangeVenue: (() -> Unit)?,
-    onRetry: () -> Unit,
-) {
-    val colors = LocalVaiinillaColors.current
-    // Antes de la primera respuesta todavía no hay error: se espera con el esqueleto, no con "No pudimos cargar".
-    val waiting = remoteState.data == null && remoteState.error == null
-    CremeHero(
-        height = height,
-        photoUrl = venuePhotoUrl,
-        contentDescription = venueName?.let { "Foto de $it" }.orEmpty(),
-        leading = {
-            if (onChangeVenue != null && !venueName.isNullOrBlank()) {
-                HeroGlassPill(
-                    label = venueName,
-                    icon = Icons.Rounded.Storefront,
-                    onClick = onChangeVenue,
-                    modifier = Modifier.semantics { contentDescription = "$venueName. Cambiar lugar" },
-                )
-            }
-        },
-        trailing = { ProfileInitialsButton(profileInitials, onClick = onOpenAccount) },
-    ) {
-        if (remoteState.data != null || remoteState.loading || waiting) {
-            Text(
-                text = "Saldo Vaiinilla",
-                color = colors.muted,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-            )
-        }
-        when {
-            remoteState.data != null -> {
-                AnimatedContent(
-                    targetState = shownBalance ?: remoteState.data.wallet.visibleBalance,
-                    transitionSpec = {
-                        if (targetState > initialState) {
-                            (slideInVertically { h -> h } + fadeIn()) togetherWith
-                                (slideOutVertically { h -> -h } + fadeOut())
-                        } else {
-                            (slideInVertically { h -> -h } + fadeIn()) togetherWith
-                                (slideOutVertically { h -> h } + fadeOut())
-                        }.using(SizeTransform(clip = false))
-                    },
-                    label = "wallet_balance_ticker",
-                ) { balance ->
-                    Text(
-                        text = moneyLabel(balance),
-                        color = colors.ink,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 60.sp,
-                        lineHeight = 66.sp,
-                        letterSpacing = (-1.6).sp,
-                        maxLines = 1,
-                    )
-                }
-                if (remoteState.error != null) {
-                    Text(
-                        text = "Sin conexión: puede que este saldo no sea el más reciente.",
-                        color = colors.muted,
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                }
-                chip?.let { (label, icon) ->
-                    CremeVenueChip(
-                        label = label,
-                        icon = icon,
-                        initialOf = venueName.orEmpty().ifBlank { label },
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                }
-            }
-
-            remoteState.loading || waiting -> {
-                Spacer(Modifier.height(8.dp))
-                SkeletonBlock(modifier = Modifier.size(width = 190.dp, height = 58.dp), corner = 14.dp)
-            }
-
-            else -> {
-                // El error del servidor habla de "contexto operativo"; aquí se dice qué pasó y qué hacer.
-                Text(
-                    text = "No pudimos cargar tu saldo",
-                    color = colors.ink,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 20.sp,
-                    modifier = Modifier.padding(top = 6.dp),
-                )
-                Text(
-                    text = "Revisa tu conexión o vuelve a entrar al lugar desde el menú.",
-                    color = colors.muted,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-                TextButton(onClick = onRetry, contentPadding = PaddingValues(0.dp)) {
-                    Text("Reintentar", color = colors.ink, fontWeight = FontWeight.Black)
-                }
-            }
-        }
     }
 }
 
@@ -724,84 +689,6 @@ internal fun WalletQrDialog(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun WalletMovementRow(
-    title: String,
-    detail: String?,
-    amount: String,
-    balanceAfter: String,
-) {
-    val colors = LocalVaiinillaColors.current
-    val isDebit = amount.startsWith("-")
-    val icon = if (isDebit) Icons.Outlined.ShoppingCart else Icons.Outlined.AccountBalanceWallet
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(44.dp)
-                        .background(colors.paper2, RoundedCornerShape(15.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = colors.ink,
-                    modifier = Modifier.size(21.dp),
-                )
-            }
-
-            Column(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .padding(horizontal = 13.dp),
-            ) {
-                Text(
-                    text = title,
-                    color = colors.ink,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 14.sp,
-                )
-                detail?.let {
-                    Text(
-                        text = it,
-                        color = colors.ink,
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 2.dp),
-                    )
-                }
-                Text(
-                    text = "Saldo después: ${moneyLabel(balanceAfter)}",
-                    color = colors.muted,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 3.dp),
-                )
-            }
-
-            Text(
-                text = if (isDebit) "−${moneyLabel(amount.removePrefix("-"))}" else "+${moneyLabel(amount)}",
-                color = colors.ink,
-                fontWeight = FontWeight.Black,
-                fontSize = 15.sp,
-            )
-        }
-
-        HorizontalDivider(
-            color = colors.line,
-            thickness = 1.dp,
-            modifier = Modifier.padding(start = 57.dp),
-        )
     }
 }
 

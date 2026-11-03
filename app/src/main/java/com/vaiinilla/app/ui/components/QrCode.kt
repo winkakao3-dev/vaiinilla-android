@@ -22,6 +22,9 @@ fun VaiinillaQrCode(
     value: String,
     modifier: Modifier = Modifier,
     qrSize: Dp = 148.dp,
+    background: Color = Color.White,
+    foreground: Color = Color.Black,
+    inset: Dp = 10.dp,
 ) {
     val matrix = remember(value) { runCatching { QrCodeEncoder.encode(value) }.getOrNull() }
     Canvas(
@@ -29,8 +32,8 @@ fun VaiinillaQrCode(
             modifier
                 .size(qrSize)
                 .clip(RoundedCornerShape(14.dp))
-                .background(Color.White)
-                .padding(10.dp),
+                .background(background)
+                .padding(inset),
     ) {
         val encoded = matrix ?: return@Canvas
         val moduleSize = min(this.size.width / encoded.width, this.size.height / encoded.height)
@@ -42,7 +45,7 @@ fun VaiinillaQrCode(
             for (y in 0 until encoded.height) {
                 if (encoded[x, y]) {
                     drawRect(
-                        color = Color.Black,
+                        color = foreground,
                         topLeft =
                             Offset(
                                 x = left + x * moduleSize,

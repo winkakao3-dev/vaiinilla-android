@@ -1435,8 +1435,8 @@ fun AppNavHost(
                         caretakerDetail = guardianControlsViewModel.controls?.walletDetail,
                         guardianControls = guardianControlsViewModel.controls,
                         familySection = familySection,
-                        venuePhotoUrl = orderState.guestVenue?.establishment?.photoUrl,
                         profileInitials = displayInitials(studentAuthState.session?.displayName.orEmpty()),
+                        profileName = studentAuthState.session?.displayName,
                         onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
                         onChangeVenue = {
                             navController.navigate(Routes.DISCOVERY) {
