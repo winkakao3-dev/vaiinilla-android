@@ -39,6 +39,10 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.layout.FlowRow
+import com.vaiinilla.app.domain.repository.CallReason
+import com.vaiinilla.app.ui.components.arrive
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,6 +54,9 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.Restaurant
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.RoomService
 import androidx.compose.material.icons.outlined.Schedule
@@ -494,12 +501,18 @@ fun WaiterOperationalScreen(
                     )
                 }
             } else {
+                val callsUp = nextUp.count { it.kind == NextUpKind.Call }
+                if (state.filterAttending && callsUp > 0) {
+                    item(key = "calls-head", span = fullWidth) {
+                        WaiterCallsHeader(count = callsUp, colors = colors, modifier = Modifier.animateItem())
+                    }
+                }
                 if (state.filterAttending) {
-                    items(nextUp, key = { "next-${it.kind}-${it.spaceId}-${it.title}" }, span = { fullWidth() }) { item ->
+                    itemsIndexed(nextUp, key = { _, it -> "next-${it.kind}-${it.spaceId}-${it.title}" }, span = { _, _ -> fullWidth() }) { index, item ->
                         WaiterNextUpRow(
                             item = item,
                             colors = colors,
-                            modifier = Modifier.animateItem(),
+                            modifier = Modifier.animateItem().arrive(index, item.spaceId),
                             onClick = {
                                 haptics.selection()
                                 openTableId = item.spaceId
@@ -1198,7 +1211,20 @@ internal data class WaiterNextUp(
     val title: String,
     val detail: String,
     val action: String,
+    /** N10: el motivo de la llamada da el ícono; null en lo que no es llamada. */
+    val reason: CallReason? = null,
+    /** Cuándo llamó, para poner arriba la llamada más vieja. */
+    val since: String? = null,
 )
+
+/** El ícono de cada motivo de llamada (N10): la cuenta, cubiertos, un problema o atención. */
+internal fun callReasonIcon(reason: CallReason?) =
+    when (reason) {
+        CallReason.CUENTA -> Icons.Outlined.ReceiptLong
+        CallReason.UTENSILIOS -> Icons.Outlined.Restaurant
+        CallReason.PROBLEMA -> Icons.Outlined.WarningAmber
+        CallReason.ATENCION, null -> Icons.Outlined.Notifications
+    }
 
 private const val TURN_ENDING_MS = 15 * 60_000L
 
@@ -1213,12 +1239,14 @@ internal fun waiterNextUp(
             val id = table.space.id
             buildList {
                 table.call?.let { call ->
-                    val who = listOfNotNull(call.reason.staffLabel, call.clientName).joinToString(" · ")
                     val since = minutesSince(call.createdAt, now).let { if (it == "ahora") "ahora" else "hace $it" }
+                    // N10: el motivo va en grande para saber qué llevar antes de ir a la mesa.
                     if (call.status == CallStatus.EN_CAMINO) {
-                        add(WaiterNextUp(NextUpKind.Call, id, "Va ${call.takenBy?.name ?: "alguien"} a $name", listOf(since, who).filter { it.isNotBlank() }.joinToString(" · "), "Ver"))
+                        val detail = listOfNotNull(call.reason.staffLabel, since, call.clientName).joinToString(" · ")
+                        add(WaiterNextUp(NextUpKind.Call, id, "Va ${call.takenBy?.name ?: "alguien"} a $name", detail, "Ver", call.reason, call.createdAt))
                     } else {
-                        add(WaiterNextUp(NextUpKind.Call, id, "$name te llama", listOf(since, who).filter { it.isNotBlank() }.joinToString(" · "), "Voy"))
+                        val detail = listOfNotNull(name, since, call.clientName).joinToString(" · ")
+                        add(WaiterNextUp(NextUpKind.Call, id, call.reason.staffLabel, detail, "Voy", call.reason, call.createdAt))
                     }
                 }
                 table.orders.filter { it.state == OrderState.READY }.forEach { order ->
@@ -1249,7 +1277,55 @@ internal fun waiterNextUp(
                     add(WaiterNextUp(NextUpKind.Collect, id, "$name ya terminó", "Falta cobrar para liberarla", "Cobrar"))
                 }
             }
-        }.sortedBy { it.kind.ordinal }
+        }.sortedWith(compareBy<WaiterNextUp> { it.kind.ordinal }.thenBy { it.since.orEmpty() })
+
+/** N10: «Te llaman · 3» y los motivos que el cliente puede escoger, para saber qué llevar. */
+@Composable
+private fun WaiterCallsHeader(
+    count: Int,
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth().padding(top = 4.dp, bottom = 2.dp)) {
+        Text(
+            "Te llaman · $count",
+            color = colors.textPrimary,
+            fontWeight = FontWeight.Black,
+            fontSize = 30.sp,
+            letterSpacing = (-0.8).sp,
+        )
+        Text(
+            "El motivo va arriba: ya sabes qué llevar antes de ir a la mesa.",
+            color = colors.textSecondary,
+            fontSize = 13.sp,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+        Text(
+            "LO QUE EL CLIENTE PUEDE ESCOGER",
+            color = colors.textMuted,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 11.sp,
+            letterSpacing = 1.5.sp,
+            modifier = Modifier.padding(top = 14.dp, bottom = 8.dp),
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            CallReason.entries.forEach { reason ->
+                Row(
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(colors.cardBackground)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(callReasonIcon(reason), contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(16.dp))
+                    Text(reason.label, color = colors.textPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun WaiterNextUpRow(
@@ -1267,6 +1343,7 @@ private fun WaiterNextUpRow(
         }
     val accent = tileToneColor(tone, colors)
     val urgent = item.kind == NextUpKind.Call || item.kind == NextUpKind.Deliver
+    val ringing = item.kind == NextUpKind.Call && item.action == "Voy"
     val shape = RoundedCornerShape(20.dp)
     Surface(
         shape = shape,
@@ -1274,7 +1351,7 @@ private fun WaiterNextUpRow(
         modifier =
             modifier
                 .fillMaxWidth()
-                .border(1.dp, colors.cardBorder, shape)
+                .border(if (ringing) 2.dp else 1.dp, if (ringing) accent else colors.cardBorder, shape)
                 .clip(shape)
                 .clickable(onClick = onClick),
     ) {
@@ -1290,7 +1367,7 @@ private fun WaiterNextUpRow(
                 Icon(
                     imageVector =
                         when (item.kind) {
-                            NextUpKind.Call -> Icons.Outlined.Notifications
+                            NextUpKind.Call -> callReasonIcon(item.reason)
                             NextUpKind.Deliver -> Icons.Outlined.RoomService
                             NextUpKind.TurnEnding -> Icons.Outlined.Schedule
                             NextUpKind.Collect -> Icons.Outlined.Payments
@@ -1301,7 +1378,13 @@ private fun WaiterNextUpRow(
                 )
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(item.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.textPrimary)
+                Text(
+                    item.title,
+                    fontWeight = if (item.kind == NextUpKind.Call) FontWeight.Black else FontWeight.Bold,
+                    fontSize = if (item.kind == NextUpKind.Call) 17.sp else 16.sp,
+                    letterSpacing = if (item.kind == NextUpKind.Call) (-0.3).sp else 0.sp,
+                    color = colors.textPrimary,
+                )
                 if (item.detail.isNotBlank()) {
                     Text(item.detail, fontSize = 13.sp, color = colors.textSecondary, maxLines = 2)
                 }

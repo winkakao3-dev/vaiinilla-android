@@ -141,9 +141,22 @@ class WaiterTileStatusTest {
                 now,
             )
         assertEquals(
-            listOf("Mesa 3 te llama", "Llevar #1 a Mesa 1", "A Cancha Fútbol 7 le quedan 10 min", "Mesa 2 ya terminó"),
+            listOf("Pide cubiertos o servilletas", "Llevar #1 a Mesa 1", "A Cancha Fútbol 7 le quedan 10 min", "Mesa 2 ya terminó"),
             items.map { it.title },
         )
         assertEquals(listOf("Voy", "Entregar", "Ver", "Cobrar"), items.map { it.action })
+        assertEquals("Mesa 3 · hace 1 min · Ana", items.first().detail)
+    }
+
+    @Test
+    fun `la llamada mas vieja va arriba y dice para que llaman`() {
+        val mesa1 = TableSpace(1, "Mesa 1", "mesa")
+        val nueva =
+            TableCall("c2", mesa1, null, CallReason.ATENCION, CallStatus.PENDIENTE, null, null, "2026-11-02T19:59:30Z", null, null, 1)
+        val vieja =
+            TableCall("c1", mesa, null, CallReason.CUENTA, CallStatus.PENDIENTE, null, null, "2026-11-02T19:58:00Z", null, null, 1)
+        val items = waiterNextUp(listOf(BoardTable(mesa1, nueva, emptyList()), BoardTable(mesa, vieja, emptyList())), now)
+        assertEquals(listOf("Pide la cuenta", "Necesita atención"), items.map { it.title })
+        assertEquals(listOf(CallReason.CUENTA, CallReason.ATENCION), items.map { it.reason })
     }
 }
