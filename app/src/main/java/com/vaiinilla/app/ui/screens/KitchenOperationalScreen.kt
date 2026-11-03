@@ -2,7 +2,15 @@ package com.vaiinilla.app.ui.screens
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.material.icons.outlined.SoupKitchen
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.runtime.DisposableEffect
@@ -698,7 +706,10 @@ private fun KitchenEmptyCard(
             tab == KitchenTab.READY -> "Nada listo por ahora" to "Lo que marques lista aparece aquí hasta que lo entreguen."
             otherWork && tab == KitchenTab.NEW -> "Sin comandas nuevas" to "Lo que está en la estufa sigue en Preparando."
             otherWork -> "Nada en preparación" to "Empieza una de las Nuevas."
-            else -> "Cocina al día" to "No hay comandas pendientes en este momento."
+            else -> {
+                KitchenAllClear(colors, modifier)
+                return
+            }
         }
     Surface(
         modifier = modifier.fillMaxWidth().padding(top = 6.dp),
@@ -718,9 +729,61 @@ private fun KitchenEmptyCard(
     }
 }
 
+/** K04 de Doop: sin nada en ninguna pestaña, la olla flota en el centro en vez de una tarjeta. */
+@Composable
+private fun KitchenAllClear(
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+) {
+    val accent = colors.accentLime
+    val bob =
+        if (rememberReducedMotion()) {
+            0f
+        } else {
+            val transition = rememberInfiniteTransition(label = "kitchen-all-clear")
+            val y by transition.animateFloat(
+                initialValue = 0f,
+                targetValue = -6f,
+                animationSpec = infiniteRepeatable(tween(1_200, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+                label = "kitchen-all-clear-bob",
+            )
+            y
+        }
+    Column(
+        modifier = modifier.fillMaxWidth().padding(top = 72.dp, start = 30.dp, end = 30.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .graphicsLayer { translationY = bob.dp.toPx() }
+                    .size(120.dp)
+                    .clip(RoundedCornerShape(40.dp))
+                    .background(colors.cardBackground),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Outlined.SoupKitchen, contentDescription = null, tint = accent, modifier = Modifier.size(56.dp))
+        }
+        Text(
+            "Todo al día",
+            fontWeight = FontWeight.Black,
+            fontSize = 24.sp,
+            color = colors.textPrimary,
+            modifier = Modifier.padding(top = 20.dp),
+        )
+        Text(
+            "No hay comandas pendientes. Cuando entre una, te llega un aviso aunque la pantalla esté apagada.",
+            fontSize = 13.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.textSecondary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+}
+
 /**
- * La comanda en papel de K01 y K02: la alergia hasta arriba (Lalo la vio tarde cuando iba al fondo), el folio
- * grande, el tiempo con color y una sola acción. Rechazar todo vive en «Más opciones», lejos de Marcar lista.
+ * La comanda en papel de K01 y K02: la alergia hasta arriba (Lalo la vio tarde cuando iba al fondo), el folio * grande, el tiempo con color y una sola acción. Rechazar todo vive en «Más opciones», lejos de Marcar lista.
  */
 @Composable
 private fun KitchenOrderCard(

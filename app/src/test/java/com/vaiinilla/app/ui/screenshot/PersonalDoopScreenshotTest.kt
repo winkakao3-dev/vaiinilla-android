@@ -126,8 +126,20 @@ class PersonalDoopScreenshotTest {
     }
 
     @Test
-    fun `n10_te_llaman`() {
-        capture("personal_n10_te_llaman.png") {
+    fun `k04_todo_al_dia`() {
+        capture("personal_k04_todo_al_dia.png") {
+            KitchenOperationalScreen(
+                state = OperationalUiState(orders = emptyList(), lastRefreshOk = true),
+                onBack = {},
+                onStart = { _, _ -> },
+                onReady = { _, _ -> },
+                placeName = "Cafetería Central",
+            )
+        }
+    }
+
+    @Test
+    fun `n10_te_llaman`() {        capture("personal_n10_te_llaman.png") {
             WaiterOperationalScreen(
                 state = ScreenshotFixtures.waiterBoardState().copy(filterAttending = true),
                 onBack = {},
