@@ -7,9 +7,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -28,18 +31,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -167,6 +175,87 @@ internal fun ParentUnlockSheet(
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
+        AttemptsNote(colors)
+        WhereTheCodeComes(colors)
+    }
+}
+
+@Composable
+private fun AttemptsNote(colors: OperationalColors) {
+    Text(
+        buildAnnotatedString {
+            withStyle(SpanStyle(color = colors.textPrimary, fontWeight = FontWeight.Black)) {
+                append("Cuidado con los intentos. ")
+            }
+            append("Si fallas varias veces, tendrás que esperar un rato para volver a probar.")
+        },
+        color = colors.textSecondary,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(colors.cardInner)
+                .padding(14.dp),
+    )
+}
+
+/** Una circular de muestra, para que el tutor sepa qué buscar en el papel que le dio la escuela. */
+@Composable
+private fun WhereTheCodeComes(colors: OperationalColors) {
+    val paperInk = Color(0xFF2B2B2B)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Text(
+            "DÓNDE VIENE",
+            color = colors.textMuted,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 1.sp,
+        )
+        Column(
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .rotate(-1.5f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFFF4F0E4))
+                    .padding(16.dp)
+                    .clearAndSetSemantics {
+                        contentDescription = "En la circular de la escuela viene como «Código para tutores en Vaiinilla»"
+                    },
+        ) {
+            Text(
+                "CIRCULAR DE LA ESCUELA",
+                color = paperInk.copy(alpha = 0.6f),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.sp,
+            )
+            Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(paperInk.copy(alpha = 0.12f)))
+            Box(Modifier.fillMaxWidth(0.7f).height(6.dp).clip(RoundedCornerShape(3.dp)).background(paperInk.copy(alpha = 0.12f)))
+            Text(
+                "Código para tutores en Vaiinilla:",
+                color = paperInk,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            Text(
+                "ABC234",
+                color = paperInk,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Black,
+                fontSize = 18.sp,
+                letterSpacing = 2.sp,
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(colors.accentLime)
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+            )
+        }
     }
 }
 
