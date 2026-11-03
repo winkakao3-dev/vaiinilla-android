@@ -310,6 +310,7 @@ fun CashierOperationalScreen(
     }
     var assistantPulse by remember { mutableIntStateOf(0) }
     var walletSheetOpen by remember { mutableStateOf(false) }
+    var searchOpen by remember { mutableStateOf(false) }
     var choosingOrderPlace by remember { mutableStateOf(false) }
 
     // Caja solo actúa sobre pedidos por cobrar o listos para entregar; el resto es de cocina.
@@ -483,23 +484,35 @@ fun CashierOperationalScreen(
             }
 
             item(key = "cashier-title") {
-                Column(modifier = Modifier.padding(horizontal = 2.dp)) {
-                    Text(
-                        "Por cobrar",
-                        fontSize = 34.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = (-1).sp,
-                        color = colors.textPrimary,
-                    )
-                    // Antes de cobrar, el cajero confirma que la sesión está abierta y en qué negocio (G01).
-                    Text(
-                        cashierSessionCaption(state.cashSessionOpen, placeName),
-                        fontSize = 13.sp,
-                        color = colors.textSecondary,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(horizontal = 2.dp)) {
+                        Text(
+                            "Por cobrar",
+                            fontSize = 34.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = (-1).sp,
+                            color = colors.textPrimary,
+                        )
+                        // Antes de cobrar, el cajero confirma que la sesión está abierta y en qué negocio (G01).
+                        Text(
+                            cashierSessionCaption(state.cashSessionOpen, placeName),
+                            fontSize = 13.sp,
+                            color = colors.textSecondary,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        )
+                    }
+                    CashierSearchButton(
+                        colors = colors,
+                        onClick = {
+                            haptics.selection()
+                            searchOpen = true
+                        },
                     )
                 }
             }
@@ -1252,6 +1265,20 @@ fun CashierOperationalScreen(
                     onNewTableOrder?.invoke(table)
                 },
                 onRefreshTables = onRefreshOrderTables,
+            )
+        }
+
+        if (searchOpen) {
+            CashierOrderSearchSheet(
+                orders = state.orders,
+                colors = colors,
+                canOpen = { it.summary.id in actionableIds },
+                onDismiss = { searchOpen = false },
+                onOpen = { order ->
+                    haptics.selection()
+                    searchOpen = false
+                    selectedCashierOrderId = order.summary.id
+                },
             )
         }
 
