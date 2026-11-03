@@ -361,7 +361,7 @@ private fun CurrentModeCard(
         }
         Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
             Text("AHORA ESTÁS EN", color = if (colors.isDark) colors.accent else colors.ink2, fontSize = 11.5.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.3.sp)
-            Text(mode.role.label, color = colors.ink, fontSize = 17.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 2.dp))
+            Text(mode.role.label, color = colors.ink, fontSize = 17.sp, fontWeight = FontWeight.Black, softWrap = false, maxLines = 1, modifier = Modifier.padding(top = 2.dp))
             Text(
                 mode.establishmentName,
                 color = colors.muted,

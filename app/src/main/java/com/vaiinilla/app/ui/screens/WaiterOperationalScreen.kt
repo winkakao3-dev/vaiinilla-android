@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
+import com.vaiinilla.app.ui.theme.Yolk
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
@@ -1614,26 +1615,20 @@ private fun WaiterTableSheet(
                                     tint = colors.textPrimary,
                                 )
                             }
-                            Text(
-                                table.space.name,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp,
-                                color = colors.textPrimary,
-                            )
-                        }
-                        if (table.orders.isNotEmpty()) {
-                            // Cobrar antes de entregar se vale, pero que no pase sin darse cuenta.
-                            val count = table.orders.size
-                            Text(
-                                if (count == 1) {
-                                    "Ojo: 1 pedido de esta cuenta todavía no se entrega."
-                                } else {
-                                    "Ojo: $count pedidos de esta cuenta todavía no se entregan."
-                                },
-                                color = colors.textSecondary,
-                                fontSize = 12.5.sp,
-                                modifier = Modifier.padding(horizontal = 22.dp).padding(bottom = 6.dp),
-                            )
+                            Column(Modifier.weight(1f).padding(end = 40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    "Cobrar cuenta",
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 17.sp,
+                                    color = colors.textPrimary,
+                                )
+                                Text(
+                                    "${table.space.name} · ${moneyLabel(account.pending)}",
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = colors.textSecondary,
+                                )
+                            }
                         }
                         CollectAccountContent(
                             total = account.pending,
@@ -1646,7 +1641,8 @@ private fun WaiterTableSheet(
                             paidIn = account.paidIn,
                             onAbono = onAbono,
                             initialPeople = remainingParts,
-                            initialSplit = if (remainingParts != null) SplitMode.PARTS else SplitMode.ORDERS,
+                            initialSplit = if (remainingParts != null) SplitMode.PARTS else SplitMode.ALL,
+                            showsHeader = false,
                         )
                     }
                 } else {
@@ -1830,6 +1826,22 @@ private fun WaiterTableSheet(
                             showOrders = false,
                             onTakeOrder = onTakeOrder?.takeIf { !readOnly },
                         )
+                        if (accountHasOrders && table.orders.isNotEmpty()) {
+                            // Cobrar antes de entregar se vale, pero que no pase sin darse cuenta.
+                            val count = table.orders.size
+                            Text(
+                                if (count == 1) {
+                                    "Ojo: 1 pedido de esta cuenta todavía no se entrega."
+                                } else {
+                                    "Ojo: $count pedidos de esta cuenta todavía no se entregan."
+                                },
+                                color = Yolk,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.5.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }
@@ -2301,7 +2313,6 @@ private fun WaiterCallCard(
     onAttended: () -> Unit,
 ) {
     val going = call.status == CallStatus.EN_CAMINO
-    val shape = RoundedCornerShape(26.dp)
     val since = remember(call, tick) { minutesSince(call.createdAt, Instant.now()) }
     val last = table.orders.maxByOrNull { it.updatedAt }
     val lastCaption =
@@ -2312,14 +2323,6 @@ private fun WaiterCallCard(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(shape)
-                .background(
-                    animateSelectionColor(
-                        lerp(colors.cardBackground, WaiterCoral, if (going) 0.06f else 0.12f),
-                        "call-background",
-                    ),
-                ).border(1.dp, WaiterCoral.copy(alpha = 0.4f), shape)
-                .padding(20.dp)
                 .animateContentSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),

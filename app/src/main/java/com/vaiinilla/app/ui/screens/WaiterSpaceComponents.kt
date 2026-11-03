@@ -1,5 +1,8 @@
 package com.vaiinilla.app.ui.screens
 
+import com.vaiinilla.app.ui.components.PhysicalPressScale
+import com.vaiinilla.app.ui.screens.admin.AdminSegmented
+import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -906,7 +909,7 @@ internal fun ActionPill(
     inverted: Boolean = false,
     /** Solo el contorno: la opción secundaria junto a la principal. */
     outlined: Boolean = false,
-    shape: Shape = RoundedCornerShape(14.dp),
+    shape: Shape = CircleShape,
     height: Dp = 50.dp,
     fontSize: TextUnit = 14.sp,
     fontWeight: FontWeight = FontWeight.Bold,
@@ -1021,7 +1024,9 @@ internal fun CollectAccountContent(
     /** Abonar por monto o partes iguales (docs/dividir-cuenta.md); null lo oculta. */
     onAbono: AbonoHandler? = null,
     /** El modo con que abre la hoja (capturas y pruebas). */
-    initialSplit: SplitMode = SplitMode.ORDERS,
+    initialSplit: SplitMode = SplitMode.ALL,
+    /** Quien abre la hoja ya dice qué se cobra: sin el monto grande de arriba. */
+    showsHeader: Boolean = true,
     /** Personas que faltan tras un abono en partes; null empieza en 2. */
     initialPeople: Int? = null,
 ) {
@@ -1032,7 +1037,7 @@ internal fun CollectAccountContent(
     var split by remember(initialSplit) {
         mutableStateOf(
             if (splitLocked &&
-                initialSplit == SplitMode.ORDERS
+                initialSplit in SplitMode.WHOLE_ORDERS
             ) {
                 SplitMode.AMOUNT
             } else {
@@ -1040,11 +1045,11 @@ internal fun CollectAccountContent(
             },
         )
     }
-    if (splitLocked && split == SplitMode.ORDERS) split = SplitMode.AMOUNT
+    if (splitLocked && split in SplitMode.WHOLE_ORDERS) split = SplitMode.AMOUNT
     var abonoText by remember { mutableStateOf("") }
     var people by remember(initialPeople) { mutableIntStateOf(initialPeople ?: 2) }
-    val byOrders = onAbono == null || split == SplitMode.ORDERS
-    val splitting = byOrders && payable.size >= 2
+    val byOrders = onAbono == null || split in SplitMode.WHOLE_ORDERS
+    val splitting = (onAbono == null || split == SplitMode.ORDERS) && payable.size >= 2
     val allSelected = selected.size == payable.size
     val totalAmount =
         when {
@@ -1069,6 +1074,8 @@ internal fun CollectAccountContent(
     // Lo que el cajero escribió; sin tocar nada el efectivo sigue al total (cobro justo).
     var typed by remember { mutableStateOf<String?>(null) }
     var method by remember { mutableStateOf(AccountPaymentMethod.CASH) }
+    var tipOpen by remember { mutableStateOf(false) }
+    var otherCash by remember { mutableStateOf(false) }
     val withTerminal = allowTerminal && method == AccountPaymentMethod.TERMINAL
     val text = typed ?: chargeLabel
     val received = MoneyInput.parse(text)
@@ -1097,7 +1104,7 @@ internal fun CollectAccountContent(
                     .padding(bottom = 14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Column(modifier = Modifier.arrive(0)) {
+            if (showsHeader) Column(modifier = Modifier.arrive(0)) {
                 Text(
                     title ?: when {
                         !byOrders -> "Abonar a la cuenta"
@@ -1125,26 +1132,20 @@ internal fun CollectAccountContent(
                     )
                 }
                 Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        "Cómo dividir",
-                        fontSize = 12.5.sp,
-                        color = colors.textSecondary,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        SplitMode.entries.forEach { mode ->
-                            ChipButton(
-                                label = mode.label,
-                                enabled = !confirming && !(mode == SplitMode.ORDERS && splitLocked),
-                                colors = colors,
-                                modifier = Modifier.weight(1f),
-                                selected = split == mode,
-                            ) {
+                    CollectLabel("¿Qué se cobra ahora?", colors)
+                    AdminSegmented(
+                        options = SplitMode.entries.map { it to it.label },
+                        selected = split,
+                        colors = colors,
+                        enabled = !confirming,
+                        onSelect = { mode ->
+                            if (!(splitLocked && mode in SplitMode.WHOLE_ORDERS)) {
                                 split = mode
+                                if (mode == SplitMode.ALL) selected = payable.map { it.id }.toSet()
                                 typed = null
                             }
-                        }
-                    }
+                        },
+                    )
                     if (splitLocked) {
                         Text(
                             "Hay abonos sin liquidar: termina la división por montos.",
@@ -1254,70 +1255,6 @@ internal fun CollectAccountContent(
                     }
                 }
             }
-            if (allowTip) {
-                Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        if (tipAmount.signum() >
-                            0
-                        ) {
-                            "Propina ${moneyLabel(Money.format(tipAmount))} · es del negocio"
-                        } else {
-                            "Propina"
-                        },
-                        fontSize = 12.5.sp,
-                        color = colors.textSecondary,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                        ChipButton(
-                            label = "Sin",
-                            enabled = !confirming,
-                            colors = colors,
-                            modifier = Modifier.weight(1f),
-                            selected = tipChoice == TipChoice.None,
-                        ) {
-                            tipChoice = TipChoice.None
-                            typed = null
-                        }
-                        TipPercents.forEach { percent ->
-                            ChipButton(
-                                label = "$percent%",
-                                enabled = !confirming,
-                                colors = colors,
-                                modifier = Modifier.weight(1f),
-                                selected = tipChoice == TipChoice.Percent(percent),
-                            ) {
-                                tipChoice = TipChoice.Percent(percent)
-                                typed = null
-                            }
-                        }
-                        ChipButton(
-                            label = "Otro",
-                            enabled = !confirming,
-                            colors = colors,
-                            modifier = Modifier.weight(1f),
-                            selected = tipChoice is TipChoice.Custom,
-                        ) {
-                            tipChoice = TipChoice.Custom((tipChoice as? TipChoice.Custom)?.amount.orEmpty())
-                            typed = null
-                        }
-                    }
-                    val custom = tipChoice as? TipChoice.Custom
-                    if (custom != null) {
-                        OperationalField(
-                            value = custom.amount,
-                            onValueChange = { raw ->
-                                tipChoice = TipChoice.Custom(MoneyInput.sanitize(raw))
-                                typed = null
-                            },
-                            label = "Monto de la propina",
-                            colors = colors,
-                            enabled = !confirming,
-                            keyboardType = KeyboardType.Decimal,
-                        )
-                    }
-                }
-            }
             if (withTerminal) {
                 Text(
                     "Cobra $$chargeLabel en tu terminal de tarjeta y confirma aquí. No entra al efectivo de la caja.",
@@ -1327,38 +1264,47 @@ internal fun CollectAccountContent(
                 )
             } else {
                 Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        "Efectivo recibido",
-                        fontSize = 12.5.sp,
-                        color = colors.textSecondary,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                         ChipButton(
                             label = "Exacto",
                             enabled = !confirming,
                             colors = colors,
                             modifier = Modifier.weight(1f),
-                            selected = received != null && received.compareTo(chargeAmount) == 0,
-                        ) { typed = null }
-                        quickAmounts.forEach { amount ->
+                            selected = !otherCash && received != null && received.compareTo(chargeAmount) == 0,
+                        ) {
+                            typed = null
+                            otherCash = false
+                        }
+                        quickAmounts.take(2).forEach { amount ->
                             ChipButton(
                                 label = moneyLabel(amount.setScale(0)),
                                 enabled = !confirming,
                                 colors = colors,
                                 modifier = Modifier.weight(1f),
-                                selected = received != null && received.compareTo(amount) == 0,
-                            ) { typed = Money.format(amount) }
+                                selected = !otherCash && received != null && received.compareTo(amount) == 0,
+                            ) {
+                                typed = Money.format(amount)
+                                otherCash = false
+                            }
                         }
+                        ChipButton(
+                            label = "Otro",
+                            enabled = !confirming,
+                            colors = colors,
+                            modifier = Modifier.weight(1f),
+                            selected = otherCash,
+                        ) { otherCash = true }
                     }
-                    OperationalField(
-                        value = text,
-                        onValueChange = { typed = MoneyInput.sanitize(it) },
-                        label = "Otro monto",
-                        colors = colors,
-                        enabled = !confirming,
-                        keyboardType = KeyboardType.Decimal,
-                    )
+                    if (otherCash) {
+                        OperationalField(
+                            value = text,
+                            onValueChange = { typed = MoneyInput.sanitize(it) },
+                            label = "Otro monto",
+                            colors = colors,
+                            enabled = !confirming,
+                            keyboardType = KeyboardType.Decimal,
+                        )
+                    }
                 }
                 val change = (difference ?: BigDecimal.ZERO).abs()
                 Row(
@@ -1389,10 +1335,86 @@ internal fun CollectAccountContent(
                     )
                 }
             }
+            if (allowTip) {
+                Column(modifier = Modifier.arrive(2), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .physicalPress(scale = PhysicalPressScale.Small) { tipOpen = !tipOpen }
+                                .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "Propina",
+                            fontSize = 13.sp,
+                            color = colors.textSecondary,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            (if (tipAmount.signum() > 0) moneyLabel(Money.format(tipAmount)) else "Sin propina") + " ›",
+                            fontSize = 13.sp,
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.ExtraBold,
+                        )
+                    }
+                    if (tipOpen) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                            ChipButton(
+                                label = "Sin",
+                                enabled = !confirming,
+                                colors = colors,
+                                modifier = Modifier.weight(1f),
+                                selected = tipChoice == TipChoice.None,
+                            ) {
+                                tipChoice = TipChoice.None
+                                typed = null
+                            }
+                            TipPercents.forEach { percent ->
+                                ChipButton(
+                                    label = "$percent%",
+                                    enabled = !confirming,
+                                    colors = colors,
+                                    modifier = Modifier.weight(1f),
+                                    selected = tipChoice == TipChoice.Percent(percent),
+                                ) {
+                                    tipChoice = TipChoice.Percent(percent)
+                                    typed = null
+                                }
+                            }
+                            ChipButton(
+                                label = "Otro",
+                                enabled = !confirming,
+                                colors = colors,
+                                modifier = Modifier.weight(1f),
+                                selected = tipChoice is TipChoice.Custom,
+                            ) {
+                                tipChoice = TipChoice.Custom((tipChoice as? TipChoice.Custom)?.amount.orEmpty())
+                                typed = null
+                            }
+                        }
+                        val custom = tipChoice as? TipChoice.Custom
+                        if (custom != null) {
+                            OperationalField(
+                                value = custom.amount,
+                                onValueChange = { raw ->
+                                    tipChoice = TipChoice.Custom(MoneyInput.sanitize(raw))
+                                    typed = null
+                                },
+                                label = "Monto de la propina",
+                                colors = colors,
+                                enabled = !confirming,
+                                keyboardType = KeyboardType.Decimal,
+                            )
+                        }
+                    }
+                }
+            }
         }
         Box(modifier = Modifier.padding(horizontal = 22.dp).arrive(3)) {
-            ActionPill(
-                label =
+            AdminPrimaryButton(
+                title =
                     when {
                         !byOrders && withTerminal -> "Abonado en la terminal $$chargeLabel"
                         !byOrders -> "Abonar $$chargeLabel"
@@ -1401,9 +1423,9 @@ internal fun CollectAccountContent(
                             "Cobrar $$chargeLabel" +
                                 (pendingAfterPartial(payable, selected).takeIf { byOrders }?.let { " · $it" } ?: "")
                     },
-                enabled = canConfirm,
-                loading = confirming,
                 colors = colors,
+                busy = confirming,
+                enabled = canConfirm,
             ) {
                 val orderIds = if (allSelected) null else selected.toList()
                 val tip = tipAmount.asTipWire()
@@ -1443,9 +1465,15 @@ internal typealias AbonoHandler = (
 internal enum class SplitMode(
     val label: String,
 ) {
+    ALL("Todo"),
     ORDERS("Por pedidos"),
     AMOUNT("Por monto"),
     PARTS("Partes"),
+    ;
+
+    companion object {
+        val WHOLE_ORDERS = setOf(ALL, ORDERS)
+    }
 }
 
 /** Entre cuántos se divide; "Resto" (1) paga todo lo que queda. */
@@ -1486,7 +1514,6 @@ private fun SplitOrdersPicker(
     onToggle: (String) -> Unit,
 ) {
     Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        CollectLabel("¿Qué se cobra ahora?", colors)
         Column(
             modifier =
                 Modifier
@@ -1527,9 +1554,6 @@ private fun SplitOrdersPicker(
                             fontSize = 15.sp,
                             color = ink,
                         )
-                        if (order.itemsSummary.isNotBlank()) {
-                            Text(order.itemsSummary, fontSize = 12.sp, color = colors.textSecondary, maxLines = 1)
-                        }
                     }
                     Text(
                         moneyLabel(order.total),

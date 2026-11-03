@@ -345,10 +345,108 @@ class DoopGaleriaPersonalClienteTest {
         shot("cW04_te_llaman")
     }
 
+    private fun accountState(): com.vaiinilla.app.ui.operational.WaiterUiState {
+        val board = ScreenshotFixtures.waiterBoardState()
+        val table = board.tables.first { it.space.name == "Mesa 12" }
+        return board.copy(
+            spaceDetail =
+                com.vaiinilla.app.domain.repository.SpaceSessionDetail(
+                    availability =
+                        com.vaiinilla.app.domain.repository.SpaceAvailability(
+                            space = table.space,
+                            state = com.vaiinilla.app.domain.repository.SpaceAvailabilityState.entries.first { it != com.vaiinilla.app.domain.repository.SpaceAvailabilityState.LIBRE },
+                            settled = false,
+                            endsAt = null,
+                            releasesAt = null,
+                            remainingSeconds = null,
+                            graceMinutes = 10,
+                        ),
+                    session = null,
+                    account =
+                        com.vaiinilla.app.domain.repository.SpaceAccount(
+                            orders =
+                                listOf(
+                                    com.vaiinilla.app.domain.repository.AccountOrder("o1", 12, "listo", "214.00", "Ana", "Cheesecake, 2 lattes con avena", true, true),
+                                    com.vaiinilla.app.domain.repository.AccountOrder("o2", 13, "listo", "98.00", "Luis", "Crepa de Nutella", true, true),
+                                    com.vaiinilla.app.domain.repository.AccountOrder("o3", 17, "en_preparacion", "95.00", "Ana", "Pastel de fresas, rebanada", true, true),
+                                    com.vaiinilla.app.domain.repository.AccountOrder("o4", 11, "entregado", "60.00", "Mesero", "2 cafés de olla", true, true),
+                                ),
+                            total = "467.00",
+                            pending = "467.00",
+                            paid = "0.00",
+                            settled = false,
+                        ),
+                ),
+        )
+    }
+
     @Test fun cW02_mesa() {
-        draw { Waiter() }
+        draw { WaiterOperationalScreen(state = accountState(), onBack = {}, placeName = "Pastelería Vaini") }
         tap("Mesa 12")
         shot("cW02_mesa")
+    }
+
+    @Test fun cW03_cobrar_cuenta() {
+        draw { WaiterOperationalScreen(state = accountState(), onBack = {}, placeName = "Pastelería Vaini") }
+        tap("Mesa 12")
+        scrollTap("Cobrar cuenta")
+        shot("cW03_cobrar_cuenta")
+    }
+
+    @Test fun cN07_mi_turno() {
+        draw {
+            val colors = rememberOperationalColors()
+            Column(Modifier.fillMaxSize().background(colors.background)) {
+                com.vaiinilla.app.ui.screens.StaffShiftContent(modeLabel = "Mesero", placeName = "Pastelería Vaini", today = java.time.LocalDate.of(2026, 11, 3), colors = colors)
+            }
+        }
+        shot("cN07_mi_turno")
+    }
+
+    @Test fun cN11_cajon() {
+        draw {
+            val colors = rememberOperationalColors()
+            Column(Modifier.fillMaxSize().background(colors.background)) {
+                com.vaiinilla.app.ui.screens.CashDrawerContent(expectedCash = "1430.00", colors = colors)
+            }
+        }
+        shot("cN11_cajon")
+    }
+
+    @Test fun cK05b_pagina() {
+        draw {
+            val colors = rememberOperationalColors()
+            val today = java.time.LocalDate.of(2026, 11, 3)
+            val tomorrow = java.time.LocalDate.of(2026, 11, 4).toString()
+            Box(Modifier.fillMaxSize().background(colors.background)) {
+                com.vaiinilla.app.ui.counter.ReservedOrdersPage(
+                    state =
+                        com.vaiinilla.app.ui.counter.ReservedOrdersUiState(
+                            today = today,
+                            selectedDate = tomorrow,
+                            days =
+                                mapOf(
+                                    tomorrow to
+                                        com.vaiinilla.app.domain.counter.ReservedDay(
+                                            tomorrow,
+                                            23,
+                                            null,
+                                            listOf(
+                                                com.vaiinilla.app.domain.counter.ReservedDay.Line(1, "Sándwich de jamón", 12, 12),
+                                                com.vaiinilla.app.domain.counter.ReservedDay.Line(2, "Molletes", 7, 7),
+                                                com.vaiinilla.app.domain.counter.ReservedDay.Line(3, "Fruta picada", 4, 4),
+                                            ),
+                                        ),
+                                ),
+                        ),
+                    colors = colors,
+                    onSelect = {},
+                    onRetry = {},
+                    onBack = {},
+                )
+            }
+        }
+        shot("cK05_para_manana")
     }
 
     @Test fun cC08_escanear() {
