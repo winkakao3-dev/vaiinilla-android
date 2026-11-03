@@ -83,6 +83,7 @@ internal fun StaffAvatarMenu(
     var expanded by remember { mutableStateOf(false) }
     StaffAvatarBadge(
         initials = initials,
+        modeLabel = modeLabel,
         modifier =
             Modifier
                 .physicalPress(scale = PhysicalPressScale.Small) { expanded = true }
@@ -112,20 +113,28 @@ internal fun StaffAvatarMenu(
     }
 }
 
-private val AvatarFill = Color(0xFFE9B8C8)
-private val AvatarInk = Color(0xFF3A1622)
+/** Cada modo tiene su color de avatar, como en Doop: Caja rosa, Cocina naranja, Mesero azul. */
+private fun avatarColors(modeLabel: String): Pair<Color, Color> =
+    when (modeLabel) {
+        "Caja" -> Color(0xFFE9B8C8) to Color(0xFF3A1622)
+        "Cocina" -> Color(0xFFF4C98A) to Color(0xFF3A2410)
+        "Mesero" -> Color(0xFFB8D4E9) to Color(0xFF10283A)
+        else -> Color(0xFFD5E8A6) to Color(0xFF182008)
+    }
 
 @Composable
 private fun StaffAvatarBadge(
     initials: String,
+    modeLabel: String,
     modifier: Modifier = Modifier,
     size: Int = 44,
 ) {
+    val (fill, ink) = avatarColors(modeLabel)
     Box(
-        modifier = modifier.size(size.dp).clip(CircleShape).background(AvatarFill),
+        modifier = modifier.size(size.dp).clip(CircleShape).background(fill),
         contentAlignment = Alignment.Center,
     ) {
-        Text(initials, color = AvatarInk, fontWeight = FontWeight.Black, fontSize = (size * 0.34f).sp)
+        Text(initials, color = ink, fontWeight = FontWeight.Black, fontSize = (size * 0.34f).sp)
     }
 }
 
@@ -186,7 +195,7 @@ private fun StaffAccountCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    StaffAvatarBadge(initials)
+                    StaffAvatarBadge(initials, modeLabel)
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             placeName.ifBlank { "Vaiinilla" },
