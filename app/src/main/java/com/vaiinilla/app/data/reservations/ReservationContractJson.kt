@@ -47,6 +47,8 @@ data class CourtProfileDto(
     val descripcion: String? = null,
     @SerialName("imagen_url") val imagenUrl: String? = null,
     val caracteristicas: List<String> = emptyList(),
+    val deporte: String? = null,
+    val superficie: String? = null,
 )
 
 @Serializable
@@ -240,6 +242,8 @@ private fun CourtDayDto.toDomain() =
                             description = court.ficha?.descripcion?.takeIf { it.isNotBlank() },
                             imageUrl = court.ficha?.imagenUrl?.takeIf { it.isNotBlank() },
                             features = court.ficha?.caracteristicas.orEmpty(),
+                            sport = court.ficha?.deporte?.takeIf { it.isNotBlank() },
+                            surface = court.ficha?.superficie?.takeIf { it.isNotBlank() },
                         ),
                     busy =
                         court.ocupado.map {

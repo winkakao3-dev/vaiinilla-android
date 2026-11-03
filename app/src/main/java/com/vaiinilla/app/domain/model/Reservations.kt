@@ -42,14 +42,16 @@ data class BusyInterval(
     val reason: String,
 )
 
-/** Foto, descripción y características de la cancha que escribe el dueño. */
+/** Foto, descripción, características, deporte y superficie de la cancha que escribe el dueño. */
 data class CourtProfile(
     val description: String? = null,
     val imageUrl: String? = null,
     val features: List<String> = emptyList(),
+    val sport: String? = null,
+    val surface: String? = null,
 ) {
     val isEmpty: Boolean
-        get() = description == null && imageUrl == null && features.isEmpty()
+        get() = description == null && imageUrl == null && features.isEmpty() && sport == null && surface == null
 }
 
 data class CourtSchedule(

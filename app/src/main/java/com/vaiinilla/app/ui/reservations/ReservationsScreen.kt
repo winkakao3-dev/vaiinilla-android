@@ -1,6 +1,8 @@
 package com.vaiinilla.app.ui.reservations
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -8,12 +10,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,15 +20,16 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -51,13 +51,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -71,11 +75,13 @@ import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
+import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.RollingText
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.screens.walletTile
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaColors
 import kotlinx.coroutines.delay
@@ -89,6 +95,8 @@ private val MX = Locale.forLanguageTag("es-MX")
 private val HOUR = DateTimeFormatter.ofPattern("HH:mm", MX)
 private val DAY_SHORT = DateTimeFormatter.ofPattern("EEE d", MX)
 private val DAY_LONG = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", MX)
+private val DAY_NAME = DateTimeFormatter.ofPattern("EEEE d", MX)
+private val WEEKDAY_SHORT = DateTimeFormatter.ofPattern("EEE", MX)
 private val SPRING_COLOR = spring<Color>(stiffness = Spring.StiffnessMediumLow)
 
 /**
@@ -135,10 +143,12 @@ fun ReservationsScreen(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize().statusBarsPadding(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 40.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 40.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item(key = "head") { Header(venueName = venueName, onBack = onBack, colors = colors) }
+            item(key = "head") {
+                Header(venueName = venueName, dayText = day?.let(::dayHeadline), onBack = onBack, colors = colors)
+            }
 
             state.error?.let { message ->
                 item(key = "error") { Banner(message, colors.coral, colors, onDismissMessage) }
@@ -190,79 +200,27 @@ fun ReservationsScreen(
                         colors = colors,
                     )
                 }
-                item(key = "courts") {
-                    CourtStrip(
+                itemsIndexed(day.courts.filter { it.rentable }, key = { _, court -> "court-${court.id}" }) { index, court ->
+                    CourtCard(
+                        court = court,
                         day = day,
                         zone = zone,
-                        selectedId = state.selectedCourtId,
-                        onSelect = onSelectCourt,
+                        state = state,
+                        order = index + 2,
+                        onSelectCourt = onSelectCourt,
+                        onRentNow = onRentNow,
+                        onSelectStart = onSelectStart,
+                        onSelectDuration = onSelectDuration,
+                        onReserve = onReserve,
                         colors = colors,
                     )
-                }
-                val court = state.selectedCourt
-                if (court != null && !court.profile.isEmpty) {
-                    item(key = "profile-${court.id}") { CourtProfileCard(court = court, colors = colors) }
-                }
-                if (court != null && court.rentable) {
-                    if (day.date == day.today) {
-                        item(key = "now") {
-                            RentNowCard(
-                                selected = state.rentNow,
-                                available = ReservationSlots.canRentNow(day, court),
-                                busyUntil = ReservationSlots.busyUntil(court, day.now),
-                                zone = zone,
-                                onClick = onRentNow,
-                                colors = colors,
-                            )
-                        }
-                    }
-                    item(key = "hours") {
-                        HourGrid(
-                            day = day,
-                            court = court,
-                            zone = zone,
-                            selected = state.selectedStart,
-                            onSelect = onSelectStart,
-                            colors = colors,
-                        )
-                    }
-                    val start = if (state.rentNow) day.now else state.selectedStart
-                    if (start != null) {
-                        item(key = "durations") {
-                            DurationRow(
-                                available = ReservationSlots.availableDurations(day, court, start),
-                                all = day.durations,
-                                selected = state.selectedDuration,
-                                onSelect = onSelectDuration,
-                                colors = colors,
-                            )
-                        }
-                        item(key = "summary") {
-                            Summary(
-                                state = state,
-                                day = day,
-                                court = court,
-                                start = start,
-                                zone = zone,
-                                onReserve = onReserve,
-                                colors = colors,
-                            )
-                        }
-                    }
                 }
             }
 
             val mine = state.mine.filter { it.state.isLive || it.state == ReservationState.CONFLICT }
             if (mine.isNotEmpty()) {
                 item(key = "mine-head") {
-                    Text(
-                        "MIS RESERVAS",
-                        color = colors.muted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.4.sp,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
+                    CapLabel("Mis reservas", colors = colors, modifier = Modifier.padding(start = 4.dp, top = 6.dp))
                 }
                 items(mine, key = { "mine-${it.id}" }) { reservation ->
                     Box(modifier = Modifier.animateItem()) {
@@ -326,34 +284,54 @@ fun ReservationsScreen(
 @Composable
 private fun Header(
     venueName: String?,
+    dayText: String?,
     onBack: () -> Unit,
     colors: VaiinillaColors,
 ) {
     Column(modifier = Modifier.arrive(0)) {
-        IconButton(onClick = onBack, modifier = Modifier.padding(start = 0.dp)) {
-            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver", tint = colors.ink)
+        Box(
+            modifier =
+                Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(colors.paper2)
+                    .physicalPress(scale = PhysicalPressScale.Small, onClick = onBack)
+                    .semantics { contentDescription = "Volver" },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null, tint = colors.ink, modifier = Modifier.size(18.dp))
         }
-        Text(
-            "CANCHAS",
-            color = colors.muted,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.ExtraBold,
-            letterSpacing = 1.4.sp,
-        )
         Text(
             "Renta tu cancha",
             color = colors.ink,
-            fontSize = 34.sp,
-            lineHeight = 36.sp,
+            fontSize = 30.sp,
+            lineHeight = 34.sp,
             fontWeight = FontWeight.Black,
-            letterSpacing = (-1.4).sp,
+            letterSpacing = (-1.2).sp,
+            modifier = Modifier.padding(start = 4.dp, top = 10.dp),
         )
-        Text(
-            listOfNotNull(venueName, "se paga al apartar").joinToString(" · "),
-            color = colors.muted,
-            fontSize = 14.sp,
-            modifier = Modifier.padding(top = 4.dp),
-        )
+        val subtitle = listOfNotNull(venueName, dayText).joinToString(" · ")
+        if (subtitle.isNotEmpty()) {
+            Text(
+                subtitle,
+                color = colors.muted,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(start = 4.dp, top = 2.dp),
+            )
+        }
+    }
+}
+
+/** «hoy, martes 3», «mañana, miércoles 4» o «jueves 5»: el día que se está viendo. */
+private fun dayHeadline(day: CourtDay): String {
+    val date = LocalDate.parse(day.date)
+    val today = LocalDate.parse(day.today)
+    val name = date.format(DAY_NAME)
+    return when (date) {
+        today -> "hoy, $name"
+        today.plusDays(1) -> "mañana, $name"
+        else -> name
     }
 }
 
@@ -404,130 +382,157 @@ private fun DateStrip(
     }
 }
 
+/** Una cancha como en L07 de Doop: foto, estado, precio, «Rentar ahora» y las horas del día. */
 @Composable
-private fun CourtStrip(
+private fun CourtCard(
+    court: CourtSchedule,
     day: CourtDay,
     zone: ZoneId,
-    selectedId: Int?,
-    onSelect: (Int) -> Unit,
+    state: ReservationsUiState,
+    order: Int,
+    onSelectCourt: (Int) -> Unit,
+    onRentNow: () -> Unit,
+    onSelectStart: (Instant) -> Unit,
+    onSelectDuration: (Int) -> Unit,
+    onReserve: () -> Unit,
     colors: VaiinillaColors,
 ) {
-    LazyRow(modifier = Modifier.arrive(2), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        items(day.courts.filter { it.rentable }, key = { it.id }) { court ->
-            val selected = court.id == selectedId
-            val container by animateColorAsState(
-                if (selected) colors.ink else colors.paper2,
-                SPRING_COLOR,
-                label = "court-bg",
-            )
-            val ink by animateColorAsState(
-                if (selected) colors.onInk else colors.ink,
-                SPRING_COLOR,
-                label = "court-ink",
-            )
-            val isToday = day.date == day.today
-            val busyUntil = if (isToday) ReservationSlots.busyUntil(court, day.now) else null
-            val looksFree = if (isToday) busyUntil == null else court.busy.isEmpty()
-            Column(
-                modifier =
-                    Modifier
-                        .width(156.dp)
-                        .physicalPress { onSelect(court.id) }
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(container)
-                        .padding(16.dp),
-            ) {
-                Text(court.name, color = ink, fontSize = 17.sp, fontWeight = FontWeight.Black)
-                court.customerPricePerHour?.let {
-                    Text(
-                        "${moneyLabel(it.cashOrBalance)} / hora",
-                        color = ink.copy(alpha = 0.72f),
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(top = 2.dp),
-                    )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 10.dp)) {
-                    Box(
-                        Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(if (looksFree) colors.accent else colors.coral),
-                    )
-                    Text(
-                        when {
-                            busyUntil != null -> "Se libera ${busyUntil.atZone(zone).format(HOUR)}"
-                            isToday -> "Libre ahora"
-                            court.busy.isEmpty() -> "Libre todo el día"
-                            else -> "Con horarios ocupados"
-                        },
-                        color = ink.copy(alpha = 0.8f),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(start = 6.dp),
-                    )
-                }
-            }
+    val selected = court.id == state.selectedCourtId
+    val isToday = day.date == day.today
+    val busyUntil = if (isToday) ReservationSlots.busyUntil(court, day.now) else null
+    val canNow = isToday && ReservationSlots.canRentNow(day, court)
+    val starts = remember(day, court.id) { ReservationSlots.startTimes(day) }
+    val price = court.customerPricePerHour?.let { "${moneyLabel(it.cashOrBalance)} la hora" }
+    val trait = (court.profile.surface ?: court.profile.features.firstOrNull())?.replaceFirstChar { it.lowercase() }
+    val detail =
+        if (busyUntil != null) {
+            listOfNotNull("Se libera a las ${busyUntil.atZone(zone).format(HOUR)}", price)
+        } else {
+            listOfNotNull(price, trait)
         }
-    }
-}
-
-/** Ficha que escribió el dueño: foto (se abre en grande), descripción y características. */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun CourtProfileCard(
-    court: CourtSchedule,
-    colors: VaiinillaColors,
-) {
-    val profile = court.profile
+    val start =
+        when {
+            !selected -> null
+            state.rentNow -> day.now
+            else -> state.selectedStart
+        }
     var zoomed by remember(court.id) { mutableStateOf(false) }
+
     Column(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .arrive(3, key = court.id)
-                .clip(RoundedCornerShape(24.dp))
-                .background(colors.paper2),
+                .arrive(order, key = court.id)
+                .clip(RoundedCornerShape(22.dp))
+                .background(colors.paper2)
+                .animateContentSize(spring(dampingRatio = 0.88f, stiffness = 380f))
+                .padding(bottom = 14.dp),
     ) {
-        profile.imageUrl?.let { url ->
+        court.profile.imageUrl?.let { url ->
             ProductImage(
                 imageUrl = url,
                 contentDescription = "Foto de ${court.name}",
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .aspectRatio(16f / 10f)
+                        .height(118.dp)
                         .physicalPress { zoomed = true },
                 contentScale = ContentScale.Crop,
             )
         }
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(court.name, color = colors.ink, fontSize = 20.sp, fontWeight = FontWeight.Black)
-            profile.description?.let {
-                Text(it, color = colors.ink.copy(alpha = 0.8f), fontSize = 14.sp, lineHeight = 20.sp)
-            }
-            if (profile.features.isNotEmpty()) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    profile.features.forEach { feature ->
-                        Text(
-                            feature,
-                            color = colors.ink,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier =
-                                Modifier
-                                    .clip(RoundedCornerShape(50))
-                                    .background(colors.paper)
-                                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                        )
-                    }
-                }
+        Row(
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                listOfNotNull(court.name, court.profile.sport).joinToString(" · "),
+                color = colors.ink,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            CourtStatusTag(
+                isToday = isToday,
+                freeNow = canNow,
+                busyNow = busyUntil != null,
+                freeAllDay = court.busy.isEmpty(),
+                colors = colors,
+                modifier = Modifier.padding(start = 10.dp),
+            )
+        }
+        if (detail.isNotEmpty()) {
+            Text(
+                detail.joinToString(" · "),
+                color = colors.muted,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 2.dp),
+            )
+        }
+        if (canNow) {
+            RentNowPill(
+                selected = selected && state.rentNow,
+                onClick = {
+                    if (!selected) onSelectCourt(court.id)
+                    onRentNow()
+                },
+                colors = colors,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp),
+            )
+        }
+        CapLabel(
+            if (isToday) "O aparta una hora de hoy" else "Elige la hora",
+            colors = colors,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp),
+        )
+        if (starts.isEmpty()) {
+            Text(
+                "Ya no quedan horarios este día.",
+                color = colors.muted,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 9.dp),
+            )
+        } else {
+            HourRow(
+                starts = starts,
+                day = day,
+                court = court,
+                zone = zone,
+                selected = state.selectedStart.takeIf { selected && !state.rentNow },
+                onSelect = { chosen ->
+                    if (!selected) onSelectCourt(court.id)
+                    onSelectStart(chosen)
+                },
+                colors = colors,
+                modifier = Modifier.padding(top = 9.dp),
+            )
+        }
+        if (start != null) {
+            Column(modifier = Modifier.arrive(0, key = start)) {
+                DurationRow(
+                    available = ReservationSlots.availableDurations(day, court, start),
+                    all = day.durations,
+                    selected = state.selectedDuration,
+                    onSelect = onSelectDuration,
+                    colors = colors,
+                )
+                Summary(
+                    state = state,
+                    day = day,
+                    court = court,
+                    start = start,
+                    zone = zone,
+                    onReserve = onReserve,
+                    colors = colors,
+                )
             }
         }
     }
-    val zoomUrl = profile.imageUrl
+
+    val zoomUrl = court.profile.imageUrl
     if (zoomed && zoomUrl != null) {
         Dialog(onDismissRequest = { zoomed = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             Box(
@@ -556,124 +561,171 @@ private fun CourtProfileCard(
 }
 
 @Composable
-private fun RentNowCard(
-    selected: Boolean,
-    available: Boolean,
-    busyUntil: Instant?,
-    zone: ZoneId,
-    onClick: () -> Unit,
+private fun CourtStatusTag(
+    isToday: Boolean,
+    freeNow: Boolean,
+    busyNow: Boolean,
+    freeAllDay: Boolean,
     colors: VaiinillaColors,
+    modifier: Modifier = Modifier,
 ) {
-    if (!available) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .arrive(3)
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(colors.paper2)
-                    .padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Rentar ahora", color = colors.ink, fontSize = 18.sp, fontWeight = FontWeight.Black)
-                Text(
-                    busyUntil?.let { "Ocupada ahora mismo · Se libera a las ${it.atZone(zone).format(HOUR)}." }
-                        ?: "Fuera de horario para rentar de inmediato.",
-                    color = colors.muted,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
-            }
-            // Fuera de horario la cancha no está ocupada: la etiqueta solo sale cuando de verdad lo está.
-            if (busyUntil != null) {
-                Text(
-                    "Ocupada",
-                    color = colors.muted,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                    modifier = Modifier.padding(start = 12.dp),
-                )
-            }
+    val free = colors.accent.copy(alpha = 0.14f) to if (colors.isDark) colors.accent else colors.accentInk
+    val busy = colors.coral.copy(alpha = 0.14f) to coralInk(colors)
+    val quiet = colors.ink.copy(alpha = 0.08f) to colors.muted
+    val (label, tone) =
+        when {
+            isToday && busyNow -> "Ocupada" to busy
+            isToday && freeNow -> "Libre ahora" to free
+            isToday -> "Fuera de horario" to quiet
+            freeAllDay -> "Libre todo el día" to free
+            else -> "Con horarios ocupados" to quiet
         }
-    } else {
-        val container by animateColorAsState(
-            if (selected) colors.accent else colors.accent.copy(alpha = 0.22f),
-            SPRING_COLOR,
-            label = "now-bg",
-        )
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .arrive(3)
-                    .physicalPress(onClick = onClick)
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(container)
-                    .padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Rentar ahora", color = colors.accentInk, fontSize = 18.sp, fontWeight = FontWeight.Black)
-                Text(
-                    "Empieza en cuanto pagues.",
-                    color = colors.accentInk.copy(alpha = 0.78f),
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
-            }
-            Text(
-                if (selected) "Elegido" else "Elegir",
-                color = colors.accentInk,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 13.sp,
-            )
-        }
+    StatusTag(label = label, background = tone.first, content = tone.second, modifier = modifier)
+}
+
+@Composable
+private fun StatusTag(
+    label: String,
+    background: Color,
+    content: Color,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier =
+            modifier
+                .height(24.dp)
+                .clip(RoundedCornerShape(99.dp))
+                .background(background)
+                .padding(horizontal = 9.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, color = content, fontSize = 11.5.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+private fun coralInk(colors: VaiinillaColors): Color = if (colors.isDark) Color(0xFFFF8B86) else colors.coral
+
 @Composable
-private fun HourGrid(
+private fun CapLabel(
+    text: String,
+    colors: VaiinillaColors,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text.uppercase(MX),
+        color = colors.muted,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.ExtraBold,
+        letterSpacing = 2.2.sp,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun RentNowPill(
+    selected: Boolean,
+    onClick: () -> Unit,
+    colors: VaiinillaColors,
+    modifier: Modifier = Modifier,
+) {
+    val container by animateColorAsState(if (selected) colors.accent else colors.ink, SPRING_COLOR, label = "now-bg")
+    val content by animateColorAsState(if (selected) colors.accentInk else colors.onInk, SPRING_COLOR, label = "now-ink")
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(46.dp)
+                .physicalPress(onClick = onClick)
+                .clip(RoundedCornerShape(99.dp))
+                .background(container),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AnimatedVisibility(visible = selected) {
+            Icon(
+                Icons.Outlined.Check,
+                contentDescription = null,
+                tint = content,
+                modifier = Modifier.padding(end = 6.dp).size(18.dp),
+            )
+        }
+        Text("Rentar ahora", color = content, fontSize = 15.sp, fontWeight = FontWeight.Black)
+    }
+}
+
+@Composable
+private fun HourRow(
+    starts: List<Instant>,
     day: CourtDay,
     court: CourtSchedule,
     zone: ZoneId,
     selected: Instant?,
     onSelect: (Instant) -> Unit,
     colors: VaiinillaColors,
+    modifier: Modifier = Modifier,
 ) {
-    val starts = remember(day, court.id) { ReservationSlots.startTimes(day) }
-    val shifts = remember(starts, zone) { ReservationSlots.groupByShift(starts, zone) }
-    Column(modifier = Modifier.arrive(4), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    val listState = rememberLazyListState()
+    // Se abre en la primera hora libre, dejando una tachada antes para que se entienda por qué se saltó.
+    val firstOpen =
+        remember(starts, court.busy) {
+            starts.indexOfFirst { ReservationSlots.isStartAvailable(day, court, it) }.coerceAtLeast(1) - 1
+        }
+    LaunchedEffect(firstOpen) { listState.scrollToItem(firstOpen) }
+    LazyRow(
+        state = listState,
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        items(starts, key = { it.toEpochMilli() }) { start ->
+            HourChip(
+                label = start.atZone(zone).format(HOUR),
+                selected = start == selected,
+                enabled = ReservationSlots.isStartAvailable(day, court, start),
+                onClick = { onSelect(start) },
+                colors = colors,
+            )
+        }
+    }
+}
+
+@Composable
+private fun HourChip(
+    label: String,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    colors: VaiinillaColors,
+) {
+    val container by animateColorAsState(
+        if (selected) colors.ink else walletTile(colors),
+        SPRING_COLOR,
+        label = "hour-bg",
+    )
+    val ink by animateColorAsState(
+        if (selected) colors.onInk else colors.ink.copy(alpha = 0.88f),
+        SPRING_COLOR,
+        label = "hour-ink",
+    )
+    val open = enabled || selected
+    Box(
+        modifier =
+            Modifier
+                .height(36.dp)
+                .graphicsLayer { alpha = if (open) 1f else 0.35f }
+                .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small, onClick = onClick)
+                .clip(RoundedCornerShape(12.dp))
+                .background(container)
+                .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
         Text(
-            if (day.date == day.today) "O aparta una hora de hoy" else "Elige la hora",
-            color = colors.ink,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Black,
+            label,
+            color = ink,
+            fontSize = 13.5.sp,
+            fontWeight = FontWeight.ExtraBold,
+            textDecoration = if (open) null else TextDecoration.LineThrough,
         )
-        if (starts.isEmpty()) {
-            Text("Ya no quedan horarios este día.", color = colors.muted, fontSize = 14.sp)
-        }
-        shifts.forEach { (shift, shiftStarts) ->
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(shift.label, color = colors.muted, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    shiftStarts.forEach { start ->
-                        Chip(
-                            label = start.atZone(zone).format(HOUR),
-                            selected = start == selected,
-                            enabled = ReservationSlots.isStartAvailable(day, court, start),
-                            onClick = { onSelect(start) },
-                            colors = colors,
-                        )
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -685,11 +737,15 @@ private fun DurationRow(
     onSelect: (Int) -> Unit,
     colors: VaiinillaColors,
 ) {
-    Column(modifier = Modifier.arrive(5), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("¿Cuánto tiempo?", color = colors.ink, fontSize = 17.sp, fontWeight = FontWeight.Black)
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier = Modifier.padding(top = 16.dp)) {
+        CapLabel("Cuánto tiempo", colors = colors, modifier = Modifier.padding(horizontal = 16.dp))
+        LazyRow(
+            modifier = Modifier.padding(top = 9.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
             items(all, key = { it }) { minutes ->
-                Chip(
+                HourChip(
                     label = durationLabel(minutes),
                     selected = minutes == selected,
                     enabled = minutes in available,
@@ -700,7 +756,6 @@ private fun DurationRow(
         }
     }
 }
-
 @Composable
 private fun AccountRequiredCard(
     onCreateAccount: (() -> Unit)?,
@@ -827,16 +882,20 @@ private fun Summary(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .arrive(6)
-                .clip(RoundedCornerShape(26.dp))
-                .border(1.dp, colors.line, RoundedCornerShape(26.dp))
-                .padding(20.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp),
     ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(colors.line),
+        )
         Text(
             "${court.name} · ${dayLabel(day, zone, start)}",
             color = colors.muted,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(top = 14.dp),
         )
         Text(
             if (end != null) {
@@ -845,10 +904,10 @@ private fun Summary(
                 "Elige cuánto tiempo"
             },
             color = colors.ink,
-            fontSize = 26.sp,
+            fontSize = 24.sp,
             fontWeight = FontWeight.Black,
             letterSpacing = (-0.8).sp,
-            modifier = Modifier.padding(top = 4.dp),
+            modifier = Modifier.padding(top = 2.dp),
         )
         if (price != null) {
             Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 10.dp)) {
@@ -1031,12 +1090,21 @@ private fun MyReservationCard(
     colors: VaiinillaColors,
 ) {
     val started = !reservation.start.isAfter(Instant.now())
+    val pending = reservation.state == ReservationState.PENDING_PAYMENT
     val tone =
         when (reservation.state) {
             ReservationState.PENDING_PAYMENT -> colors.yolk
             ReservationState.CONFLICT -> colors.coral
             else -> colors.accent
         }
+    val toneInk =
+        when {
+            !colors.isDark -> colors.ink
+            reservation.state == ReservationState.CONFLICT -> coralInk(colors)
+            else -> tone
+        }
+    val startAt = reservation.start.atZone(zone)
+    val cancellable = pending || (reservation.state == ReservationState.CONFIRMED && !started)
     Column(
         modifier =
             Modifier
@@ -1044,44 +1112,56 @@ private fun MyReservationCard(
                 .arrive(0, key = reservation.id)
                 .clip(RoundedCornerShape(22.dp))
                 .background(colors.paper2)
-                .padding(18.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                reservation.courtName ?: "Cancha",
-                color = colors.ink,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Black,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                reservation.state.label,
-                color = colors.ink,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.ExtraBold,
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(
                 modifier =
                     Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(tone.copy(alpha = 0.35f))
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(tone.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "${startAt.format(WEEKDAY_SHORT).replace(".", "").uppercase(MX)}\n${startAt.dayOfMonth}",
+                    color = toneInk,
+                    fontSize = 12.sp,
+                    lineHeight = 13.sp,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center,
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "${reservation.courtName ?: "Cancha"} · ${startAt.format(HOUR)}–${reservation.end.atZone(zone).format(HOUR)}",
+                    color = colors.ink,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    if (pending) "Paga para confirmar tu horario" else startAt.format(DAY_LONG),
+                    color = colors.muted,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+            StatusTag(
+                label = if (pending) "Por pagar" else reservation.state.label,
+                background = tone.copy(alpha = 0.14f),
+                content = toneInk,
             )
         }
-        Text(
-            "${reservation.start.atZone(zone).format(DAY_LONG)} · ${reservation.start.atZone(zone).format(HOUR)} – " +
-                reservation.end.atZone(zone).format(HOUR),
-            color = colors.muted,
-            fontSize = 13.sp,
-            modifier = Modifier.padding(top = 4.dp),
-        )
-        Row(modifier = Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (reservation.state == ReservationState.PENDING_PAYMENT) {
-                SmallAction("Pagar", filled = true, onClick = onPay, colors = colors)
-            }
-            val cancellable =
-                reservation.state == ReservationState.PENDING_PAYMENT ||
-                    (reservation.state == ReservationState.CONFIRMED && !started)
-            if (cancellable) {
-                SmallAction("Cancelar", filled = false, onClick = onCancel, colors = colors)
+        if (pending || cancellable) {
+            Row(
+                modifier = Modifier.padding(start = 56.dp, top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (pending) SmallAction("Pagar", filled = true, onClick = onPay, colors = colors)
+                if (cancellable) SmallAction("Cancelar", filled = false, onClick = onCancel, colors = colors)
             }
         }
     }
