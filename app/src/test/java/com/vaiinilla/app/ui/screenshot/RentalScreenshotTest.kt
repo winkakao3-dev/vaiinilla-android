@@ -102,6 +102,20 @@ class RentalScreenshotTest {
     }
 
     @Test
+    fun rental_playing_selected() {
+        val start = now.minus(38, ChronoUnit.MINUTES)
+        val base = rental(OrderState.DELIVERED, ReservationState.IN_PROGRESS, startsIn = 0)
+        val order =
+            base.copy(
+                reservation = base.reservation!!.copy(start = start, end = start.plus(90, ChronoUnit.MINUTES), durationMinutes = 90),
+            )
+        composeTestRule.mainClock.autoAdvance = false
+        composeTestRule.setContent { ScreenshotTheme { tracking(order, selected = true) } }
+        composeTestRule.mainClock.advanceTimeBy(1_500)
+        composeTestRule.onRoot().captureRoboImage("rental_playing_selected.png")
+    }
+
+    @Test
     fun reservations_court_profile() {
         val zone = ZoneId.of("America/Chihuahua")
         val today = LocalDate.now(zone)

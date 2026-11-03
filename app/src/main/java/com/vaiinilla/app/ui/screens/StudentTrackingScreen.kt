@@ -138,6 +138,7 @@ import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.RentalStep
 import com.vaiinilla.app.ui.components.RentalTrackingTimeline
+import com.vaiinilla.app.ui.components.RentalTimeLeftCard
 import com.vaiinilla.app.ui.components.SkeletonBlock
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.SwipeToDeleteOrder
@@ -454,7 +455,12 @@ fun StudentTrackingScreen(
                                     TrackingSectionHead()
                                 }
                                 if (animatedSelected.isRental) {
-                                    item { RentalTrackingTimeline(order = animatedSelected) }
+                                    item {
+                                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                            RentalTimeLeftCard(order = animatedSelected)
+                                            RentalTrackingTimeline(order = animatedSelected)
+                                        }
+                                    }
                                 } else if (animatedSelected.summary.state.isTerminalWithoutDelivery) {
                                     // Cinco pasos pendientes de un pedido que ya no avanza confundían (PEDIDO-07).
                                     if (animatedSelected.summary.state != OrderState.CANCELED) {

@@ -11,6 +11,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,6 +49,12 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.core.snap
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
+import kotlinx.coroutines.delay
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
@@ -398,6 +405,71 @@ fun OrderTrackingTimeline(
         }
     }
 }
+
+/** Cancha en juego: cuánto le queda, con una barra que avanza, y cómo pedir más tiempo (Doop L09). */
+@Composable
+fun RentalTimeLeftCard(
+    order: OrderDetail,
+    modifier: Modifier = Modifier,
+) {
+    val reservation = order.reservation ?: return
+    val now by produceState(Instant.now(), reservation) {
+        while (true) {
+            value = Instant.now()
+            delay(RENTAL_TICK_MS)
+        }
+    }
+    val left = rentalTimeLeft(reservation, now) ?: return
+    val colors = LocalVaiinillaColors.current
+    val reduceMotion = reducedMotion()
+    val progress by animateFloatAsState(
+        targetValue = left.elapsedFraction,
+        animationSpec = if (reduceMotion) snap() else spring(dampingRatio = 1f, stiffness = 120f),
+        label = "rental-progress",
+    )
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(colors.paper2)
+                .border(1.dp, colors.line, RoundedCornerShape(20.dp))
+                .padding(16.dp)
+                .semantics(mergeDescendants = true) {
+                    contentDescription = "Te quedan ${left.minutesLeft} minutos de ${left.totalLabel}"
+                },
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("TE QUEDAN", color = colors.muted, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.4.sp)
+            Text("de ${left.totalLabel}", color = colors.muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+        RollingText(
+            text = "${left.minutesLeft} min",
+            style = TextStyle(fontSize = 34.sp, fontWeight = FontWeight.Black),
+            color = colors.ink,
+        )
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(colors.line),
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth(progress)
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(colors.accent),
+            )
+        }
+        Text("¿Quieres más tiempo? Pídelo en caja.", color = colors.muted, fontSize = 13.sp)
+    }
+}
+
+private const val RENTAL_TICK_MS = 30_000L
 
 /** Seguimiento de una renta de cancha: pagar, reservada, en juego, terminada. Sin cocina. */
 @Composable

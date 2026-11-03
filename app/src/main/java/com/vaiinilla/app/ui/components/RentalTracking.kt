@@ -6,6 +6,7 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.domain.time.BusinessTime
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -123,6 +124,38 @@ private fun rentalDay(
         today.plusDays(1) -> "mañana"
         else -> date.format(DAY).replace(".", "")
     }
+
+/** Lo que le queda a una cancha en juego (Doop L09): minutos, el total rentado y cuánto va de la barra. */
+data class RentalTimeLeft(
+    val minutesLeft: Long,
+    val totalLabel: String,
+    val elapsedFraction: Float,
+)
+
+fun rentalTimeLeft(
+    reservation: OrderReservation,
+    now: Instant,
+): RentalTimeLeft? {
+    if (now.isBefore(reservation.start) || !now.isBefore(reservation.end)) return null
+    val total = Duration.between(reservation.start, reservation.end)
+    val left = Duration.between(now, reservation.end)
+    if (total.isZero || total.isNegative) return null
+    // Hacia arriba: con 30 s restantes se lee «1 min», no «0 min».
+    val minutesLeft = (left.toSeconds() + 59) / 60
+    val elapsed = 1f - left.toMillis().toFloat() / total.toMillis().toFloat()
+    return RentalTimeLeft(minutesLeft, durationLabel(total), elapsed.coerceIn(0f, 1f))
+}
+
+/** "1 h 30", "2 h" o "45 min". */
+private fun durationLabel(duration: Duration): String {
+    val hours = duration.toHours()
+    val minutes = duration.toMinutesPart()
+    return when {
+        hours == 0L -> "$minutes min"
+        minutes == 0 -> "$hours h"
+        else -> "$hours h $minutes"
+    }
+}
 
 /** Nombre de la cancha rentada, o `null` si el pedido no es renta. */
 val OrderDetail.rentalCourtName: String?

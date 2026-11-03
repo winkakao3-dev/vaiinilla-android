@@ -19,6 +19,8 @@ import com.vaiinilla.app.ui.components.rentalScheduleLabel
 import com.vaiinilla.app.ui.components.rentalStateLabel
 import com.vaiinilla.app.ui.components.rentalStep
 import com.vaiinilla.app.ui.components.rentalStepDescription
+import com.vaiinilla.app.ui.components.rentalTimeLeft
+import com.vaiinilla.app.domain.model.OrderReservation
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -202,5 +204,20 @@ class CourtBusyTest {
         assertEquals("https://x/cancha.jpg", withProfile.imageUrl)
         assertEquals(listOf("Techada", "Con luz"), withProfile.features)
         assertTrue(day.courts[1].profile.isEmpty)
+    }
+
+    @Test
+    fun `en juego dice cuánto le queda del total rentado`() {
+        val start = Instant.parse("2026-11-03T18:00:00Z")
+        val reservation =
+            OrderReservation("r1", null, start, start.plusSeconds(90 * 60), 90, ReservationState.IN_PROGRESS)
+
+        val left = rentalTimeLeft(reservation, start.plusSeconds(38 * 60))!!
+        assertEquals(52L, left.minutesLeft)
+        assertEquals("1 h 30", left.totalLabel)
+        assertEquals(38f / 90f, left.elapsedFraction, 0.001f)
+        assertEquals(1L, rentalTimeLeft(reservation, start.plusSeconds(90 * 60 - 30))!!.minutesLeft)
+        assertEquals(null, rentalTimeLeft(reservation, start.minusSeconds(60)))
+        assertEquals(null, rentalTimeLeft(reservation, start.plusSeconds(90 * 60)))
     }
 }
