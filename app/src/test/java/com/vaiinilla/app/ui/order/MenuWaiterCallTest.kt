@@ -40,10 +40,9 @@ class MenuWaiterCallTest {
             menuWaiterPillLabel(call(CallStatus.PENDIENTE), cooldown = 0),
         )
         assertEquals(
-            MenuWaiterPillLabel(MenuWaiterIcon.WALKING, "Luis va en camino", "Luis va"),
+            MenuWaiterPillLabel(MenuWaiterIcon.WALKING, "Tu mesero va en camino", "Mesero va"),
             menuWaiterPillLabel(call(CallStatus.EN_CAMINO, taker = "Luis Pérez"), cooldown = 0),
         )
-        assertEquals("Tu mesero va en camino", menuWaiterPillLabel(call(CallStatus.EN_CAMINO, taker = " "), 0).title)
     }
 
     @Test
@@ -186,7 +185,7 @@ class MenuWaiterCallTest {
             assertEquals(CallStatus.PENDIENTE, state.call?.status)
             current = call(CallStatus.EN_CAMINO, taker = "Luis")
             state.refresh()
-            assertEquals("Luis va en camino", menuWaiterPillLabel(state.call, state.cooldown).title)
+            assertEquals("Tu mesero va en camino", menuWaiterPillLabel(state.call, state.cooldown).title)
             current = null
             state.refresh()
             assertEquals(MenuWaiterPhase.IDLE, state.phase)

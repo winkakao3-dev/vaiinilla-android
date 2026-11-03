@@ -543,9 +543,7 @@ private fun CallStatusContent(
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(
             if (going) {
-                "${call.takenBy?.name?.takeIf {
-                    it.isNotBlank()
-                } ?: "Tu mesero"} va en camino"
+                "Tu mesero va en camino"
             } else {
                 "Ya le avisamos a tu mesero"
             },

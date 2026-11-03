@@ -202,12 +202,10 @@ object OrderAdvanceNotifier {
     fun notifyCallerOnTheWay(
         context: Context,
         callId: String,
-        waiterName: String?,
         noticeId: String? = null,
     ): Shown {
-        val who = waiterName?.trim().orEmpty()
         val title = "Tu mesero va en camino"
-        val text = if (who.isEmpty()) "Va a tu mesa." else "$who va a tu mesa."
+        val text = "Va a tu mesa."
         if (!canPost(context)) return Shown(title, text, posted = false)
         ensureChannel(context)
         val notification =

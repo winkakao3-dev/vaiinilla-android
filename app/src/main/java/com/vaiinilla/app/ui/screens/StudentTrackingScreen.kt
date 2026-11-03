@@ -1578,7 +1578,7 @@ private fun CallLiveRow(
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                if (going) "${call.takenBy?.name ?: "Tu mesero"} va en camino" else "Llamando a tu mesero…",
+                if (going) "Tu mesero va en camino" else "Llamando a tu mesero…",
                 color = textColor,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Black,

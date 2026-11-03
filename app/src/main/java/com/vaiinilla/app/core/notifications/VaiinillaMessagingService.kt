@@ -170,7 +170,6 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
         return OrderAdvanceNotifier.notifyCallerOnTheWay(
             context = applicationContext,
             callId = callId,
-            waiterName = data["mesero_nombre"] ?: data["meseroNombre"],
             noticeId = noticeId,
         )
     }

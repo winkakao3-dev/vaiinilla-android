@@ -53,22 +53,14 @@ fun menuWaiterPillLabel(
 ): MenuWaiterPillLabel {
     if (call != null) {
         if (call.status == CallStatus.EN_CAMINO) {
-            val name = waiterFirstName(call)
-            return MenuWaiterPillLabel(MenuWaiterIcon.WALKING, "$name va en camino", "$name va")
+            // El cliente nunca ve el nombre del mesero: cuida al personal (decisión de Kao, 3 nov).
+            return MenuWaiterPillLabel(MenuWaiterIcon.WALKING, "Tu mesero va en camino", "Mesero va")
         }
         return MenuWaiterPillLabel(MenuWaiterIcon.RINGING, "Llamando al mesero…", "Llamando…")
     }
     if (cooldown > 0) return MenuWaiterPillLabel(MenuWaiterIcon.BELL, "Otra vez en $cooldown s", "$cooldown s")
     return MenuWaiterPillLabel(MenuWaiterIcon.BELL, "Llamar al mesero", "Mesero")
 }
-
-private fun waiterFirstName(call: TableCall): String =
-    call.takenBy
-        ?.name
-        ?.trim()
-        ?.split(Regex("\\s+"))
-        ?.firstOrNull()
-        ?.takeIf { it.isNotEmpty() } ?: "Tu mesero"
 
 /**
  * Solo quien hizo la llamada la cancela; si la hizo otro de la mesa el servidor no manda su nombre. En camino

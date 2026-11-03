@@ -62,10 +62,12 @@ class MenuWaiterPillUiTest {
     @Test
     fun `con el mesero en camino lo dice y todavia deja cancelar`() {
         setLayer(onCurrent = { Result.success(call(CallStatus.EN_CAMINO, taker = "Luis Pérez")) })
-        pill().assertContentDescriptionEquals("Luis va en camino").performClick()
+        pill().assertContentDescriptionEquals("Tu mesero va en camino").performClick()
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Luis Pérez va en camino").assertIsDisplayed()
+        // Al cliente nunca se le dice el nombre del mesero, aunque el servidor lo mande.
+        composeTestRule.onNodeWithText("Tu mesero va en camino").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Luis", substring = true).assertDoesNotExist()
         // K02: el servidor la cancela mientras siga abierta.
         composeTestRule.onNodeWithText("Cancelar llamada").assertIsDisplayed()
     }

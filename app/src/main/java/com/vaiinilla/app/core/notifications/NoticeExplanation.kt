@@ -194,16 +194,14 @@ data class NoticeExplanation(
                         "La dueña o el dueño de la cartera y sus tutores.",
                         emptyList(),
                     )
-                type == "mesero_en_camino" -> {
-                    val waiter = payload["mesero_nombre"] ?: payload["meseroNombre"] ?: "Un mesero"
+                type == "mesero_en_camino" ->
                     make(
                         "Mesero en camino",
-                        "$waiter va a tu mesa.",
-                        "$waiter, al tomar tu llamada.",
+                        "Tu mesero va a tu mesa.",
+                        "El mesero, al tomar tu llamada.",
                         "La persona que llamó al mesero.",
                         emptyList(),
                     )
-                }
                 else ->
                     make(
                         "Otro aviso",
