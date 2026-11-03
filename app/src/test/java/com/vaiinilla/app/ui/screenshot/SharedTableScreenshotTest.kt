@@ -126,8 +126,7 @@ class SharedTableScreenshotTest {
                                 onAliasChange = {},
                                 onJoin = {},
                                 onOrderAlone = {},
-                                onClaim = { _, _ -> },
-                                onLeave = {},
+                                onOpen = {},
                             )
                         },
                     )
@@ -164,8 +163,7 @@ class SharedTableScreenshotTest {
                                 onAliasChange = {},
                                 onJoin = {},
                                 onOrderAlone = {},
-                                onClaim = { _, _ -> },
-                                onLeave = {},
+                                onOpen = {},
                             )
                         },
                     )

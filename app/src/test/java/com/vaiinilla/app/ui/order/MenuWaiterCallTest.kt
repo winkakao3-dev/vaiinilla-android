@@ -78,9 +78,12 @@ class MenuWaiterCallTest {
             assertTrue(state.send(CallReason.UTENSILIOS))
             assertEquals(listOf<String?>(null), orderIds)
             assertEquals(MenuWaiterPhase.OPEN, state.phase)
-            assertFalse(state.expanded)
+            // La hoja queda abierta con el estado de la llamada (Doop L05).
+            assertTrue(state.showsCall)
 
-            // Tocar la píldora con la llamada abierta muestra su estado.
+            // «Listo» la cierra y tocar la píldora con la llamada abierta la vuelve a mostrar.
+            state.close()
+            assertFalse(state.expanded)
             state.tap()
             assertTrue(state.showsCall)
         }

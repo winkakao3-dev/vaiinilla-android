@@ -34,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -42,12 +41,11 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.ui.components.PhysicalPressScale
-import com.vaiinilla.app.ui.components.physicalPress
-import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.ui.components.ClientPillButton
+import com.vaiinilla.app.ui.components.ClientSheetHandle
 import com.vaiinilla.app.ui.sharedtable.SharedTableUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
@@ -73,7 +71,7 @@ fun SharedTableInviteSheet(
         containerColor = colors.paper,
         scrimColor = Color.Black.copy(alpha = 0.5f),
         shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
-        dragHandle = { SharedTableInviteHandle() },
+        dragHandle = { ClientSheetHandle() },
     ) {
         SharedTableInvite(
             state = state,
@@ -87,16 +85,6 @@ fun SharedTableInviteSheet(
     }
 }
 
-@Composable
-internal fun SharedTableInviteHandle() {
-    Box(
-        Modifier
-            .padding(top = 10.dp)
-            .size(width = 40.dp, height = 5.dp)
-            .clip(RoundedCornerShape(9.dp))
-            .background(LocalVaiinillaColors.current.muted.copy(alpha = 0.3f)),
-    )
-}
 
 @Composable
 internal fun SharedTableInvite(
@@ -110,12 +98,7 @@ internal fun SharedTableInvite(
 ) {
     val colors = LocalVaiinillaColors.current
     val words = SharedSpaceWords.of(spaceType)
-    // «la Mesa 4»: el artículo del tipo de espacio con el nombre que le puso el negocio.
-    val place =
-        spaceName
-            ?.takeIf { it.isNotBlank() }
-            ?.let { words.thePlace.substringBefore(' ') + " " + it }
-            ?: words.thePlace
+    val place = spaceName?.takeIf { it.isNotBlank() }?.let { SpaceCopy.named(spaceType, it) } ?: words.thePlace
     Column(modifier.fillMaxWidth().padding(bottom = 24.dp)) {
         Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
             InviteFaces(state.othersAtTable)
@@ -165,20 +148,18 @@ internal fun SharedTableInvite(
         }
         Spacer(Modifier.height(40.dp))
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            InviteButton(
+            ClientPillButton(
                 text = "Unirme a ${words.thePlace}",
-                primary = true,
-                enabled = state.canJoin,
-                height = 56.dp,
                 onClick = onJoin,
+                enabled = state.canJoin,
                 modifier = Modifier.testTag(SHARED_TABLE_INVITE_JOIN_TAG),
             )
-            InviteButton(
+            ClientPillButton(
                 text = "Pedir solo yo",
+                onClick = onOrderAlone,
                 primary = false,
                 enabled = !state.busy,
                 height = 52.dp,
-                onClick = onOrderAlone,
                 modifier = Modifier.testTag(SHARED_TABLE_INVITE_ALONE_TAG),
             )
         }
@@ -278,35 +259,3 @@ private fun AliasField(
     )
 }
 
-@Composable
-private fun InviteButton(
-    text: String,
-    primary: Boolean,
-    enabled: Boolean,
-    height: Dp,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalVaiinillaColors.current
-    val haptics = rememberVaiinillaHaptics()
-    Box(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .height(height)
-                .graphicsLayer { alpha = if (enabled) 1f else 0.45f }
-                .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small) {
-                    haptics.click()
-                    onClick()
-                }.clip(RoundedCornerShape(percent = 50))
-                .background(if (primary) colors.ink else colors.paper2),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text,
-            color = if (primary) colors.paper else colors.ink,
-            fontSize = if (primary) 16.5.sp else 15.5.sp,
-            fontWeight = if (primary) FontWeight.Black else FontWeight.ExtraBold,
-        )
-    }
-}

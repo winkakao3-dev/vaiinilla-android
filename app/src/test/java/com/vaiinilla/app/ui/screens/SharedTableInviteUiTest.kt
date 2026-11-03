@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.vaiinilla.app.ui.components.ClientSheetHandle
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import com.vaiinilla.app.ui.sharedtable.SharedTableUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -69,7 +70,7 @@ class SharedTableInviteUiTest {
                             .background(colors.paper),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        SharedTableInviteHandle()
+                        ClientSheetHandle()
                         SharedTableInvite(
                             state =
                                 SharedTableUiState(

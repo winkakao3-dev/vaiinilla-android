@@ -96,7 +96,9 @@ import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.operational.PendingRefundsViewModel
 import com.vaiinilla.app.ui.operational.WaiterViewModel
+import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.ui.order.JourneyVenue
+import com.vaiinilla.app.ui.order.MenuWaiterCallState
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.canPayWithBalance
 import com.vaiinilla.app.ui.order.canPayWithCard
@@ -130,6 +132,7 @@ import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.OrdersAccessGate
 import com.vaiinilla.app.ui.screens.SharedTableCard
 import com.vaiinilla.app.ui.screens.SharedTableInviteSheet
+import com.vaiinilla.app.ui.screens.SharedTablePage
 import com.vaiinilla.app.ui.screens.StoreEntrance
 import com.vaiinilla.app.ui.screens.StoreEntranceOutcome
 import com.vaiinilla.app.ui.screens.StoreEntranceOverlay
@@ -1259,6 +1262,10 @@ fun AppNavHost(
                                         qrToken?.let { token ->
                                             { sharedTableViewModel.joinForWaiterCall(token, alias) }
                                         },
+                                    place =
+                                        orderState.guestVenue?.space?.let { SpaceCopy.named(it.type, it.name) }
+                                            ?: sharedTableViewModel.uiState.value.table
+                                                ?.let { SpaceCopy.named(it.spaceType, it.spaceName) },
                                 )
                             }
                             layer
@@ -1638,6 +1645,45 @@ fun AppNavHost(
                 )
             }
 
+            composable(Routes.SHARED_TABLE) {
+                WhileStarted(
+                    onStart = sharedTableViewModel::onVisible,
+                    onStop = sharedTableViewModel::onHidden,
+                )
+                val tableState = sharedTableViewModel.uiState.value
+                val table = tableState.table
+                // Al salir de la mesa (o si ya no está sentado) la página no tiene qué mostrar.
+                LaunchedEffect(tableState.loaded, table == null) {
+                    if (tableState.loaded && table == null) navController.popBackStack()
+                }
+                if (table != null) {
+                    val waiter =
+                        remember(table.spaceId) {
+                            MenuWaiterCallState(
+                                spaceId = table.spaceId,
+                                onCurrent = { id ->
+                                    orderFlowViewModel.ensureClientContext()
+                                    operationalViewModel.currentWaiterCall(id)
+                                },
+                                onCall = { id, reason, orderId ->
+                                    orderFlowViewModel.ensureClientContext()
+                                    operationalViewModel.callWaiter(id, reason, orderId)
+                                },
+                                onCancel = operationalViewModel::cancelWaiterCall,
+                                onJoinTable = null,
+                            )
+                        }
+                    SharedTablePage(
+                        table = table,
+                        busy = tableState.busy,
+                        error = tableState.error,
+                        errorFolio = tableState.errorFolio,
+                        onClaim = sharedTableViewModel::claim,
+                        onLeave = sharedTableViewModel::leave,
+                        waiter = waiter,
+                    )
+                }
+            }
             composable(Routes.CART) {
                 val guestAuthRequired = orderFlowViewModel.requiresAccountAuth()
                 LaunchedEffect(Unit) { orderFlowViewModel.refreshOperationalStatusForCheckout() }
@@ -2130,8 +2176,7 @@ fun AppNavHost(
                                             ?.let(sharedTableViewModel::join)
                                     },
                                     onOrderAlone = sharedTableViewModel::orderAlone,
-                                    onClaim = sharedTableViewModel::claim,
-                                    onLeave = sharedTableViewModel::leave,
+                                    onOpen = { navController.navigate(Routes.SHARED_TABLE) { launchSingleTop = true } },
                                     spaceType = orderState.guestVenue?.space?.type,
                                 )
                             },

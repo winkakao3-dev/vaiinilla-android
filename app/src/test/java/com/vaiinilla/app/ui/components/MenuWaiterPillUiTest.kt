@@ -50,8 +50,8 @@ class MenuWaiterPillUiTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("¿Qué necesitas?").assertIsDisplayed()
-        CallReason.entries.forEach { composeTestRule.onNodeWithText(it.label).assertIsDisplayed() }
-        composeTestRule.onNodeWithText("Pedir la cuenta").performClick()
+        CallReason.entries.forEach { composeTestRule.onNodeWithText(it.chipLabel).assertIsDisplayed() }
+        composeTestRule.onNodeWithText("La cuenta").performClick()
         composeTestRule.waitForIdle()
 
         assertEquals(listOf(CallReason.CUENTA to null), sent)
@@ -77,7 +77,7 @@ class MenuWaiterPillUiTest {
         setLayer(onCall = { _, _, _ -> Result.failure(CallsUnavailableException()) })
         pill().performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Pedir la cuenta").performClick()
+        composeTestRule.onNodeWithText("La cuenta").performClick()
         composeTestRule.waitForIdle()
 
         // C04: antes la píldora se iba sin decir nada.
@@ -102,7 +102,8 @@ class MenuWaiterPillUiTest {
         pill().performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Ya le avisamos a tu mesero").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Mesa 1 · Cubiertos o servilletas").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Va a la Mesa 1").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Servilletas o cubiertos").assertIsDisplayed()
         composeTestRule.onNodeWithText("Cancelar llamada").performClick()
         composeTestRule.waitForIdle()
 

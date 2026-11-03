@@ -1,6 +1,5 @@
 package com.vaiinilla.app.ui.components
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -21,7 +20,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -43,25 +41,22 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.NotificationsActive
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
@@ -74,24 +69,17 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.core.notifications.TableCallPushes
 import com.vaiinilla.app.domain.repository.CallReason
-import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.ui.order.MenuWaiterCallState
 import com.vaiinilla.app.ui.order.MenuWaiterIcon
 import com.vaiinilla.app.ui.order.MenuWaiterPhase
-import com.vaiinilla.app.ui.order.canCancelMenuCall
 import com.vaiinilla.app.ui.order.menuWaiterPillLabel
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.SeaGlassButton
 import com.vaiinilla.app.ui.theme.SeaGlassTone
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /** Lo que lleva el carrito, para la barra que junta "Ver carrito" y "Mesero". */
 data class MenuCartBar(
@@ -104,8 +92,8 @@ data class MenuCartBar(
 /**
  * "Llamar al mesero" siempre a la mano en el menú de una mesa. Sin carrito es una píldora sobre la barra de
  * abajo; con algo en el carrito ([cart]) es el botón "Mesero" dentro de la barra "Ver carrito", para no apilar
- * dos botones. Un toque abre los motivos encima; ya enviada, la píldora es el estado en vivo y tocarla deja
- * cancelar.
+ * dos botones. Un toque abre la hoja de motivos (Doop L05); ya enviada, la píldora es el estado en vivo y
+ * tocarla vuelve a abrir la hoja para ver o cancelar la llamada.
  */
 @Composable
 fun MenuWaiterLayer(
@@ -117,12 +105,14 @@ fun MenuWaiterLayer(
     onCancel: suspend (TableCall) -> Result<TableCall>,
     onJoinTable: (suspend () -> Result<Unit>)?,
     modifier: Modifier = Modifier,
+    /** «la Mesa 4», para la hoja antes de llamar. */
+    place: String? = null,
 ) {
     val state =
         remember(spaceId) {
             MenuWaiterCallState(spaceId, onCurrent, onCall, onCancel, onJoinTable)
         }
-    MenuWaiterLayer(state = state, visible = visible, cart = cart, modifier = modifier)
+    MenuWaiterLayer(state = state, visible = visible, cart = cart, place = place, modifier = modifier)
 }
 
 @Composable
@@ -131,46 +121,11 @@ internal fun MenuWaiterLayer(
     visible: Boolean,
     cart: MenuCartBar?,
     modifier: Modifier = Modifier,
+    place: String? = null,
 ) {
-    val colors = LocalVaiinillaColors.current
     val reduced = reducedMotion()
-
-    // Recupera una llamada abierta y la mantiene fresca mientras el menú está a la vista.
-    LaunchedEffect(state) {
-        while (true) {
-            state.refresh()
-            TableCallPushes.awaitNextPoll(MENU_CALL_POLL_MS)
-        }
-    }
-    LaunchedEffect(state.cooldown) {
-        if (state.cooldown > 0) {
-            delay(1_000)
-            state.tick()
-        }
-    }
-    LaunchedEffect(visible) { if (!visible) state.close() }
-
-    val expanded = visible && state.expanded
-    BackHandler(enabled = expanded) { state.close() }
-
+    WaiterCallHost(state = state, visible = visible, place = place)
     Box(modifier = modifier.fillMaxSize()) {
-        AnimatedVisibility(
-            visible = expanded,
-            enter = fadeIn(tween(180)),
-            exit = fadeOut(tween(160)),
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = if (colors.isDark) 0.32f else 0.16f))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClickLabel = "Cerrar",
-                        ) { state.close() },
-            )
-        }
         Column(
             modifier =
                 Modifier
@@ -178,36 +133,11 @@ internal fun MenuWaiterLayer(
                     .navigationBarsPadding()
                     .padding(
                         start = VaiinillaBottomNavSideMargin,
-                        end = if (expanded || cart != null) VaiinillaBottomNavSideMargin else 0.dp,
+                        end = if (cart != null) VaiinillaBottomNavSideMargin else 0.dp,
                         bottom = VaiinillaBottomNavTop + 10.dp,
                     ),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            AnimatedVisibility(
-                visible = expanded,
-                enter =
-                    if (reduced) {
-                        fadeIn()
-                    } else {
-                        fadeIn(tween(200)) +
-                            scaleIn(
-                                initialScale = 0.6f,
-                                transformOrigin = TransformOrigin(0f, 1f),
-                                animationSpec = spring(dampingRatio = 0.8f, stiffness = 420f),
-                            ) +
-                            slideInVertically { it / 6 }
-                    },
-                exit =
-                    if (reduced) {
-                        fadeOut()
-                    } else {
-                        fadeOut(tween(140)) +
-                            scaleOut(targetScale = 0.8f, transformOrigin = TransformOrigin(0f, 1f)) +
-                            slideOutVertically { it / 8 }
-                    },
-            ) {
-                WaiterCallCard(state = state)
-            }
             AnimatedVisibility(
                 visible = visible && cart != null,
                 enter = if (reduced) fadeIn() else fadeIn(tween(200)) + slideInVertically(spring(dampingRatio = 0.62f, stiffness = 420f)) { it },
@@ -243,7 +173,6 @@ internal fun MenuWaiterLayer(
         }
     }
 }
-
 @Composable
 private fun WaiterPill(state: MenuWaiterCallState) {
     val haptics = rememberVaiinillaHaptics()
@@ -459,147 +388,5 @@ private fun WaiterIcon(icon: MenuWaiterIcon) {
     Icon(vector, contentDescription = null, modifier = Modifier.size(18.dp).rotate(angle))
 }
 
-@Composable
-private fun WaiterCallCard(state: MenuWaiterCallState) {
-    val colors = LocalVaiinillaColors.current
-    val shape = RoundedCornerShape(26.dp)
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .shadow(24.dp, shape, clip = false)
-                .clip(shape)
-                .background(colors.solidPaper ?: colors.paper)
-                .border(1.dp, colors.line, shape)
-                .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        val call = state.call
-        if (call != null) {
-            CallStatusContent(state = state, call = call)
-        } else {
-            ReasonsContent(state = state)
-        }
-        state.error?.let { message ->
-            Text(
-                message,
-                color = colors.coral,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.testTag("menu-waiter-error"),
-            )
-        }
-    }
-}
-
-@Composable
-private fun ReasonsContent(state: MenuWaiterCallState) {
-    val colors = LocalVaiinillaColors.current
-    val haptics = rememberVaiinillaHaptics()
-    val scope = rememberCoroutineScope()
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            "¿Qué necesitas?",
-            color = colors.ink,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Black,
-            modifier = Modifier.padding(bottom = 2.dp),
-        )
-        CallReason.entries.forEach { reason ->
-            SeaGlassButton(
-                tone = SeaGlassTone.vainilla,
-                onClick = {
-                    haptics.selection()
-                    scope.launch { if (state.send(reason)) haptics.impact() }
-                },
-                enabled = !state.busy,
-                modifier = Modifier.fillMaxWidth().height(46.dp).testTag("menu-waiter-reason-${reason.wireValue}"),
-            ) {
-                Text(
-                    reason.label,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
-                )
-            }
-        }
-        if (state.busy) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = colors.muted)
-                Text("Avisando…", color = colors.muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
-
-@Composable
-private fun CallStatusContent(
-    state: MenuWaiterCallState,
-    call: TableCall,
-) {
-    val colors = LocalVaiinillaColors.current
-    val scope = rememberCoroutineScope()
-    val going = call.status == CallStatus.EN_CAMINO
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Text(
-            if (going) {
-                "Tu mesero va en camino"
-            } else {
-                "Ya le avisamos a tu mesero"
-            },
-            color = colors.ink,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Black,
-        )
-        Text(
-            listOf(call.space.name, call.reason.label).filter { it.isNotBlank() }.joinToString(" · "),
-            color = colors.muted,
-            fontSize = 13.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-    if (canCancelMenuCall(call)) {
-        Text(
-            "Si lo cancelas, puedes volver a llamarlo enseguida.",
-            color = colors.muted,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-        )
-    }
-    Row(modifier = Modifier.fillMaxWidth().padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (canCancelMenuCall(call)) {
-            SeaGlassButton(
-                tone = SeaGlassTone.vainilla,
-                onClick = { scope.launch { state.cancel() } },
-                enabled = !state.busy,
-                modifier = Modifier.weight(1f).height(44.dp).testTag("menu-waiter-cancel"),
-            ) {
-                Text(
-                    "Cancelar llamada",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f),
-                    textAlign = TextAlign.Center,
-                )
-            }
-        }
-        SeaGlassButton(
-            tone = SeaGlassTone.lima,
-            onClick = { state.close() },
-            modifier = Modifier.weight(1f).height(44.dp),
-        ) {
-            Text(
-                "Listo",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Black,
-                modifier = Modifier.weight(1f),
-                textAlign = TextAlign.Center,
-            )
-        }
-    }
-}
-
 const val MENU_WAITER_PILL_TAG = "menu-waiter-pill"
 const val MENU_CART_BAR_TAG = "menu-cart-bar"
-private const val MENU_CALL_POLL_MS = 5_000L

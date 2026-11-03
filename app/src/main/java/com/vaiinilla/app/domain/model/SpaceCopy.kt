@@ -15,6 +15,12 @@ object SpaceCopy {
             else -> "Mesa"
         }
 
+    /** El nombre que le puso el negocio con su artículo: «la Mesa 4», «el Asiento 3». */
+    fun named(
+        type: String?,
+        name: String,
+    ): String = (if (type == "asiento" || type == "drive_thru") "el " else "la ") + name
+
     /** Cómo nombra el cliente su lugar: "tu mesa", "tu cancha"... */
     fun yourPlace(type: String?): String =
         when (type) {

@@ -153,7 +153,8 @@ class MenuWaiterCallState(
             onSuccess = { created ->
                 call = created
                 phase = MenuWaiterPhase.OPEN
-                showsCall = false
+                // La hoja se queda abierta con «Ya le avisamos a tu mesero» (Doop L05).
+                showsCall = true
                 true
             },
             onFailure = { cause ->
