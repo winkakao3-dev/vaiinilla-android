@@ -129,6 +129,7 @@ import com.vaiinilla.app.ui.screens.MenuFeedScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.OrdersAccessGate
 import com.vaiinilla.app.ui.screens.SharedTableCard
+import com.vaiinilla.app.ui.screens.SharedTableInviteSheet
 import com.vaiinilla.app.ui.screens.StoreEntrance
 import com.vaiinilla.app.ui.screens.StoreEntranceOutcome
 import com.vaiinilla.app.ui.screens.StoreEntranceOverlay
@@ -1280,6 +1281,13 @@ fun AppNavHost(
                             null
                         },
                 )
+                SharedTableInviteHost(
+                    viewModel = sharedTableViewModel,
+                    qrToken = orderState.guestVenue?.space?.qrToken.takeIf { studentAuthState.session != null },
+                    spaceName = orderState.guestVenue?.space?.name,
+                    spaceType = orderState.guestVenue?.space?.type,
+                    displayName = studentAuthState.session?.displayName.orEmpty(),
+                )
             }
 
             composable(Routes.MENU_FEED) {
@@ -2121,6 +2129,7 @@ fun AppNavHost(
                                             ?.qrToken
                                             ?.let(sharedTableViewModel::join)
                                     },
+                                    onOrderAlone = sharedTableViewModel::orderAlone,
                                     onClaim = sharedTableViewModel::claim,
                                     onLeave = sharedTableViewModel::leave,
                                     spaceType = orderState.guestVenue?.space?.type,
@@ -2655,3 +2664,38 @@ private fun returnToModes(
             launchSingleTop = true
         }
     }
+
+/** La hoja de L03 sobre el menú: con sesión, por QR, sin mesa todavía y con alguien ya sentado ahí. */
+@Composable
+private fun SharedTableInviteHost(
+    viewModel: SharedTableViewModel,
+    qrToken: String?,
+    spaceName: String?,
+    spaceType: String?,
+    displayName: String,
+) {
+    LaunchedEffect(qrToken) { if (qrToken != null) viewModel.watchSpace(qrToken) }
+    val state = viewModel.uiState.value
+    // Bajarla con el dedo la deja para después: la invitación sigue en Pedidos.
+    var dismissed by rememberSaveable(qrToken) { mutableStateOf(false) }
+    val shows =
+        qrToken != null &&
+            state.loaded &&
+            state.table == null &&
+            state.othersAtTable.isNotEmpty() &&
+            !state.orderedAlone &&
+            !dismissed
+    if (!shows) return
+    LaunchedEffect(Unit) {
+        if (state.aliasInput.isBlank() && displayName.isNotBlank()) viewModel.updateAlias(waiterCallAlias(displayName))
+    }
+    SharedTableInviteSheet(
+        state = state,
+        spaceName = spaceName,
+        spaceType = spaceType,
+        onAliasChange = viewModel::updateAlias,
+        onJoin = { viewModel.join(qrToken) },
+        onOrderAlone = viewModel::orderAlone,
+        onDismiss = { dismissed = true },
+    )
+}

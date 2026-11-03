@@ -155,6 +155,7 @@ fun SharedTableCard(
     qrToken: String?,
     onAliasChange: (String) -> Unit,
     onJoin: () -> Unit,
+    onOrderAlone: () -> Unit,
     onClaim: (folio: Int, payIt: Boolean) -> Unit,
     onLeave: () -> Unit,
     modifier: Modifier = Modifier,
@@ -164,9 +165,7 @@ fun SharedTableCard(
     if (!state.loaded) return
     val table = state.table
     if (table == null && qrToken == null) return
-    // «Pedir solo yo» esconde la invitación para ese QR; al escanear otro vuelve a salir (Doop L03).
-    var orderAlone by rememberSaveable(qrToken) { mutableStateOf(false) }
-    if (table == null && orderAlone) return
+    if (table == null && state.orderedAlone) return
     // En Pedidos la mesa es un renglón; tocarlo abre la cuenta completa ahí mismo (Doop L10 y L04).
     var expanded by rememberSaveable(table?.spaceId) { mutableStateOf(false) }
     Surface(
@@ -188,7 +187,7 @@ fun SharedTableCard(
                     ),
         ) {
             if (table == null) {
-                JoinTable(state, SharedSpaceWords.of(spaceType), onAliasChange, onJoin, onOrderAlone = { orderAlone = true })
+                JoinTable(state, SharedSpaceWords.of(spaceType), onAliasChange, onJoin, onOrderAlone)
             } else {
                 TableSummaryRow(table, expanded, onToggle = { expanded = !expanded })
             }

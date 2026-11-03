@@ -29,6 +29,8 @@ data class SharedTableUiState(
     val errorFolio: Int? = null,
     /** Quienes ya están en la mesa del QR, antes de unirse. */
     val othersAtTable: List<String> = emptyList(),
+    /** Eligió «Pedir solo yo» para el QR de ahora: ni la hoja del menú ni Pedidos lo vuelven a invitar. */
+    val orderedAlone: Boolean = false,
 ) {
     val canJoin: Boolean
         get() = aliasInput.isNotBlank() && !busy
@@ -97,16 +99,24 @@ class SharedTableViewModel
 
         private var watchedToken: String? = null
 
-        /** Al llegar con un QR y sin mesa: lee quién ya está ahí para la invitación. Un fallo deja la invitación sin nombres. */
+        /**
+         * Al llegar con un QR: lee quién ya está ahí para la invitación y si ya está sentado en alguna mesa.
+         * Un fallo deja la invitación sin nombres. Otro QR vuelve a invitar aunque antes eligiera pedir solo.
+         */
         fun watchSpace(qrToken: String?) {
             if (qrToken == watchedToken) return
             watchedToken = qrToken
-            _uiState.value = _uiState.value.copy(othersAtTable = emptyList())
+            _uiState.value = _uiState.value.copy(othersAtTable = emptyList(), orderedAlone = false)
             if (qrToken == null) return
             viewModelScope.launch {
                 val others = withContext(Dispatchers.IO) { repository.othersAt(qrToken) }.getOrNull() ?: return@launch
                 if (watchedToken == qrToken) _uiState.value = _uiState.value.copy(othersAtTable = others)
             }
+            viewModelScope.launch { refresh() }
+        }
+
+        fun orderAlone() {
+            _uiState.value = _uiState.value.copy(orderedAlone = true)
         }
 
         fun updateAlias(value: String) {

@@ -125,6 +125,7 @@ class SharedTableScreenshotTest {
                                 qrToken = "qr",
                                 onAliasChange = {},
                                 onJoin = {},
+                                onOrderAlone = {},
                                 onClaim = { _, _ -> },
                                 onLeave = {},
                             )
@@ -162,6 +163,7 @@ class SharedTableScreenshotTest {
                                 qrToken = "qr",
                                 onAliasChange = {},
                                 onJoin = {},
+                                onOrderAlone = {},
                                 onClaim = { _, _ -> },
                                 onLeave = {},
                             )
