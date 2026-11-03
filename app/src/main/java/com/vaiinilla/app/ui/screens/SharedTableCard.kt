@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -44,6 +46,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,6 +58,7 @@ import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialTextField
 import com.vaiinilla.app.ui.components.PhysicalPressScale
+import com.vaiinilla.app.ui.components.RollingText
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
@@ -299,18 +303,12 @@ private fun TableContent(
         }
     }
     CardRule()
-    SumRow("Pagado", money(table.totals.paid))
-    SumRow("Por pagar de la $noun", money(table.totals.pending))
-    CardRule()
-    SumRow("Tu parte", money(table.myShare.total))
-    SumRow("Tu parte pagada", money(table.myShare.paid))
-    SumRow("Tu parte por pagar", money(table.myShare.pending), highlight = true)
-    myShareHint(table.myShare, table.myAlias)?.let {
-        Text(
+    ShareTiles(table, noun)
+    myShareHint(table.myShare, table.myAlias)?.let {        Text(
             it,
             color = OrderTrackingCardText.copy(alpha = 0.62f),
             fontSize = 13.sp,
-            modifier = Modifier.padding(top = 4.dp),
+            modifier = Modifier.padding(top = 10.dp),
         )
     }
     Spacer(Modifier.height(12.dp))
@@ -470,35 +468,74 @@ private fun TableChip(
     }
 }
 
+/** Las dos cifras que importan, lado a lado: lo tuyo y lo de toda la mesa (Doop L04). */
 @Composable
-private fun SumRow(
-    label: String,
-    value: String,
-    highlight: Boolean = false,
+private fun ShareTiles(
+    table: SharedTable,
+    noun: String,
 ) {
     val colors = LocalVaiinillaColors.current
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            label,
-            color = if (highlight) colors.accent else OrderTrackingCardText.copy(alpha = 0.8f),
-            fontSize = 14.sp,
-            fontWeight = if (highlight) FontWeight.Black else FontWeight.Normal,
+    val mine = table.myShare
+    val mineNote =
+        when {
+            mine.pending.signum() == 0 && mine.total.signum() > 0 -> "Pagada"
+            mine.paid.signum() > 0 -> "${money(mine.paid)} ya pagado"
+            else -> "Por pagar"
+        }
+    val allNote = if (table.totals.paid.signum() > 0) "${money(table.totals.paid)} ya pagado" else "Nada pagado aún"
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        ShareTile(
+            label = "Tu parte",
+            amount = money(if (mine.pending.signum() > 0) mine.pending else mine.total),
+            note = mineNote,
+            amountColor = colors.accent,
+            modifier = Modifier.weight(1f),
         )
-        Text(
-            value,
-            color = OrderTrackingCardText,
-            fontSize = 14.sp,
-            fontWeight = if (highlight) FontWeight.Black else FontWeight.Normal,
+        ShareTile(
+            label = "Toda la $noun",
+            amount = money(table.totals.total),
+            note = allNote,
+            amountColor = OrderTrackingCardText,
+            modifier = Modifier.weight(1f),
         )
     }
 }
 
 @Composable
-private fun CardRule() {
-    Box(
+private fun ShareTile(
+    label: String,
+    amount: String,
+    note: String,
+    amountColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(18.dp))
+                .background(Color.White.copy(alpha = 0.08f))
+                .padding(14.dp)
+                .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            label.uppercase(),
+            color = OrderTrackingCardText.copy(alpha = 0.55f),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 1.4.sp,
+        )
+        RollingText(
+            text = amount,
+            style = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.Black),
+            color = amountColor,
+        )
+        Text(note, color = OrderTrackingCardText.copy(alpha = 0.62f), fontSize = 12.sp, maxLines = 1)
+    }
+}
+
+@Composable
+private fun CardRule() {    Box(
         modifier =
             Modifier
                 .fillMaxWidth()
