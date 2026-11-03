@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
+import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -68,6 +69,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -499,6 +501,13 @@ internal fun HomeMapPicker(
     val colors = LocalVaiinillaColors.current
     val context = LocalContext.current
     val focus = LocalFocusManager.current
+    var dialogView by remember { mutableStateOf<android.view.View?>(null) }
+
+    // Dentro de un Dialog el teclado es de la ventana del diálogo, no de la actividad.
+    fun hideKeyboard() {
+        val view = dialogView ?: return
+        view.context.getSystemService(InputMethodManager::class.java)?.hideSoftInputFromWindow(view.windowToken, 0)
+    }
     val scope = rememberCoroutineScope()
     val haptics = rememberVaiinillaHaptics()
     val latestState by rememberUpdatedState(state)
@@ -575,6 +584,7 @@ internal fun HomeMapPicker(
     fun runSearch() {
         val text = search.trim()
         if (text.isEmpty() || searching) return
+        hideKeyboard()
         focus.clearFocus()
         searching = true
         scope.launch {
@@ -594,6 +604,8 @@ internal fun HomeMapPicker(
     }
 
     Dialog(onDismissRequest = { close(keep = false) }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        val view = LocalView.current
+        LaunchedEffect(view) { dialogView = view }
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val travel = constraints.maxHeight.toFloat()
             Column(
@@ -671,6 +683,8 @@ internal fun HomeMapPicker(
                             start?.let(::settle)
                         },
                         onTouch = {
+                            hideKeyboard()
+                            focus.clearFocus()
                             chosen = true
                             notice = null
                         },
