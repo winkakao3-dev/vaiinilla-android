@@ -2181,6 +2181,7 @@ fun AppNavHost(
                                     spaceType = orderState.guestVenue?.space?.type,
                                 )
                             },
+                            userId = walletForVenue.data?.wallet?.userId,
                         )
                     }
                 } else {

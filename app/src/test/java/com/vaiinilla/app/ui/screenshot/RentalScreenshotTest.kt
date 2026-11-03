@@ -1,6 +1,9 @@
 package com.vaiinilla.app.ui.screenshot
 
+import android.graphics.BitmapFactory
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -17,7 +20,10 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.ui.reservations.ReservationsScreen
 import com.vaiinilla.app.ui.reservations.ReservationsUiState
+import com.vaiinilla.app.ui.screens.LocalVenueArt
 import com.vaiinilla.app.ui.screens.StudentTrackingScreen
+import com.vaiinilla.app.ui.screens.VenueArt
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -110,6 +116,51 @@ class RentalScreenshotTest {
         composeTestRule.setContent { ScreenshotTheme { tracking(order, selected = true) } }
         composeTestRule.mainClock.advanceTimeBy(1_500)
         composeTestRule.onRoot().captureRoboImage("rental_playing_selected.png")
+    }
+
+    @Test
+    fun l09_cancha_en_juego() {
+        val start = now.minus(38, ChronoUnit.MINUTES)
+        val base = rental(OrderState.DELIVERED, ReservationState.IN_PROGRESS, startsIn = 0)
+        val order =
+            base.copy(
+                items = base.items.map { it.copy(productName = "Renta Cancha 1 · 90 min") },
+                reservation =
+                    base.reservation!!.copy(
+                        space = OrderSpace(id = 7, name = "Cancha 1", type = "cancha"),
+                        start = start,
+                        end = start.plus(90, ChronoUnit.MINUTES),
+                        durationMinutes = 90,
+                    ),
+            )
+        val photo =
+            javaClass.classLoader!!
+                .getResourceAsStream("venue/foto.jpg")!!
+                .use { BitmapFactory.decodeStream(it) }
+                .asImageBitmap()
+        composeTestRule.mainClock.autoAdvance = false
+        composeTestRule.setContent {
+            ScreenshotTheme(VaiinillaThemeMode.Dark) {
+                CompositionLocalProvider(LocalVenueArt provides VenueArt(photo = photo)) {
+                    StudentTrackingScreen(
+                        state = ScreenshotFixtures.trackingState(order, selected = true),
+                        orderState = ScreenshotFixtures.catalogLoadedState(),
+                        onMenu = {},
+                        onAssistant = {},
+                        onWallet = {},
+                        onCart = {},
+                        onOpenCatalog = {},
+                        onSelectOrder = {},
+                        onCurrentWaiterCall = { Result.success(null) },
+                        onCallWaiter = { _, _, _ -> Result.failure(IllegalStateException("sin red")) },
+                        onCancelWaiter = { Result.failure(IllegalStateException("sin red")) },
+                        userId = "u-1",
+                    )
+                }
+            }
+        }
+        composeTestRule.mainClock.advanceTimeBy(1_500)
+        composeTestRule.onRoot().captureRoboImage("lugar/l09_cancha_en_juego.png")
     }
 
     @Test

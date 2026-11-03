@@ -2,6 +2,7 @@ package com.vaiinilla.app.ui.components
 
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -422,53 +423,72 @@ fun RentalTimeLeftCard(
     val left = rentalTimeLeft(reservation, now) ?: return
     val colors = LocalVaiinillaColors.current
     val reduceMotion = reducedMotion()
-    val progress by animateFloatAsState(
-        targetValue = left.elapsedFraction,
-        animationSpec = if (reduceMotion) snap() else spring(dampingRatio = 1f, stiffness = 120f),
-        label = "rental-progress",
-    )
+    // La barra crece desde cero al abrir, como el dibujo; después sigue al reloj.
+    val progress = remember(reservation.id) { Animatable(0f) }
+    LaunchedEffect(left.elapsedFraction, reduceMotion) {
+        if (reduceMotion) {
+            progress.snapTo(left.elapsedFraction)
+        } else {
+            progress.animateTo(left.elapsedFraction, spring(dampingRatio = 1f, stiffness = 60f))
+        }
+    }
     Column(
         modifier =
             modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
+                .clip(RoundedCornerShape(22.dp))
                 .background(colors.paper2)
-                .border(1.dp, colors.line, RoundedCornerShape(20.dp))
                 .padding(16.dp)
                 .semantics(mergeDescendants = true) {
                     contentDescription = "Te quedan ${left.minutesLeft} minutos de ${left.totalLabel}"
                 },
-        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("TE QUEDAN", color = colors.muted, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.4.sp)
-            Text("de ${left.totalLabel}", color = colors.muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            ClientCap("Te quedan")
+            Text("de ${left.totalLabel}", color = colors.muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         }
         RollingText(
             text = "${left.minutesLeft} min",
-            style = TextStyle(fontSize = 34.sp, fontWeight = FontWeight.Black),
+            style =
+                TextStyle(
+                    fontSize = 44.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = (-2).sp,
+                    fontFeatureSettings = "tnum",
+                ),
             color = colors.ink,
+            modifier = Modifier.padding(top = 2.dp),
         )
         Box(
             modifier =
                 Modifier
+                    .padding(top = 10.dp)
                     .fillMaxWidth()
                     .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp))
+                    .clip(RoundedCornerShape(9.dp))
                     .background(colors.line),
         ) {
             Box(
                 Modifier
-                    .fillMaxWidth(progress)
+                    .fillMaxWidth(progress.value.coerceIn(0f, 1f))
                     .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp))
+                    .clip(RoundedCornerShape(9.dp))
                     .background(colors.accent),
             )
         }
-        Text("¿Quieres más tiempo? Pídelo en caja.", color = colors.muted, fontSize = 13.sp)
+        Text(
+            "¿Quieres más tiempo? Pídelo en caja.",
+            color = colors.muted,
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(top = 8.dp),
+        )
     }
 }
-
 private const val RENTAL_TICK_MS = 30_000L
 
 /** Seguimiento de una renta de cancha: pagar, reservada, en juego, terminada. Sin cocina. */

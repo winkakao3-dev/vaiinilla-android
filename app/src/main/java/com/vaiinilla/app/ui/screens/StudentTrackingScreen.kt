@@ -120,8 +120,6 @@ import com.vaiinilla.app.ui.components.OrderTrackingTimeline
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.RentalStep
-import com.vaiinilla.app.ui.components.RentalTrackingTimeline
-import com.vaiinilla.app.ui.components.RentalTimeLeftCard
 import com.vaiinilla.app.ui.components.SkeletonBlock
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.SwipeToDeleteOrder
@@ -185,6 +183,8 @@ fun StudentTrackingScreen(
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
     /** La mesa compartida, arriba de la lista (vacía si el cliente no está en una mesa). */
     sharedTable: @Composable () -> Unit = {},
+    /** Para «Mi código» en una renta: el QR personal con el que Caja cobra. */
+    userId: String? = null,
 ) {
     val haptics = rememberVaiinillaHaptics()
     LaunchedEffect(Unit) {
@@ -307,7 +307,19 @@ fun StudentTrackingScreen(
                     }
                 val inOverview = animatedSelectedId == null
                 val detailListState = rememberLazyListState()
-                LazyColumn(
+                // Una renta abierta es su propia página, con la cancha en grande (Doop L09).
+                if (animatedSelected?.isRental == true) {
+                    RentalCourtPage(
+                        order = animatedSelected,
+                        catalog = orderState.catalog,
+                        userId = userId,
+                        onOpenMenu = onOpenCatalog,
+                        onViewRental = onViewReceipt,
+                        onCurrentWaiterCall = onCurrentWaiterCall,
+                        onCallWaiter = onCallWaiter,
+                        onCancelWaiter = onCancelWaiter,
+                    )
+                } else LazyColumn(
                     state = if (inOverview) listState else detailListState,
                     modifier =
                         Modifier
@@ -383,12 +395,8 @@ fun StudentTrackingScreen(
                                         order = animatedSelected,
                                         showEyebrow = true,
                                         leadingImageUrl =
-                                            if (animatedSelected.isRental) {
-                                                null
-                                            } else {
-                                                itemImageUrls(animatedSelected, orderState.catalog)
-                                                    .firstOrNull { it != null }
-                                            },
+                                            itemImageUrls(animatedSelected, orderState.catalog)
+                                                .firstOrNull { it != null },
                                     )
                                 }
                             }
@@ -407,14 +415,7 @@ fun StudentTrackingScreen(
                             item {
                                 TrackingSectionHead()
                             }
-                            if (animatedSelected.isRental) {
-                                item {
-                                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                        RentalTimeLeftCard(order = animatedSelected)
-                                        RentalTrackingTimeline(order = animatedSelected)
-                                    }
-                                }
-                            } else if (animatedSelected.summary.state.isTerminalWithoutDelivery) {
+                            if (animatedSelected.summary.state.isTerminalWithoutDelivery) {
                                 // Cinco pasos pendientes de un pedido que ya no avanza confundían (PEDIDO-07).
                                 if (animatedSelected.summary.state != OrderState.CANCELED) {
                                     item { ClosedOrderCard(animatedSelected) }
@@ -465,10 +466,7 @@ fun StudentTrackingScreen(
                                             contentColor = colors.ink,
                                         ),
                                 ) {
-                                    Text(
-                                        if (animatedSelected.isRental) "Ver mi renta" else "Ver recibo",
-                                        fontWeight = FontWeight.Black,
-                                    )
+                                    Text("Ver recibo", fontWeight = FontWeight.Black)
                                 }
                             }
                         }

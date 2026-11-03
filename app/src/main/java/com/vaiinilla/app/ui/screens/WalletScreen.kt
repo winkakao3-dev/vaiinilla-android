@@ -606,6 +606,8 @@ internal class WalletLedgerStats(
 internal fun WalletQrDialog(
     qrValue: String?,
     onDismiss: () -> Unit,
+    title: String = "Recargar saldo",
+    message: String = "Muestra este QR en Caja para encontrar tu cuenta y recargar Saldo Vaiinilla.",
 ) {
     val colors = LocalVaiinillaColors.current
 
@@ -624,7 +626,7 @@ internal fun WalletQrDialog(
             ) {
                 Box(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "Recargar saldo",
+                        text = title,
                         color = colors.ink,
                         fontWeight = FontWeight.Black,
                         fontSize = 22.sp,
@@ -640,7 +642,7 @@ internal fun WalletQrDialog(
                 }
 
                 Text(
-                    text = "Muestra este QR en Caja para encontrar tu cuenta y recargar Saldo Vaiinilla.",
+                    text = message,
                     color = colors.muted,
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
