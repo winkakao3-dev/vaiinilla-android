@@ -6,11 +6,13 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
+import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import com.vaiinilla.app.ui.order.PurchaseCelebrationKind
 import com.vaiinilla.app.ui.order.StripePaymentPhase
 import com.vaiinilla.app.ui.order.canCreateOrder
 import com.vaiinilla.app.ui.order.canRetryStripePayment
 import com.vaiinilla.app.ui.order.canSubmitCart
+import com.vaiinilla.app.ui.order.isMissingOrder
 import com.vaiinilla.app.ui.order.purchaseCelebrationFor
 import com.vaiinilla.app.ui.order.stripePhaseFromBackend
 import com.vaiinilla.app.ui.order.toRuntimeConfiguration
@@ -21,6 +23,19 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class StripeCheckoutPolicyTest {
+    @Test
+    fun `a pending card order the server no longer has does not block the cart`() {
+        assertTrue(OrderRepositoryException("ORDER_NOT_FOUND", "Pedido no encontrado.").isMissingOrder())
+        assertTrue(OrderRepositoryException("NOT_FOUND", "No encontramos ese pedido.").isMissingOrder())
+    }
+
+    @Test
+    fun `network or session errors keep the pending card order`() {
+        assertFalse(OrderRepositoryException("NETWORK", "Sin conexión.").isMissingOrder())
+        assertFalse(OrderRepositoryException("UNAUTHORIZED", "Inicia sesión.").isMissingOrder())
+        assertFalse(RuntimeException("boom").isMissingOrder())
+    }
+
     @Test
     fun `PaymentSheet runtime configuration uses connected account from current response`() {
         val session =

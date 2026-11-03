@@ -7,6 +7,7 @@ import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.domain.model.awaitsAcceptanceBeforePaying
 import com.vaiinilla.app.domain.model.awaitsPaymentAfterAcceptance
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
+import com.vaiinilla.app.domain.repository.OrderRepositoryException
 
 data class StripeRuntimeConfiguration(
     val publishableKey: String,
@@ -33,6 +34,14 @@ fun stripePhaseFromBackend(order: OrderDetail?): StripePaymentPhase =
         order?.payment?.status == StripePaymentStatus.REFUNDED -> StripePaymentPhase.REFUNDED
         else -> StripePaymentPhase.PENDING
     }
+
+/**
+ * El servidor dice que el pedido no existe (o no es de esta cuenta): no hay cobro que cuidar y el carrito no
+ * debe quedarse bloqueado por él. Sin red o con otro error el pago sigue pendiente, porque puede haber un cobro
+ * en camino.
+ */
+internal fun Throwable.isMissingOrder(): Boolean =
+    (this as? OrderRepositoryException)?.code in setOf("ORDER_NOT_FOUND", "NOT_FOUND")
 
 /**
  * Volver al carrito desde el pago: vale cuando el servidor ya dijo fallido/cancelado o cuando la persona cerró

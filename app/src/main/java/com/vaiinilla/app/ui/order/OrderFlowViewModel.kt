@@ -1367,12 +1367,7 @@ class OrderFlowViewModel
                 withContext(Dispatchers.IO) { fetchOrder(orderId) }.fold(
                     onSuccess = { order ->
                         if (order.summary.paymentMethod != PaymentMethod.STRIPE) {
-                            _uiState.value =
-                                _uiState.value.copy(
-                                    resolvingPendingStripePayment = false,
-                                    createOrderError =
-                                        "El pedido pendiente ya no corresponde a un pago Stripe. Actualiza Mis pedidos.",
-                                )
+                            forgetPendingStripeOrder(orderId)
                             return@fold
                         }
                         _uiState.value =
@@ -1386,6 +1381,10 @@ class OrderFlowViewModel
                         onReady()
                     },
                     onFailure = { error ->
+                        if (error.isMissingOrder()) {
+                            forgetPendingStripeOrder(orderId)
+                            return@fold
+                        }
                         _uiState.value =
                             _uiState.value.copy(
                                 resolvingPendingStripePayment = false,
@@ -1397,6 +1396,19 @@ class OrderFlowViewModel
                     },
                 )
             }
+        }
+
+        /** El pedido que bloqueaba el carrito ya no tiene un cobro con tarjeta que cuidar: se suelta. */
+        private fun forgetPendingStripeOrder(orderId: String) {
+            guestSessionStore.clearPendingStripeConfirmationOrderId(orderId)
+            guestSessionStore.clearPendingStripeRetryIdempotency(orderId)
+            pendingStripeRetryIdempotencyKey = null
+            _uiState.value =
+                _uiState.value.copy(
+                    resolvingPendingStripePayment = false,
+                    stripePendingOrderId = null,
+                    createOrderError = null,
+                )
         }
 
         fun returnFailedStripeOrderToCart(
