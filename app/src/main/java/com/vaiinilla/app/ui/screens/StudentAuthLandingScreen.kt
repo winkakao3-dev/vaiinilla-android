@@ -43,15 +43,19 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.R
 import com.vaiinilla.app.ui.auth.student.StudentAuthUiState
-import com.vaiinilla.app.ui.components.EditorialAccentButton
+import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
@@ -117,14 +121,12 @@ private fun WelcomeTopBar(
     enabled: Boolean,
 ) {
     val colors = LocalVaiinillaColors.current
-    Box(
-        modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 8.dp),
+    Row(
+        modifier = Modifier.fillMaxWidth().height(56.dp).padding(start = if (onBack != null) 4.dp else 20.dp, end = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         if (onBack != null) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier.align(Alignment.CenterStart),
-            ) {
+            IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
             }
         }
@@ -132,23 +134,35 @@ private fun WelcomeTopBar(
             text = "Vaiinilla.",
             color = colors.ink,
             fontFamily = VaiinillaSerif,
-            fontSize = 19.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = (-0.35).sp,
-            modifier = Modifier.align(Alignment.Center),
+            fontSize = 26.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = (-0.4).sp,
+            modifier = Modifier.weight(1f),
         )
-        TextButton(
-            onClick = onExplore,
-            enabled = enabled,
-            modifier = Modifier.align(Alignment.CenterEnd).heightIn(min = 48.dp),
-            contentPadding = PaddingValues(horizontal = 12.dp),
+        Box(
+            modifier =
+                Modifier
+                    .heightIn(min = 48.dp)
+                    .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small, onClick = onExplore)
+                    .semantics { role = Role.Button },
+            contentAlignment = Alignment.Center,
         ) {
-            Text(
-                "Explorar",
-                color = colors.muted,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
+            Box(
+                modifier =
+                    Modifier
+                        .height(36.dp)
+                        .clip(RoundedCornerShape(percent = 50))
+                        .background(colors.paper2)
+                        .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "Ver menús sin cuenta",
+                    color = colors.ink2,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                )
+            }
         }
     }
 }
@@ -219,9 +233,9 @@ fun StudentAuthLandingScreen(
                     Text(
                         "Pide, sigue tu pedido y paga desde un solo lugar.",
                         color = colors.muted,
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp,
-                        fontWeight = FontWeight.Medium,
+                        fontSize = if (compact) 15.sp else 16.sp,
+                        lineHeight = if (compact) 21.sp else 22.sp,
+                        fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(top = if (compact) 8.dp else 12.dp),
                     )
@@ -251,27 +265,37 @@ fun StudentAuthLandingScreen(
                     state.errorMessage?.let { error ->
                         AuthErrorBanner(error)
                     }
-                    EditorialAccentButton(
-                        text = "Crear cuenta",
-                        onClick = onRegister,
-                        enabled = !state.loading,
-                    )
                     GooglePillSignInButton(
                         onClick = onGoogleSignIn,
                         enabled = !state.loading,
+                        background = colors.ink,
+                        border = colors.ink,
+                        textColor = colors.paper,
+                        height = 56.dp,
+                    )
+                    AuthPillButton(
+                        onClick = onRegister,
+                        enabled = !state.loading,
                         background = colors.paper2,
                         border = colors.line,
-                    )
+                    ) {
+                        Text(
+                            "Crear cuenta con correo",
+                            color = colors.ink,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                        )
+                    }
                     Row(
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(top = 4.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             "¿Ya tienes cuenta?",
                             color = colors.muted,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
                         )
                         TextButton(
                             onClick = onLogin,
@@ -281,8 +305,8 @@ fun StudentAuthLandingScreen(
                             Text(
                                 "Iniciar sesión",
                                 color = colors.ink,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Black,
                             )
                         }
                     }
@@ -304,7 +328,7 @@ fun StudentAuthLandingScreen(
     }
 }
 
-/** Full-width secondary auth surface with the same height and radius as the primary CTA. */
+/** Botón de sesión de ancho completo, en píldora como el dibujo de Doop (E01). */
 @Composable
 private fun AuthPillButton(
     onClick: () -> Unit,
@@ -312,14 +336,15 @@ private fun AuthPillButton(
     enabled: Boolean,
     background: Color,
     border: Color,
+    height: Dp = 54.dp,
     content: @Composable () -> Unit,
 ) {
-    val shape = RoundedCornerShape(18.dp)
+    val shape = RoundedCornerShape(percent = 50)
     Box(
         modifier =
             modifier
                 .fillMaxWidth()
-                .heightIn(min = 54.dp)
+                .heightIn(min = height)
                 .physicalPress(enabled = enabled, onClick = onClick)
                 .clip(shape)
                 .background(background)
@@ -339,6 +364,8 @@ private fun GooglePillSignInButton(
     enabled: Boolean,
     background: Color,
     border: Color,
+    textColor: Color,
+    height: Dp,
 ) {
     AuthPillButton(
         onClick = onClick,
@@ -346,6 +373,7 @@ private fun GooglePillSignInButton(
         enabled = enabled,
         background = background,
         border = border,
+        height = height,
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -358,9 +386,9 @@ private fun GooglePillSignInButton(
             )
             Text(
                 "Continuar con Google",
-                color = LocalVaiinillaColors.current.ink,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
+                color = textColor,
+                fontSize = 16.5.sp,
+                fontWeight = FontWeight.Black,
             )
         }
     }
