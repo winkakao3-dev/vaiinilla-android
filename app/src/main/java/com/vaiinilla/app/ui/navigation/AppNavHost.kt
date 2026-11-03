@@ -1520,6 +1520,8 @@ fun AppNavHost(
                         navController.navigate(Routes.RECEIVED_NOTICES) { launchSingleTop = true }
                     },
                     accountDeletionState = accountDeletionState,
+                    termsUrl = studentAuthState.termsUrl,
+                    privacyUrl = studentAuthState.privacyUrl,
                     deletionWarnings =
                         AccountDeletionWarnings(
                             balance = accountDeletionBalance(walletForVenue.data?.wallet?.visibleBalance),

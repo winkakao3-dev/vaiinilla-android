@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.Storefront
@@ -89,6 +90,8 @@ fun WalletAccountScreen(
     onSubmitAccountDeletionMfa: () -> Unit = {},
     onRetryAccountDeletion: () -> Unit = {},
     deletionWarnings: AccountDeletionWarnings = AccountDeletionWarnings(),
+    termsUrl: String = "",
+    privacyUrl: String = "",
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -192,8 +195,9 @@ fun WalletAccountScreen(
                         title = "Ayuda y soporte",
                         icon = Icons.AutoMirrored.Outlined.HelpOutline,
                         onClick = onOpenSupport,
-                        showDivider = signedIn && onOpenNotices != null,
+                        showDivider = true,
                     )
+                    LegalRows(termsUrl = termsUrl, privacyUrl = privacyUrl, showLastDivider = signedIn && onOpenNotices != null)
                     // Al fondo y discreto, como en iOS: sirve para entender de dónde vino un aviso.
                     if (signedIn && onOpenNotices != null) {
                         SettingsRow(
@@ -313,6 +317,25 @@ private fun joinSpanish(items: List<String>): String =
         1 -> items.single()
         else -> items.dropLast(1).joinToString(", ") + " y " + items.last()
     }
+
+/** Los términos y el aviso vigentes, a un toque desde Cuenta (Doop E12). Sin dirección no se muestra la fila. */
+@Composable
+private fun LegalRows(
+    termsUrl: String,
+    privacyUrl: String,
+    showLastDivider: Boolean,
+) {
+    val uriHandler = LocalUriHandler.current
+    val rows = listOf("Términos de uso" to termsUrl, "Aviso de privacidad" to privacyUrl).filter { it.second.isNotBlank() }
+    rows.forEachIndexed { index, (title, url) ->
+        SettingsRow(
+            title = title,
+            icon = Icons.Outlined.Description,
+            onClick = { runCatching { uriHandler.openUri(url) } },
+            showDivider = index != rows.lastIndex || showLastDivider,
+        )
+    }
+}
 
 @Composable
 private fun AccountDeletionConfirmationDialog(
