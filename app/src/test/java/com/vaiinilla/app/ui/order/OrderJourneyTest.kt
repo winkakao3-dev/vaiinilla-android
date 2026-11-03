@@ -126,6 +126,16 @@ class OrderJourneyTest {
         assertNull(journeyLead(byCashier, OrderJourney.COUNTER))
     }
 
+    @Test
+    fun anOrderCanceledBeforePayingSaysNothingWasCharged() {
+        val canceled = order(OrderState.CANCELED, PaymentMethod.STRIPE, home = true)
+        // Sin pago con tarjeta todavía no hay nada que prometer.
+        assertNull(journeyMoneyBack(canceled))
+        val unpaidPreorder = canceled.copy(answerBy = Instant.parse("2026-11-03T23:30:00Z"))
+        assertEquals("No te cobramos nada", journeyMoneyBack(unpaidPreorder))
+        assertTrue(journeyFacts(unpaidPreorder, OrderJourney.HOME_DELIVERY).none { it.label == "Pagaste el anticipo" })
+    }
+
     private fun order(
         state: OrderState,
         payment: PaymentMethod = PaymentMethod.BALANCE,

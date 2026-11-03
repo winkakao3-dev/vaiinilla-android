@@ -342,4 +342,47 @@ class OrderJourneyScreenshotTest {
             order(OrderState.NOT_PICKED_UP, 48, "128.00", latte),
             JourneyVenue(name = "Café Lumbre", whatsappUrl = "https://wa.me/5216140000000"),
         )
+
+    private fun homeOrder(state: OrderState): OrderDetail {
+        val base = preorder(state)
+        return base.copy(
+            summary = base.summary.copy(destination = OrderDestination.HOME_DELIVERY, folio = 1),
+            homeDelivery =
+                base.homeDelivery!!.copy(
+                    address = DeliveryAddress(address = "Aldama 1408, Centro", phone = "6140000000"),
+                    code = if (state == OrderState.ON_THE_WAY) "4827" else null,
+                    dueOnArrival = if (state == OrderState.DELIVERED) "0.00" else "535.14",
+                ),
+        )
+    }
+
+    private val pasteleria = JourneyVenue(name = "Pastelería Vaini", whatsappUrl = "https://wa.me/5216140000000")
+
+    @Test
+    fun d01_domicilio_por_aceptar() = capture("d01_domicilio_por_aceptar", homeOrder(OrderState.AWAITING_ACCEPTANCE), pasteleria)
+
+    @Test
+    fun d02_domicilio_haciendose() = capture("d02_domicilio_haciendose", homeOrder(OrderState.PREPARING), pasteleria)
+
+    @Test
+    fun d03_domicilio_en_camino() = capture("d03_domicilio_en_camino", homeOrder(OrderState.ON_THE_WAY), pasteleria)
+
+    @Test
+    fun d05_domicilio_entregado() = capture("d05_domicilio_entregado", homeOrder(OrderState.DELIVERED), pasteleria)
+
+    @Test
+    fun d06_domicilio_no_aceptado() {
+        val base = homeOrder(OrderState.CANCELED)
+        capture(
+            "d06_domicilio_no_aceptado",
+            base.copy(
+                summary =
+                    base.summary.copy(
+                        cancelReason = "Lo siento mucho, ya tengo la agenda llena ese día. El domingo sí podría.",
+                        canceledByRole = "admin",
+                    ),
+            ),
+            pasteleria,
+        )
+    }
 }
