@@ -111,6 +111,7 @@ import com.vaiinilla.app.ui.reservations.ReservationsViewModel
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
 import com.vaiinilla.app.ui.screens.AuthorizedModeScreen
 import com.vaiinilla.app.ui.screens.CartScreen
+import com.vaiinilla.app.ui.screens.PickupDeliveryFooter
 import com.vaiinilla.app.ui.screens.CashierOperationalScreen
 import com.vaiinilla.app.ui.screens.CashierRefundsSection
 import com.vaiinilla.app.ui.screens.CatalogScreen
@@ -2217,7 +2218,7 @@ fun AppNavHost(
                                 )
                             },
                             submitAction =
-                                if (operationalState.cashSessionOpen == true) "Dejar por cobrar" else "Crear pedido",
+                                if (operationalState.cashSessionOpen == true) "Cobrar después" else "Crear pedido",
                             onSubmitAndCollect =
                                 if (operationalState.cashSessionOpen == true) {
                                     { lines, name ->
@@ -2558,7 +2559,11 @@ fun AppNavHost(
     if (pendingPickupDelivery != null) {
         QrScannerDialog(
             onClose = { pendingPickupDelivery = null },
-            helperText = "Apunta al QR de recogida que muestra el alumno",
+            helperText = "Apunta al QR del pedido del cliente",
+            footer =
+                operationalState.orders
+                    .firstOrNull { it.summary.id == pendingPickupDelivery?.orderId }
+                    ?.let { order -> { PickupDeliveryFooter(order) } },
             onPayload = { rawValue ->
                 val target = pendingPickupDelivery
                 pendingPickupDelivery = null

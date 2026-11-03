@@ -358,7 +358,9 @@ private fun FindClientStep(
                         .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp))
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                ClientInitials(client.name)
                 Column(modifier = Modifier.weight(1f)) {
                     Text(client.name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.textPrimary)
                     walletClientDetail(client)?.let {
@@ -416,6 +418,13 @@ private fun AmountStep(
                     .minTouchTarget(),
         )
     }
+    Text(
+        "¿CUÁNTO RECARGA?",
+        fontWeight = FontWeight.Black,
+        fontSize = 11.sp,
+        letterSpacing = 1.2.sp,
+        color = colors.textSecondary,
+    )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         ReloadQuickAmounts.forEach { bill ->
             val value = bill.toBigDecimal()
@@ -436,6 +445,31 @@ private fun AmountStep(
         placeholder = "0.00",
         keyboardType = KeyboardType.Decimal,
     )
+    val before = client.balance?.toBigDecimalOrNull()
+    if (before != null && amount != null) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(colors.cardBackground)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Saldo de ${client.name.substringBefore(' ')} después",
+                fontSize = 14.sp,
+                color = colors.textSecondary,
+            )
+            Text(
+                moneyLabel(Money.format(before + amount)),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Black,
+                color = colors.textPrimary,
+            )
+        }
+    }
     if (!canReload && blockedReason != null) {
         Text(blockedReason, fontSize = 13.sp, color = colors.textSecondary)
     }
@@ -552,4 +586,31 @@ private fun ReloadDone(
         )
     }
     ActionPill("Listo", enabled = true, loading = false, colors = colors, primary = false, onClick = onDone)
+}
+
+// Mismo nombre, mismo color: el cajero distingue a dos Sofías de un vistazo.
+private val InitialsPalette =
+    listOf(
+        Color(0xFFE9B8C8) to Color(0xFF3A1622),
+        Color(0xFFB8D4E9) to Color(0xFF10283A),
+        Color(0xFFF4C98A) to Color(0xFF3A2410),
+        Color(0xFFD5E8A6) to Color(0xFF182008),
+    )
+
+@Composable
+private fun ClientInitials(name: String) {
+    val initials =
+        name
+            .split(' ')
+            .filter { it.isNotBlank() }
+            .take(2)
+            .joinToString("") { it.first().uppercase() }
+            .ifEmpty { "?" }
+    val (bg, fg) = InitialsPalette[Math.floorMod(name.hashCode(), InitialsPalette.size)]
+    Box(
+        modifier = Modifier.size(40.dp).clip(CircleShape).background(bg),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(initials, color = fg, fontWeight = FontWeight.Black, fontSize = 14.sp)
+    }
 }

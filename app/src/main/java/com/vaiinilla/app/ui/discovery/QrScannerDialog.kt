@@ -93,6 +93,8 @@ fun QrScannerDialog(
     onPayload: (String) -> Unit,
     helperText: String = "Apunta al QR del comedor o de la mesa",
     alternative: QrScannerAlternative? = null,
+    /** Lo que se entrega, debajo del visor (C08): el cajero ve a quién busca mientras apunta. */
+    footer: (@Composable () -> Unit)? = null,
 ) {
     val context = LocalContext.current
     var permissionGranted by remember {
@@ -131,6 +133,7 @@ fun QrScannerDialog(
                     onCameraError = { cameraError = it },
                     helperText = helperText,
                     systemBars = systemBars,
+                    footer = footer,
                 )
             } else if (permissionGranted && cameraError != null) {
                 Column(
@@ -220,6 +223,7 @@ private fun CameraQrPreview(
     onCameraError: (String) -> Unit,
     helperText: String,
     systemBars: WindowInsets,
+    footer: (@Composable () -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -424,25 +428,33 @@ private fun CameraQrPreview(
                 iconSize = 16.dp,
             )
         }
-        Text(
-            if (helperText == "Apunta al QR del comedor o de la mesa") {
-                "Apunta la cámara al centro de mesa para abrir la carta y ordenar directamente sin moverte."
-            } else {
-                helperText
-            },
-            color = Color.White.copy(alpha = 0.78f),
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
-            fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.Center,
+        Column(
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .windowInsetsPadding(systemBars.only(WindowInsetsSides.Bottom))
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 24.dp),
-        )
+                    .windowInsetsPadding(systemBars.only(WindowInsetsSides.Bottom)),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(
+                if (helperText == "Apunta al QR del comedor o de la mesa") {
+                    "Apunta la cámara al centro de mesa para abrir la carta y ordenar directamente sin moverte."
+                } else {
+                    helperText
+                },
+                color = Color.White.copy(alpha = 0.78f),
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = if (footer == null) 24.dp else 0.dp),
+            )
+            footer?.invoke()
+        }
     }
 }
 
