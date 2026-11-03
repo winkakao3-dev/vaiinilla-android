@@ -305,6 +305,16 @@ class WaiterViewModel
             _uiState.value = _uiState.value.copy(spaceDetail = null, lastCollection = null, lastAbono = null)
             loadSpaceDetail(spaceId, silent = false)
             loadRentalDurations()
+            loadStationsCatalog()
+        }
+
+        /** N08: la estación de cada producto separa lo que se lleva ya de lo que hace Cocina; sin catálogo no se separa. */
+        private fun loadStationsCatalog() {
+            if (_uiState.value.counterCatalog != null) return
+            viewModelScope.launch {
+                val catalog = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }.getOrNull() ?: return@launch
+                if (_uiState.value.counterCatalog == null) _uiState.value = _uiState.value.copy(counterCatalog = catalog)
+            }
         }
 
         private var rentalDurationsLoaded = false

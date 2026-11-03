@@ -21,6 +21,8 @@ data class OperationalUiState(
     val cashSessionOpen: Boolean? = null,
     /** El fondo que propone el servidor para abrir caja; null si no llegó. */
     val suggestedCashFloat: String? = null,
+    /** Lo que debería haber en el cajón (`efectivo_esperado`), para comparar al cerrar. */
+    val expectedCash: String? = null,
     /** La caja nunca se pudo leer (sin red al entrar): la pantalla ofrece reintentar en vez de callar. */
     val cashSessionCheckFailed: Boolean = false,
     val heartbeatOnline: Boolean? = null,
@@ -34,6 +36,8 @@ data class OperationalUiState(
     /** Recarga en efectivo que quedó sin confirmar; Caja la muestra para confirmarla o descartarla. */
     val pendingWalletReload: PendingReloadUi? = null,
     val catalog: Catalog? = null,
+    /** N03: Cocina no pudo leer el catálogo (sin red o el servidor no se lo deja); la hoja «¿Qué se acabó?» lo dice. */
+    val catalogFailed: Boolean = false,
     /** Logo y foto del negocio para la tarjeta de Caja; null si el servidor aún no los ofrece a Caja. */
     val storeImages: StoreImages? = null,
     /** Cuál de las dos imágenes se está subiendo o quitando. */

@@ -1,5 +1,7 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
@@ -327,21 +329,35 @@ internal fun CounterOrderSheet(
                 state.counterOrderError?.takeIf { catalogo != null }?.let { mensaje ->
                     Text(mensaje, color = CounterError, fontSize = 13.sp)
                 }
+                if (lineas.isNotEmpty()) {
+                    CounterOrderSummary(lineas.values.toList(), colors)
+                }
                 if (onSubmitAndCollect != null && lineas.isNotEmpty()) {
                     // Unos pagan y se van; otros ordenan y se sientan: el cajero elige.
-                    ActionPill(
-                        label = counterOrderBarLabel(lineas.values.toList(), "Cobrar ya"),
-                        enabled = puedeEnviar,
-                        loading = state.counterOrderSending,
-                        colors = colors,
-                    ) { onSubmitAndCollect(lineas.values.toList(), nombre) }
-                    ActionPill(
-                        label = submitAction,
-                        enabled = puedeEnviar,
-                        loading = false,
-                        colors = colors,
-                        primary = false,
-                    ) { onSubmit(lineas.values.toList(), nombre) }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        ActionPill(
+                            label = submitAction,
+                            enabled = puedeEnviar,
+                            loading = false,
+                            colors = colors,
+                            primary = false,
+                            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                        ) { onSubmit(lineas.values.toList(), nombre) }
+                        ActionPill(
+                            label = "Cobrar ya · ${moneyLabel(Money.counterPreview(lineas.values.toList()))}",
+                            enabled = puedeEnviar,
+                            loading = state.counterOrderSending,
+                            colors = colors,
+                            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                        ) { onSubmitAndCollect(lineas.values.toList(), nombre) }
+                    }
+                    Text(
+                        "«$submitAction» lo manda a cocina y lo cobras cuando se siente.",
+                        fontSize = 12.sp,
+                        color = colors.textSecondary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 } else {
                     ActionPill(
                         label =
@@ -361,6 +377,44 @@ internal fun CounterOrderSheet(
 }
 
 private val CounterError = Color(0xFFE5645A)
+
+/** «3 ARTÍCULOS $66» con lo pedido a la derecha, para revisarlo de un vistazo antes de cobrar (C03). */
+@Composable
+private fun CounterOrderSummary(
+    lines: List<CartLine>,
+    colors: OperationalColors,
+) {
+    val count = lines.sumOf { it.quantity }
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                if (count == 1) "1 ARTÍCULO" else "$count ARTÍCULOS",
+                fontWeight = FontWeight.Black,
+                fontSize = 11.sp,
+                letterSpacing = 1.2.sp,
+                color = colors.textSecondary,
+            )
+            Text(
+                moneyLabel(Money.counterPreview(lines)),
+                fontWeight = FontWeight.Black,
+                fontSize = 26.sp,
+                color = colors.textPrimary,
+            )
+        }
+        Column(horizontalAlignment = Alignment.End, modifier = Modifier.weight(1f)) {
+            lines.take(3).forEach { line ->
+                Text(
+                    "${line.quantity} × ${line.product.name}",
+                    fontSize = 12.5.sp,
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (lines.size > 3) Text("y ${lines.size - 3} más", fontSize = 12.5.sp, color = colors.textSecondary)
+        }
+    }
+}
 
 /** Ficha de un producto: un toque suma uno; con algo en el pedido muestra el contador y un botón para restar. */
 @Composable

@@ -374,6 +374,7 @@ private fun AdminAvatar(
     val themeChanger = LocalVaiinillaThemeModeChanger.current
     StaffAvatarMenu(
         initials = "AD",
+        modeLabel = "Administración",
         colors = colors,
         themeMode = themeMode,
         onThemeChange =

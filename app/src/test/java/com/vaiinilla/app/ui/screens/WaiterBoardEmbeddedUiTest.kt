@@ -45,8 +45,8 @@ class WaiterBoardEmbeddedUiTest {
         composeTestRule.onNodeWithText("Para llevar").performClick()
         assertEquals(1, takeAway)
 
-        // La mesa 12 (el mosaico dice "12") tiene un pedido listo: el admin lo ve, pero entregarlo es de Mesero y Caja.
-        composeTestRule.onNodeWithText("12").performClick()
+        // La mesa 12 tiene un pedido listo: el admin lo ve, pero entregarlo es de Mesero y Caja.
+        composeTestRule.onNodeWithText("Mesa 12").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Tomar pedido").assertIsDisplayed()
         composeTestRule.onNodeWithText("Entregar").assertDoesNotExist()
@@ -60,8 +60,8 @@ class WaiterBoardEmbeddedUiTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Pedido de mostrador").assertIsDisplayed()
-        composeTestRule.onNodeWithText("12").performClick()
+        composeTestRule.onNodeWithText("Tomar pedido").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Mesa 12").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Entregar").assertIsDisplayed()
     }

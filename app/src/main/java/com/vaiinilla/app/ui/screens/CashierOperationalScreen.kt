@@ -1,5 +1,10 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.material3.HorizontalDivider
+import com.vaiinilla.app.domain.model.OrderSummary
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.components.animateSelectionColor
 import android.net.Uri
 import android.widget.ImageView
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -176,28 +181,6 @@ import kotlinx.coroutines.delay
 import java.math.BigDecimal
 import java.time.format.DateTimeFormatter
 
-/**
- * Adaptive operational color tokens supporting Light, Dark, and pure-pitch AMOLED.
- */
-data class OperationalColors(
-    val background: Color,
-    val surfacePaper: Color,
-    val cardBackground: Color,
-    val cardBorder: Color,
-    val cardInner: Color,
-    val textPrimary: Color,
-    val textSecondary: Color,
-    val textMuted: Color,
-    val accentLime: Color,
-    val accentInk: Color,
-    val pillBackground: Color,
-    val pillBorder: Color,
-    val buttonSecondary: Color,
-    val buttonSecondaryInk: Color,
-    val highlightBorder: Color,
-    val isDark: Boolean,
-)
-
 /** Cambio de pedido protagonista: el nuevo entra con fade + escala suave; misma orden = sin animación. */
 private fun heroSwapTransition(reduced: Boolean): ContentTransform =
     if (reduced) {
@@ -208,73 +191,6 @@ private fun heroSwapTransition(reduced: Boolean): ContentTransform =
                 scaleIn(spring(dampingRatio = 0.85f, stiffness = 400f), initialScale = 0.96f)
         ) togetherWith fadeOut(spring(stiffness = 600f))
     }
-
-@Composable
-fun rememberOperationalColors(): OperationalColors {
-    val themeMode = LocalVaiinillaThemeMode.current
-    val isSystemDark = isSystemInDarkTheme()
-    val effectiveMode = themeMode.resolveEffectiveMode(isSystemDark)
-
-    return when (effectiveMode) {
-        VaiinillaThemeMode.Amoled ->
-            OperationalColors(
-                background = Color(0xFF000000),
-                surfacePaper = Color(0xFF070806),
-                cardBackground = Color(0xFF0D0E0C),
-                cardBorder = Color(0xFF242620),
-                cardInner = Color(0xFF141512),
-                textPrimary = Color(0xFFFAF7F0),
-                textSecondary = Color(0xFFA5A79E),
-                textMuted = Color(0xFF75786E),
-                accentLime = Color(0xFFB7DE63),
-                accentInk = Color(0xFF000000),
-                pillBackground = Color(0xFF181A16),
-                pillBorder = Color(0xFF2C2F27),
-                buttonSecondary = Color(0xFF1E201B),
-                buttonSecondaryInk = Color(0xFFFAF7F0),
-                highlightBorder = Color(0xFFB7DE63),
-                isDark = true,
-            )
-        VaiinillaThemeMode.Dark ->
-            OperationalColors(
-                background = Color(0xFF1D1E1C),
-                surfacePaper = Color(0xFF242622),
-                cardBackground = Color(0xFF282A25),
-                cardBorder = Color(0xFF3C3E37),
-                cardInner = Color(0xFF32342E),
-                textPrimary = Color(0xFFF7F3E7),
-                textSecondary = Color(0xFFB2B4AA),
-                textMuted = Color(0xFF86887E),
-                accentLime = Color(0xFFB7DE63),
-                accentInk = Color(0xFF171816),
-                pillBackground = Color(0xFF2E312A),
-                pillBorder = Color(0xFF45483E),
-                buttonSecondary = Color(0xFF363931),
-                buttonSecondaryInk = Color(0xFFF7F3E7),
-                highlightBorder = Color(0xFFB7DE63),
-                isDark = true,
-            )
-        else ->
-            OperationalColors(
-                background = Cream,
-                surfacePaper = Cream,
-                cardBackground = CreamDeep,
-                cardBorder = Line,
-                cardInner = Color(0xFFFDFBF4),
-                textPrimary = Ink,
-                textSecondary = MutedInk,
-                textMuted = Color(0xFF73756C),
-                accentLime = Lime,
-                accentInk = AccentInk,
-                pillBackground = Color(0xFFE8E3D2),
-                pillBorder = Line,
-                buttonSecondary = Color(0xFFE4DFCE),
-                buttonSecondaryInk = Ink,
-                highlightBorder = Color(0xFF96C83F),
-                isDark = false,
-            )
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -344,6 +260,7 @@ fun CashierOperationalScreen(
     val themeChanger = LocalVaiinillaThemeModeChanger.current
     val haptics = rememberVaiinillaHaptics()
     var addProductSheetOpen by remember { mutableStateOf(false) }
+    var cashDrawerOpen by remember { mutableStateOf(false) }
     var toastMessage by remember { mutableStateOf<String?>(null) }
     var imageEditProductId by remember { mutableStateOf<Int?>(null) }
     var tick by remember { mutableIntStateOf(0) }
@@ -394,6 +311,7 @@ fun CashierOperationalScreen(
     }
     var assistantPulse by remember { mutableIntStateOf(0) }
     var walletSheetOpen by remember { mutableStateOf(false) }
+    var searchOpen by remember { mutableStateOf(false) }
     var choosingOrderPlace by remember { mutableStateOf(false) }
 
     // Caja solo actúa sobre pedidos por cobrar o listos para entregar; el resto es de cocina.
@@ -512,32 +430,10 @@ fun CashierOperationalScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // Con un nombre de negocio largo, el texto se corta y las iniciales siguen visibles (G09).
-                    Row(
+                    CashierStatusPill(
+                        open = state.cashSessionOpen,
                         modifier = Modifier.weight(1f, fill = false).padding(end = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        VaiinillaMark(modifier = Modifier.size(34.dp))
-                        Column {
-                            Text(
-                                "Vaiinilla",
-                                fontWeight = FontWeight.Black,
-                                fontSize = 16.sp,
-                                color = colors.textPrimary,
-                            )
-                            // Antes de cobrar, el cajero confirma que la sesión está abierta y en qué negocio (G01).
-                            Text(
-                                cashierSessionCaption(state.cashSessionOpen, placeName),
-                                fontSize = 12.sp,
-                                color = colors.textSecondary,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                            )
-                        }
-                    }
+                    )
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -559,6 +455,8 @@ fun CashierOperationalScreen(
 
                         StaffAvatarMenu(
                             initials = "CJ",
+                            modeLabel = "Caja",
+                            placeName = placeName,
                             colors = colors,
                             themeMode = themeMode,
                             onThemeChange =
@@ -581,11 +479,53 @@ fun CashierOperationalScreen(
                                 } else {
                                     null
                                 },
+                            onOpenCashDrawer =
+                                if (state.cashSessionOpen == true) {
+                                    {
+                                        haptics.selection()
+                                        cashDrawerOpen = true
+                                    }
+                                } else {
+                                    null
+                                },
                         )
                     }
                 }
             }
 
+            item(key = "cashier-title") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(horizontal = 2.dp)) {
+                        Text(
+                            "Por cobrar",
+                            fontSize = 34.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = (-1).sp,
+                            color = colors.textPrimary,
+                        )
+                        // Antes de cobrar, el cajero confirma que la sesión está abierta y en qué negocio (G01).
+                        Text(
+                            cashierSessionCaption(state.cashSessionOpen, placeName),
+                            fontSize = 13.sp,
+                            color = colors.textSecondary,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        )
+                    }
+                    CashierSearchButton(
+                        colors = colors,
+                        onClick = {
+                            haptics.selection()
+                            searchOpen = true
+                        },
+                    )
+                }
+            }
             // La hoja de alta y la fila sin cargar muestran su propio error; aquí no se repite.
             val cashierError =
                 state.errorMessage.takeUnless {
@@ -624,7 +564,14 @@ fun CashierOperationalScreen(
                         haptics.selection()
                         walletSheetOpen = true
                     },
-                    modifier = Modifier.padding(top = 4.dp),
+                    pendingSpaces = pendingSpaces,
+                    onSpaces =
+                        onOpenAccounts?.let { open ->
+                            {
+                                haptics.selection()
+                                open()
+                            }
+                        },
                 )
             }
 
@@ -706,19 +653,6 @@ fun CashierOperationalScreen(
                 }
             }
 
-            if (onOpenAccounts != null) {
-                item(key = "spaces-entry") {
-                    CashierSpacesEntry(
-                        pendingSpaces = pendingSpaces,
-                        colors = colors,
-                        onClick = {
-                            haptics.selection()
-                            onOpenAccounts()
-                        },
-                    )
-                }
-            }
-
             if (studentsEntry != null) {
                 item(key = "students-entry") {
                     Box(modifier = Modifier.animateItem()) { studentsEntry() }
@@ -732,7 +666,7 @@ fun CashierOperationalScreen(
             }
 
             item(key = "queue-header") {
-                CashierQueueHeader(count = ordersToCollect, colors = colors)
+                CashierQueueHeader(count = actionableCashierOrders.size, colors = colors)
             }
 
             // Con llave fija: si aparece un aviso arriba, la tarjeta no cambia de lugar ni se rehace.
@@ -770,6 +704,9 @@ fun CashierOperationalScreen(
                         val cashTipChoice = if (isRental) TipChoice.None else cashDraft.tip
                         // El progreso es del cobro: otra acción en curso solo deshabilita el botón.
                         var collecting by remember(recentOrder.summary.id) { mutableStateOf(false) }
+                        // Quitar y rechazar quedan detrás de «Más opciones», lejos de Cobrar.
+                        var showMore by remember(recentOrder.summary.id) { mutableStateOf(false) }
+                        val cashFieldFocus = remember { FocusRequester() }
                         LaunchedEffect(state.acting, state.errorMessage) {
                             if (!state.acting) collecting = false
                         }
@@ -825,20 +762,11 @@ fun CashierOperationalScreen(
                                         )
                                     }
 
-                                    if (needsCash && recentOrder.summary.state != OrderState.PENDING_PAYMENT) {
-                                        Text(
-                                            if (isOrderReady) {
-                                                "YA ESTÁ LISTO · COBRA ANTES DE ENTREGAR"
-                                            } else {
-                                                "SE ESTÁ PREPARANDO · SIN COBRAR"
-                                            },
-                                            color = TicketMuted,
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            letterSpacing = 1.2.sp,
-                                            modifier = Modifier.padding(top = 6.dp),
-                                        )
-                                    }
+                                    CashierOrderStatus(
+                                        summary = recentOrder.summary,
+                                        onPaper = true,
+                                        modifier = Modifier.padding(top = 6.dp),
+                                    )
 
                                     TicketAllergyBand(recentOrder.user?.allergies.orEmpty())
 
@@ -848,7 +776,8 @@ fun CashierOperationalScreen(
                                         val canRemoveItems =
                                             restrictedMode != RestrictedMode.READ_ONLY &&
                                                 recentOrder.activeItems.size > 1 &&
-                                                !state.acting
+                                                !state.acting &&
+                                                showMore
                                         recentOrder.activeItems.forEach { item ->
                                             ReceiptLine(
                                                 quantity = item.quantity,
@@ -903,26 +832,14 @@ fun CashierOperationalScreen(
                                         val required = orderTotal + tipAmount
                                         val receivedAmount = MoneyInput.parse(cashReceivedInput)
                                         val changeDue = receivedAmount?.minus(required)
-                                        if (!isRental) {
-                                            TicketTipRow(
-                                                choice = cashTipChoice,
-                                                tipAmount = tipAmount,
-                                                problem = tipProblem,
-                                                enabled = !state.acting,
-                                                onChange = { next ->
-                                                    // El efectivo sugerido sigue a la propina; lo tecleado no se pisa.
-                                                    val suggestion = Money.format(required)
-                                                    val withTip = Money.format(orderTotal + next.amountFor(orderTotal))
-                                                    val keep = cashReceivedInput != suggestion
-                                                    cashDrafts[draftOrderId] =
-                                                        cashDraft.copy(
-                                                            received = if (keep) cashReceivedInput else withTip,
-                                                            tip = next,
-                                                        )
-                                                },
-                                            )
-                                        }
-                                        // Pedido pagado en efectivo: hay que cobrarlo antes de que exista
+                                        Text(
+                                            "¿CON CUÁNTO PAGA?",
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            letterSpacing = 1.4.sp,
+                                            color = TicketMuted,
+                                            modifier = Modifier.padding(top = 14.dp),
+                                        )                                        // Pedido pagado en efectivo: hay que cobrarlo antes de que exista
                                         // cualquier posibilidad de avanzarlo a cocina/entrega.
                                         BasicTextField(
                                             value = cashReceivedInput,
@@ -936,15 +853,16 @@ fun CashierOperationalScreen(
                                             textStyle =
                                                 TextStyle(
                                                     color = TicketInk,
-                                                    fontSize = 14.sp,
-                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 22.sp,
+                                                    fontWeight = FontWeight.Black,
                                                 ),
                                             cursorBrush = SolidColor(TicketInk),
                                             modifier =
                                                 Modifier
                                                     .fillMaxWidth()
-                                                    .padding(top = 12.dp)
-                                                    .height(48.dp)
+                                                    .padding(top = 6.dp)
+                                                    .height(56.dp)
+                                                    .focusRequester(cashFieldFocus)
                                                     .semantics { contentDescription = "Efectivo recibido" }
                                                     .clip(RoundedCornerShape(12.dp))
                                                     .background(TicketInk.copy(alpha = 0.05f))
@@ -969,24 +887,46 @@ fun CashierOperationalScreen(
                                                 }
                                             },
                                         )
+                                        CashBillChips(
+                                            required = required,
+                                            received = receivedAmount,
+                                            enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
+                                            onPick = { value ->
+                                                haptics.selection()
+                                                cashDrafts[draftOrderId] = cashDraft.copy(received = value)
+                                            },
+                                            onOther = {
+                                                haptics.selection()
+                                                cashDrafts[draftOrderId] = cashDraft.copy(received = "")
+                                                cashFieldFocus.requestFocus()
+                                            },
+                                        )
                                         // El cambio se ve antes de confirmar, mientras el cajero cuenta los billetes.
                                         cashChangeHint(changeDue)?.let { hint ->
-                                            Text(
-                                                hint,
-                                                color =
-                                                    if (changeDue != null &&
-                                                        changeDue.signum() < 0
-                                                    ) {
-                                                        CashShortInk
-                                                    } else {
-                                                        TicketInk
-                                                    },
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier =
-                                                    Modifier
-                                                        .padding(top = 8.dp)
-                                                        .semantics { liveRegion = LiveRegionMode.Polite },
+                                            CashChangeCard(
+                                                hint = hint,
+                                                change = changeDue,
+                                                colors = colors,
+                                                modifier = Modifier.padding(top = 10.dp),
+                                            )
+                                        }
+                                        if (!isRental) {
+                                            TicketTipRow(
+                                                choice = cashTipChoice,
+                                                tipAmount = tipAmount,
+                                                problem = tipProblem,
+                                                enabled = !state.acting,
+                                                onChange = { next ->
+                                                    // El efectivo sugerido sigue a la propina; lo tecleado no se pisa.
+                                                    val suggestion = Money.format(required)
+                                                    val withTip = Money.format(orderTotal + next.amountFor(orderTotal))
+                                                    val keep = cashReceivedInput != suggestion
+                                                    cashDrafts[draftOrderId] =
+                                                        cashDraft.copy(
+                                                            received = if (keep) cashReceivedInput else withTip,
+                                                            tip = next,
+                                                        )
+                                                },
                                             )
                                         }
                                         if (!cashRegisterOpen) {
@@ -1118,20 +1058,16 @@ fun CashierOperationalScreen(
                                         }
                                     }
                                     if (restrictedMode != RestrictedMode.READ_ONLY) {
-                                        TextButton(
-                                            onClick = { rejectingOrderId = recentOrder.summary.id },
+                                        CashierMoreOptions(
+                                            expanded = showMore,
                                             enabled = !state.acting,
-                                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                                        ) {
-                                            Text(
-                                                "Rechazar pedido",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 13.sp,
-                                                color = if (state.acting) TicketMuted else Color(0xFFE5645A),
-                                            )
-                                        }
-                                    }
-                                }
+                                            onToggle = {
+                                                haptics.selection()
+                                                showMore = !showMore
+                                            },
+                                            onReject = { rejectingOrderId = recentOrder.summary.id },
+                                        )
+                                    }                                }
                             }
                             TicketZigzag()
                         }
@@ -1161,8 +1097,8 @@ fun CashierOperationalScreen(
                     QueueTicketRow(
                         modifier = Modifier.animateItem(),
                         folio = "#${order.summary.folio}",
-                        title = queueTitle,
-                        subtitle =
+                        subtitle = "$queueTitle · ${elapsedShort(order.summary.createdAt, tick)}",
+                        title =
                             customerPrefix(order) + (
                                 if (order.summary.destination.name == "TAKE_AWAY") {
                                     "Para llevar"
@@ -1170,7 +1106,11 @@ fun CashierOperationalScreen(
                                     SpaceCopy.staffDestination(order.summary.destination, order.summary.space)
                                 }
                             ) + arrivalSuffix(order),
-                        time = if (order.summary.needsCashCollection) "Por cobrar" else "Por entregar",
+                        amount =
+                            moneyLabel(
+                                if (order.summary.needsCashCollection) order.summary.cashAmountDue else order.summary.total,
+                            ),
+                        summary = order.summary,
                         colors = colors,
                         onClick = {
                             haptics.selection()
@@ -1338,6 +1278,20 @@ fun CashierOperationalScreen(
             )
         }
 
+        if (searchOpen) {
+            CashierOrderSearchSheet(
+                orders = state.orders,
+                colors = colors,
+                canOpen = { it.summary.id in actionableIds },
+                onDismiss = { searchOpen = false },
+                onOpen = { order ->
+                    haptics.selection()
+                    searchOpen = false
+                    selectedCashierOrderId = order.summary.id
+                },
+            )
+        }
+
         if (walletSheetOpen) {
             WalletReloadSheet(
                 clients = state.walletClients,
@@ -1368,6 +1322,9 @@ fun CashierOperationalScreen(
                 onConfirm = onOpenCashSession,
             )
         }
+        if (cashDrawerOpen) {
+            CashDrawerSheet(expectedCash = state.expectedCash, colors = colors, onDismiss = { cashDrawerOpen = false })
+        }
         state.closeCash?.let { closeState ->
             CashCloseSheet(
                 state = closeState,
@@ -1380,6 +1337,7 @@ fun CashierOperationalScreen(
                 onDismiss = onDismissCloseCash,
                 onConfirm = onCloseCash,
                 onOpenAccounts = onOpenAccounts,
+                expectedCash = state.expectedCash,
             )
         }
         // El pedido se resuelve por su id al confirmar: el que esté arriba cuando llegue el siguiente no cuenta.
@@ -1924,623 +1882,9 @@ private fun ProductGridCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun KitchenOperationalScreen(
-    state: OperationalUiState,
-    onBack: () -> Unit,
-    onStart: (orderId: String, version: Int) -> Unit,
-    onReady: (orderId: String, version: Int) -> Unit,
-    onReject: (orderId: String, version: Int, reason: String) -> Unit = { _, _, _ -> },
-    /** Quitar un solo artículo de la comanda (Cocina no puede hacerlo con el último). */
-    onRejectItem: (orderId: String, itemId: Int, version: Int, reason: String) -> Unit = { _, _, _, _ -> },
-    onChangeMode: (() -> Unit)? = null,
-    restrictedMode: RestrictedMode? = null,
-    assistantUserKey: String = "kitchen",
-    /** Cocina de una escuela: "Para mañana" (padres e hijos); null fuera de una escuela. */
-    reservedEntry: (@Composable () -> Unit)? = null,
-    onActionNoticed: () -> Unit = {},
-    onDismissError: () -> Unit = {},
-    onRefresh: () -> Unit = {},
-) {
-    val colors = rememberOperationalColors()
-    val reduceMotion = reducedMotion()
-    val themeMode = LocalVaiinillaThemeMode.current
-    val themeChanger = LocalVaiinillaThemeModeChanger.current
-    val haptics = rememberVaiinillaHaptics()
-    var toastMessage by remember { mutableStateOf<String?>(null) }
-    var assistantPulse by remember { mutableIntStateOf(0) }
-    val assistantRegistry = rememberAssistantAnchorRegistry()
-    val assistantController = rememberOperationalAssistantController(assistantUserKey, OperationalRole.KITCHEN)
-    val assistantFocusRequester = remember { FocusRequester() }
-
-    var selectedOrderId by remember { mutableStateOf<String?>(null) }
-    var rejecting by remember { mutableStateOf(false) }
-    var rejectingItem by remember { mutableStateOf<OrderItem?>(null) }
-    val queueOrders = kitchenQueue(state.orders)
-    val activeOrder = kitchenActiveOrder(queueOrders, selectedOrderId)
-    // Tocar el push de una comanda la deja abierta; la selección del ViewModel también cuenta.
-    LaunchedEffect(state.selectedOrderId) {
-        if (state.selectedOrderId != null && queueOrders.any { it.summary.id == state.selectedOrderId }) {
-            selectedOrderId = state.selectedOrderId
-        }
-    }
-    val upcomingOrders = queueOrders.filterNot { it.summary.id == activeOrder?.summary?.id }
-    val orderState = activeOrder?.summary?.state ?: OrderState.PAID
-    val isPreparing = orderState == OrderState.PREPARING
-    val isReady = orderState == OrderState.READY || orderState == OrderState.DELIVERED
-    val nextGuidableOrder = upcomingOrders.firstOrNull()
-    val kitchenQueue = queuePresentation(queueOrders.isNotEmpty(), state.lastRefreshOk)
-    LaunchedEffect(toastMessage) {
-        if (toastMessage != null) {
-            delay(2_200)
-            toastMessage = null
-        }
-    }
-    // La confirmación llega cuando el servidor aceptó el cambio, no al tocar el botón.
-    LaunchedEffect(state.actionNotice) {
-        state.actionNotice?.let {
-            haptics.success()
-            toastMessage = it
-            onActionNoticed()
-        }
-    }
-    val kitchenGuides =
-        kitchenAssistantGuides(
-            orderId = activeOrder?.summary?.id,
-            orderFolio = activeOrder?.summary?.folio,
-            isPreparing = isPreparing,
-            isReady = isReady,
-            nextOrderId = nextGuidableOrder?.summary?.id,
-            nextOrderFolio = nextGuidableOrder?.summary?.folio,
-        )
-    val kitchenAssistantPalette =
-        OperationalAssistantPalette(
-            background = colors.background,
-            surface = colors.cardBackground,
-            surface2 = colors.cardInner,
-            ink = colors.textPrimary,
-            muted = colors.textSecondary,
-            line = colors.cardBorder,
-            lime = colors.accentLime,
-            limeInk = colors.accentInk,
-            isDark = colors.isDark,
-        )
-    LaunchedEffect(state.orders) {
-        state.orders.forEach { order ->
-            when (order.summary.state) {
-                OrderState.PREPARING -> {
-                    assistantController.onStateChanged("comanda-preparando:${order.summary.id}")
-                }
-                OrderState.READY, OrderState.DELIVERED -> {
-                    assistantController.onStateChanged("comanda-lista:${order.summary.id}")
-                }
-                else -> Unit
-            }
-        }
-    }
-
-    Box(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(colors.background)
-                .pointerInput(Unit) {
-                    awaitPointerEventScope {
-                        while (true) {
-                            val event = awaitPointerEvent(PointerEventPass.Final)
-                            if (event.changes.any { it.pressed && !it.previousPressed }) {
-                                assistantPulse += 1
-                            }
-                        }
-                    }
-                },
-    ) {
-        LazyColumn(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding(),
-            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 100.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            // Topline
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        VaiinillaMark(modifier = Modifier.size(34.dp))
-                        Column {
-                            Text(
-                                "Vaiinilla",
-                                fontWeight = FontWeight.Black,
-                                fontSize = 16.sp,
-                                color = colors.textPrimary,
-                            )
-                            Text(
-                                "Cuenta de cocina",
-                                fontSize = 12.sp,
-                                color = colors.textSecondary,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        }
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        if (assistantController.activeGuide == null) {
-                            VaiinillaAssistantButton(
-                                onClick = {
-                                    haptics.selection()
-                                    assistantController.open()
-                                },
-                                reactionSignal = assistantPulse,
-                                isDarkTheme = colors.isDark,
-                                hasPendingFirstSteps = false,
-                                modifier = Modifier.focusRequester(assistantFocusRequester),
-                                touchSize = 56.dp,
-                            )
-                        }
-
-                        StaffAvatarMenu(
-                            initials = "CK",
-                            colors = colors,
-                            themeMode = themeMode,
-                            onThemeChange =
-                                themeChanger?.let { change ->
-                                    { mode ->
-                                        haptics.selection()
-                                        change(mode)
-                                    }
-                                },
-                            onChangeMode = {
-                                haptics.impact()
-                                onChangeMode?.invoke() ?: onBack()
-                            },
-                        )
-                    }
-                }
-            }
-
-            item(key = "kitchen-link") {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    WaiterLivePill(link = operationalLink(state.lastRefreshOk), colors = colors)
-                }
-            }
-
-            // Sin comandas cargadas, la tarjeta de la fila ya muestra el error.
-            state.errorMessage?.takeUnless { kitchenQueue == QueuePresentation.Error }?.let { message ->
-                item(key = "kitchen-error") {
-                    OperationalErrorCard(
-                        message = message,
-                        colors = colors,
-                        onDismiss = onDismissError,
-                        modifier = Modifier.animateItem(),
-                    )
-                }
-            }
-
-            if (reservedEntry != null) {
-                item(key = "kitchen-reserved") {
-                    Box(modifier = Modifier.animateItem()) { reservedEntry() }
-                }
-            }
-
-            // En preparación Section Label
-            if (activeOrder == null) {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Bottom,
-                    ) {
-                        Text(
-                            "En preparación",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp,
-                            color = colors.textPrimary,
-                        )
-                        val prepStatus =
-                            when (kitchenQueue) {
-                                QueuePresentation.Loading -> "Cargando…"
-                                QueuePresentation.Error -> "Sin actualizar"
-                                else -> "Al día"
-                            }
-                        Text(
-                            text = prepStatus,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.textSecondary,
-                        )
-                    }
-                }
-            }
-
-            // Kitchen Hero Ticket Card or Empty State
-            item {
-                AnimatedContent(
-                    targetState = activeOrder,
-                    contentKey = { it?.summary?.id },
-                    transitionSpec = { heroSwapTransition(reduceMotion) },
-                    label = "kitchen-hero",
-                ) { heroOrder ->
-                    val activeOrder = heroOrder
-                    if (activeOrder != null) {
-                        val destLabel =
-                            SpaceCopy
-                                .staffDestination(activeOrder.summary.destination, activeOrder.summary.space)
-                                .uppercase()
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            Surface(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_KITCHEN_CARD),
-                                shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
-                                color = TicketPaper,
-                                shadowElevation = 10.dp,
-                            ) {
-                                Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.Top,
-                                    ) {
-                                        Column {
-                                            Text(
-                                                "$destLabel${arrivalSuffix(activeOrder)}",
-                                                color = TicketMuted,
-                                                fontSize = 9.5.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                letterSpacing = 1.6.sp,
-                                            )
-                                            Text(
-                                                "#${activeOrder.summary.folio}",
-                                                fontSize = 48.sp,
-                                                fontWeight = FontWeight.Black,
-                                                letterSpacing = (-1.5).sp,
-                                                color = TicketInk,
-                                            )
-                                            staffCustomerName(activeOrder)?.let { name ->
-                                                Text(
-                                                    name,
-                                                    fontSize = 18.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = TicketInk,
-                                                )
-                                            }
-                                            KitchenAgeText(
-                                                createdAt = kitchenAgeStart(activeOrder.summary),
-                                                ink = TicketInk,
-                                                muted = TicketMuted,
-                                                modifier = Modifier.padding(top = 2.dp),
-                                            )
-                                        }
-                                        StampLabel(
-                                            text =
-                                                if (isReady) {
-                                                    "Lista"
-                                                } else if (isPreparing) {
-                                                    "Preparando"
-                                                } else {
-                                                    "Nueva"
-                                                },
-                                            live = !isReady,
-                                        )
-                                    }
-
-                                    TicketAllergyBand(activeOrder.user?.allergies.orEmpty())
-
-                                    TicketPerf()
-
-                                    Column {
-                                        // Lo rechazado no se prepara: no aparece en la comanda.
-                                        // Cocina quita artículos de un pedido cobrado o en preparación; el último ya
-                                        // no se quita, se rechaza el pedido entero.
-                                        val canRemoveItems =
-                                            restrictedMode != RestrictedMode.READ_ONLY &&
-                                                activeOrder.activeItems.size > 1 &&
-                                                (orderState == OrderState.PAID || orderState == OrderState.PREPARING)
-                                        activeOrder.activeItems.forEach { item ->
-                                            // El servidor solo deja a Cocina quitar lo que se prepara en Cocina.
-                                            val removable =
-                                                canRemoveItems && item.preparationStation == PreparationStation.KITCHEN
-                                            ReceiptLine(
-                                                quantity = item.quantity,
-                                                name = item.productName,
-                                                detail =
-                                                    item.options
-                                                        .joinToString(" · ") { it.name }
-                                                        .ifEmpty { null },
-                                                price = moneyLabel(item.subtotal),
-                                                onRemove =
-                                                    if (removable && !state.acting) {
-                                                        { rejectingItem = item }
-                                                    } else {
-                                                        null
-                                                    },
-                                            )
-                                        }
-                                    }
-
-                                    KitchenNotesNote(activeOrder.kitchenNotes, ink = TicketInk, muted = TicketMuted)
-
-                                    if (activeOrder.summary.state == OrderState.PENDING_PAYMENT &&
-                                        !activeOrder.summary.payAtEnd
-                                    ) {
-                                        // Se puede preparar antes de cobrar (lo decide cada negocio); que se note.
-                                        Text(
-                                            "SIN COBRAR · CAJA LO COBRA",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            letterSpacing = 1.2.sp,
-                                            color = TicketMuted,
-                                            modifier = Modifier.padding(top = 8.dp),
-                                        )
-                                    }
-                                    // Ya pagada la cuenta deja de decirlo (W49; QAIOS-25 en iOS).
-                                    if (activeOrder.summary.payAtEnd && activeOrder.summary.paymentPending) {
-                                        Text(
-                                            "A LA CUENTA · SE PAGA AL FINAL",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            letterSpacing = 1.2.sp,
-                                            color = TicketMuted,
-                                            modifier = Modifier.padding(top = 8.dp),
-                                        )
-                                    }
-
-                                    // Una sola acción: la que aplica según el estado real.
-                                    Button(
-                                        onClick = {
-                                            haptics.impact()
-                                            if (isPreparing) {
-                                                onReady(activeOrder.summary.id, activeOrder.summary.version)
-                                            } else {
-                                                onStart(activeOrder.summary.id, activeOrder.summary.version)
-                                            }
-                                        },
-                                        enabled =
-                                            !isReady &&
-                                                !state.acting &&
-                                                restrictedMode != RestrictedMode.READ_ONLY,
-                                        colors =
-                                            ButtonDefaults.buttonColors(
-                                                containerColor = colors.accentLime,
-                                                contentColor = colors.accentInk,
-                                                disabledContainerColor = TicketLine,
-                                                disabledContentColor = TicketMuted,
-                                            ),
-                                        shape = RoundedCornerShape(14.dp),
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .padding(top = 12.dp)
-                                                .height(50.dp)
-                                                .assistantAnchor(
-                                                    assistantRegistry,
-                                                    if (isPreparing) {
-                                                        assistantKitchenReadyAnchor(activeOrder.summary.id)
-                                                    } else {
-                                                        assistantKitchenStartAnchor(activeOrder.summary.id)
-                                                    },
-                                                ),
-                                        contentPadding = PaddingValues(horizontal = 14.dp),
-                                    ) {
-                                        if (state.acting && !isReady) {
-                                            CircularProgressIndicator(
-                                                color = TicketMuted,
-                                                strokeWidth = 2.5.dp,
-                                                modifier =
-                                                    Modifier
-                                                        .size(22.dp)
-                                                        .semantics { contentDescription = "Guardando la comanda" },
-                                            )
-                                        } else {
-                                            Text(
-                                                text =
-                                                    if (isReady) {
-                                                        "Lista para recoger"
-                                                    } else if (isPreparing) {
-                                                        "Marcar lista"
-                                                    } else {
-                                                        "Empezar a preparar"
-                                                    },
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 14.sp,
-                                            )
-                                        }
-                                    }
-
-                                    // Sin cobrar, el servidor no deja rechazar: solo cobrado o en preparación.
-                                    if (!isReady &&
-                                        orderState != OrderState.PENDING_PAYMENT &&
-                                        restrictedMode != RestrictedMode.READ_ONLY
-                                    ) {
-                                        TextButton(
-                                            onClick = { rejecting = true },
-                                            enabled = !state.acting,
-                                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                                        ) {
-                                            Text(
-                                                "Rechazar pedido",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 13.sp,
-                                                color = if (state.acting) TicketMuted else Color(0xFFE5645A),
-                                            )
-                                        }
-                                    }
-
-                                    upcomingOrders.firstOrNull()?.let { next ->
-                                        val nextDest =
-                                            SpaceCopy
-                                                .staffDestination(next.summary.destination, next.summary.space)
-                                                .uppercase()
-                                        Text(
-                                            "SIGUIENTE: #${next.summary.folio} · $nextDest",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            letterSpacing = 0.8.sp,
-                                            color = TicketMuted,
-                                            textAlign = TextAlign.Center,
-                                            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                                        )
-                                    }
-                                }
-                            }
-                            TicketZigzag()
-                        }
-                    } else if (kitchenQueue == QueuePresentation.Error) {
-                        OperationalErrorCard(
-                            title = "No se pudieron cargar las comandas",
-                            message = state.errorMessage ?: "Revisa la conexión e inténtalo otra vez.",
-                            colors = colors,
-                            onRetry = onRefresh,
-                        )
-                    } else {
-                        val loadingQueue = kitchenQueue == QueuePresentation.Loading
-                        Surface(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .border(1.dp, colors.cardBorder, RoundedCornerShape(26.dp)),
-                            shape = RoundedCornerShape(26.dp),
-                            color = colors.cardBackground,
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(28.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Text(
-                                    if (loadingQueue) "Cargando comandas…" else "Cocina al día",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    color = colors.textPrimary,
-                                )
-                                if (!loadingQueue) {
-                                    Text(
-                                        text = "No hay comandas pendientes en este momento.",
-                                        fontSize = 13.sp,
-                                        color = colors.textSecondary,
-                                        textAlign = TextAlign.Center,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Siguientes Section Header
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom,
-                ) {
-                    Text(
-                        "En fila",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
-                        color = colors.textPrimary,
-                    )
-                    Text(
-                        if (upcomingOrders.size == 1) "1 comanda" else "${upcomingOrders.size} comandas",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textSecondary,
-                    )
-                }
-            }
-
-            // Upcoming Orders List
-            items(upcomingOrders, key = { it.summary.id }) { order ->
-                val orderDest = SpaceCopy.staffDestination(order.summary.destination, order.summary.space)
-                val orderSummaryTitle =
-                    order.activeItems
-                        .joinToString(" · ") { "${it.quantity}x ${it.productName}" }
-                        .ifEmpty { "Productos del menú" }
-                QueueTicketRow(
-                    folio = "#${order.summary.folio}",
-                    title = orderSummaryTitle,
-                    subtitle = customerPrefix(order) + orderDest + arrivalSuffix(order),
-                    // La fila dice el mismo estado que la comanda abierta, no un "En espera" fijo.
-                    time = kitchenQueueLabel(order),
-                    colors = colors,
-                    modifier =
-                        Modifier
-                            .animateItem()
-                            .assistantAnchor(assistantRegistry, assistantQueueOrderAnchor(order.summary.id)),
-                    onClick = {
-                        haptics.selection()
-                        selectedOrderId = order.summary.id
-                        toastMessage = "Comanda #${order.summary.folio} seleccionada"
-                        assistantController.onAnchorTapped(assistantQueueOrderAnchor(order.summary.id))
-                    },
-                )
-            }
-        }
-
-        ToastPill(
-            message = toastMessage,
-            containerColor = colors.textPrimary,
-            contentColor = colors.background,
-            badgeColor = colors.accentLime,
-            badgeContentColor = colors.accentInk,
-        )
-
-        OperationalAssistantHost(
-            controller = assistantController,
-            registry = assistantRegistry,
-            guides = kitchenGuides,
-            manualTitle = "Manual de Cocina",
-            palette = kitchenAssistantPalette,
-            buttonFocusRequester = assistantFocusRequester,
-            modifier = Modifier.fillMaxSize(),
-        )
-    }
-
-    val itemToReject = rejectingItem
-    if (itemToReject != null && activeOrder != null) {
-        KitchenRejectDialog(
-            folio = activeOrder.summary.folio,
-            itemName = itemToReject.productName,
-            colors = colors,
-            onDismiss = { rejectingItem = null },
-            onConfirm = { reason ->
-                rejectingItem = null
-                haptics.impact()
-                onRejectItem(activeOrder.summary.id, itemToReject.id, activeOrder.summary.version, reason)
-            },
-        )
-    }
-
-    if (rejecting && activeOrder != null) {
-        KitchenRejectDialog(
-            folio = activeOrder.summary.folio,
-            colors = colors,
-            onDismiss = { rejecting = false },
-            onConfirm = { reason ->
-                rejecting = false
-                haptics.impact()
-                onReject(activeOrder.summary.id, activeOrder.summary.version, reason)
-            },
-        )
-    }
-}
-
 /** Error de una acción o de la carga, con la tarjeta del tablero de Mesero; se anuncia al lector de pantalla. */
 @Composable
-private fun OperationalErrorCard(
+internal fun OperationalErrorCard(
     message: String,
     colors: OperationalColors,
     modifier: Modifier = Modifier,
@@ -2616,7 +1960,8 @@ private fun QueueTicketRow(
     folio: String,
     title: String,
     subtitle: String,
-    time: String,
+    amount: String,
+    summary: OrderSummary,
     colors: OperationalColors,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
@@ -2638,57 +1983,303 @@ private fun QueueTicketRow(
             Box(
                 modifier =
                     Modifier
-                        .defaultMinSize(minWidth = 56.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(colors.textPrimary)
-                        .padding(horizontal = 8.dp, vertical = 12.dp),
+                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(colors.cardInner)
+                        .padding(horizontal = 8.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    folio,
-                    color = colors.background,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 19.sp,
-                    letterSpacing = 0.5.sp,
-                )
+                Text(folio, color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 16.sp)
             }
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     title,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 15.sp,
                     color = colors.textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     subtitle,
-                    fontSize = 12.sp,
+                    fontSize = 12.5.sp,
                     color = colors.textSecondary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 1.dp),
                 )
             }
 
-            Box(
-                modifier =
-                    Modifier
-                        .clip(CircleShape)
-                        .background(colors.pillBackground)
-                        .border(1.dp, colors.pillBorder, CircleShape)
-                        .padding(horizontal = 10.dp, vertical = 5.dp),
-            ) {
-                Text(
-                    time,
-                    color = colors.textSecondary,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                )
+            Column(horizontalAlignment = Alignment.End) {
+                Text(amount, color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 17.sp)
+                CashierOrderStatus(summary = summary, onPaper = false, modifier = Modifier.padding(top = 2.dp))
             }
         }
     }
 }
 
+/** El estado de un pedido para Caja en dos partes, como en C01: cómo va en cocina y si ya pagó. */
+internal data class CashierStatus(
+    val progress: String,
+    val ready: Boolean,
+    val paid: Boolean,
+)
+
+internal fun cashierOrderStatus(summary: OrderSummary): CashierStatus =
+    CashierStatus(
+        progress =
+            when (summary.state) {
+                OrderState.READY -> "Listo"
+                OrderState.PREPARING -> "En cocina"
+                else -> "Sin empezar"
+            },
+        ready = summary.state == OrderState.READY,
+        paid = !summary.needsCashCollection,
+    )
+
+// Lima, ámbar y coral oscuros para el papel; claros para la tarjeta oscura de la fila.
+private val StatusReadyPaper = Color(0xFF3B5310)
+private val StatusWaitPaper = Color(0xFF8A5A00)
+private val StatusDuePaper = Color(0xFFB3261E)
+private val StatusReadyDark = Color(0xFFB7DE63)
+private val StatusWaitDark = Color(0xFFF2C14E)
+private val StatusDueDark = Color(0xFFFF7A6E)
+
+@Composable
+private fun CashierOrderStatus(
+    summary: OrderSummary,
+    onPaper: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val status = cashierOrderStatus(summary)
+    val progressColor =
+        when {
+            status.ready -> if (onPaper) StatusReadyPaper else StatusReadyDark
+            summary.state == OrderState.PREPARING -> if (onPaper) StatusWaitPaper else StatusWaitDark
+            else -> if (onPaper) TicketMuted else Color(0xFFA5A79E)
+        }
+    val payColor =
+        if (status.paid) {
+            if (onPaper) StatusReadyPaper else StatusReadyDark
+        } else {
+            if (onPaper) StatusDuePaper else StatusDueDark
+        }
+    val payLabel = if (status.paid) "Pagado" else "Falta pagar"
+    Row(
+        modifier = modifier.semantics(mergeDescendants = true) {},
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(status.progress, color = progressColor, fontSize = 12.5.sp, fontWeight = FontWeight.ExtraBold)
+        Text(" · ", color = if (onPaper) TicketMuted else Color(0xFF86887E), fontSize = 12.5.sp)
+        Text(payLabel, color = payColor, fontSize = 12.5.sp, fontWeight = FontWeight.ExtraBold)
+    }
+}
+
+/** «● CAJA ABIERTA» arriba a la izquierda; cerrada en coral para que nadie cobre sin sesión. */
+@Composable
+private fun CashierStatusPill(
+    open: Boolean?,
+    modifier: Modifier = Modifier,
+) {
+    val coral = LocalVaiinillaColors.current.coral
+    val colors = rememberOperationalColors()
+    val tint =
+        animateSelectionColor(
+            when (open) {
+                true -> colors.accentLime
+                false -> coral
+                null -> colors.textSecondary
+            },
+            "cashier-pill",
+        )
+    val label =
+        when (open) {
+            true -> "CAJA ABIERTA"
+            false -> "CAJA CERRADA"
+            null -> "REVISANDO LA CAJA"
+        }
+    Row(
+        modifier =
+            modifier
+                .clip(CircleShape)
+                .background(tint.copy(alpha = 0.16f))
+                .padding(horizontal = 11.dp, vertical = 6.dp)
+                .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(Modifier.size(7.dp).clip(CircleShape).background(tint))
+        Text(label, color = tint, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 0.7.sp)
+    }
+}
+
+/** Los billetes que tiene sentido ofrecer: el monto exacto y los de $100, $200 y $500 que alcancen. */
+internal fun cashBillOptions(required: BigDecimal): List<BigDecimal> =
+    listOf(100, 200, 500, 1000)
+        .map(::BigDecimal)
+        .filter { it > required }
+        .take(3)
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CashBillChips(
+    required: BigDecimal,
+    received: BigDecimal?,
+    enabled: Boolean,
+    onPick: (String) -> Unit,
+    onOther: () -> Unit,
+) {
+    val bills = cashBillOptions(required)
+    val exact = received != null && received.compareTo(required) == 0
+    val other = received != null && !exact && bills.none { it.compareTo(received) == 0 }
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        BillChip("Exacto", selected = exact, enabled = enabled) { onPick(Money.format(required)) }
+        bills.forEach { bill ->
+            BillChip(
+                "$${bill.toPlainString()}",
+                selected = received != null && received.compareTo(bill) == 0,
+                enabled = enabled,
+            ) { onPick(Money.format(bill)) }
+        }
+        BillChip("Otro", selected = other, enabled = enabled, onClick = onOther)
+    }
+}
+
+@Composable
+private fun BillChip(
+    label: String,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val bg = animateSelectionColor(if (selected) TicketInk else TicketInk.copy(alpha = 0.06f), "bill-bg")
+    val fg = animateSelectionColor(if (selected) TicketPaper else TicketInk, "bill-ink")
+    Box(
+        modifier =
+            Modifier
+                .physicalPress(scale = PhysicalPressScale.Small, enabled = enabled, onClick = onClick)
+                .heightIn(min = 44.dp)
+                .clip(CircleShape)
+                .background(bg)
+                .semantics { this.selected = selected }
+                .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, color = fg, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+    }
+}
+
+/** «Su cambio» en grande: el cajero lo lee mientras cuenta los billetes. Si no alcanza, lo dice en rojo. */
+@Composable
+private fun CashChangeCard(
+    hint: String,
+    change: BigDecimal?,
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+) {
+    if (change == null || change.signum() < 0) {
+        Text(
+            hint,
+            color = CashShortInk,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        )
+        return
+    }
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(colors.accentLime)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .semantics(mergeDescendants = true) {
+                    contentDescription = hint
+                    liveRegion = LiveRegionMode.Polite
+                },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            if (change.signum() == 0) "Exacto, sin cambio" else "Su cambio",
+            color = colors.accentInk,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.ExtraBold,
+        )
+        AnimatedContent(
+            targetState = moneyLabel(Money.format(change)),
+            transitionSpec = { (fadeIn(spring()) togetherWith fadeOut(spring())) },
+            label = "cash-change",
+        ) { value ->
+            Text(
+                value,
+                color = colors.accentInk,
+                fontSize = 30.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-1).sp,
+            )
+        }
+    }
+}
+
+/** Quitar un artículo o rechazar todo el pedido, detrás de un toque y con su propia confirmación. */
+@Composable
+private fun CashierMoreOptions(
+    expanded: Boolean,
+    enabled: Boolean,
+    onToggle: () -> Unit,
+    onReject: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
+        HorizontalDivider(color = TicketLine)
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .physicalPress(scale = PhysicalPressScale.Small, enabled = enabled, onClick = onToggle)
+                    .heightIn(min = 48.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                if (expanded) "Menos opciones" else "Más opciones",
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = TicketMuted,
+            )
+            Spacer(Modifier.width(6.dp))
+            MoreDots(TicketMuted)
+        }
+        AnimatedVisibility(visible = expanded) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    "Toca «Quitar» en un artículo o rechaza todo el pedido.",
+                    fontSize = 12.sp,
+                    color = TicketMuted,
+                    textAlign = TextAlign.Center,
+                )
+                TextButton(
+                    onClick = onReject,
+                    enabled = enabled,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) {
+                    Text(
+                        "Rechazar pedido",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = if (enabled) Color(0xFFB3261E) else TicketMuted,
+                    )
+                }
+            }
+        }
+    }
+}
 // Modal Sheet: Add Product with Image Picker + Presets
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -2978,7 +2569,7 @@ private val RejectionQuickReasons = listOf("Se acabó el producto", "Faltan ingr
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun KitchenRejectDialog(
+internal fun KitchenRejectDialog(
     folio: Int,
     colors: OperationalColors,
     onDismiss: () -> Unit,
@@ -3098,7 +2689,7 @@ internal fun KitchenRejectContent(
 /** Etiqueta de una comanda en la fila de cocina, igual al sello de la comanda abierta. */
 internal fun kitchenQueueLabel(order: OrderDetail): String =
     when (order.summary.state) {
-        OrderState.PENDING_PAYMENT -> if (order.summary.payAtEnd) "En espera" else "Sin cobrar"
+        OrderState.PENDING_PAYMENT -> if (order.summary.payAtEnd) "En espera" else "Falta pagar"
         OrderState.PREPARING -> "Preparando"
         OrderState.READY -> "Lista"
         else -> "En espera"

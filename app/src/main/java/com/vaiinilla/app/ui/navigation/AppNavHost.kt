@@ -116,6 +116,7 @@ import com.vaiinilla.app.ui.reservations.ReservationsViewModel
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
 import com.vaiinilla.app.ui.screens.AuthorizedModeScreen
 import com.vaiinilla.app.ui.screens.CartScreen
+import com.vaiinilla.app.ui.screens.PickupDeliveryFooter
 import com.vaiinilla.app.ui.screens.CashierOperationalScreen
 import com.vaiinilla.app.ui.screens.CashierRefundsSection
 import com.vaiinilla.app.ui.screens.CatalogScreen
@@ -2329,7 +2330,7 @@ fun AppNavHost(
                                 )
                             },
                             submitAction =
-                                if (operationalState.cashSessionOpen == true) "Dejar por cobrar" else "Crear pedido",
+                                if (operationalState.cashSessionOpen == true) "Cobrar después" else "Crear pedido",
                             onSubmitAndCollect =
                                 if (operationalState.cashSessionOpen == true) {
                                     { lines, name ->
@@ -2392,6 +2393,9 @@ fun AppNavHost(
                         onActionNoticed = operationalViewModel::consumeActionNotice,
                         onDismissError = operationalViewModel::dismissMutationError,
                         onRefresh = operationalViewModel::refresh,
+                        placeName = authorizedAccessState.activeContext?.establishmentName.orEmpty(),
+                        onToggleProductAvailable = operationalViewModel::setProductAvailable,
+                        onLoadCatalog = operationalViewModel::refreshCatalog,
                     )
                     if (reservedSheetOpen) {
                         ReservedOrdersSheet(
@@ -2585,7 +2589,6 @@ fun AppNavHost(
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "cashier-accounts",
                         kicker = "CAJA",
-                        roleSubtitle = "Cuenta de caja",
                         roleChip = "CJ",
                     )
                 }
@@ -2670,6 +2673,10 @@ fun AppNavHost(
         QrScannerDialog(
             onClose = { pendingPickupDelivery = null },
             title = "Apunta al QR de recogida que muestra el alumno",
+            footer =
+                operationalState.orders
+                    .firstOrNull { it.summary.id == pendingPickupDelivery?.orderId }
+                    ?.let { order -> { PickupDeliveryFooter(order) } },
             onPayload = { rawValue ->
                 val target = pendingPickupDelivery
                 pendingPickupDelivery = null

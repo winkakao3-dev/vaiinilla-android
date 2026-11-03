@@ -19,6 +19,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -37,6 +39,16 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.material.icons.outlined.LocalBar
+import androidx.compose.material.icons.outlined.Undo
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.contentDescription
+import com.vaiinilla.app.domain.model.Catalog
+import com.vaiinilla.app.domain.model.PreparationStation
+import androidx.compose.foundation.layout.FlowRow
+import com.vaiinilla.app.domain.repository.CallReason
+import com.vaiinilla.app.ui.components.arrive
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -46,12 +58,21 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.Restaurant
+import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material.icons.outlined.QrCodeScanner
+import androidx.compose.material.icons.outlined.RoomService
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.PriorityHigh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
@@ -75,6 +96,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -83,6 +105,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -103,6 +126,7 @@ import com.vaiinilla.app.domain.repository.AccountPaymentMethod
 import com.vaiinilla.app.domain.repository.BoardOrder
 import com.vaiinilla.app.domain.repository.BoardTable
 import com.vaiinilla.app.domain.repository.CallStatus
+import com.vaiinilla.app.domain.repository.SpaceAccount
 import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
 import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.TableCall
@@ -115,13 +139,11 @@ import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.NumberTicker
 import com.vaiinilla.app.ui.components.OperationalAssistantHost
 import com.vaiinilla.app.ui.components.OperationalAssistantPalette
-import com.vaiinilla.app.ui.components.SlidingSegments
 import com.vaiinilla.app.ui.components.ToastPill
 import com.vaiinilla.app.ui.components.TurnProgressBar
 import com.vaiinilla.app.ui.components.VaiinillaAssistantButton
-import com.vaiinilla.app.ui.components.VaiinillaMark
-import com.vaiinilla.app.ui.components.WholeWordTitle
 import com.vaiinilla.app.ui.components.animateSelectionColor
+import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
@@ -135,6 +157,7 @@ import com.vaiinilla.app.ui.operational.playAlertFeedback
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
 import kotlinx.coroutines.delay
+import java.time.Duration
 import java.time.Instant
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -181,7 +204,6 @@ fun WaiterOperationalScreen(
     assistantUserKey: String = "waiter",
     /** Quién usa el tablero: el mesero, o Caja cuando entra a cobrar cuentas. */
     kicker: String = "MESERO",
-    roleSubtitle: String = "Cuenta de mesero",
     roleChip: String = "MS",
     /** Dentro de Pedidos de Administración: sin encabezado propio (lo pone esa pantalla) y con "Para llevar". */
     embedded: Boolean = false,
@@ -198,6 +220,8 @@ fun WaiterOperationalScreen(
     var scannerOpen by remember { mutableStateOf(false) }
     var assistantPulse by remember { mutableIntStateOf(0) }
     var tick by remember { mutableIntStateOf(0) }
+    var kindFilter by remember { mutableStateOf<String?>(null) }
+    var choosingScan by remember { mutableStateOf(false) }
     val assistantRegistry = rememberAssistantAnchorRegistry()
     val assistantController = rememberOperationalAssistantController(assistantUserKey, OperationalRole.WAITER)
     val assistantFocusRequester = remember { FocusRequester() }
@@ -230,22 +254,31 @@ fun WaiterOperationalScreen(
     }
 
     val sorted =
-        remember(state.tables, state.filterAttending) {
-            val list = sortWaiterTables(state.tables)
+        remember(state.tables, state.filterAttending, kindFilter) {
+            val list = sortWaiterTables(state.tables).filter { kindFilter == null || it.space.type == kindFilter }
             if (state.filterAttending) {
                 list.filter { it.tableState() == TableState.CALL || it.tableState() == TableState.READY }
             } else {
                 list
             }
         }
+    val nextUp =
+        remember(state.tables, kindFilter, tick) {
+            waiterNextUp(state.tables.filter { kindFilter == null || it.space.type == kindFilter })
+        }
     val calling = state.tables.count { it.tableState() == TableState.CALL }
     val readyCount = state.tables.sumOf { table -> table.orders.count { it.state == OrderState.READY } }
-    // Activa = en uso: con pedidos o con su cuenta o turno abierto (una cancha por cobrar también cuenta).
-    val activeCount =
-        state.tables.count { table ->
-            table.orders.isNotEmpty() ||
-                table.availability?.state?.let { it != SpaceAvailabilityState.LIBRE } == true
+    // Lo listo que pide el QR del cliente: es lo que el botón Escanear QR puede entregar.
+    val scannable =
+        state.tables.flatMap { table ->
+            table.orders
+                .filter {
+                    it.state == OrderState.READY &&
+                        !it.mustCollectBeforeDelivery &&
+                        it.needsQrToDeliver(state.deliveryRequiresQr)
+                }.map { table.space.name to it }
         }
+    val kinds = remember(state.tables) { state.tables.map { it.space.type }.distinct() }
     val open = state.tables.firstOrNull { it.space.id == openTableId }
 
     Box(
@@ -265,7 +298,7 @@ fun WaiterOperationalScreen(
                 },
     ) {
         LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
+            columns = GridCells.Fixed(2),
             modifier =
                 Modifier
                     .fillMaxSize()
@@ -275,7 +308,7 @@ fun WaiterOperationalScreen(
                     start = 18.dp,
                     end = 18.dp,
                     top = if (embedded) 4.dp else 12.dp,
-                    bottom = 100.dp,
+                    bottom = 120.dp,
                 ),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -299,26 +332,7 @@ fun WaiterOperationalScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            VaiinillaMark(modifier = Modifier.size(34.dp))
-                            Column {
-                                Text(
-                                    "Vaiinilla",
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 16.sp,
-                                    color = colors.textPrimary,
-                                )
-                                Text(
-                                    roleSubtitle,
-                                    fontSize = 12.sp,
-                                    color = colors.textSecondary,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                            }
-                        }
+                        WaiterLivePill(link = state.boardLink, colors = colors, who = kicker)
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -338,6 +352,8 @@ fun WaiterOperationalScreen(
                             }
                             StaffAvatarMenu(
                                 initials = roleChip,
+                                modeLabel = if (roleChip == "CJ") "Caja" else "Mesero",
+                                placeName = placeName,
                                 colors = colors,
                                 themeMode = themeMode,
                                 onThemeChange =
@@ -357,18 +373,15 @@ fun WaiterOperationalScreen(
                 }
 
                 item(span = fullWidth) {
-                    WaiterTitleBlock(
-                        kicker = kicker,
-                        placeName = placeName,
-                        link = state.boardLink,
-                        colors = colors,
+                    Text(
+                        "Mesas",
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 44.sp,
+                        letterSpacing = (-1.6).sp,
+                        lineHeight = 46.sp,
+                        modifier = Modifier.padding(top = 2.dp, bottom = 2.dp),
                     )
-                }
-
-                if (!readOnly) {
-                    item(span = fullWidth) {
-                        CounterOrderEntry(colors = colors, onClick = onOpenCounterOrder)
-                    }
                 }
             }
 
@@ -379,48 +392,55 @@ fun WaiterOperationalScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        WaiterSummaryCard(
+                        WaiterAlertCard(
                             count = calling,
-                            label = "llamando",
-                            kind = if (calling > 0) SummaryKind.Call else SummaryKind.Plain,
+                            label = "Te están llamando",
+                            tint = WaiterCoral,
                             colors = colors,
                             modifier = Modifier.weight(1f),
+                            onClick = {
+                                haptics.selection()
+                                kindFilter = null
+                                onFilterAttending(true)
+                            },
                         )
-                        WaiterSummaryCard(
+                        WaiterAlertCard(
                             count = readyCount,
-                            label = if (readyCount == 1) "listo" else "listos",
-                            kind = if (readyCount > 0) SummaryKind.Ready else SummaryKind.Plain,
+                            label = if (readyCount == 1) "Listo para entregar" else "Listos para entregar",
+                            tint = colors.accentLime,
                             colors = colors,
                             modifier = Modifier.weight(1f),
-                        )
-                        WaiterSummaryCard(
-                            count = activeCount,
-                            label = "activas",
-                            kind = SummaryKind.Plain,
-                            colors = colors,
-                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                haptics.selection()
+                                kindFilter = null
+                                onFilterAttending(true)
+                            },
                         )
                     }
                 }
             }
 
             item(span = fullWidth) {
-                SlidingSegments(
-                    labels = listOf("Todas", "Por atender"),
-                    selectedIndex = if (state.filterAttending) 1 else 0,
-                    onSelect = { index ->
+                WaiterFilterRow(
+                    attending = state.filterAttending,
+                    kind = kindFilter,
+                    kinds = kinds,
+                    colors = colors,
+                    onAll = {
                         haptics.selection()
-                        onFilterAttending(index == 1)
+                        kindFilter = null
+                        onFilterAttending(false)
                     },
-                    trackColor = colors.cardBackground,
-                    indicatorColor = colors.textPrimary,
-                    selectedContentColor = colors.background,
-                    idleContentColor = colors.textSecondary,
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalPadding = 9.dp,
-                    cornerRadius = 14.dp,
-                    borderColor = colors.cardBorder,
-                    indicatorDamping = 0.6f,
+                    onAttending = {
+                        haptics.selection()
+                        kindFilter = null
+                        onFilterAttending(true)
+                    },
+                    onKind = { type ->
+                        haptics.selection()
+                        kindFilter = type
+                        onFilterAttending(false)
+                    },
                 )
             }
 
@@ -476,7 +496,7 @@ fun WaiterOperationalScreen(
             }
 
             if (state.loading && state.tables.isEmpty()) {
-                items(9) {
+                items(6) {
                     Box(
                         modifier =
                             Modifier
@@ -487,7 +507,27 @@ fun WaiterOperationalScreen(
                     )
                 }
             } else {
-                items(sorted, key = { it.space.id }) { table ->
+                val callsUp = nextUp.count { it.kind == NextUpKind.Call }
+                if (state.filterAttending && callsUp > 0) {
+                    item(key = "calls-head", span = fullWidth) {
+                        WaiterCallsHeader(count = callsUp, colors = colors, modifier = Modifier.animateItem())
+                    }
+                }
+                if (state.filterAttending) {
+                    itemsIndexed(nextUp, key = { _, it -> "next-${it.kind}-${it.spaceId}-${it.title}" }, span = { _, _ -> fullWidth() }) { index, item ->
+                        WaiterNextUpRow(
+                            item = item,
+                            colors = colors,
+                            modifier = Modifier.animateItem().arrive(index, item.spaceId),
+                            onClick = {
+                                haptics.selection()
+                                openTableId = item.spaceId
+                                onOpenSpace(item.spaceId)
+                            },
+                        )
+                    }
+                }
+                items(if (state.filterAttending) emptyList() else sorted, key = { it.space.id }) { table ->
                     WaiterTile(
                         table = table,
                         tick = tick,
@@ -500,7 +540,7 @@ fun WaiterOperationalScreen(
                         },
                     )
                 }
-                if (sorted.isEmpty() && state.boardLoaded) {
+                if ((if (state.filterAttending) nextUp.isEmpty() else sorted.isEmpty()) && state.boardLoaded) {
                     item(key = "board-empty", span = fullWidth) {
                         Surface(
                             shape = RoundedCornerShape(26.dp),
@@ -536,6 +576,28 @@ fun WaiterOperationalScreen(
             }
         }
 
+        if (!embedded && !readOnly) {
+            WaiterBottomBar(
+                canScan = canChargeAndDeliver && scannable.isNotEmpty(),
+                colors = colors,
+                onTakeOrder = {
+                    haptics.selection()
+                    onOpenCounterOrder()
+                },
+                onScan = {
+                    haptics.selection()
+                    val only = scannable.singleOrNull()
+                    if (only != null) {
+                        delivering = only.second
+                        scannerOpen = true
+                    } else {
+                        choosingScan = true
+                    }
+                },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
+
         ToastPill(
             message = state.toastMessage,
             containerColor = colors.textPrimary,
@@ -562,6 +624,7 @@ fun WaiterOperationalScreen(
     if (open != null && state.pendingRental == null) {
         WaiterTableSheet(
             table = open,
+            stations = remember(state.counterCatalog) { productStations(state.counterCatalog) },
             tick = tick,
             acting = state.acting,
             readOnly = readOnly,
@@ -684,14 +747,25 @@ fun WaiterOperationalScreen(
             },
         )
     }
+
+    if (choosingScan) {
+        WaiterScanChooserSheet(
+            orders = scannable,
+            colors = colors,
+            onDismiss = { choosingScan = false },
+            onPick = { order ->
+                choosingScan = false
+                delivering = order
+                scannerOpen = true
+            },
+        )
+    }
 }
 
 private val WaiterCoral = Color(0xFFE5645A)
 private val WaiterTileHeight = 116.dp
 
 private val fullWidth: LazyGridItemSpanScope.() -> GridItemSpan = { GridItemSpan(maxLineSpan) }
-
-private enum class SummaryKind { Plain, Call, Ready }
 
 /** El tablero dentro de Pedidos de Administración: el estado de conexión y "Para llevar", sin título ni avatar. */
 @Composable
@@ -732,65 +806,33 @@ private fun WaiterEmbeddedHeader(
     }
 }
 
-/** Kicker con guion lima, título grande y el estado de conexión: la cabecera del tablero web. */
-@Composable
-private fun WaiterTitleBlock(
-    kicker: String,
-    placeName: String,
-    link: WaiterBoardLink,
-    colors: OperationalColors,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Bottom,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(Modifier.size(width = 18.dp, height = 3.dp).clip(CircleShape).background(colors.accentLime))
-                Text(
-                    if (placeName.isBlank()) kicker else "$kicker · ${placeName.uppercase()}",
-                    color = colors.textSecondary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
-                    letterSpacing = 1.6.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Text(
-                "Mesas",
-                color = colors.textPrimary,
-                fontWeight = FontWeight.Black,
-                fontSize = 40.sp,
-                letterSpacing = (-1.5).sp,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-        }
-        WaiterLivePill(link = link, colors = colors)
-    }
-}
-
 @Composable
 internal fun WaiterLivePill(
     link: WaiterBoardLink,
     colors: OperationalColors,
+    /** Quién está en el tablero ("MESERO", "CAJA"); el nombre de la persona todavía no llega del servidor. */
+    who: String? = null,
 ) {
     val online = link == WaiterBoardLink.Live
-    val dot =
+    val tone =
         animateSelectionColor(
             when (link) {
-                WaiterBoardLink.Live -> colors.accentLime
+                WaiterBoardLink.Live -> tileToneColor(TileTone.Ready, colors)
                 WaiterBoardLink.Connecting -> colors.textMuted
                 WaiterBoardLink.Offline -> WaiterCoral
             },
             "live-dot",
         )
+    val background =
+        animateSelectionColor(
+            if (online) lerp(colors.cardBackground, colors.accentLime, 0.14f) else colors.cardBackground,
+            "live-background",
+        )
     Row(
         modifier =
             Modifier
                 .clip(CircleShape)
-                .background(colors.cardBackground)
+                .background(background)
                 .border(1.dp, colors.cardBorder, CircleShape)
                 .padding(horizontal = 12.dp, vertical = 7.dp)
                 .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
@@ -802,17 +844,22 @@ internal fun WaiterLivePill(
                 .size(8.dp)
                 .pulseGlow(active = online, color = colors.accentLime, spread = 8.dp, corner = 4.dp)
                 .clip(CircleShape)
-                .background(dot),
+                .background(tone),
         )
-        Text(
+        val status =
             when (link) {
                 WaiterBoardLink.Live -> "En vivo"
                 WaiterBoardLink.Connecting -> "Conectando…"
                 WaiterBoardLink.Offline -> "Sin conexión"
-            },
-            color = colors.textSecondary,
-            fontWeight = FontWeight.Bold,
-            fontSize = 12.5.sp,
+            }
+        Text(
+            (if (who.isNullOrBlank()) status else "$status · $who").uppercase(),
+            color = if (online) tone else colors.textSecondary,
+            fontWeight = FontWeight.Black,
+            fontSize = 11.5.sp,
+            letterSpacing = 1.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -845,70 +892,526 @@ private fun Modifier.pulseGlow(
     }
 }
 
+/** "1 · Te están llamando": en color cuando hay algo, gris cuando no; tocarla filtra lo que hay que atender. */
 @Composable
-private fun WaiterSummaryCard(
+private fun WaiterAlertCard(
     count: Int,
     label: String,
-    kind: SummaryKind,
+    tint: Color,
     colors: OperationalColors,
     modifier: Modifier = Modifier,
+    onClick: () -> Unit,
 ) {
-    val background =
-        animateSelectionColor(
-            when (kind) {
-                SummaryKind.Call -> lerp(colors.cardBackground, WaiterCoral, 0.14f)
-                SummaryKind.Ready -> lerp(colors.cardBackground, colors.accentLime, 0.22f)
-                SummaryKind.Plain -> colors.cardBackground
-            },
-            "summary-background",
-        )
-    val border =
-        animateSelectionColor(
-            when (kind) {
-                SummaryKind.Call -> WaiterCoral.copy(alpha = 0.45f)
-                SummaryKind.Ready -> colors.accentLime.copy(alpha = 0.6f)
-                SummaryKind.Plain -> colors.cardBorder
-            },
-            "summary-border",
-        )
-    val labelColor =
-        animateSelectionColor(
-            if (kind == SummaryKind.Call) WaiterCoral else colors.textSecondary,
-            "summary-label",
-        )
+    val active = count > 0
+    val shape = RoundedCornerShape(22.dp)
+    val background = animateSelectionColor(if (active) tint else colors.cardBackground, "alert-background")
+    val ink = animateSelectionColor(if (active) Color(0xFF16160F) else colors.textSecondary, "alert-ink")
+    val number = animateSelectionColor(if (active) Color(0xFF16160F) else colors.textPrimary, "alert-number")
     Column(
         modifier =
             modifier
-                .clip(RoundedCornerShape(16.dp))
+                .physicalPress(enabled = active, onClick = onClick)
+                .clip(shape)
                 .background(background)
-                .border(1.dp, border, RoundedCornerShape(16.dp))
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+                .border(1.dp, if (active) Color.Transparent else colors.cardBorder, shape)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        NumberTicker(value = count, label = "summary-count") { value ->
-            Text(
-                "$value",
-                color = colors.textPrimary,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Black,
-                lineHeight = 26.sp,
-            )
+        NumberTicker(value = count, label = "alert-count") { value ->
+            Text("$value", color = number, fontSize = 30.sp, fontWeight = FontWeight.Black, lineHeight = 32.sp)
         }
-        Text(
-            label,
-            color = labelColor,
-            fontSize = 12.5.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Text(label, color = ink, fontSize = 13.sp, fontWeight = FontWeight.Bold, lineHeight = 16.sp, maxLines = 2)
     }
 }
 
-/**
- * Mosaico de una mesa: número grande arriba, estado abajo. El estado se lee por la forma (libre
- * con contorno, ocupada con relleno, por cobrar en tinta) y el color solo marca la urgencia.
- */
+@Composable
+private fun WaiterFilterRow(
+    attending: Boolean,
+    kind: String?,
+    kinds: List<String>,
+    colors: OperationalColors,
+    onAll: () -> Unit,
+    onAttending: () -> Unit,
+    onKind: (String) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        WaiterFilterChip("Todas", !attending && kind == null, colors, onAll)
+        WaiterFilterChip("Por atender", attending, colors, onAttending)
+        // Con un solo tipo de espacio el filtro repetiría "Todas".
+        if (kinds.size > 1) {
+            kinds.forEach { type ->
+                WaiterFilterChip(kindPlural(type), !attending && kind == type, colors) { onKind(type) }
+            }
+        }
+    }
+}
+
+private fun kindPlural(type: String): String {
+    val label = SpaceCopy.kindLabel(type)
+    return if (label.endsWith("l")) "${label}es" else "${label}s"
+}
+
+@Composable
+private fun WaiterFilterChip(
+    label: String,
+    selected: Boolean,
+    colors: OperationalColors,
+    onClick: () -> Unit,
+) {
+    val background = animateSelectionColor(if (selected) colors.textPrimary else colors.cardBackground, "chip-background")
+    val ink = animateSelectionColor(if (selected) colors.background else colors.textPrimary, "chip-ink")
+    Box(
+        modifier =
+            Modifier
+                .heightIn(min = 44.dp)
+                .clip(CircleShape)
+                .background(background)
+                .border(1.dp, if (selected) Color.Transparent else colors.cardBorder, CircleShape)
+                .physicalPress(onClick = onClick)
+                .semantics { this.selected = selected }
+                .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, color = ink, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
+    }
+}
+
+/** Las dos cosas que el mesero hace todo el turno, siempre a la mano abajo. */
+@Composable
+private fun WaiterBottomBar(
+    canScan: Boolean,
+    colors: OperationalColors,
+    onTakeOrder: () -> Unit,
+    onScan: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .background(Brush.verticalGradient(0f to colors.background.copy(alpha = 0f), 0.35f to colors.background))
+                .navigationBarsPadding()
+                .padding(start = 18.dp, end = 18.dp, top = 22.dp, bottom = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .weight(1.15f)
+                    .height(58.dp)
+                    .clip(CircleShape)
+                    .background(colors.textPrimary)
+                    .physicalPress(onClick = onTakeOrder),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("Tomar pedido", color = colors.background, fontWeight = FontWeight.Black, fontSize = 16.sp)
+        }
+        Row(
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .height(58.dp)
+                    .clip(CircleShape)
+                    .background(colors.cardBackground)
+                    .border(1.dp, colors.cardBorder, CircleShape)
+                    .physicalPress(enabled = canScan, onClick = onScan)
+                    .graphicsLayer { alpha = if (canScan) 1f else 0.45f },
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Outlined.QrCodeScanner,
+                contentDescription = null,
+                tint = colors.textPrimary,
+                modifier = Modifier.size(20.dp),
+            )
+            Text("Escanear QR", color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 15.sp)
+        }
+    }
+}
+
+/** Con varios pedidos listos, primero se elige cuál y luego se escanea el QR de ese cliente. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun WaiterScanChooserSheet(
+    orders: List<Pair<String, BoardOrder>>,
+    colors: OperationalColors,
+    onDismiss: () -> Unit,
+    onPick: (BoardOrder) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = colors.background,
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 22.dp)
+                    .padding(bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text("¿Cuál vas a entregar?", fontWeight = FontWeight.Bold, fontSize = 22.sp, color = colors.textPrimary)
+            Text(
+                "Elige el pedido y escanea el QR del cliente.",
+                color = colors.textSecondary,
+                fontSize = 13.sp,
+            )
+            orders.forEach { (place, order) ->
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(colors.cardBackground)
+                            .border(1.dp, colors.cardBorder, RoundedCornerShape(18.dp))
+                            .physicalPress(onClick = { onPick(order) })
+                            .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "#${order.folio} · $place",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = colors.textPrimary,
+                        )
+                        Text(
+                            "${order.clientName ?: "Cliente"} · ${order.itemsSummary}",
+                            color = colors.textSecondary,
+                            fontSize = 12.5.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Icon(
+                        Icons.Outlined.QrCodeScanner,
+                        contentDescription = null,
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+/** Cómo se pinta el estado de un mosaico; el color solo marca qué tan urgente es. */
+internal enum class TileTone { Call, Ready, Kitchen, Turn, Collect, Open, Free }
+
+internal data class WaiterTileStatus(
+    val label: String,
+    val detail: String?,
+    val tone: TileTone,
+)
+
+/** El estado del mosaico en mayúsculas ("LLAMANDO · 1 min", "2 LISTOS", "QUEDAN 32 MIN") y una línea de detalle. */
+internal fun waiterTileStatus(
+    table: BoardTable,
+    now: Instant = Instant.now(),
+): WaiterTileStatus {
+    val call = table.call
+    val ready = table.orders.filter { it.state == OrderState.READY }
+    val availability = table.availability
+    return when {
+        call != null ->
+            WaiterTileStatus(
+                label =
+                    if (call.status == CallStatus.EN_CAMINO) {
+                        "VA ${(call.takenBy?.name ?: "alguien").uppercase()}"
+                    } else {
+                        "LLAMANDO · ${minutesSince(call.createdAt, now)}"
+                    },
+                detail = call.reason.staffLabel,
+                tone = TileTone.Call,
+            )
+        ready.isNotEmpty() ->
+            WaiterTileStatus(
+                label = "${ready.size} ${if (ready.size == 1) "LISTO" else "LISTOS"}",
+                detail = ready.joinToString(" · ") { "#${it.folio}" },
+                tone = TileTone.Ready,
+            )
+        availability?.state == SpaceAvailabilityState.POR_COBRAR ->
+            WaiterTileStatus("POR COBRAR", "Se libera al cobrar", TileTone.Collect)
+        availability?.state == SpaceAvailabilityState.EN_GRACIA ->
+            WaiterTileStatus("TURNO TERMINADO", "Renovar o liberar", TileTone.Collect)
+        availability?.isHeldAt(now) == true ->
+            if (availability.isWaitingPayment) {
+                WaiterTileStatus("APARTADA", "Esperando el pago", TileTone.Turn)
+            } else {
+                WaiterTileStatus("RESERVADA AHORA", "Se abre sola", TileTone.Turn)
+            }
+        availability?.state == SpaceAvailabilityState.OCUPADA && availability.endsAt != null -> {
+            val left =
+                runCatching { Duration.between(now, Instant.parse(availability.endsAt)).toMillis() }.getOrNull() ?: 0L
+            WaiterTileStatus(
+                label = "QUEDAN ${remainingText(left).uppercase()}",
+                detail = ordersCaption(table) ?: if (availability.settled) "Turno pagado" else "Por cobrar",
+                tone = TileTone.Turn,
+            )
+        }
+        table.orders.isNotEmpty() ->
+            WaiterTileStatus(
+                label = if (table.orders.any { it.state == OrderState.PREPARING }) "EN COCINA" else "POR PREPARAR",
+                detail = ordersCaption(table),
+                tone = TileTone.Kitchen,
+            )
+        availability?.state == SpaceAvailabilityState.OCUPADA ->
+            WaiterTileStatus(
+                "CUENTA ABIERTA",
+                spaceAvailabilityCaption(availability, 0)?.substringBefore('\n'),
+                TileTone.Open,
+            )
+        else -> {
+            val next = nextReservationCaption(availability?.nextReservationStart)
+            if (next != null) {
+                WaiterTileStatus(next.uppercase(), "Se abre sola", TileTone.Turn)
+            } else {
+                WaiterTileStatus("LIBRE", null, TileTone.Free)
+            }
+        }
+    }
+}
+
+private fun ordersCaption(table: BoardTable): String? =
+    table.orders.size.takeIf { it > 0 }?.let { "$it ${if (it == 1) "pedido" else "pedidos"}" }
+
+private fun minutesSince(
+    iso: String,
+    now: Instant,
+): String {
+    val ms = runCatching { Duration.between(Instant.parse(iso), now).toMillis() }.getOrNull() ?: return "ahora"
+    return when {
+        ms < 60_000 -> "ahora"
+        ms < 3_600_000 -> "${ms / 60_000} min"
+        else -> "${ms / 3_600_000} h"
+    }
+}
+
+/** El color del estado; en claro va más oscuro para que se lea sobre el papel. */
+private fun tileToneColor(
+    tone: TileTone,
+    colors: OperationalColors,
+): Color =
+    when (tone) {
+        TileTone.Call -> if (colors.isDark) WaiterCoral else Color(0xFFC0392B)
+        TileTone.Ready -> if (colors.isDark) colors.accentLime else Color(0xFF4F6B12)
+        TileTone.Kitchen -> if (colors.isDark) Color(0xFFF2C94C) else Color(0xFF8A6100)
+        TileTone.Turn -> if (colors.isDark) Color(0xFF8EC5F5) else Color(0xFF1F6FB2)
+        TileTone.Collect -> if (colors.isDark) Color(0xFFE9A23B) else Color(0xFF9A5B00)
+        TileTone.Open, TileTone.Free -> colors.textMuted
+    }
+
+/** Qué tipo de pendiente es; el orden del enum es el de urgencia. */
+internal enum class NextUpKind { Call, Deliver, TurnEnding, Collect }
+
+internal data class WaiterNextUp(
+    val kind: NextUpKind,
+    val spaceId: Int,
+    val title: String,
+    val detail: String,
+    val action: String,
+    /** N10: el motivo de la llamada da el ícono; null en lo que no es llamada. */
+    val reason: CallReason? = null,
+    /** Cuándo llamó, para poner arriba la llamada más vieja. */
+    val since: String? = null,
+)
+
+/** El ícono de cada motivo de llamada (N10): la cuenta, cubiertos, un problema o atención. */
+internal fun callReasonIcon(reason: CallReason?) =
+    when (reason) {
+        CallReason.CUENTA -> Icons.Outlined.ReceiptLong
+        CallReason.UTENSILIOS -> Icons.Outlined.Restaurant
+        CallReason.PROBLEMA -> Icons.Outlined.WarningAmber
+        CallReason.ATENCION, null -> Icons.Outlined.Notifications
+    }
+
+private const val TURN_ENDING_MS = 15 * 60_000L
+
+/** Lo que sigue en todo el lugar, de lo más urgente a lo menos: llamadas, lo listo, turnos por acabar y cuentas por cobrar. */
+internal fun waiterNextUp(
+    tables: List<BoardTable>,
+    now: Instant = Instant.now(),
+): List<WaiterNextUp> =
+    tables
+        .flatMap { table ->
+            val name = table.space.name
+            val id = table.space.id
+            buildList {
+                table.call?.let { call ->
+                    val since = minutesSince(call.createdAt, now).let { if (it == "ahora") "ahora" else "hace $it" }
+                    // N10: el motivo va en grande para saber qué llevar antes de ir a la mesa.
+                    if (call.status == CallStatus.EN_CAMINO) {
+                        val detail = listOfNotNull(call.reason.staffLabel, since, call.clientName).joinToString(" · ")
+                        add(WaiterNextUp(NextUpKind.Call, id, "Va ${call.takenBy?.name ?: "alguien"} a $name", detail, "Ver", call.reason, call.createdAt))
+                    } else {
+                        val detail = listOfNotNull(name, since, call.clientName).joinToString(" · ")
+                        add(WaiterNextUp(NextUpKind.Call, id, call.reason.staffLabel, detail, "Voy", call.reason, call.createdAt))
+                    }
+                }
+                table.orders.filter { it.state == OrderState.READY }.forEach { order ->
+                    val detail =
+                        listOfNotNull(
+                            order.itemsSummary.takeIf { it.isNotBlank() },
+                            if (order.mustCollectBeforeDelivery) "cobrar antes" else "listo",
+                        ).joinToString(" · ")
+                    add(
+                        WaiterNextUp(
+                            NextUpKind.Deliver,
+                            id,
+                            "Llevar #${order.folio} a $name",
+                            detail,
+                            if (order.mustCollectBeforeDelivery) "Cobrar" else "Entregar",
+                        ),
+                    )
+                }
+                val availability = table.availability
+                val left =
+                    availability?.endsAt
+                        ?.takeIf { availability.state == SpaceAvailabilityState.OCUPADA }
+                        ?.let { runCatching { Duration.between(now, Instant.parse(it)).toMillis() }.getOrNull() }
+                if (left != null && left in 0..TURN_ENDING_MS) {
+                    add(WaiterNextUp(NextUpKind.TurnEnding, id, "A $name le quedan ${remainingText(left)}", "Pregúntales si alargan el turno", "Ver"))
+                }
+                if (availability?.state == SpaceAvailabilityState.POR_COBRAR || availability?.state == SpaceAvailabilityState.EN_GRACIA) {
+                    add(WaiterNextUp(NextUpKind.Collect, id, "$name ya terminó", "Falta cobrar para liberarla", "Cobrar"))
+                }
+            }
+        }.sortedWith(compareBy<WaiterNextUp> { it.kind.ordinal }.thenBy { it.since.orEmpty() })
+
+/** N10: «Te llaman · 3» y los motivos que el cliente puede escoger, para saber qué llevar. */
+@Composable
+private fun WaiterCallsHeader(
+    count: Int,
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth().padding(top = 4.dp, bottom = 2.dp)) {
+        Text(
+            "Te llaman · $count",
+            color = colors.textPrimary,
+            fontWeight = FontWeight.Black,
+            fontSize = 30.sp,
+            letterSpacing = (-0.8).sp,
+        )
+        Text(
+            "El motivo va arriba: ya sabes qué llevar antes de ir a la mesa.",
+            color = colors.textSecondary,
+            fontSize = 13.sp,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+        Text(
+            "LO QUE EL CLIENTE PUEDE ESCOGER",
+            color = colors.textMuted,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 11.sp,
+            letterSpacing = 1.5.sp,
+            modifier = Modifier.padding(top = 14.dp, bottom = 8.dp),
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            CallReason.entries.forEach { reason ->
+                Row(
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(colors.cardBackground)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(callReasonIcon(reason), contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(16.dp))
+                    Text(reason.label, color = colors.textPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WaiterNextUpRow(
+    item: WaiterNextUp,
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val tone =
+        when (item.kind) {
+            NextUpKind.Call -> TileTone.Call
+            NextUpKind.Deliver -> TileTone.Ready
+            NextUpKind.TurnEnding -> TileTone.Turn
+            NextUpKind.Collect -> TileTone.Collect
+        }
+    val accent = tileToneColor(tone, colors)
+    val urgent = item.kind == NextUpKind.Call || item.kind == NextUpKind.Deliver
+    val ringing = item.kind == NextUpKind.Call && item.action == "Voy"
+    val shape = RoundedCornerShape(20.dp)
+    Surface(
+        shape = shape,
+        color = if (urgent) accent.copy(alpha = if (colors.isDark) 0.14f else 0.10f) else colors.cardBackground,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .border(if (ringing) 2.dp else 1.dp, if (ringing) accent else colors.cardBorder, shape)
+                .clip(shape)
+                .clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(accent.copy(alpha = 0.9f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector =
+                        when (item.kind) {
+                            NextUpKind.Call -> callReasonIcon(item.reason)
+                            NextUpKind.Deliver -> Icons.Outlined.RoomService
+                            NextUpKind.TurnEnding -> Icons.Outlined.Schedule
+                            NextUpKind.Collect -> Icons.Outlined.Payments
+                        },
+                    contentDescription = null,
+                    tint = Color(0xFF1B1B18),
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    item.title,
+                    fontWeight = if (item.kind == NextUpKind.Call) FontWeight.Black else FontWeight.Bold,
+                    fontSize = if (item.kind == NextUpKind.Call) 17.sp else 16.sp,
+                    letterSpacing = if (item.kind == NextUpKind.Call) (-0.3).sp else 0.sp,
+                    color = colors.textPrimary,
+                )
+                if (item.detail.isNotBlank()) {
+                    Text(item.detail, fontSize = 13.sp, color = colors.textSecondary, maxLines = 2)
+                }
+            }
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = if (urgent) accent else colors.cardBorder,
+            ) {
+                Text(
+                    item.action,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = if (urgent) Color(0xFF1B1B18) else colors.textPrimary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun WaiterTile(
     table: BoardTable,
@@ -917,193 +1420,97 @@ private fun WaiterTile(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    val state = table.tableState()
-    val going = table.call?.status == CallStatus.EN_CAMINO
-    val ringing = state == TableState.CALL && !going
-    val collectDue =
-        table.availability?.state == SpaceAvailabilityState.POR_COBRAR &&
-            state != TableState.CALL &&
-            state != TableState.READY
-    val shape = RoundedCornerShape(20.dp)
-    val readyOrders = table.orders.filter { it.state == OrderState.READY }
-    // tick entra en la clave para que el "0:42" avance cada segundo.
-    val caption = remember(table, readyOrders, tick) { waiterTileCaption(table, readyOrders, tick) }
+    // tick entra en la clave para que "Quedan 32 min" y "Llamando · 1 min" avancen solos.
+    val status = remember(table, tick) { waiterTileStatus(table) }
+    val urgent = status.tone == TileTone.Call || status.tone == TileTone.Ready
+    val ringing = status.tone == TileTone.Call && table.call?.status != CallStatus.EN_CAMINO
+    val shape = RoundedCornerShape(22.dp)
     val container =
         animateSelectionColor(
-            when {
-                ringing -> WaiterCoral
-                state == TableState.CALL -> lerp(colors.cardBackground, WaiterCoral, 0.18f)
-                state == TableState.READY -> lerp(colors.cardBackground, colors.accentLime, 0.28f)
-                collectDue -> colors.textPrimary
-                state == TableState.ACTIVE -> colors.cardBackground
-                else -> Color.Transparent
+            when (status.tone) {
+                TileTone.Call -> lerp(colors.cardBackground, WaiterCoral, 0.16f)
+                TileTone.Ready -> lerp(colors.cardBackground, colors.accentLime, 0.12f)
+                else -> colors.cardBackground
             },
             "tile-container",
         )
     val border =
         animateSelectionColor(
-            when {
-                state == TableState.CALL -> WaiterCoral
-                state == TableState.READY -> colors.accentLime.copy(alpha = 0.7f)
-                collectDue -> colors.textPrimary
-                state == TableState.FREE -> colors.textMuted.copy(alpha = 0.55f)
+            when (status.tone) {
+                TileTone.Call -> WaiterCoral
+                TileTone.Ready -> colors.accentLime
                 else -> colors.cardBorder
             },
             "tile-border",
         )
-    val numberColor =
-        animateSelectionColor(
-            when {
-                ringing -> Color.White
-                collectDue -> colors.background
-                else -> colors.textPrimary
-            },
-            "tile-number",
-        )
-    val captionColor =
-        animateSelectionColor(
-            when {
-                ringing -> Color.White.copy(alpha = 0.9f)
-                collectDue -> colors.background.copy(alpha = 0.85f)
-                state == TableState.CALL -> WaiterCoral
-                state == TableState.READY -> colors.textPrimary
-                else -> colors.textSecondary
-            },
-            "tile-caption",
-        )
-    val kind = SpaceCopy.kindLabel(table.space.type)
-    val shortName = remember(table.space.name, kind) { waiterShortName(table.space.name, kind) }
+    val tone = animateSelectionColor(tileToneColor(status.tone, colors), "tile-tone")
     Column(
         modifier =
             modifier
                 .physicalPress(onClick = onClick)
-                .pulseGlow(active = ringing, color = WaiterCoral, spread = 7.dp, corner = 20.dp)
+                .pulseGlow(active = ringing, color = WaiterCoral, spread = 7.dp, corner = 22.dp)
                 .heightIn(min = WaiterTileHeight)
                 .clip(shape)
                 .background(container)
-                .border(1.dp, border, shape)
-                .padding(12.dp),
+                .border(if (urgent) 1.5.dp else 1.dp, border, shape)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        if (shortName.all { it.isDigit() }) {
-            // Mesa y cancha pueden compartir número: el tipo va junto al número.
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    shortName,
-                    color = numberColor,
+        BasicText(
+            table.space.name,
+            style =
+                TextStyle(
+                    color = colors.textPrimary,
                     fontWeight = FontWeight.Black,
-                    fontSize = 30.sp,
-                    letterSpacing = (-0.9).sp,
-                    lineHeight = 32.sp,
-                    maxLines = 1,
-                )
+                    letterSpacing = (-0.4).sp,
+                    lineHeight = 1.1.em,
+                ),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            autoSize = TextAutoSize.StepBased(minFontSize = 15.sp, maxFontSize = 21.sp, stepSize = 1.sp),
+        )
+        Column(modifier = Modifier.padding(top = 14.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Box(Modifier.size(7.dp).clip(CircleShape).background(tone))
                 Text(
-                    kind.uppercase(),
-                    color = captionColor,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 10.5.sp,
-                    letterSpacing = 0.8.sp,
+                    status.label,
+                    color = tone,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 11.5.sp,
+                    letterSpacing = 0.6.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(start = 6.dp, bottom = 5.dp),
                 )
             }
-        } else {
-            // Un nombre ("Básquetbol") no cabe a 30 sp: baja de tamaño hasta caber completo.
-            Column {
-                WholeWordTitle(
-                    text = kind.uppercase(),
-                    color = captionColor,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 10.5.sp,
-                    lineHeight = 13.sp,
-                    letterSpacing = 0.8.sp,
-                    maxLines = 1,
-                    minFontSize = 6.sp,
-                )
-                BasicText(
-                    shortName,
-                    style =
-                        TextStyle(
-                            color = numberColor,
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = (-0.4).sp,
-                            lineHeight = 1.05.em,
-                        ),
-                    // Una palabra va en un renglón: con dos, el salto la partiría a la mitad.
-                    maxLines = shortName.split(' ').size.coerceIn(1, 2),
+            status.detail?.let {
+                Text(
+                    it,
+                    color = colors.textSecondary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    lineHeight = 16.sp,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    autoSize = TextAutoSize.StepBased(minFontSize = 13.sp, maxFontSize = 22.sp, stepSize = 1.sp),
+                    modifier = Modifier.padding(top = 3.dp),
                 )
             }
-        }
-        Column {
-            // Con la letra del sistema al máximo, «Reservada» salía «Reserva / da» (EQUIPO-30): baja de tamaño
-            // hasta que la palabra más larga quepa completa.
-            WholeWordTitle(
-                text = caption,
-                color = captionColor,
-                fontWeight = if (collectDue) FontWeight.Bold else FontWeight.SemiBold,
-                fontSize = 11.5.sp,
-                lineHeight = 14.sp,
-                letterSpacing = 0.sp,
-                maxLines = 4,
-                minFontSize = 6.sp,
-            )
             // Avance del turno: se ve de un vistazo cuánto le queda a cada cancha.
-            val progress = spaceTileProgress(table.availability, tick)?.takeIf { !collectDue }
+            val progress = spaceTileProgress(table.availability, tick)?.takeIf { status.tone == TileTone.Turn }
             if (progress != null) {
-                val inGrace = table.availability?.state == SpaceAvailabilityState.EN_GRACIA
                 TurnProgressBar(
                     fraction = progress,
-                    track = if (ringing) Color.White.copy(alpha = 0.3f) else colors.pillBackground,
-                    fill = if (inGrace) Color(0xFFE9A23B) else colors.accentLime,
-                    modifier = Modifier.padding(top = 7.dp),
+                    track = colors.pillBackground,
+                    fill = tone,
+                    modifier = Modifier.padding(top = 8.dp),
                     height = 4.dp,
                 )
             }
         }
     }
 }
-
-private fun waiterTileCaption(
-    table: BoardTable,
-    readyOrders: List<BoardOrder>,
-    tick: Int,
-): String {
-    val call = table.call
-    return when {
-        call != null -> {
-            val whenText =
-                if (call.status == CallStatus.EN_CAMINO) {
-                    "Va ${call.takenBy?.name ?: "alguien"}"
-                } else {
-                    "Llamando"
-                }
-            "$whenText · ${waiterSince(call.createdAt)}\n${call.reason.staffLabel}"
-        }
-        readyOrders.isNotEmpty() -> {
-            // Una cancha con un pedido listo sigue teniendo turno: no se pierde el tiempo restante.
-            val ready = "#${readyOrders.joinToString(", #") { it.folio.toString() }} listo"
-            spaceAvailabilityCaption(table.availability, tick)?.let { "$ready\n$it" } ?: ready
-        }
-        else -> {
-            val occupied = spaceAvailabilityCaption(table.availability, tick)
-            val availability = table.availability
-            val held = availability?.isHeldAt() == true
-            val next = if (held) null else nextReservationCaption(availability?.nextReservationStart)
-            when {
-                held -> if (availability?.isWaitingPayment == true) "Apartada\nesperando pago" else "Reservada\nahora"
-                occupied != null -> listOfNotNull(occupied, next).joinToString("\n")
-                table.orders.isNotEmpty() ->
-                    "${table.orders.size} ${if (table.orders.size == 1) "pedido" else "pedidos"}"
-                next != null -> "Libre\n$next"
-                else -> "Libre"
-            }
-        }
-    }
-}
-
 private fun waiterSince(iso: String): String {
     val ms = elapsedSinceMs(iso) ?: return "ahora"
     return when {
@@ -1117,32 +1524,12 @@ private fun waiterSince(iso: String): String {
     }
 }
 
-/**
- * Lo que cabe en el mosaico: el nombre sin la palabra del tipo, que ya va en la etiqueta
- * ("Cancha Básquetbol" → "Básquetbol", "Mesa 4" → "4"). Solo queda un número cuando el nombre es
- * tipo + número: "Cancha Fútbol 7" es "Fútbol 7", no "7", que se confundía con la cancha 7 o la mesa 7.
- */
-internal fun waiterShortName(
-    name: String,
-    kindLabel: String? = null,
-): String {
-    val trimmed = name.trim()
-    if (kindLabel == null || !trimmed.startsWith(kindLabel, ignoreCase = true)) {
-        // Sin el tipo al inicio ("4", "Terraza"): solo un nombre que es número puro se reduce a él.
-        return Regex("^\\D*?(\\d+)$")
-            .find(trimmed)
-            ?.takeIf { kindLabel == null }
-            ?.groupValues
-            ?.get(1) ?: trimmed
-    }
-    val rest = trimmed.substring(kindLabel.length).trim()
-    return if (rest.isEmpty()) trimmed else rest.replaceFirstChar { it.uppercase() }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WaiterTableSheet(
     table: BoardTable,
+    /** N08: la estación de cada producto por nombre; vacío si el catálogo no llegó. */
+    stations: Map<String, PreparationStation> = emptyMap(),
     tick: Int,
     acting: Boolean,
     readOnly: Boolean,
@@ -1268,118 +1655,66 @@ private fun WaiterTableSheet(
                                 .animateContentSize(),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
+                        val readyHere = table.orders.count { it.state == OrderState.READY }
+                        val openedAt =
+                            table.availability?.startedAt
+                                ?.let { runCatching { Instant.parse(it) }.getOrNull() }
+                                ?.let { BusinessTime.format(it, RESERVATION_HOUR) }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.Bottom,
                         ) {
-                            Text(
-                                table.space.name,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 22.sp,
-                                color = colors.textPrimary,
-                            )
-                            Box(
-                                modifier = Modifier.size(48.dp).clip(CircleShape).clickable { onDismiss() },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Box(
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    listOfNotNull(
+                                        SpaceCopy.kindLabel(table.space.type).uppercase(),
+                                        openedAt?.let { "CUENTA ABIERTA $it" },
+                                    ).joinToString(" · "),
+                                    color = colors.textSecondary,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 11.5.sp,
+                                    letterSpacing = 1.4.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    table.space.name,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 30.sp,
+                                    letterSpacing = (-1).sp,
+                                    lineHeight = 33.sp,
+                                    color = colors.textPrimary,
+                                    modifier = Modifier.padding(top = 2.dp),
+                                )
+                            }
+                            if (readyHere > 0) {
+                                Text(
+                                    "$readyHere ${if (readyHere == 1) "LISTO" else "LISTOS"}",
+                                    color = tileToneColor(TileTone.Ready, colors),
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 11.5.sp,
+                                    letterSpacing = 0.6.sp,
                                     modifier =
                                         Modifier
-                                            .size(34.dp)
+                                            .padding(bottom = 6.dp)
                                             .clip(CircleShape)
-                                            .background(colors.cardBackground)
-                                            .border(1.dp, colors.cardBorder, CircleShape),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Icon(
-                                        Icons.Outlined.Close,
-                                        contentDescription = "Cerrar",
-                                        tint = colors.textPrimary,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                }
+                                            .background(lerp(colors.cardBackground, colors.accentLime, 0.2f))
+                                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                                )
                             }
                         }
-                        Text(
-                            if (table.orders.isEmpty()) {
-                                "Sin pedidos en curso"
-                            } else {
-                                "${table.orders.size} ${if (table.orders.size == 1) "pedido" else "pedidos"} en curso"
-                            },
-                            color = colors.textSecondary,
-                            fontSize = 13.sp,
-                        )
                         val call = table.call
                         if (call != null) {
-                            val going = call.status == CallStatus.EN_CAMINO
-                            Surface(
-                                shape = RoundedCornerShape(18.dp),
-                                color =
-                                    animateSelectionColor(
-                                        if (going) {
-                                            colors.cardBackground
-                                        } else {
-                                            lerp(
-                                                colors.cardBackground,
-                                                WaiterCoral,
-                                                0.14f,
-                                            )
-                                        },
-                                        "sheet-call-background",
-                                    ),
-                                modifier =
-                                    Modifier.fillMaxWidth().border(
-                                        1.dp,
-                                        animateSelectionColor(
-                                            if (going) colors.cardBorder else WaiterCoral.copy(alpha = 0.4f),
-                                            "sheet-call-border",
-                                        ),
-                                        RoundedCornerShape(18.dp),
-                                    ),
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp).animateContentSize()) {
-                                    Text(
-                                        call.reason.staffLabel,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = colors.textPrimary,
-                                    )
-                                    val callSubtitle =
-                                        remember(call, tick) {
-                                            buildString {
-                                                append(call.clientName ?: "Cliente")
-                                                append(" · hace ${waiterSince(call.createdAt)}")
-                                                if (call.takenBy != null) append(" · va ${call.takenBy.name}")
-                                            }
-                                        }
-                                    Text(
-                                        callSubtitle,
-                                        color = colors.textSecondary,
-                                        fontSize = 12.5.sp,
-                                        modifier = Modifier.padding(top = 4.dp),
-                                    )
-                                    Button(
-                                        onClick = {
-                                            if (call.status == CallStatus.PENDIENTE) onGoing(call) else onAttended(call)
-                                        },
-                                        enabled = !acting && !readOnly,
-                                        colors =
-                                            ButtonDefaults.buttonColors(
-                                                containerColor = colors.accentLime,
-                                                contentColor = colors.accentInk,
-                                            ),
-                                        shape = RoundedCornerShape(14.dp),
-                                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(50.dp),
-                                    ) {
-                                        Text(
-                                            if (call.status == CallStatus.PENDIENTE) "Voy" else "Atendida",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 14.sp,
-                                        )
-                                    }
-                                }
-                            }
+                            WaiterCallCard(
+                                call = call,
+                                table = table,
+                                tick = tick,
+                                enabled = !acting && !readOnly,
+                                colors = colors,
+                                onGoing = { onGoing(call) },
+                                onAttended = { onAttended(call) },
+                            )
                         }
                         // Lo que Cocina o Caja canceló hace poco: el mesero ya no debe esperarlo ni llevarlo.
                         table.recentRejections.forEach { rejected ->
@@ -1413,16 +1748,48 @@ private fun WaiterTableSheet(
                         }
                         // Lo que está en curso va antes de la cuenta: lo listo es lo más urgente y, si no, el mesero
                         // sabe en qué va cada pedido sin esperar a que llegue a listo.
-                        table.orders.forEach { order ->
-                            WaiterSheetOrderRow(
-                                order = order,
-                                readOnly = readOnly,
-                                canDeliver = canChargeAndDeliver,
-                                colors = colors,
-                                onDeliver = onDeliver,
+                        // La cuenta completa en una sola lista: lo listo primero, luego lo que va en cocina y al final
+                        // lo ya entregado, cada uno con lo que cuesta cuando la cuenta ya llegó.
+                        val sheetOrders = remember(table.orders, account) { waiterSheetOrders(table.orders, account) }
+                        if (sheetOrders.isNotEmpty()) {
+                            Text(
+                                "PEDIDOS DE ESTA CUENTA",
+                                color = colors.textSecondary,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 11.5.sp,
+                                letterSpacing = 1.4.sp,
+                                modifier = Modifier.padding(top = 4.dp),
                             )
+                            Column(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(22.dp))
+                                        .background(colors.cardBackground)
+                                        .border(1.dp, colors.cardBorder, RoundedCornerShape(22.dp)),
+                            ) {
+                                sheetOrders.forEachIndexed { index, row ->
+                                    if (index > 0) {
+                                        HorizontalDivider(
+                                            color = colors.cardBorder,
+                                            modifier = Modifier.padding(horizontal = 16.dp),
+                                        )
+                                    }
+                                    WaiterSheetOrderRow(
+                                        order = row.order,
+                                        stations = stations,
+                                        amount = row.amount,
+                                        readOnly = readOnly,
+                                        canDeliver = canChargeAndDeliver && row.live,
+                                        colors = colors,
+                                        onDeliver = onDeliver,
+                                    )
+                                }
+                            }
                         }
-                        if (onTakeOrder != null && !readOnly) {
+                        // Con la cuenta a la vista, "Tomar pedido" va junto a "Cobrar cuenta"; si no, va solo.
+                        val accountHasOrders = account?.orders?.isNotEmpty() == true
+                        if (onTakeOrder != null && !readOnly && !accountHasOrders) {
                             ActionPill(
                                 label = "Tomar pedido",
                                 enabled = !acting,
@@ -1454,6 +1821,8 @@ private fun WaiterTableSheet(
                             ordersInCourse = table.orders.size,
                             rentalDurations = rentalDurations,
                             canCharge = canChargeAndDeliver,
+                            showOrders = false,
+                            onTakeOrder = onTakeOrder?.takeIf { !readOnly },
                         )
                     }
                 }
@@ -1470,8 +1839,162 @@ private fun WaiterTableSheet(
     }
 }
 
+/** Un renglón del resumen del pedido: «2× Coca-Cola de vidrio». */
+internal data class SummaryLine(
+    val quantity: Int,
+    val name: String,
+)
+
+internal data class StationSplit(
+    val counter: List<SummaryLine>,
+    val kitchen: List<SummaryLine>,
+)
+
+internal fun productStations(catalog: Catalog?): Map<String, PreparationStation> =
+    catalog?.products?.associate { it.name.trim().lowercase() to it.preparationStation }.orEmpty()
+
 /**
- * Un pedido en curso de la mesa. Listo, se entrega con dos toques: el primero pregunta y el segundo
+ * N08: parte «2× Coca-Cola, 1× Crepa de cajeta» en lo que se sirve en Caja y lo que hace Cocina, según la estación
+ * de cada producto en el catálogo. Lo que no se reconoce cuenta como de Cocina, para nunca decir «llévalo ya» de más.
+ */
+internal fun splitByStation(
+    itemsSummary: String,
+    stations: Map<String, PreparationStation>,
+): StationSplit {
+    val lines =
+        itemsSummary.split(",").mapNotNull { raw ->
+            val text = raw.trim()
+            if (text.isEmpty()) return@mapNotNull null
+            val match = Regex("""^(\d+)\s*[×x]\s*(.+)$""").find(text)
+            if (match != null) SummaryLine(match.groupValues[1].toInt(), match.groupValues[2].trim()) else SummaryLine(1, text)
+        }
+    val (counter, kitchen) = lines.partition { stations[it.name.lowercase()] == PreparationStation.CASHIER }
+    return StationSplit(counter = counter, kitchen = kitchen)
+}
+
+/** N08: lo de Caja se lleva ya y la comida espera a Cocina; «Ya las llevé» es una marca solo de este teléfono. */
+@Composable
+private fun WaiterStationSplit(
+    orderId: String,
+    split: StationSplit,
+    readOnly: Boolean,
+    colors: OperationalColors,
+) {
+    val haptics = rememberVaiinillaHaptics()
+    var carried by rememberSaveable(orderId) { mutableStateOf(false) }
+    val blue = tileToneColor(TileTone.Turn, colors)
+    val yolk = tileToneColor(TileTone.Kitchen, colors)
+    val counterBg = animateSelectionColor(if (carried) colors.cardInner else blue.copy(alpha = 0.12f), "counter-part")
+    val counterBorder = animateSelectionColor(if (carried) colors.cardBorder else blue, "counter-border")
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(counterBg)
+                    .border(if (carried) 1.dp else 2.dp, counterBorder, RoundedCornerShape(20.dp))
+                    .padding(14.dp),
+        ) {
+            StationHeader(
+                icon = Icons.Outlined.LocalBar,
+                tint = blue,
+                title = if (carried) "Lo de Caja · ya lo llevaste" else "Lo de Caja · llévalo ya",
+                subtitle = "No pasa por Cocina: lo recoges en Caja",
+                colors = colors,
+            )
+            split.counter.forEach { StationLine(it, colors, done = carried) }
+            if (!readOnly) {
+                Row(
+                    modifier =
+                        Modifier
+                            .padding(top = 10.dp)
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .clip(CircleShape)
+                            .background(if (carried) colors.buttonSecondary else blue)
+                            .physicalPress {
+                                if (carried) haptics.selection() else haptics.success()
+                                carried = !carried
+                            }.semantics { contentDescription = if (carried) "Desmarcar lo de Caja" else "Ya llevé lo de Caja" },
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        if (carried) Icons.Outlined.Undo else Icons.Rounded.Check,
+                        contentDescription = null,
+                        tint = if (carried) colors.textPrimary else Color(0xFF0B2236),
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        if (carried) "Desmarcar" else "Ya lo llevé",
+                        color = if (carried) colors.textPrimary else Color(0xFF0B2236),
+                        fontWeight = FontWeight.Black,
+                        fontSize = 15.sp,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+            }
+        }
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(colors.cardInner)
+                    .padding(14.dp),
+        ) {
+            StationHeader(
+                icon = Icons.Outlined.Restaurant,
+                tint = yolk,
+                title = "Comida · la hace Cocina",
+                subtitle = "Te avisamos cuando esté lista",
+                colors = colors,
+            )
+            split.kitchen.forEach { StationLine(it, colors, done = false) }
+        }
+    }
+}
+
+@Composable
+private fun StationHeader(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    tint: Color,
+    title: String,
+    subtitle: String,
+    colors: OperationalColors,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(
+            modifier = Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(tint.copy(alpha = 0.9f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, tint = Color(0xFF1B1B18), modifier = Modifier.size(20.dp))
+        }
+        Column {
+            Text(title, color = colors.textPrimary, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+            Text(subtitle, color = colors.textSecondary, fontSize = 12.5.sp)
+        }
+    }
+}
+
+@Composable
+private fun StationLine(
+    line: SummaryLine,
+    colors: OperationalColors,
+    done: Boolean,
+) {
+    Text(
+        "${line.quantity} × ${line.name}",
+        color = if (done) colors.textMuted else colors.textPrimary,
+        fontWeight = FontWeight.Bold,
+        fontSize = 15.sp,
+        modifier = Modifier.padding(top = 8.dp),
+    )
+}
+
+/**
+ * Un pedido de la cuenta. Listo, se entrega con dos toques: el primero pregunta y el segundo
  * confirma, porque un toque por error lo marcaba entregado sin forma de deshacerlo.
  */
 @Composable
@@ -1481,15 +2004,16 @@ internal fun WaiterSheetOrderRow(
     canDeliver: Boolean,
     colors: OperationalColors,
     onDeliver: (BoardOrder) -> Unit,
+    amount: String? = null,
+    stations: Map<String, PreparationStation> = emptyMap(),
 ) {
     // La pregunta se queda hasta que el mesero confirme o cancele: si se iba sola, parecía que el botón no hacía nada.
     var confirming by remember(order.id) { mutableStateOf(false) }
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = colors.cardBackground,
-        modifier = Modifier.fillMaxWidth().border(1.dp, colors.cardBorder, RoundedCornerShape(18.dp)),
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(14.dp).animateContentSize()) {
+    val split =
+        remember(order.itemsSummary, stations) {
+            splitByStation(order.itemsSummary, stations).takeIf { it.counter.isNotEmpty() && it.kitchen.isNotEmpty() }
+        }
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp).animateContentSize()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -1498,69 +2022,44 @@ internal fun WaiterSheetOrderRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     "#${order.folio} · ${order.clientName ?: "Cliente"}",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 15.sp,
                     color = colors.textPrimary,
                 )
                 Text(
-                    order.itemsSummary,
+                    listOfNotNull(order.itemsSummary.takeIf { it.isNotBlank() }, amount?.let { moneyLabel(it) })
+                        .joinToString(" · "),
                     fontSize = 12.5.sp,
                     color = colors.textSecondary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
-            if (order.state == OrderState.READY && order.mustCollectBeforeDelivery) {
+            when {
                 // El servidor no entrega un pedido sin pagar: se avisa en lugar de ofrecer un botón que daría 409.
-                Box(
-                    modifier =
-                        Modifier
-                            .clip(CircleShape)
-                            .background(colors.pillBackground)
-                            .border(1.dp, colors.pillBorder, CircleShape)
-                            .padding(horizontal = 10.dp, vertical = 5.dp),
-                ) {
-                    Text(
-                        "Cobrar primero",
-                        color = colors.textPrimary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
+                order.state == OrderState.READY && order.mustCollectBeforeDelivery ->
+                    OrderStateChip("Cobrar primero", colors.textPrimary, colors.pillBackground)
+                order.state == OrderState.READY && canDeliver && !confirming ->
+                    Box(
+                        modifier =
+                            Modifier
+                                .clip(CircleShape)
+                                .background(colors.accentLime)
+                                .physicalPress(enabled = !readOnly, onClick = { confirming = true })
+                                .padding(horizontal = 18.dp, vertical = 11.dp),
+                    ) {
+                        Text("Entregar", color = colors.accentInk, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                    }
+                order.state == OrderState.PREPARING || order.state == OrderState.PAID -> {
+                    val tone = tileToneColor(TileTone.Kitchen, colors)
+                    OrderStateChip("EN COCINA", tone, tone.copy(alpha = 0.16f))
                 }
-            } else if (order.state == OrderState.READY && canDeliver && !confirming) {
-                Button(
-                    onClick = { confirming = true },
-                    enabled = !readOnly,
-                    colors =
-                        ButtonDefaults.buttonColors(
-                            containerColor = colors.accentLime,
-                            contentColor = colors.accentInk,
-                        ),
-                    shape = RoundedCornerShape(14.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                ) {
-                    Text(
-                        "Entregar",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                    )
-                }
-            } else {
-                Box(
-                    modifier =
-                        Modifier
-                            .clip(CircleShape)
-                            .background(colors.pillBackground)
-                            .border(1.dp, colors.pillBorder, CircleShape)
-                            .padding(horizontal = 10.dp, vertical = 5.dp),
-                ) {
-                    Text(
-                        order.state.label,
-                        color = colors.textSecondary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
+                else -> OrderStateChip(order.state.label.uppercase(), colors.textSecondary, colors.pillBackground)
             }
+        }
+        if (split != null && (order.state == OrderState.PREPARING || order.state == OrderState.PAID)) {
+            WaiterStationSplit(orderId = order.id, split = split, readOnly = readOnly, colors = colors)
         }
         // La confirmación va en su propio renglón: junto al pedido lo apretaba a una palabra por línea (I03).
         if (confirming && order.state == OrderState.READY && canDeliver) {
@@ -1583,17 +2082,36 @@ internal fun WaiterSheetOrderRow(
                             containerColor = colors.accentLime,
                             contentColor = colors.accentInk,
                         ),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = CircleShape,
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 ) {
                     Text("¿Ya lo entregaste?", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             }
         }
-        }
     }
 }
 
+@Composable
+private fun OrderStateChip(
+    label: String,
+    ink: Color,
+    background: Color,
+) {
+    Text(
+        label,
+        color = ink,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Black,
+        letterSpacing = 0.6.sp,
+        maxLines = 1,
+        modifier =
+            Modifier
+                .clip(CircleShape)
+                .background(background)
+                .padding(horizontal = 11.dp, vertical = 6.dp),
+    )
+}
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WaiterDeliverSheet(
@@ -1719,3 +2237,194 @@ private fun nextReservationCaption(startIso: String?): String? =
     startIso
         ?.let { runCatching { java.time.Instant.parse(it) }.getOrNull() }
         ?.let { "Reservada ${BusinessTime.format(it, RESERVATION_HOUR)}" }
+
+/** Un renglón de la cuenta en la hoja: `live` si viene del tablero y se puede entregar desde aquí. */
+internal data class WaiterSheetOrder(
+    val order: BoardOrder,
+    val amount: String?,
+    val live: Boolean,
+)
+
+/**
+ * Junta lo del tablero (en curso, con su estado al momento) con lo de la cuenta (lo que cuesta y lo ya
+ * entregado). Lo listo va primero; lo entregado, al final.
+ */
+internal fun waiterSheetOrders(
+    board: List<BoardOrder>,
+    account: SpaceAccount?,
+): List<WaiterSheetOrder> {
+    val totals = account?.orders?.associate { it.id to it.total }.orEmpty()
+    val live =
+        board
+            .sortedBy { if (it.state == OrderState.READY) 0 else 1 }
+            .map { WaiterSheetOrder(it, totals[it.id], live = true) }
+    val boardIds = board.map { it.id }.toSet()
+    val settledOnes =
+        account?.orders.orEmpty()
+            .filter { it.id !in boardIds }
+            .map { accountOrder ->
+                WaiterSheetOrder(
+                    order =
+                        BoardOrder(
+                            id = accountOrder.id,
+                            folio = accountOrder.folio,
+                            state =
+                                OrderState.entries.firstOrNull { it.wireValue == accountOrder.state }
+                                    ?: OrderState.DELIVERED,
+                            version = 0,
+                            clientName = accountOrder.clientName,
+                            itemsSummary = accountOrder.itemsSummary,
+                            updatedAt = "",
+                        ),
+                    amount = accountOrder.total,
+                    live = false,
+                )
+            }
+    return live + settledOnes
+}
+
+/** Una mesa que llama: qué pide, desde cuándo y lo último que pidió, con «Voy en camino» y «Ya la atendí». */
+@Composable
+private fun WaiterCallCard(
+    call: TableCall,
+    table: BoardTable,
+    tick: Int,
+    enabled: Boolean,
+    colors: OperationalColors,
+    onGoing: () -> Unit,
+    onAttended: () -> Unit,
+) {
+    val going = call.status == CallStatus.EN_CAMINO
+    val shape = RoundedCornerShape(26.dp)
+    val since = remember(call, tick) { minutesSince(call.createdAt, Instant.now()) }
+    val last = table.orders.maxByOrNull { it.updatedAt }
+    val lastCaption =
+        remember(last, tick) {
+            last?.let { "#${it.folio} · ${it.state.label.lowercase()}, ${minutesSince(it.updatedAt, Instant.now())}" }
+        }
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(
+                    animateSelectionColor(
+                        lerp(colors.cardBackground, WaiterCoral, if (going) 0.06f else 0.12f),
+                        "call-background",
+                    ),
+                ).border(1.dp, WaiterCoral.copy(alpha = 0.4f), shape)
+                .padding(20.dp)
+                .animateContentSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(64.dp)
+                    .pulseGlow(active = !going, color = WaiterCoral, spread = 8.dp, corner = 20.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(WaiterCoral),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Outlined.Notifications,
+                contentDescription = null,
+                tint = Color(0xFF16160F),
+                modifier = Modifier.size(30.dp),
+            )
+        }
+        Text(
+            buildString {
+                append(if (going) "Va ${call.takenBy?.name ?: "alguien"}" else "Llamando")
+                append(" · ")
+                append(if (since == "ahora") "ahora" else "hace $since")
+            }.uppercase(),
+            color = colors.textSecondary,
+            fontWeight = FontWeight.Black,
+            fontSize = 11.5.sp,
+            letterSpacing = 1.4.sp,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        Text(
+            "${call.space.name} te llama",
+            color = colors.textPrimary,
+            fontWeight = FontWeight.Black,
+            fontSize = 30.sp,
+            lineHeight = 33.sp,
+            letterSpacing = (-1).sp,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            listOfNotNull(call.reason.staffLabel, call.clientName).joinToString(" · "),
+            color = colors.textSecondary,
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center,
+        )
+        lastCaption?.let { caption ->
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(colors.cardInner)
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Último pedido", color = colors.textSecondary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    caption,
+                    color = colors.textPrimary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+        if (!going) {
+            CallButton("Voy en camino", primary = true, enabled = enabled, colors = colors, onClick = onGoing)
+        }
+        CallButton("Ya la atendí", primary = going, enabled = enabled, colors = colors, onClick = onAttended)
+        if (!going) {
+            Text(
+                "«Voy en camino» le avisa a la mesa que ya la viste.",
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CallButton(
+    label: String,
+    primary: Boolean,
+    enabled: Boolean,
+    colors: OperationalColors,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp)
+                .height(56.dp)
+                .clip(CircleShape)
+                .background(if (primary) colors.textPrimary else Color.Transparent)
+                .border(1.dp, if (primary) Color.Transparent else colors.cardBorder, CircleShape)
+                .physicalPress(enabled = enabled, onClick = onClick)
+                .graphicsLayer { alpha = if (enabled) 1f else 0.5f },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            color = if (primary) colors.background else colors.textPrimary,
+            fontWeight = FontWeight.Black,
+            fontSize = 16.sp,
+        )
+    }
+}

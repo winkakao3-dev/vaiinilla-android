@@ -55,7 +55,7 @@ class CashOpenSuggestedFloatTest {
                 )
             }
         }
-        composeTestRule.onNodeWithText("Abrir con", substring = true).performClick()
+        composeTestRule.onNodeWithText("· Abrir caja", substring = true).performClick()
         assertEquals(1, confirmed.size)
         assertEquals(0, confirmed.single().toBigDecimal().compareTo("500".toBigDecimal()))
     }

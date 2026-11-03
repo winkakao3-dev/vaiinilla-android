@@ -72,7 +72,22 @@ internal fun CashierRefundsSection(
     if (state.refunds.isEmpty() && state.notice == null) return
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (state.refunds.isNotEmpty()) {
-            Text("Devoluciones pendientes", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.textPrimary)
+            val total =
+                state.refunds.sumOf { it.amount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO }
+            Text(
+                "DEVOLUCIONES · ${state.refunds.size} · ${moneyLabel(com.vaiinilla.app.domain.model.Money.format(total))}",
+                fontWeight = FontWeight.Black,
+                fontSize = 11.sp,
+                letterSpacing = 1.2.sp,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(start = 4.dp, top = 6.dp),
+            )
+            Text(
+                "Dinero que hay que regresarle a alguien. Lo pagado con saldo ya regresó solo a su cartera.",
+                fontSize = 12.5.sp,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(start = 4.dp),
+            )
         }
         state.notice?.let { notice ->
             Text(
@@ -101,7 +116,7 @@ private fun RefundRow(
     // El servidor rechaza una devolución en efectivo con la caja cerrada; mejor no ofrecerla (CAJA-22). Lo cobrado en
     // la puerta de un pedido a domicilio lo tiene quien entregó, no el cajón: devolverlo no pide la caja (CASA-09).
     val cashBlocked = cashOpen == false && !collectedAtDoor(refund.originalMethod)
-    val shape = RoundedCornerShape(18.dp)
+    val shape = RoundedCornerShape(22.dp)
     val suggested = suggestedRefundMethod(refund.originalMethod)
     val busy = state.confirming?.first == refund.id
     // «Otro» no deja rastro de a dónde fue el dinero: se pide el motivo para que el dueño cuadre la caja (EQUIPO-11).
@@ -116,8 +131,8 @@ private fun RefundRow(
             Column {
                 Text(
                     "Devolver ${moneyLabel(refund.amount)}",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 20.sp,
                     color = colors.textPrimary,
                 )
                 Text(
@@ -128,6 +143,13 @@ private fun RefundRow(
                 )
             }
             if (canConfirm) {
+                Text(
+                    "¿CÓMO SE LO REGRESAS?",
+                    fontWeight = FontWeight.Black,
+                    fontSize = 10.5.sp,
+                    letterSpacing = 1.2.sp,
+                    color = colors.textSecondary,
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     ActionPill(
                         label = "Devuelto en ${suggested.label}",
