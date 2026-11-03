@@ -1097,6 +1097,7 @@ class OperationalViewModel
                                 cashSessionOpen = open,
                                 cashSessionCheckFailed = false,
                                 suggestedCashFloat = cashSessionRepository.suggestedFloat,
+                                expectedCash = cashSessionRepository.expectedCash,
                             )
                     }.onFailure {
                         // Con la caja ya conocida se conserva lo último; solo si nunca se supo, la pantalla pide reintentar.

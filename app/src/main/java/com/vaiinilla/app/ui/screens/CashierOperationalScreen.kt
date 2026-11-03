@@ -1297,6 +1297,7 @@ fun CashierOperationalScreen(
                 onDismiss = onDismissCloseCash,
                 onConfirm = onCloseCash,
                 onOpenAccounts = onOpenAccounts,
+                expectedCash = state.expectedCash,
             )
         }
         // El pedido se resuelve por su id al confirmar: el que esté arriba cuando llegue el siguiente no cuenta.
