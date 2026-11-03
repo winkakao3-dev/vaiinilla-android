@@ -1,18 +1,41 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -20,20 +43,31 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.notices.LocalOpenReceivedNotices
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
 /**
- * El avatar del personal abre un menú corto: el tema, cambiar de modo, los avisos recibidos y, en Caja con la caja
- * abierta, cerrarla. Así el encabezado queda en el lugar a la izquierda, Vaini (la ayuda) y el avatar.
+ * El avatar del personal abre la tarjeta de la cuenta del lienzo de Doop (S01): de quién es el turno, los avisos,
+ * cambiar de modo, el tema y, en Caja con la caja abierta, cerrarla, en coral y al final para no tocarla sin querer.
  */
 @Composable
 internal fun StaffAvatarMenu(
@@ -43,76 +77,224 @@ internal fun StaffAvatarMenu(
     onThemeChange: ((VaiinillaThemeMode) -> Unit)?,
     onChangeMode: () -> Unit,
     onCloseCash: (() -> Unit)? = null,
+    modeLabel: String = "",
+    placeName: String = "",
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Box {
+    StaffAvatarBadge(
+        initials = initials,
+        modifier =
+            Modifier
+                .physicalPress(scale = PhysicalPressScale.Small) { expanded = true }
+                .semantics { contentDescription = "Menú de la cuenta" },
+    )
+    if (expanded) {
+        StaffAccountCard(
+            initials = initials,
+            colors = colors,
+            themeMode = themeMode,
+            onThemeChange = onThemeChange,
+            modeLabel = modeLabel,
+            placeName = placeName,
+            onDismiss = { expanded = false },
+            onChangeMode = {
+                expanded = false
+                onChangeMode()
+            },
+            onCloseCash =
+                onCloseCash?.let { close ->
+                    {
+                        expanded = false
+                        close()
+                    }
+                },
+        )
+    }
+}
+
+private val AvatarFill = Color(0xFFE9B8C8)
+private val AvatarInk = Color(0xFF3A1622)
+
+@Composable
+private fun StaffAvatarBadge(
+    initials: String,
+    modifier: Modifier = Modifier,
+    size: Int = 44,
+) {
+    Box(
+        modifier = modifier.size(size.dp).clip(CircleShape).background(AvatarFill),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(initials, color = AvatarInk, fontWeight = FontWeight.Black, fontSize = (size * 0.34f).sp)
+    }
+}
+
+@Composable
+private fun StaffAccountCard(
+    initials: String,
+    colors: OperationalColors,
+    themeMode: VaiinillaThemeMode,
+    onThemeChange: ((VaiinillaThemeMode) -> Unit)?,
+    modeLabel: String,
+    placeName: String,
+    onDismiss: () -> Unit,
+    onChangeMode: () -> Unit,
+    onCloseCash: (() -> Unit)?,
+) {
+    val reduceMotion = rememberReducedMotion()
+    val appear = remember { Animatable(if (reduceMotion) 1f else 0f) }
+    LaunchedEffect(Unit) {
+        appear.animateTo(1f, spring(dampingRatio = 0.62f, stiffness = Spring.StiffnessMediumLow))
+    }
+    var themeOpen by remember { mutableStateOf(false) }
+    val openNotices = LocalOpenReceivedNotices.current
+    val coral = LocalVaiinillaColors.current.coral
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
         Box(
             modifier =
                 Modifier
-                    .physicalPress(scale = PhysicalPressScale.Small) { expanded = true }
-                    .semantics { contentDescription = "Menú de la cuenta" }
-                    .size(width = 48.dp, height = 40.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(colors.textPrimary),
-            contentAlignment = Alignment.Center,
+                    .fillMaxSize()
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                        onDismiss()
+                    },
         ) {
-            Text(initials, color = colors.background, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            containerColor = colors.cardBackground,
-            shape = RoundedCornerShape(16.dp),
-        ) {
-            if (onThemeChange != null) {
-                Text(
-                    "Tema",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colors.textSecondary,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                )
-                VaiinillaThemeMode.entries.forEach { mode ->
-                    DropdownMenuItem(
-                        text = { Text(themeModeName(mode), color = colors.textPrimary) },
-                        trailingIcon = {
-                            if (mode == themeMode) {
-                                Icon(Icons.Outlined.Check, contentDescription = null, tint = colors.textPrimary)
-                            }
-                        },
-                        onClick = { onThemeChange(mode) },
-                        // TalkBack dice "seleccionado" en el tema actual, igual que en Cuenta.
-                        modifier = Modifier.semantics { selected = mode == themeMode },
-                    )
+            Column(
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .statusBarsPadding()
+                        .padding(top = 64.dp, end = 16.dp)
+                        .width(290.dp)
+                        .graphicsLayer {
+                            val p = appear.value
+                            alpha = p.coerceIn(0f, 1f)
+                            scaleX = 0.85f + 0.15f * p
+                            scaleY = 0.85f + 0.15f * p
+                            transformOrigin = TransformOrigin(1f, 0f)
+                        }.shadow(24.dp, RoundedCornerShape(26.dp))
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(colors.cardBackground)
+                        // Toques dentro de la tarjeta no la cierran.
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+                        .padding(8.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    StaffAvatarBadge(initials)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            placeName.ifBlank { "Vaiinilla" },
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 15.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (modeLabel.isNotBlank()) {
+                            Text(modeLabel, color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp)
+                        }
+                    }
                 }
-                HorizontalDivider(color = colors.cardBorder, modifier = Modifier.padding(vertical = 4.dp))
-            }
-            DropdownMenuItem(
-                text = { Text("Cambiar de modo", color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
-                onClick = {
-                    expanded = false
-                    onChangeMode()
-                },
-            )
-            // Para saber de dónde vino un aviso (EQUIPO-37): a qué negocio y pedido va y por qué llegó aquí.
-            LocalOpenReceivedNotices.current?.let { openNotices ->
-                DropdownMenuItem(
-                    text = { Text("Avisos recibidos", color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
-                    onClick = {
-                        expanded = false
+                HorizontalDivider(color = colors.cardBorder)
+                Spacer(Modifier.height(6.dp))
+                if (openNotices != null) {
+                    AccountRow(Icons.Outlined.Notifications, "Avisos recibidos", colors = colors) {
+                        onDismiss()
                         openNotices()
-                    },
-                )
-            }
-            if (onCloseCash != null) {
-                DropdownMenuItem(
-                    text = { Text("Cerrar caja", color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
-                    onClick = {
-                        expanded = false
-                        onCloseCash()
-                    },
-                )
+                    }
+                }
+                AccountRow(Icons.Outlined.SwapHoriz, "Cambiar de modo", value = modeLabel, colors = colors, onClick = onChangeMode)
+                if (onThemeChange != null) {
+                    AccountRow(
+                        Icons.Outlined.DarkMode,
+                        "Tema",
+                        value = themeModeName(themeMode),
+                        colors = colors,
+                        onClick = { themeOpen = !themeOpen },
+                    )
+                    AnimatedVisibility(
+                        visible = themeOpen,
+                        enter = expandVertically(spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
+                        exit = shrinkVertically(spring(stiffness = Spring.StiffnessMedium)) + fadeOut(),
+                    ) {
+                        Column(modifier = Modifier.padding(start = 44.dp, bottom = 4.dp)) {
+                            VaiinillaThemeMode.entries.forEach { mode ->
+                                ThemeOption(mode, selected = mode == themeMode, colors = colors) { onThemeChange(mode) }
+                            }
+                        }
+                    }
+                }
+                if (onCloseCash != null) {
+                    AccountRow(Icons.Outlined.Lock, "Cerrar caja", tint = coral, colors = colors, onClick = onCloseCash)
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun AccountRow(
+    icon: ImageVector,
+    label: String,
+    colors: OperationalColors,
+    value: String = "",
+    tint: Color = colors.textPrimary,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .height(52.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .padding(horizontal = 12.dp)
+                .semantics(mergeDescendants = true) {},
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+        Text(label, color = tint, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, modifier = Modifier.weight(1f))
+        if (value.isNotBlank()) {
+            Text(value, color = colors.textSecondary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        }
+    }
+}
+
+@Composable
+private fun ThemeOption(
+    mode: VaiinillaThemeMode,
+    selected: Boolean,
+    colors: OperationalColors,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .height(44.dp)
+                .padding(horizontal = 12.dp)
+                // TalkBack dice "seleccionado" en el tema actual, igual que en Cuenta.
+                .semantics(mergeDescendants = true) {
+                    this.selected = selected
+                    this.role = Role.RadioButton
+                },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            themeModeName(mode),
+            color = if (selected) colors.textPrimary else colors.textSecondary,
+            fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold,
+            fontSize = 14.sp,
+            modifier = Modifier.weight(1f),
+        )
+        if (selected) Icon(Icons.Outlined.Check, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(18.dp))
     }
 }

@@ -338,6 +338,8 @@ fun WaiterOperationalScreen(
                             }
                             StaffAvatarMenu(
                                 initials = roleChip,
+                                modeLabel = if (roleChip == "CJ") "Caja" else "Mesero",
+                                placeName = placeName,
                                 colors = colors,
                                 themeMode = themeMode,
                                 onThemeChange =

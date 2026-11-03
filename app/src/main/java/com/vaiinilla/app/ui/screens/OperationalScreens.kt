@@ -559,6 +559,8 @@ fun CashierOperationalScreen(
 
                         StaffAvatarMenu(
                             initials = "CJ",
+                            modeLabel = "Caja",
+                            placeName = placeName,
                             colors = colors,
                             themeMode = themeMode,
                             onThemeChange =
@@ -1942,6 +1944,7 @@ fun KitchenOperationalScreen(
     onActionNoticed: () -> Unit = {},
     onDismissError: () -> Unit = {},
     onRefresh: () -> Unit = {},
+    placeName: String = "",
 ) {
     val colors = rememberOperationalColors()
     val reduceMotion = reducedMotion()
@@ -2092,6 +2095,8 @@ fun KitchenOperationalScreen(
 
                         StaffAvatarMenu(
                             initials = "CK",
+                            modeLabel = "Cocina",
+                            placeName = placeName,
                             colors = colors,
                             themeMode = themeMode,
                             onThemeChange =
