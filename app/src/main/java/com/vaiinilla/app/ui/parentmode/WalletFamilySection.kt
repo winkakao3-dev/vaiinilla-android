@@ -227,6 +227,7 @@ fun ParentModeWalletHost(
                 onBack = { optionsRole = null },
                 onOpenChild = openAddedChild,
                 schoolName = schoolName,
+                onSwitchRole = { optionsRole = it },
             )
         }
         val openChild = children.children.firstOrNull { it.userId == openChildId && !it.isAwaitingSchool }

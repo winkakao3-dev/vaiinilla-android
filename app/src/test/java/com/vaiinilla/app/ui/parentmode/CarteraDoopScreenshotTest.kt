@@ -67,15 +67,14 @@ class CarteraDoopScreenshotTest {
     fun e05_primera_vez() {
         val children = ChildrenState(ParentFixtures.services(FakeGuardianship()))
         runBlocking { children.load() }
+        children.markParentUnlocked()
         dark {
-            WalletFamilySection(
+            SchoolOptionsPage(
                 children = children,
-                onOpen = {},
-                onAdd = {},
-                onConsent = {},
-                entry = WalletSchoolEntry.UNKNOWN,
-                onRole = {},
-                onLinkCode = {},
+                role = SchoolRole.PARENT,
+                hasTutors = false,
+                onAccountClaimed = {},
+                onBack = {},
             )
         }
         settle()
