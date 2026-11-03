@@ -1503,6 +1503,7 @@ fun AppNavHost(
                     // El uid de Firebase no es el id de la cartera: Caja no lo encuentra. Sin cartera no hay código.
                     userId = walletForVenue.data?.wallet?.userId,
                     signedIn = studentAuthState.session != null,
+                    venueName = orderState.guestVenue?.establishment?.name,
                     hasStaffModes = hasStaffModes,
                     onOpenStaffModes = {
                         navController.navigate(Routes.STAFF_MODES) {
