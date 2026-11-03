@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -110,7 +111,9 @@ import com.vaiinilla.app.ui.order.journeyFacts
 import com.vaiinilla.app.ui.order.journeyHeadline
 import com.vaiinilla.app.ui.order.journeyKindLabel
 import com.vaiinilla.app.ui.order.journeyLead
+import com.vaiinilla.app.ui.order.journeyDeliveryCode
 import com.vaiinilla.app.ui.order.journeyMoneyBack
+import com.vaiinilla.app.ui.order.journeyMoneyBackNote
 import com.vaiinilla.app.ui.order.journeyNote
 import com.vaiinilla.app.ui.order.journeyNoun
 import com.vaiinilla.app.ui.order.journeyStepIndex
@@ -224,7 +227,7 @@ internal fun OrderJourneyPage(
                     ) { runCatching { uri.openUri(url) } },
                 )
             }
-            if (!open && onOpenMenu != null) {
+            if ((!open || state == OrderState.DELIVERED) && onOpenMenu != null) {
                 add(
                     JourneyAction(
                         if (state == OrderState.CANCELED) "Pedir otra cosa" else "Pedir de nuevo",
@@ -272,7 +275,10 @@ internal fun OrderJourneyPage(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             journeyMoneyBack(order)?.let { title ->
-                MoneyBackCard(title, cancellationMoneyNote(order), colors, Modifier.arrive(4, key))
+                MoneyBackCard(title, journeyMoneyBackNote(order), colors, Modifier.arrive(4, key))
+            }
+            journeyDeliveryCode(order)?.let {
+                DeliveryCodeCard(it, order.homeDelivery?.hasAmountDue == true, colors, Modifier.arrive(4, key))
             }
             AnimatedVisibility(
                 visible = showCode,
@@ -769,6 +775,64 @@ private fun MoneyBackCard(
             Text(title, color = colors.ink, fontSize = 20.sp, lineHeight = 24.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.6).sp)
             detail?.let { Text(it, color = colors.ink2, fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Bold) }
         }
+    }
+}
+
+/** El código de entrega a domicilio (D3): lima, un dígito por casilla, entra con un resorte. */
+@Composable
+private fun DeliveryCodeCard(
+    code: String,
+    paysAtDoor: Boolean,
+    colors: VaiinillaColors,
+    modifier: Modifier = Modifier,
+) {
+    val reduceMotion = reducedMotion()
+    var shown by remember { mutableStateOf(reduceMotion) }
+    LaunchedEffect(Unit) { shown = true }
+    val scale by animateFloatAsState(if (shown) 1f else 0.88f, spring(0.55f, 320f), label = "delivery_code_pop")
+    Column(
+        modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }.clip(RoundedCornerShape(24.dp))
+            .background(colors.accent)
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+    ) {
+        Text(
+            "TU CÓDIGO DE ENTREGA",
+            color = colors.accentInk.copy(alpha = 0.75f),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 1.6.sp,
+        )
+        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            code.forEach { digit ->
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .height(58.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(colors.accentInk.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(digit.toString(), color = colors.accentInk, fontSize = 34.sp, fontWeight = FontWeight.Black)
+                }
+            }
+        }
+        Text(
+            if (paysAtDoor) {
+                "Primero pagas, luego le dices este código a quien te lo lleve. Así sabe que es para ti."
+            } else {
+                "Dile este código a quien te lo lleve. Así sabe que es para ti."
+            },
+            color = colors.accentInk,
+            fontSize = 13.5.sp,
+            lineHeight = 19.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = 10.dp),
+        )
     }
 }
 

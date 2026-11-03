@@ -87,7 +87,7 @@ class OrderJourneyTest {
     @Test
     fun notesWarnWhatMattersNow() {
         assertEquals(
-            "Hasta que pagues no se prepara nada y no se te cobra nada.",
+            "No se te cobra nada hasta que pagues.",
             journeyNote(order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH), OrderJourney.COUNTER),
         )
         assertEquals(
@@ -124,6 +124,16 @@ class OrderJourneyTest {
         assertEquals("Cancelaron tu pedido.", journeyHeadline(byCashier, OrderJourney.COUNTER))
         assertEquals("${moneyLabel("10.00")} a tu saldo Vaiinilla", journeyMoneyBack(byCashier))
         assertNull(journeyLead(byCashier, OrderJourney.COUNTER))
+    }
+
+    @Test
+    fun anOrderCanceledBeforePayingSaysNothingWasCharged() {
+        val canceled = order(OrderState.CANCELED, PaymentMethod.STRIPE, home = true)
+        // Sin pago con tarjeta todavía no hay nada que prometer.
+        assertNull(journeyMoneyBack(canceled))
+        val unpaidPreorder = canceled.copy(answerBy = Instant.parse("2026-11-03T23:30:00Z"))
+        assertEquals("No te cobramos nada", journeyMoneyBack(unpaidPreorder))
+        assertTrue(journeyFacts(unpaidPreorder, OrderJourney.HOME_DELIVERY).none { it.label == "Pagaste el anticipo" })
     }
 
     private fun order(

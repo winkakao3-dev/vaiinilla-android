@@ -306,6 +306,7 @@ internal fun journeyFacts(
             }
             state == OrderState.AWAITING_ACCEPTANCE -> add(JourneyFact("Total", moneyLabel(summary.total)))
             state == OrderState.PENDING_PAYMENT -> add(JourneyFact("Total", moneyLabel(summary.total), FactTone.DUE))
+            state == OrderState.CANCELED && order.neverCharged() -> add(JourneyFact("Total", moneyLabel(summary.total)))
             else -> {
                 val how =
                     when (summary.paymentMethod) {
@@ -370,7 +371,7 @@ internal fun journeyNote(
         state == OrderState.NOT_PICKED_UP ->
             "Si fue un error o tuviste un problema, escríbele al negocio: desde su Caja pueden devolverte el dinero."
         state !in OPEN_STATES -> null
-        order.cashDue() -> "Hasta que pagues no se prepara nada y no se te cobra nada."
+        order.cashDue() -> "No se te cobra nada hasta que pagues."
         state == OrderState.AWAITING_ACCEPTANCE && order.answerBy != null ->
             "Si no contesta a tiempo, se cancela solo y no pagas nada."
         order.items.any { it.rejection != null } -> "Lo demás de tu pedido sigue igual."
@@ -511,7 +512,7 @@ internal fun journeyHeadline(
         state == OrderState.DELIVERED ->
             when (journey) {
                 OrderJourney.TABLE, OrderJourney.SEAT, OrderJourney.COURT_FOOD -> "Ya te lo entregaron."
-                OrderJourney.HOME_DELIVERY -> "Ya llegó a tu casa."
+                OrderJourney.HOME_DELIVERY -> "¡Que lo disfruten!"
                 else -> "Ya lo recogiste."
             }
         order.cashDue() -> "Paga tu pedido en Caja."
@@ -580,7 +581,12 @@ internal fun journeyLead(
         order.rejectedItems().isNotEmpty() && state != OrderState.READY ->
             "Lo que no se pudo ya no cuenta en tu total."
         state == OrderState.ON_THE_WAY ->
-            order.homeDelivery?.code?.let { "Al recibirlo, dicta el código $it." }
+            when {
+                order.homeDelivery?.hasAmountDue == true ->
+                    "Ten listos ${moneyLabel(order.homeDelivery.dueOnArrival!!)} y dale el código a quien llegue."
+                journeyDeliveryCode(order) != null -> "Dale el código a quien llegue."
+                else -> null
+            }
         state == OrderState.READY ->
             when (journey) {
                 OrderJourney.COUNTER ->
@@ -621,6 +627,24 @@ internal fun journeyMoneyBack(order: OrderDetail): String? {
         order.summary.payAtEnd -> "No se te cobra nada"
         order.summary.paymentMethod == PaymentMethod.BALANCE -> "$total a tu saldo Vaiinilla"
         order.summary.paymentMethod == PaymentMethod.STRIPE && cancellationMoneyNote(order) != null -> "$total a tu tarjeta"
+        order.neverCharged() -> "No te cobramos nada"
         else -> null
     }
 }
+
+/** El renglón bajo [journeyMoneyBack]. */
+internal fun journeyMoneyBackNote(order: OrderDetail): String? =
+    cancellationMoneyNote(order)
+        ?: if (order.summary.state == OrderState.CANCELED && order.neverCharged()) {
+            "El anticipo se paga cuando el negocio acepta. Como no se llegó a pagar, tu tarjeta no tuvo ningún cargo."
+        } else {
+            null
+        }
+
+/** Un encargo con tarjeta que se canceló antes de pagarse: a la tarjeta nunca se le cobró (EQUIPO-53). */
+private fun OrderDetail.neverCharged(): Boolean =
+    summary.paymentMethod == PaymentMethod.STRIPE && payment == null && (answerBy != null || payBy != null)
+
+/** Los 4 dígitos que el cliente dicta al recibir un pedido a domicilio, cuando ya va en camino. */
+internal fun journeyDeliveryCode(order: OrderDetail): String? =
+    order.homeDelivery?.code?.takeIf { it.isNotBlank() && order.summary.state == OrderState.ON_THE_WAY }
