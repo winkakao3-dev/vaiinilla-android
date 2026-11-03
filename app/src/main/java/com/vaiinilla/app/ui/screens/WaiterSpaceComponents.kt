@@ -53,7 +53,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.selected
@@ -387,17 +391,21 @@ internal fun WaiterSpaceSection(
             val remaining = millisUntil(clockTarget) ?: 0L
             val inGrace = availability.state == SpaceAvailabilityState.EN_GRACIA
             Column(modifier = Modifier.padding(top = 14.dp)) {
-                RollingText(
-                    text = clockText(remaining),
-                    style = TextStyle(fontSize = 46.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.5).sp),
-                    color = colors.textPrimary,
-                )
-                Text(
-                    if (inGrace) "de gracia para decidir" else "restantes",
-                    fontSize = 12.sp,
-                    color = colors.textSecondary,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                if (isCourt) {
+                    CourtTurnHero(remaining = remaining, inGrace = inGrace, endsAt = endsAtClock(availability.endsAt))
+                } else {
+                    RollingText(
+                        text = clockText(remaining),
+                        style = TextStyle(fontSize = 46.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.5).sp),
+                        color = colors.textPrimary,
+                    )
+                    Text(
+                        if (inGrace) "de gracia para decidir" else "restantes",
+                        fontSize = 12.sp,
+                        color = colors.textSecondary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
                 turnFraction(availability.startedAt, availability.endsAt)?.let { played ->
                     TurnProgressBar(
                         fraction = if (inGrace) 1f else played,
@@ -613,12 +621,7 @@ internal fun WaiterSpaceSection(
                     onConfirm = { minutes -> onRent(minutes, renewFrom) },
                 )
             } else if (isCourt || session.endsAt != null) {
-                Text(
-                    if (session.endsAt == null) "Iniciar turno" else "Alargar turno",
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.5.sp,
-                    color = colors.textSecondary,
-                )
+                CollectLabel(if (session.endsAt == null) "Iniciar turno" else "Alargar turno", colors)
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1192,15 +1195,29 @@ internal fun CollectAccountContent(
                         typed = null
                     },
                 )
+                if (!allSelected && selected.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            partialPayer(payable, selected)?.let { "Parte de $it" } ?: "Esta parte",
+                            fontSize = 13.sp,
+                            color = colors.textSecondary,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        RollingText(
+                            text = moneyLabel(totalLabel),
+                            style = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.Black),
+                            color = colors.textPrimary,
+                        )
+                    }
+                }
             }
             if (allowTerminal) {
                 Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        "¿Cómo paga?",
-                        fontSize = 12.5.sp,
-                        color = colors.textSecondary,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                    CollectLabel("¿Cómo paga?", colors)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         ChipButton(
                             label = "Efectivo",
@@ -1300,7 +1317,7 @@ internal fun CollectAccountContent(
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         ChipButton(
-                            label = "Justo",
+                            label = "Exacto",
                             enabled = !confirming,
                             colors = colors,
                             modifier = Modifier.weight(1f),
@@ -1325,17 +1342,32 @@ internal fun CollectAccountContent(
                         keyboardType = KeyboardType.Decimal,
                     )
                 }
-                Column(modifier = Modifier.arrive(2)) {
+                val change = (difference ?: BigDecimal.ZERO).abs()
+                Row(
+                    modifier =
+                        Modifier
+                            .arrive(2)
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(
+                                animateSelectionColor(
+                                    if (shortfall) StateCoral.copy(alpha = 0.18f) else colors.accentLime,
+                                    "change-background",
+                                ),
+                            ).padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
-                        if (shortfall) "Falta" else "Cambio",
-                        fontSize = 12.5.sp,
-                        color = colors.textSecondary,
-                        fontWeight = FontWeight.SemiBold,
+                        if (shortfall) "Falta" else "Su cambio",
+                        fontSize = 14.sp,
+                        color = if (shortfall) changeInk else colors.accentInk,
+                        fontWeight = FontWeight.Bold,
                     )
                     RollingText(
-                        text = moneyLabel(Money.format((difference ?: BigDecimal.ZERO).abs())),
-                        style = TextStyle(fontSize = 44.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.4).sp),
-                        color = changeInk,
+                        text = moneyLabel(Money.format(change)),
+                        style = TextStyle(fontSize = 32.sp, fontWeight = FontWeight.Black, letterSpacing = (-1).sp),
+                        color = if (shortfall) changeInk else colors.accentInk,
                     )
                 }
             }
@@ -1347,7 +1379,9 @@ internal fun CollectAccountContent(
                         !byOrders && withTerminal -> "Abonado en la terminal $$chargeLabel"
                         !byOrders -> "Abonar $$chargeLabel"
                         withTerminal -> "Cobrado en la terminal $$chargeLabel"
-                        else -> "Cobrar $$chargeLabel"
+                        else ->
+                            "Cobrar $$chargeLabel" +
+                                (pendingAfterPartial(payable, selected).takeIf { byOrders }?.let { " · $it" } ?: "")
                     },
                 enabled = canConfirm,
                 loading = confirming,
@@ -1433,64 +1467,103 @@ private fun SplitOrdersPicker(
     colors: OperationalColors,
     onToggle: (String) -> Unit,
 ) {
-    Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            "¿Qué se cobra ahora?",
-            fontSize = 12.5.sp,
-            color = colors.textSecondary,
-            fontWeight = FontWeight.SemiBold,
-        )
-        orders.forEach { order ->
-            val checked = order.id in selected
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(if (checked) colors.cardBackground else colors.background)
-                        .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp))
-                        .clickable(enabled = enabled) { onToggle(order.id) }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Checkbox(
-                    checked = checked,
-                    onCheckedChange = null,
-                    enabled = enabled,
-                    colors =
-                        CheckboxDefaults.colors(
-                            checkedColor = colors.textPrimary,
-                            checkmarkColor = colors.background,
-                            uncheckedColor = colors.textSecondary,
-                        ),
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "#${order.folio} · ${order.clientName ?: "Cliente"}" +
-                            (order.payer?.let { " · Paga $it" } ?: ""),
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.5.sp,
-                        color = colors.textPrimary,
+    Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        CollectLabel("¿Qué se cobra ahora?", colors)
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(colors.cardBackground)
+                    .border(1.dp, colors.cardBorder, RoundedCornerShape(22.dp)),
+        ) {
+            orders.forEachIndexed { index, order ->
+                val checked = order.id in selected
+                val ink = animateSelectionColor(if (checked) colors.textPrimary else colors.textMuted, "split-ink")
+                if (index > 0) HorizontalDivider(color = colors.cardBorder, modifier = Modifier.padding(horizontal = 16.dp))
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = enabled) { onToggle(order.id) }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Checkbox(
+                        checked = checked,
+                        onCheckedChange = null,
+                        enabled = enabled,
+                        colors =
+                            CheckboxDefaults.colors(
+                                checkedColor = colors.accentLime,
+                                checkmarkColor = colors.accentInk,
+                                uncheckedColor = colors.textMuted,
+                            ),
                     )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "#${order.folio} · ${order.clientName ?: "Cliente"}" +
+                                (order.payer?.let { " · Paga $it" } ?: ""),
+                            fontWeight = FontWeight.Black,
+                            fontSize = 15.sp,
+                            color = ink,
+                        )
+                        if (order.itemsSummary.isNotBlank()) {
+                            Text(order.itemsSummary, fontSize = 12.sp, color = colors.textSecondary, maxLines = 1)
+                        }
+                    }
                     Text(
-                        order.itemsSummary,
-                        fontSize = 12.sp,
-                        color = colors.textSecondary,
-                        maxLines = 1,
+                        moneyLabel(order.total),
+                        fontWeight = FontWeight.Black,
+                        fontSize = 15.sp,
+                        color = ink,
+                        modifier = Modifier.padding(end = 6.dp),
                     )
                 }
-                Text(
-                    moneyLabel(order.total),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = colors.textPrimary,
-                )
             }
         }
     }
 }
 
+/** Las etiquetas de la hoja de cobro, en versalitas como en el resto del personal. */
+@Composable
+private fun CollectLabel(
+    text: String,
+    colors: OperationalColors,
+) {
+    Text(
+        text.uppercase(),
+        fontSize = 11.5.sp,
+        color = colors.textSecondary,
+        fontWeight = FontWeight.Black,
+        letterSpacing = 1.4.sp,
+    )
+}
+
+/** De quién es lo que se cobra ahora: "Ana", o null si son varios o nadie dijo su nombre. */
+internal fun partialPayer(
+    payable: List<AccountOrder>,
+    selected: Set<String>,
+): String? =
+    payable
+        .filter { it.id in selected }
+        .map { it.payer ?: it.clientName }
+        .distinct()
+        .singleOrNull()
+
+/** "faltan $158 de Luis": lo que queda sin cobrar cuando se cobra solo una parte por pedidos. */
+internal fun pendingAfterPartial(
+    payable: List<AccountOrder>,
+    selected: Set<String>,
+): String? {
+    val rest = payable.filter { it.id !in selected }
+    if (rest.isEmpty() || rest.size == payable.size) return null
+    val amount = rest.fold(BigDecimal.ZERO) { sum, order -> sum + order.total.moneyOrZero() }
+    val names = rest.mapNotNull { it.payer ?: it.clientName }.distinct()
+    val who = if (names.isEmpty()) "" else " de ${names.joinToString(" y ")}"
+    return "faltan ${moneyLabel(Money.format(amount))}$who"
+}
 private fun rentalLabel(minutes: Int): String =
     when {
         minutes % 60 == 0 -> "${minutes / 60} h"
@@ -1597,5 +1670,60 @@ internal fun RentalCollectSheet(
             allowTip = false,
             onConfirm = { _, received, _, _, _ -> received?.let(onConfirm) },
         )
+    }
+}
+
+/** El turno de una cancha sobre la cancha misma: cuánto queda en grande y a qué hora termina. */
+@Composable
+private fun CourtTurnHero(
+    remaining: Long,
+    inGrace: Boolean,
+    endsAt: String?,
+    modifier: Modifier = Modifier,
+) {
+    val field = animateSelectionColor(if (inGrace) Color(0xFF5A4A1E) else Color(0xFF2F5A2C), "court-field")
+    val line = Color.White.copy(alpha = 0.35f)
+    Box(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(150.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(field)
+                .drawBehind {
+                    val inset = 14.dp.toPx()
+                    val stroke = 1.5.dp.toPx()
+                    drawRect(
+                        line,
+                        topLeft = Offset(inset, inset),
+                        size = Size(size.width - 2 * inset, size.height - 2 * inset),
+                        style = Stroke(stroke),
+                    )
+                    drawLine(line, Offset(size.width / 2, inset), Offset(size.width / 2, size.height - inset), stroke)
+                    drawCircle(line, radius = size.height * 0.2f, center = center, style = Stroke(stroke))
+                }.padding(horizontal = 22.dp, vertical = 20.dp),
+    ) {
+        Column(modifier = Modifier.align(Alignment.BottomStart)) {
+            Text(
+                if (inGrace) "De gracia para decidir" else "Quedan",
+                color = Color.White.copy(alpha = 0.85f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            RollingText(
+                text = remainingText(remaining),
+                style = TextStyle(fontSize = 40.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.2).sp),
+                color = Color.White,
+            )
+        }
+        endsAt?.let {
+            Text(
+                "Termina $it",
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 6.dp),
+            )
+        }
     }
 }

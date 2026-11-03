@@ -48,6 +48,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material.icons.rounded.Check
@@ -1459,74 +1460,15 @@ private fun WaiterTableSheet(
                         }
                         val call = table.call
                         if (call != null) {
-                            val going = call.status == CallStatus.EN_CAMINO
-                            Surface(
-                                shape = RoundedCornerShape(18.dp),
-                                color =
-                                    animateSelectionColor(
-                                        if (going) {
-                                            colors.cardBackground
-                                        } else {
-                                            lerp(
-                                                colors.cardBackground,
-                                                WaiterCoral,
-                                                0.14f,
-                                            )
-                                        },
-                                        "sheet-call-background",
-                                    ),
-                                modifier =
-                                    Modifier.fillMaxWidth().border(
-                                        1.dp,
-                                        animateSelectionColor(
-                                            if (going) colors.cardBorder else WaiterCoral.copy(alpha = 0.4f),
-                                            "sheet-call-border",
-                                        ),
-                                        RoundedCornerShape(18.dp),
-                                    ),
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp).animateContentSize()) {
-                                    Text(
-                                        call.reason.staffLabel,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = colors.textPrimary,
-                                    )
-                                    val callSubtitle =
-                                        remember(call, tick) {
-                                            buildString {
-                                                append(call.clientName ?: "Cliente")
-                                                append(" · hace ${waiterSince(call.createdAt)}")
-                                                if (call.takenBy != null) append(" · va ${call.takenBy.name}")
-                                            }
-                                        }
-                                    Text(
-                                        callSubtitle,
-                                        color = colors.textSecondary,
-                                        fontSize = 12.5.sp,
-                                        modifier = Modifier.padding(top = 4.dp),
-                                    )
-                                    Button(
-                                        onClick = {
-                                            if (call.status == CallStatus.PENDIENTE) onGoing(call) else onAttended(call)
-                                        },
-                                        enabled = !acting && !readOnly,
-                                        colors =
-                                            ButtonDefaults.buttonColors(
-                                                containerColor = colors.accentLime,
-                                                contentColor = colors.accentInk,
-                                            ),
-                                        shape = RoundedCornerShape(14.dp),
-                                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(50.dp),
-                                    ) {
-                                        Text(
-                                            if (call.status == CallStatus.PENDIENTE) "Voy" else "Atendida",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 14.sp,
-                                        )
-                                    }
-                                }
-                            }
+                            WaiterCallCard(
+                                call = call,
+                                table = table,
+                                tick = tick,
+                                enabled = !acting && !readOnly,
+                                colors = colors,
+                                onGoing = { onGoing(call) },
+                                onAttended = { onAttended(call) },
+                            )
                         }
                         // Lo que Cocina o Caja canceló hace poco: el mesero ya no debe esperarlo ni llevarlo.
                         table.recentRejections.forEach { rejected ->
@@ -1930,4 +1872,150 @@ internal fun waiterSheetOrders(
                 )
             }
     return live + settledOnes
+}
+
+/** Una mesa que llama: qué pide, desde cuándo y lo último que pidió, con «Voy en camino» y «Ya la atendí». */
+@Composable
+private fun WaiterCallCard(
+    call: TableCall,
+    table: BoardTable,
+    tick: Int,
+    enabled: Boolean,
+    colors: OperationalColors,
+    onGoing: () -> Unit,
+    onAttended: () -> Unit,
+) {
+    val going = call.status == CallStatus.EN_CAMINO
+    val shape = RoundedCornerShape(26.dp)
+    val since = remember(call, tick) { minutesSince(call.createdAt, Instant.now()) }
+    val last = table.orders.maxByOrNull { it.updatedAt }
+    val lastCaption =
+        remember(last, tick) {
+            last?.let { "#${it.folio} · ${it.state.label.lowercase()}, ${minutesSince(it.updatedAt, Instant.now())}" }
+        }
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(
+                    animateSelectionColor(
+                        lerp(colors.cardBackground, WaiterCoral, if (going) 0.06f else 0.12f),
+                        "call-background",
+                    ),
+                ).border(1.dp, WaiterCoral.copy(alpha = 0.4f), shape)
+                .padding(20.dp)
+                .animateContentSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(64.dp)
+                    .pulseGlow(active = !going, color = WaiterCoral, spread = 8.dp, corner = 20.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(WaiterCoral),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Outlined.Notifications,
+                contentDescription = null,
+                tint = Color(0xFF16160F),
+                modifier = Modifier.size(30.dp),
+            )
+        }
+        Text(
+            buildString {
+                append(if (going) "Va ${call.takenBy?.name ?: "alguien"}" else "Llamando")
+                append(" · ")
+                append(if (since == "ahora") "ahora" else "hace $since")
+            }.uppercase(),
+            color = colors.textSecondary,
+            fontWeight = FontWeight.Black,
+            fontSize = 11.5.sp,
+            letterSpacing = 1.4.sp,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        Text(
+            "${call.space.name} te llama",
+            color = colors.textPrimary,
+            fontWeight = FontWeight.Black,
+            fontSize = 30.sp,
+            lineHeight = 33.sp,
+            letterSpacing = (-1).sp,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            listOfNotNull(call.reason.staffLabel, call.clientName).joinToString(" · "),
+            color = colors.textSecondary,
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center,
+        )
+        lastCaption?.let { caption ->
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(colors.cardInner)
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Último pedido", color = colors.textSecondary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    caption,
+                    color = colors.textPrimary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+        if (!going) {
+            CallButton("Voy en camino", primary = true, enabled = enabled, colors = colors, onClick = onGoing)
+        }
+        CallButton("Ya la atendí", primary = going, enabled = enabled, colors = colors, onClick = onAttended)
+        if (!going) {
+            Text(
+                "«Voy en camino» le avisa a la mesa que ya la viste.",
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CallButton(
+    label: String,
+    primary: Boolean,
+    enabled: Boolean,
+    colors: OperationalColors,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp)
+                .height(56.dp)
+                .clip(CircleShape)
+                .background(if (primary) colors.textPrimary else Color.Transparent)
+                .border(1.dp, if (primary) Color.Transparent else colors.cardBorder, CircleShape)
+                .physicalPress(enabled = enabled, onClick = onClick)
+                .graphicsLayer { alpha = if (enabled) 1f else 0.5f },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            color = if (primary) colors.background else colors.textPrimary,
+            fontWeight = FontWeight.Black,
+            fontSize = 16.sp,
+        )
+    }
 }

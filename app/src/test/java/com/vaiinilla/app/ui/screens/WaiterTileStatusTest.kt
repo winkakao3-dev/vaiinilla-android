@@ -93,4 +93,19 @@ class WaiterTileStatusTest {
         assertEquals("214.00", rows[1].amount)
         assertEquals(OrderState.DELIVERED, rows[2].order.state)
     }
+
+    @Test
+    fun `al cobrar solo una parte el boton dice cuanto falta y de quien`() {
+        val payable =
+            listOf(
+                AccountOrder("a", 12, "listo", "214.00", "Ana", "Cheesecake", true, true),
+                AccountOrder("b", 17, "listo", "95.00", "Ana", "Pastel", true, true),
+                AccountOrder("c", 13, "listo", "98.00", "Luis", "Crepa", true, true),
+                AccountOrder("d", 11, "listo", "60.00", "Luis", "Cafés", true, true),
+            )
+        assertEquals("faltan $158 de Luis", pendingAfterPartial(payable, setOf("a", "b")))
+        assertEquals("Ana", partialPayer(payable, setOf("a", "b")))
+        assertEquals(null, pendingAfterPartial(payable, setOf("a", "b", "c", "d")))
+        assertEquals(null, partialPayer(payable, setOf("a", "c")))
+    }
 }
