@@ -86,6 +86,7 @@ import com.vaiinilla.app.ui.discovery.QrScannerAlternative
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
 import com.vaiinilla.app.ui.notices.ReceivedNoticesScreen
+import com.vaiinilla.app.ui.notices.ReceivedNoticesViewModel
 import com.vaiinilla.app.ui.operational.CashierContext
 import com.vaiinilla.app.ui.operational.CourtsViewModel
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
@@ -209,6 +210,8 @@ fun AppNavHost(
     val studentCounterViewModel: StudentCounterViewModel = viewModel()
     val reservedOrdersViewModel: ReservedOrdersViewModel = viewModel()
     val pendingRefundsViewModel: PendingRefundsViewModel = viewModel()
+    // Aquí y no dentro de su ruta: la entrada de navegación no tiene la fábrica de Hilt y no lo puede construir.
+    val receivedNoticesViewModel: ReceivedNoticesViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
     val operationalState by operationalViewModel.uiState
     val waiterState by waiterViewModel.uiState
@@ -1478,7 +1481,7 @@ fun AppNavHost(
 
             composable(Routes.RECEIVED_NOTICES) {
                 ReceivedNoticesScreen(
-                    viewModel = viewModel(),
+                    viewModel = receivedNoticesViewModel,
                     modes = authorizedAccessState.modes,
                     onBack = { navController.popBackStack() },
                 )
