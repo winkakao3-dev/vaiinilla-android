@@ -269,7 +269,8 @@ private fun ReloadCode(
                 )
             }
         }
-        holderName?.takeIf { it.isNotBlank() }?.let {
+        // Sin nombre, la cuenta trae su correo como nombre: no se le enseña a Caja.
+        holderName?.takeIf { it.isNotBlank() && '@' !in it }?.let {
             Text(
                 it,
                 color = Color(0xFF55564F),

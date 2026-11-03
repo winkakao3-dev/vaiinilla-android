@@ -7,8 +7,10 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
+import com.github.takahirom.roborazzi.captureRoboImage
 import com.vaiinilla.app.domain.guardianship.MyGuardianControls
 import com.vaiinilla.app.ui.parentmode.ChildAccountContent
 import com.vaiinilla.app.ui.parentmode.ChildAccountState
@@ -22,6 +24,7 @@ import com.vaiinilla.app.ui.screenshot.BreakUiData
 import com.vaiinilla.app.ui.screenshot.BreakUiFixtures
 import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -43,7 +46,7 @@ class CremeWalletCartUiTest {
     val composeTestRule = createComposeRule()
 
     @Test
-    fun `Cartera de una tienda trae el saldo, sus pills y la fila de datos`() {
+    fun `Cartera de una tienda trae el saldo, Recargar, Mi codigo y los ultimos movimientos`() {
         composeTestRule.setContent {
             ScreenshotTheme {
                 WalletScreen(
@@ -77,7 +80,7 @@ class CremeWalletCartUiTest {
     }
 
     @Test
-    fun `Cartera sin movimientos deja la fila de datos en guion`() {
+    fun `Cartera sin movimientos invita a ver el menu`() {
         composeTestRule.setContent {
             ScreenshotTheme {
                 WalletScreen(
@@ -188,8 +191,72 @@ class CremeWalletCartUiTest {
     }
 
     @Test
-    fun `Carrito vacio trae la portada, Ver menu y Cartera`() {
-        var wallet = 0
+    fun `captura oscura de la Cartera y de Movimientos para compararlas con Doop E02 y E04`() {
+        composeTestRule.setContent {
+            ScreenshotTheme(mode = VaiinillaThemeMode.Dark) {
+                WalletScreen(
+                    remoteState = BreakUiFixtures.wallet(BreakUiData.DEMO),
+                    userId = "u-1",
+                    venueName = "Usagi (Pruebas)",
+                    onMenu = {},
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onRoot().captureRoboImage("wallet/e02_cartera_oscura.png")
+
+        composeTestRule.onNodeWithText("Ver todos").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onRoot().captureRoboImage("wallet/e04_movimientos_oscura.png")
+    }
+
+    @Test
+    fun `captura oscura de la Cartera del alumno para compararla con Doop E14`() {
+        val controls =
+            MyGuardianControls(
+                tutorNames = listOf("Rosa"),
+                dailyLimit = BigDecimal("60.00"),
+                availableToday = BigDecimal("32.00"),
+                blockedProductIds = setOf(1),
+                allergenProductIds = setOf(2),
+                allergens = emptyList(),
+            )
+        val viewModel =
+            ChildrenViewModel(
+                FakeGuardianship(),
+                { FakeAccount(ParentFixtures.wallet) },
+                FakeCatalog(),
+                ApplicationProvider.getApplicationContext(),
+            )
+        composeTestRule.setContent {
+            ScreenshotTheme(mode = VaiinillaThemeMode.Dark) {
+                ParentModeWalletHost(
+                    enabled = true,
+                    childrenViewModel = viewModel,
+                    hasTutors = true,
+                    onFullScreenChange = {},
+                    onAccountClaimed = {},
+                ) { family ->
+                    WalletScreen(
+                        remoteState = BreakUiFixtures.wallet(BreakUiData.DEMO),
+                        userId = "u-1",
+                        venueName = "Usagi (Pruebas)",
+                        onMenu = {},
+                        caretakerLine = controls.caretakerLine,
+                        caretakerDetail = controls.walletDetail,
+                        guardianControls = controls,
+                        familySection = family,
+                    )
+                }
+            }
+        }
+        composeTestRule.mainClock.advanceTimeBy(1_500)
+        composeTestRule.waitForIdle()
+        composeTestRule.onRoot().captureRoboImage("wallet/e14_alumno_oscura.png")
+    }
+
+    @Test
+    fun `Carrito vacio trae la portada, Ver menu y Cartera`() {        var wallet = 0
         composeTestRule.setContent {
             ScreenshotTheme {
                 CartScreen(
