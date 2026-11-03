@@ -61,9 +61,12 @@ class CremeWalletCartUiTest {
         composeTestRule.onNodeWithTag("wallet-recharge").assertIsDisplayed()
         composeTestRule.onNodeWithText("Cuenta").assertIsDisplayed()
         composeTestRule.onNodeWithText("Gastado este mes").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Recargas").assertIsDisplayed()
+        // «Recargas» es la cifra de la fila de datos y también el filtro de Movimientos (Doop E04).
+        composeTestRule.onAllNodesWithText("Recargas").assertCountEquals(2)
         composeTestRule.onNodeWithText("Último movimiento").assertIsDisplayed()
         composeTestRule.onNodeWithText("Movimientos recientes").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Todo").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Compras").assertExists()
         // Ni la pill Movimientos ni nada de la escuela en una tienda normal.
         composeTestRule.onAllNodesWithText("Movimientos").assertCountEquals(0)
         composeTestRule.onAllNodesWithText("Mis hijos").assertCountEquals(0)

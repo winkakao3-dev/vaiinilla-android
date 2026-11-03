@@ -11,6 +11,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -80,6 +82,7 @@ import com.vaiinilla.app.domain.guardianship.MyGuardianControls
 import com.vaiinilla.app.domain.guardianship.compactMoney
 import com.vaiinilla.app.domain.model.WalletMovement
 import com.vaiinilla.app.domain.time.BusinessTime
+import com.vaiinilla.app.ui.components.ChoiceChip
 import com.vaiinilla.app.ui.components.CremeDivider
 import com.vaiinilla.app.ui.components.CremeHero
 import com.vaiinilla.app.ui.components.CremePill
@@ -193,6 +196,8 @@ fun WalletScreen(
     val isStudent = caretakerLine != null && family != null
     val movements = remoteState.data?.movements
     val ledger = remember(movements) { WalletLedgerStats.from(movements.orEmpty()) }
+    var movementFilter by rememberSaveable { mutableStateOf(MovementFilter.ALL) }
+    val filteredMovements = remember(movements, movementFilter) { movements.orEmpty().filter { movementFilter.matches(it.type) } }
     val statItems =
         when {
             isStudent && guardianControls != null -> studentStats(guardianControls)
@@ -310,6 +315,17 @@ fun WalletScreen(
                     }
                     CremeDivider(Modifier.padding(top = 20.dp))
                     CremeStatRow(statItems, Modifier.padding(top = 18.dp))
+                    if (!isStudent) {
+                        ledger.returnedThisMonth?.let { returned ->
+                            Text(
+                                text = "Este mes te regresaron $returned entre cashback y devoluciones.",
+                                color = colors.muted,
+                                fontSize = 14.sp,
+                                lineHeight = 20.sp,
+                                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp),
+                            )
+                        }
+                    }
                 }
             }
             if (family != null) {
@@ -344,7 +360,40 @@ fun WalletScreen(
                         }
                     }
                 }
-                items(movements.take(visibleMovements), key = { it.id }) { movement ->
+                if (movements.size > 1) {
+                    item(key = "movements-filters") {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState())
+                                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            MovementFilter.entries.forEach { filter ->
+                                ChoiceChip(
+                                    label = filter.label,
+                                    selected = movementFilter == filter,
+                                    onClick = {
+                                        movementFilter = filter
+                                        visibleMovements = MOVEMENTS_PAGE
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+                if (movements.isNotEmpty() && filteredMovements.isEmpty()) {
+                    item(key = "movements-filter-empty") {
+                        Text(
+                            text = "Todavía no hay movimientos de este tipo.",
+                            color = colors.muted,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
+                        )
+                    }
+                }
+                items(filteredMovements.take(visibleMovements), key = { it.id }) { movement ->
                     Box(Modifier.padding(horizontal = 20.dp)) {
                         WalletMovementRow(
                             title = movementTitle(movement.type, movement.description, movement.orderFolio),
@@ -354,7 +403,7 @@ fun WalletScreen(
                         )
                     }
                 }
-                if (movements.size > visibleMovements) {
+                if (filteredMovements.size > visibleMovements) {
                     item(key = "more-movements") {
                         TextButton(
                             onClick = { visibleMovements += MOVEMENTS_PAGE },
@@ -406,14 +455,34 @@ private fun studentStats(controls: MyGuardianControls): List<CremeStat> {
     )
 }
 
+/** Los filtros de Movimientos (Doop E04). El cashback solo sale en «Todo»: no es compra, recarga ni devolución. */
+internal enum class MovementFilter(
+    val label: String,
+) {
+    ALL("Todo"),
+    PURCHASES("Compras"),
+    RELOADS("Recargas"),
+    REFUNDS("Devoluciones"),
+    ;
+
+    fun matches(type: String): Boolean =
+        when (this) {
+            ALL -> true
+            PURCHASES -> type == "compra"
+            RELOADS -> type.startsWith("recarga")
+            REFUNDS -> type == "cancelacion" || type == "devolucion_articulo"
+        }
+}
+
 /**
- * Las tres cifras de la fila de datos de Cartera, sacadas de los movimientos que ya baja la app. Sin movimientos,
- * ninguna: la fila muestra «—».
+ * Las tres cifras de la fila de datos de Cartera, sacadas de los movimientos que ya baja la app. Sin movimientos, * ninguna: la fila muestra «—».
  */
 internal class WalletLedgerStats(
     val spentThisMonth: String?,
     val reloads: String?,
     val lastMovement: String?,
+    /** Cashback y devoluciones de este mes (Doop E02); `null` si no hubo. */
+    val returnedThisMonth: String? = null,
 ) {
     companion object {
         fun from(
@@ -425,21 +494,28 @@ internal class WalletLedgerStats(
             val zone = BusinessTime.zone
             val today = BusinessTime.at(now, zone).toLocalDate()
             var spent = BigDecimal.ZERO
+            var returned = BigDecimal.ZERO
             for (movement in movements) {
-                if (!movement.amount.startsWith("-")) continue
                 val date = movement.createdAt.toInstantOrNull()?.let { BusinessTime.at(it, zone).toLocalDate() }
                 val value =
                     movement.amount
                         .replace(",", "")
                         .trim()
                         .toBigDecimalOrNull()
-                if (date != null && value != null && date.year == today.year && date.month == today.month) {
-                    spent += value.negate()
+                if (date == null || value == null || date.year != today.year || date.month != today.month) continue
+                when {
+                    movement.amount.startsWith("-") -> spent += value.negate()
+                    movement.type == "cashback" || MovementFilter.REFUNDS.matches(movement.type) -> returned += value
                 }
             }
             val reloads = movements.count { !it.amount.startsWith("-") }
             val last = cremeMoment(movements.first().createdAt, now)
-            return WalletLedgerStats(compactMoney(spent), reloads.toString(), last)
+            return WalletLedgerStats(
+                compactMoney(spent),
+                reloads.toString(),
+                last,
+                returned.takeIf { it.signum() > 0 }?.let(::compactMoney),
+            )
         }
 
         private fun String.toInstantOrNull(): Instant? =
