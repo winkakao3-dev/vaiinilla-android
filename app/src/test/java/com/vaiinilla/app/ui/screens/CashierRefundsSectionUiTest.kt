@@ -28,6 +28,38 @@ class CashierRefundsSectionUiTest {
     val composeTestRule = createComposeRule()
 
     @Test
+    fun `el aviso de caja dice cuantas devoluciones hay y abre el detalle`() {
+        val refund = PendingRefund("r-1", "rechazo_articulo", null, "p-1", "saldo", "20.00", "pendiente", "")
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                CashierRefundsEntry(
+                    state = PendingRefundsUiState(refunds = listOf(refund)),
+                    canConfirm = true,
+                    cashOpen = true,
+                    colors = rememberOperationalColors(),
+                    onConfirm = { _, _, _ -> },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Devolver $20").assertDoesNotExist()
+        composeTestRule.onNodeWithText("1 devolución pendiente").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Ver").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Devolver $20").assertIsDisplayed()
+    }
+
+    @Test
+    fun `con varias devoluciones el aviso suma el total`() {
+        val refunds =
+            listOf(
+                PendingRefund("r-1", "cancelacion", null, "p-1", "efectivo", "20.00", "pendiente", ""),
+                PendingRefund("r-2", "cancelacion", null, "p-2", "efectivo", "15.50", "pendiente", ""),
+            )
+        assertEquals("2 devoluciones pendientes", refundsEntryTitle(refunds.size))
+        assertEquals("$35.50 en total", refundsEntryDetail(refunds))
+    }
+    @Test
     fun `lo pagado con saldo se devuelve en efectivo`() {
         val refund = PendingRefund("r-1", "rechazo_articulo", null, "p-1", "saldo", "20.00", "pendiente", "")
         var confirmed: RefundMethod? = null

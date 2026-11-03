@@ -14,6 +14,9 @@ interface CashSessionRepository {
     /** El efectivo que debería haber en la caja abierta (`efectivo_esperado`), si el servidor lo manda. */
     val expectedCash: String? get() = null
 
+    /** La sesión abierta que trajo la última consulta de la caja, con su fondo y su hora; null si no hay o no llegó. */
+    val openedSession: CashSessionInfo? get() = null
+
     /** Id de la sesión de caja abierta, o null si no hay. */
     fun activeSessionId(): Result<String?>
 

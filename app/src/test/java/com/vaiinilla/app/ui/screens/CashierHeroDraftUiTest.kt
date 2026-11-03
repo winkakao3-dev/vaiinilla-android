@@ -22,8 +22,9 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * La tarjeta del pedido en Caja se reiniciaba sola (G02): cada sondeo trae una copia nueva del pedido y, si
- * arriba aparecía un aviso, la tarjeta se rehacía con la propina en "Sin" y el efectivo en el total.
+ * El cobro de Caja se reiniciaba solo (G02): cada sondeo trae una copia nueva del pedido y, si arriba aparecía un
+ * aviso, la tarjeta se rehacía con la propina en "Sin" y el efectivo en el total. Ahora el cobro vive en la hoja
+ * que abre el pedido (C02) y tiene que aguantar lo mismo.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -56,7 +57,8 @@ class CashierHeroDraftUiTest {
             }
         }
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("10%").performClick()
+        composeTestRule.onNodeWithText("#${pending.summary.folio}").performClick()
+        composeTestRule.onNodeWithText("10%", substring = true).performScrollTo().performClick()
         composeTestRule.onNodeWithText("Cobrar $90.20").performScrollTo().assertIsDisplayed()
 
         // El sondeo: el mismo pedido con otra versión, y un aviso que entra arriba de la tarjeta.
@@ -96,7 +98,8 @@ class CashierHeroDraftUiTest {
             }
         }
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("10%").performClick()
+        composeTestRule.onNodeWithText("#${pending.summary.folio}").performClick()
+        composeTestRule.onNodeWithText("10%", substring = true).performScrollTo().performClick()
         state = state.copy(orders = listOf(pending.copy(summary = pending.summary.copy(version = 2, total = "60.00"))))
         composeTestRule.waitForIdle()
 

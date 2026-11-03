@@ -118,7 +118,7 @@ import com.vaiinilla.app.ui.screens.AuthorizedModeScreen
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.PickupDeliveryFooter
 import com.vaiinilla.app.ui.screens.CashierOperationalScreen
-import com.vaiinilla.app.ui.screens.CashierRefundsSection
+import com.vaiinilla.app.ui.screens.CashierRefundsEntry
 import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.CounterOrderSheet
 import com.vaiinilla.app.ui.screens.DiscoveryScreen
@@ -2291,7 +2291,7 @@ fun AppNavHost(
                             },
                         placeName = authorizedAccessState.activeContext?.establishmentName.orEmpty(),
                         refundsEntry = {
-                            CashierRefundsSection(
+                            CashierRefundsEntry(
                                 state = pendingRefundsViewModel.uiState.value,
                                 canConfirm =
                                     authorizedAccessState.activeContext?.restrictedMode != RestrictedMode.READ_ONLY,

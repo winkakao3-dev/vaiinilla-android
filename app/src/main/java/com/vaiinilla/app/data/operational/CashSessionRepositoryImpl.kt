@@ -33,10 +33,18 @@ class RemoteCashSessionRepository(
     override var expectedCash: String? = null
         private set
 
+    @Volatile
+    override var openedSession: CashSessionInfo? = null
+        private set
+
     private fun readActive(): Result<String> =
         apiClient.get("sesiones-caja/activa").onSuccess { body ->
             suggestedFloat = runCatching { contractJson.parseSuggestedFloat(body) }.getOrNull()
             expectedCash = runCatching { contractJson.parseCashAmount(body, "efectivo_esperado") }.getOrNull()
+            openedSession =
+                runCatching {
+                    contractJson.parseCashSession(body)?.let { CashSessionInfo(it.id, it.initialAmount, it.openedAt) }
+                }.getOrNull()
         }
 
     override fun hasActiveSession(): Result<Boolean> =

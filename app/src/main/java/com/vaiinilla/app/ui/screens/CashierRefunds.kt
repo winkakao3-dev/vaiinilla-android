@@ -1,30 +1,48 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Undo
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.repository.PendingRefund
 import com.vaiinilla.app.domain.repository.RefundMethod
+import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.operational.PendingRefundsUiState
 
 /** Por qué hay que devolver, como lo dice la web de Caja. */
@@ -56,6 +74,94 @@ internal fun originalMethodLabel(originalMethod: String): String =
         else -> "se pagó con ${originalMethod.replace("+", " y ")}"
     }
 
+/**
+ * El aviso de C01: «1 devolución pendiente», con su monto y «Ver». El detalle se abre en una hoja para que las
+ * devoluciones no empujen la fila hacia abajo. Sin pendientes solo queda el aviso de la última confirmación.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun CashierRefundsEntry(
+    state: PendingRefundsUiState,
+    canConfirm: Boolean,
+    cashOpen: Boolean?,
+    colors: OperationalColors,
+    onConfirm: (PendingRefund, RefundMethod, String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var open by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(state.refunds.isEmpty()) {
+        if (state.refunds.isEmpty()) open = false
+    }
+    if (state.refunds.isEmpty()) {
+        CashierRefundsSection(state, canConfirm, cashOpen, colors, onConfirm, modifier)
+        return
+    }
+    val yellow = if (colors.isDark) Color(0xFFFFD15B) else Color(0xFF8A6100)
+    val shape = RoundedCornerShape(24.dp)
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .physicalPress(scale = PhysicalPressScale.Small) { open = true }
+                .clip(shape)
+                .background(yellow.copy(alpha = 0.1f))
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(
+            Icons.AutoMirrored.Outlined.Undo,
+            contentDescription = null,
+            tint = yellow,
+            modifier = Modifier.size(20.dp),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                refundsEntryTitle(state.refunds.size),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = colors.textPrimary,
+            )
+            Text(
+                refundsEntryDetail(state.refunds),
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text("Ver", fontSize = 12.5.sp, fontWeight = FontWeight.ExtraBold, color = yellow)
+    }
+    if (open) {
+        ModalBottomSheet(
+            onDismissRequest = { open = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = colors.background,
+            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 18.dp)
+                        .padding(bottom = 28.dp),
+            ) {
+                CashierRefundsSection(state, canConfirm, cashOpen, colors, onConfirm)
+            }
+        }
+    }
+}
+
+internal fun refundsEntryTitle(count: Int): String =
+    if (count == 1) "1 devolución pendiente" else "$count devoluciones pendientes"
+
+/** «$85 · Se quitó un artículo ya pagado» con una sola; con varias, el total. */
+internal fun refundsEntryDetail(refunds: List<PendingRefund>): String {
+    refunds.singleOrNull()?.let { return "${moneyLabel(it.amount)} · ${refundOriginLabel(it.origin)}" }
+    val total = refunds.sumOf { it.amount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO }
+    return "${moneyLabel(com.vaiinilla.app.domain.model.Money.format(total))} en total"
+}
 /**
  * Devoluciones pendientes (G08, H03): dinero que el negocio debe regresar a mano. Caja confirma cuándo y cómo
  * lo devolvió; en efectivo sale del cajón. Sin pendientes no ocupa lugar.

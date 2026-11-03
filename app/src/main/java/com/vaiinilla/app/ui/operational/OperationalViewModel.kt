@@ -1092,12 +1092,15 @@ class OperationalViewModel
                 if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
                 result
                     .onSuccess { open ->
+                        val session = cashSessionRepository.openedSession.takeIf { open }
                         _uiState.value =
                             _uiState.value.copy(
                                 cashSessionOpen = open,
                                 cashSessionCheckFailed = false,
                                 suggestedCashFloat = cashSessionRepository.suggestedFloat,
                                 expectedCash = cashSessionRepository.expectedCash,
+                                cashOpeningAmount = session?.initialAmount,
+                                cashOpenedAt = session?.openedAt,
                             )
                     }.onFailure {
                         // Con la caja ya conocida se conserva lo último; solo si nunca se supo, la pantalla pide reintentar.

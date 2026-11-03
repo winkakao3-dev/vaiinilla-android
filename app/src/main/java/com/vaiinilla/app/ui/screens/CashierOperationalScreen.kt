@@ -1,6 +1,10 @@
 package com.vaiinilla.app.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.runtime.key
 import androidx.compose.material3.HorizontalDivider
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -9,21 +13,15 @@ import android.net.Uri
 import android.widget.ImageView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,7 +36,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -48,21 +45,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicText
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
@@ -81,30 +72,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -124,11 +106,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.SpaceCopy
-import com.vaiinilla.app.domain.model.TipChoice
-import com.vaiinilla.app.domain.model.TipPercents
 import com.vaiinilla.app.domain.model.activeItems
-import com.vaiinilla.app.domain.model.amountFor
-import com.vaiinilla.app.domain.model.asTipWire
 import com.vaiinilla.app.domain.model.cashAmountDue
 import com.vaiinilla.app.domain.model.needsCashCollection
 import com.vaiinilla.app.domain.repository.StoreImageKind
@@ -136,7 +114,6 @@ import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_ADD_PRODUCT
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_CASHIER_ORDER_CARD
-import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_KITCHEN_CARD
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_OPEN_CASH
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_QR_SCAN
 import com.vaiinilla.app.ui.components.EditorialAccentButton
@@ -147,50 +124,25 @@ import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.SlidingSegments
 import com.vaiinilla.app.ui.components.ToastPill
 import com.vaiinilla.app.ui.components.VaiinillaAssistantButton
-import com.vaiinilla.app.ui.components.VaiinillaMark
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.assistantAnchor
-import com.vaiinilla.app.ui.components.assistantKitchenReadyAnchor
-import com.vaiinilla.app.ui.components.assistantKitchenStartAnchor
 import com.vaiinilla.app.ui.components.assistantProductSwitchAnchor
-import com.vaiinilla.app.ui.components.assistantQueueOrderAnchor
 import com.vaiinilla.app.ui.components.cashierAssistantGuides
-import com.vaiinilla.app.ui.components.kitchenAssistantGuides
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
 import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
-import com.vaiinilla.app.ui.counter.TicketAllergyBand
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.operational.QueuePresentation
-import com.vaiinilla.app.ui.operational.operationalLink
 import com.vaiinilla.app.ui.operational.queuePresentation
-import com.vaiinilla.app.ui.theme.AccentInk
-import com.vaiinilla.app.ui.theme.Cream
-import com.vaiinilla.app.ui.theme.CreamDeep
-import com.vaiinilla.app.ui.theme.Ink
-import com.vaiinilla.app.ui.theme.Lime
-import com.vaiinilla.app.ui.theme.Line
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
-import com.vaiinilla.app.ui.theme.MutedInk
-import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.delay
 import java.math.BigDecimal
+import java.time.Instant
 import java.time.format.DateTimeFormatter
-
-/** Cambio de pedido protagonista: el nuevo entra con fade + escala suave; misma orden = sin animación. */
-private fun heroSwapTransition(reduced: Boolean): ContentTransform =
-    if (reduced) {
-        fadeIn(snap()) togetherWith fadeOut(snap())
-    } else {
-        (
-            fadeIn(spring(stiffness = 300f)) +
-                scaleIn(spring(dampingRatio = 0.85f, stiffness = 400f), initialScale = 0.96f)
-        ) togetherWith fadeOut(spring(stiffness = 600f))
-    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -255,7 +207,6 @@ fun CashierOperationalScreen(
     onRefresh: () -> Unit = {},
 ) {
     val colors = rememberOperationalColors()
-    val reduceMotion = reducedMotion()
     val themeMode = LocalVaiinillaThemeMode.current
     val themeChanger = LocalVaiinillaThemeModeChanger.current
     val haptics = rememberVaiinillaHaptics()
@@ -332,16 +283,19 @@ fun CashierOperationalScreen(
             else -> null
         }
     val actionableCashierOrders = cashierQueueOrders(state.orders)
-    // Bajo "Por cobrar" solo van pedidos por cobrar o por entregar; nunca uno ya entregado.
-    val recentOrder =
-        actionableCashierOrders.firstOrNull { it.summary.id == selectedCashierOrderId }
-            ?: actionableCashierOrders.firstOrNull()
-    val queuedCashierOrders =
-        actionableCashierOrders.filterNot { it.summary.id == recentOrder?.summary?.id }
+    // La hoja de cobro (C02) solo se abre con un pedido elegido y se cierra sola cuando ese pedido sale de la fila.
+    val chargeOrder = actionableCashierOrders.firstOrNull { it.summary.id == selectedCashierOrderId }
+    val scanTarget = cashierScanTarget(actionableCashierOrders, deliveryRequiresQr)
     val actionableIds = actionableCashierOrders.map { it.summary.id }.toSet()
-    // Un pedido de mostrador que el cajero eligió cobrar ya llega aquí seleccionado: pasa al frente (G03).
+    // Un pedido de mostrador que el cajero eligió cobrar ya llega aquí seleccionado y abre su hoja (G03). Cada
+    // selección abre la hoja una sola vez: si el cajero la cierra, que no vuelva a abrirse con el siguiente sondeo.
+    var handledSelectedOrderId by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(state.selectedOrderId, actionableIds) {
-        state.selectedOrderId?.takeIf { it in actionableIds }?.let { selectedCashierOrderId = it }
+        val wanted = state.selectedOrderId ?: return@LaunchedEffect
+        if (wanted != handledSelectedOrderId && wanted in actionableIds) {
+            handledSelectedOrderId = wanted
+            selectedCashierOrderId = wanted
+        }
     }
     LaunchedEffect(actionableIds) {
         cashDrafts.keys.filterNot { it in actionableIds }.forEach(cashDrafts::remove)
@@ -366,8 +320,8 @@ fun CashierOperationalScreen(
     val firstGuidableProductId = products.firstOrNull { it.available }?.id ?: products.firstOrNull()?.id
     val cashierGuides =
         cashierAssistantGuides(
-            readyOrderId = recentOrder?.takeIf { it.summary.state == OrderState.READY }?.summary?.id,
-            readyOrderFolio = recentOrder?.takeIf { it.summary.state == OrderState.READY }?.summary?.folio,
+            readyOrderId = scanTarget?.summary?.id,
+            readyOrderFolio = scanTarget?.summary?.folio,
             firstProductId = firstGuidableProductId,
             cashSessionOpen = state.cashSessionOpen,
             canCreateProduct = canCreateProduct,
@@ -420,7 +374,7 @@ fun CashierOperationalScreen(
                 Modifier
                     .fillMaxSize()
                     .statusBarsPadding(),
-            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 100.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Topline
@@ -498,35 +452,38 @@ fun CashierOperationalScreen(
             }
 
             item(key = "cashier-title") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f).padding(horizontal = 2.dp)) {
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             "Por cobrar",
                             fontSize = 34.sp,
                             fontWeight = FontWeight.Black,
                             letterSpacing = (-1).sp,
                             color = colors.textPrimary,
+                            modifier = Modifier.weight(1f),
                         )
-                        // Antes de cobrar, el cajero confirma que la sesión está abierta y en qué negocio (G01).
-                        Text(
-                            cashierSessionCaption(state.cashSessionOpen, placeName),
-                            fontSize = 13.sp,
-                            color = colors.textSecondary,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        CashierSearchButton(
+                            colors = colors,
+                            onClick = {
+                                haptics.selection()
+                                searchOpen = true
+                            },
                         )
                     }
-                    CashierSearchButton(
-                        colors = colors,
-                        onClick = {
-                            haptics.selection()
-                            searchOpen = true
-                        },
+                    // Antes de cobrar, el cajero confirma que la sesión está abierta y en qué negocio (G01).
+                    Text(
+                        cashierSessionCaption(
+                            state.cashSessionOpen,
+                            placeName,
+                            openingAmount = state.cashOpeningAmount,
+                            openedAt = state.cashOpenedAt,
+                        ),
+                        fontSize = 12.5.sp,
+                        color = colors.textSecondary,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     )
                 }
             }
@@ -673,452 +630,55 @@ fun CashierOperationalScreen(
                 CashierQueueHeader(count = actionableCashierOrders.size, colors = colors)
             }
 
-            // Con llave fija: si aparece un aviso arriba, la tarjeta no cambia de lugar ni se rehace.
-            item(key = "cashier-hero") {
-                AnimatedContent(
-                    targetState = recentOrder,
-                    contentKey = { it?.summary?.id },
-                    transitionSpec = { heroSwapTransition(reduceMotion) },
-                    label = "cashier-hero",
-                ) { heroOrder ->
-                    val recentOrder = heroOrder
-                    if (recentOrder != null) {
-                        val isOrderReady = recentOrder.summary.state == OrderState.READY
-                        // Cocina puede arrancar el pedido antes de cobrarlo: el saldo sigue por cobrar en
-                        // preparando y en listo, y no se entrega mientras falte.
-                        val needsCash = recentOrder.summary.needsCashCollection
-                        val amountDue = recentOrder.summary.cashAmountDue
-                        val draftOrderId = recentOrder.summary.id
-                        val orderTotal = runCatching { BigDecimal(amountDue) }.getOrDefault(BigDecimal.ZERO)
-                        // Si lo que se cobra cambió (se quitó un artículo), lo escrito ya no aplica y se vuelve a
-                        // sugerir; la propina elegida se conserva.
-                        val cashDraft =
-                            cashDrafts[draftOrderId]?.takeIf { it.orderTotal == amountDue }
-                                ?: cashDrafts[draftOrderId].let { previous ->
-                                    val tip = previous?.tip ?: TipChoice.None
-                                    CashierCashDraft(
-                                        orderTotal = amountDue,
-                                        received = Money.format(orderTotal + tip.amountFor(orderTotal)),
-                                        tip = tip,
-                                    )
-                                }
-                        val cashReceivedInput = cashDraft.received
-                        // Una renta de cancha no lleva propina (W21, Consejera; QAIOS-13 en iOS).
-                        val isRental = recentOrder.reservation != null
-                        val cashTipChoice = if (isRental) TipChoice.None else cashDraft.tip
-                        // El progreso es del cobro: otra acción en curso solo deshabilita el botón.
-                        var collecting by remember(recentOrder.summary.id) { mutableStateOf(false) }
-                        // Quitar y rechazar quedan detrás de «Más opciones», lejos de Cobrar.
-                        var showMore by remember(recentOrder.summary.id) { mutableStateOf(false) }
-                        val cashFieldFocus = remember { FocusRequester() }
-                        LaunchedEffect(state.acting, state.errorMessage) {
-                            if (!state.acting) collecting = false
-                        }
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            Surface(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_CASHIER_ORDER_CARD),
-                                shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
-                                color = TicketPaper,
-                                shadowElevation = 10.dp,
-                            ) {
-                                Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.Top,
-                                    ) {
-                                        // El sello se mide primero; el folio toma lo que sobra.
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                "PEDIDO · ${elapsedShort(
-                                                    recentOrder.summary.createdAt,
-                                                    tick,
-                                                ).uppercase()}${arrivalSuffix(recentOrder)}",
-                                                color = TicketMuted,
-                                                fontSize = 9.5.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                letterSpacing = 1.6.sp,
-                                            )
-                                            // Con la letra del sistema al doble el folio se partía en dos renglones.
-                                            BasicText(
-                                                "#${recentOrder.summary.folio}",
-                                                style =
-                                                    TextStyle(
-                                                        fontWeight = FontWeight.Black,
-                                                        letterSpacing = (-1.5).sp,
-                                                        color = TicketInk,
-                                                    ),
-                                                maxLines = 1,
-                                                autoSize =
-                                                    TextAutoSize.StepBased(
-                                                        minFontSize = 24.sp,
-                                                        maxFontSize = 46.sp,
-                                                        stepSize = 2.sp,
-                                                    ),
-                                            )
-                                        }
-                                        StampLabel(
-                                            text = if (needsCash) "POR COBRAR" else "LISTO",
-                                            live = true,
-                                        )
-                                    }
-
-                                    CashierOrderStatus(
-                                        summary = recentOrder.summary,
-                                        onPaper = true,
-                                        modifier = Modifier.padding(top = 6.dp),
-                                    )
-
-                                    TicketAllergyBand(recentOrder.user?.allergies.orEmpty())
-
-                                    Column(modifier = Modifier.padding(top = 8.dp)) {
-                                        // Lo que Cocina o Caja quitaron ya no cuenta ni en el total ni en el ticket.
-                                        // El último artículo no se quita: se rechaza el pedido entero.
-                                        val canRemoveItems =
-                                            restrictedMode != RestrictedMode.READ_ONLY &&
-                                                recentOrder.activeItems.size > 1 &&
-                                                !state.acting &&
-                                                showMore
-                                        recentOrder.activeItems.forEach { item ->
-                                            ReceiptLine(
-                                                quantity = item.quantity,
-                                                name = item.productName,
-                                                detail =
-                                                    item.options
-                                                        .joinToString(" · ") { it.name }
-                                                        .ifEmpty { null },
-                                                price = moneyLabel(item.subtotal),
-                                                onRemove =
-                                                    if (canRemoveItems) {
-                                                        { rejectingItem = recentOrder.summary.id to item }
-                                                    } else {
-                                                        null
-                                                    },
-                                            )
-                                        }
-                                    }
-
-                                    TicketPerf()
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.Bottom,
-                                    ) {
-                                        Text(
-                                            if (needsCash &&
-                                                amountDue != recentOrder.summary.total
-                                            ) {
-                                                "PENDIENTE"
-                                            } else {
-                                                "TOTAL"
-                                            },
-                                            fontSize = 10.5.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            letterSpacing = 1.4.sp,
-                                            color = TicketMuted,
-                                        )
-                                        Text(
-                                            moneyLabel(if (needsCash) amountDue else recentOrder.summary.total),
-                                            fontSize = 28.sp,
-                                            fontWeight = FontWeight.Black,
-                                            letterSpacing = (-1).sp,
-                                            color = TicketInk,
-                                        )
-                                    }
-
-                                    if (needsCash) {
-                                        val tipAmount = cashTipChoice.amountFor(orderTotal)
-                                        val tipProblem = tipProblem(cashTipChoice, orderTotal)
-                                        val required = orderTotal + tipAmount
-                                        val receivedAmount = MoneyInput.parse(cashReceivedInput)
-                                        val changeDue = receivedAmount?.minus(required)
-                                        Text(
-                                            "¿CON CUÁNTO PAGA?",
-                                            fontSize = 10.5.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            letterSpacing = 1.4.sp,
-                                            color = TicketMuted,
-                                            modifier = Modifier.padding(top = 14.dp),
-                                        )                                        // Pedido pagado en efectivo: hay que cobrarlo antes de que exista
-                                        // cualquier posibilidad de avanzarlo a cocina/entrega.
-                                        BasicTextField(
-                                            value = cashReceivedInput,
-                                            onValueChange = { raw ->
-                                                cashDrafts[draftOrderId] =
-                                                    cashDraft.copy(received = MoneyInput.sanitize(raw))
-                                            },
-                                            singleLine = true,
-                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                            enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
-                                            textStyle =
-                                                TextStyle(
-                                                    color = TicketInk,
-                                                    fontSize = 22.sp,
-                                                    fontWeight = FontWeight.Black,
-                                                ),
-                                            cursorBrush = SolidColor(TicketInk),
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(top = 6.dp)
-                                                    .height(56.dp)
-                                                    .focusRequester(cashFieldFocus)
-                                                    .semantics { contentDescription = "Efectivo recibido" }
-                                                    .clip(RoundedCornerShape(12.dp))
-                                                    .background(TicketInk.copy(alpha = 0.05f))
-                                                    .border(1.dp, TicketLine, RoundedCornerShape(12.dp)),
-                                            decorationBox = { inner ->
-                                                Box(
-                                                    modifier =
-                                                        Modifier
-                                                            .fillMaxSize()
-                                                            .padding(horizontal = 14.dp),
-                                                    contentAlignment = Alignment.CenterStart,
-                                                ) {
-                                                    if (cashReceivedInput.isEmpty()) {
-                                                        Text(
-                                                            "Efectivo recibido · ${moneyLabel(Money.format(required))}",
-                                                            color = TicketMuted,
-                                                            fontSize = 14.sp,
-                                                            fontWeight = FontWeight.SemiBold,
-                                                        )
-                                                    }
-                                                    inner()
-                                                }
-                                            },
-                                        )
-                                        CashBillChips(
-                                            required = required,
-                                            received = receivedAmount,
-                                            enabled = !state.acting && restrictedMode != RestrictedMode.READ_ONLY,
-                                            onPick = { value ->
-                                                haptics.selection()
-                                                cashDrafts[draftOrderId] = cashDraft.copy(received = value)
-                                            },
-                                            onOther = {
-                                                haptics.selection()
-                                                cashDrafts[draftOrderId] = cashDraft.copy(received = "")
-                                                cashFieldFocus.requestFocus()
-                                            },
-                                        )
-                                        // El cambio se ve antes de confirmar, mientras el cajero cuenta los billetes.
-                                        cashChangeHint(changeDue)?.let { hint ->
-                                            CashChangeCard(
-                                                hint = hint,
-                                                change = changeDue,
-                                                colors = colors,
-                                                modifier = Modifier.padding(top = 10.dp),
-                                            )
-                                        }
-                                        if (!isRental) {
-                                            TicketTipRow(
-                                                choice = cashTipChoice,
-                                                tipAmount = tipAmount,
-                                                problem = tipProblem,
-                                                enabled = !state.acting,
-                                                onChange = { next ->
-                                                    // El efectivo sugerido sigue a la propina; lo tecleado no se pisa.
-                                                    val suggestion = Money.format(required)
-                                                    val withTip = Money.format(orderTotal + next.amountFor(orderTotal))
-                                                    val keep = cashReceivedInput != suggestion
-                                                    cashDrafts[draftOrderId] =
-                                                        cashDraft.copy(
-                                                            received = if (keep) cashReceivedInput else withTip,
-                                                            tip = next,
-                                                        )
-                                                },
-                                            )
-                                        }
-                                        if (!cashRegisterOpen) {
-                                            Text(
-                                                if (state.cashSessionOpen == false) {
-                                                    "Abre la caja para cobrar."
-                                                } else {
-                                                    "Revisando si la caja está abierta…"
-                                                },
-                                                color = TicketMuted,
-                                                fontSize = 12.sp,
-                                                modifier = Modifier.padding(top = 6.dp),
-                                            )
-                                        }
-                                        Button(
-                                            onClick = {
-                                                haptics.impact()
-                                                collecting = true
-                                                onCollect(
-                                                    recentOrder.summary.id,
-                                                    cashReceivedInput,
-                                                    recentOrder.summary.version,
-                                                    tipAmount.asTipWire(),
-                                                )
-                                            },
-                                            enabled =
-                                                cashRegisterOpen &&
-                                                    tipProblem == null &&
-                                                    receivedAmount != null &&
-                                                    receivedAmount >= required &&
-                                                    !state.acting &&
-                                                    restrictedMode != RestrictedMode.READ_ONLY,
-                                            colors =
-                                                ButtonDefaults.buttonColors(
-                                                    containerColor = colors.accentLime,
-                                                    contentColor = colors.accentInk,
-                                                    disabledContainerColor = TicketLine,
-                                                    disabledContentColor = TicketMuted,
-                                                ),
-                                            shape = RoundedCornerShape(14.dp),
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(top = 10.dp)
-                                                    .height(50.dp),
-                                            contentPadding = PaddingValues(horizontal = 14.dp),
-                                        ) {
-                                            if (collecting && state.acting) {
-                                                CircularProgressIndicator(
-                                                    color = TicketMuted,
-                                                    strokeWidth = 2.5.dp,
-                                                    modifier = Modifier.size(18.dp),
-                                                )
-                                            } else {
-                                                Icon(
-                                                    imageVector = Icons.Outlined.Payments,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(18.dp),
-                                                )
-                                            }
-                                            Spacer(Modifier.width(8.dp))
-                                            Text(
-                                                if (collecting && state.acting) {
-                                                    "Cobrando…"
-                                                } else {
-                                                    "Cobrar ${moneyLabel(Money.format(required))}"
-                                                },
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 14.sp,
-                                                maxLines = 1,
-                                                softWrap = false,
-                                            )
-                                        }
-                                    } else {
-                                        // La entrega exige el QR del alumno, salvo que el backend lo dispense para este
-                                        // pedido (`entrega_sin_qr`, una cuenta abierta), que el negocio no lo pida, o que
-                                        // el pedido lo hiciera esta misma caja y su token ya esté en el dispositivo.
-                                        val withoutQr =
-                                            recentOrder.summary.deliveryWithoutQr ||
-                                                !deliveryRequiresQr ||
-                                                recentOrder.pickupToken != null
-                                        Button(
-                                            onClick = {
-                                                haptics.impact()
-                                                if (withoutQr) {
-                                                    onDeliver(recentOrder.summary.id, recentOrder.summary.version)
-                                                } else {
-                                                    onScanDeliver(recentOrder.summary.id, recentOrder.summary.version)
-                                                }
-                                            },
-                                            enabled =
-                                                isOrderReady &&
-                                                    !state.acting &&
-                                                    restrictedMode != RestrictedMode.READ_ONLY,
-                                            colors =
-                                                ButtonDefaults.buttonColors(
-                                                    containerColor = TicketInk,
-                                                    contentColor = TicketPaper,
-                                                    disabledContainerColor = TicketLine,
-                                                    disabledContentColor = TicketMuted,
-                                                ),
-                                            shape = RoundedCornerShape(14.dp),
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(top = 12.dp)
-                                                    .height(50.dp)
-                                                    .assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_QR_SCAN),
-                                            contentPadding = PaddingValues(horizontal = 14.dp),
-                                        ) {
-                                            Icon(
-                                                imageVector =
-                                                    if (withoutQr) {
-                                                        Icons.Rounded.Check
-                                                    } else {
-                                                        Icons.Outlined.QrCodeScanner
-                                                    },
-                                                contentDescription = null,
-                                                modifier = Modifier.size(18.dp),
-                                            )
-                                            Spacer(Modifier.width(8.dp))
-                                            Text(
-                                                if (withoutQr) "Entregar" else "Escanear QR para entregar",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 14.sp,
-                                                maxLines = 1,
-                                                softWrap = false,
-                                            )
-                                        }
-                                    }
-                                    if (restrictedMode != RestrictedMode.READ_ONLY) {
-                                        CashierMoreOptions(
-                                            expanded = showMore,
-                                            enabled = !state.acting,
-                                            onToggle = {
-                                                haptics.selection()
-                                                showMore = !showMore
-                                            },
-                                            onReject = { rejectingOrderId = recentOrder.summary.id },
-                                        )
-                                    }                                }
-                            }
-                            TicketZigzag()
-                        }
-                    } else {
-                        when (cashierQueue) {
-                            QueuePresentation.Loading -> CashierQueueLoading(colors = colors)
-                            QueuePresentation.Error ->
-                                OperationalErrorCard(
-                                    title = "No se pudieron cargar los pedidos",
-                                    message = state.errorMessage ?: "Revisa la conexión e inténtalo otra vez.",
-                                    colors = colors,
-                                    onRetry = onRefresh,
-                                )
-                            else -> CashierQueueEmpty(colors = colors)
-                        }
+            // Toda la fila en una tarjeta, como en C01: cada renglón dice cómo va y si ya pagó, y al tocarlo se abre
+            // la hoja para cobrarlo o entregarlo.
+            item(key = "cashier-queue") {
+                if (actionableCashierOrders.isNotEmpty()) {
+                    CashierQueueCard(
+                        orders = actionableCashierOrders,
+                        tick = tick,
+                        colors = colors,
+                        modifier = Modifier.assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_CASHIER_ORDER_CARD),
+                        onOpen = { order ->
+                            haptics.selection()
+                            selectedCashierOrderId = order.summary.id
+                        },
+                    )
+                } else {
+                    when (cashierQueue) {
+                        QueuePresentation.Loading -> CashierQueueLoading(colors = colors)
+                        QueuePresentation.Error ->
+                            OperationalErrorCard(
+                                title = "No se pudieron cargar los pedidos",
+                                message = state.errorMessage ?: "Revisa la conexión e inténtalo otra vez.",
+                                colors = colors,
+                                onRetry = onRefresh,
+                            )
+                        else -> CashierQueueEmpty(colors = colors)
                     }
                 }
             }
 
-            // Pending-in-caja queue: every other order awaiting payment or pickup.
-            if (queuedCashierOrders.isNotEmpty()) {
-                items(queuedCashierOrders, key = { it.summary.id }) { order ->
-                    val queueTitle =
-                        order.activeItems
-                            .joinToString(" · ") { "${it.quantity}x ${it.productName}" }
-                            .ifEmpty { "Productos del menú" }
-                    QueueTicketRow(
-                        modifier = Modifier.animateItem(),
-                        folio = "#${order.summary.folio}",
-                        subtitle = "$queueTitle · ${elapsedShort(order.summary.createdAt, tick)}",
-                        title =
-                            customerPrefix(order) + (
-                                if (order.summary.destination.name == "TAKE_AWAY") {
-                                    "Para llevar"
-                                } else {
-                                    SpaceCopy.staffDestination(order.summary.destination, order.summary.space)
-                                }
-                            ) + arrivalSuffix(order),
-                        amount =
-                            moneyLabel(
-                                if (order.summary.needsCashCollection) order.summary.cashAmountDue else order.summary.total,
-                            ),
-                        summary = order.summary,
+            if (actionableCashierOrders.isNotEmpty()) {
+                item(key = "cashier-queue-note") {
+                    Text(
+                        "Cada pedido dice dos cosas: cómo va y si ya pagó. Toca uno para cobrarlo o entregarlo.",
+                        fontSize = 12.5.sp,
+                        color = colors.textSecondary,
+                        modifier = Modifier.animateItem().padding(horizontal = 4.dp),
+                    )
+                }
+            }
+
+            if (state.cashSessionOpen == true) {
+                item(key = "cashier-today") {
+                    CashierTodayCard(
+                        expectedCash = state.expectedCash,
                         colors = colors,
-                        onClick = {
+                        modifier = Modifier.animateItem(),
+                        onOpenDrawer = {
                             haptics.selection()
-                            selectedCashierOrderId = order.summary.id
+                            cashDrawerOpen = true
                         },
                     )
                 }
@@ -1255,6 +815,32 @@ fun CashierOperationalScreen(
             }
         }
 
+        // C01: escanear queda fijo abajo y entrega el pedido listo más viejo que pide el QR; con la hoja abierta,
+        // el botón es el de la hoja.
+        val pinnedScan = scanTarget.takeIf { chargeOrder == null && restrictedMode != RestrictedMode.READ_ONLY }
+        AnimatedVisibility(
+            visible = pinnedScan != null,
+            enter = slideInVertically(spring(dampingRatio = 0.8f, stiffness = 380f)) { it } + fadeIn(spring()),
+            exit = slideOutVertically(spring(stiffness = 500f)) { it } + fadeOut(spring()),
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 18.dp, vertical = 16.dp),
+        ) {
+            CashierScanButton(
+                enabled = !state.acting,
+                colors = colors,
+                modifier = Modifier.assistantAnchor(assistantRegistry, ASSISTANT_ANCHOR_QR_SCAN),
+                onClick = {
+                    scanTarget?.let { target ->
+                        haptics.impact()
+                        onScanDeliver(target.summary.id, target.summary.version)
+                    }
+                },
+            )
+        }
+
         ToastPill(
             message = toastMessage,
             containerColor = colors.textPrimary,
@@ -1344,6 +930,27 @@ fun CashierOperationalScreen(
                 expectedCash = state.expectedCash,
             )
         }
+        chargeOrder?.let { order ->
+            key(order.summary.id) {
+                CashierChargeSheet(
+                    order = order,
+                    draft = cashDrafts[order.summary.id],
+                    onDraftChange = { cashDrafts[order.summary.id] = it },
+                    acting = state.acting,
+                    errorMessage = state.errorMessage,
+                    cashSessionOpen = state.cashSessionOpen,
+                    readOnly = restrictedMode == RestrictedMode.READ_ONLY,
+                    deliveryRequiresQr = deliveryRequiresQr,
+                    colors = colors,
+                    onCollect = onCollect,
+                    onDeliver = onDeliver,
+                    onScanDeliver = onScanDeliver,
+                    onRemoveItem = { item -> rejectingItem = order.summary.id to item },
+                    onReject = { rejectingOrderId = order.summary.id },
+                    onDismiss = { selectedCashierOrderId = null },
+                )
+            }
+        }
         // El pedido se resuelve por su id al confirmar: el que esté arriba cuando llegue el siguiente no cuenta.
         val rejectOrderTarget = state.orders.firstOrNull { it.summary.id == rejectingOrderId }
         val rejectItemTarget =
@@ -1429,119 +1036,6 @@ fun CashierOperationalScreen(
     }
 }
 
-private val TicketPaper = Color(0xFFF5ECDA)
-
-/** Propina en el ticket de Caja: píldoras con el trazo del ticket, la elegida en tinta. */
-@Composable
-private fun TicketTipRow(
-    choice: TipChoice,
-    tipAmount: BigDecimal,
-    problem: String?,
-    enabled: Boolean,
-    onChange: (TipChoice) -> Unit,
-) {
-    Column(modifier = Modifier.padding(top = 12.dp)) {
-        Text(
-            if (tipAmount.signum() > 0) "PROPINA ${moneyLabel(Money.format(tipAmount))}" else "PROPINA",
-            fontSize = 10.5.sp,
-            fontWeight = FontWeight.ExtraBold,
-            letterSpacing = 1.4.sp,
-            color = TicketMuted,
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            val options =
-                listOf<Pair<String, TipChoice>>("Sin" to TipChoice.None) +
-                    TipPercents.map { "$it%" to TipChoice.Percent(it) }
-            options.forEach { (label, option) ->
-                TicketChip(
-                    label,
-                    selected = choice == option,
-                    enabled = enabled,
-                    modifier = Modifier.weight(1f),
-                ) { onChange(option) }
-            }
-            TicketChip(
-                "Otro",
-                selected = choice is TipChoice.Custom,
-                enabled = enabled,
-                modifier = Modifier.weight(1f),
-            ) {
-                onChange(TipChoice.Custom((choice as? TipChoice.Custom)?.amount.orEmpty()))
-            }
-        }
-        val custom = choice as? TipChoice.Custom
-        if (custom != null) {
-            BasicTextField(
-                value = custom.amount,
-                onValueChange = { raw -> onChange(TipChoice.Custom(MoneyInput.sanitize(raw))) },
-                singleLine = true,
-                enabled = enabled,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                textStyle = TextStyle(color = TicketInk, fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
-                cursorBrush = SolidColor(TicketInk),
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
-                        .height(48.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(TicketInk.copy(alpha = 0.05f))
-                        .border(1.dp, TicketLine, RoundedCornerShape(12.dp))
-                        .padding(horizontal = 14.dp, vertical = 11.dp),
-                decorationBox = { inner ->
-                    if (custom.amount.isEmpty()) Text("Monto de la propina", color = TicketMuted, fontSize = 14.sp)
-                    inner()
-                },
-            )
-            if (problem != null) {
-                Text(
-                    problem,
-                    color = CashShortInk,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(top = 4.dp).semantics { liveRegion = LiveRegionMode.Polite },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun TicketChip(
-    label: String,
-    selected: Boolean,
-    enabled: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    val bg by animateColorAsState(if (selected) TicketInk else Color.Transparent, label = "ticket-chip-bg")
-    val fg by animateColorAsState(if (selected) Color.White else TicketInk, label = "ticket-chip-fg")
-    Box(
-        modifier =
-            modifier
-                // Es una opción de un grupo: el lector de pantalla dice cuál está elegida.
-                .semantics {
-                    role = Role.RadioButton
-                    this.selected = selected
-                }.physicalPress(enabled = enabled, scale = PhysicalPressScale.Small, onClick = onClick)
-                .height(48.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(bg)
-                .border(1.dp, if (selected) TicketInk else TicketLine, RoundedCornerShape(12.dp)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, color = fg, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
-    }
-}
-
-private val TicketInk = Color(0xFF1D1C18)
-private val TicketMuted = Color(0xFF6B6656)
-private val TicketLine = Color(0xFFD8CDB4)
-private val StampGreen = Color(0xFF5A7A1E)
-
 /**
  * " · YA LLEGÓ 14:32" cuando el cliente (drive-thru) avisó que llegó por su pedido, con la hora del negocio para
  * saber cuánto lleva esperando (W25; QAIOS-26 en iOS); si no, vacío.
@@ -1553,8 +1047,54 @@ internal fun arrivalSuffix(order: OrderDetail): String =
 
 private val ArrivalHour: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
-/** Nombre del cliente de un pedido de mostrador para la fila de Caja o de Cocina; vacío en pedidos de la app. */
-private fun customerPrefix(order: OrderDetail): String = staffCustomerName(order)?.let { "$it · " }.orEmpty()
+/** El lugar del pedido para Caja: «Para llevar» o la mesa, barra o cancha. */
+internal fun cashierPlaceLabel(order: OrderDetail): String =
+    if (order.summary.destination.name == "TAKE_AWAY") {
+        "Para llevar"
+    } else {
+        SpaceCopy.staffDestination(order.summary.destination, order.summary.space)
+    }
+
+// Una venta de mostrador no tiene cliente: el servidor manda «Mostrador» como nombre y eso ya dice de dónde viene.
+private fun isCounterSale(order: OrderDetail): Boolean = staffCustomerName(order).equals("Mostrador", ignoreCase = true)
+
+/** «Mostrador» o el lugar del pedido, para la hoja de cobro. */
+internal fun cashierOrderOrigin(order: OrderDetail): String =
+    if (isCounterSale(order)) "Mostrador" else cashierPlaceLabel(order)
+
+/** «Para llevar · Sofía» en la fila de Caja: el lugar y, si se sabe, el nombre del cliente. */
+private fun cashierRowTitle(order: OrderDetail): String =
+    if (isCounterSale(order)) {
+        "Mostrador"
+    } else {
+        listOfNotNull(cashierPlaceLabel(order), staffCustomerName(order)).joinToString(" · ")
+    } + arrivalSuffix(order)
+
+/** «2 Concha, Café de olla»: lo que lleva el pedido, con la cantidad solo cuando es más de uno. */
+private fun cashierItemsLine(order: OrderDetail): String =
+    order.activeItems
+        .joinToString(", ") { if (it.quantity > 1) "${it.quantity} ${it.productName}" else it.productName }
+        .ifEmpty { "Productos del menú" }
+
+/**
+ * Si Caja entrega este pedido sin escanear: el backend lo dispensa (`entrega_sin_qr`, una cuenta abierta), el
+ * negocio no pide el QR, o el pedido lo hizo esta misma caja y su token ya está en el dispositivo.
+ */
+internal fun cashierDeliversWithoutQr(
+    order: OrderDetail,
+    deliveryRequiresQr: Boolean,
+): Boolean = order.summary.deliveryWithoutQr || !deliveryRequiresQr || order.pickupToken != null
+
+/** El pedido que entrega el botón fijo de escanear: el listo y pagado más viejo que sí pide el QR del cliente. */
+internal fun cashierScanTarget(
+    orders: List<OrderDetail>,
+    deliveryRequiresQr: Boolean,
+): OrderDetail? =
+    orders.firstOrNull {
+        it.summary.state == OrderState.READY &&
+            !it.summary.needsCashCollection &&
+            !cashierDeliversWithoutQr(it, deliveryRequiresQr)
+    }
 
 /** El nombre a la vista del personal: el de mostrador o, si el servidor lo manda como cliente del pedido, ese. */
 internal fun staffCustomerName(order: OrderDetail): String? =
@@ -1578,159 +1118,6 @@ private fun elapsedShort(
         ms < 3_600_000 -> "hace ${ms / 60_000} min"
         ms < 86_400_000 -> "hace ${ms / 3_600_000} h"
         else -> "hace ${ms / 86_400_000} d"
-    }
-}
-
-@Composable
-private fun TicketZigzag() {
-    Canvas(modifier = Modifier.fillMaxWidth().height(11.dp)) {
-        val tooth = 14.dp.toPx()
-        val path = Path()
-        path.moveTo(0f, 0f)
-        path.lineTo(size.width, 0f)
-        var x = size.width
-        while (x >= tooth) {
-            path.lineTo(x - tooth / 2f, size.height)
-            path.lineTo(x - tooth, 0f)
-            x -= tooth
-        }
-        path.lineTo(0f, 0f)
-        path.close()
-        withTransform({ translate(0f, 3.5f) }) {
-            drawPath(path, Color(0x33000000))
-        }
-        drawPath(path, TicketPaper)
-    }
-}
-
-@Composable
-private fun TicketPerf() {
-    Canvas(modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp).height(2.dp)) {
-        drawLine(
-            color = TicketLine,
-            start = Offset(0f, size.height / 2),
-            end = Offset(size.width, size.height / 2),
-            strokeWidth = 2.dp.toPx(),
-            pathEffect = PathEffect.dashPathEffect(floatArrayOf(9f, 8f)),
-        )
-    }
-}
-
-@Composable
-private fun StampLabel(
-    text: String,
-    live: Boolean,
-) {
-    Box(
-        modifier =
-            Modifier
-                .rotate(4f)
-                .clip(RoundedCornerShape(8.dp))
-                .border(2.dp, if (live) StampGreen else TicketMuted, RoundedCornerShape(8.dp))
-                .padding(horizontal = 10.dp, vertical = 4.dp),
-    ) {
-        Text(
-            text,
-            maxLines = 1,
-            softWrap = false,
-            fontSize = 9.5.sp,
-            fontWeight = FontWeight.ExtraBold,
-            letterSpacing = 1.3.sp,
-            color = if (live) StampGreen else TicketMuted,
-        )
-    }
-}
-
-@Composable
-private fun ReceiptLine(
-    quantity: Int,
-    name: String,
-    detail: String?,
-    price: String,
-    onRemove: (() -> Unit)? = null,
-) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.Top) {
-        Text("$quantity", fontWeight = FontWeight.Black, fontSize = 13.5.sp, color = TicketInk)
-        Spacer(Modifier.width(8.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    name,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.5.sp,
-                    color = TicketInk,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                Canvas(
-                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp).height(2.dp),
-                ) {
-                    drawLine(
-                        color = TicketLine,
-                        start = Offset(0f, size.height / 2),
-                        end = Offset(size.width, size.height / 2),
-                        strokeWidth = 1.6.dp.toPx(),
-                        cap = StrokeCap.Round,
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(0.5f, 7f)),
-                    )
-                }
-                Text(price, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TicketInk)
-            }
-            if (detail != null) {
-                Text(detail, color = TicketMuted, fontSize = 11.5.sp, modifier = Modifier.padding(top = 1.dp))
-            }
-            if (onRemove != null) {
-                Text(
-                    "Quitar",
-                    color = Color(0xFFE5645A),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier =
-                        Modifier
-                            .padding(top = 2.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable(onClickLabel = "Quitar $name de la comanda", onClick = onRemove)
-                            .padding(vertical = 4.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun TicketDivider(colors: OperationalColors) {
-    Box(modifier = Modifier.fillMaxWidth().height(18.dp), contentAlignment = Alignment.Center) {
-        Canvas(modifier = Modifier.fillMaxWidth().height(1.5.dp)) {
-            drawLine(
-                color = colors.cardBorder,
-                start = Offset(0f, size.height / 2),
-                end = Offset(size.width, size.height / 2),
-                strokeWidth = 1.5.dp.toPx(),
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(9f, 8f)),
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .offset(x = (-26).dp)
-                        .size(16.dp)
-                        .clip(CircleShape)
-                        .background(colors.background),
-            )
-            Box(
-                modifier =
-                    Modifier
-                        .offset(x = 26.dp)
-                        .size(16.dp)
-                        .clip(CircleShape)
-                        .background(colors.background),
-            )
-        }
     }
 }
 
@@ -1959,67 +1346,205 @@ internal fun OperationalErrorCard(
     }
 }
 
+/** C01: la fila de Caja en una sola tarjeta, un renglón por pedido, del más viejo al más nuevo. */
 @Composable
-private fun QueueTicketRow(
-    folio: String,
-    title: String,
-    subtitle: String,
-    amount: String,
-    summary: OrderSummary,
+private fun CashierQueueCard(
+    orders: List<OrderDetail>,
+    tick: Int,
     colors: OperationalColors,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit = {},
+    onOpen: (OrderDetail) -> Unit,
 ) {
     Surface(
-        modifier =
-            modifier
-                .physicalPress(onClick = onClick)
-                .fillMaxWidth()
-                .border(1.dp, colors.cardBorder, RoundedCornerShape(20.dp)),
-        shape = RoundedCornerShape(20.dp),
+        modifier = modifier.fillMaxWidth().border(1.dp, colors.cardBorder, RoundedCornerShape(22.dp)),
+        shape = RoundedCornerShape(22.dp),
         color = colors.cardBackground,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(colors.cardInner)
-                        .padding(horizontal = 8.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(folio, color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 16.sp)
+        Column(modifier = Modifier.animateContentSize(spring(dampingRatio = 0.85f, stiffness = 380f))) {
+            orders.forEachIndexed { index, order ->
+                key(order.summary.id) {
+                    if (index > 0) {
+                        HorizontalDivider(color = colors.cardBorder, modifier = Modifier.padding(horizontal = 14.dp))
+                    }
+                    QueueTicketRow(order = order, tick = tick, colors = colors, onClick = { onOpen(order) })
+                }
             }
+        }
+    }
+}
 
-            Column(modifier = Modifier.weight(1f)) {
+@Composable
+private fun QueueTicketRow(
+    order: OrderDetail,
+    tick: Int,
+    colors: OperationalColors,
+    onClick: () -> Unit,
+) {
+    val summary = order.summary
+    Row(
+        modifier =
+            Modifier
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .defaultMinSize(minWidth = 40.dp, minHeight = 40.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(colors.cardInner)
+                    .padding(horizontal = 6.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("#${summary.folio}", color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 15.sp)
+        }
+
+        // Dos renglones y no dos columnas: el estado es ancho y, en columna, le quitaba lugar al nombre del cliente.
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    title,
+                    cashierRowTitle(order),
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 15.sp,
                     color = colors.textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
                 Text(
-                    subtitle,
-                    fontSize = 12.5.sp,
-                    color = colors.textSecondary,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 1.dp),
+                    moneyLabel(if (summary.needsCashCollection) summary.cashAmountDue else summary.total),
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 17.sp,
+                    letterSpacing = (-0.3).sp,
+                    maxLines = 1,
                 )
             }
-
-            Column(horizontalAlignment = Alignment.End) {
-                Text(amount, color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 17.sp)
-                CashierOrderStatus(summary = summary, onPaper = false, modifier = Modifier.padding(top = 2.dp))
+            Row(
+                modifier = Modifier.padding(top = 3.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        cashierItemsLine(order),
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    Text(
+                        " · ${elapsedShort(summary.createdAt, tick)}",
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textSecondary,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
+                CashierOrderStatus(summary = summary)
             }
         }
+    }
+}
+
+/**
+ * «COBRADO HOY | Efectivo en el cajón» bajo la fila. El servidor todavía no manda lo cobrado del día, así que
+ * se ve «—» hasta que llegue; el efectivo abre el detalle del cajón.
+ */
+@Composable
+private fun CashierTodayCard(
+    expectedCash: String?,
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+    onOpenDrawer: () -> Unit,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = colors.cardBackground,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text(
+                    "COBRADO HOY",
+                    color = colors.textSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.5.sp,
+                )
+                Text(
+                    "—",
+                    color = colors.textPrimary,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+            Column(
+                modifier = Modifier.physicalPress(scale = PhysicalPressScale.Small, onClick = onOpenDrawer),
+                horizontalAlignment = Alignment.End,
+            ) {
+                Text(
+                    "Efectivo en el cajón",
+                    color = colors.textSecondary,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    expectedCash?.let(::moneyLabel) ?: "—",
+                    color = colors.textPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
+    }
+}
+
+/** «Escanear QR para entregar», fijo abajo de Caja como en C01. */
+@Composable
+private fun CashierScanButton(
+    enabled: Boolean,
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier =
+            modifier
+                .physicalPress(enabled = enabled, onClick = onClick)
+                .shadow(14.dp, CircleShape, spotColor = Color(0x33000000))
+                .clip(CircleShape)
+                .background(colors.textPrimary)
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 26.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.Outlined.QrCodeScanner,
+            contentDescription = null,
+            tint = colors.background,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            "Escanear QR para entregar",
+            color = colors.background,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Black,
+            maxLines = 1,
+        )
     }
 }
 
@@ -2042,32 +1567,34 @@ internal fun cashierOrderStatus(summary: OrderSummary): CashierStatus =
         paid = !summary.needsCashCollection,
     )
 
-// Lima, ámbar y coral oscuros para el papel; claros para la tarjeta oscura de la fila.
-private val StatusReadyPaper = Color(0xFF3B5310)
-private val StatusWaitPaper = Color(0xFF8A5A00)
-private val StatusDuePaper = Color(0xFFB3261E)
+// Lima, ámbar y coral oscuros en el tema claro; claros en el oscuro.
+private val StatusReadyLight = Color(0xFF3B5310)
+private val StatusWaitLight = Color(0xFF8A5A00)
+private val StatusDueLight = Color(0xFFB3261E)
+private val StatusIdleLight = Color(0xFF6B6656)
 private val StatusReadyDark = Color(0xFFB7DE63)
 private val StatusWaitDark = Color(0xFFF2C14E)
 private val StatusDueDark = Color(0xFFFF7A6E)
+private val StatusIdleDark = Color(0xFFA5A79E)
 
 @Composable
-private fun CashierOrderStatus(
+internal fun CashierOrderStatus(
     summary: OrderSummary,
-    onPaper: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val dark = rememberOperationalColors().isDark
     val status = cashierOrderStatus(summary)
     val progressColor =
         when {
-            status.ready -> if (onPaper) StatusReadyPaper else StatusReadyDark
-            summary.state == OrderState.PREPARING -> if (onPaper) StatusWaitPaper else StatusWaitDark
-            else -> if (onPaper) TicketMuted else Color(0xFFA5A79E)
+            status.ready -> if (dark) StatusReadyDark else StatusReadyLight
+            summary.state == OrderState.PREPARING -> if (dark) StatusWaitDark else StatusWaitLight
+            else -> if (dark) StatusIdleDark else StatusIdleLight
         }
     val payColor =
         if (status.paid) {
-            if (onPaper) StatusReadyPaper else StatusReadyDark
+            if (dark) StatusReadyDark else StatusReadyLight
         } else {
-            if (onPaper) StatusDuePaper else StatusDueDark
+            if (dark) StatusDueDark else StatusDueLight
         }
     val payLabel = if (status.paid) "Pagado" else "Falta pagar"
     Row(
@@ -2075,7 +1602,7 @@ private fun CashierOrderStatus(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(status.progress, color = progressColor, fontSize = 12.5.sp, fontWeight = FontWeight.ExtraBold)
-        Text(" · ", color = if (onPaper) TicketMuted else Color(0xFF86887E), fontSize = 12.5.sp)
+        Text(" · ", color = if (dark) StatusIdleDark else StatusIdleLight, fontSize = 12.5.sp)
         Text(payLabel, color = payColor, fontSize = 12.5.sp, fontWeight = FontWeight.ExtraBold)
     }
 }
@@ -2118,172 +1645,6 @@ private fun CashierStatusPill(
     }
 }
 
-/** Los billetes que tiene sentido ofrecer: el monto exacto y los de $100, $200 y $500 que alcancen. */
-internal fun cashBillOptions(required: BigDecimal): List<BigDecimal> =
-    listOf(100, 200, 500, 1000)
-        .map(::BigDecimal)
-        .filter { it > required }
-        .take(3)
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun CashBillChips(
-    required: BigDecimal,
-    received: BigDecimal?,
-    enabled: Boolean,
-    onPick: (String) -> Unit,
-    onOther: () -> Unit,
-) {
-    val bills = cashBillOptions(required)
-    val exact = received != null && received.compareTo(required) == 0
-    val other = received != null && !exact && bills.none { it.compareTo(received) == 0 }
-    FlowRow(
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        BillChip("Exacto", selected = exact, enabled = enabled) { onPick(Money.format(required)) }
-        bills.forEach { bill ->
-            BillChip(
-                "$${bill.toPlainString()}",
-                selected = received != null && received.compareTo(bill) == 0,
-                enabled = enabled,
-            ) { onPick(Money.format(bill)) }
-        }
-        BillChip("Otro", selected = other, enabled = enabled, onClick = onOther)
-    }
-}
-
-@Composable
-private fun BillChip(
-    label: String,
-    selected: Boolean,
-    enabled: Boolean,
-    onClick: () -> Unit,
-) {
-    val bg = animateSelectionColor(if (selected) TicketInk else TicketInk.copy(alpha = 0.06f), "bill-bg")
-    val fg = animateSelectionColor(if (selected) TicketPaper else TicketInk, "bill-ink")
-    Box(
-        modifier =
-            Modifier
-                .physicalPress(scale = PhysicalPressScale.Small, enabled = enabled, onClick = onClick)
-                .heightIn(min = 44.dp)
-                .clip(CircleShape)
-                .background(bg)
-                .semantics { this.selected = selected }
-                .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, color = fg, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
-    }
-}
-
-/** «Su cambio» en grande: el cajero lo lee mientras cuenta los billetes. Si no alcanza, lo dice en rojo. */
-@Composable
-private fun CashChangeCard(
-    hint: String,
-    change: BigDecimal?,
-    colors: OperationalColors,
-    modifier: Modifier = Modifier,
-) {
-    if (change == null || change.signum() < 0) {
-        Text(
-            hint,
-            color = CashShortInk,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = modifier.semantics { liveRegion = LiveRegionMode.Polite },
-        )
-        return
-    }
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(colors.accentLime)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .semantics(mergeDescendants = true) {
-                    contentDescription = hint
-                    liveRegion = LiveRegionMode.Polite
-                },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            if (change.signum() == 0) "Exacto, sin cambio" else "Su cambio",
-            color = colors.accentInk,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.ExtraBold,
-        )
-        AnimatedContent(
-            targetState = moneyLabel(Money.format(change)),
-            transitionSpec = { (fadeIn(spring()) togetherWith fadeOut(spring())) },
-            label = "cash-change",
-        ) { value ->
-            Text(
-                value,
-                color = colors.accentInk,
-                fontSize = 30.sp,
-                fontWeight = FontWeight.Black,
-                letterSpacing = (-1).sp,
-            )
-        }
-    }
-}
-
-/** Quitar un artículo o rechazar todo el pedido, detrás de un toque y con su propia confirmación. */
-@Composable
-private fun CashierMoreOptions(
-    expanded: Boolean,
-    enabled: Boolean,
-    onToggle: () -> Unit,
-    onReject: () -> Unit,
-) {
-    Column(modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
-        HorizontalDivider(color = TicketLine)
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .physicalPress(scale = PhysicalPressScale.Small, enabled = enabled, onClick = onToggle)
-                    .heightIn(min = 48.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                if (expanded) "Menos opciones" else "Más opciones",
-                fontSize = 13.5.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = TicketMuted,
-            )
-            Spacer(Modifier.width(6.dp))
-            MoreDots(TicketMuted)
-        }
-        AnimatedVisibility(visible = expanded) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    "Toca «Quitar» en un artículo o rechaza todo el pedido.",
-                    fontSize = 12.sp,
-                    color = TicketMuted,
-                    textAlign = TextAlign.Center,
-                )
-                TextButton(
-                    onClick = onReject,
-                    enabled = enabled,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                ) {
-                    Text(
-                        "Rechazar pedido",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        color = if (enabled) Color(0xFFB3261E) else TicketMuted,
-                    )
-                }
-            }
-        }
-    }
-}
 // Modal Sheet: Add Product with Image Picker + Presets
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -2699,7 +2060,7 @@ internal fun kitchenQueueLabel(order: OrderDetail): String =
         else -> "En espera"
     }
 
-private val CashShortInk = Color(0xFFB3261E)
+internal val CashShortInk = Color(0xFFB3261E)
 
 /**
  * La cola de Caja: lo que hay que cobrar (aunque Cocina ya lo haya empezado) y lo listo por entregar. El más
@@ -2709,28 +2070,6 @@ internal fun cashierQueueOrders(orders: List<OrderDetail>): List<OrderDetail> =
     orders
         .filter { it.summary.needsCashCollection || it.summary.state == OrderState.READY }
         .sortedBy { it.summary.createdAt }
-
-/** Por qué la propina escrita no sirve; null si está bien o no es un monto libre. */
-internal fun tipProblem(
-    choice: TipChoice,
-    base: BigDecimal,
-): String? {
-    val custom = choice as? TipChoice.Custom ?: return null
-    val text = custom.amount.trim()
-    if (text.isEmpty()) return null
-    val value =
-        text.toBigDecimalOrNull()?.takeIf { it.signum() >= 0 && it.scale() <= 2 }
-            ?: return "Escribe un monto válido, con hasta dos decimales."
-    return if (value > base) "La propina no puede ser mayor al pedido." else null
-}
-
-/** "Cambio: $50.00" con el efectivo ya escrito; "Faltan $X" si no alcanza; null si aún no hay monto. */
-internal fun cashChangeHint(change: BigDecimal?): String? =
-    when {
-        change == null -> null
-        change.signum() < 0 -> "Faltan ${moneyLabel(Money.format(change.negate()))}"
-        else -> "Cambio: ${moneyLabel(Money.format(change))}"
-    }
 
 /** Aviso antes de rechazar un pedido que ya tiene dinero cobrado: el servidor registra la devolución. */
 internal fun paidRejectionWarning(
@@ -2777,21 +2116,23 @@ private fun CashCollectedCard(
     }
 }
 
-/** El cobro en efectivo que el cajero va armando: lo recibido y la propina elegida. */
-internal data class CashierCashDraft(
-    /** El total del pedido cuando se empezó a escribir. */
-    val orderTotal: String,
-    val received: String,
-    val tip: TipChoice = TipChoice.None,
-)
-
-/** "Sesión de caja abierta · Usagi" con la caja abierta; "Cuenta de caja" mientras no se sabe o está cerrada. */
+/**
+ * «Pastelería Vaini · fondo $500 · desde 8:02» con la caja abierta, en la hora del negocio; «Cuenta de caja»
+ * mientras no se sabe o está cerrada. Sin el nombre del negocio dice «Sesión de caja abierta».
+ */
 internal fun cashierSessionCaption(
     cashSessionOpen: Boolean?,
     placeName: String,
-): String =
-    when {
-        cashSessionOpen != true -> "Cuenta de caja"
-        placeName.isBlank() -> "Sesión de caja abierta"
-        else -> "Sesión de caja abierta · ${placeName.trim()}"
-    }
+    openingAmount: String? = null,
+    openedAt: String? = null,
+): String {
+    if (cashSessionOpen != true) return "Cuenta de caja"
+    val opened = openedAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
+    return listOfNotNull(
+        placeName.trim().ifBlank { "Sesión de caja abierta" },
+        openingAmount?.takeIf { it.isNotBlank() }?.let { "fondo ${moneyLabel(it)}" },
+        opened?.let { "desde ${BusinessTime.format(it, OpeningHour)}" },
+    ).joinToString(" · ")
+}
+
+private val OpeningHour: DateTimeFormatter = DateTimeFormatter.ofPattern("H:mm")

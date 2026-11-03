@@ -56,6 +56,8 @@ class CashierRejectUiTest {
             }
         }
         composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("#${pending.summary.folio}").performClick()
+        composeTestRule.waitForIdle()
     }
 
     @Test

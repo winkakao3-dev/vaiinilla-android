@@ -23,6 +23,9 @@ data class OperationalUiState(
     val suggestedCashFloat: String? = null,
     /** Lo que debería haber en el cajón (`efectivo_esperado`), para comparar al cerrar. */
     val expectedCash: String? = null,
+    /** Con qué fondo se abrió la caja (`monto_inicial`) y a qué hora (`abierta_en`, ISO en UTC); null si no se sabe. */
+    val cashOpeningAmount: String? = null,
+    val cashOpenedAt: String? = null,
     /** La caja nunca se pudo leer (sin red al entrar): la pantalla ofrece reintentar en vez de callar. */
     val cashSessionCheckFailed: Boolean = false,
     val heartbeatOnline: Boolean? = null,

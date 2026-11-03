@@ -66,6 +66,8 @@ class CashierDeliverWithoutQrUiTest {
         show(order, onScanDeliver = { id, v -> scanned = id to v }, onDeliver = { id, v -> delivered = id to v })
 
         composeTestRule.onNodeWithText("Escanear QR para entregar").assertDoesNotExist()
+        composeTestRule.onNodeWithText("#${order.summary.folio}").performClick()
+        composeTestRule.onNodeWithText("Escanear QR para entregar").assertDoesNotExist()
         composeTestRule.onNodeWithText("Entregar").performScrollTo().performClick()
 
         assertEquals(order.summary.id to order.summary.version, delivered)
@@ -78,6 +80,20 @@ class CashierDeliverWithoutQrUiTest {
         var scanned: Pair<String, Int>? = null
         show(order, onScanDeliver = { id, v -> scanned = id to v })
 
+        // El botón fijo de abajo (C01) entrega el pedido listo más viejo.
+        composeTestRule.onNodeWithText("Escanear QR para entregar").performClick()
+
+        assertEquals(order.summary.id to order.summary.version, scanned)
+    }
+
+    @Test
+    fun `the order sheet also asks for the QR`() {
+        val order = ready(withoutQr = false)
+        var scanned: Pair<String, Int>? = null
+        show(order, onScanDeliver = { id, v -> scanned = id to v })
+
+        composeTestRule.onNodeWithText("#${order.summary.folio}").performClick()
+        // Con la hoja abierta el botón fijo se va: solo queda el de la hoja.
         composeTestRule.onNodeWithText("Escanear QR para entregar").performScrollTo().performClick()
 
         assertEquals(order.summary.id to order.summary.version, scanned)
