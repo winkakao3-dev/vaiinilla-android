@@ -142,6 +142,7 @@ import com.vaiinilla.app.ui.order.canDeliverHome
 import com.vaiinilla.app.ui.order.canPayAtEnd
 import com.vaiinilla.app.ui.order.canPayWithBalance
 import com.vaiinilla.app.ui.order.canPayWithCard
+import com.vaiinilla.app.ui.order.cartLineTotal
 import com.vaiinilla.app.ui.order.cartTotalFor
 import com.vaiinilla.app.ui.order.checkoutScheduleProblem
 import com.vaiinilla.app.ui.order.checkoutSpace
@@ -444,6 +445,7 @@ fun CartScreen(
                         Box(Modifier.padding(horizontal = 20.dp).padding(top = 22.dp)) {
                             CartItemsPanel(
                                 lines = state.cartLines,
+                                lineTotal = state::cartLineTotal,
                                 // El pedido ya salió con estas líneas: no se editan hasta que responda (COMPRA-04).
                                 editable = !state.creatingOrder,
                                 unavailableKeys = state.unavailableCartKeys,
@@ -1111,6 +1113,7 @@ private fun confirmLabel(guestAuthRequired: Boolean): String =
 @Composable
 private fun CartItemsPanel(
     lines: List<CartLine>,
+    lineTotal: (CartLine) -> String,
     editable: Boolean,
     unavailableKeys: Set<String>,
     onQuantityChange: (lineKey: String, delta: Int) -> Unit,
@@ -1125,6 +1128,7 @@ private fun CartItemsPanel(
             lines.forEachIndexed { index, line ->
                 CartLineRow(
                     line = line,
+                    lineTotal = lineTotal,
                     editable = editable,
                     unavailable = line.key in unavailableKeys,
                     onMinus = { onQuantityChange(line.key, -1) },
@@ -1147,6 +1151,7 @@ private fun CartItemsPanel(
 @Composable
 private fun CartLineRow(
     line: CartLine,
+    lineTotal: (CartLine) -> String,
     editable: Boolean,
     unavailable: Boolean,
     onMinus: () -> Unit,
@@ -1244,7 +1249,7 @@ private fun CartLineRow(
                 label = "cart_item_price_ticker",
             ) { animatedQuantity ->
                 Text(
-                    moneyLabel(Money.cartLinePreview(line.copy(quantity = animatedQuantity))),
+                    moneyLabel(lineTotal(line.copy(quantity = animatedQuantity))),
                     color = colors.ink,
                     fontSize = 20.sp,
                     lineHeight = 24.sp,

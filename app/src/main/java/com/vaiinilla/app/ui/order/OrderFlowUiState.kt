@@ -173,10 +173,18 @@ val OrderFlowUiState.cartPreviewTotal: String
 fun OrderFlowUiState.cartTotalFor(method: PaymentMethod): String =
     if (method == PaymentMethod.STRIPE) Money.cartPreview(cartLines) else Money.counterPreview(cartLines)
 
+/** El método con el que se cobra ahora: a domicilio manda el de la entrega. */
+val OrderFlowUiState.chargedPaymentMethod: PaymentMethod
+    get() = if (isHomeDelivery) homePaymentMethod else checkoutPayment
+
+/** Lo que cuesta una línea con el método elegido, para que las líneas sumen el total que se ve. */
+fun OrderFlowUiState.cartLineTotal(line: CartLine): String =
+    if (chargedPaymentMethod == PaymentMethod.STRIPE) Money.cartLinePreview(line) else Money.counterLinePreview(line)
+
 /** El total del método de pago que está elegido ahora, más el envío si va a domicilio. */
 val OrderFlowUiState.checkoutTotal: String
     get() {
-        val cart = cartTotalFor(if (isHomeDelivery) homePaymentMethod else checkoutPayment)
+        val cart = cartTotalFor(chargedPaymentMethod)
         val fee = homeDeliveryFee ?: return cart
         return Money.format(Money.parse(cart) + Money.parse(fee))
     }

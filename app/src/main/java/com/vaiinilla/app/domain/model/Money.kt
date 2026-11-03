@@ -34,14 +34,15 @@ object Money {
             lines.fold(BigDecimal.ZERO) { total, line -> total + parse(cartLinePreview(line)) },
         )
 
+    fun counterLinePreview(line: CartLine): String =
+        format(
+            parse(counterUnitPreview(line.product, line.selectedOptionIds)) * line.quantity.toBigDecimal(),
+        )
+
     /** Lo que se cobra en mostrador: precio de mostrador más extras. El servidor confirma el total. */
     fun counterPreview(lines: List<CartLine>): String =
         format(
-            lines.fold(BigDecimal.ZERO) { total, line ->
-                total +
-                    (parse(line.product.counterPrice) + optionExtras(line.product, line.selectedOptionIds)) *
-                    line.quantity.toBigDecimal()
-            },
+            lines.fold(BigDecimal.ZERO) { total, line -> total + parse(counterLinePreview(line)) },
         )
 
     private fun optionExtras(
