@@ -19,6 +19,9 @@ import androidx.compose.ui.text.style.TextAlign
 import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -130,8 +133,14 @@ fun CashCloseContent(
     expectedCash: String? = null,
 ) {
     var amount by remember { mutableStateOf("") }
+    var counting by remember { mutableStateOf(false) }
+    var billCounts by remember { mutableStateOf(emptyMap<Int, Int>()) }
+    var coins by remember { mutableStateOf("") }
     val normalized = normalizeCountedCash(amount)
     val haptics = rememberVaiinillaHaptics()
+    fun syncFromCounter() {
+        billCountTotal(billCounts, coins)?.let { amount = it }
+    }
     Column(
         modifier =
             Modifier
@@ -231,6 +240,40 @@ fun CashCloseContent(
                         isError = invalid,
                         supporting = if (invalid) "Solo números, con hasta dos decimales" else null,
                     )
+                    Text(
+                        if (counting) "Escribir el total" else "Contar billete por billete",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 14.sp,
+                        color = colors.accentLime,
+                        modifier =
+                            Modifier
+                                .physicalPress(enabled = !state.closing, scale = PhysicalPressScale.Small) {
+                                    haptics.selection()
+                                    counting = !counting
+                                    if (counting && (billCounts.isNotEmpty() || coins.isNotBlank())) syncFromCounter()
+                                }.heightIn(min = 40.dp)
+                                .wrapContentHeight(),
+                    )
+                    AnimatedVisibility(
+                        visible = counting,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut(),
+                    ) {
+                        CashBillCounter(
+                            counts = billCounts,
+                            coins = coins,
+                            colors = colors,
+                            enabled = !state.closing,
+                            onCountChange = { bill, count ->
+                                billCounts = billCounts + (bill to count)
+                                syncFromCounter()
+                            },
+                            onCoinsChange = {
+                                coins = it
+                                syncFromCounter()
+                            },
+                        )
+                    }
                     cashCountDifference(normalized, expectedCash)?.let { diff ->
                         CashDifferenceCard(diff, colors)
                     }
