@@ -245,8 +245,26 @@ class ChildReloadModel(
 }
 
 /**
- * Recargar el saldo de un hijo con tarjeta: el monto en grande, montos rápidos y un solo botón que se
- * vuelve el progreso del pago y luego la confirmación. Usa la misma hoja de Stripe que los pedidos.
+ * Cómo queda el saldo con la recarga y, si tiene límite diario, para cuántos días le alcanza (Doop E09).
+ * `null` sin un monto válido.
+ */
+internal fun childReloadReach(
+    balance: BigDecimal,
+    amount: BigDecimal?,
+    dailyLimit: BigDecimal?,
+): String? {
+    if (amount == null || amount.signum() <= 0) return null
+    val after = balance + amount
+    val days = dailyLimit?.takeIf { it.signum() > 0 }?.let { after.divide(it, 0, java.math.RoundingMode.DOWN).toInt() }
+    return when {
+        days == null || days < 1 -> "Queda en ${compactMoney(after)}."
+        days == 1 -> "Queda en ${compactMoney(after)}: le alcanza para 1 día."
+        else -> "Queda en ${compactMoney(after)}: le alcanza para $days días."
+    }
+}
+
+/**
+ * Recargar el saldo de un hijo con tarjeta: el monto en grande, montos rápidos y un solo botón que se * vuelve el progreso del pago y luego la confirmación. Usa la misma hoja de Stripe que los pedidos.
  */
 @Composable
 internal fun ChildReloadSheet(
@@ -328,7 +346,11 @@ internal fun ChildReloadSheet(
                     "y a ${child.firstName} le llegan ${compactMoney(amount ?: BigDecimal.ZERO)}."
             ChildReloadModel.Phase.InReview ->
                 "Tu pago sigue en revisión. Si el banco lo aprueba, el saldo llega solo; no pagues otra vez."
-            else -> model.problem ?: range?.label ?: "Escribe cuánto o elige un monto"
+            else ->
+                model.problem
+                    ?: childReloadReach(balance, amount, child.controls?.dailyLimit)
+                    ?: range?.label
+                    ?: "Escribe cuánto o elige un monto"
         }
 
     ParentSheet(
