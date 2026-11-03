@@ -205,7 +205,8 @@ fun StudentCounterSheet(
     if (scanning) {
         QrScannerDialog(
             onClose = { scanning = false },
-            helperText = "La credencial impresa del alumno, con su código de Vaiinilla.",
+            title = "Apunta a la credencial del alumno",
+            subtitle = "La impresa, con su código de Vaiinilla",
             onPayload = { raw ->
                 scanning = false
                 actions.onCredentialRead(raw, false)

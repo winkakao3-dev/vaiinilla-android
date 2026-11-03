@@ -676,7 +676,7 @@ fun WaiterOperationalScreen(
     if (scannerOpen && scannerOrder != null) {
         QrScannerDialog(
             onClose = { scannerOpen = false },
-            helperText = "Apunta al QR del pedido del cliente",
+            title = "Apunta al QR del pedido del cliente",
             onPayload = { raw ->
                 scannerOpen = false
                 deliverSent = true

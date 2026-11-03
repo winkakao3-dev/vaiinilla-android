@@ -47,6 +47,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -266,7 +267,14 @@ fun DiscoveryScreen(
                     )
                 }
             }
+            val listState = rememberLazyListState()
+            // El aviso entra arriba de lo que ya se veía: sin esto la lista lo deja fuera de pantalla.
+            val notice = state.suspendedMessage ?: state.errorMessage?.takeUnless { state.searchFailed }
+            LaunchedEffect(notice) {
+                if (notice != null) listState.animateScrollToItem(0)
+            }
             LazyColumn(
+                state = listState,
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 32.dp),
             ) {

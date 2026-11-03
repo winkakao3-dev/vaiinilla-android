@@ -353,6 +353,7 @@ class CompleteUiScreenshotTest {
             QrScannerDialog(
                 onClose = {},
                 onPayload = {},
+                title = "Apunta al QR de tu mesa",
             )
         }
     }

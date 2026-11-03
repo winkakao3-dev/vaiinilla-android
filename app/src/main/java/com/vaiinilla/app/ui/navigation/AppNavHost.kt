@@ -85,6 +85,7 @@ import com.vaiinilla.app.ui.counter.actions
 import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerAlternative
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
+import com.vaiinilla.app.ui.discovery.QrScannerTableCode
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
 import com.vaiinilla.app.ui.notices.ReceivedNoticesScreen
 import com.vaiinilla.app.ui.notices.ReceivedNoticesViewModel
@@ -1097,13 +1098,38 @@ fun AppNavHost(
                 )
 
                 if (qrScannerOpen) {
+                    val venueWithoutTable =
+                        discoveryState.selected?.establishment ?: discoveryState.lastPlace?.establishment
                     QrScannerDialog(
                         onClose = { qrScannerOpen = false },
+                        title = "Apunta al QR de tu mesa",
+                        subtitle = "También sirve acercar el teléfono a la etiqueta",
                         alternative =
                             QrScannerAlternative("Escribir código de mesa") {
                                 qrScannerOpen = false
                                 tableCodeRequest++
                             },
+                        tableCode =
+                            QrScannerTableCode(
+                                venueName = venueWithoutTable?.name,
+                                onSubmit = { code ->
+                                    qrScannerOpen = false
+                                    discoveryViewModel.updateSpaceToken(code)
+                                    startEntrance(code)
+                                    discoveryViewModel.resolveSpaceToken(onEntered = ::enterVenueAndOpenCatalog)
+                                },
+                                onOrderWithoutTable = {
+                                    qrScannerOpen = false
+                                    if (venueWithoutTable != null) {
+                                        startEntrance(null)
+                                        discoveryViewModel.selectEstablishment(
+                                            establishment = venueWithoutTable,
+                                            onEntered = ::enterVenueAndOpenCatalog,
+                                        )
+                                        if (discoveryViewModel.state.value.pendingSwitch != null) entrance = null
+                                    }
+                                },
+                            ),
                         onPayload = { rawValue ->
                             qrScannerOpen = false
                             startEntrance(rawValue)
@@ -2571,7 +2597,7 @@ fun AppNavHost(
     if (walletUserQrOpen) {
         QrScannerDialog(
             onClose = { walletUserQrOpen = false },
-            helperText = "Apunta al QR de cuenta que muestra el alumno",
+            title = "Apunta al QR de cuenta que muestra el alumno",
             // El buscador por nombre vive en la hoja de recarga que abrió el escáner: cerrar regresa a él.
             alternative = QrScannerAlternative("Buscar cliente por nombre") { walletUserQrOpen = false },
             onPayload = { rawValue ->
@@ -2584,7 +2610,7 @@ fun AppNavHost(
     if (pendingPickupDelivery != null) {
         QrScannerDialog(
             onClose = { pendingPickupDelivery = null },
-            helperText = "Apunta al QR de recogida que muestra el alumno",
+            title = "Apunta al QR de recogida que muestra el alumno",
             onPayload = { rawValue ->
                 val target = pendingPickupDelivery
                 pendingPickupDelivery = null
