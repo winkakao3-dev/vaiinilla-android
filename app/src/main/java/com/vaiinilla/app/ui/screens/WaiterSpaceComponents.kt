@@ -59,6 +59,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -66,6 +67,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.AccountSplit
@@ -899,15 +902,25 @@ internal fun ActionPill(
     colors: OperationalColors,
     modifier: Modifier = Modifier,
     primary: Boolean = true,
+    /** En tinta en vez de lima: la acción final de una hoja que ya usa el lima para otra cosa. */
+    inverted: Boolean = false,
+    /** Solo el contorno: la opción secundaria junto a la principal. */
+    outlined: Boolean = false,
+    shape: Shape = RoundedCornerShape(14.dp),
+    height: Dp = 50.dp,
+    fontSize: TextUnit = 14.sp,
+    fontWeight: FontWeight = FontWeight.Bold,
     onClick: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(14.dp)
     val active = enabled && !loading
     val container =
         animateSelectionColor(
             when {
+                outlined -> Color.Transparent
+                loading && inverted -> colors.textPrimary
                 loading -> colors.accentLime
                 !enabled -> colors.pillBackground
+                inverted -> colors.textPrimary
                 primary -> colors.accentLime
                 else -> colors.cardInner
             },
@@ -916,8 +929,12 @@ internal fun ActionPill(
     val ink =
         animateSelectionColor(
             when {
+                outlined && enabled -> colors.textPrimary
+                outlined -> colors.textSecondary
+                loading && inverted -> colors.background
                 loading -> colors.accentInk
                 !enabled -> colors.textSecondary
+                inverted -> colors.background
                 primary -> colors.accentInk
                 else -> colors.textPrimary
             },
@@ -929,9 +946,10 @@ internal fun ActionPill(
             modifier
                 .fillMaxWidth()
                 .physicalPress(enabled = active, onClick = onClick)
-                .height(50.dp)
+                .height(height)
                 .clip(shape)
                 .background(container)
+                .then(if (outlined) Modifier.border(1.5.dp, colors.cardBorder, shape) else Modifier)
                 .animateContentSize(if (reduced) snap() else spring(dampingRatio = 0.8f, stiffness = 500f)),
         contentAlignment = Alignment.Center,
     ) {
@@ -954,7 +972,7 @@ internal fun ActionPill(
             if (isLoading) {
                 CircularProgressIndicator(color = ink, strokeWidth = 2.5.dp, modifier = Modifier.size(22.dp))
             } else {
-                Text(label, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = ink)
+                Text(label, fontWeight = fontWeight, fontSize = fontSize, color = ink, maxLines = 1)
             }
         }
     }
