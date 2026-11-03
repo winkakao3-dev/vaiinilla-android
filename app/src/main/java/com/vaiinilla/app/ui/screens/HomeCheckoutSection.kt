@@ -1,14 +1,7 @@
 package com.vaiinilla.app.ui.screens
 
-import android.Manifest
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -25,11 +18,13 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -38,8 +33,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.core.location.HomeAddressLocator
-import com.vaiinilla.app.core.location.MapsLink
 import com.vaiinilla.app.domain.model.DeliveryAddress
 import com.vaiinilla.app.domain.model.HomeCheckoutRules
 import com.vaiinilla.app.domain.model.HomePayment
@@ -61,7 +54,6 @@ import com.vaiinilla.app.ui.order.isHomeDelivery
 import com.vaiinilla.app.ui.order.preorderOffer
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaColors
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 /** Lo que el carrito le pide a la pantalla para el pedido a domicilio y los encargos (CASA-05 a 08). */
@@ -152,8 +144,8 @@ internal fun DeliveryDatePicker(
 }
 
 /**
- * A dónde se lleva, si llega y cuánto cuesta el envío, y cómo se paga. La dirección se busca en el teléfono (un
- * enlace de Maps o la calle) y el negocio responde si llega; el resultado entra con un fundido para que se note.
+ * A dónde se lleva, si llega y cuánto cuesta el envío, y cómo se paga. La dirección se elige en un mapa de
+ * OpenStreetMap (D9 y D10 de Doop): el mapa chico abre el completo, y el negocio responde si llega a ese punto.
  */
 @Composable
 internal fun HomeDeliverySection(
@@ -161,62 +153,11 @@ internal fun HomeDeliverySection(
     actions: HomeCheckoutActions,
 ) {
     val colors = LocalVaiinillaColors.current
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val haptics = rememberVaiinillaHaptics()
     val offer = state.homeDeliveryOffer ?: return
     if (!state.isHomeDelivery) return
     val address = state.homeCheckout.address
-
-    fun quote(find: suspend () -> MapsLink.Point?) {
-        if (state.quotingDelivery) return
-        val written = address.address
-        actions.onQuoteStart()
-        scope.launch {
-            val point = runCatching { find() }.getOrNull()
-            if (point == null) {
-                actions.onQuoteFailed(
-                    if (MapsLink.find(written) == null) {
-                        "No encontramos esa dirección. Agrega la colonia y la ciudad."
-                    } else {
-                        "Ese enlace no trae el lugar. En Google Maps toca Compartir y pega el enlace otra vez."
-                    },
-                )
-                return@launch
-            }
-            // Quien reparte necesita leer una calle, no un enlace.
-            val street = if (MapsLink.find(written) == null) null else HomeAddressLocator.address(context, point)
-            actions.onQuote(point.latitude, point.longitude, written, street)
-        }
-    }
-
-    fun useCurrentLocation() {
-        if (state.quotingDelivery) return
-        actions.onQuoteStart()
-        scope.launch {
-            val point = HomeAddressLocator.currentLocation(context)
-            if (point == null) {
-                actions.onQuoteFailed("No pudimos saber dónde estás. Escribe tu dirección.")
-                return@launch
-            }
-            val street =
-                HomeAddressLocator.address(context, point)
-                    ?: "Ubicación %.5f, %.5f".format(point.latitude, point.longitude)
-            // La dirección cambia a la calle del punto: se cotiza contra ese texto.
-            actions.onEditAddress { it.copy(address = street.take(160)) }
-            actions.onQuote(point.latitude, point.longitude, street.take(160), null)
-        }
-    }
-    val permission =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted) {
-                useCurrentLocation()
-            } else {
-                actions.onQuoteFailed(
-                    "Sin permiso de ubicación. Escribe tu dirección.",
-                )
-            }
-        }
+    var picking by rememberSaveable { mutableStateOf(false) }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -226,13 +167,11 @@ internal fun HomeDeliverySection(
             title = "¿A dónde te lo llevan?",
             meta = offer.radiusKm.takeIf { it.isNotBlank() }?.let { "Hasta $it km" },
         )
-        HomeField(
-            value = address.address,
-            onValueChange = { value -> actions.onEditAddress { it.copy(address = value.take(MapsLink.MAX_TEXT)) } },
-            placeholder = "Calle, número y colonia, o un enlace de Maps",
-            colors = colors,
-            singleLine = false,
-        )
+        HomeMapCard(address.point()) {
+            haptics.click()
+            picking = true
+        }
+        HomeAddressSummary(state, offer)
         HomeField(
             value = address.reference,
             onValueChange = { value -> actions.onEditAddress { it.copy(reference = value.take(120)) } },
@@ -248,62 +187,6 @@ internal fun HomeDeliverySection(
             colors = colors,
             keyboardType = KeyboardType.Phone,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SelectPill(
-                if (state.quotingDelivery) "Calculando el envío…" else "Calcular envío",
-                selected = false,
-                colors = colors,
-                modifier = Modifier.weight(1f),
-                enabled = address.address.isNotBlank() && !state.quotingDelivery && state.homeCheckout.quote == null,
-            ) {
-                haptics.click()
-                quote { HomeAddressLocator.locate(context, address.address) }
-            }
-            SelectPill(
-                "Usar mi ubicación",
-                selected = false,
-                colors = colors,
-                modifier = Modifier.weight(1f),
-                enabled = !state.quotingDelivery,
-            ) {
-                haptics.click()
-                if (HomeAddressLocator.hasLocationPermission(context)) {
-                    useCurrentLocation()
-                } else {
-                    permission.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
-                }
-            }
-        }
-        AnimatedContent(
-            targetState = Triple(state.homeCheckout.quote, state.deliveryQuoteError, state.quotingDelivery),
-            transitionSpec = { fadeIn(spring(stiffness = 300f)) togetherWith fadeOut(spring(stiffness = 300f)) },
-            label = "cotizacion-envio",
-        ) { (quote, error, quoting) ->
-            when {
-                quoting -> Unit
-                error != null -> Text(error, color = colors.coral, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                quote != null && quote.reaches -> {
-                    val fee = quote.fee ?: offer.fee
-                    val parts =
-                        listOfNotNull(
-                            "Sí llegan",
-                            quote.distanceKm?.let { "$it km" },
-                            if (Money.parse(fee).signum() == 0) "envío gratis" else "envío ${moneyLabel(fee)}",
-                        )
-                    Text(parts.joinToString(" · "), color = colors.ink, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                }
-                quote != null ->
-                    Text(
-                        offer.radiusKm.takeIf { it.isNotBlank() }?.let {
-                            "Esta dirección queda fuera de la zona de entrega (hasta $it km)."
-                        } ?: "Esta dirección queda fuera de la zona de entrega.",
-                        color = colors.coral,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                else -> Unit
-            }
-        }
         if (state.homePayments.isNotEmpty()) {
             CartSectionHead(title = "¿Cómo pagas?", meta = null)
             state.homePayments.forEach { payment ->
@@ -339,6 +222,7 @@ internal fun HomeDeliverySection(
             }
         }
     }
+    if (picking) HomeMapPicker(state, offer, actions) { picking = false }
 }
 
 private fun paymentLabel(
