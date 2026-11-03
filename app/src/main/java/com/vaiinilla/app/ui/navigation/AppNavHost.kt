@@ -2282,6 +2282,8 @@ fun AppNavHost(
                         onDismissError = operationalViewModel::dismissMutationError,
                         onRefresh = operationalViewModel::refresh,
                         placeName = authorizedAccessState.activeContext?.establishmentName.orEmpty(),
+                        onToggleProductAvailable = operationalViewModel::setProductAvailable,
+                        onLoadCatalog = operationalViewModel::refreshCatalog,
                     )
                     if (reservedSheetOpen) {
                         ReservedOrdersSheet(

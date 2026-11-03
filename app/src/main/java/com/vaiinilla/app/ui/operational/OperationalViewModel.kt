@@ -1221,6 +1221,10 @@ class OperationalViewModel
         }
 
         fun refreshCatalog() {
+            if (_uiState.value.role == OperationalRole.KITCHEN) {
+                refreshKitchenCatalog()
+                return
+            }
             if (_uiState.value.role != OperationalRole.CASHIER) return
             loadStoreImages()
             val generation = roleGeneration
@@ -1240,6 +1244,21 @@ class OperationalViewModel
                                 // Un error de la carga de pedidos sigue ahí hasta que esa carga salga bien.
                                 else -> _uiState.value.errorMessage.takeIf { _uiState.value.lastRefreshOk == false }
                             },
+                    )
+            }
+        }
+
+        /** N03: Cocina lee el menú para apagar lo que se acabó; un fallo se queda en la hoja y no toca la fila de comandas. */
+        private fun refreshKitchenCatalog() {
+            val generation = roleGeneration
+            _uiState.value = _uiState.value.copy(catalogFailed = false)
+            viewModelScope.launch {
+                val result = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }
+                if (generation != roleGeneration || _uiState.value.role != OperationalRole.KITCHEN) return@launch
+                _uiState.value =
+                    _uiState.value.copy(
+                        catalog = result.getOrNull() ?: _uiState.value.catalog,
+                        catalogFailed = result.isFailure,
                     )
             }
         }

@@ -194,6 +194,9 @@ fun KitchenOperationalScreen(
     onDismissError: () -> Unit = {},
     onRefresh: () -> Unit = {},
     placeName: String = "",
+    /** N03: apagar o prender un producto desde Cocina; null si esta Cocina no lo ofrece. */
+    onToggleProductAvailable: ((productId: Int, available: Boolean) -> Unit)? = null,
+    onLoadCatalog: () -> Unit = {},
 ) {
     val colors = rememberOperationalColors()
     val themeMode = LocalVaiinillaThemeMode.current
@@ -228,6 +231,8 @@ fun KitchenOperationalScreen(
     var rejectingOrderId by remember { mutableStateOf<String?>(null) }
     var rejectingItem by remember { mutableStateOf<Pair<String, OrderItem>?>(null) }
     var moreOrderId by remember { mutableStateOf<String?>(null) }
+    var soldOutOpen by rememberSaveable { mutableStateOf(false) }
+    var lastTurnedOff by remember { mutableStateOf<String?>(null) }
     val queueOrders = kitchenQueue(state.orders)
     val readyOrders = kitchenReadyOrders(state.orders)
     val activeOrder = kitchenActiveOrder(queueOrders, selectedOrderId)
@@ -372,14 +377,38 @@ fun KitchenOperationalScreen(
             }
 
             item(key = "kitchen-title") {
-                Text(
-                    "Comandas",
-                    fontSize = 34.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = (-1).sp,
-                    color = colors.textPrimary,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        "Comandas",
+                        fontSize = 34.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = (-1).sp,
+                        color = colors.textPrimary,
+                    )
+                    if (onToggleProductAvailable != null && canAct) {
+                        Text(
+                            "¿Se acabó algo?",
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = colors.textPrimary,
+                            modifier =
+                                Modifier
+                                    .physicalPress(scale = PhysicalPressScale.Small) {
+                                        haptics.selection()
+                                        lastTurnedOff = null
+                                        onLoadCatalog()
+                                        soldOutOpen = true
+                                    }.clip(CircleShape)
+                                    .background(colors.cardBackground)
+                                    .border(1.dp, colors.cardBorder, CircleShape)
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                        )
+                    }
+                }
             }
 
             item(key = "kitchen-view") {
@@ -542,6 +571,24 @@ fun KitchenOperationalScreen(
             palette = kitchenAssistantPalette,
             buttonFocusRequester = assistantFocusRequester,
             modifier = Modifier.fillMaxSize(),
+        )
+    }
+
+    if (soldOutOpen && onToggleProductAvailable != null) {
+        KitchenSoldOutSheet(
+            products = state.catalog?.products,
+            failed = state.catalogFailed,
+            busy = state.catalogBusy,
+            queue = queueOrders,
+            lastTurnedOff = lastTurnedOff,
+            errorMessage = state.errorMessage,
+            colors = colors,
+            onToggle = { product, available ->
+                lastTurnedOff = if (available) null else product.name
+                onToggleProductAvailable(product.id, available)
+            },
+            onRetry = onLoadCatalog,
+            onDismiss = { soldOutOpen = false },
         )
     }
 

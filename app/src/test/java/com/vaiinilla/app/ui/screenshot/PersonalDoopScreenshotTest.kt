@@ -13,6 +13,7 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.repository.BoardOrder
+import com.vaiinilla.app.ui.screens.KitchenSoldOutContent
 import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
 import com.vaiinilla.app.ui.screens.WaiterSheetOrderRow
 import com.vaiinilla.app.ui.screens.rememberOperationalColors
@@ -48,6 +49,41 @@ class PersonalDoopScreenshotTest {
     private fun OnPaper(content: @Composable () -> Unit) {
         val colors = rememberOperationalColors()
         Box(Modifier.fillMaxSize().background(colors.background).padding(16.dp)) { content() }
+    }
+
+    @Test
+    fun `n03_se_acabo`() {
+        val template = ScreenshotFixtures.catalog().products.first()
+        val products =
+            listOf(
+                template.copy(id = 1, name = "Crepa de cajeta", preparationStation = PreparationStation.KITCHEN),
+                template.copy(id = 2, name = "Latte frío", preparationStation = PreparationStation.KITCHEN, available = false),
+                template.copy(id = 3, name = "Cheesecake de maracuyá", preparationStation = PreparationStation.KITCHEN),
+                template.copy(id = 4, name = "Agua de jamaica", preparationStation = PreparationStation.CASHIER),
+            )
+        val base = ScreenshotFixtures.sampleOrder(state = OrderState.PAID)
+        val queue =
+            listOf(12, 13).map { folio ->
+                base.copy(
+                    summary = base.summary.copy(id = "o$folio", folio = folio),
+                    items = listOf(base.items.first().copy(productName = "Latte frío", rejection = null)),
+                )
+            }
+        capture("personal_n03_se_acabo.png") {
+            OnPaper {
+                KitchenSoldOutContent(
+                    products = products,
+                    failed = false,
+                    busy = false,
+                    queue = queue,
+                    lastTurnedOff = "Latte frío",
+                    errorMessage = null,
+                    colors = rememberOperationalColors(),
+                    onToggle = { _, _ -> },
+                    onRetry = {},
+                )
+            }
+        }
     }
 
     @Test
