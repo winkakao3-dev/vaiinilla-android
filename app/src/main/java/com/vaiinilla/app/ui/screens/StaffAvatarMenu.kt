@@ -30,6 +30,7 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -81,6 +82,7 @@ internal fun StaffAvatarMenu(
     placeName: String = "",
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var shiftOpen by remember { mutableStateOf(false) }
     StaffAvatarBadge(
         initials = initials,
         modeLabel = modeLabel,
@@ -109,7 +111,14 @@ internal fun StaffAvatarMenu(
                         close()
                     }
                 },
+            onOpenShift = {
+                expanded = false
+                shiftOpen = true
+            },
         )
+    }
+    if (shiftOpen) {
+        StaffShiftSheet(modeLabel = modeLabel, placeName = placeName, colors = colors, onDismiss = { shiftOpen = false })
     }
 }
 
@@ -149,6 +158,7 @@ private fun StaffAccountCard(
     onDismiss: () -> Unit,
     onChangeMode: () -> Unit,
     onCloseCash: (() -> Unit)?,
+    onOpenShift: () -> Unit,
 ) {
     val reduceMotion = rememberReducedMotion()
     val appear = remember { Animatable(if (reduceMotion) 1f else 0f) }
@@ -218,6 +228,7 @@ private fun StaffAccountCard(
                         openNotices()
                     }
                 }
+                AccountRow(Icons.Outlined.Savings, "Mi turno y mis propinas", colors = colors, onClick = onOpenShift)
                 AccountRow(Icons.Outlined.SwapHoriz, "Cambiar de modo", value = modeLabel, colors = colors, onClick = onChangeMode)
                 if (onThemeChange != null) {
                     AccountRow(

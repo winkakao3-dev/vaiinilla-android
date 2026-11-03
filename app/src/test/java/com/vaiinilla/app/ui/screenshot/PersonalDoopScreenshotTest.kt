@@ -14,6 +14,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.repository.BoardOrder
 import com.vaiinilla.app.ui.screens.KitchenSoldOutContent
+import com.vaiinilla.app.ui.screens.StaffShiftContent
 import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
 import com.vaiinilla.app.ui.screens.WaiterSheetOrderRow
 import com.vaiinilla.app.ui.screens.rememberOperationalColors
@@ -81,6 +82,20 @@ class PersonalDoopScreenshotTest {
                     colors = rememberOperationalColors(),
                     onToggle = { _, _ -> },
                     onRetry = {},
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `n07_mi_turno`() {
+        capture("personal_n07_mi_turno.png") {
+            OnPaper {
+                StaffShiftContent(
+                    modeLabel = "Mesero",
+                    placeName = "Cafetería Central",
+                    today = java.time.LocalDate.parse("2026-11-07"),
+                    colors = rememberOperationalColors(),
                 )
             }
         }
