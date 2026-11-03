@@ -55,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -271,7 +272,7 @@ fun ParentModeWalletHost(
 }
 
 @Composable
-private fun BoxScope.FullScreenPage(
+internal fun BoxScope.FullScreenPage(
     visible: Boolean,
     reduced: Boolean,
     page: @Composable () -> Unit,
@@ -623,17 +624,19 @@ internal fun InitialsAvatar(
     ink: Color,
     line: Color,
     modifier: Modifier = Modifier,
+    shape: Shape = CircleShape,
+    fontSize: Int = 15,
 ) {
     Box(
         modifier =
             modifier
                 .size(44.dp)
-                .clip(CircleShape)
+                .clip(shape)
                 .background(surface)
-                .border(1.dp, line, CircleShape),
+                .border(1.dp, line, shape),
         contentAlignment = Alignment.Center,
     ) {
-        Text(initials, color = ink, fontWeight = FontWeight.Black, fontSize = 15.sp)
+        Text(initials, color = ink, fontWeight = FontWeight.Black, fontSize = fontSize.sp)
     }
 }
 

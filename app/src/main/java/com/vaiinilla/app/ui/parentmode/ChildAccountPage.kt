@@ -1,10 +1,15 @@
 package com.vaiinilla.app.ui.parentmode
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +20,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,16 +28,14 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.CreditCard
-import androidx.compose.material.icons.outlined.PhoneIphone
-import androidx.compose.material.icons.outlined.ShoppingCart
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material3.CircularProgressIndicator
@@ -42,6 +46,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -49,15 +54,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -68,36 +76,39 @@ import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.domain.guardianship.ScheduledOrder
 import com.vaiinilla.app.domain.guardianship.ScheduledOrderRules
 import com.vaiinilla.app.domain.guardianship.SchoolCalendar
-import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import com.vaiinilla.app.domain.guardianship.compactMoney
-import com.vaiinilla.app.domain.guardianship.dailyRemainingLabel
-import com.vaiinilla.app.ui.components.CremeDivider
-import com.vaiinilla.app.ui.components.CremePill
-import com.vaiinilla.app.ui.components.CremePillRow
-import com.vaiinilla.app.ui.components.CremeStat
-import com.vaiinilla.app.ui.components.CremeStatRow
 import com.vaiinilla.app.ui.components.GlassCircleButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ToastPill
-import com.vaiinilla.app.ui.components.cremeBleed
+import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.minTouchTarget
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
+import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.movementLabel
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.math.BigDecimal
+import java.math.RoundingMode
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 
 /** Cada cuánto pregunta la ficha por una solicitud que espera a la escuela. */
 private const val REQUESTS_POLL_MS = 20_000L
 
-private enum class ChildSheet { RELOAD, CONTROLS, WEEK, OWN_ACCOUNT, GUARDIAN_CODE, REFUND, DATA_REMOVAL, PIN }
+internal enum class ChildSheet { RELOAD, CONTROLS, WEEK, OWN_ACCOUNT, GUARDIAN_CODE, REFUND, DATA_REMOVAL, PIN }
+
+/** El durazno del hijo en Doop: su ficha, su recarga y la página de seguridad lo usan igual. */
+internal val ChildAvatarFill = Color(0xFFF6C9A8)
+internal val ChildAvatarInk = Color(0xFF4A2412)
 
 /**
- * La casita de un hijo: su frasco con su saldo arriba y, en el vidrio, recargar, apartar, controles,
- * lo apartado, quién lo cuida y sus movimientos. Todo lo de su cuenta sale con su contexto.
+ * La ficha de un hijo como el dibujo de Doop (E07): su saldo con la barra de hoy, cuatro botones redondos, su comida
+ * apartada y lo que cuida la caja. Lo de seguridad y tutores vive en su propia página (E11).
  */
 @Composable
 internal fun ChildAccountPage(
@@ -130,10 +141,14 @@ internal fun ChildAccountContent(
     onBack: () -> Unit,
     startWithReload: Boolean = false,
     initialReloadAmount: Int? = null,
+    startOnSecurity: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
+    val reduced = reducedMotion()
     val scope = rememberCoroutineScope()
     var sheet by rememberSaveable { mutableStateOf(if (startWithReload) ChildSheet.RELOAD else null) }
+    var showSecurity by rememberSaveable { mutableStateOf(startOnSecurity) }
+    var confirmsBlock by remember { mutableStateOf(false) }
     // Solo la primera recarga llega con el monto elegido; si la cierra y la vuelve a abrir, empieza de cero.
     var pendingReloadAmount by rememberSaveable { mutableStateOf(initialReloadAmount) }
     var orderToCancel by remember { mutableStateOf<ScheduledOrder?>(null) }
@@ -169,190 +184,58 @@ internal fun ChildAccountContent(
         if (state.accessLost) onUnlinked(state.child.userId)
     }
     val child = state.child
+    val canBlock = child.isPrincipal && child.hasCredential
 
-    // Sin foto ni dibujo: aquí se maneja dinero y datos de menores. Papel liso con un halo suave arriba.
-    Box(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(colors.paper)
-                .drawBehind {
-                    drawRect(
-                        Brush.radialGradient(
-                            colors = listOf(colors.paper2, Color.Transparent),
-                            center = Offset(size.width / 2f, 0f),
-                            radius = size.width,
-                        ),
-                        size = Size(size.width, 300.dp.toPx()),
-                    )
-                }.testTag("child-account"),
-    ) {
+    // Sin foto ni dibujo: aquí se maneja dinero y datos de menores. Papel liso, tarjetas de papel 2.
+    Box(modifier = Modifier.fillMaxSize().background(colors.paper).testTag("child-account")) {
         LazyColumn(
             modifier = Modifier.fillMaxSize().testTag("child-account-list"),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 40.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 40.dp),
         ) {
-            item(key = "window") { Spacer(Modifier.statusBarsPadding().height(72.dp)) }
-            item(key = "header") { ChildHeader(state) }
+            item(key = "window") { Spacer(Modifier.statusBarsPadding().height(58.dp)) }
+            item(key = "header") { ChildHeader(child, Modifier.arrive(0)) }
+            item(key = "balance") { BalanceCard(state, Modifier.padding(top = 18.dp).arrive(1)) }
             item(key = "actions") {
-                ChildActions(
-                    onReload = { sheet = ChildSheet.RELOAD },
-                    onWeek = { sheet = ChildSheet.WEEK },
-                    onControls = { sheet = ChildSheet.CONTROLS },
-                    stats =
-                        listOf(
-                            CremeStat("Hoy le quedan", dailyRemainingLabel(child.controls), highlighted = true),
-                            CremeStat(
-                                "Apartado",
-                                state.scheduled.size.let {
-                                    if (it ==
-                                        1
-                                    ) {
-                                        "1 día"
-                                    } else {
-                                        "$it días"
-                                    }
-                                },
-                            ),
-                            CremeStat("Tutores", child.guardians.size.toString()),
-                            CremeStat("PIN en Caja", if (child.hasPin) "Sí" else "No"),
-                        ),
-                )
+                Row(modifier = Modifier.fillMaxWidth().padding(top = 18.dp).arrive(2)) {
+                    RoundAction("Recargar", Icons.Rounded.Add, "child-reload", primary = true) { sheet = ChildSheet.RELOAD }
+                    RoundAction("Apartar", Icons.Outlined.CalendarMonth, "child-week") { sheet = ChildSheet.WEEK }
+                    RoundAction("Controles", Icons.Outlined.Tune, "child-controls") { sheet = ChildSheet.CONTROLS }
+                    if (canBlock) {
+                        RoundAction("Bloquear", Icons.Outlined.Lock, "child-block", busy = state.isBlockingCredential) {
+                            confirmsBlock = true
+                        }
+                    }
+                }
             }
             state.loadError?.let { message ->
                 item(key = "error") {
-                    Column(modifier = Modifier.padding(top = 20.dp)) {
-                        Text(
-                            "Sin conexión con su cuenta",
-                            color = colors.ink,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 16.sp,
-                        )
-                        Text(message, color = colors.muted, fontSize = 14.sp)
-                        Text(
-                            "Reintentar",
-                            color = colors.ink,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 15.sp,
-                            modifier =
-                                Modifier
-                                    .padding(
-                                        top = 6.dp,
-                                    ).physicalPress(scale = PhysicalPressScale.Small) {
-                                        scope.launch { state.load() }
-                                    }.minTouchTarget(),
-                        )
-                    }
+                    RetryNote("Sin conexión con su cuenta", message) { scope.launch { state.load() } }
                 }
             }
             if (state.ordersFailed) {
                 item(key = "orders-error") {
-                    Column(modifier = Modifier.padding(top = 20.dp)) {
-                        Text(
-                            "No pudimos traer lo apartado",
-                            color = colors.ink,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 16.sp,
-                        )
-                        Text(
-                            "Antes de apartar otra vez, vuelve a intentarlo para no repetir un día.",
-                            color = colors.muted,
-                            fontSize = 14.sp,
-                        )
-                        Text(
-                            "Reintentar",
-                            color = colors.ink,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 15.sp,
-                            modifier =
-                                Modifier
-                                    .padding(top = 6.dp)
-                                    .physicalPress(scale = PhysicalPressScale.Small) {
-                                        scope.launch { state.refreshScheduled() }
-                                    }.minTouchTarget(),
-                        )
-                    }
+                    RetryNote(
+                        "No pudimos traer lo apartado",
+                        "Antes de apartar otra vez, vuelve a intentarlo para no repetir un día.",
+                    ) { scope.launch { state.refreshScheduled() } }
                 }
             }
-            if (state.scheduled.isNotEmpty()) {
-                item(key = "scheduled-title") { SectionHeading("Apartado") }
-                items(state.scheduled, key = { "s-${it.id}" }) { order ->
-                    ScheduledRow(
-                        order,
-                        canceling = state.cancelingOrderId == order.id,
-                        cancelable =
-                            ScheduledOrderRules.canCancel(
-                                order.statusWire,
-                                order.deliveryDate,
-                                state.schedule?.cancelCutoff,
-                                now = state.schedule?.let { LocalDateTime.now() },
-                            ),
-                    ) { orderToCancel = order }
-                }
+            item(key = "scheduled-title") {
+                CardCaption(
+                    "Su comida apartada",
+                    action = if (state.scheduled.isEmpty()) "Apartar" else "Editar",
+                    onAction = { sheet = ChildSheet.WEEK },
+                    modifier = Modifier.padding(top = 26.dp).arrive(3),
+                )
             }
-            if (child.guardians.isNotEmpty()) {
-                item(key = "guardians") {
-                    ChildGuardiansSection(
-                        child = child,
-                        busyGuardianId = state.changingGuardianId,
-                        onInvite = { sheet = ChildSheet.GUARDIAN_CODE },
-                        onRemove = { guardian ->
-                            scope.launch { state.removeGuardian(guardian)?.let(onChildChanged) }
-                        },
-                        onMakePrincipal = { guardian ->
-                            scope.launch { state.makePrincipal(guardian)?.let(onChildChanged) }
-                        },
-                    )
-                }
+            item(key = "scheduled") {
+                ScheduledCard(state, Modifier.arrive(3)) { orderToCancel = it }
             }
-            val movements = state.wallet?.movements
-            if (movements != null) {
-                item(key = "movements-title") { SectionHeading("Movimientos") }
-                if (movements.isEmpty()) {
-                    item(key = "movements-empty") {
-                        Text(
-                            "Aquí verás sus recargas y lo que compre con saldo.",
-                            color = colors.muted,
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(top = 6.dp),
-                        )
-                    }
-                }
-                items(movements.take(15), key = { "m-${it.id}" }) { MovementRow(it) }
-            } else if (state.isLoading) {
-                item(key = "movements-loading") { Spacer(Modifier.height(16.dp)) }
+            item(key = "counter-title") {
+                CardCaption("Lo que cuida la caja", modifier = Modifier.padding(top = 26.dp).arrive(4))
             }
-            if (!child.hasOwnAccount) {
-                item(key = "own-account") {
-                    QuietRow(
-                        icon = Icons.Outlined.PhoneIphone,
-                        title = "Pasar a su propia cuenta",
-                        detail = "Cuando tenga teléfono, entra con su Google y sigue con todo lo suyo.",
-                        ink = colors.ink,
-                        muted = colors.muted,
-                        modifier = Modifier.padding(top = 30.dp).testTag("child-own-account"),
-                    ) { sheet = ChildSheet.OWN_ACCOUNT }
-                }
-            }
-            if (child.isPrincipal) {
-                item(key = "counter") {
-                    ChildCounterSecuritySection(
-                        child = child,
-                        isBlocking = state.isBlockingCredential,
-                        onPin = { sheet = ChildSheet.PIN },
-                        onBlockCredential = { scope.launch { state.blockCredential()?.let(onChildChanged) } },
-                        modifier = Modifier.padding(top = if (child.hasOwnAccount) 30.dp else 14.dp),
-                    )
-                }
-                item(key = "requests") {
-                    StudentRequestsSection(
-                        balance = state.balance,
-                        requests = state.requests,
-                        modifier = Modifier.padding(top = 14.dp),
-                    ) { kind ->
-                        sheet =
-                            if (kind == StudentRequestKind.REFUND) ChildSheet.REFUND else ChildSheet.DATA_REMOVAL
-                    }
-                }
+            item(key = "counter") {
+                CounterCard(state, onControls = { sheet = ChildSheet.CONTROLS }, modifier = Modifier.arrive(4))
             }
         }
         GlassCircleButton(
@@ -361,6 +244,24 @@ internal fun ChildAccountContent(
             onClick = onBack,
             modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(start = 16.dp, top = 6.dp),
         )
+        SecurityPill(
+            onClick = { showSecurity = true },
+            modifier =
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(end = 16.dp, top = 6.dp),
+        )
+        FullScreenPage(visible = showSecurity, reduced = reduced) {
+            BackHandler { showSecurity = false }
+            ChildSecurityPage(
+                state = state,
+                onChildChanged = onChildChanged,
+                onSheet = { sheet = it },
+                onBlockCredential = { confirmsBlock = true },
+                onBack = { showSecurity = false },
+            )
+        }
         val isError = state.noticeIsError
         ToastPill(
             message = state.notice,
@@ -380,6 +281,18 @@ internal fun ChildAccountContent(
             destructive = true,
             onConfirm = { scope.launch { state.cancel(order) } },
             onDismiss = { orderToCancel = null },
+        )
+    }
+    if (confirmsBlock) {
+        ParentConfirmDialog(
+            title = "¿Bloquear la credencial de ${child.firstName}?",
+            message =
+                "Su QR y su tarjeta dejan de servir al momento. Hasta " +
+                    "que Caja le dé otra, lo encuentran por su nombre.",
+            confirmLabel = "Bloquear",
+            destructive = true,
+            onConfirm = { scope.launch { state.blockCredential()?.let(onChildChanged) } },
+            onDismiss = { confirmsBlock = false },
         )
     }
 
@@ -431,7 +344,12 @@ internal fun ChildAccountContent(
         ChildSheet.GUARDIAN_CODE -> GuardianCodeSheet(child, state.services.guardianship, onDismiss = close)
         ChildSheet.REFUND, ChildSheet.DATA_REMOVAL ->
             StudentRequestSheet(
-                kind = if (sheet == ChildSheet.REFUND) StudentRequestKind.REFUND else StudentRequestKind.DATA_REMOVAL,
+                kind =
+                    if (sheet == ChildSheet.REFUND) {
+                        com.vaiinilla.app.domain.guardianship.StudentRequestKind.REFUND
+                    } else {
+                        com.vaiinilla.app.domain.guardianship.StudentRequestKind.DATA_REMOVAL
+                    },
                 child = child,
                 balance = state.balance,
                 guardianship = state.services.guardianship,
@@ -450,210 +368,604 @@ internal fun ChildAccountContent(
 }
 
 @Composable
-private fun ChildHeader(state: ChildAccountState) {
+private fun ChildHeader(
+    child: Dependent,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    Row(modifier = modifier.padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        InitialsAvatar(
+            child.initials.take(1),
+            ChildAvatarFill,
+            ChildAvatarInk,
+            Color.Transparent,
+            Modifier.size(58.dp),
+            shape = RoundedCornerShape(20.dp),
+            fontSize = 24,
+        )
+        Column(modifier = Modifier.padding(start = 14.dp)) {
+            Text(child.name, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 26.sp, letterSpacing = (-1).sp)
+            child.schoolLine?.let {
+                Text(it, color = colors.muted, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            }
+        }
+    }
+}
+
+/** La pastilla de arriba a la derecha que abre la página de seguridad y tutores (E11). */
+@Composable
+private fun SecurityPill(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
+    Box(
+        modifier =
+            modifier
+                .testTag("child-security")
+                .physicalPress(scale = PhysicalPressScale.Small) {
+                    haptics.click()
+                    onClick()
+                }.height(40.dp)
+                .clip(RoundedCornerShape(percent = 50))
+                .background(colors.paper2)
+                .semantics { role = Role.Button }
+                .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("Seguridad y tutores", color = colors.ink2, fontWeight = FontWeight.ExtraBold, fontSize = 13.5.sp)
+    }
+}
+
+/** «Su saldo» con la barra de lo que le queda hoy; sin `disponible_hoy` del servidor, solo su límite. */
+@Composable
+private fun BalanceCard(
+    state: ChildAccountState,
+    modifier: Modifier = Modifier,
+) {
     val colors = LocalVaiinillaColors.current
     val reduced = reducedMotion()
     val child = state.child
-    Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            InitialsAvatar(child.initials, colors.paper2, colors.ink, colors.line, Modifier.size(52.dp))
-            Column(modifier = Modifier.padding(start = 14.dp)) {
-                Text(child.name, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 24.sp)
-                child.schoolLine?.let {
+    val controls = child.controls
+    Column(modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(colors.paper2).padding(16.dp)) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Column(modifier = Modifier.weight(1f)) {
+                Caption("Su saldo")
+                AnimatedContent(
+                    targetState = compactMoney(state.balance),
+                    transitionSpec = {
+                        if (reduced) {
+                            fadeIn(snap()) togetherWith fadeOut(snap())
+                        } else {
+                            fadeIn(spring(stiffness = 300f)) togetherWith fadeOut(spring(stiffness = 600f))
+                        }
+                    },
+                    label = "child-balance",
+                ) { text ->
                     Text(
-                        it,
-                        color = colors.muted,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(top = 2.dp),
+                        text,
+                        color = colors.ink,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 38.sp,
+                        lineHeight = 44.sp,
+                        letterSpacing = (-1.6).sp,
+                        modifier = Modifier.semantics { contentDescription = "Saldo de ${child.firstName}: $text" },
                     )
                 }
             }
+            val alert = controls?.lowBalanceAlert
+            if (child.isLowBalance && alert != null) {
+                Tag("Bajó de ${compactMoney(alert)}", colors.coral.copy(alpha = 0.16f), colors.errorText)
+            }
         }
-        AnimatedContent(
-            targetState = compactMoney(state.balance),
-            transitionSpec = {
-                if (reduced) {
-                    fadeIn(snap()) togetherWith fadeOut(snap())
-                } else {
-                    fadeIn(spring(stiffness = 300f)) togetherWith
-                        fadeOut(spring(stiffness = 600f))
+        val limit = controls?.dailyLimit
+        val available = controls?.availableToday
+        when {
+            limit != null && available != null -> {
+                val spent = controls.spentToday ?: (limit - available).max(BigDecimal.ZERO)
+                Row(modifier = Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        buildAnnotatedString {
+                            append("Hoy le quedan ")
+                            withStyle(SpanStyle(color = colors.ink, fontWeight = FontWeight.Black)) {
+                                append(compactMoney(available))
+                            }
+                            append(" de ${compactMoney(limit)}")
+                        },
+                        color = colors.ink2,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text("gastó ${compactMoney(spent)}", color = colors.muted, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
-            },
-            label = "child-balance",
-        ) { text ->
-            Text(
-                text,
-                color = colors.ink,
-                fontWeight = FontWeight.Black,
-                fontSize = 52.sp,
-                lineHeight = 58.sp,
-                letterSpacing = (-1.6).sp,
-                modifier =
-                    Modifier
-                        .padding(top = 18.dp)
-                        .semantics { contentDescription = "Saldo de ${child.firstName}: $text" },
-            )
-        }
-        controlsSummary(child)?.let {
-            Text(it, color = colors.muted, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
+                TodayBar(fraction = spentFraction(spent, limit), exhausted = available.signum() == 0)
+            }
+            limit != null ->
+                Text(
+                    "Hasta ${compactMoney(limit)} al día",
+                    color = colors.ink2,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            controls != null ->
+                Text(
+                    "Sin límite diario",
+                    color = colors.muted,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
         }
     }
 }
 
-/** "Hasta $60 al día · Alergias: Huevo, Soya" */
-internal fun controlsSummary(child: Dependent): String? {
-    val controls = child.controls ?: return null
-    val parts =
-        buildList {
-            controls.dailyLimit?.let { add("Hasta ${compactMoney(it)} al día") }
-            if (controls.allergens.isNotEmpty()) {
-                add(
-                    "Alergias: " +
-                        controls.allergens
-                            .map { it.label }
-                            .sorted()
-                            .joinToString(", "),
+internal fun spentFraction(
+    spent: BigDecimal,
+    limit: BigDecimal,
+): Float =
+    if (limit.signum() <= 0) {
+        1f
+    } else {
+        spent.divide(limit, 4, RoundingMode.HALF_UP).toFloat().coerceIn(0f, 1f)
+    }
+
+@Composable
+private fun TodayBar(
+    fraction: Float,
+    exhausted: Boolean,
+) {
+    val colors = LocalVaiinillaColors.current
+    val reduced = reducedMotion()
+    val progress = remember { Animatable(if (reduced) fraction else 0f) }
+    LaunchedEffect(fraction, reduced) {
+        if (reduced) progress.snapTo(fraction) else progress.animateTo(fraction, spring(dampingRatio = 0.85f, stiffness = 120f))
+    }
+    val fill =
+        when {
+            exhausted -> colors.coral
+            fraction >= 0.5f -> colors.yolk
+            else -> colors.accent
+        }
+    Box(
+        modifier =
+            Modifier
+                .padding(top = 7.dp)
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(colors.line),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth(progress.value.coerceIn(0f, 1f))
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(fill),
+        )
+    }
+}
+
+/** Uno de los cuatro botones redondos de la ficha: el de recargar va en lima, los demás en papel. */
+@Composable
+private fun androidx.compose.foundation.layout.RowScope.RoundAction(
+    label: String,
+    icon: ImageVector,
+    tag: String,
+    primary: Boolean = false,
+    busy: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
+    Column(
+        modifier =
+            Modifier
+                .weight(1f)
+                .testTag(tag)
+                .physicalPress(enabled = !busy, scale = PhysicalPressScale.Small) {
+                    haptics.click()
+                    onClick()
+                }.semantics(mergeDescendants = true) { role = Role.Button },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (primary) colors.accent else colors.paper2),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (busy) {
+                CircularProgressIndicator(color = colors.ink, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+            } else {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = if (primary) colors.accentInk else colors.ink2,
+                    modifier = Modifier.size(if (primary) 28.dp else 22.dp),
                 )
             }
         }
-    return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
-}
-
-@Composable
-private fun ChildActions(
-    onReload: () -> Unit,
-    onWeek: () -> Unit,
-    onControls: () -> Unit,
-    stats: List<CremeStat>,
-) {
-    Column(modifier = Modifier.padding(top = 20.dp)) {
-        CremePillRow(
-            listOf(
-                CremePill("Recargar con tarjeta", Icons.Outlined.CreditCard, onReload, "child-reload"),
-                CremePill("Apartar comida", Icons.Outlined.CalendarMonth, onWeek, "child-week"),
-                CremePill("Controles", Icons.Outlined.Tune, onControls, "child-controls"),
-            ),
-            modifier = Modifier.cremeBleed(20.dp),
-        )
-        CremeDivider(Modifier.padding(top = 20.dp).cremeBleed(20.dp))
-        CremeStatRow(stats, Modifier.padding(top = 18.dp).cremeBleed(20.dp))
+        Text(label, color = colors.ink2, fontWeight = FontWeight.ExtraBold, fontSize = 12.5.sp)
     }
 }
 
+/** La tira de lunes a viernes y lo apartado, cada uno con su «Cancelar» mientras se pueda. */
 @Composable
-internal fun SectionHeading(text: String) {
-    Text(
-        text,
-        color = LocalVaiinillaColors.current.ink,
-        fontWeight = FontWeight.Black,
-        fontSize = 19.sp,
-        modifier = Modifier.padding(top = 30.dp, bottom = 4.dp),
-    )
+private fun ScheduledCard(
+    state: ChildAccountState,
+    modifier: Modifier = Modifier,
+    onCancel: (ScheduledOrder) -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    val today = LocalDate.now()
+    val reservedDates = state.scheduled.mapNotNull { it.deliveryDate }.toSet()
+    Column(modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(colors.paper2).padding(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            schoolWeek(today).forEach { day ->
+                val iso = day.toString()
+                val reserved = iso in reservedDates
+                Column(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .height(58.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (reserved) colors.accent.copy(alpha = 0.14f) else colors.line)
+                            .semantics(mergeDescendants = true) {
+                                contentDescription =
+                                    SchoolCalendar.longLabel(iso, today.toString()) + if (reserved) ", apartado" else ""
+                            },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        SchoolCalendar.weekdayShort(iso).uppercase(),
+                        color = if (reserved) colors.accent else colors.muted,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 11.sp,
+                    )
+                    Text(SchoolCalendar.dayNumber(iso), color = colors.ink, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+                }
+            }
+        }
+        if (state.scheduled.isEmpty()) {
+            Text(
+                if (state.isLoading) "Buscando lo apartado…" else "Nada apartado todavía.",
+                color = colors.muted,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(start = 4.dp, top = 10.dp),
+            )
+        }
+        state.scheduled.forEach { order ->
+            ScheduledRow(
+                order = order,
+                today = today,
+                canceling = state.cancelingOrderId == order.id,
+                cancelable =
+                    ScheduledOrderRules.canCancel(
+                        order.statusWire,
+                        order.deliveryDate,
+                        state.schedule?.cancelCutoff,
+                        now = state.schedule?.let { LocalDateTime.now() },
+                    ),
+            ) { onCancel(order) }
+        }
+    }
+}
+
+/** Lunes a viernes de esta semana; en fin de semana, los de la que viene. */
+internal fun schoolWeek(today: LocalDate): List<LocalDate> {
+    val monday =
+        if (today.dayOfWeek >= DayOfWeek.SATURDAY) {
+            today.plusDays((8 - today.dayOfWeek.value).toLong())
+        } else {
+            today.minusDays((today.dayOfWeek.value - 1).toLong())
+        }
+    return (0L..4L).map(monday::plusDays)
 }
 
 @Composable
 private fun ScheduledRow(
     order: ScheduledOrder,
+    today: LocalDate,
     canceling: Boolean,
     cancelable: Boolean,
     onCancel: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
     val date = order.deliveryDate.orEmpty()
-    val today = LocalDate.now().toString()
-    val label = SchoolCalendar.longLabel(date, today) + (order.deliverySlot?.let { " · ${it.replace("-", "–")}" } ?: "")
-    Column {
-        Row(modifier = Modifier.padding(vertical = 12.dp), verticalAlignment = Alignment.Top) {
-            Column(
-                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(15.dp)).background(colors.paper2),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text(
-                    SchoolCalendar.weekdayShort(date),
-                    color = colors.muted,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 11.sp,
-                )
-                Text(
-                    SchoolCalendar.dayNumber(date),
-                    color = colors.ink,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 18.sp,
-                )
-            }
-            Column(modifier = Modifier.weight(1f).padding(horizontal = 13.dp)) {
-                Text(label, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 14.sp)
-                Text(order.summary, color = colors.muted, fontSize = 12.sp, maxLines = 2)
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(compactMoney(order.total), color = colors.ink, fontWeight = FontWeight.Black, fontSize = 15.sp)
-                when {
-                    canceling ->
-                        CircularProgressIndicator(
-                            color = colors.ink,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.padding(top = 6.dp).size(16.dp),
-                        )
-                    cancelable ->
-                        Text(
-                            "Cancelar",
-                            color = colors.ink,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            modifier =
-                                Modifier
-                                    .padding(top = 6.dp)
-                                    .physicalPress(scale = PhysicalPressScale.Small, onClick = onCancel)
-                                    .minTouchTarget()
-                                    .semantics { contentDescription = "Cancelar lo apartado para $label" },
-                        )
-                }
-            }
+    val dayLabel = SchoolCalendar.longLabel(date, today.toString())
+    val title = if (date == today.toString()) "Hoy: ${order.summary}" else "$dayLabel: ${order.summary}"
+    val pickup = order.deliverySlot?.substringBefore("-")?.let { "Recoge a las $it · " }.orEmpty()
+    Row(modifier = Modifier.padding(start = 4.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
+            Text(title, color = colors.ink, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, maxLines = 2)
+            Text(pickup + compactMoney(order.total), color = colors.muted, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
         }
-        HorizontalDivider(color = colors.line, thickness = 1.dp, modifier = Modifier.padding(start = 57.dp))
+        when {
+            canceling -> CircularProgressIndicator(color = colors.ink, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+            cancelable ->
+                Text(
+                    "Cancelar",
+                    color = colors.ink2,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 13.sp,
+                    modifier =
+                        Modifier
+                            .physicalPress(scale = PhysicalPressScale.Small, onClick = onCancel)
+                            .minTouchTarget()
+                            .semantics { contentDescription = "Cancelar lo apartado para $dayLabel" },
+                )
+            else -> scheduledStatusLabel(order.statusWire)?.let { Tag(it, colors.line, colors.ink2) }
+        }
     }
 }
+
+internal fun scheduledStatusLabel(statusWire: String): String? =
+    when (statusWire) {
+        "cobrado" -> "Pagado"
+        "preparando" -> "Preparando"
+        "listo" -> "Listo"
+        else -> null
+    }
+
+/** Alergias, lo que no puede comprar y sus movimientos: lo que la caja revisa antes de venderle. */
+@Composable
+private fun CounterCard(
+    state: ChildAccountState,
+    onControls: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    val reduced = reducedMotion()
+    val controls = state.child.controls
+    val blockedCategories = controls?.blockedCategoryIds.orEmpty()
+    // La ficha no trae el catálogo: los nombres de lo bloqueado se piden solo si hay algo bloqueado.
+    val categoryNames by produceState<Map<Int, String>>(emptyMap(), blockedCategories) {
+        if (blockedCategories.isNotEmpty()) {
+            withContext(Dispatchers.IO) { state.services.catalog.getCatalog() }
+                .onSuccess { catalog -> value = catalog.categories.associate { it.id to it.name } }
+        }
+    }
+    var showMovements by rememberSaveable { mutableStateOf(false) }
+    val movements = state.wallet?.movements
+    Column(modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(colors.paper2)) {
+        CardRow(
+            title = "Alergias",
+            detail =
+                controls
+                    ?.allergens
+                    ?.map { it.label }
+                    ?.sorted()
+                    ?.takeIf { it.isNotEmpty() }
+                    ?.joinToString(", ")
+                    ?.let { "$it · no se le vende" }
+                    ?: "Ninguna anotada",
+            tag = "child-allergies",
+            onClick = onControls,
+        )
+        CardDivider()
+        CardRow(
+            title = "No puede comprar",
+            detail = blockedLine(blockedCategories, categoryNames, controls?.blockedProductIds?.size ?: 0),
+            tag = "child-blocked",
+            onClick = onControls,
+        )
+        CardDivider()
+        CardRow(
+            title = "Últimos movimientos",
+            detail =
+                when {
+                    movements == null -> if (state.isLoading) "Buscando…" else "No pudimos traerlos"
+                    movements.isEmpty() -> "Aquí verás sus recargas y lo que compre con saldo."
+                    else -> movements.first().let { "${movementLabel(it.type, it.description)} ${signedMoney(it)}" }
+                },
+            tag = "child-movements",
+            enabled = !movements.isNullOrEmpty(),
+            expanded = showMovements,
+        ) { showMovements = !showMovements }
+        AnimatedVisibility(
+            visible = showMovements && !movements.isNullOrEmpty(),
+            enter = if (reduced) fadeIn(snap()) else fadeIn() + expandVertically(spring(dampingRatio = 0.86f, stiffness = 380f)),
+            exit = if (reduced) fadeOut(snap()) else fadeOut() + shrinkVertically(spring(stiffness = 500f)),
+        ) {
+            Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
+                movements.orEmpty().take(15).forEach { MovementRow(it) }
+            }
+        }
+    }
+}
+
+private fun blockedLine(
+    categoryIds: Set<Int>,
+    names: Map<Int, String>,
+    productCount: Int,
+): String {
+    val parts =
+        buildList {
+            if (categoryIds.isNotEmpty()) {
+                val known = categoryIds.mapNotNull(names::get).sorted()
+                add(
+                    if (known.size == categoryIds.size) {
+                        known.joinToString(", ")
+                    } else if (categoryIds.size == 1) {
+                        "1 categoría"
+                    } else {
+                        "${categoryIds.size} categorías"
+                    },
+                )
+            }
+            if (productCount > 0) add(if (productCount == 1) "1 producto" else "$productCount productos")
+        }
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" y ") ?: "Nada bloqueado"
+}
+
+private fun signedMoney(movement: ChildMovement): String =
+    if (movement.isDebit) "−${compactMoney(movement.amount.negate())}" else "+${compactMoney(movement.amount)}"
 
 @Composable
 private fun MovementRow(movement: ChildMovement) {
     val colors = LocalVaiinillaColors.current
-    Column {
-        Row(modifier = Modifier.padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(15.dp)).background(colors.paper2),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    if (movement.isDebit) Icons.Outlined.ShoppingCart else Icons.Outlined.AccountBalanceWallet,
-                    contentDescription = null,
-                    tint = colors.ink,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            Column(modifier = Modifier.weight(1f).padding(horizontal = 13.dp)) {
-                Text(
-                    movementLabel(movement.type, movement.description),
-                    color = colors.ink,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 14.sp,
-                )
-                Text("Saldo después: ${compactMoney(movement.balanceAfter)}", color = colors.muted, fontSize = 12.sp)
-            }
+    Row(modifier = Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
             Text(
-                if (movement.isDebit) {
-                    "−${compactMoney(
-                        movement.amount.negate(),
-                    )}"
-                } else {
-                    "+${compactMoney(movement.amount)}"
-                },
+                movementLabel(movement.type, movement.description),
                 color = colors.ink,
-                fontWeight = FontWeight.Black,
-                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+            )
+            Text("Saldo después: ${compactMoney(movement.balanceAfter)}", color = colors.muted, fontSize = 12.sp)
+        }
+        Text(signedMoney(movement), color = colors.ink, fontWeight = FontWeight.Black, fontSize = 14.sp)
+    }
+}
+
+/** Un renglón de tarjeta como los de Doop: título, detalle y flecha. */
+@Composable
+internal fun CardRow(
+    title: String,
+    detail: String?,
+    tag: String,
+    modifier: Modifier = Modifier,
+    titleColor: Color = LocalVaiinillaColors.current.ink,
+    enabled: Boolean = true,
+    expanded: Boolean? = null,
+    leading: (@Composable () -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
+    onClick: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
+    val reduced = reducedMotion()
+    val turn = remember { Animatable(0f) }
+    LaunchedEffect(expanded, reduced) {
+        val target = if (expanded == true) 90f else 0f
+        if (reduced) turn.snapTo(target) else turn.animateTo(target, spring(dampingRatio = 0.7f, stiffness = 400f))
+    }
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .testTag(tag)
+                .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small) {
+                    haptics.click()
+                    onClick()
+                }.semantics(mergeDescendants = true) { role = Role.Button }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        leading?.invoke()
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, color = titleColor, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+            if (detail != null) {
+                Text(
+                    detail,
+                    color = colors.muted,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    lineHeight = 17.sp,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        }
+        if (trailing != null) {
+            trailing()
+        } else if (enabled) {
+            Icon(
+                Icons.Outlined.ChevronRight,
+                contentDescription = null,
+                tint = colors.muted,
+                modifier = Modifier.size(16.dp).graphicsLayer { rotationZ = turn.value },
             )
         }
-        HorizontalDivider(color = colors.line, thickness = 1.dp, modifier = Modifier.padding(start = 57.dp))
+    }
+}
+
+@Composable
+internal fun CardDivider() {
+    HorizontalDivider(color = LocalVaiinillaColors.current.ink.copy(alpha = 0.1f), thickness = 1.dp)
+}
+
+/** La etiqueta en versalitas de Doop (11 sp, espaciada). */
+@Composable
+internal fun Caption(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text.uppercase(),
+        color = LocalVaiinillaColors.current.muted,
+        fontWeight = FontWeight.ExtraBold,
+        fontSize = 11.sp,
+        letterSpacing = 2.2.sp,
+        modifier = modifier,
+    )
+}
+
+@Composable
+internal fun CardCaption(
+    text: String,
+    modifier: Modifier = Modifier,
+    action: String? = null,
+    onAction: () -> Unit = {},
+) {
+    val colors = LocalVaiinillaColors.current
+    Row(
+        modifier = modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Caption(text, Modifier.weight(1f))
+        if (action != null) {
+            Text(
+                action,
+                color = colors.accent,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 13.sp,
+                modifier = Modifier.physicalPress(scale = PhysicalPressScale.Small, onClick = onAction).minTouchTarget(),
+            )
+        }
+    }
+}
+
+@Composable
+internal fun Tag(
+    text: String,
+    background: Color,
+    ink: Color,
+) {
+    Box(
+        modifier = Modifier.height(26.dp).clip(RoundedCornerShape(percent = 50)).background(background).padding(horizontal = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, color = ink, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun RetryNote(
+    title: String,
+    message: String,
+    onRetry: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Column(modifier = Modifier.padding(start = 4.dp, top = 20.dp)) {
+        Text(title, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 16.sp)
+        Text(message, color = colors.muted, fontSize = 14.sp)
+        Text(
+            "Reintentar",
+            color = colors.ink,
+            fontWeight = FontWeight.Black,
+            fontSize = 15.sp,
+            modifier = Modifier.padding(top = 6.dp).physicalPress(scale = PhysicalPressScale.Small, onClick = onRetry).minTouchTarget(),
+        )
     }
 }
