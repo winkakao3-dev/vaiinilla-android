@@ -16,6 +16,9 @@ internal object NoticePanel {
     private val HOUR = DateTimeFormatter.ofPattern("HH:mm", SPANISH)
     private val DAY = DateTimeFormatter.ofPattern("d 'de' MMMM", SPANISH)
     private val DAY_YEAR = DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", SPANISH)
+    private val HOUR_SHORT = DateTimeFormatter.ofPattern("H:mm", SPANISH)
+    private val WEEKDAY_DAY = DateTimeFormatter.ofPattern("EEE d", SPANISH)
+    private val DAY_MONTH = DateTimeFormatter.ofPattern("d MMM", SPANISH)
 
     fun explanation(notice: ReceivedNotice): NoticeExplanation =
         NoticeExplanation.explain(notice.payload, notice.isRemote)
@@ -77,5 +80,22 @@ internal object NoticePanel {
                 else -> DAY_YEAR.format(moment)
             }
         return "$prefix, ${HOUR.format(moment)}"
+    }
+
+    /** La hora de la fila (Doop L11): «9:40» hoy, «Ayer», «Vie 31» en la última semana y «28 oct» antes. */
+    fun shortDate(
+        millis: Long,
+        zone: ZoneId = BusinessTime.zone,
+        today: LocalDate = LocalDate.now(zone),
+    ): String {
+        val moment = Instant.ofEpochMilli(millis).atZone(zone)
+        val day = moment.toLocalDate()
+        return when {
+            day == today -> HOUR_SHORT.format(moment)
+            day == today.minusDays(1) -> "Ayer"
+            day.isAfter(today.minusDays(7)) && day.isBefore(today) ->
+                WEEKDAY_DAY.format(moment).replace(".", "").replaceFirstChar { it.titlecase(SPANISH) }
+            else -> DAY_MONTH.format(moment).replace(".", "")
+        }
     }
 }

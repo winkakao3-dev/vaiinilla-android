@@ -25,10 +25,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -73,6 +71,8 @@ import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.domain.time.BusinessTime
+import com.vaiinilla.app.ui.components.ClientCap
+import com.vaiinilla.app.ui.components.ClientPageHeader
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -147,7 +147,12 @@ fun ReservationsScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item(key = "head") {
-                Header(venueName = venueName, dayText = day?.let(::dayHeadline), onBack = onBack, colors = colors)
+                ClientPageHeader(
+                    title = "Renta tu cancha",
+                    subtitle = listOfNotNull(venueName, day?.let(::dayHeadline)).joinToString(" · "),
+                    onBack = onBack,
+                    modifier = Modifier.arrive(0),
+                )
             }
 
             state.error?.let { message ->
@@ -220,7 +225,7 @@ fun ReservationsScreen(
             val mine = state.mine.filter { it.state.isLive || it.state == ReservationState.CONFLICT }
             if (mine.isNotEmpty()) {
                 item(key = "mine-head") {
-                    CapLabel("Mis reservas", colors = colors, modifier = Modifier.padding(start = 4.dp, top = 6.dp))
+                    ClientCap("Mis reservas", modifier = Modifier.padding(start = 4.dp, top = 6.dp))
                 }
                 items(mine, key = { "mine-${it.id}" }) { reservation ->
                     Box(modifier = Modifier.animateItem()) {
@@ -276,48 +281,6 @@ fun ReservationsScreen(
                 // Sin cuenta no hay saldo ni tarjeta: el backend los rechaza para invitados.
                 cardAvailable = cardAvailable && !state.guestMode,
                 balanceAvailable = !state.guestMode,
-            )
-        }
-    }
-}
-
-@Composable
-private fun Header(
-    venueName: String?,
-    dayText: String?,
-    onBack: () -> Unit,
-    colors: VaiinillaColors,
-) {
-    Column(modifier = Modifier.arrive(0)) {
-        Box(
-            modifier =
-                Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(colors.paper2)
-                    .physicalPress(scale = PhysicalPressScale.Small, onClick = onBack)
-                    .semantics { contentDescription = "Volver" },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null, tint = colors.ink, modifier = Modifier.size(18.dp))
-        }
-        Text(
-            "Renta tu cancha",
-            color = colors.ink,
-            fontSize = 30.sp,
-            lineHeight = 34.sp,
-            fontWeight = FontWeight.Black,
-            letterSpacing = (-1.2).sp,
-            modifier = Modifier.padding(start = 4.dp, top = 10.dp),
-        )
-        val subtitle = listOfNotNull(venueName, dayText).joinToString(" · ")
-        if (subtitle.isNotEmpty()) {
-            Text(
-                subtitle,
-                color = colors.muted,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(start = 4.dp, top = 2.dp),
             )
         }
     }
@@ -482,9 +445,8 @@ private fun CourtCard(
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp),
             )
         }
-        CapLabel(
+        ClientCap(
             if (isToday) "O aparta una hora de hoy" else "Elige la hora",
-            colors = colors,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp),
         )
         if (starts.isEmpty()) {
@@ -606,22 +568,6 @@ private fun StatusTag(
 private fun coralInk(colors: VaiinillaColors): Color = if (colors.isDark) Color(0xFFFF8B86) else colors.coral
 
 @Composable
-private fun CapLabel(
-    text: String,
-    colors: VaiinillaColors,
-    modifier: Modifier = Modifier,
-) {
-    Text(
-        text.uppercase(MX),
-        color = colors.muted,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.ExtraBold,
-        letterSpacing = 2.2.sp,
-        modifier = modifier,
-    )
-}
-
-@Composable
 private fun RentNowPill(
     selected: Boolean,
     onClick: () -> Unit,
@@ -738,7 +684,7 @@ private fun DurationRow(
     colors: VaiinillaColors,
 ) {
     Column(modifier = Modifier.padding(top = 16.dp)) {
-        CapLabel("Cuánto tiempo", colors = colors, modifier = Modifier.padding(horizontal = 16.dp))
+        ClientCap("Cuánto tiempo", modifier = Modifier.padding(horizontal = 16.dp))
         LazyRow(
             modifier = Modifier.padding(top = 9.dp),
             contentPadding = PaddingValues(horizontal = 16.dp),

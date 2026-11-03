@@ -14,7 +14,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,7 +29,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Badge
@@ -40,7 +38,6 @@ import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -77,6 +74,10 @@ import com.vaiinilla.app.ui.account.AccountDeletionStatus
 import com.vaiinilla.app.ui.account.AccountDeletionUiState
 import com.vaiinilla.app.ui.components.AuthAccessField
 import com.vaiinilla.app.ui.components.AuthAccessFieldKind
+import com.vaiinilla.app.ui.components.ClientBackButton
+import com.vaiinilla.app.ui.components.ClientCap
+import com.vaiinilla.app.ui.components.ClientCard
+import com.vaiinilla.app.ui.components.ClientCardDivider
 import com.vaiinilla.app.ui.components.EditorialPrimaryButton
 import com.vaiinilla.app.ui.components.EditorialSecondaryButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -155,7 +156,7 @@ fun WalletAccountScreen(
                     .padding(horizontal = 16.dp)
                     .padding(top = 4.dp, bottom = 28.dp),
         ) {
-            AccountRoundButton(
+            ClientBackButton(
                 contentDescription = "Regresar",
                 onClick = {
                     haptics.click()
@@ -167,7 +168,7 @@ fun WalletAccountScreen(
                 email = email,
                 modifier = Modifier.padding(start = 4.dp, top = 10.dp).arrive(index = 0),
             )
-            AccountCard(modifier = Modifier.padding(top = 20.dp).arrive(index = 1)) {
+            ClientCard(modifier = Modifier.padding(top = 20.dp).arrive(index = 1)) {
                 if (signedIn) {
                     AccountRow(
                         title = "Mi código",
@@ -179,7 +180,7 @@ fun WalletAccountScreen(
                             qrOpen = true
                         },
                     )
-                    AccountDivider()
+                    ClientCardDivider()
                 }
                 AccountRow(
                     title = venueName?.takeIf { it.isNotBlank() } ?: "Elige tu cafetería",
@@ -191,7 +192,7 @@ fun WalletAccountScreen(
                     },
                 )
                 if (signedIn && hasStaffModes) {
-                    AccountDivider()
+                    ClientCardDivider()
                     AccountRow(
                         title = "Modos de personal",
                         subtitle = staffModesLine(deletionWarnings.staffRoles, venueName),
@@ -200,7 +201,7 @@ fun WalletAccountScreen(
                     )
                 }
             }
-            AccountCap("Apariencia", modifier = Modifier.padding(start = 4.dp, top = 24.dp, bottom = 10.dp).arrive(index = 2))
+            ClientCap("Apariencia", modifier = Modifier.padding(start = 4.dp, top = 24.dp, bottom = 10.dp).arrive(index = 2))
             ThemeTiles(
                 current = currentMode,
                 onSelect = { mode ->
@@ -209,7 +210,7 @@ fun WalletAccountScreen(
                 },
                 modifier = Modifier.arrive(index = 2),
             )
-            AccountCard(modifier = Modifier.padding(top = 20.dp).arrive(index = 3)) {
+            ClientCard(modifier = Modifier.padding(top = 20.dp).arrive(index = 3)) {
                 if (signedIn && onOpenNotices != null) {
                     AccountRow(
                         title = "Avisos recibidos",
@@ -219,7 +220,7 @@ fun WalletAccountScreen(
                             onOpenNotices()
                         },
                     )
-                    AccountDivider()
+                    ClientCardDivider()
                 }
                 AccountRow(
                     title = "Ayuda y soporte",
@@ -371,55 +372,6 @@ private fun AccountHeader(
         }
     }
 }
-
-@Composable
-private fun AccountRoundButton(
-    contentDescription: String,
-    onClick: () -> Unit,
-) {
-    val colors = LocalVaiinillaColors.current
-    Box(
-        modifier =
-            Modifier
-                .size(40.dp)
-                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
-                .clip(CircleShape)
-                .background(colors.paper2)
-                .semantics { this.contentDescription = contentDescription },
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null, tint = colors.ink, modifier = Modifier.size(18.dp))
-    }
-}
-
-@Composable
-private fun AccountCap(
-    text: String,
-    modifier: Modifier = Modifier,
-) {
-    Text(
-        text.uppercase(),
-        color = LocalVaiinillaColors.current.muted,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.ExtraBold,
-        letterSpacing = 2.2.sp,
-        modifier = modifier,
-    )
-}
-
-@Composable
-private fun AccountCard(
-    modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Column(
-        modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(LocalVaiinillaColors.current.paper2),
-        content = content,
-    )
-}
-
-@Composable
-private fun AccountDivider() = HorizontalDivider(color = LocalVaiinillaColors.current.line, thickness = 1.dp)
 
 /** Una fila de Cuenta (Doop E12): ícono en su cuadro, título, la línea de abajo y la flecha. */
 @Composable
@@ -629,7 +581,7 @@ private fun LegalRows(
         animationSpec = if (reduced) snap() else spring(dampingRatio = 0.7f, stiffness = 500f),
         label = "legal-chevron",
     )
-    AccountDivider()
+    ClientCardDivider()
     AccountRow(
         title = "Términos y privacidad",
         icon = Icons.Outlined.Description,
@@ -645,7 +597,7 @@ private fun LegalRows(
     ) {
         Column {
             rows.forEach { (title, url) ->
-                AccountDivider()
+                ClientCardDivider()
                 AccountRow(title = title, indent = true, onClick = { runCatching { uriHandler.openUri(url) } })
             }
         }

@@ -151,6 +151,23 @@ class NoticePanelTest {
     }
 
     @Test
+    fun rowDatesAreShort() {
+        val today = LocalDate.of(2026, 11, 3)
+
+        fun at(
+            day: Int,
+            month: Int = 11,
+            hour: Int = 9,
+        ) = ZonedDateTime.of(2026, month, day, hour, 40, 0, 0, zone).toInstant().toEpochMilli()
+
+        assertEquals("9:40", NoticePanel.shortDate(at(3), zone, today))
+        assertEquals("Ayer", NoticePanel.shortDate(at(2), zone, today))
+        assertEquals("Sáb 31", NoticePanel.shortDate(at(31, 10), zone, today))
+        assertEquals("Mié 28", NoticePanel.shortDate(at(28, 10), zone, today))
+        assertEquals("27 oct", NoticePanel.shortDate(at(27, 10), zone, today))
+    }
+
+    @Test
     fun candidatesKeepEveryCashierMode() {
         val modes =
             (1..8).map {

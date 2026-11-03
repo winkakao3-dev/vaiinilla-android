@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -28,6 +27,31 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.DeliveryDining
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.PointOfSale
+import androidx.compose.material.icons.outlined.Restaurant
+import androidx.compose.material.icons.outlined.RoomService
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.ShoppingBag
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import com.vaiinilla.app.ui.components.ClientCap
+import com.vaiinilla.app.ui.components.ClientCard
+import com.vaiinilla.app.ui.components.ClientCardDivider
+import com.vaiinilla.app.ui.components.ClientPageHeader
+import com.vaiinilla.app.ui.screens.walletTile
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
@@ -52,7 +76,6 @@ import com.vaiinilla.app.ui.components.ChoiceChip
 import com.vaiinilla.app.ui.components.EditorialSecondaryButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.WalletScreenShell
-import com.vaiinilla.app.ui.components.WalletSubflowTopBar
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
@@ -103,69 +126,76 @@ internal fun ReceivedNoticesContent(
     // Si el negocio elegido ya no tiene avisos (se borró el historial), se ven todos.
     val activeBusiness = business?.takeIf { chosen -> chips.any { it.first == chosen } }
     val shown = remember(notices, activeBusiness) { NoticePanel.ordered(NoticePanel.filter(notices, activeBusiness)) }
+    val (pending, earlier) = remember(shown) { shown.partition(NoticePanel::isPending) }
 
     WalletScreenShell(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            WalletSubflowTopBar(
-                title = "Avisos recibidos",
-                onBack = {
-                    haptics.click()
-                    onBack()
-                },
-            )
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 28.dp),
+        ) {
+            item(key = "head") {
+                ClientPageHeader(
+                    title = "Avisos recibidos",
+                    subtitle = "Cada aviso que llegó a este teléfono",
+                    onBack = {
+                        haptics.click()
+                        onBack()
+                    },
+                    modifier = Modifier.arrive(index = 0),
+                )
+            }
             if (notices.isEmpty()) {
-                EmptyNotices(colors)
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().navigationBarsPadding(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(20.dp),
-                ) {
-                    item {
-                        Text(
-                            "Cada aviso que llegó a este teléfono. Tócalo para ver qué es, de qué negocio y pedido, " +
-                                "quién lo provocó y por qué te llegó.",
-                            color = colors.muted,
-                            fontSize = 14.sp,
-                            lineHeight = 19.sp,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp).arrive(index = 0),
-                        )
-                    }
-                    if (chips.size > 1) {
-                        item {
-                            BusinessChips(
-                                chips = chips,
-                                total = notices.size,
-                                selected = activeBusiness,
-                                onSelect = {
-                                    haptics.click()
-                                    business = it
-                                },
-                            )
+                item(key = "empty") { EmptyNotices(colors) }
+            }
+            if (chips.size > 1) {
+                item(key = "chips") {
+                    BusinessChips(
+                        chips = chips,
+                        total = notices.size,
+                        selected = activeBusiness,
+                        onSelect = {
+                            haptics.click()
+                            business = it
+                        },
+                        modifier = Modifier.padding(top = 16.dp),
+                    )
+                }
+            }
+            val groups = listOf("Pendientes" to pending, "Anteriores" to earlier).filter { it.second.isNotEmpty() }
+            groups.forEachIndexed { groupIndex, (label, group) ->
+                item(key = "group-$label") {
+                    Column(modifier = Modifier.padding(top = 18.dp).arrive(index = groupIndex + 1, key = label)) {
+                        // Sin pendientes, el único grupo no necesita nombre.
+                        if (pending.isNotEmpty()) {
+                            ClientCap(label, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp))
+                        }
+                        ClientCard {
+                            group.forEachIndexed { index, notice ->
+                                LaunchedEffect(notice.id) { onResolve(notice) }
+                                if (index > 0) ClientCardDivider()
+                                NoticeRow(
+                                    notice = notice,
+                                    pending = label == "Pendientes",
+                                    searching = notice.id in searching,
+                                    colors = colors,
+                                    onClick = {
+                                        haptics.click()
+                                        openId = notice.id
+                                    },
+                                )
+                            }
                         }
                     }
-                    itemsIndexed(shown, key = { _, notice -> notice.id }) { index, notice ->
-                        LaunchedEffect(notice.id) { onResolve(notice) }
-                        NoticeRow(
-                            notice = notice,
-                            searching = notice.id in searching,
-                            colors = colors,
-                            modifier = Modifier.arrive(index = (index + 1).coerceAtMost(8), key = notice.id),
-                            onClick = {
-                                haptics.click()
-                                openId = notice.id
-                            },
-                        )
-                    }
-                    item {
-                        TextButton(
-                            onClick = { confirmClear = true },
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        ) {
+                }
+            }
+            if (notices.isNotEmpty()) {
+                item(key = "clear") {
+                    Column(modifier = Modifier.fillMaxWidth().padding(top = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        TextButton(onClick = { confirmClear = !confirmClear }) {
                             Text(
                                 if (confirmClear) "Toca otra vez para borrar el historial" else "Borrar el historial",
                                 color = if (confirmClear) colors.coral else colors.muted,
-                                fontWeight = FontWeight.SemiBold,
+                                fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
                             )
                         }
@@ -176,7 +206,6 @@ internal fun ReceivedNoticesContent(
                                     confirmClear = false
                                     onClear()
                                 },
-                                modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text("Sí, borrar", color = colors.coral, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             }
@@ -186,7 +215,6 @@ internal fun ReceivedNoticesContent(
             }
         }
     }
-
     val open = notices.firstOrNull { it.id == openId }
     if (open != null) {
         ModalBottomSheet(
@@ -209,17 +237,15 @@ internal fun ReceivedNoticesContent(
 
 @Composable
 private fun EmptyNotices(colors: VaiinillaColors) {
-    Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.arrive(index = 0)) {
-            Text("Sin avisos todavía", color = colors.ink, fontSize = 20.sp, fontWeight = FontWeight.Black)
-            Text(
-                "Aquí se guarda cada aviso que llega a este teléfono desde ahora, para que veas de dónde viene.",
-                color = colors.muted,
-                fontSize = 14.sp,
-                lineHeight = 19.sp,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        }
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 48.dp).arrive(index = 1)) {
+        Text("Sin avisos todavía", color = colors.ink, fontSize = 20.sp, fontWeight = FontWeight.Black)
+        Text(
+            "Aquí se guarda cada aviso que llega a este teléfono desde ahora, para que veas de dónde viene.",
+            color = colors.muted,
+            fontSize = 14.sp,
+            lineHeight = 19.sp,
+            modifier = Modifier.padding(top = 8.dp),
+        )
     }
 }
 
@@ -229,9 +255,10 @@ private fun BusinessChips(
     total: Int,
     selected: String?,
     onSelect: (String?) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).arrive(index = 1),
+        modifier = modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).arrive(index = 1),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         ChoiceChip(label = "Todos · $total", selected = selected == null, onClick = { onSelect(null) })
@@ -241,86 +268,105 @@ private fun BusinessChips(
     }
 }
 
-@Composable
-private fun NoticeRow(
-    notice: ReceivedNotice,
-    searching: Boolean,
-    colors: VaiinillaColors,
-    modifier: Modifier,
-    onClick: () -> Unit,
-) {
-    val explanation = remember(notice.id) { NoticeExplanation.explain(notice.payload, notice.isRemote) }
-    val pending = explanation.isPending(notice.lookup)
-    val order = (notice.lookup as? NoticeLookup.Found)?.order
-    val business = NoticePanel.business(notice)
-    Column(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(colors.paper2)
-                .physicalPress(scale = PhysicalPressScale.Nav, onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                explanation.kind.uppercase(),
-                color = colors.muted,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.8.sp,
-                modifier = Modifier.weight(1f),
-            )
-            Text(NoticePanel.date(notice.receivedAtMillis), color = colors.muted, fontSize = 12.sp)
-        }
-        if (pending) {
-            Text(
-                "PENDIENTE · ${order?.status.orEmpty()}",
-                color = colors.coral,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.8.sp,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-        }
-        Text(
-            notice.title,
-            color = colors.ink,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(top = 4.dp),
-        )
-        if (notice.body.isNotBlank()) {
-            Text(notice.body, color = colors.ink2, fontSize = 14.sp, lineHeight = 18.sp)
-        }
-        val pushTotal = notice.payload["total"]?.let { "$" + it.removeSuffix(".00") }
-        val pushFolio = notice.payload["folio"]?.let { "#$it" }
-        val orderLine =
-            when {
-                order != null -> "${order.establishmentName} · #${order.folio} · ${order.total}"
-                business != null -> listOfNotNull(business, pushFolio, pushTotal).joinToString(" · ")
-                searching -> "Buscando el pedido…"
-                else -> null
+/** El ícono de la fila según lo que es el aviso. */
+private fun noticeIcon(notice: ReceivedNotice): ImageVector {
+    val alert = notice.payload["alert"].orEmpty()
+    return when (notice.payload["type"]) {
+        "staff_alert" ->
+            when (alert) {
+                "por_cobrar" -> Icons.Outlined.PointOfSale
+                "nueva_comanda" -> Icons.Outlined.Restaurant
+                "listo_mesero" -> Icons.Outlined.RoomService
+                "llamada_mesa" -> Icons.Outlined.NotificationsActive
+                "turno_por_terminar" -> Icons.Outlined.Schedule
+                "pedido_domicilio" -> Icons.Outlined.DeliveryDining
+                else -> Icons.Outlined.ShoppingBag
             }
-        orderLine?.let {
-            Text(
-                it,
-                color = colors.ink,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 6.dp),
-            )
-        }
-        NoticePanel.customer(notice)?.let { Text("Lo pidió $it", color = colors.ink2, fontSize = 13.sp) }
-        Text(
-            notice.arrivals.joinToString(" · ") { it.label },
-            color = colors.muted,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(top = 6.dp),
-        )
+        "order_state" -> Icons.AutoMirrored.Outlined.ReceiptLong
+        "saldo_bajo", "recarga_acreditada" -> Icons.Outlined.AccountBalanceWallet
+        "mesero_en_camino" -> Icons.AutoMirrored.Outlined.DirectionsWalk
+        else -> Icons.Outlined.Notifications
     }
 }
 
+/** Una fila del lienzo L11: el ícono en su cuadro, el aviso, su negocio y lo que dice, y la hora. */
+@Composable
+private fun NoticeRow(
+    notice: ReceivedNotice,
+    pending: Boolean,
+    searching: Boolean,
+    colors: VaiinillaColors,
+    onClick: () -> Unit,
+) {
+    val business = NoticePanel.business(notice)
+    val subtitle =
+        listOfNotNull(business, notice.body.takeIf { it.isNotBlank() })
+            .joinToString(" · ")
+            .ifEmpty { if (searching) "Buscando el pedido…" else NoticePanel.explanation(notice).kind }
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 64.dp)
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 13.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(if (pending) colors.accent.copy(alpha = 0.18f) else walletTile(colors)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                noticeIcon(notice),
+                contentDescription = null,
+                tint = if (pending) colors.accent else colors.ink2,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                notice.title,
+                color = colors.ink,
+                fontSize = 15.sp,
+                lineHeight = 19.sp,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                subtitle,
+                color = colors.muted,
+                fontSize = 13.sp,
+                lineHeight = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        Row(
+            modifier = Modifier.padding(top = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(NoticePanel.shortDate(notice.receivedAtMillis), color = colors.muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            if (pending) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(colors.coral)
+                            .semantics { contentDescription = "Pendiente" },
+                )
+            }
+        }
+    }
+}
 @Composable
 private fun NoticeDetail(
     notice: ReceivedNotice,
@@ -350,6 +396,9 @@ private fun NoticeDetail(
                 modifier = Modifier.padding(top = 4.dp),
             )
             if (notice.body.isNotBlank()) Text(notice.body, color = colors.ink2, fontSize = 15.sp)
+            if (notice.lookup !is NoticeLookup.Found) {
+                NoticePanel.customer(notice)?.let { Text("Lo pidió $it", color = colors.ink2, fontSize = 15.sp) }
+            }
             val source = if (notice.isRemote) "del servidor" else "de esta app"
             Text(
                 "${NoticePanel.date(notice.receivedAtMillis)} · $source",

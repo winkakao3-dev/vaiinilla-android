@@ -11,6 +11,7 @@ import com.vaiinilla.app.core.notifications.NoticeOrderSummary
 import com.vaiinilla.app.core.notifications.NoticePhoneContext
 import com.vaiinilla.app.core.notifications.ReceivedNotice
 import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.ui.notices.ReceivedNoticesContent
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import org.junit.Rule
@@ -67,6 +68,7 @@ class ReceivedNoticesScreenshotTest {
                             space = null,
                             items = listOf("1 × Tacos de birria", "1 × Agua de jamaica"),
                             createdAt = "2026-10-31T18:20:00Z",
+                            stateWire = OrderState.PENDING_PAYMENT.wireValue,
                         ),
                         checkedAtMillis = 1_793_480_100_000,
                     ),
@@ -102,6 +104,17 @@ class ReceivedNoticesScreenshotTest {
         }
         composeTestRule.mainClock.advanceTimeBy(1_500)
         composeTestRule.onRoot().captureRoboImage("90_avisos_recibidos_lista.png")
+    }
+
+    @Test
+    fun `avisos recibidos como el dibujo de Doop`() {
+        composeTestRule.setContent {
+            ScreenshotTheme(mode = VaiinillaThemeMode.Dark) {
+                ReceivedNoticesContent(notices, emptySet(), onBack = {}, onLookUp = {}, onClear = {})
+            }
+        }
+        composeTestRule.mainClock.advanceTimeBy(1_500)
+        composeTestRule.onRoot().captureRoboImage("lugar/l11_avisos.png")
     }
 
     @Test
