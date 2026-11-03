@@ -561,6 +561,14 @@ private fun CallStatusContent(
             overflow = TextOverflow.Ellipsis,
         )
     }
+    if (canCancelMenuCall(call)) {
+        Text(
+            "Si lo cancelas, puedes volver a llamarlo enseguida.",
+            color = colors.muted,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+        )
+    }
     Row(modifier = Modifier.fillMaxWidth().padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         if (canCancelMenuCall(call)) {
             SeaGlassButton(
